@@ -105,6 +105,21 @@ module LibraBFT
 
   hashR = hash ∘ encodeR
 
+  -- 4.7. Mathematical Notations --------------------------------
+
+  -- Definition of R₁ ← R₂
+  _←_ : Hash → Record → Set
+  h ← block b = h ≡ Block.prevQCHash b
+  h ← qc    q = h ≡ QC.blockHash q
+
+  -- Definition of R₁ ←⋆ R₂
+  -- Termination check problem
+
+  data _←⋆_ (h : Hash) (r : Record) : Set where
+    h←   : (h ← r) → h ←⋆ r
+    _←₊_ : {rₓ : Record} → (h ←⋆ rₓ) → (hashR rₓ ← r) → h ←⋆ r
+
+
 ----------------------------------------------------------------
 
 
@@ -143,40 +158,18 @@ module LibraBFT
            × All (_≡_ (hashR (block b)))
                   (List-map (Vote.blockHash) (QC.votes q)) )
 
-
-  -- 4.7. Mathematical Notations --------------------------------
-
-  -- Definition of R₁ ← R₂
-  _←_ : Hash → Record → Set
-  h ← block b = h ≡ Block.prevQCHash b
-  h ← qc    q = h ≡ QC.blockHash q
-
-  -- Definition of R₁ ←⋆ R₂
-  -- Termination check problem
-
-  {-# TERMINATING #-}
-  _←⋆_ : Hash → Record → Set
-  h ←⋆ r = (h ← r) ⊎ (∃[ r₁ ] (h ←⋆ r₁ × (hashR r₁) ← r))
-
-  {-
-  _←⋆_ : {hᵢ : HInit} {rec : Record} {rs : RecordStore hᵢ}
-         → Hash → Valid rec rs → Set
-  _←⋆_ {hᵢ} {block b} {empty} h r = hᵢ ≡ Block.prevQCHash b
-  _←⋆_ {hᵢ} {block b} {insert rs r v} h ⟨ q , ⟨ vQ , ⟨ q←b  , snd ⟩ ⟩ ⟩
-    =   {!!} × {!!} --∃[ r₁ ] ((hashR r₁) ← (qc q) × h ←⋆ v)
-  _←⋆_ {hᵢ} {qc x₁} {insert rs r₁ x} h r = {!!}
-  -}
-
   -- Lemma S₁ ---------------------------------------------------
 
   hᵢ←⋆R : ∀ {hᵢ : HInit} {r : Record} {rs : RecordStore hᵢ}
             (v : Valid r rs)
           → hᵢ ←⋆ r
-  hᵢ←⋆R {hᵢ} {block b} {empty}         hᵢ≡hb = inj₁ hᵢ≡hb
-  hᵢ←⋆R {hᵢ} {block b} {insert rs r p} ⟨ q , ⟨ vQ , ⟨ hq≡hb , snd ⟩ ⟩ ⟩
-      = inj₂ ⟨ (qc q) , ⟨ hᵢ←⋆R vQ , hq≡hb ⟩ ⟩
-  hᵢ←⋆R {hᵢ} {qc x}    {insert rs r x₁} ⟨ b , ⟨ vB , ⟨ hb≡hq , snd ⟩ ⟩ ⟩
-      = inj₂ ⟨ (block b) , ⟨ (hᵢ←⋆R vB) , hb≡hq ⟩ ⟩
+  hᵢ←⋆R {hᵢ} {block b} {empty}         hᵢ≡hb = h← hᵢ≡hb
+  hᵢ←⋆R {hᵢ} {block b} {insert rs r p} v
+    with v
+  ... | ⟨ q , ⟨ vQ , ⟨ hq≡hb , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vQ ←₊ hq≡hb
+  hᵢ←⋆R {hᵢ} {qc x}    {insert rs r x₁} v
+    with v
+  ... | ⟨ b , ⟨ vB , ⟨ hq≡hb , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vB ←₊ hq≡hb
 
 
   ←inj : ∀ {r₀ r₁ r₂ : Record} → (hashR r₀ ← r₂) → (hashR r₁ ← r₂)
@@ -201,22 +194,8 @@ module LibraBFT
                  → hashR r₀ ←⋆ r₂ × hashR r₁ ←⋆ r₂
                  → round r₀ < round r₁
                  → (hashR r₀ ←⋆ r₁) ⊎ HashBroke
-  round-mono vr₀ vr₁ vr₂ ⟨ inj₁ r₀←b₂ , inj₁ b₁←b₂ ⟩ rr₀<rr = {!!}
-  --  with (←inj r₀←b₂ b₁←b₂)
-  --...| x = ?
-  round-mono {r₁ = block b₁} {block b₂} vr₀ vr₁ vr₂ ⟨ inj₂ y , inj₁ h←r ⟩ rr₀<rr = {!!}
-  round-mono {r₁ = qc x} {block b} vr₀ vr₁ vr₂ ⟨ r₀←⋆r₂ , inj₁ h←r ⟩ rr₀<rr = {!!}
-  round-mono {r₂ = qc x} vr₀ vr₁ vr₂ ⟨ r₀←⋆r₂ , inj₁ h←r ⟩ rr₀<rr = {!!}
-  round-mono vr₀ vr₁ vr₂ ⟨ r₀←⋆r₂ , inj₂ y ⟩ rr₀<rr = {!!}
+  round-mono = {!!}
 
-  {-
-  round-mono vr₀ vr₁ vr₂ (inj₁ r₀←r₂) (inj₁ r₁←r₂) rr₀<r = ?
-  --  with (←inj r₀←r₂ r₁←r₂)
-  --...| inj₁ x = {!!}
-  ...| inj₂ y = ?
-  round-mono vr₀ vr₁ vr₂ (inj₁ x) (inj₂ y) rr₀<r = {!!}
-  round-mono vr₀ vr₁ vr₂ (inj₂ y) (r₁←r₂) rr₀<r = {!!}
-  -}
 ----------------------------------------------------------------
 
 
