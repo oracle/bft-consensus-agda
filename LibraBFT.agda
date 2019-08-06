@@ -1,4 +1,5 @@
 open import Data.Nat
+open import Data.Nat.Properties
 open import Data.List renaming (map to List-map)
 open import Relation.Binary.PropositionalEquality
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
@@ -8,6 +9,8 @@ open import Data.List.Any
 open import Data.List.All
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
+open import Relation.Nullary using (¬_)
+open import Relation.Nullary.Negation using (contradiction; contraposition)
 
 
 open import Hash
@@ -48,9 +51,6 @@ module LibraBFT
   Signature : Set
   Signature = Hash
 
-  HInit : Set
-  HInit = QCHash
-
   State : Set
   State = Hash
 
@@ -89,35 +89,44 @@ module LibraBFT
       author    : Author
 
   data Record : Set where
-    block : Block   → Record
-    qc    : QC      → Record
+    B  : Block   → Record
+    Qc : QC      → Record
     -- vote    : Vote    → Record
     -- timeout : Timeout → Record
 
   round : Record → Round
-  round (block b) = Block.round b
-  round (qc q)    = QC.round q
+  round (B b)  = Block.round b
+  round (Qc q) = QC.round q
+
+  prevHash : Record → Hash
+  prevHash (B b)  = Block.prevQCHash b
+  prevHash (Qc q) = QC.blockHash q
+
+  round≢→r₀≢r₁ : ∀ {r₀ r₁ : Record} → round r₀ ≢ round r₁ → r₀ ≢ r₁
+  round≢→r₀≢r₁ x refl = x refl
+  -- round≢→r₀≢r₁ {Qc x₂} {Qc .x₂} x refl = {!!}
 
  -- Hash Functions ---------------------------------
   postulate
     encodeR     : Record → ByteString
     encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
 
-  hashR = hash ∘ encodeR
+  HashR = hash ∘ encodeR
+
+  postulate
+    hashR-irreflexive : ∀ {r : Record} → HashR r ≢ prevHash r
+
 
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
   _←_ : Hash → Record → Set
-  h ← block b = h ≡ Block.prevQCHash b
-  h ← qc    q = h ≡ QC.blockHash q
-
-  -- Definition of R₁ ←⋆ R₂
-  -- Termination check problem
+  h ← B  b = h ≡ Block.prevQCHash b
+  h ← Qc q = h ≡ QC.blockHash q
 
   data _←⋆_ (h : Hash) (r : Record) : Set where
-    h←   : (h ← r) → h ←⋆ r
-    _←₊_ : {rₓ : Record} → (h ←⋆ rₓ) → (hashR rₓ ← r) → h ←⋆ r
+    h←  : (h ← r) → h ←⋆ r
+    _←⁺_ : {rₓ : Record} → (h ←⋆ rₓ) → (HashR rₓ ← r) → h ←⋆ r
 
 
 ----------------------------------------------------------------
@@ -130,71 +139,100 @@ module LibraBFT
      in a given epoch
    - Does not include constraints : 1, 5, 6, 7 and 8
    -}
-  data RecordStore (h : HInit) :  Set
+  data RecordStore (h : Hash) : Set
 
-  Valid : {h : HInit} → Record → RecordStore h → Set
+  Valid : {hᵢ : Hash} → Record → RecordStore hᵢ → Set
 
-  data RecordStore h where
-    empty  : RecordStore h
-    insert : (s : RecordStore h) (r : Record)
-            → Valid r s → RecordStore h
+  data RecordStore qcᵢ where
+    empty  : RecordStore qcᵢ
+    insert : (s : RecordStore qcᵢ) (r : Record)
+            → Valid r s → RecordStore qcᵢ
 
   {- For now I am not including in the validation the Hash of the states
    - No constraint about no dup qc elements
    -}
-  Valid {h} (block b) empty           = h ≡ Block.prevQCHash b
-  Valid {h} (block b) (insert rs r x) =
-    ∃[ q ] ( Valid (qc q) rs
-           × (hashR (qc q) ≡ Block.prevQCHash b)
-           × ∃[ prevB ] ( Valid (block prevB) rs
-                        × QC.blockHash q ≡ hashR (block prevB)
+  Valid {hᵢ} (B b) empty           = hᵢ ← B b
+  Valid {qcᵢ} (B b) (insert rs r x) =
+    ∃[ q ] ( Valid (Qc q) rs
+           × HashR (Qc q) ← B b
+           × ∃[ prevB ] ( Valid (B prevB) rs
+                        × HashR (B prevB) ← Qc q
                         × Block.round prevB < Block.round b) )
 
-  Valid (qc q) empty                  = ⊥
-  Valid (qc q) (insert rs r x)        =
-    ∃[ b ] ( Valid (block b) rs
-           × hashR (block b) ≡ QC.blockHash q
+  Valid (Qc q) empty                  = ⊥
+  Valid (Qc q) (insert rs r x)        =
+    ∃[ b ] ( Valid (B b) rs
+           × HashR (B b) ← Qc q
            × QC.round q ≡ Block.round b
-           × All (_≡_ (hashR (block b)))
+           × All (_≡_ (HashR (B b)))
                   (List-map (Vote.blockHash) (QC.votes q)) )
+
 
   -- Lemma S₁ ---------------------------------------------------
 
-  hᵢ←⋆R : ∀ {hᵢ : HInit} {r : Record} {rs : RecordStore hᵢ}
+  hᵢ←⋆R : ∀ {hᵢ : Hash} {r : Record} {rs : RecordStore hᵢ}
             (v : Valid r rs)
           → hᵢ ←⋆ r
-  hᵢ←⋆R {hᵢ} {block b} {empty}         hᵢ≡hb = h← hᵢ≡hb
-  hᵢ←⋆R {hᵢ} {block b} {insert rs r p} v
+  hᵢ←⋆R {qᵢ} {B b}  {empty}         v = h← v
+  hᵢ←⋆R {qᵢ} {B b}  {insert rs r x} v
     with v
-  ... | ⟨ q , ⟨ vQ , ⟨ hq≡hb , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vQ ←₊ hq≡hb
-  hᵢ←⋆R {hᵢ} {qc x}    {insert rs r x₁} v
+  ... | ⟨ q , ⟨ vQ , ⟨ q←b , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vQ ←⁺ q←b
+  hᵢ←⋆R {qᵢ} {Qc q} {insert rs r x} v
     with v
-  ... | ⟨ b , ⟨ vB , ⟨ hq≡hb , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vB ←₊ hq≡hb
+  ... | ⟨ b , ⟨ vB , ⟨ b←q , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vB ←⁺ b←q
 
 
-  ←inj : ∀ {r₀ r₁ r₂ : Record} → (hashR r₀ ← r₂) → (hashR r₁ ← r₂)
+
+  ←inj : ∀ {r₀ r₁ r₂ : Record} → (HashR r₀ ← r₂) → (HashR r₁ ← r₂)
            → r₀ ≡ r₁ ⊎ HashBroke
-  ←inj {r₀} {r₁} {block b} hr₀≡phb hr₁≡phb
-    with hash-cr (trans hr₀≡phb (sym hr₁≡phb))
-  ... | inj₁ ⟨ er₀≢er₁ , hr₀≡hr₁ ⟩ =
-             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , hr₀≡hr₁ ⟩ ⟩
+  ←inj {r₀} {r₁} {B b}  r₀←r₂ r₁←r₂
+    with hash-cr (trans r₀←r₂ (sym r₁←r₂))
+  ... | inj₁ ⟨ er₀≢er₁ , r₀←r₁ ⟩ =
+             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , r₀←r₁ ⟩ ⟩
   ... | inj₂ er₀≡er₁ = inj₁ (encodeR-inj er₀≡er₁)
 
-  ←inj {r₀} {r₁} {qc q}    hr₀≡phb hr₁≡phb
-    with hash-cr (trans hr₀≡phb (sym hr₁≡phb))
-  ... | inj₁ ⟨ er₀≢er₁ , hr₀≡hr₁ ⟩ =
-             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , hr₀≡hr₁ ⟩ ⟩
+  ←inj {r₀} {r₁} {Qc q} r₀←r₂ r₁←r₂
+    with hash-cr (trans r₀←r₂ (sym r₁←r₂))
+  ... | inj₁ ⟨ er₀≢er₁ , r₀←r₁ ⟩ =
+             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , r₀←r₁ ⟩ ⟩
   ... | inj₂ er₀≡er₁ = inj₁ (encodeR-inj er₀≡er₁)
 
 
+  --≡⇒≤ : ∀ {m n} → m ≡ n → m ≤ n
+  --≡⇒≤ {zero} {zero} x = z≤n
+  --≡⇒≤ {suc m} {suc n} x = s≤s (≡⇒≤ (suc-injective x))
+
+  r₀←⋆r₁→rr₀≤rr₁ : {hᵢ : Hash} {r₀ r₁ : Record} {rs : RecordStore hᵢ}
+                 → Valid r₀ rs → Valid r₁ rs
+                 → HashR r₀ ←⋆ r₁
+                 → round r₀ ≤ round r₁
+  r₀←⋆r₁→rr₀≤rr₁ {r₀ = B x₃} {B x₄} {empty} vr₀ vr₁ (h← x) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {r₀ = B x₃} {B x₄} {empty} vr₀ vr₁ (x₂ ←⁺ x) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {hᵢ} {r₀} {r₁} {insert rs r x₃} x x₁ x₂ = {!!}
 
 
-  round-mono : ∀  {hᵢ : HInit} {r₀ r₁ r₂ : Record} {rs : RecordStore hᵢ}
-                 → Valid r₀ rs → Valid r₁ rs → Valid r₂ rs
-                 → hashR r₀ ←⋆ r₂ × hashR r₁ ←⋆ r₂
+  round-mono : ∀  {hᵢ : Hash} {r₀ r₁ r₂ : Record} {rs : RecordStore hᵢ}
+                  (v₀ : Valid r₀ rs) (v₁ : Valid r₁ rs) (v₂ : Valid r₂ rs)
+                 → HashR r₀ ←⋆ r₂ → HashR r₁ ←⋆ r₂
                  → round r₀ < round r₁
-                 → (hashR r₀ ←⋆ r₁) ⊎ HashBroke
-  round-mono = {!!}
+                 → (HashR r₀ ←⋆ r₁) ⊎ HashBroke
+  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (h← r₀←r₂) (h← r₁←r₂) rr₀<rr₁
+    with ←inj r₀←r₂ r₁←r₂
+  ... | inj₁ refl =  ⊥-elim (<⇒≢ rr₀<rr₁ refl)
+  ... | inj₂ hashBroke = inj₂ hashBroke
+  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (h← r₀←r₂) (r₁←⋆rₓ ←⁺ rₓ←r₂) rr₀<rr₁
+    with ←inj r₀←r₂ rₓ←r₂
+  ... | inj₁ r₀≡rₓ =
+        let r₁≤r₀ = r₀←⋆r₁→rr₀≤rr₁ v₁ v₀ (subst (HashR r₁ ←⋆_) (sym r₀≡rₓ) r₁←⋆rₓ)
+        in ⊥-elim (≤⇒≯ r₁≤r₀ rr₀<rr₁)
+  ... | inj₂ hashBroke = inj₂ hashBroke
+  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (r₀←⋆rₓ ←⁺ rₓ←r₂) (h← r₁←r₂) rr₀<rr
+    with ←inj r₁←r₂ rₓ←r₂
+  ... | inj₁ r₁≡rₓ = inj₁ (subst (HashR r₀ ←⋆_) (sym r₁≡rₓ) r₀←⋆rₓ)
+  ... | inj₂ hashbroke = inj₂ hashbroke
+  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (r₀←⋆rₓ ←⁺ rₓ←r₂) (r₁←⋆rₓ₁ ←⁺ rₓ₁←r₂) rr₀<rr = {!!}
+
+
 
 ----------------------------------------------------------------
 
@@ -204,7 +242,7 @@ module LibraBFT
   record RecordStoreState : Set where
     field
       epoch     : EpochId
-      hᵢ        : HInit
+      hᵢ        : Hash
       recStore  : RecordStore hᵢ
       curRound  : Round
       highQCR   : Round
@@ -223,3 +261,4 @@ module LibraBFT
       recStore  : RecordStoreState
       lockRound : Round
       -- latestVotedRound : Round
+
