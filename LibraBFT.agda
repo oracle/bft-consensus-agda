@@ -143,7 +143,7 @@ module LibraBFT
   Valid : {qcᵢ : QC} → Record → RecordStore qcᵢ → Set
 
   data RecordStore qcᵢ where
-    empty  : RecordStore qcᵢ
+    empty  : round (Qc qcᵢ) ≡ 0 → RecordStore qcᵢ
     insert : {r : Record} (s : RecordStore qcᵢ)
              → Valid r s → RecordStore qcᵢ
 
@@ -153,9 +153,43 @@ module LibraBFT
            → r ∈Rs s
            → r ∈Rs (insert s v)
 
-  Valid {qᵢ} (B b) empty         = Qc qᵢ ← B b
-  Valid      (B b) (insert rs v) = ∃[ q ] ( q ∈Rs rs × q ← B b × round q < round (B b) )
-  Valid     (Qc q) rs    = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
+  Valid {qᵢ} (B b)  (empty x)     = Qc qᵢ ← B b × round (Qc qᵢ) < round (B b)
+  Valid      (B b)  (insert rs v) = ∃[ q ] ( q ∈Rs (insert rs v) × q ← B b × round q < round (B b) )
+  Valid      (Qc q) rs            = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
+
+
+
+-- Lemma S₁ ---------------------------------------------------
+
+  -- 1
+  hᵢ←⋆R : ∀ {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
+          → r ∈Rs s
+          → (Qc qᵢ) ←⋆ r
+  hᵢ←⋆R {qᵢ} {B b}  {insert (empty x) v}    (here (empty x) v) = ss0 (proj₁ v)
+  hᵢ←⋆R {qᵢ} {B b}  {insert (insert s x) v} (here (insert s x) v)
+    with v
+  ... |       ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = let qᵢ←q = hᵢ←⋆R q∈rs
+                                                 in ssr qᵢ←q q←B
+  hᵢ←⋆R {qᵢ} {Qc q} {insert s v} (here s v)
+    with v
+  ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = let qᵢ←b = hᵢ←⋆R b∈rs
+                                                 in ssr qᵢ←b b←Q
+  hᵢ←⋆R {qᵢ} {r} {insert s v} (there r' s v x) = hᵢ←⋆R x
+
+
+  -- 2
+  ←inj : ∀ {r₀ r₁ r₂ : Record} → (r₀ ← r₂) → (r₁ ← r₂)
+           → r₀ ≡ r₁ ⊎ HashBroke
+  ←inj {Qc q₀} {Qc q₁} {B b} (q←b q₀←b) (q←b q₁←b)
+    with hash-cr (trans q₀←b (sym q₁←b))
+  ... | inj₁ ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩
+             = inj₂ ⟨ ⟨ (encodeR (Qc q₀) ) , (encodeR (Qc q₁) ) ⟩ , ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩ ⟩
+  ... | inj₂ q₁≡q₂ = inj₁ (encodeR-inj q₁≡q₂)
+  ←inj {B b₀} {B b₁} {Qc q} (b←q b₀←q) (b←q b₁←q)
+    with hash-cr (trans b₀←q (sym b₁←q))
+  ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
+             = inj₂ ⟨ ⟨ (encodeR (B b₀)) , (encodeR (B b₁)) ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
+  ... | inj₂ b₀≡b₁ = inj₁ (encodeR-inj b₀≡b₁)
 
 
 
@@ -208,73 +242,6 @@ module LibraBFT
   r ∈Rs rs = {!!}
 -}
 
-
-{-
--- Lemma S₁ ---------------------------------------------------
-
-  hᵢ←⋆R : ∀ {hᵢ : Hash} {r : Record} {rs : RecordStore hᵢ}
-            (v : Valid r rs)
-          → hᵢ ←⋆ r
-  hᵢ←⋆R {qᵢ} {B b}  {empty}         v = h← v
-  hᵢ←⋆R {qᵢ} {B b}  {insert rs r x} v
-    with v
-  ... | ⟨ q , ⟨ vQ , ⟨ q←b , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vQ ←⁺ q←b
-  hᵢ←⋆R {qᵢ} {Qc q} {insert rs r x} v
-    with v
-  ... | ⟨ b , ⟨ vB , ⟨ b←q , snd ⟩ ⟩ ⟩ = hᵢ←⋆R {rs = rs} vB ←⁺ b←q
-
-
-
-  ←inj : ∀ {r₀ r₁ r₂ : Record} → (HashR r₀ ← r₂) → (HashR r₁ ← r₂)
-           → r₀ ≡ r₁ ⊎ HashBroke
-  ←inj {r₀} {r₁} {B b}  r₀←r₂ r₁←r₂
-    with hash-cr (trans r₀←r₂ (sym r₁←r₂))
-  ... | inj₁ ⟨ er₀≢er₁ , r₀←r₁ ⟩ =
-             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , r₀←r₁ ⟩ ⟩
-  ... | inj₂ er₀≡er₁ = inj₁ (encodeR-inj er₀≡er₁)
-
-  ←inj {r₀} {r₁} {Qc q} r₀←r₂ r₁←r₂
-    with hash-cr (trans r₀←r₂ (sym r₁←r₂))
-  ... | inj₁ ⟨ er₀≢er₁ , r₀←r₁ ⟩ =
-             inj₂ ⟨ ⟨ (encodeR r₀) , (encodeR r₁) ⟩ , ⟨ er₀≢er₁ , r₀←r₁ ⟩ ⟩
-  ... | inj₂ er₀≡er₁ = inj₁ (encodeR-inj er₀≡er₁)
-
-
-  --≡⇒≤ : ∀ {m n} → m ≡ n → m ≤ n
-  --≡⇒≤ {zero} {zero} x = z≤n
-  --≡⇒≤ {suc m} {suc n} x = s≤s (≡⇒≤ (suc-injective x))
-
-  r₀←⋆r₁→rr₀≤rr₁ : {hᵢ : Hash} {r₀ r₁ : Record} {rs : RecordStore hᵢ}
-                 → Valid r₀ rs → Valid r₁ rs
-                 → HashR r₀ ←⋆ r₁
-                 → round r₀ ≤ round r₁
-  r₀←⋆r₁→rr₀≤rr₁ {r₀ = B x₃} {B x₄} {empty} vr₀ vr₁ (h← x) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {r₀ = B x₃} {B x₄} {empty} vr₀ vr₁ (x₂ ←⁺ x) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {hᵢ} {r₀} {r₁} {insert rs r x₃} x x₁ x₂ = {!!}
-
-
-  round-mono : ∀  {hᵢ : Hash} {r₀ r₁ r₂ : Record} {rs : RecordStore hᵢ}
-                  (v₀ : Valid r₀ rs) (v₁ : Valid r₁ rs) (v₂ : Valid r₂ rs)
-                 → HashR r₀ ←⋆ r₂ → HashR r₁ ←⋆ r₂
-                 → round r₀ < round r₁
-                 → (HashR r₀ ←⋆ r₁) ⊎ HashBroke
-  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (h← r₀←r₂) (h← r₁←r₂) rr₀<rr₁
-    with ←inj r₀←r₂ r₁←r₂
-  ... | inj₁ refl =  ⊥-elim (<⇒≢ rr₀<rr₁ refl)
-  ... | inj₂ hashBroke = inj₂ hashBroke
-  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (h← r₀←r₂) (r₁←⋆rₓ ←⁺ rₓ←r₂) rr₀<rr₁
-    with ←inj r₀←r₂ rₓ←r₂
-  ... | inj₁ r₀≡rₓ =
-        let r₁≤r₀ = r₀←⋆r₁→rr₀≤rr₁ v₁ v₀ (subst (HashR r₁ ←⋆_) (sym r₀≡rₓ) r₁←⋆rₓ)
-        in ⊥-elim (≤⇒≯ r₁≤r₀ rr₀<rr₁)
-  ... | inj₂ hashBroke = inj₂ hashBroke
-  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (r₀←⋆rₓ ←⁺ rₓ←r₂) (h← r₁←r₂) rr₀<rr
-    with ←inj r₁←r₂ rₓ←r₂
-  ... | inj₁ r₁≡rₓ = inj₁ (subst (HashR r₀ ←⋆_) (sym r₁≡rₓ) r₀←⋆rₓ)
-  ... | inj₂ hashbroke = inj₂ hashbroke
-  round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (r₀←⋆rₓ ←⁺ rₓ←r₂) (r₁←⋆rₓ₁ ←⁺ rₓ₁←r₂) rr₀<rr = {!!}
-
--}
 
 ----------------------------------------------------------------
 
