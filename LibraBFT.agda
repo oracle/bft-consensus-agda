@@ -15,7 +15,7 @@ open import Relation.Nullary.Negation using (contradiction; contraposition)
 
 open import Hash
 
-module LibraBFT
+module Model2
   -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
@@ -120,13 +120,17 @@ module LibraBFT
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
-  _←_ : Hash → Record → Set
-  h ← B  b = h ≡ Block.prevQCHash b
-  h ← Qc q = h ≡ QC.blockHash q
+  data _←_ : Record → Record → Set where
+    q←b : ∀ {q : QC} {b : Block}
+          → HashR (Qc q) ≡  Block.prevQCHash b
+          → Qc q ← B b
+    b←q : ∀ {q : QC} {b : Block}
+          → HashR (B b) ≡ QC.blockHash q
+          → B b ← Qc q
 
-  data _←⋆_ (h : Hash) (r : Record) : Set where
-    h←  : (h ← r) → h ←⋆ r
-    _←⁺_ : {rₓ : Record} → (h ←⋆ rₓ) → (HashR rₓ ← r) → h ←⋆ r
+  data _←⋆_ (r₁ r₂ : Record) : Set where
+    ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
+    ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
 
 
 ----------------------------------------------------------------
@@ -134,41 +138,80 @@ module LibraBFT
 
 ------------------------- RecordStore --------------------------
 
-  {- 4.2 Verification of Network Records
-   - The RecordStore represents the set of all records validated so far
-     in a given epoch
-   - Does not include constraints : 1, 5, 6, 7 and 8
-   -}
-  data RecordStore (h : Hash) : Set
+  data RecordStore (qcᵢ : QC) : Set
 
-  Valid : {hᵢ : Hash} → Record → RecordStore hᵢ → Set
+  Valid : {qcᵢ : QC} → Record → RecordStore qcᵢ → Set
 
   data RecordStore qcᵢ where
     empty  : RecordStore qcᵢ
-    insert : (s : RecordStore qcᵢ) (r : Record)
+    _+ᵣ_ : {r : Record} (s : RecordStore qcᵢ)
             → Valid r s → RecordStore qcᵢ
 
-  {- For now I am not including in the validation the Hash of the states
-   - No constraint about no dup qc elements
-   -}
-  Valid {hᵢ} (B b) empty           = hᵢ ← B b
-  Valid {qcᵢ} (B b) (insert rs r x) =
-    ∃[ q ] ( Valid (Qc q) rs
-           × HashR (Qc q) ← B b
-           × ∃[ prevB ] ( Valid (B prevB) rs
-                        × HashR (B prevB) ← Qc q
-                        × Block.round prevB < Block.round b) )
+  data _∈Rs_ {qcᵢ} (r : Record) : RecordStore qcᵢ → Set where
+    here  : ∀ (s : RecordStore qcᵢ) (v : Valid r s) → r ∈Rs (s +ᵣ v)
+    there : ∀ (r' : Record) (s : RecordStore qcᵢ) (v : Valid r' s)
+           → r ∈Rs s
+           → r ∈Rs (s +ᵣ v)
 
-  Valid (Qc q) empty                  = ⊥
-  Valid (Qc q) (insert rs r x)        =
-    ∃[ b ] ( Valid (B b) rs
-           × HashR (B b) ← Qc q
-           × QC.round q ≡ Block.round b
-           × All (_≡_ (HashR (B b)))
-                  (List-map (Vote.blockHash) (QC.votes q)) )
+  Valid {qᵢ} (B b) empty = Qc qᵢ ← B b
+  Valid      (B b) rs    = ∃[ q ] ( q ∈Rs rs × q ← B b × round q < round (B b) )
+  Valid     (Qc q) empty = ⊥
+  Valid     (Qc q) rs    = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
 
 
-  -- Lemma S₁ ---------------------------------------------------
+
+  -- Other approaches for Record Store
+{-
+  -- 1 - Record Store as a List of all Records and the set of Verified Records
+  -- would be _∈Rs_
+
+  Valid : QC → Record → List Record → Set
+  Valid qᵢ (B b)  [] = Qc qᵢ ← B b
+  Valid qᵢ (B b)  rs = ∃[ q ] ( q ∈ rs × q ← B b × round q < round (B b) )
+  Valid qᵢ (Qc q) [] = ⊥
+  Valid qᵢ (Qc q) rs = ∃[ b ] ( b ∈ rs × b ← Qc q × round (Qc q) ≡ round b )
+
+  data _∈Rs_ {qᵢ} (r : Record) : List Record → Set where
+    here  : ∀ (s : List Record) (v : Valid qᵢ r s)
+           → r ∈Rs s
+    there : ∀ (r' : Record) (s : List Record) (v : Valid qᵢ r' s)
+           → _∈Rs_ {qᵢ} r s
+           → r ∈Rs (r' ∷ s)
+-}
+  ---------------------------------------------------------------------------------
+  ---------------------------------------------------------------------------------
+
+{-
+  -- 2 - Record Store as a set where the constructores ensure that there is a previous
+  -- verified record in the set. However I couldn't define the _∈Rs for this case, as
+  -- this predicate and the Record Store are dependent on each other. But I will leave
+  -- it here in case you want to have a look.
+
+  round≤ : Record → Record → Set
+  round≤ (B b₁) (Qc q) = Block.round b₁ ≡ QC.round q
+  round≤ (Qc q) (B b)  = QC.round q < Block.round b
+  round≤ _ _           = ⊥
+
+  data RecordStore (qcᵢ : QC) : Set
+
+  _∈Rs_ : ∀ {qcᵢ : QC} → Record → RecordStore qcᵢ → Set
+
+  data RecordStore qcᵢ where
+    empty : ∀ {b : Block}
+            → Qc qcᵢ ← B b
+            → RecordStore qcᵢ
+    insR  : ∀ {r : Record} (new : Record) (rs : RecordStore qcᵢ)
+            → r ∈Rs rs
+            → r ← new
+            → round≤ r new
+            → RecordStore qcᵢ
+
+  r ∈Rs rs = {!!}
+-}
+
+
+{-
+-- Lemma S₁ ---------------------------------------------------
 
   hᵢ←⋆R : ∀ {hᵢ : Hash} {r : Record} {rs : RecordStore hᵢ}
             (v : Valid r rs)
@@ -232,7 +275,7 @@ module LibraBFT
   ... | inj₂ hashbroke = inj₂ hashbroke
   round-mono {hᵢ} {r₀} {r₁} {r₂} {rs} v₀ v₁ v₂ (r₀←⋆rₓ ←⁺ rₓ←r₂) (r₁←⋆rₓ₁ ←⁺ rₓ₁←r₂) rr₀<rr = {!!}
 
-
+-}
 
 ----------------------------------------------------------------
 
@@ -242,8 +285,8 @@ module LibraBFT
   record RecordStoreState : Set where
     field
       epoch     : EpochId
-      hᵢ        : Hash
-      recStore  : RecordStore hᵢ
+      qᵢ        : QC
+      recStore  : RecordStore qᵢ
       curRound  : Round
       highQCR   : Round
       listVotes : List Vote
