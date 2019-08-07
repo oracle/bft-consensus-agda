@@ -192,6 +192,52 @@ module LibraBFT
   ... | inj₂ b₀≡b₁ = inj₁ (encodeR-inj b₀≡b₁)
 
 
+  -- 3
+
+  ≡⇒≤ : ∀ {m n} → m ≡ n → m ≤ n
+  ≡⇒≤ {zero} {zero} x = z≤n
+  ≡⇒≤ {suc m} {suc n} x = s≤s (≡⇒≤ (suc-injective x))
+
+  r₀←⋆r₁→rr₀≤rr₁ : {qᵢ : QC} {r₀ r₁ : Record} {s : RecordStore qᵢ}
+                 → r₀ ∈Rs s → r₁ ∈Rs s
+                 → r₀ ←⋆ r₁
+                 → round r₀ ≤ round r₁ ⊎ HashBroke
+  r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {B b} {Qc qc} {insert s v} b∈s (here s v) (ss0 b←Q)
+    with v
+  ... | ⟨ b' , ⟨ b'∈s , ⟨ b'←Q , rq≡rb' ⟩ ⟩ ⟩
+      with ←inj b←Q b'←Q
+  ... | inj₁ refl = inj₁ (≡⇒≤ (sym rq≡rb'))
+  ... | inj₂ hashbroke = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {B b} {Qc qc} {insert s v} b∈s (there r' s v q∈s) (ss0 r₀←r₁) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {Qc x} {B x₁} {s} r₀∈s r₁∈s (ss0 r₀←r₁) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {r₀} {r₁} {s} r₀∈s r₁∈s (ssr r₀←⋆r r←⋆r₁) = {!!}
+
+
+  round-mono : ∀  {qᵢ : QC} {r₀ r₁ r₂ : Record} {s : RecordStore qᵢ}
+                 → r₀ ∈Rs s → r₁ ∈Rs s → r₂ ∈Rs s
+                 → r₀ ←⋆ r₂ → r₁ ←⋆ r₂
+                 → round r₀ < round r₁
+                 → (r₀ ←⋆ r₁) ⊎ HashBroke
+  round-mono r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ss0 r₁←r₂) rr₀<rr₁
+    with ←inj r₀←r₂ r₁←r₂
+  ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
+  ... | inj₂ hashBroke = inj₂ hashBroke
+  round-mono {r₁ = r₁} r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ssr r₁←⋆r r←r₂) rr₀<rr₁
+    with ←inj r₀←r₂ r←r₂
+  ... | inj₂ hashBroke = inj₂ hashBroke
+  ... | inj₁ r₀≡r
+      with r₀←⋆r₁→rr₀≤rr₁ r₁∈s r₀∈s (subst (r₁ ←⋆_) (sym r₀≡r) r₁←⋆r)
+  ... |   inj₁ rr₁≤rr₀ =  ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
+  ... |   inj₂ hashBroke = inj₂ hashBroke
+  round-mono {r₀ = r₀} r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂) rr₀<rr₁
+    with ←inj r₁←r₂ r←r₂
+  ... | inj₁ r₁≡r = inj₁ (subst (r₀ ←⋆_) (sym r₁≡r) r₀←⋆r)
+  ... | inj₂ hashbroke = inj₂ hashbroke
+  round-mono {qᵢ} {r₀} {r₁} {r₂} {s} r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+    with ←inj r←r₂ rₐ←r₂
+  ... | inj₂ hashbroke = inj₂ hashbroke
+  ... | inj₁ r≡rₐ = {!!}
+      -- with round-mono  v₀ v₁ v₂ = {!!}
 
   -- Other approaches for Record Store
 {-
