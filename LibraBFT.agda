@@ -15,7 +15,7 @@ open import Relation.Nullary.Negation using (contradiction; contraposition)
 
 open import Hash
 
-module Model2
+module LibraBFT
   -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
@@ -144,18 +144,17 @@ module Model2
 
   data RecordStore qcᵢ where
     empty  : RecordStore qcᵢ
-    _+ᵣ_ : {r : Record} (s : RecordStore qcᵢ)
-            → Valid r s → RecordStore qcᵢ
+    insert : {r : Record} (s : RecordStore qcᵢ)
+             → Valid r s → RecordStore qcᵢ
 
   data _∈Rs_ {qcᵢ} (r : Record) : RecordStore qcᵢ → Set where
-    here  : ∀ (s : RecordStore qcᵢ) (v : Valid r s) → r ∈Rs (s +ᵣ v)
+    here  : ∀ (s : RecordStore qcᵢ) (v : Valid r s) → r ∈Rs (insert s v)
     there : ∀ (r' : Record) (s : RecordStore qcᵢ) (v : Valid r' s)
            → r ∈Rs s
-           → r ∈Rs (s +ᵣ v)
+           → r ∈Rs (insert s v)
 
-  Valid {qᵢ} (B b) empty = Qc qᵢ ← B b
-  Valid      (B b) rs    = ∃[ q ] ( q ∈Rs rs × q ← B b × round q < round (B b) )
-  Valid     (Qc q) empty = ⊥
+  Valid {qᵢ} (B b) empty         = Qc qᵢ ← B b
+  Valid      (B b) (insert rs v) = ∃[ q ] ( q ∈Rs rs × q ← B b × round q < round (B b) )
   Valid     (Qc q) rs    = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
 
 
