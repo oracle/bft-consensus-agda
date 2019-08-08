@@ -14,7 +14,7 @@ open import Data.List.All
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin ; fromℕ≤)
-open import Data.Vec hiding (insert)
+open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; take to takeVec)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Hash
 open import Level using (0ℓ)
@@ -272,14 +272,14 @@ module LibraBFT
 
   record EpochConfiguration : Set where
     field
-      f : ℕ                         -- Maxiumum number of faulty nodes in this epoch
-      n : ℕ                         -- Total number of nodes who can vote in this epoch
-      3f<n : 3 * f < n              -- Require n > 3 * f
-      votingRights : Vec Author n   -- For now we consider all "active" authors have equal voting rights
-      -- votersDistinct :           -- TODO: require ids to be distinct
-      badGuys : Vec (Fin n) f       -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
-                                    -- behave exactly like good guys.  To ensure badGuys are in votingRights,
-                                    -- we model them by index into votingRights, rather than Authors
+      f : ℕ                          -- Maxiumum number of faulty nodes in this epoch
+      n : ℕ                          -- Total number of nodes who can vote in this epoch
+      3f<n : 3 * f < n               -- Require n > 3 * f
+      votingRights : Vec Author n    -- For now we consider all "active" authors have equal voting rights
+      -- votersDistinct :            -- TODO: require ids to be distinct
+      goodGuys : Vec (Fin n) (n ∸ f) -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
+                                     -- behave exactly like good guys.  To ensure badGuys are in votingRights,
+                                     -- we model them by index into votingRights, rather than Authors
 
   open EpochConfiguration
   open Author
@@ -305,16 +305,8 @@ module LibraBFT
   _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 3
   _ = refl
 
-  *-<-mono : ∀ {m f} → m * f < m * suc f
-  *-<-mono = {!!}
-
-  *-<-mono₂ : ∀ {m f} → f < (suc m) * f
-  *-<-mono₂ = {!!}
-
-  dummyBadGuys : (f : ℕ) → (n : ℕ) → (3 * f < n) → Vec (Fin n) f
-  dummyBadGuys 0       _ _    = []
-  dummyBadGuys (suc f) n 3f<n = fromℕ≤ {f} {n} (<-trans (*-<-mono₂ {2} {f}) (<-trans (*-<-mono {3} {f}) 3f<n))
-                                ∷ dummyBadGuys f n (<-trans (*-<-mono {3} {f}) 3f<n)
+  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
+  dummyGoodGuys take drop = takeVec take {drop} (allFinVec (take + drop))
 
   3<4 : 3 < 4
   3<4 = s≤s (s≤s (s≤s (s≤s z≤n)))
@@ -325,7 +317,7 @@ module LibraBFT
         ; n = 4
         ; 3f<n = 3<4
         ; votingRights = dummyAuthors 4
-        ; badGuys      = dummyBadGuys 1 4 3<4
+        ; goodGuys     = dummyGoodGuys 3 1
         }
 
   ------------------------- End test data ----------------------
@@ -348,6 +340,11 @@ module LibraBFT
   ...| yes xx =  yes (a₁≡a₂ xx)
   ...| no  xx =  no  (≢-Author-id a₁ a₂ refl refl xx)
 
+  _≡-Author?_ : (a₁ : Author) → (a₂ : Author) → Bool
+  a₁ ≡-Author? a₂ with a₁ ≟-Author a₂
+  ...| yes _ = true
+  ...| no  _ = false
+  
   isVoter? : (ec : EpochConfiguration)
            → (a : Author)
            → Dec (AnyVec (a ≡-Author_) (votingRights ec))
@@ -365,4 +362,45 @@ module LibraBFT
   _ : isVoter ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
+  ≟-AuthorByIndex : ∀ {n}
+                   → (a : Author)
+                   → (v : Vec Author n)
+                   → (i : Fin n)
+                   → Dec (a ≡-Author (lookupVec v i))
+  ≟-AuthorByIndex a v i = a ≟-Author (lookupVec v i)
 
+  ≡-AuthorByIndex : ∀ {n}
+                   → (a : Author)
+                   → (v : Vec Author n)
+                   → (i : Fin n)
+                   → Bool
+  ≡-AuthorByIndex a v i with ≟-AuthorByIndex a v i
+  ...| yes _ = true
+  ...| no  _ = false
+
+  isHonest? : (ec : EpochConfiguration)
+            → (a  : Author)
+            → Dec (AnyVec (λ i → a ≡-Author lookupVec (votingRights ec) i) (goodGuys ec))
+  isHonest? ec a = anyVec (λ i → ≟-AuthorByIndex a (votingRights ec) i) {n ec ∸ f ec} (goodGuys ec)
+
+  isHonestP : (ec : EpochConfiguration)
+            → (a  : Author)
+            → Bool
+  isHonestP ec a with isHonest? ec a
+  ...| yes _ = true
+  ...| no  _ = false
+
+  _ : isHonestP ec1 (dummyAuthor 0) ≡ false
+  _ = refl
+
+  _ : isHonestP ec1 (dummyAuthor 1) ≡ true
+  _ = refl
+
+  _ : isHonestP ec1 (dummyAuthor 2) ≡ true
+  _ = refl
+
+  _ : isHonestP ec1 (dummyAuthor 3) ≡ true
+  _ = refl
+
+  _ : isHonestP ec1 (dummyAuthor 5) ≡ false
+  _ = refl
