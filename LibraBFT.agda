@@ -15,9 +15,9 @@ open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin ; fromℕ≤)
 open import Data.Vec hiding (insert)
-
-
+open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Hash
+open import Level using (0ℓ)
 
 module LibraBFT
   -- A Hash function maps a bytestring into a hash.
@@ -281,6 +281,9 @@ module LibraBFT
                                     -- behave exactly like good guys.  To ensure badGuys are in votingRights,
                                     -- we model them by index into votingRights, rather than Authors
 
+  open EpochConfiguration
+  open Author
+
   -- Test data, showing it's a pain to deal with votingRights and badGuys as Vec, but I don't have a better idea atm
 
   dummyAuthor : ℕ → Author
@@ -324,5 +327,42 @@ module LibraBFT
         ; votingRights = dummyAuthors 4
         ; badGuys      = dummyBadGuys 1 4 3<4
         }
+
+  ------------------------- End test data ----------------------
+
+  data _≡-Author_ : Relation.Binary.Rel Author 0ℓ where
+    a₁≡a₂ : ∀{a₁ a₂} → id a₁ ≡ id a₂ → a₁ ≡-Author a₂
+
+  ≢-Author-id : ∀ {m n}
+              → (a₁ a₂ : Author)
+              → id a₁ ≡ m
+              → id a₂ ≡ n
+              → m ≢ n
+              → Relation.Nullary.¬ (a₁ ≡-Author a₂)
+  ≢-Author-id {m} {n} a₁ a₂ id₁ id₂ m≢n prf
+    with prf
+  ...| a₁≡a₂ idprf = m≢n (trans (sym id₁) (trans idprf id₂))
+
+  _≟-Author_ : (a₁ : Author) → (a₂ : Author) → Dec (a₁ ≡-Author a₂)
+  a₁ ≟-Author a₂ with id a₁ ≟ id a₂
+  ...| yes xx =  yes (a₁≡a₂ xx)
+  ...| no  xx =  no  (≢-Author-id a₁ a₂ refl refl xx)
+
+  isVoter? : (ec : EpochConfiguration)
+           → (a : Author)
+           → Dec (AnyVec (a ≡-Author_) (votingRights ec))
+  isVoter? ec a = anyVec (a ≟-Author_) {n ec} (votingRights ec)
+
+  isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
+  isVoter ec a with
+    isVoter? ec a
+  ...| yes _ = true
+  ...| no  _ = false
+
+  _ : isVoter ec1 (dummyAuthor 0) ≡ true
+  _ = refl
+
+  _ : isVoter ec1 (dummyAuthor 5) ≡ false
+  _ = refl
 
 
