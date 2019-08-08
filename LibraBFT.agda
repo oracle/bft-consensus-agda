@@ -361,26 +361,10 @@ module LibraBFT
   _ : isVoter ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
-  ≟-AuthorByIndex : ∀ {n}
-                   → (a : Author)
-                   → (v : Vec Author n)
-                   → (i : Fin n)
-                   → Dec (a ≡-Author (lookupVec v i))
-  ≟-AuthorByIndex a v i = a ≟-Author (lookupVec v i)
-
-  ≡-AuthorByIndex : ∀ {n}
-                   → (a : Author)
-                   → (v : Vec Author n)
-                   → (i : Fin n)
-                   → Bool
-  ≡-AuthorByIndex a v i with ≟-AuthorByIndex a v i
-  ...| yes _ = true
-  ...| no  _ = false
-
   isHonest? : (ec : EpochConfiguration)
             → (a  : Author)
             → Dec (AnyVec (λ i → a ≡-Author lookupVec (votingRights ec) i) (goodGuys ec))
-  isHonest? ec a = anyVec (λ i → ≟-AuthorByIndex a (votingRights ec) i) {n ec ∸ f ec} (goodGuys ec)
+  isHonest? ec a = anyVec (λ i → a ≟-Author (lookupVec (votingRights ec) i)) {n ec ∸ f ec} (goodGuys ec)
 
   isHonestP : (ec : EpochConfiguration)
             → (a  : Author)
