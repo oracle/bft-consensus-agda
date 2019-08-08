@@ -284,7 +284,7 @@ module LibraBFT
   open EpochConfiguration
   open Author
 
-  -- Test data, showing it's a pain to deal with votingRights and badGuys as Vec, but I don't have a better idea atm
+  -- Test data
 
   dummyAuthor : ℕ → Author
   dummyAuthor i = record {id = i ; privKey = dummyByteString}
