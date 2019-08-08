@@ -16,6 +16,7 @@ open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin ; fromℕ≤)
 open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; take to takeVec; tabulate to tabulateVec)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
+open import Data.Vec.Relation.Unary.All renaming (All to AllVec ; all to allVec)
 open import Hash
 open import Level using (0ℓ)
 
@@ -268,21 +269,52 @@ module LibraBFT
       lockRound : Round
       -- latestVotedRound : Round
 
----------------------- EpochConfiguration -----------------------
+-------------------- Properties of Authors  ---------------------
 
-  record EpochConfiguration : Set where
+  open Author
+
+  data _≡-Author_ : Relation.Binary.Rel Author 0ℓ where
+    a₁≡a₂ : ∀{a₁ a₂} → id a₁ ≡ id a₂ → a₁ ≡-Author a₂
+
+  ≢-Author-id : ∀ {m n}
+              → (a₁ a₂ : Author)
+              → id a₁ ≡ m
+              → id a₂ ≡ n
+              → m ≢ n
+              → Relation.Nullary.¬ (a₁ ≡-Author a₂)
+  ≢-Author-id {m} {n} a₁ a₂ id₁ id₂ m≢n prf
+    with prf
+  ...| a₁≡a₂ idprf = m≢n (trans (sym id₁) (trans idprf id₂))
+
+  _≟-Author_ : (a₁ : Author) → (a₂ : Author) → Dec (a₁ ≡-Author a₂)
+  a₁ ≟-Author a₂ with id a₁ ≟ id a₂
+  ...| yes xx =  yes (a₁≡a₂ xx)
+  ...| no  xx =  no  (≢-Author-id a₁ a₂ refl refl xx)
+
+  _≡-Author?_ : (a₁ : Author) → (a₂ : Author) → Bool
+  a₁ ≡-Author? a₂ with a₁ ≟-Author a₂
+  ...| yes _ = true
+  ...| no  _ = false
+
+---------------------- Epoch Configuration  ---------------------
+
+  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) : ∀ {n} → (Vec {ℓ} A n) → Set (Level.suc ℓ) where
+    distinct : ∀ {n} (v : Vec A n)
+             → AllVec (λ i → (AllVec (λ j → i ≡ j ⊎ (lookupVec v i) P (lookupVec v j)) (allFinVec n))) (allFinVec n)
+             → DistinctVec _P_ v
+
+  record EpochConfiguration : Set (Level.suc Level.zero) where
     field
       f : ℕ                          -- Maxiumum number of faulty nodes in this epoch
       n : ℕ                          -- Total number of nodes who can vote in this epoch
       3f<n : 3 * f < n               -- Require n > 3 * f
       votingRights : Vec Author n    -- For now we consider all "active" authors have equal voting rights
-      -- votersDistinct :            -- TODO: require ids to be distinct
+      votersDistinct : DistinctVec {Level.zero} {Author} _≡-Author_ {n} votingRights 
       goodGuys : Vec (Fin n) (n ∸ f) -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
-                                     -- behave exactly like good guys.  To ensure badGuys are in votingRights,
-                                     -- we model them by index into votingRights, rather than Authors
+                                     -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
+                                     -- we model them by index into votingRights, rather than as Authors
 
   open EpochConfiguration
-  open Author
 
   -- Test data
 
@@ -291,6 +323,11 @@ module LibraBFT
 
   dummyAuthors : (n : ℕ) → Vec Author n
   dummyAuthors n = tabulateVec (dummyAuthor ∘ Data.Fin.toℕ)
+
+  dummyAuthorsDistinct : ∀ (n : ℕ) → DistinctVec {Level.zero} _≡-Author_ (dummyAuthors n)
+  dummyAuthorsDistinct n = {!!}
+  -- with allVec ... ?
+  -- distinct (dummyAuthors n) {!!}
 
   _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
   _ = refl
@@ -316,33 +353,11 @@ module LibraBFT
         ; n = 4
         ; 3f<n = 3<4
         ; votingRights = dummyAuthors 4
+        ; votersDistinct = dummyAuthorsDistinct 4
         ; goodGuys     = dummyGoodGuys 3 1
         }
 
   ------------------------- End test data ----------------------
-
-  data _≡-Author_ : Relation.Binary.Rel Author 0ℓ where
-    a₁≡a₂ : ∀{a₁ a₂} → id a₁ ≡ id a₂ → a₁ ≡-Author a₂
-
-  ≢-Author-id : ∀ {m n}
-              → (a₁ a₂ : Author)
-              → id a₁ ≡ m
-              → id a₂ ≡ n
-              → m ≢ n
-              → Relation.Nullary.¬ (a₁ ≡-Author a₂)
-  ≢-Author-id {m} {n} a₁ a₂ id₁ id₂ m≢n prf
-    with prf
-  ...| a₁≡a₂ idprf = m≢n (trans (sym id₁) (trans idprf id₂))
-
-  _≟-Author_ : (a₁ : Author) → (a₂ : Author) → Dec (a₁ ≡-Author a₂)
-  a₁ ≟-Author a₂ with id a₁ ≟ id a₂
-  ...| yes xx =  yes (a₁≡a₂ xx)
-  ...| no  xx =  no  (≢-Author-id a₁ a₂ refl refl xx)
-
-  _≡-Author?_ : (a₁ : Author) → (a₂ : Author) → Bool
-  a₁ ≡-Author? a₂ with a₁ ≟-Author a₂
-  ...| yes _ = true
-  ...| no  _ = false
 
   isVoter? : (ec : EpochConfiguration)
            → (a : Author)
