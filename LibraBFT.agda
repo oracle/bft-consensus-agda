@@ -3,6 +3,7 @@ open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary using (Dec; yes; no)
 open import Relation.Binary using (Decidable)
 open import Data.Nat
+open import Data.Nat.Properties
 open import Data.List renaming (map to List-map)
 open import Relation.Binary.PropositionalEquality
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
@@ -12,6 +13,8 @@ open import Data.List.Any
 open import Data.List.All
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Fin using (Fin ; fromℕ≤)
+open import Data.Vec hiding (insert)
 
 
 open import Hash
@@ -264,3 +267,62 @@ module LibraBFT
       recStore  : RecordStoreState
       lockRound : Round
       -- latestVotedRound : Round
+
+---------------------- EpochConfiguration -----------------------
+
+  record EpochConfiguration : Set where
+    field
+      f : ℕ                         -- Maxiumum number of faulty nodes in this epoch
+      n : ℕ                         -- Total number of nodes who can vote in this epoch
+      3f<n : 3 * f < n              -- Require n > 3 * f
+      votingRights : Vec Author n   -- For now we consider all "active" authors have equal voting rights
+      -- votersDistinct :           -- TODO: require ids to be distinct
+      badGuys : Vec (Fin n) f       -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
+                                    -- behave exactly like good guys.  To ensure badGuys are in votingRights,
+                                    -- we model them by index into votingRights, rather than Authors
+
+  -- Test data, showing it's a pain to deal with votingRights and badGuys as Vec, but I don't have a better idea atm
+
+  dummyAuthor : ℕ → Author
+  dummyAuthor i = record {id = i ; privKey = dummyByteString}
+
+  dummyAuthors : (n : ℕ) → Vec Author n
+  dummyAuthors 0       = []
+  dummyAuthors (suc n) = dummyAuthor n ∷ dummyAuthors n
+
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 0
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 1
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 2
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 3
+  _ = refl
+
+  *-<-mono : ∀ {m f} → m * f < m * suc f
+  *-<-mono = {!!}
+
+  *-<-mono₂ : ∀ {m f} → f < (suc m) * f
+  *-<-mono₂ = {!!}
+
+  dummyBadGuys : (f : ℕ) → (n : ℕ) → (3 * f < n) → Vec (Fin n) f
+  dummyBadGuys 0       _ _    = []
+  dummyBadGuys (suc f) n 3f<n = fromℕ≤ {f} {n} (<-trans (*-<-mono₂ {2} {f}) (<-trans (*-<-mono {3} {f}) 3f<n))
+                                ∷ dummyBadGuys f n (<-trans (*-<-mono {3} {f}) 3f<n)
+
+  3<4 : 3 < 4
+  3<4 = s≤s (s≤s (s≤s (s≤s z≤n)))
+
+  ec1 : EpochConfiguration
+  ec1 = record {
+          f = 1
+        ; n = 4
+        ; 3f<n = 3<4
+        ; votingRights = dummyAuthors 4
+        ; badGuys      = dummyBadGuys 1 4 3<4
+        }
+
+

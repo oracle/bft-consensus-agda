@@ -35,8 +35,14 @@ module Hash where
  ByteString : Set
  ByteString = List Bool
 
+ dummyByteString : ByteString
+ dummyByteString = replicate 32 false
+
  Hash : Set
  Hash = Σ ByteString (λ bs → length bs ≡ 32)
+
+ dummyHash : Hash
+ dummyHash = (dummyByteString , refl)
 
  _≟Hash_ : (h₁ h₂ : Hash) → Dec (h₁ ≡ h₂)
  (l , pl) ≟Hash (m , pm) with Data.List.Properties.≡-dec _≟Bool_ l m
