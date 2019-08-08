@@ -14,7 +14,7 @@ open import Data.List.All
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin ; fromℕ≤)
-open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; take to takeVec)
+open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; take to takeVec; tabulate to tabulateVec)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Hash
 open import Level using (0ℓ)
@@ -290,19 +290,18 @@ module LibraBFT
   dummyAuthor i = record {id = i ; privKey = dummyByteString}
 
   dummyAuthors : (n : ℕ) → Vec Author n
-  dummyAuthors 0       = []
-  dummyAuthors (suc n) = dummyAuthor n ∷ dummyAuthors n
+  dummyAuthors n = tabulateVec (dummyAuthor ∘ Data.Fin.toℕ)
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 0
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
   _ = refl
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 1
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
   _ = refl
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 2
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
   _ = refl
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 3
+  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 0
   _ = refl
 
   dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
@@ -344,7 +343,7 @@ module LibraBFT
   a₁ ≡-Author? a₂ with a₁ ≟-Author a₂
   ...| yes _ = true
   ...| no  _ = false
-  
+
   isVoter? : (ec : EpochConfiguration)
            → (a : Author)
            → Dec (AnyVec (a ≡-Author_) (votingRights ec))
@@ -390,7 +389,7 @@ module LibraBFT
   ...| yes _ = true
   ...| no  _ = false
 
-  _ : isHonestP ec1 (dummyAuthor 0) ≡ false
+  _ : isHonestP ec1 (dummyAuthor 0) ≡ true
   _ = refl
 
   _ : isHonestP ec1 (dummyAuthor 1) ≡ true
@@ -399,7 +398,7 @@ module LibraBFT
   _ : isHonestP ec1 (dummyAuthor 2) ≡ true
   _ = refl
 
-  _ : isHonestP ec1 (dummyAuthor 3) ≡ true
+  _ : isHonestP ec1 (dummyAuthor 3) ≡ false
   _ = refl
 
   _ : isHonestP ec1 (dummyAuthor 5) ≡ false
