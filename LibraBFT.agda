@@ -1,6 +1,6 @@
 open import Data.Nat renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
 open import Data.Bool using (Bool; true; false)
-open import Relation.Nullary using (Dec; yes; no)
+open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Relation.Binary using (Decidable)
 open import Data.Nat
 open import Data.Nat.Properties
@@ -14,10 +14,12 @@ open import Data.List.All
 open import Data.Maybe
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
-open import Data.Fin using (Fin ; fromℕ≤)
-open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; take to takeVec; tabulate to tabulateVec)
+open import Data.Fin using (Fin ; fromℕ≤; toℕ)
+open import Data.Fin.Properties renaming (_≟_ to _≟Fin_)
+open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; map to mapVec; take to takeVec; tabulate to tabulateVec)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Data.Vec.Relation.Unary.All renaming (All to AllVec ; all to allVec)
+open import Data.Vec.Properties
 open import Hash
 open import Level using (0ℓ)
 
@@ -342,9 +344,8 @@ module LibraBFT
 
 ---------------------- Epoch Configuration  ---------------------
 
-  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) : ∀ {n} → (Vec {ℓ} A n) → Set (Level.suc ℓ) where
-    distinct : ∀ {n} (v : Vec A n)
-             → AllVec (λ i → (AllVec (λ j → i ≡ j ⊎ (lookupVec v i) P (lookupVec v j)) (allFinVec n))) (allFinVec n)
+  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) {n} (v : Vec {ℓ} A n) : Set (Level.suc ℓ) where
+    distinct : AllVec (λ i → (AllVec (λ j → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j))) (allFinVec n))) (allFinVec n)
              → DistinctVec _P_ v
 
   record EpochConfiguration : Set (Level.suc Level.zero) where
@@ -366,12 +367,34 @@ module LibraBFT
   dummyAuthor i = record {id = i ; privKey = dummyByteString}
 
   dummyAuthors : (n : ℕ) → Vec Author n
-  dummyAuthors n = tabulateVec (dummyAuthor ∘ Data.Fin.toℕ)
+  dummyAuthors n = tabulateVec (dummyAuthor ∘ toℕ)
 
+  -- WARNING: this is incomplete and may have an off-by-one, might not be on the right track, etc.
+  -- This is too much complication for something so simple.  We should probably define votingRights
+  -- differently to make it easier.
+
+  oneDummyAuthorDistinct : ∀ {n}
+                         → (i : Fin (suc n))
+                         → AllVec
+                             (λ j →
+                                i ≡ j ⊎
+                                (¬ (dummyAuthor (toℕ i)
+                                   ≡-Author
+                                   lookupVec
+                                     (dummyAuthor (toℕ i)∷
+                                        tabulateVec (λ x₁ → dummyAuthor (suc (toℕ x₁))))
+                                     j)))
+                             (allFinVec (suc n))
+  oneDummyAuthorDistinct {0}     i = inj₁ {!!} ∷ []
+  oneDummyAuthorDistinct {suc n} i = {!!}
+
+  -- lookup∘tabulate {Level.zero} {Author} {n} (dummyAuthor ∘ toℕ) 
+ 
   dummyAuthorsDistinct : ∀ (n : ℕ) → DistinctVec {Level.zero} _≡-Author_ (dummyAuthors n)
-  dummyAuthorsDistinct n = {!!}
-  -- with allVec ... ?
-  -- distinct (dummyAuthors n) {!!}
+  dummyAuthorsDistinct 0 = distinct []
+  dummyAuthorsDistinct (suc n)
+     with allFinVec (suc n)
+  ...| x ∷ xs = distinct (oneDummyAuthorDistinct {n} (fromℕ≤ {0} (s≤s z≤n)) ∷ {!!})
 
   _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
   _ = refl
