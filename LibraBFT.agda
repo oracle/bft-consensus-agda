@@ -11,6 +11,7 @@ open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Data.List.Any
 open import Data.List.All
+open import Data.Maybe
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Fin using (Fin ; fromℕ≤)
@@ -265,16 +266,50 @@ module LibraBFT
   NodeTime = {!!}
     
 
+  FakeTypeActiveNodes : Set
+  -- Paper says HashSet<Author>
+
+  OneSender : Set
+  OneSender = Author × Round
+
+  LatestSenders : Set
+  LatestSenders = List OneSender  -- Paper says Vec, but I think List may suffice for us and is easier to deal with
+
+  Duration : Set
+
+  {- Couldn't make Float work, keep as ℕ for now
+     See: https://agda.readthedocs.io/en/v2.6.0.1/language/built-ins.html#floats
+     postulate Float : Set
+     {-# BUILTIN FLOAT Float #-}
+  -}
+
+  GammaType : Set
+  GammaType = ℕ  -- Should be Float, but see above comment
+
+  
+
+  -- Section 7.9, page 26
+  record PaceMakerState : Set where
+    field
+      activeRound       : Round
+      activeLeader      : Maybe Author
+      activeRoundStart  : NodeTime
+      activeNodes       : FakeTypeActiveNodes
+      broadcastInterval : Duration
+      delta             : Duration
+      gamma             : GammaType
+
+  -- Section 5.6, page 17
   record NodeState : Set where
     field
       recordStore         : RecordStoreState
-      -- paceMaker        : PaceMakerState
+      paceMaker           : PaceMakerState
       epochId             : EpochId
       localAuthor         : Author
       -- latestVotedRound : Round
       lockedRound         : Round
       -- latestBroadcast  : NodeTime
-      -- latestSenders    : List (Author , Round)       -- Paper says Vec, but I think List may suffice for us and is easier to deal with
+      -- latestSenders    : LatestSenders
       -- tracker          : DataTracker
       -- pastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
 
@@ -423,9 +458,29 @@ module LibraBFT
   NodeUpdateActions : Set
   NodeUpdateActions = List NodeUpdateAction
 
-  module ConsensusNode where
-    updateNode : NodeState
-               → NodeTime
-               → SmrContext
-               → NodeState × SmrContext × NodeUpdateActions
-    updateNode ns _ smr =  (ns , ( smr , [] ))
+  -- Section 7.3, page 23
+  record PaceMakerUpdateActions : Set where
+    constructor mkPaceMakerUpdateActions
+    field
+      shouldScheduleUpdate : Maybe NodeTime
+      shouldCreateTimeout  : Maybe Round
+      shouldNotifyLeader   : Maybe Author
+      shouldBroadcast      : Bool
+      shouldProposeBlock   : Maybe QC
+
+  updateNode : NodeState
+             → NodeTime
+             → SmrContext
+             → NodeState × SmrContext × NodeUpdateActions
+  updateNode ns _ smr =  (ns , ( smr , [] ))
+
+  updatePaceMaker : PaceMakerState
+                  → Author
+                  → {h : HInit}   -- TODO: change to QC after merging with Lisandra
+                  → RecordStore h
+                  → NodeTime
+                  → LatestSenders
+                  → NodeTime
+                  → PaceMakerState × PaceMakerUpdateActions
+  updatePaceMaker pm a rs ltstBcast ltstSndrs clock =
+    ( pm , mkPaceMakerUpdateActions nothing nothing nothing false nothing )
