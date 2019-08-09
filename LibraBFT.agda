@@ -60,7 +60,7 @@ module LibraBFT
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
- -- Don't know if it needs the epoch or the round
+
   record Block : Set where
     field
       --command    : Command
@@ -102,10 +102,6 @@ module LibraBFT
   prevHash (B b)  = Block.prevQCHash b
   prevHash (Qc q) = QC.blockHash q
 
-  round≢→r₀≢r₁ : ∀ {r₀ r₁ : Record} → round r₀ ≢ round r₁ → r₀ ≢ r₁
-  round≢→r₀≢r₁ x refl = x refl
-  -- round≢→r₀≢r₁ {Qc x₂} {Qc .x₂} x refl = {!!}
-
  -- Hash Functions ---------------------------------
   postulate
     encodeR     : Record → ByteString
@@ -143,7 +139,7 @@ module LibraBFT
   Valid : {qcᵢ : QC} → Record → RecordStore qcᵢ → Set
 
   data RecordStore qcᵢ where
-    empty  : round (Qc qcᵢ) ≡ 0 → RecordStore qcᵢ
+    empty  : RecordStore qcᵢ
     insert : {r : Record} (s : RecordStore qcᵢ)
              → Valid r s → RecordStore qcᵢ
 
@@ -153,9 +149,13 @@ module LibraBFT
            → r ∈Rs s
            → r ∈Rs (insert s v)
 
-  Valid {qᵢ} (B b)  (empty x)     = Qc qᵢ ← B b × round (Qc qᵢ) < round (B b)
-  Valid      (B b)  (insert rs v) = ∃[ q ] ( q ∈Rs (insert rs v) × q ← B b × round q < round (B b) )
-  Valid      (Qc q) rs            = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
+  ValidBlock : {qcᵢ : QC} → Block → RecordStore qcᵢ → Set
+  ValidBlock {qcᵢ} b rs =  ∃[ q ] ( q ∈Rs rs × q ← B b × round q < round (B b) )
+                           ⊎
+                           (Qc qcᵢ) ← (B b) × 1 ≤ round (B b)
+
+  Valid {qcᵢ} (B b) rs = ValidBlock b rs
+  Valid      (Qc q) rs = ∃[ b ] ( b ∈Rs rs × b ← Qc q × round (Qc q) ≡ round b )
 
 
 
@@ -165,11 +165,14 @@ module LibraBFT
   hᵢ←⋆R : ∀ {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
           → r ∈Rs s
           → (Qc qᵢ) ←⋆ r
-  hᵢ←⋆R {qᵢ} {B b}  {insert (empty x) v}    (here (empty x) v) = ss0 (proj₁ v)
-  hᵢ←⋆R {qᵢ} {B b}  {insert (insert s x) v} (here (insert s x) v)
-    with v
-  ... |       ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = let qᵢ←q = hᵢ←⋆R q∈rs
+  hᵢ←⋆R {qᵢ} {B b}  {insert empty vB}    (here empty vB)
+    with vB
+  ... | inj₂ ⟨ qᵢ←B , 1≤rB ⟩ = ss0 qᵢ←B
+  hᵢ←⋆R {qᵢ} {B b}  {insert (insert s vr) vB} (here (insert s vr) vB)
+    with vB
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = let qᵢ←q = hᵢ←⋆R q∈rs
                                                  in ssr qᵢ←q q←B
+  ... | inj₂ ⟨ qᵢ←B , 1≤rB ⟩                  = ss0 qᵢ←B
   hᵢ←⋆R {qᵢ} {Qc q} {insert s v} (here s v)
     with v
   ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = let qᵢ←b = hᵢ←⋆R b∈rs
@@ -212,6 +215,17 @@ module LibraBFT
   r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {Qc x} {B x₁} {s} r₀∈s r₁∈s (ss0 r₀←r₁) = {!!}
   r₀←⋆r₁→rr₀≤rr₁ {qᵢ} {r₀} {r₁} {s} r₀∈s r₁∈s (ssr r₀←⋆r r←⋆r₁) = {!!}
 
+  ¬r←⋆r : ∀  {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
+             → r ∈Rs s
+             → ¬ (r ←⋆ r)
+  ¬r←⋆r = {!!}
+
+  ¬r←⋆qᵢ : ∀  {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
+               → r ∈Rs s
+               → ¬ (r ←⋆ (Qc qᵢ))
+  ¬r←⋆qᵢ = {!!}
+
+
 
   round-mono : ∀  {qᵢ : QC} {r₀ r₁ r₂ : Record} {s : RecordStore qᵢ}
                  → r₀ ∈Rs s → r₁ ∈Rs s → r₂ ∈Rs s
@@ -222,6 +236,7 @@ module LibraBFT
     with ←inj r₀←r₂ r₁←r₂
   ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
   ... | inj₂ hashBroke = inj₂ hashBroke
+
   round-mono {r₁ = r₁} r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ssr r₁←⋆r r←r₂) rr₀<rr₁
     with ←inj r₀←r₂ r←r₂
   ... | inj₂ hashBroke = inj₂ hashBroke
@@ -229,15 +244,75 @@ module LibraBFT
       with r₀←⋆r₁→rr₀≤rr₁ r₁∈s r₀∈s (subst (r₁ ←⋆_) (sym r₀≡r) r₁←⋆r)
   ... |   inj₁ rr₁≤rr₀ =  ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
   ... |   inj₂ hashBroke = inj₂ hashBroke
+
   round-mono {r₀ = r₀} r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂) rr₀<rr₁
     with ←inj r₁←r₂ r←r₂
   ... | inj₁ r₁≡r = inj₁ (subst (r₀ ←⋆_) (sym r₁≡r) r₀←⋆r)
   ... | inj₂ hashbroke = inj₂ hashbroke
-  round-mono {qᵢ} {r₀} {r₁} {r₂} {s} r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
-    with ←inj r←r₂ rₐ←r₂
-  ... | inj₂ hashbroke = inj₂ hashbroke
-  ... | inj₁ r≡rₐ = {!!}
-      -- with round-mono  v₀ v₁ v₂ = {!!}
+
+  round-mono r₀∈s (here s v) (here s v)
+                  (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+    = ⊥-elim (¬r←⋆r (here s v) (ssr r₁←⋆rₐ rₐ←r₂))
+
+  round-mono (here s v) (there (B b) s v r₁∈s) (here s v)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+    = ⊥-elim (¬r←⋆r (here s v) (ssr r₀←⋆r r←r₂))
+
+  round-mono {r₀ = r₀} {r₁ = r₁}
+             (there (B b) s v r₀∈s) (there (B b) s v r₁∈s) (here s v)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+    with v
+  ...  | inj₁  ⟨ q , ⟨ q∈s , ⟨ q←r₂ , rq<rb ⟩ ⟩ ⟩
+         with ←inj r←r₂ q←r₂ | ←inj rₐ←r₂ q←r₂
+  ...       | _                | inj₂ hashbroke = inj₂ hashbroke
+  ...       | inj₂ hashbroke   | _              = inj₂ hashbroke
+  ...       | inj₁ refl        | inj₁ refl
+            with round-mono r₀∈s r₁∈s q∈s r₀←⋆r r₁←⋆rₐ rr₀<rr₁
+  ...          | inj₂ hashbroke = inj₂ hashbroke
+  ...          | inj₁ r₀←⋆r₁    = inj₁ r₀←⋆r₁
+
+  round-mono (there (B b) s v r₀∈s) (there (B b) s v r₁∈s) (here s v)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+       | inj₂ ⟨ qᵢ←r₂ , 1≤rb ⟩
+        with ←inj r←r₂ qᵢ←r₂
+  ...       | inj₂ hashbroke = inj₂ hashbroke
+  ...       | inj₁ refl      = ⊥-elim (¬r←⋆qᵢ r₀∈s r₀←⋆r)
+
+  round-mono {r₂ = Qc q} r₀∈isv r₁∈isv (here s v)
+                         (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁
+    with r₁∈isv
+  ... | here s v = ⊥-elim (¬r←⋆r (here s v) (ssr r₁←⋆rₐ rₐ←r₂))
+  ... | there (Qc q) s v r₁∈s
+      with r₀∈isv
+  ...   | here s v =  ⊥-elim (¬r←⋆r (here s v) (ssr r₀←⋆r r←r₂))
+  ...   | there (Qc q) s v r₀∈s
+        with v
+  ...     | ⟨ b , ⟨ b∈s , ⟨ b←r₂ , rb<rq ⟩ ⟩ ⟩
+          with ←inj r←r₂ b←r₂ | ←inj rₐ←r₂ b←r₂
+  ...       | _                | inj₂ hashbroke = inj₂ hashbroke
+  ...       | inj₂ hashbroke   | _              = inj₂ hashbroke
+  ...       | inj₁ refl        | inj₁ refl
+             with round-mono r₀∈s r₁∈s b∈s r₀←⋆r r₁←⋆rₐ rr₀<rr₁
+  ...          | inj₂ hashbroke = inj₂ hashbroke
+  ...          | inj₁ r₀←⋆r₁    = inj₁ r₀←⋆r₁
+
+  round-mono (here s v) (here s v) (there r s v r₂∈s)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁ = ⊥-elim (<-irrefl refl rr₀<rr₁)
+
+  round-mono {qᵢ} {.r} {r₁} {r₂} {insert s v}
+             (here s v) (there r s v r₁∈v) (there r s v r₂∈s)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁ = {!!}
+
+  round-mono {qᵢ} {r₀} {_} {r₂} {insert s v}
+             (there _ s v r₀∈isv) (here s v) (there _ s v r₂∈s)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁ = {!!}
+
+  round-mono {qᵢ} {r₀} {r₁} {r₂} {insert s v}
+             (there _ s v r₀∈isv) (there _ s v r₁∈v) (there _ s v r₂∈s)
+             (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₐ rₐ←r₂) rr₀<rr₁ = {!!}
+
+
+
 
   -- Other approaches for Record Store
 {-
