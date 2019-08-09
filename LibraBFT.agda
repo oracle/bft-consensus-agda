@@ -261,13 +261,22 @@ module LibraBFT
 
 -------------------------- NodeState ---------------------------
 
+  NodeTime : Set
+  NodeTime = {!!}
+    
+
   record NodeState : Set where
     field
-      author    : Author
-      epoch     : EpochId
-      recStore  : RecordStoreState
-      lockRound : Round
+      recordStore         : RecordStoreState
+      -- paceMaker        : PaceMakerState
+      epochId             : EpochId
+      localAuthor         : Author
       -- latestVotedRound : Round
+      lockedRound         : Round
+      -- latestBroadcast  : NodeTime
+      -- latestSenders    : List (Author , Round)       -- Paper says Vec, but I think List may suffice for us and is easier to deal with
+      -- tracker          : DataTracker
+      -- pastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
 
 -------------------- Properties of Authors  ---------------------
 
@@ -402,3 +411,21 @@ module LibraBFT
 
   _ : isHonestP ec1 (dummyAuthor 5) ≡ false
   _ = refl
+
+---------------------- Update Skeleton ----------------
+
+  SmrContext : Set
+  SmrContext = {!!}
+
+  data NodeUpdateAction : Set where
+    -- No constructors yet
+
+  NodeUpdateActions : Set
+  NodeUpdateActions = List NodeUpdateAction
+
+  module ConsensusNode where
+    updateNode : NodeState
+               → NodeTime
+               → SmrContext
+               → NodeState × SmrContext × NodeUpdateActions
+    updateNode ns _ smr =  (ns , ( smr , [] ))
