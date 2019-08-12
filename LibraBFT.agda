@@ -195,12 +195,38 @@ module LibraBFT
   ... | inj₂ b₀≡b₁ = inj₁ (encodeR-inj b₀≡b₁)
 
 
-    -- 3
+  -- 3
+  ←⋆inv :  ∀ {r₀ r₁ r₂ : Record} → (r₀ ← r₁) → (r₁ ←⋆ r₂) → (r₀ ←⋆ r₂)
+  ←⋆inv {r₀} {r₁} {r₂} r₀←r₁ (ss0 r₁←r₂)      = ssr (ss0 r₀←r₁) r₁←r₂
+  ←⋆inv {r₀} {r₁} {r₂} r₀←r₁ (ssr r₁←⋆r r←r₂) = ssr (←⋆inv r₀←r₁ r₁←⋆r) r←r₂
+
+  -- Aux Lemma
+  ¬r←⋆r : ∀  {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
+             → r ∈Rs s
+             → ¬ (r ←⋆ r)
+  ¬r←⋆r {qᵢ} {r} {s} r∈s (ss0 ())
+  ¬r←⋆r {qᵢ} {r} {s} r∈s (ssr r←⋆r₁ r₁←r) = {!!}
+
+
+
   -- Aux Lemma
   ¬r←⋆qᵢ : ∀  {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
                → r ∈Rs s
                → ¬ (r ←⋆ (Qc qᵢ))
-  ¬r←⋆qᵢ = {!!}
+  ¬r←⋆qᵢ {r = B b} (here empty vB) r←⋆qᵢ
+    with vB
+  ... | inj₂  ⟨ qᵢ←r₁ , 1≤rb ⟩ = ¬r←⋆r (here empty vB) (ssr r←⋆qᵢ qᵢ←r₁)
+
+  ¬r←⋆qᵢ {r = B b} (here (insert s vR) vB) r←⋆q₁
+    with vB
+  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩ = ¬r←⋆qᵢ q∈s (←⋆inv q←r₁ r←⋆q₁)
+  ... | inj₂ ⟨ qᵢ←r₁ , 1≤rb ⟩ = ¬r←⋆r ((here (insert s vR) vB)) (ssr r←⋆q₁ qᵢ←r₁)
+
+  ¬r←⋆qᵢ {r = Qc x₁} (here (insert s x) vQ) r₁←⋆qᵢ
+    with vQ
+  ... | ⟨ b , ⟨ b∈s , ⟨ b←r₁ , rb≡rq ⟩ ⟩ ⟩ = ¬r←⋆qᵢ b∈s (←⋆inv b←r₁ r₁←⋆qᵢ)
+
+  ¬r←⋆qᵢ (there r' s v r∈s) r←⋆qᵢ = ¬r←⋆qᵢ r∈s r←⋆qᵢ
 
 
   -- Aux Lemma
@@ -212,50 +238,48 @@ module LibraBFT
     with v₁
   ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩
       with ←inj r₀←r₁ q←r₁
-  ...   | inj₂ hashbroke = inj₂ hashbroke
-  ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  ...   | inj₁ refl            = inj₁ (<⇒≤ rq<rb)
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
-      | inj₂  ⟨ qᵢ←r₁ , 1≤rb ⟩ = {!!} -- I need that : round qᵢ = 0
+      | inj₂  ⟨ qᵢ←r₁ , 1≤rb ⟩
+      with ←inj r₀←r₁ qᵢ←r₁
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  ...   | inj₁ refl            = {!!} --inj₁ (<⇒≤ rq<rb) -- I need that : round qᵢ = 0
 
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = Qc q} r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
     with v₁
   ... | ⟨ b , ⟨ b∈s , ⟨ b←r₁ , refl ⟩ ⟩ ⟩
      with ←inj r₀←r₁ b←r₁
-  ...   | inj₂ hashbroke = inj₂ hashbroke
-  ...   | inj₁ refl      = inj₁ ≤-refl
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  ...   | inj₁ refl            = inj₁ ≤-refl
 
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
      with v₁
   ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩
       with ←inj r₀←r₁ q←r₁
-  ...   | inj₂ hashbroke = inj₂ hashbroke
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
   ...   | inj₁ refl
         with r₀←⋆r₁→rr₀≤rr₁ r₀∈s q∈s r₀←⋆r₁
-  ...     | inj₁ rr₀≤rq    = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
-  ...     | inj₂ hashbroke = inj₂ hashbroke
+  ...     | inj₁ rr₀≤rq        = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
+  ...     | inj₂ hashbroke     = inj₂ hashbroke
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
       | inj₂ ⟨ qᵢ←r₁ , 1≤rb ⟩
       with ←inj r₀←r₁ qᵢ←r₁
-  ... | inj₁ refl      = ⊥-elim (¬r←⋆qᵢ r₀∈s r₀←⋆r₁)
-  ... | inj₂ hashbroke = inj₂ hashbroke
+  ... | inj₁ refl              = ⊥-elim (¬r←⋆qᵢ r₀∈s r₀←⋆r₁)
+  ... | inj₂ hashbroke         = inj₂ hashbroke
 
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = Qc q} r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
     with v₁
   ... | ⟨ b , ⟨ b∈s , ⟨ b←r₁ , refl ⟩ ⟩ ⟩
      with ←inj r₀←r₁ b←r₁
-  ...   | inj₂ hashbroke = inj₂ hashbroke
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
   ...   | inj₁ refl
         with r₀←⋆r₁→rr₀≤rr₁ r₀∈s b∈s r₀←⋆r₁
-  ...     | inj₂ hashbroke = inj₂ hashbroke
-  ...     | inj₁ rr₀≤rb    = inj₁ rr₀≤rb
+  ...     | inj₂ hashbroke     = inj₂ hashbroke
+  ...     | inj₁ rr₀≤rb        = inj₁ rr₀≤rb
 
   r₀←⋆r₁→rr₀≤rr₁ r₀∈s (there r' s v r₁∈s) r₀←⋆r₁ = r₀←⋆r₁→rr₀≤rr₁ r₀∈s r₁∈s r₀←⋆r₁
 
-  -- Aux Lemma
-  ¬r←⋆r : ∀  {qᵢ : QC} {r : Record} {s : RecordStore qᵢ}
-             → r ∈Rs s
-             → ¬ (r ←⋆ r)
-  ¬r←⋆r = {!!}
 
 
   round-mono : ∀  {qᵢ : QC} {r₀ r₁ r₂ : Record} {s₀ s₁ s₂ : RecordStore qᵢ}
@@ -265,21 +289,21 @@ module LibraBFT
                  → (r₀ ←⋆ r₁) ⊎ HashBroke
   round-mono r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ss0 r₁←r₂) rr₀<rr₁
     with ←inj r₀←r₂ r₁←r₂
-  ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
-  ... | inj₂ hashBroke = inj₂ hashBroke
+  ... | inj₁ refl                            = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
+  ... | inj₂ hashBroke                       = inj₂ hashBroke
 
   round-mono  {r₁ = r₁} r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ssr r₁←⋆r r←r₂) rr₀<rr₁
     with ←inj r₀←r₂ r←r₂
-  ... | inj₂ hashBroke = inj₂ hashBroke
+  ... | inj₂ hashBroke                       = inj₂ hashBroke
   ... | inj₁ refl
       with r₀←⋆r₁→rr₀≤rr₁ r₁∈s r₀∈s r₁←⋆r
-  ...   |  inj₁ rr₁≤rr₀ =  ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
-  ...   |  inj₂ hashbroke = inj₂ hashbroke
+  ...   |  inj₁ rr₁≤rr₀                      = ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
+  ...   |  inj₂ hashbroke                    = inj₂ hashbroke
 
   round-mono r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)        rr₀<rr₁
      with ←inj r₁←r₂ r←r₂
-  ... | inj₂ hashBroke = inj₂ hashBroke
-  ... | inj₁ refl = inj₁ r₀←⋆r
+  ... | inj₂ hashBroke                       = inj₂ hashBroke
+  ... | inj₁ refl                            = inj₁ r₀←⋆r
 
   round-mono {r₂ = B b} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
     with v
@@ -291,19 +315,21 @@ module LibraBFT
   round-mono {r₂ = B b} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
       | inj₂  ⟨ qᵢ←r₂ , 1≤rb ⟩
          with ←inj r←r₂ qᵢ←r₂
-  ...      | inj₂ hashbroke = inj₂ hashbroke
-  ...      | inj₁ refl      = ⊥-elim (¬r←⋆qᵢ r₀∈s r₀←⋆r)
+  ...      | inj₂ hashbroke                  = inj₂ hashbroke
+  ...      | inj₁ refl                       = ⊥-elim (¬r←⋆qᵢ r₀∈s r₀←⋆r)
 
   round-mono {r₂ = Qc q} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
     with v
-  ...     | ⟨ b , ⟨ b∈s , ⟨ b←r₂ , rb<rq ⟩ ⟩ ⟩
-          with ←inj r←r₂ b←r₂ | ←inj rₓ←r₂ b←r₂
-  ...       | _                | inj₂ hashbroke = inj₂ hashbroke
-  ...       | inj₂ hashbroke   | _              = inj₂ hashbroke
-  ...       | inj₁ refl        | inj₁ refl = round-mono r₀∈s r₁∈s b∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
+  ... | ⟨ b , ⟨ b∈s , ⟨ b←r₂ , rb<rq ⟩ ⟩ ⟩
+       with ←inj r←r₂ b←r₂ | ←inj rₓ←r₂ b←r₂
+  ...    | _                | inj₂ hashbroke = inj₂ hashbroke
+  ...    | inj₂ hashbroke   | _              = inj₂ hashbroke
+  ...    | inj₁ refl        | inj₁ refl      = round-mono r₀∈s r₁∈s b∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
   round-mono r₀∈s r₁∈s (there r' s v r₂∈s) r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
-    = round-mono r₀∈s r₁∈s r₂∈s r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
+                                             = round-mono r₀∈s r₁∈s r₂∈s r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
+
+
 
 
   -- Other approaches for Record Store
