@@ -550,6 +550,17 @@ module LibraBFT
       commEnv    : CommunicationEnvironment
       -- TODO: what other side effects might we need to track?
 
+  createTimeoutCond'' : ∀ {h} → RecordStore h → Author → Maybe Round → SmrContext → RecordStore h
+  createTimeoutCond'' rs _ nothing  _ = rs
+  createTimeoutCond'' rs _ (just r) _ = insert rs {!!} {!!}
+
+  createTimeoutCond' : RecordStoreState → Author → Maybe Round → SmrContext → RecordStoreState
+  createTimeoutCond' rss a mbr smr =
+    record rss { recStore = createTimeoutCond'' {RecordStoreState.hᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
+
+  createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
+                                                                      -- TODO: after mering with Lisandra, naming conventions
+  createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
 
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
@@ -572,10 +583,13 @@ module LibraBFT
                   ; nuaShouldNotifyLeader   = puaShouldNotifyLeader pacemakerActions
                 }
 
+
   -- if let Some(round) = pacemaker_actions.should_create_timeout {
   --   self.record_store.create_timeout(self.local_author, round, smr_context);
   -- }
-  round = puaShouldCreateTimeout pacemakerActions
+      la₀   = nsLocalAuthor self₀
+      round = puaShouldCreateTimeout pacemakerActions
+      self₁ = createTimeoutCond self₀ la₀ round smrContext₀
 
   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
   --   self.record_store.propose_block(
