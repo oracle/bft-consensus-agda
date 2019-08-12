@@ -550,15 +550,44 @@ module LibraBFT
       commEnv    : CommunicationEnvironment
       -- TODO: what other side effects might we need to track?
 
+
+  -- fn process_pacemaker_actions( &mut self,
+  --                               pacemaker_actions: PacemakerUpdateActions,
+  --                               smr_context: &mut SMRContext,
+  --                             ) -> NodeUpdateActions {
   processPacemakerActions :
       NodeState
     → PacemakerUpdateActions
     → SmrContext
     → NodeState × NodeUpdateActions
-  processPacemakerActions self pma smr =
-    let actions = record NodeUpdateActions∷new
-                    { nuaShouldScheduleUpdate = puaShouldScheduleUpdate pma
-                    }
+  processPacemakerActions self₀ pacemakerActions smrContext₀ =
+    let
+  -- let mut actions = NodeUpdateActions::new();
+      actions = record NodeUpdateActions∷new {
+  -- actions.should_schedule_update = pacemaker_actions.should_schedule_update;
+                    nuaShouldScheduleUpdate = puaShouldScheduleUpdate pacemakerActions
+  -- actions.should_broadcast = pacemaker_actions.should_broadcast;
+                  ; nuaShouldBroadcast      = puaShouldBroadcast pacemakerActions
+  -- actions.should_notify_leader = pacemaker_actions.should_notify_leader;
+                  ; nuaShouldNotifyLeader   = puaShouldNotifyLeader pacemakerActions
+                }
+
+  -- if let Some(round) = pacemaker_actions.should_create_timeout {
+  --   self.record_store.create_timeout(self.local_author, round, smr_context);
+  -- }
+  round = puaShouldCreateTimeout pacemakerActions
+
+  -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
+  --   self.record_store.propose_block(
+  --       self.local_author,
+  --       previous_qc_hash,
+  --       self.latest_broadcast,
+  --       smr_context,
+  --   );
+  -- }
+  -- actions
+  -- } }
+
     in {!!}
 
   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
@@ -573,10 +602,11 @@ module LibraBFT
          latestSenders = {!!}
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
-         paceMakerActions = {!!}
+         pacemakerActions = {!!}
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
-         (self₁ , actions₀) = processPacemakerActions self₀ paceMakerActions smrContext₀
+         -- Can't keep this organized as in paper, because can't do with & where here
+         (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
