@@ -313,7 +313,7 @@ module LibraBFT
       nsLocalAuthor         : Author
       -- nsLatestVotedRound : Round
       nsLockedRound         : Round
-      -- nsLatestBroadcast  : NodeTime
+      nsLatestBroadcast     : NodeTime
       -- nsLatestSenders    : LatestSenders
       -- nsTracker          : DataTracker
       -- nsPastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
@@ -501,7 +501,7 @@ module LibraBFT
       puaShouldCreateTimeout  : Maybe Round
       puaShouldNotifyLeader   : Maybe Author
       puaShouldBroadcast      : Bool
-      puaShouldProposeBlock   : Maybe QC
+      puaShouldProposeBlock   : Maybe QCHash
 
   open PacemakerUpdateActions
 
@@ -598,6 +598,14 @@ module LibraBFT
   --       self.latest_broadcast,
   --       smr_context,
   --   );
+      previousQCHashMB = puaShouldProposeBlock pacemakerActions
+      lb₀ = nsLatestBroadcast self₀
+      -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
+      -- painful here, as we will need to update both self amd SMR Context, based on the same
+      -- condition
+
+
+
   -- }
   -- actions
   -- } }
