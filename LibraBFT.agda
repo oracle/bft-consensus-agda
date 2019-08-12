@@ -278,6 +278,7 @@ module LibraBFT
   LatestSenders = List OneSender  -- Paper says Vec, but I think List may suffice for us and is easier to deal with
 
   Duration : Set
+  Duration = ℕ
 
   {- Couldn't make Float work, keep as ℕ for now
      See: https://agda.readthedocs.io/en/v2.6.0.1/language/built-ins.html#floats
@@ -291,32 +292,37 @@ module LibraBFT
   
 
   -- Section 7.9, page 26
-  record PaceMakerState : Set where
+  record PacemakerState : Set where
     field
-      activeRound       : Round
-      activeLeader      : Maybe Author
-      activeRoundStart  : NodeTime
-      activeNodes       : FakeTypeActiveNodes
-      broadcastInterval : Duration
-      delta             : Duration
-      gamma             : GammaType
+      pmsActiveRound       : Round
+      pmsActiveLeader      : Maybe Author
+      pmsActiveRoundStart  : NodeTime
+      pmsActiveNodes       : FakeTypeActiveNodes
+      pmsBroadcastInterval : Duration
+      pmsDelta             : Duration
+      pmsGamma             : GammaType
+
+  open PacemakerState
 
   -- Section 5.6, page 17
   record NodeState : Set where
     field
-      recordStore         : RecordStoreState
-      paceMaker           : PaceMakerState
-      epochId             : EpochId
-      localAuthor         : Author
-      -- latestVotedRound : Round
-      lockedRound         : Round
-      -- latestBroadcast  : NodeTime
-      -- latestSenders    : LatestSenders
-      -- tracker          : DataTracker
-      -- pastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
+      nsRecordStore         : RecordStoreState
+      nsPaceMaker           : PacemakerState
+      nsEpochId             : EpochId
+      nsLocalAuthor         : Author
+      -- nsLatestVotedRound : Round
+      nsLockedRound         : Round
+      -- nsLatestBroadcast  : NodeTime
+      -- nsLatestSenders    : LatestSenders
+      -- nsTracker          : DataTracker
+      -- nsPastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
+
+  open NodeState
 
 -------------------- Properties of Authors  ---------------------
 
+  -- TODO: After merging with Lisandra: add au prefix to Author fields, and put this after definitions
   open Author
 
   data _≡-Author_ : Relation.Binary.Rel Author 0ℓ where
@@ -475,35 +481,258 @@ module LibraBFT
   SmrContext : Set
   SmrContext = {!!}
 
-  data NodeUpdateAction : Set where
-    -- No constructors yet
+  record NodeUpdateActions : Set where
+    constructor mkNodeUpdateAction
+    field
+      nuaShouldScheduleUpdate : Maybe NodeTime
+      nuaShouldNotifyLeader   : Maybe Author
+      nuaShouldBroadcast      : Bool
 
-  NodeUpdateActions : Set
-  NodeUpdateActions = List NodeUpdateAction
+  open NodeUpdateActions
+
+  NodeUpdateActions∷new : NodeUpdateActions
+  NodeUpdateActions∷new = mkNodeUpdateAction nothing nothing false
 
   -- Section 7.3, page 23
-  record PaceMakerUpdateActions : Set where
-    constructor mkPaceMakerUpdateActions
+  record PacemakerUpdateActions : Set where
+    constructor mkPacemakerUpdateActions
     field
-      shouldScheduleUpdate : Maybe NodeTime
-      shouldCreateTimeout  : Maybe Round
-      shouldNotifyLeader   : Maybe Author
-      shouldBroadcast      : Bool
-      shouldProposeBlock   : Maybe QC
+      puaShouldScheduleUpdate : Maybe NodeTime
+      puaShouldCreateTimeout  : Maybe Round
+      puaShouldNotifyLeader   : Maybe Author
+      puaShouldBroadcast      : Bool
+      puaShouldProposeBlock   : Maybe QC
 
+  open PacemakerUpdateActions
+
+  PacemakerUpdateActions∷new : PacemakerUpdateActions
+  PacemakerUpdateActions∷new =
+    mkPacemakerUpdateActions
+      nothing nothing nothing false nothing
+
+------------- Musings about high-level state for proving properties -------
+
+  -- Nothing here yet, just placeholders
+  -- This will model the NodeStates for each Author.  Eventually, we will
+  -- define executions of the system, so that we can prove properties like
+  -- invariants (in every execution, every honest node's state has certain
+  -- properties, etc.).  This will require us to track node states and
+  -- state machine contexts for each participant (Author)
+  data AuthorNodeStates : Set where
+  data AuthorStateMachineContexts : Set where
+
+------------------------------- Pseudomonad --------------------------------
+
+  -- In an effort to make our Agda proofs mirror the Haskell code Harold is
+  -- writing, I came to realise that we'd need some Monad-like notion for
+  -- representing the environment and states of various participants.  I see
+  -- that there is some explicit support for Monad-like functionality in the
+  -- Agda standard library:
+  --   https://github.com/agda/agda-stdlib/blob/v1.0/src/Data/Container/FreeMonad.agda  -- and also some syntactic sugar for do notation:
+  --   https://agda.readthedocs.io/en/v2.6.0.1/language/syntactic-sugar.html
+  -- However, I want to discuss this first with Victor and have not spent time
+  -- to learn about it, so initially I am contonuing with my "poor person's"
+  -- version to make progress and develop intuition.
+
+  -- Nothing here yet, just a placeholder
+  -- This will likely model a set of messages, but we will need to think about
+  -- the communication model to decide more detail, such as whether we will
+  -- allow message duplication, loss, reodering, etc.
+  data CommunicationEnvironment : Set where
+
+  -- This is not really a monad as such; we will pass these around explicitly,
+  -- getting new versions back, allowing us to model side effects, but only
+  -- relative to the explicitly constructed PseudoMonad.  This probably won't
+  -- last long, but is what am exploring as a first cut.  So far, I think we
+  -- may need to send messages and update our nodestate via this "monad".
+  record PseudoMonad : Set where
+    field
+      commEnv    : CommunicationEnvironment
+      -- TODO: what other side effects might we need to track?
+
+  processPacemakerActions :
+      NodeState
+    → PacemakerUpdateActions
+    → SmrContext
+    → NodeState × NodeUpdateActions
+  processPacemakerActions self pma smr =
+    let actions = record NodeUpdateActions∷new
+                    { nuaShouldScheduleUpdate = puaShouldScheduleUpdate pma
+                    }
+    in {!!}
+
+  -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
   updateNode : NodeState
              → NodeTime
              → SmrContext
              → NodeState × SmrContext × NodeUpdateActions
-  updateNode ns _ smr =  (ns , ( smr , [] ))
+  updateNode self₀ clock smrContext₀ =
+    let
 
-  updatePaceMaker : PaceMakerState
-                  → Author
-                  → {h : HInit}   -- TODO: change to QC after merging with Lisandra
-                  → RecordStore h
-                  → NodeTime
-                  → LatestSenders
-                  → NodeTime
-                  → PaceMakerState × PaceMakerUpdateActions
-  updatePaceMaker pm a rs ltstBcast ltstSndrs clock =
-    ( pm , mkPaceMakerUpdateActions nothing nothing nothing false nothing )
+  -- let latest_senders = self.read_and_reset_latest_senders();
+         latestSenders = {!!}
+
+  -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
+         paceMakerActions = {!!}
+
+-- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
+         (self₁ , actions₀) = processPacemakerActions self₀ paceMakerActions smrContext₀
+
+-- // Update locked round.
+  -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
+  -- // Vote on a valid proposal block designated by the pacemaker, if any.
+  -- if let Some((block_hash, block_round, proposer)) = self.record_store.proposed_block(&self.pacemaker) {
+  --   // Enforce voting constraints.
+  --   if block_round > self.latest_voted_round && self.record_store.previous_round(block_hash) >= self.locked_round {
+  --     // Update latest voted round.
+  --     self.latest_voted_round = block_round;
+  --     // Try to execute the command contained the a block and create a vote.
+  --     if self.record_store.create_vote(self.local_author, block_hash, smr_context) {
+  --     // Ask that we reshare the proposal.
+  --     actions.should_broadcast = true;
+  --     // Ask to notify and send our vote to the author of the block.
+  --     actions.should_notify_leader = Some(proposer);
+  -- } } }
+  -- // Check if our last proposal has reached a quorum of votes and create a QC.
+  -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
+  --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
+  --   actions.should_schedule_update = Some(clock);
+  -- }
+  -- // Check if our last proposal has reached a quorum of votes and create a QC.
+  -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
+  --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
+  --   actions.should_schedule_update = Some(clock);
+  -- }
+  -- // Check for new commits and verify if we should start a new epoch.
+  -- for commit_qc in self
+  --   .record_store
+  --   .chain_between_quorum_certificates(
+  --      self.tracker.highest_committed_round,
+  --      self.record_store.highest_committed_round(),
+  --   ) .cloned() {
+  --   // Deliver the new committed state, together with a short certificate (if any).
+  --   smr_context.commit(&commit_qc.state, self.record_store.commit_certificate(&commit_qc));
+  --   // If the current epoch ended..
+  --   let epoch_id = smr_context.read_epoch_id(&commit_qc.state);
+  --   if self.epoch_id != epoch_id {
+  --     // .. create a new record store and switch to the new epoch.
+  --     self.start_new_epoch(epoch_id, commit_qc, smr_context);
+  --     // .. stop delivering commits after an epoch change.
+  --     break;
+  -- } }
+  -- // Update the data tracker and ask that we reshare data if needed.
+  -- if self.tracker.update_and_decide_resharing(self.epoch_id, &self.record_store) {
+  --   actions.should_broadcast = true;
+  -- }
+  -- // Return desired node actions to environment.
+  -- actions
+
+         nsFinal = {!!}
+         smrContextFinal = {!!}
+         actionsFinal = {!!}
+
+    in
+      (nsFinal , ( smrContextFinal , actionsFinal ))
+
+
+  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
+  newPMSValue self activeRound clock = record self {
+  --    // .. store the new value
+  --    self.active_round = active_round;
+                    pmsActiveRound = activeRound
+  --    // .. start a timer
+  --    self.active_round_start = clock;
+                  ; pmsActiveRoundStart = clock
+  --    // .. recompute the leader
+  --    self.active_leader = Some(Self::leader(record_store, active_round));
+                  ; pmsActiveLeader = just {!!}
+  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
+  --    self.active_nodes = HashSet::new();
+                  ; pmsActiveNodes = {!!}
+                  }
+  --  }
+
+  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
+     → PacemakerState × PacemakerUpdateActions
+  updatePMSandPUA s a ar cl
+    -- // If the active round was just updated..
+    -- if active_round > self.active_round { // .. store the new value
+    with (ar >? (pmsActiveRound s))
+                              -- // .. notify the leader to be counted as an "active node".
+                              -- actions.should_notify_leader = self.active_leader;
+  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
+  ...| no  _ = (s , a)
+
+
+  -- Section 7.10, page 27
+  -- fn update_pacemaker(
+  --     &mut self,
+  --     local_author: Author,
+  --     record_store: &RecordStore,
+  --     mut latest_broadcast: NodeTime,
+  --     latest_senders: Vec<(Author, Round)>,
+  --     clock: NodeTime,
+  -- ) -> PacemakerUpdateActions {
+
+  updatePacemaker : PacemakerState
+                   → Author
+                   → {h : HInit}   -- TODO: change to QC after merging with Lisandra
+                   → RecordStore h
+                   → NodeTime
+                   → LatestSenders
+                   → NodeTime
+                   → PacemakerState × PacemakerUpdateActions
+  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
+
+     let
+  --  // Initialize actions with default values.
+  --  let mut actions = PacemakerUpdateActions::new();
+       actions₀ = PacemakerUpdateActions∷new
+
+  --  // Recompute the active round.
+  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
+       activeRound = {!!}
+
+       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
+
+  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
+  --  for (author, round) in latest_senders {
+  --    if round == active_round {
+  --      self.active_nodes.insert(author);
+  --  } }
+  --  // If we are the leader and have seen a quorum of active node..
+  --  if self.active_leader == Some(local_author)
+  --    && record_store.is_quorum(&self.active_nodes)
+  --    && record_store.proposed_block(&*self) == None {
+  --    // .. propose a block on top of the highest QC that we know.
+  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
+  --    // .. force an immediate update to vote on our own proposal.
+  --    actions.should_schedule_update = Some(clock);
+  --  }
+  --  // Enforce sufficiently frequent broadcasts.
+  --  if clock >= latest_broadcast + self.broadcast_interval {
+  --    actions.should_broadcast = true;
+  --    latest_broadcast = clock;
+  --  }
+  -- // If we have not yet, create a timeout after the maximal duration for rounds.
+  -- let deadline = if record_store.has_timeout(local_author, active_round) {
+  --                  NodeTime::never()
+  --                } else {
+  --                  self.active_round_start + self.duration(record_store, active_round)
+  --                };
+  -- if clock >= deadline {
+  --   actions.should_create_timeout = Some(active_round);
+  --   actions.should_broadcast = true;
+  -- }
+  -- // Make sure this update function is run again soon enough.
+  -- actions.should_schedule_update = Some(std::cmp::min(
+  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
+  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
+  -- ));
+  -- actions
+
+       pmFinal      = {!!}
+       actionsFinal = {!!}
+     in ( pmFinal , actionsFinal )
+
+
