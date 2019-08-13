@@ -570,7 +570,7 @@ module LibraBFT
       NodeState
     → PacemakerUpdateActions
     → SmrContext
-    → NodeState × NodeUpdateActions
+    → NodeState × SmrContext × NodeUpdateActions
   processPacemakerActions self₀ pacemakerActions smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
