@@ -360,7 +360,10 @@ module LibraBFT
       n : ℕ                          -- Total number of nodes who can vote in this epoch
       3f<n : 3 * f < n               -- Require n > 3 * f
       votingRights : Vec Author n    -- For now we consider all "active" authors have equal voting rights
-      votersDistinct : DistinctVec {Level.zero} {Author} _≡-Author_ {n} votingRights 
+      votersDistinct : DistinctVec {Level.zero} {Author} _≡-Author_ {n} votingRights
+      -- VCM suggests votingRights might be Vec (Either Author Author)
+      -- Also suggests modeling votingRights as a set of indexes, map indexes to author details separately
+      -- Note also EpochConfiguration should not contain private keys
       goodGuys : Vec (Fin n) (n ∸ f) -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
                                      -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
                                      -- we model them by index into votingRights, rather than as Authors
