@@ -731,7 +731,7 @@ module LibraBFT
 
   createTimeoutCond'' : ∀ {h} → RecordStore h → Author → Maybe Round → SmrContext → RecordStore h
   createTimeoutCond'' rs _ nothing  _ = rs
-  createTimeoutCond'' rs _ (just r) _ = insert rs {!!} {!!}
+  createTimeoutCond'' rs _ (just r) _ = {!!} -- insert rs {!!} {!!}
 
   createTimeoutCond' : RecordStoreState → Author → Maybe Round → SmrContext → RecordStoreState
   createTimeoutCond' rss a mbr smr =
@@ -907,7 +907,7 @@ module LibraBFT
 
   updatePacemaker : PacemakerState
                    → Author
-                   → {h : Initial}   -- TODO: change to QC after merging with Lisandra
+                   → {h : Initial}
                    → RecordStore h
                    → NodeTime
                    → LatestSenders
