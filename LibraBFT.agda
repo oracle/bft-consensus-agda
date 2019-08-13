@@ -133,16 +133,16 @@ module LibraBFT
 
 
 
-  data RecordChain : Set where
-    I : Initial → RecordChain
-    R : Record  → RecordChain
+  data RecOrInit : Set where
+    I : Initial → RecOrInit
+    R : Record  → RecOrInit
 
 
 
  -- Hash Functions ----------------------------------------------
   postulate
-    encodeR     : RecordChain → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : RecordChain} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+    encodeR     : RecOrInit → ByteString
+    encodeR-inj : ∀ {r₀ r₁ : RecOrInit} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
 
   HashR = hash ∘ encodeR
 
@@ -150,7 +150,7 @@ module LibraBFT
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
-  data _←_ : RecordChain → RecordChain → Set where
+  data _←_ : RecOrInit → RecOrInit → Set where
     i←B : ∀ {i : Initial} {b : Block}
           → HashR (I i) ≡  Block.prevQCHash b
           → I i ← R (B b)
@@ -161,9 +161,9 @@ module LibraBFT
           → HashR (R (B b)) ≡ QC.blockHash q
           → R (B b) ← R (Q q)
 
-  data _←⋆_ (r₁ r₂ : RecordChain) : Set where
+  data _←⋆_ (r₁ r₂ : RecOrInit) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
-    ssr : ∀ {r : RecordChain} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
+    ssr : ∀ {r : RecOrInit} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
 
 
 ----------------------------------------------------------------
@@ -223,7 +223,7 @@ module LibraBFT
 
   -- 2
   -- I think we should prove injectivity in Record Chains instead
-  ←inj : ∀ {r₀ r₁ r₂ : RecordChain} → (r₀ ← r₂) → (r₁ ← r₂)
+  ←inj : ∀ {r₀ r₁ r₂ : RecOrInit} → (r₀ ← r₂) → (r₁ ← r₂)
            → r₀ ≡ r₁ ⊎ HashBroke
   ←inj {i₀} {i₁} {b} (i←B i₀←b) (i←B i₁←b)
     with hash-cr (trans i₀←b (sym i₁←b))
