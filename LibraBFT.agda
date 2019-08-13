@@ -218,7 +218,7 @@ module LibraBFT
     with vQ
   ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←Q
 
-  hᵢ←⋆R (there r' s v r∈s) = hᵢ←⋆R r∈s
+  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
 
 
   -- 2
@@ -350,7 +350,7 @@ module LibraBFT
   ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₂ , rq<rb ⟩ ⟩ ⟩
        with ←inj r←r₂ q←r₂ | ←inj rₓ←r₂ q←r₂
   ...    | _               | inj₂ hashbroke = inj₂ hashbroke
-  ...    | inj₂ hashbroke  | _              = inj₂ hashbroke
+  ...    | inj₂ hashbroke  | inj₁ _         = inj₂ hashbroke
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀∈s r₁∈s q∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
   round-mono {r₂ = B b} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
       | inj₂  ⟨ sᵢ←r₂ , 1≤rb ⟩
@@ -363,7 +363,7 @@ module LibraBFT
   ... | ⟨ b , ⟨ b∈s , ⟨ b←r₂ , rb<rq ⟩ ⟩ ⟩
        with ←inj r←r₂ b←r₂ | ←inj rₓ←r₂ b←r₂
   ...    | _               | inj₂ hashbroke = inj₂ hashbroke
-  ...    | inj₂ hashbroke  | _              = inj₂ hashbroke
+  ...    | inj₂ hashbroke  | inj₁ _         = inj₂ hashbroke
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀∈s r₁∈s b∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
   round-mono r₀∈s r₁∈s (there r' s v r₂∈s) r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
