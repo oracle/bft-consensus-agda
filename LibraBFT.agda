@@ -83,7 +83,8 @@ module LibraBFT
  -- Vote -------------------------------------------
   record Vote : Set where
     field
-      -- epoch     : EpochId
+      --epoch     : EpochId
+      round     : Round
       blockHash : BlockHash
       -- state     : State
       author    : Author
@@ -113,23 +114,20 @@ module LibraBFT
       --toSignature : Signature
 
   data Record : Set where
-    B  : Block   → Record
-    Q  : QC      → Record
-    -- vote    : Vote    → Record
-    -- timeout : Timeout → Record
+    B : Block   → Record
+    Q : QC      → Record
+    V : Vote    → Record
+    T : Timeout → Record
 
   data HashOrRec : Set where
    horRec  : Record → HashOrRec
    horHash : Hash   → HashOrRec
 
   round : Record → Round
-  round (B b)  = Block.round b
+  round (B b) = Block.round b
   round (Q q) = QC.round q
-
-  prevHash : Record → Hash
-  prevHash (B b)  = Block.prevQCHash b
-  prevHash (Q q) = QC.blockHash q
-
+  round (V v) = Vote.round v
+  round (T t) = Timeout.toRound t
 
 
 
@@ -196,7 +194,8 @@ module LibraBFT
 
   Valid (B b) rs = ValidBlock b rs
   Valid (Q q) rs = ∃[ b ] ( b ∈Rs rs × R b ← R (Q q) × round (Q q) ≡ round b )
-
+  Valid (V v) rs = ⊥
+  Valid (T t) rs = ⊥
 
 
 -- Lemma S₁ ---------------------------------------------------
@@ -393,7 +392,7 @@ module LibraBFT
 
   NodeTime : Set
   NodeTime = {!!}
-    
+
 
   FakeTypeActiveNodes : Set
   -- Paper says HashSet<Author>
@@ -416,7 +415,7 @@ module LibraBFT
   GammaType : Set
   GammaType = ℕ  -- Should be Float, but see above comment
 
-  
+
 
   -- Section 7.9, page 26
   record PacemakerState : Set where
@@ -574,8 +573,8 @@ module LibraBFT
   oneDummyAuthorDistinct {0}     i = inj₁ {!!} ∷ []
   oneDummyAuthorDistinct {suc n} i = {!!}
 
-  -- lookup∘tabulate {Level.zero} {Author} {n} (dummyAuthor ∘ toℕ) 
- 
+  -- lookup∘tabulate {Level.zero} {Author} {n} (dummyAuthor ∘ toℕ)
+
   dummyAuthorsDistinct : ∀ (n : ℕ) → DistinctVec {Level.zero} _≡-Author_ (dummyAuthors n)
   dummyAuthorsDistinct 0 = distinct []
   dummyAuthorsDistinct (suc n)
