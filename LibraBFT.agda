@@ -205,6 +205,8 @@ module LibraBFT
   hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
           → r ∈Rs s
           → (I sᵢ) ←⋆ R r
+
+  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
   hᵢ←⋆R {r = B b} (here empty vB)
     with vB
   ... | inj₂  ⟨ sᵢ←B , 1≤rB ⟩ = ss0 sᵢ←B
@@ -218,7 +220,6 @@ module LibraBFT
     with vQ
   ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←Q
 
-  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
 
 
   -- 2
@@ -274,6 +275,8 @@ module LibraBFT
                  → r₀ ∈Rs s₀ → r₁ ∈Rs s₁
                  → R r₀ ←⋆ R r₁
                  → round r₀ ≤ round r₁ ⊎ HashBroke
+  r₀←⋆r₁→rr₀≤rr₁ r₀∈s (there r' s v r₁∈s) r₀←⋆r₁
+                               = r₀←⋆r₁→rr₀≤rr₁ r₀∈s r₁∈s r₀←⋆r₁
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
     with v₁
   ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩
@@ -317,8 +320,6 @@ module LibraBFT
   ...     | inj₂ hashbroke     = inj₂ hashbroke
   ...     | inj₁ rr₀≤rb        = inj₁ rr₀≤rb
 
-  r₀←⋆r₁→rr₀≤rr₁ r₀∈s (there r' s v r₁∈s) r₀←⋆r₁
-                               = r₀←⋆r₁→rr₀≤rr₁ r₀∈s r₁∈s r₀←⋆r₁
 
 
 
