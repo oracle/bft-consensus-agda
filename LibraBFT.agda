@@ -21,6 +21,7 @@ open import Relation.Nullary.Negation using (contradiction; contraposition)
 open import Data.Fin using (Fin ; fromℕ≤; toℕ)
 open import Data.Fin.Properties using () renaming (_≟_ to _≟Fin_)
 open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; map to mapVec; take to takeVec; tabulate to tabulateVec)
+open import Data.Vec.Bounded renaming (filter to filterVec) hiding ([] ; _∷_)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Data.Vec.Relation.Unary.All renaming (All to AllVec ; all to allVec)
 open import Data.Vec.Properties
@@ -544,6 +545,8 @@ module LibraBFT
       goodGuys : Vec (Fin n) (n ∸ f) -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
                                      -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
                                      -- we model them by index into votingRights, rather than as Authors
+      goodGuysDistinct : DistinctVec {Level.zero} {Fin n} _≡_ {n ∸ f} goodGuys
+
 
   open EpochConfiguration
 
@@ -602,12 +605,13 @@ module LibraBFT
 
   ec1 : EpochConfiguration
   ec1 = record {
-          f = 1
-        ; n = 4
-        ; 3f<n = 3<4
-        ; votingRights = dummyAuthors 4
-        ; votersDistinct = dummyAuthorsDistinct 4
-        ; goodGuys     = dummyGoodGuys 3 1
+          f                = 1
+        ; n                = 4
+        ; 3f<n             = 3<4
+        ; votingRights     = dummyAuthors 4
+        ; votersDistinct   = dummyAuthorsDistinct 4
+        ; goodGuys         = dummyGoodGuys 3 1
+        ; goodGuysDistinct = {!!}
         }
 
   ------------------------- End test data ----------------------
@@ -655,6 +659,19 @@ module LibraBFT
 
   _ : isHonestP ec1 (dummyAuthor 5) ≡ false
   _ = refl
+
+  -- TODO: we need to state the BFT assumption (that there are at most f bad guys, or equivalently,
+  -- at least n - f good guys), so that we can used it in proofs.  It would be good to do this in a
+  -- way that abstract away from the particular representation of EpochConfiguration.  Here is an
+  -- attempt, using the isHonest? decidable instance.  I can't get it to typecheck though.  I am not
+  -- sure how to import and instantiate the anonymous module in Data.Vec.Bounded in order to provide
+  -- the right predicate to filter (renamed to filterVec here), and there seems to be some issue
+  -- related to levels but I haven't figured it out after a bit of mucking around.
+  {-
+  BFTAssumption : (ec : EpochConfiguration)
+    → Data.Vec.Bounded.Vec≤.length (filterVec {P = isHonest? ec} (Data.Vec.Bounded.fromVec (votingRights ec))) > (n ec) ∸ (f ec)
+  BFTAssumption = {!!}
+  -}
 
 ---------------------- Update Skeleton ----------------
 
