@@ -438,51 +438,6 @@ module LibraBFT
       recStore  : RecordStoreState
       lockRound : Round
       -- latestVotedRound : Round
-
-
-{-
-  -- Other approaches for Record Store
-
-  -- 1 - Record Store as a List of all Records and the set of Verified Records
-  -- would be _∈Rs_
-
-  Valid : QC → Record → List Record → Set
-  Valid qᵢ (B b)  [] = Qc qᵢ ← B b × Block.round b ≡ 1
-  Valid qᵢ (B b)  rs = ∃[ q ] ( q ∈ rs × q ← B b × round q < round (B b) )
-                       ⊎
-                       All (_< Block.round b)
-                           (List-map round ( filter (λ r → prevHash (B b) ≟Hash prevHash r) rs ))
-  Valid qᵢ (Qc q) rs = ∃[ b ] ( b ∈ rs × b ← Qc q × round (Qc q) ≡ round b )
-
-
-  data ∈Rs (qᵢ : QC) (r : Record) : List Record → Set where
-    here  : ∀ (s : List Record) (v : Valid qᵢ r s)
-           → ∈Rs qᵢ r s
-    there : ∀ (r' : Record) (s : List Record) (v : Valid qᵢ r' s)
-           → ∈Rs qᵢ r s
-           → ∈Rs qᵢ r (r' ∷ s)
--}
-{-
-  -- Like e Rose Tree of Valid Records
-  data ValidRecord Record : Set
-
-  data Valid Record : (List (ValidRecord Record)) → Set
-
-  data ValidRecord  Record where
-    insR : ∀ (r : Record) (s : List (ValidRecord Record)) → Valid Record s → ValidRecord Record
-
-
-  Valid r [] = {!⊤!}
-  Valid r (insR (B b) s v ∷ rs) =     r ← (B b)
-                                   ×  Valid r rs
-                                   ×  round r < Block.round b
-  Valid r (insR (Qc q) s v ∷ rs) =  r ← (Qc q)
-                                   ×  Valid r rs
-                                   ×  round r ≡ QC.round q
-
--}
-
-
       nsRecordStore         : RecordStoreState
       nsPaceMaker           : PacemakerState
       nsEpochId             : EpochId
@@ -498,7 +453,6 @@ module LibraBFT
 
 -------------------- Properties of Authors  ---------------------
 
-  -- TODO: After merging with Lisandra: add au prefix to Author fields, and put this after definitions
   data Either {A : Set} {B : Set} : Set where
     left  : ∀ (x : A) → Either {A} {B}
     right : ∀ (x : B) → Either {A} {B}
