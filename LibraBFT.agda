@@ -21,6 +21,7 @@ open import Relation.Nullary.Negation using (contradiction; contraposition)
 open import Data.Fin using (Fin ; fromℕ≤; toℕ)
 open import Data.Fin.Properties using () renaming (_≟_ to _≟Fin_)
 open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; map to mapVec; take to takeVec; tabulate to tabulateVec)
+open import Data.Vec.Bounded renaming (filter to filterVec) hiding ([] ; _∷_)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
 open import Data.Vec.Relation.Unary.All renaming (All to AllVec ; all to allVec)
 open import Data.Vec.Properties
@@ -38,10 +39,8 @@ module LibraBFT
   open WithCryptoHash hash hash-cr
 
  ------------------------- AuxTypes ----------------------------
-  record Author : Set where
-    field
-      id : ℕ
-      privKey : ByteString
+  Author : Set
+  Author = ℕ
 
   EpochId : Set
   EpochId = ℕ
@@ -438,51 +437,6 @@ module LibraBFT
       recStore  : RecordStoreState
       lockRound : Round
       -- latestVotedRound : Round
-
-
-{-
-  -- Other approaches for Record Store
-
-  -- 1 - Record Store as a List of all Records and the set of Verified Records
-  -- would be _∈Rs_
-
-  Valid : QC → Record → List Record → Set
-  Valid qᵢ (B b)  [] = Qc qᵢ ← B b × Block.round b ≡ 1
-  Valid qᵢ (B b)  rs = ∃[ q ] ( q ∈ rs × q ← B b × round q < round (B b) )
-                       ⊎
-                       All (_< Block.round b)
-                           (List-map round ( filter (λ r → prevHash (B b) ≟Hash prevHash r) rs ))
-  Valid qᵢ (Qc q) rs = ∃[ b ] ( b ∈ rs × b ← Qc q × round (Qc q) ≡ round b )
-
-
-  data ∈Rs (qᵢ : QC) (r : Record) : List Record → Set where
-    here  : ∀ (s : List Record) (v : Valid qᵢ r s)
-           → ∈Rs qᵢ r s
-    there : ∀ (r' : Record) (s : List Record) (v : Valid qᵢ r' s)
-           → ∈Rs qᵢ r s
-           → ∈Rs qᵢ r (r' ∷ s)
--}
-{-
-  -- Like e Rose Tree of Valid Records
-  data ValidRecord Record : Set
-
-  data Valid Record : (List (ValidRecord Record)) → Set
-
-  data ValidRecord  Record where
-    insR : ∀ (r : Record) (s : List (ValidRecord Record)) → Valid Record s → ValidRecord Record
-
-
-  Valid r [] = {!⊤!}
-  Valid r (insR (B b) s v ∷ rs) =     r ← (B b)
-                                   ×  Valid r rs
-                                   ×  round r < Block.round b
-  Valid r (insR (Qc q) s v ∷ rs) =  r ← (Qc q)
-                                   ×  Valid r rs
-                                   ×  round r ≡ QC.round q
-
--}
-
-
       nsRecordStore         : RecordStoreState
       nsPaceMaker           : PacemakerState
       nsEpochId             : EpochId
@@ -498,31 +452,72 @@ module LibraBFT
 
 -------------------- Properties of Authors  ---------------------
 
-  -- TODO: After merging with Lisandra: add au prefix to Author fields, and put this after definitions
-  open Author
+  data Either {A : Set} {B : Set} : Set where
+    left  : ∀ (x : A) → Either {A} {B}
+    right : ∀ (x : B) → Either {A} {B}
 
-  data _≡-Author_ : Relation.Binary.Rel Author 0ℓ where
-    a₁≡a₂ : ∀{a₁ a₂} → id a₁ ≡ id a₂ → a₁ ≡-Author a₂
+  left-inj  : ∀ {n₁ : ℕ} {n₂ : ℕ} → left  n₁ ≡ left  {ℕ} {ℕ} n₂ → n₁ ≡ n₂
+  left-inj refl = refl
 
-  ≢-Author-id : ∀ {m n}
-              → (a₁ a₂ : Author)
-              → id a₁ ≡ m
-              → id a₂ ≡ n
-              → m ≢ n
-              → Relation.Nullary.¬ (a₁ ≡-Author a₂)
-  ≢-Author-id {m} {n} a₁ a₂ id₁ id₂ m≢n prf
-    with prf
-  ...| a₁≡a₂ idprf = m≢n (trans (sym id₁) (trans idprf id₂))
+  right-inj : ∀ {n₁ : ℕ} {n₂ : ℕ} → right n₁ ≡ right {ℕ} {ℕ} n₂ → n₁ ≡ n₂
+  right-inj refl = refl
 
-  _≟-Author_ : (a₁ : Author) → (a₂ : Author) → Dec (a₁ ≡-Author a₂)
-  a₁ ≟-Author a₂ with id a₁ ≟ id a₂
-  ...| yes xx =  yes (a₁≡a₂ xx)
-  ...| no  xx =  no  (≢-Author-id a₁ a₂ refl refl xx)
+  data isLeft {A : Set} {B : Set} : Either {A} {B} → Set where
+    ll : ∀ (x : A) → isLeft (left x)
 
-  _≡-Author?_ : (a₁ : Author) → (a₂ : Author) → Bool
-  a₁ ≡-Author? a₂ with a₁ ≟-Author a₂
-  ...| yes _ = true
-  ...| no  _ = false
+  data isRight {A : Set} {B : Set} : Either {A} {B} → Set where
+    rr : ∀ (x : B) → isRight (right x)
+
+  _ : left 1 ≡ left 1 -- Passes but leaves unresolved meta warning for the B type
+  _ = refl
+
+  _ : left {B = Bool} 1 ≡ left 1 -- Specifying a type for B eliminates said warning
+  _ = refl
+
+  AuthorHonest? : Set
+  AuthorHonest? = Either {Author} {Author}
+
+  authorOf : AuthorHonest? → Author
+  authorOf (left x)  = x
+  authorOf (right x) = x
+
+  dummyAuthor : ℕ → Author
+  dummyAuthor i = i
+
+  _ : authorOf (left (dummyAuthor 0)) ≡ authorOf (right (dummyAuthor 0))
+  _ = refl
+
+  _ : authorOf (left (dummyAuthor 0)) ≢ authorOf (right (dummyAuthor 1))
+  _ = λ ()
+
+  -- The first n - f authors are honest, the rest are not
+  dummyAuthorHonest? : ℕ → ℕ → ℕ → AuthorHonest?
+  dummyAuthorHonest? n f i with i + f <? n
+  ...| yes _ = right {Author} {Author} (dummyAuthor i)
+  ...| no _  = left  {Author} {Author} (dummyAuthor i)
+
+  _ : dummyAuthorHonest? 4 1 3 ≡ (left (dummyAuthor 3))
+  _ = refl
+
+  _ : dummyAuthorHonest? 4 1 0 ≡ (right (dummyAuthor 0))
+  _ = refl
+
+  dummyAuthors : (n : ℕ) → (f : ℕ) → Vec AuthorHonest? n
+  dummyAuthors n f = tabulateVec ((dummyAuthorHonest? n f) ∘ toℕ)
+
+  _≡-AuthorHonest?_ : AuthorHonest? → AuthorHonest? → Set
+  a₁ ≡-AuthorHonest? a₂ = a₁ ≡ a₂
+
+  _≟-AuthorHonest?_ : (a₁ : AuthorHonest?) → (a₂ : AuthorHonest?) → Dec (a₁ ≡ a₂)
+  (left  n₁) ≟-AuthorHonest? (right n₂) = no (λ ())
+  (right n₁) ≟-AuthorHonest? (left  n₂) = no (λ ())
+  (right n₁) ≟-AuthorHonest? (right n₂) with n₁ ≟ n₂
+  ...| yes xx = yes (cong right xx)
+  ...| no  xx = no ( λ x → xx (right-inj {n₁} {n₂} x))
+  (left  n₁) ≟-AuthorHonest? (left  n₂) with n₁ ≟ n₂
+  ...| yes xx = yes (cong left xx)
+  ...| no  xx = no ( λ x → xx (left-inj  {n₁} {n₂} x))
+
 
 ---------------------- Epoch Configuration  ---------------------
 
@@ -532,111 +527,98 @@ module LibraBFT
 
   record EpochConfiguration : Set (Level.suc Level.zero) where
     field
-      f : ℕ                          -- Maxiumum number of faulty nodes in this epoch
-      n : ℕ                          -- Total number of nodes who can vote in this epoch
-      3f<n : 3 * f < n               -- Require n > 3 * f
-      votingRights : Vec Author n    -- For now we consider all "active" authors have equal voting rights
-      votersDistinct : DistinctVec {Level.zero} {Author} _≡-Author_ {n} votingRights
-      -- VCM suggests votingRights might be Vec (Either Author Author)
-      -- Also suggests modeling votingRights as a set of indexes, map indexes to author details separately
-      -- Note also EpochConfiguration should not contain private keys
-      goodGuys : Vec (Fin n) (n ∸ f) -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
-                                     -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
-                                     -- we model them by index into votingRights, rather than as Authors
+      f : ℕ                               -- Maxiumum number of faulty nodes in this epoch
+      n : ℕ                               -- Total number of nodes who can vote in this epoch
+      3f<n : 3 * f < n                    -- Require n > 3 * f
+      votingRights : Vec AuthorHonest? n  -- Lefts are bad guys, Rights are good guys
+      votersDistinct : DistinctVec {Level.zero} {AuthorHonest?} _≡-AuthorHonest?_ {n} votingRights
+                                          -- For now we consider all "active" authors have equal voting rights
 
   open EpochConfiguration
 
   -- Test data
 
-  dummyAuthor : ℕ → Author
-  dummyAuthor i = record {id = i ; privKey = dummyByteString}
+  testN = 4
+  testF = 1
 
-  dummyAuthors : (n : ℕ) → Vec Author n
-  dummyAuthors n = tabulateVec (dummyAuthor ∘ toℕ)
+  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthorHonest? testN testF 3
+  _ = refl
 
-  -- WARNING: this is incomplete and may have an off-by-one, might not be on the right track, etc.
-  -- This is too much complication for something so simple.  We should probably define votingRights
-  -- differently to make it easier.
+  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthorHonest? testN testF 2
+  _ = refl
 
-  oneDummyAuthorDistinct : ∀ {n}
-                         → (i : Fin (suc n))
-                         → AllVec
-                             (λ j →
-                                i ≡ j ⊎
-                                (¬ (dummyAuthor (toℕ i)
-                                   ≡-Author
-                                   lookupVec
-                                     (dummyAuthor (toℕ i)∷
-                                        tabulateVec (λ x₁ → dummyAuthor (suc (toℕ x₁))))
-                                     j)))
-                             (allFinVec (suc n))
-  oneDummyAuthorDistinct {0}     i = inj₁ {!!} ∷ []
-  oneDummyAuthorDistinct {suc n} i = {!!}
+  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthorHonest? testN testF 1
+  _ = refl
 
-  -- lookup∘tabulate {Level.zero} {Author} {n} (dummyAuthor ∘ toℕ)
+  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthorHonest? testN testF 0
+  _ = refl
 
-  dummyAuthorsDistinct : ∀ (n : ℕ) → DistinctVec {Level.zero} _≡-Author_ (dummyAuthors n)
-  dummyAuthorsDistinct 0 = distinct []
-  dummyAuthorsDistinct (suc n)
+  dummyAuthorsDistinct : ∀ (n : ℕ) → (f : ℕ) → DistinctVec {Level.zero} _≡-AuthorHonest?_ (dummyAuthors n f)
+  dummyAuthorsDistinct 0 _ = distinct []
+  dummyAuthorsDistinct (suc n) f
      with allFinVec (suc n)
-  ...| x ∷ xs = distinct (oneDummyAuthorDistinct {n} (fromℕ≤ {0} (s≤s z≤n)) ∷ {!!})
+  ...| x ∷ xs = {!!}
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
-  _ = refl
 
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors 4) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 0
-  _ = refl
-
-  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
-  dummyGoodGuys take drop = takeVec take {drop} (allFinVec (take + drop))
-
-  3<4 : 3 < 4
-  3<4 = s≤s (s≤s (s≤s (s≤s z≤n)))
+  3*testF<testN : (3 * testF) < testN
+  3*testF<testN = s≤s (s≤s (s≤s (s≤s z≤n)))
 
   ec1 : EpochConfiguration
   ec1 = record {
-          f = 1
-        ; n = 4
-        ; 3f<n = 3<4
-        ; votingRights = dummyAuthors 4
-        ; votersDistinct = dummyAuthorsDistinct 4
-        ; goodGuys     = dummyGoodGuys 3 1
+          f                = testF
+        ; n                = testN
+        ; 3f<n             = 3*testF<testN
+        ; votingRights     = dummyAuthors testN testF
+        ; votersDistinct   = dummyAuthorsDistinct testN testF
         }
 
   ------------------------- End test data ----------------------
 
   isVoter? : (ec : EpochConfiguration)
-           → (a : Author)
-           → Dec (AnyVec (a ≡-Author_) (votingRights ec))
-  isVoter? ec a = anyVec (a ≟-Author_) {n ec} (votingRights ec)
+           → (a : AuthorHonest?)
+           → Dec (AnyVec (a ≡-AuthorHonest?_) (votingRights ec))
+  isVoter? ec a = anyVec (a ≟-AuthorHonest?_) {n ec} (votingRights ec)
 
   isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
   isVoter ec a with
-    isVoter? ec a
-  ...| yes _ = true
-  ...| no  _ = false
+    isVoter? ec (left {Author} {Author} a) | isVoter? ec (right {Author} {Author} a)
+  ...| no  _ | no _  = false
+  ...| yes _ | no _  = true
+  ...| _     | yes _ = true
+
+  _ : (left {B = Author} (dummyAuthor 0)) ≡ left (dummyAuthor 0)
+  _ = refl
+
+  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ right (dummyAuthor 0)
+  _ = refl
+
+  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ right (dummyAuthor 1)
+  _ = refl
+
+  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ right (dummyAuthor 2)
+  _ = refl
+
+  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ left  (dummyAuthor 3)
+  _ = refl
 
   _ : isVoter ec1 (dummyAuthor 0) ≡ true
+  _ = refl
+
+  _ : isVoter ec1 (dummyAuthor 3) ≡ true
   _ = refl
 
   _ : isVoter ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
-  isHonest? : (ec : EpochConfiguration)
-            → (a  : Author)
-            → Dec (AnyVec (λ i → a ≡-Author lookupVec (votingRights ec) i) (goodGuys ec))
-  isHonest? ec a = anyVec (λ i → a ≟-Author (lookupVec (votingRights ec) i)) {n ec ∸ f ec} (goodGuys ec)
+  isHonest? : (a  : AuthorHonest?)
+            → Dec (isRight a)
+  isHonest? (left x)  = no (λ ())
+  isHonest? (right x) = yes (rr x)
 
   isHonestP : (ec : EpochConfiguration)
             → (a  : Author)
             → Bool
-  isHonestP ec a with isHonest? ec a
+  isHonestP ec a with isVoter? ec (right {Author} {Author} a)
   ...| yes _ = true
   ...| no  _ = false
 
@@ -654,6 +636,19 @@ module LibraBFT
 
   _ : isHonestP ec1 (dummyAuthor 5) ≡ false
   _ = refl
+
+  -- TODO: we need to state the BFT assumption (that there are at most f bad guys, or equivalently,
+  -- at least n - f good guys), so that we can used it in proofs.  It would be good to do this in a
+  -- way that abstract away from the particular representation of EpochConfiguration.  Here is an
+  -- attempt, using the isHonest? decidable instance.  I can't get it to typecheck though.  I am not
+  -- sure how to import and instantiate the anonymous module in Data.Vec.Bounded in order to provide
+  -- the right predicate to filter (renamed to filterVec here), and there seems to be some issue
+  -- related to levels but I haven't figured it out after a bit of mucking around.
+  {-
+  BFTAssumption : (ec : EpochConfiguration)
+    → Data.Vec.Bounded.Vec≤.length (filterVec {P = isHonest? ec} (Data.Vec.Bounded.fromVec (votingRights ec))) > (n ec) ∸ (f ec)
+  BFTAssumption = {!!}
+  -}
 
 ---------------------- Update Skeleton ----------------
 
@@ -737,6 +732,7 @@ module LibraBFT
   createTimeoutCond' rss a mbr smr =
     record rss { recStore = createTimeoutCond'' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
 
+  -- TODO: I don't think we'll literally put Timeouts in RecordStore; see email (subject "Lemma S1 does not hold!" ...)
   createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
                                                                       -- TODO: after mering with Lisandra, naming conventions
   createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
