@@ -184,6 +184,10 @@ module LibraBFT
            → r ∈Rs s
            → r ∈Rs (insert s v)
 
+  -- This seems weird and unnecessarily complicated, but I couldn't make it simpler without leaving warnings
+  whatPartOfEmptyDidYouNotUnderstand : ∀ {sᵢ} {r : Record} {rs : RecordStore sᵢ} → rs ≡ empty → r ∈Rs rs → ⊥
+  whatPartOfEmptyDidYouNotUnderstand {sᵢ} {r} {rs} rs≡empty r∈Rsrs rewrite rs≡empty with r∈Rsrs
+  ...| ()
 
   ValidBlock : {sᵢ : Initial} → Block → RecordStore sᵢ → Set
   ValidBlock {sᵢ} b rs =  ∃[ q ] ( q ∈Rs rs × R q ← R (B b) × round q < round (B b) )
@@ -385,6 +389,36 @@ module LibraBFT
       -- initialState : State
       -- highCommR    : Round
 ----------------------------------------------------------------
+
+  open RecordStoreState
+
+  lemma1-1 : RecordStoreState → Set
+  lemma1-1 rss = ∀ {r}
+               → r ∈Rs (recStore rss)
+               → (I (sᵢ rss)) ←⋆ R r
+
+  record AuxRecordStoreState : Set where
+    field
+      auxRssData     : RecordStoreState
+      auxRssLemma1-1 : lemma1-1 auxRssData
+
+-------------------- RecordStoreState tests --------------------
+
+  rss1 : RecordStoreState
+  rss1 = record {
+             epoch     = 1
+           ; sᵢ        = record { epochId = 1 ; seed = 1 }
+           ; recStore  = empty
+           ; curRound  = 1
+           ; highQCR   = 1 -- should this be a Maybe?
+           ; listVotes = []
+         }
+
+  arss1 : AuxRecordStoreState
+  arss1 = record {
+              auxRssData = rss1
+            ; auxRssLemma1-1 = λ {r} x → ⊥-elim ( whatPartOfEmptyDidYouNotUnderstand {r = r} {rs = recStore rss1} refl x )
+          }
 
 
 -------------------------- NodeState ---------------------------
