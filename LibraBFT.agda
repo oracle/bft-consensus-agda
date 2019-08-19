@@ -542,24 +542,21 @@ module LibraBFT
   dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
   dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
 
-  -- TODO: follow example of dummyAuthorsBijective
   dummyGoodGuysBijective : ∀ n-f f
                          → 0 < n-f
                          → {i : Fin n-f}
                          → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
-  dummyGoodGuysBijective = {!!} 
+  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i 
 
   dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
                           → 0 < n-f
                           → {i j : Fin n-f}
                           → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
   dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
-     with upgrade {n-f} {f} i ≟Fin upgrade {n-f} {f} j
-  ...| yes xxx = inj₁ {!!}
-  ...| no  xxx = inj₂ (λ prf → xxx (subst₂ _≡_ {!!} -- (dummyGoodGuysBijective n-f f 0<n-f {i})
-                                               {!!} -- (dummyGoodGuysBijective n-f f 0<n-f {j})
-                                               {!!}
-                                               ))
+     with i ≟Fin j
+  ...| yes xxx = inj₁ xxx
+  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}  -- TODO: maybe redefine upgrade to get easy injectivity property?
+                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx {!!}
 
   dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
   dummyGoodGuysDistinct {0}     = distinct λ ()
