@@ -518,14 +518,7 @@ module LibraBFT
              → DistinctVec _P_ v
 
   dummyAuthorsBijective : ∀ {n} → {i : Fin n} → lookupVec (dummyAuthors n) i ≡ dummyAuthor (toℕ i)
-  dummyAuthorsBijective {n} {i} = subst₂ _≡_
-                                         {lookupVec (tabulateVec toℕ) i}
-                                         {lookupVec (dummyAuthors n) i}
-                                         {toℕ i}
-                                         {dummyAuthor (toℕ i)}
-                                     refl
-                                     refl
-                                     (((lookup∘tabulate {n = n} toℕ) i))
+  dummyAuthorsBijective {n} {i} rewrite (lookup∘tabulate {n = n} toℕ) i = refl
 
   dummyAuthorsDistinct′ : ∀ {n}
                           → 0 < n
@@ -534,9 +527,8 @@ module LibraBFT
   dummyAuthorsDistinct′ {n} 0<n {i} {j}
      with toℕ i ≟ toℕ j
   ...| yes xxx = inj₁ (toℕ-injective xxx)
-  ...| no  xxx = inj₂ (λ prf → xxx (subst₂ _≡_ (dummyAuthorsBijective {n} {i})
-                                               (dummyAuthorsBijective {n} {j})
-                                               prf))
+  ...| no  xxx rewrite dummyAuthorsBijective {n} {i}
+                     | dummyAuthorsBijective {n} {j} = inj₂ xxx
 
   dummyAuthorsDistinct : ∀ {n} → DistinctVec {Level.zero} _≡_ (dummyAuthors n)
   dummyAuthorsDistinct {0}     = distinct λ ()
