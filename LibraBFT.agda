@@ -538,12 +538,16 @@ module LibraBFT
 
   -- TODO: maybe redefine upgrade to get easy injectivity property?
   upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
-  upgrade {take} {drop} = Data.Fin.cast (+-comm drop take) ∘ (Data.Fin.raise {take} drop)
+  upgrade {take} {drop} x = Data.Fin.inject≤ {take} {take + drop} x (m≤m+n take drop)
 
   upgrade-injective : ∀ {take drop} {i j}
                       → upgrade {take} {drop} i ≡ upgrade {take} {drop} j
                       → i ≡ j
-  upgrade-injective {take} {drop} {i} {j} prf = {!!}
+  upgrade-injective {take} {suc n} {Data.Fin.zero}  {j} prf
+     with upgrade {take} {suc n} j
+  ...| xx = {!!}
+
+  upgrade-injective {take} {suc n} {Data.Fin.suc i} {j} prf = {!!}
 
   dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
   dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
@@ -1002,5 +1006,4 @@ module LibraBFT
 --        pmFinal      = {!!}
 --        actionsFinal = {!!}
 --      in ( pmFinal , actionsFinal )
-
 
