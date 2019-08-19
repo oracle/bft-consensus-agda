@@ -5,7 +5,7 @@ open import Relation.Binary using (Decidable)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.List renaming (map to List-map)
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality renaming ([_] to Reveal[_])
 open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
@@ -19,7 +19,7 @@ open import Relation.Nullary.Negation using (contradiction; contraposition)
 
 
 open import Data.Fin using (Fin ; fromℕ≤; toℕ)
-open import Data.Fin.Properties using () renaming (_≟_ to _≟Fin_)
+open import Data.Fin.Properties using (toℕ-injective) renaming (_≟_ to _≟Fin_)
 open import Data.Vec hiding (insert) renaming (lookup to lookupVec; allFin to allFinVec; map to mapVec; take to takeVec; tabulate to tabulateVec)
 open import Data.Vec.Bounded renaming (filter to filterVec) hiding ([] ; _∷_)
 open import Data.Vec.Relation.Unary.Any renaming (Any to AnyVec ; any to anyVec)
@@ -486,153 +486,151 @@ module LibraBFT
 
 -------------------- Properties of Authors  ---------------------
 
-  data Either {A : Set} {B : Set} : Set where
-    left  : ∀ (x : A) → Either {A} {B}
-    right : ∀ (x : B) → Either {A} {B}
-
-  left-inj  : ∀ {n₁ : ℕ} {n₂ : ℕ} → left  n₁ ≡ left  {ℕ} {ℕ} n₂ → n₁ ≡ n₂
-  left-inj refl = refl
-
-  right-inj : ∀ {n₁ : ℕ} {n₂ : ℕ} → right n₁ ≡ right {ℕ} {ℕ} n₂ → n₁ ≡ n₂
-  right-inj refl = refl
-
-  data isLeft {A : Set} {B : Set} : Either {A} {B} → Set where
-    ll : ∀ (x : A) → isLeft (left x)
-
-  data isRight {A : Set} {B : Set} : Either {A} {B} → Set where
-    rr : ∀ (x : B) → isRight (right x)
-
-  _ : left 1 ≡ left 1 -- Passes but leaves unresolved meta warning for the B type
-  _ = refl
-
-  _ : left {B = Bool} 1 ≡ left 1 -- Specifying a type for B eliminates said warning
-  _ = refl
-
-  AuthorHonest? : Set
-  AuthorHonest? = Either {Author} {Author}
-
-  authorOf : AuthorHonest? → Author
-  authorOf (left x)  = x
-  authorOf (right x) = x
-
   dummyAuthor : ℕ → Author
   dummyAuthor i = i
 
-  _ : authorOf (left (dummyAuthor 0)) ≡ authorOf (right (dummyAuthor 0))
+  dummyAuthors : ∀ n → Vec Author n
+  dummyAuthors  n = tabulateVec (dummyAuthor ∘ toℕ)
+
+------------------------- Begin tests ----------------------
+
+  testN = 4
+  0<testN : 0 < testN
+  0<testN = s≤s z≤n
+
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
   _ = refl
 
-  _ : authorOf (left (dummyAuthor 0)) ≢ authorOf (right (dummyAuthor 1))
-  _ = λ ()
-
-  -- The first n - f authors are honest, the rest are not
-  dummyAuthorHonest? : ℕ → ℕ → ℕ → AuthorHonest?
-  dummyAuthorHonest? n f i with i + f <? n
-  ...| yes _ = right {Author} {Author} (dummyAuthor i)
-  ...| no _  = left  {Author} {Author} (dummyAuthor i)
-
-  _ : dummyAuthorHonest? 4 1 3 ≡ (left (dummyAuthor 3))
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
   _ = refl
 
-  _ : dummyAuthorHonest? 4 1 0 ≡ (right (dummyAuthor 0))
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
   _ = refl
 
-  dummyAuthors : (n : ℕ) → (f : ℕ) → Vec AuthorHonest? n
-  dummyAuthors n f = tabulateVec ((dummyAuthorHonest? n f) ∘ toℕ)
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 0
+  _ = refl
 
-  _≡-AuthorHonest?_ : AuthorHonest? → AuthorHonest? → Set
-  a₁ ≡-AuthorHonest? a₂ = a₁ ≡ a₂
+------------------------- End tests ----------------------
 
-  _≟-AuthorHonest?_ : (a₁ : AuthorHonest?) → (a₂ : AuthorHonest?) → Dec (a₁ ≡ a₂)
-  (left  n₁) ≟-AuthorHonest? (right n₂) = no (λ ())
-  (right n₁) ≟-AuthorHonest? (left  n₂) = no (λ ())
-  (right n₁) ≟-AuthorHonest? (right n₂) with n₁ ≟ n₂
-  ...| yes xx = yes (cong right xx)
-  ...| no  xx = no ( λ x → xx (right-inj {n₁} {n₂} x))
-  (left  n₁) ≟-AuthorHonest? (left  n₂) with n₁ ≟ n₂
-  ...| yes xx = yes (cong left xx)
-  ...| no  xx = no ( λ x → xx (left-inj  {n₁} {n₂} x))
+  -- TODO: Move to more generic location
+  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) {n} (v : Vec {ℓ} A n) : Set (Level.suc ℓ) where
+    distinct : (∀ (i j : Fin n) → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j)))
+             → DistinctVec _P_ v
 
+  dummyAuthorsBijective : ∀ {n} → {i : Fin n} → lookupVec (dummyAuthors n) i ≡ dummyAuthor (toℕ i)
+  dummyAuthorsBijective {n} {i} = subst₂ _≡_
+                                         {lookupVec (tabulateVec toℕ) i}
+                                         {lookupVec (dummyAuthors n) i}
+                                         {toℕ i}
+                                         {dummyAuthor (toℕ i)}
+                                     refl
+                                     refl
+                                     (((lookup∘tabulate {n = n} toℕ) i))
+
+  dummyAuthorsDistinct′ : ∀ {n}
+                          → 0 < n
+                          → {i j : Fin n}
+                          → i ≡ j ⊎ ¬ lookupVec (dummyAuthors n) i ≡ lookupVec (dummyAuthors n) j
+  dummyAuthorsDistinct′ {n} 0<n {i} {j}
+     with toℕ i ≟ toℕ j
+  ...| yes xxx = inj₁ (toℕ-injective xxx)
+  ...| no  xxx = inj₂ (λ prf → xxx (subst₂ _≡_ (dummyAuthorsBijective {n} {i})
+                                               (dummyAuthorsBijective {n} {j})
+                                               prf))
+
+  dummyAuthorsDistinct : ∀ {n} → DistinctVec {Level.zero} _≡_ (dummyAuthors n)
+  dummyAuthorsDistinct {0}     = distinct λ ()
+  dummyAuthorsDistinct {suc n} = distinct (λ i j → dummyAuthorsDistinct′ {suc n} (s≤s z≤n) {i} {j})
+
+  --- Good guys
+
+  upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
+  upgrade {take} {drop} = Data.Fin.cast (+-comm drop take) ∘ (Data.Fin.raise {take} drop)
+
+  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
+  dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
+
+  -- TODO: follow example of dummyAuthorsBijective
+  dummyGoodGuysBijective : ∀ n-f f
+                         → 0 < n-f
+                         → {i : Fin n-f}
+                         → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
+  dummyGoodGuysBijective = {!!} 
+
+  dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
+                          → 0 < n-f
+                          → {i j : Fin n-f}
+                          → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
+  dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
+     with upgrade {n-f} {f} i ≟Fin upgrade {n-f} {f} j
+  ...| yes xxx = inj₁ {!!}
+  ...| no  xxx = inj₂ (λ prf → xxx (subst₂ _≡_ {!!} -- (dummyGoodGuysBijective n-f f 0<n-f {i})
+                                               {!!} -- (dummyGoodGuysBijective n-f f 0<n-f {j})
+                                               {!!}
+                                               ))
+
+  dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
+  dummyGoodGuysDistinct {0}     = distinct λ ()
+  dummyGoodGuysDistinct {suc n-f} = distinct (λ i j → dummyGoodGuysDistinct′ {suc n-f} (s≤s z≤n) {i} {j})
 
 ---------------------- Epoch Configuration  ---------------------
 
-  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) {n} (v : Vec {ℓ} A n) : Set (Level.suc ℓ) where
-    distinct : AllVec (λ i → (AllVec (λ j → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j))) (allFinVec n))) (allFinVec n)
-             → DistinctVec _P_ v
-
   record EpochConfiguration : Set (Level.suc Level.zero) where
     field
-      f : ℕ                               -- Maxiumum number of faulty nodes in this epoch
-      n : ℕ                               -- Total number of nodes who can vote in this epoch
-      3f<n : 3 * f < n                    -- Require n > 3 * f
-      votingRights : Vec AuthorHonest? n  -- Lefts are bad guys, Rights are good guys
-      votersDistinct : DistinctVec {Level.zero} {AuthorHonest?} _≡-AuthorHonest?_ {n} votingRights
-                                          -- For now we consider all "active" authors have equal voting rights
+      ecN : ℕ                               -- Total number of nodes who can vote in this epoch
+      ecF : ℕ                               -- Maxiumum number of faulty nodes in this epoch
+      ecVotingRights : Vec Author ecN
+      -- Required properties for parameters and votingRights
+      ecAux0<n  : 0 < ecN
+      ecAux3f<n : 3 * ecF < ecN                    -- Require n > 3 * f
+      ecAuxVotersDistinct : DistinctVec {Level.zero} {Author} _≡_ {ecN} ecVotingRights
+                                                   -- For now we consider all "active" authors have equal voting rights
+      ecAuxGoodGuys : Vec (Fin ecN) (ecN ∸ ecF)    -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
+                                                   -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
+                                                   -- we model them by index into votingRights, rather than as Authors
+      ecAuxGoodGuysDistinct : DistinctVec {Level.zero} {Fin ecN} _≡_ {ecN ∸ ecF} ecAuxGoodGuys
 
   open EpochConfiguration
 
-  -- Test data
+  isVoter? : (ec : EpochConfiguration)
+           → (a : Author)
+           → Dec (AnyVec (a ≡_) (ecVotingRights ec))
+  isVoter? ec a = anyVec (a ≟_) {ecN ec} (ecVotingRights ec)
 
-  testN = 4
+  isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
+  isVoter ec a with isVoter? ec a
+  ...| no  _ = false
+  ...| yes _ = true
+
+------------------------- Begin test data ----------------------
+
   testF = 1
-
-  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthorHonest? testN testF 3
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthorHonest? testN testF 2
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthorHonest? testN testF 1
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN testF) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthorHonest? testN testF 0
-  _ = refl
-
-  dummyAuthorsDistinct : ∀ (n : ℕ) → (f : ℕ) → DistinctVec {Level.zero} _≡-AuthorHonest?_ (dummyAuthors n f)
-  dummyAuthorsDistinct 0 _ = distinct []
-  dummyAuthorsDistinct (suc n) f
-     with allFinVec (suc n)
-  ...| x ∷ xs = {!!}
-
 
   3*testF<testN : (3 * testF) < testN
   3*testF<testN = s≤s (s≤s (s≤s (s≤s z≤n)))
 
   ec1 : EpochConfiguration
   ec1 = record {
-          f                = testF
-        ; n                = testN
-        ; 3f<n             = 3*testF<testN
-        ; votingRights     = dummyAuthors testN testF
-        ; votersDistinct   = dummyAuthorsDistinct testN testF
+          ecN                   = testN
+        ; ecF                   = testF
+        ; ecVotingRights        = dummyAuthors testN
+        ; ecAux0<n              = 0<testN
+        ; ecAux3f<n             = 3*testF<testN
+        ; ecAuxVotersDistinct   = dummyAuthorsDistinct {testN}
+        ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
+        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct {testN ∸ testF} {testF}
         }
 
-  ------------------------- End test data ----------------------
-
-  isVoter? : (ec : EpochConfiguration)
-           → (a : AuthorHonest?)
-           → Dec (AnyVec (a ≡-AuthorHonest?_) (votingRights ec))
-  isVoter? ec a = anyVec (a ≟-AuthorHonest?_) {n ec} (votingRights ec)
-
-  isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
-  isVoter ec a with
-    isVoter? ec (left {Author} {Author} a) | isVoter? ec (right {Author} {Author} a)
-  ...| no  _ | no _  = false
-  ...| yes _ | no _  = true
-  ...| _     | yes _ = true
-
-  _ : (left {B = Author} (dummyAuthor 0)) ≡ left (dummyAuthor 0)
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
   _ = refl
 
-  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ right (dummyAuthor 0)
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
   _ = refl
 
-  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ right (dummyAuthor 1)
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
   _ = refl
 
-  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ right (dummyAuthor 2)
-  _ = refl
-
-  _ : lookupVec (votingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ left  (dummyAuthor 3)
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
   _ = refl
 
   _ : isVoter ec1 (dummyAuthor 0) ≡ true
@@ -644,356 +642,370 @@ module LibraBFT
   _ : isVoter ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
-  isHonest? : (a  : AuthorHonest?)
-            → Dec (isRight a)
-  isHonest? (left x)  = no (λ ())
-  isHonest? (right x) = yes (rr x)
+------------------------- End test data ----------------------
 
-  isHonestP : (ec : EpochConfiguration)
-            → (a  : Author)
-            → Bool
-  isHonestP ec a with isVoter? ec (right {Author} {Author} a)
-  ...| yes _ = true
-  ...| no  _ = false
+--   -- The first n - f authors are honest, the rest are not
+--   dummyAuthorHonest? : ℕ → ℕ → ℕ → AuthorHonest?
+--   dummyAuthorHonest? n f i with i + f <? n
+--   ...| yes _ = right {Author} {Author} (dummyAuthor i)
+--   ...| no _  = left  {Author} {Author} (dummyAuthor i)
 
-  _ : isHonestP ec1 (dummyAuthor 0) ≡ true
-  _ = refl
+--   _ : dummyAuthorHonest? 4 1 3 ≡ (left (dummyAuthor 3))
+--   _ = refl
 
-  _ : isHonestP ec1 (dummyAuthor 1) ≡ true
-  _ = refl
+--   _ : dummyAuthorHonest? 4 1 0 ≡ (right (dummyAuthor 0))
+--   _ = refl
 
-  _ : isHonestP ec1 (dummyAuthor 2) ≡ true
-  _ = refl
+--   isHonest? : (a  : AuthorHonest?)
+--             → Dec (isRight a)
+--   isHonest? (left x)  = no (λ ())
+--   isHonest? (right x) = yes (rr x)
 
-  _ : isHonestP ec1 (dummyAuthor 3) ≡ false
-  _ = refl
+--   isHonestP : (ec : EpochConfiguration)
+--             → (a  : Author)
+--             → Bool
+--   isHonestP ec a with isVoter? ec (right {Author} {Author} a)
+--   ...| yes _ = true
+--   ...| no  _ = false
 
-  _ : isHonestP ec1 (dummyAuthor 5) ≡ false
-  _ = refl
+--   _ : isHonestP ec1 (dummyAuthor 0) ≡ true
+--   _ = refl
 
-  -- TODO: we need to state the BFT assumption (that there are at most f bad guys, or equivalently,
-  -- at least n - f good guys), so that we can used it in proofs.  It would be good to do this in a
-  -- way that abstract away from the particular representation of EpochConfiguration.  Here is an
-  -- attempt, using the isHonest? decidable instance.  I can't get it to typecheck though.  I am not
-  -- sure how to import and instantiate the anonymous module in Data.Vec.Bounded in order to provide
-  -- the right predicate to filter (renamed to filterVec here), and there seems to be some issue
-  -- related to levels but I haven't figured it out after a bit of mucking around.
-  {-
-  BFTAssumption : (ec : EpochConfiguration)
-    → Data.Vec.Bounded.Vec≤.length (filterVec {P = isHonest? ec} (Data.Vec.Bounded.fromVec (votingRights ec))) > (n ec) ∸ (f ec)
-  BFTAssumption = {!!}
-  -}
+--   _ : isHonestP ec1 (dummyAuthor 1) ≡ true
+--   _ = refl
 
----------------------- Update Skeleton ----------------
+--   _ : isHonestP ec1 (dummyAuthor 2) ≡ true
+--   _ = refl
 
-  SmrContext : Set
-  SmrContext = {!!}
+--   _ : isHonestP ec1 (dummyAuthor 3) ≡ false
+--   _ = refl
 
-  record NodeUpdateActions : Set where
-    constructor mkNodeUpdateAction
-    field
-      nuaShouldScheduleUpdate : Maybe NodeTime
-      nuaShouldNotifyLeader   : Maybe Author
-      nuaShouldBroadcast      : Bool
+--   _ : isHonestP ec1 (dummyAuthor 5) ≡ false
+--   _ = refl
 
-  open NodeUpdateActions
+--   -- TODO: we need to state the BFT assumption (that there are at most f bad guys, or equivalently,
+--   -- at least n - f good guys), so that we can used it in proofs.  It would be good to do this in a
+--   -- way that abstract away from the particular representation of EpochConfiguration.  Here is an
+--   -- attempt, using the isHonest? decidable instance.  I can't get it to typecheck though.  I am not
+--   -- sure how to import and instantiate the anonymous module in Data.Vec.Bounded in order to provide
+--   -- the right predicate to filter (renamed to filterVec here), and there seems to be some issue
+--   -- related to levels but I haven't figured it out after a bit of mucking around.
+--   {-
+--   BFTAssumption : (ec : EpochConfiguration)
+--     → Data.Vec.Bounded.Vec≤.length (filterVec {P = isHonest? ec} (Data.Vec.Bounded.fromVec (ecVotingRights ec))) > (n ec) ∸ (f ec)
+--   BFTAssumption = {!!}
+--   -}
 
-  NodeUpdateActions∷new : NodeUpdateActions
-  NodeUpdateActions∷new = mkNodeUpdateAction nothing nothing false
+-- ---------------------- Update Skeleton ----------------
 
-  -- Section 7.3, page 23
-  record PacemakerUpdateActions : Set where
-    constructor mkPacemakerUpdateActions
-    field
-      puaShouldScheduleUpdate : Maybe NodeTime
-      puaShouldCreateTimeout  : Maybe Round
-      puaShouldNotifyLeader   : Maybe Author
-      puaShouldBroadcast      : Bool
-      puaShouldProposeBlock   : Maybe QCHash
+--   SmrContext : Set
+--   SmrContext = {!!}
 
-  open PacemakerUpdateActions
+--   record NodeUpdateActions : Set where
+--     constructor mkNodeUpdateAction
+--     field
+--       nuaShouldScheduleUpdate : Maybe NodeTime
+--       nuaShouldNotifyLeader   : Maybe Author
+--       nuaShouldBroadcast      : Bool
 
-  PacemakerUpdateActions∷new : PacemakerUpdateActions
-  PacemakerUpdateActions∷new =
-    mkPacemakerUpdateActions
-      nothing nothing nothing false nothing
+--   open NodeUpdateActions
 
-------------- Musings about high-level state for proving properties -------
+--   NodeUpdateActions∷new : NodeUpdateActions
+--   NodeUpdateActions∷new = mkNodeUpdateAction nothing nothing false
 
-  -- Nothing here yet, just placeholders
-  -- This will model the NodeStates for each Author.  Eventually, we will
-  -- define executions of the system, so that we can prove properties like
-  -- invariants (in every execution, every honest node's state has certain
-  -- properties, etc.).  This will require us to track node states and
-  -- state machine contexts for each participant (Author)
-  data AuthorNodeStates : Set where
-  data AuthorStateMachineContexts : Set where
+--   -- Section 7.3, page 23
+--   record PacemakerUpdateActions : Set where
+--     constructor mkPacemakerUpdateActions
+--     field
+--       puaShouldScheduleUpdate : Maybe NodeTime
+--       puaShouldCreateTimeout  : Maybe Round
+--       puaShouldNotifyLeader   : Maybe Author
+--       puaShouldBroadcast      : Bool
+--       puaShouldProposeBlock   : Maybe QCHash
 
-------------------------------- Pseudomonad --------------------------------
+--   open PacemakerUpdateActions
 
-  -- In an effort to make our Agda proofs mirror the Haskell code Harold is
-  -- writing, I came to realise that we'd need some Monad-like notion for
-  -- representing the environment and states of various participants.  I see
-  -- that there is some explicit support for Monad-like functionality in the
-  -- Agda standard library:
-  --   https://github.com/agda/agda-stdlib/blob/v1.0/src/Data/Container/FreeMonad.agda  -- and also some syntactic sugar for do notation:
-  --   https://agda.readthedocs.io/en/v2.6.0.1/language/syntactic-sugar.html
-  -- However, I want to discuss this first with Victor and have not spent time
-  -- to learn about it, so initially I am contonuing with my "poor person's"
-  -- version to make progress and develop intuition.
+--   PacemakerUpdateActions∷new : PacemakerUpdateActions
+--   PacemakerUpdateActions∷new =
+--     mkPacemakerUpdateActions
+--       nothing nothing nothing false nothing
 
-  -- Nothing here yet, just a placeholder
-  -- This will likely model a set of messages, but we will need to think about
-  -- the communication model to decide more detail, such as whether we will
-  -- allow message duplication, loss, reodering, etc.
-  data CommunicationEnvironment : Set where
+-- ------------- Musings about high-level state for proving properties -------
 
-  -- This is not really a monad as such; we will pass these around explicitly,
-  -- getting new versions back, allowing us to model side effects, but only
-  -- relative to the explicitly constructed PseudoMonad.  This probably won't
-  -- last long, but is what am exploring as a first cut.  So far, I think we
-  -- may need to send messages and update our nodestate via this "monad".
-  record PseudoMonad : Set where
-    field
-      commEnv    : CommunicationEnvironment
-      -- TODO: what other side effects might we need to track?
+--   -- Nothing here yet, just placeholders
+--   -- This will model the NodeStates for each Author.  Eventually, we will
+--   -- define executions of the system, so that we can prove properties like
+--   -- invariants (in every execution, every honest node's state has certain
+--   -- properties, etc.).  This will require us to track node states and
+--   -- state machine contexts for each participant (Author)
+--   data AuthorNodeStates : Set where
+--   data AuthorStateMachineContexts : Set where
 
-  createTimeoutCond'' : ∀ {h} → RecordStore h → Author → Maybe Round → SmrContext → RecordStore h
-  createTimeoutCond'' rs _ nothing  _ = rs
-  createTimeoutCond'' rs _ (just r) _ = {!!} -- insert rs {!!} {!!}
+-- ------------------------------- Pseudomonad --------------------------------
 
-  createTimeoutCond' : RecordStoreState → Author → Maybe Round → SmrContext → RecordStoreState
-  createTimeoutCond' rss a mbr smr =
-    record rss { recStore = createTimeoutCond'' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
+--   -- In an effort to make our Agda proofs mirror the Haskell code Harold is
+--   -- writing, I came to realise that we'd need some Monad-like notion for
+--   -- representing the environment and states of various participants.  I see
+--   -- that there is some explicit support for Monad-like functionality in the
+--   -- Agda standard library:
+--   --   https://github.com/agda/agda-stdlib/blob/v1.0/src/Data/Container/FreeMonad.agda  -- and also some syntactic sugar for do notation:
+--   --   https://agda.readthedocs.io/en/v2.6.0.1/language/syntactic-sugar.html
+--   -- However, I want to discuss this first with Victor and have not spent time
+--   -- to learn about it, so initially I am contonuing with my "poor person's"
+--   -- version to make progress and develop intuition.
 
-  -- TODO: I don't think we'll literally put Timeouts in RecordStore; see email (subject "Lemma S1 does not hold!" ...)
-  createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
-                                                                      -- TODO: after mering with Lisandra, naming conventions
-  createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
+--   -- Nothing here yet, just a placeholder
+--   -- This will likely model a set of messages, but we will need to think about
+--   -- the communication model to decide more detail, such as whether we will
+--   -- allow message duplication, loss, reodering, etc.
+--   data CommunicationEnvironment : Set where
 
-  -- fn process_pacemaker_actions( &mut self,
-  --                               pacemaker_actions: PacemakerUpdateActions,
-  --                               smr_context: &mut SMRContext,
-  --                             ) -> NodeUpdateActions {
-  processPacemakerActions :
-      NodeState
-    → PacemakerUpdateActions
-    → SmrContext
-    → NodeState × SmrContext × NodeUpdateActions
-  processPacemakerActions self₀ pacemakerActions smrContext₀ =
-    let
-  -- let mut actions = NodeUpdateActions::new();
-      actions = record NodeUpdateActions∷new {
-  -- actions.should_schedule_update = pacemaker_actions.should_schedule_update;
-                    nuaShouldScheduleUpdate = puaShouldScheduleUpdate pacemakerActions
-  -- actions.should_broadcast = pacemaker_actions.should_broadcast;
-                  ; nuaShouldBroadcast      = puaShouldBroadcast pacemakerActions
-  -- actions.should_notify_leader = pacemaker_actions.should_notify_leader;
-                  ; nuaShouldNotifyLeader   = puaShouldNotifyLeader pacemakerActions
-                }
+--   -- This is not really a monad as such; we will pass these around explicitly,
+--   -- getting new versions back, allowing us to model side effects, but only
+--   -- relative to the explicitly constructed PseudoMonad.  This probably won't
+--   -- last long, but is what am exploring as a first cut.  So far, I think we
+--   -- may need to send messages and update our nodestate via this "monad".
+--   record PseudoMonad : Set where
+--     field
+--       commEnv    : CommunicationEnvironment
+--       -- TODO: what other side effects might we need to track?
 
+--   createTimeoutCond'' : ∀ {h} → RecordStore h → Author → Maybe Round → SmrContext → RecordStore h
+--   createTimeoutCond'' rs _ nothing  _ = rs
+--   createTimeoutCond'' rs _ (just r) _ = {!!} -- insert rs {!!} {!!}
 
-  -- if let Some(round) = pacemaker_actions.should_create_timeout {
-  --   self.record_store.create_timeout(self.local_author, round, smr_context);
-  -- }
-      la₀   = nsLocalAuthor self₀
-      round = puaShouldCreateTimeout pacemakerActions
-      self₁ = createTimeoutCond self₀ la₀ round smrContext₀
+--   createTimeoutCond' : RecordStoreState → Author → Maybe Round → SmrContext → RecordStoreState
+--   createTimeoutCond' rss a mbr smr =
+--     record rss { recStore = createTimeoutCond'' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
 
-  -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
-  --   self.record_store.propose_block(
-  --       self.local_author,
-  --       previous_qc_hash,
-  --       self.latest_broadcast,
-  --       smr_context,
-  --   );
-      previousQCHashMB = puaShouldProposeBlock pacemakerActions
-      lb₀ = nsLatestBroadcast self₀
-      -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
-      -- painful here, as we will need to update both self amd SMR Context, based on the same
-      -- condition
+--   -- TODO: I don't think we'll literally put Timeouts in RecordStore; see email (subject "Lemma S1 does not hold!" ...)
+--   createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
+--                                                                       -- TODO: after mering with Lisandra, naming conventions
+--   createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
+
+--   -- fn process_pacemaker_actions( &mut self,
+--   --                               pacemaker_actions: PacemakerUpdateActions,
+--   --                               smr_context: &mut SMRContext,
+--   --                             ) -> NodeUpdateActions {
+--   processPacemakerActions :
+--       NodeState
+--     → PacemakerUpdateActions
+--     → SmrContext
+--     → NodeState × SmrContext × NodeUpdateActions
+--   processPacemakerActions self₀ pacemakerActions smrContext₀ =
+--     let
+--   -- let mut actions = NodeUpdateActions::new();
+--       actions = record NodeUpdateActions∷new {
+--   -- actions.should_schedule_update = pacemaker_actions.should_schedule_update;
+--                     nuaShouldScheduleUpdate = puaShouldScheduleUpdate pacemakerActions
+--   -- actions.should_broadcast = pacemaker_actions.should_broadcast;
+--                   ; nuaShouldBroadcast      = puaShouldBroadcast pacemakerActions
+--   -- actions.should_notify_leader = pacemaker_actions.should_notify_leader;
+--                   ; nuaShouldNotifyLeader   = puaShouldNotifyLeader pacemakerActions
+--                 }
 
 
+--   -- if let Some(round) = pacemaker_actions.should_create_timeout {
+--   --   self.record_store.create_timeout(self.local_author, round, smr_context);
+--   -- }
+--       la₀   = nsLocalAuthor self₀
+--       round = puaShouldCreateTimeout pacemakerActions
+--       self₁ = createTimeoutCond self₀ la₀ round smrContext₀
 
-  -- }
-  -- actions
-  -- } }
-
-    in {!!}
-
-  -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
-  updateNode : NodeState
-             → NodeTime
-             → SmrContext
-             → NodeState × SmrContext × NodeUpdateActions
-  updateNode self₀ clock smrContext₀ =
-    let
-
-  -- let latest_senders = self.read_and_reset_latest_senders();
-         latestSenders = {!!}
-
-  -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
-         pacemakerActions = {!!}
-
--- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
-         -- Can't keep this organized as in paper, because can't do with & where here
-         (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
-
--- // Update locked round.
-  -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
-  -- // Vote on a valid proposal block designated by the pacemaker, if any.
-  -- if let Some((block_hash, block_round, proposer)) = self.record_store.proposed_block(&self.pacemaker) {
-  --   // Enforce voting constraints.
-  --   if block_round > self.latest_voted_round && self.record_store.previous_round(block_hash) >= self.locked_round {
-  --     // Update latest voted round.
-  --     self.latest_voted_round = block_round;
-  --     // Try to execute the command contained the a block and create a vote.
-  --     if self.record_store.create_vote(self.local_author, block_hash, smr_context) {
-  --     // Ask that we reshare the proposal.
-  --     actions.should_broadcast = true;
-  --     // Ask to notify and send our vote to the author of the block.
-  --     actions.should_notify_leader = Some(proposer);
-  -- } } }
-  -- // Check if our last proposal has reached a quorum of votes and create a QC.
-  -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
-  --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
-  --   actions.should_schedule_update = Some(clock);
-  -- }
-  -- // Check if our last proposal has reached a quorum of votes and create a QC.
-  -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
-  --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
-  --   actions.should_schedule_update = Some(clock);
-  -- }
-  -- // Check for new commits and verify if we should start a new epoch.
-  -- for commit_qc in self
-  --   .record_store
-  --   .chain_between_quorum_certificates(
-  --      self.tracker.highest_committed_round,
-  --      self.record_store.highest_committed_round(),
-  --   ) .cloned() {
-  --   // Deliver the new committed state, together with a short certificate (if any).
-  --   smr_context.commit(&commit_qc.state, self.record_store.commit_certificate(&commit_qc));
-  --   // If the current epoch ended..
-  --   let epoch_id = smr_context.read_epoch_id(&commit_qc.state);
-  --   if self.epoch_id != epoch_id {
-  --     // .. create a new record store and switch to the new epoch.
-  --     self.start_new_epoch(epoch_id, commit_qc, smr_context);
-  --     // .. stop delivering commits after an epoch change.
-  --     break;
-  -- } }
-  -- // Update the data tracker and ask that we reshare data if needed.
-  -- if self.tracker.update_and_decide_resharing(self.epoch_id, &self.record_store) {
-  --   actions.should_broadcast = true;
-  -- }
-  -- // Return desired node actions to environment.
-  -- actions
-
-         nsFinal = {!!}
-         smrContextFinal = {!!}
-         actionsFinal = {!!}
-
-    in
-      (nsFinal , ( smrContextFinal , actionsFinal ))
+--   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
+--   --   self.record_store.propose_block(
+--   --       self.local_author,
+--   --       previous_qc_hash,
+--   --       self.latest_broadcast,
+--   --       smr_context,
+--   --   );
+--       previousQCHashMB = puaShouldProposeBlock pacemakerActions
+--       lb₀ = nsLatestBroadcast self₀
+--       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
+--       -- painful here, as we will need to update both self amd SMR Context, based on the same
+--       -- condition
 
 
-  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
-  newPMSValue self activeRound clock = record self {
-  --    // .. store the new value
-  --    self.active_round = active_round;
-                    pmsActiveRound = activeRound
-  --    // .. start a timer
-  --    self.active_round_start = clock;
-                  ; pmsActiveRoundStart = clock
-  --    // .. recompute the leader
-  --    self.active_leader = Some(Self::leader(record_store, active_round));
-                  ; pmsActiveLeader = just {!!}
-  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
-  --    self.active_nodes = HashSet::new();
-                  ; pmsActiveNodes = {!!}
-                  }
-  --  }
 
-  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
-     → PacemakerState × PacemakerUpdateActions
-  updatePMSandPUA s a ar cl
-    -- // If the active round was just updated..
-    -- if active_round > self.active_round { // .. store the new value
-    with (ar >? (pmsActiveRound s))
-                              -- // .. notify the leader to be counted as an "active node".
-                              -- actions.should_notify_leader = self.active_leader;
-  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
-  ...| no  _ = (s , a)
+--   -- }
+--   -- actions
+--   -- } }
+
+--     in {!!}
+
+--   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
+--   updateNode : NodeState
+--              → NodeTime
+--              → SmrContext
+--              → NodeState × SmrContext × NodeUpdateActions
+--   updateNode self₀ clock smrContext₀ =
+--     let
+
+--   -- let latest_senders = self.read_and_reset_latest_senders();
+--          latestSenders = {!!}
+
+--   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
+--          pacemakerActions = {!!}
+
+-- -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
+--          -- Can't keep this organized as in paper, because can't do with & where here
+--          (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
+
+-- -- // Update locked round.
+--   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
+--   -- // Vote on a valid proposal block designated by the pacemaker, if any.
+--   -- if let Some((block_hash, block_round, proposer)) = self.record_store.proposed_block(&self.pacemaker) {
+--   --   // Enforce voting constraints.
+--   --   if block_round > self.latest_voted_round && self.record_store.previous_round(block_hash) >= self.locked_round {
+--   --     // Update latest voted round.
+--   --     self.latest_voted_round = block_round;
+--   --     // Try to execute the command contained the a block and create a vote.
+--   --     if self.record_store.create_vote(self.local_author, block_hash, smr_context) {
+--   --     // Ask that we reshare the proposal.
+--   --     actions.should_broadcast = true;
+--   --     // Ask to notify and send our vote to the author of the block.
+--   --     actions.should_notify_leader = Some(proposer);
+--   -- } } }
+--   -- // Check if our last proposal has reached a quorum of votes and create a QC.
+--   -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
+--   --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
+--   --   actions.should_schedule_update = Some(clock);
+--   -- }
+--   -- // Check if our last proposal has reached a quorum of votes and create a QC.
+--   -- if self.record_store.check_for_new_quorum_certificate(self.local_author, smr_context) {
+--   --   // The new QC may cause a change in the pacemaker state: schedule a new run of this handler now.
+--   --   actions.should_schedule_update = Some(clock);
+--   -- }
+--   -- // Check for new commits and verify if we should start a new epoch.
+--   -- for commit_qc in self
+--   --   .record_store
+--   --   .chain_between_quorum_certificates(
+--   --      self.tracker.highest_committed_round,
+--   --      self.record_store.highest_committed_round(),
+--   --   ) .cloned() {
+--   --   // Deliver the new committed state, together with a short certificate (if any).
+--   --   smr_context.commit(&commit_qc.state, self.record_store.commit_certificate(&commit_qc));
+--   --   // If the current epoch ended..
+--   --   let epoch_id = smr_context.read_epoch_id(&commit_qc.state);
+--   --   if self.epoch_id != epoch_id {
+--   --     // .. create a new record store and switch to the new epoch.
+--   --     self.start_new_epoch(epoch_id, commit_qc, smr_context);
+--   --     // .. stop delivering commits after an epoch change.
+--   --     break;
+--   -- } }
+--   -- // Update the data tracker and ask that we reshare data if needed.
+--   -- if self.tracker.update_and_decide_resharing(self.epoch_id, &self.record_store) {
+--   --   actions.should_broadcast = true;
+--   -- }
+--   -- // Return desired node actions to environment.
+--   -- actions
+
+--          nsFinal = {!!}
+--          smrContextFinal = {!!}
+--          actionsFinal = {!!}
+
+--     in
+--       (nsFinal , ( smrContextFinal , actionsFinal ))
 
 
-  -- Section 7.10, page 27
-  -- fn update_pacemaker(
-  --     &mut self,
-  --     local_author: Author,
-  --     record_store: &RecordStore,
-  --     mut latest_broadcast: NodeTime,
-  --     latest_senders: Vec<(Author, Round)>,
-  --     clock: NodeTime,
-  -- ) -> PacemakerUpdateActions {
+--   newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
+--   newPMSValue self activeRound clock = record self {
+--   --    // .. store the new value
+--   --    self.active_round = active_round;
+--                     pmsActiveRound = activeRound
+--   --    // .. start a timer
+--   --    self.active_round_start = clock;
+--                   ; pmsActiveRoundStart = clock
+--   --    // .. recompute the leader
+--   --    self.active_leader = Some(Self::leader(record_store, active_round));
+--                   ; pmsActiveLeader = just {!!}
+--   --    // .. reset the set of nodes known to have entered this round (useful for leaders).
+--   --    self.active_nodes = HashSet::new();
+--                   ; pmsActiveNodes = {!!}
+--                   }
+--   --  }
 
-  updatePacemaker : PacemakerState
-                   → Author
-                   → {h : Initial}
-                   → RecordStore h
-                   → NodeTime
-                   → LatestSenders
-                   → NodeTime
-                   → PacemakerState × PacemakerUpdateActions
-  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
+--   updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
+--      → PacemakerState × PacemakerUpdateActions
+--   updatePMSandPUA s a ar cl
+--     -- // If the active round was just updated..
+--     -- if active_round > self.active_round { // .. store the new value
+--     with (ar >? (pmsActiveRound s))
+--                               -- // .. notify the leader to be counted as an "active node".
+--                               -- actions.should_notify_leader = self.active_leader;
+--   ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
+--   ...| no  _ = (s , a)
 
-     let
-  --  // Initialize actions with default values.
-  --  let mut actions = PacemakerUpdateActions::new();
-       actions₀ = PacemakerUpdateActions∷new
 
-  --  // Recompute the active round.
-  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
-       activeRound = {!!}
+--   -- Section 7.10, page 27
+--   -- fn update_pacemaker(
+--   --     &mut self,
+--   --     local_author: Author,
+--   --     record_store: &RecordStore,
+--   --     mut latest_broadcast: NodeTime,
+--   --     latest_senders: Vec<(Author, Round)>,
+--   --     clock: NodeTime,
+--   -- ) -> PacemakerUpdateActions {
 
-       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
+--   updatePacemaker : PacemakerState
+--                    → Author
+--                    → {h : Initial}
+--                    → RecordStore h
+--                    → NodeTime
+--                    → LatestSenders
+--                    → NodeTime
+--                    → PacemakerState × PacemakerUpdateActions
+--   updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
 
-  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
-  --  for (author, round) in latest_senders {
-  --    if round == active_round {
-  --      self.active_nodes.insert(author);
-  --  } }
-  --  // If we are the leader and have seen a quorum of active node..
-  --  if self.active_leader == Some(local_author)
-  --    && record_store.is_quorum(&self.active_nodes)
-  --    && record_store.proposed_block(&*self) == None {
-  --    // .. propose a block on top of the highest QC that we know.
-  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
-  --    // .. force an immediate update to vote on our own proposal.
-  --    actions.should_schedule_update = Some(clock);
-  --  }
-  --  // Enforce sufficiently frequent broadcasts.
-  --  if clock >= latest_broadcast + self.broadcast_interval {
-  --    actions.should_broadcast = true;
-  --    latest_broadcast = clock;
-  --  }
-  -- // If we have not yet, create a timeout after the maximal duration for rounds.
-  -- let deadline = if record_store.has_timeout(local_author, active_round) {
-  --                  NodeTime::never()
-  --                } else {
-  --                  self.active_round_start + self.duration(record_store, active_round)
-  --                };
-  -- if clock >= deadline {
-  --   actions.should_create_timeout = Some(active_round);
-  --   actions.should_broadcast = true;
-  -- }
-  -- // Make sure this update function is run again soon enough.
-  -- actions.should_schedule_update = Some(std::cmp::min(
-  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
-  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
-  -- ));
-  -- actions
+--      let
+--   --  // Initialize actions with default values.
+--   --  let mut actions = PacemakerUpdateActions::new();
+--        actions₀ = PacemakerUpdateActions∷new
 
-       pmFinal      = {!!}
-       actionsFinal = {!!}
-     in ( pmFinal , actionsFinal )
+--   --  // Recompute the active round.
+--   --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
+--        activeRound = {!!}
+
+--        (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
+
+--   --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
+--   --  for (author, round) in latest_senders {
+--   --    if round == active_round {
+--   --      self.active_nodes.insert(author);
+--   --  } }
+--   --  // If we are the leader and have seen a quorum of active node..
+--   --  if self.active_leader == Some(local_author)
+--   --    && record_store.is_quorum(&self.active_nodes)
+--   --    && record_store.proposed_block(&*self) == None {
+--   --    // .. propose a block on top of the highest QC that we know.
+--   --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
+--   --    // .. force an immediate update to vote on our own proposal.
+--   --    actions.should_schedule_update = Some(clock);
+--   --  }
+--   --  // Enforce sufficiently frequent broadcasts.
+--   --  if clock >= latest_broadcast + self.broadcast_interval {
+--   --    actions.should_broadcast = true;
+--   --    latest_broadcast = clock;
+--   --  }
+--   -- // If we have not yet, create a timeout after the maximal duration for rounds.
+--   -- let deadline = if record_store.has_timeout(local_author, active_round) {
+--   --                  NodeTime::never()
+--   --                } else {
+--   --                  self.active_round_start + self.duration(record_store, active_round)
+--   --                };
+--   -- if clock >= deadline {
+--   --   actions.should_create_timeout = Some(active_round);
+--   --   actions.should_broadcast = true;
+--   -- }
+--   -- // Make sure this update function is run again soon enough.
+--   -- actions.should_schedule_update = Some(std::cmp::min(
+--   --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
+--   --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
+--   -- ));
+--   -- actions
+
+--        pmFinal      = {!!}
+--        actionsFinal = {!!}
+--      in ( pmFinal , actionsFinal )
 
 
