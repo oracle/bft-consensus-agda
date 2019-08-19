@@ -536,8 +536,14 @@ module LibraBFT
 
   --- Good guys
 
+  -- TODO: maybe redefine upgrade to get easy injectivity property?
   upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
   upgrade {take} {drop} = Data.Fin.cast (+-comm drop take) ∘ (Data.Fin.raise {take} drop)
+
+  upgrade-injective : ∀ {take drop} {i j}
+                      → upgrade {take} {drop} i ≡ upgrade {take} {drop} j
+                      → i ≡ j
+  upgrade-injective {take} {drop} {i} {j} prf = {!!}
 
   dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
   dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
@@ -555,8 +561,8 @@ module LibraBFT
   dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
      with i ≟Fin j
   ...| yes xxx = inj₁ xxx
-  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}  -- TODO: maybe redefine upgrade to get easy injectivity property?
-                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx {!!}
+  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}
+                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx (upgrade-injective {n-f} {f} {i} {j} x)
 
   dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
   dummyGoodGuysDistinct {0}     = distinct λ ()
