@@ -479,7 +479,6 @@ module LibraBFT
     field
       author    : Author
       epoch     : EpochId
-      recStore  : RecordStoreState
       lockRound : Round
       -- latestVotedRound : Round
       nsRecordStore         : RecordStoreState
@@ -811,6 +810,26 @@ module LibraBFT
                                                                       -- TODO: after merging with Lisandra, naming conventions
   createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
 
+  proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
+  proposeBlock = {!!}
+
+  proposeBlockCond : NodeState
+                   → Maybe QCHash
+                   → SmrContext
+                   → NodeState × SmrContext
+  proposeBlockCond ns nothing smr = ns , smr
+  proposeBlockCond ns (just qch) smr =
+    let (blk , blkHash) = proposeBlock
+                            ns
+                            (NodeState.author ns)
+                            qch
+                            (nsLatestBroadcast ns)
+                            smr
+    in record ns { nsRecordStore     = {!!}
+                 ; nsLatestBroadcast = {!!}    -- TODO: this is just random crap while experimenting
+                 }
+       , {!!}
+
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
   --                               smr_context: &mut SMRContext,
@@ -847,10 +866,10 @@ module LibraBFT
   --       smr_context,
   --   );
       previousQCHashMB = puaShouldProposeBlock pacemakerActions
-      lb₀ = nsLatestBroadcast self₀
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
+      (self₂ , smrContext₁) = proposeBlockCond self₁ previousQCHashMB smrContext₀
 
 
 
