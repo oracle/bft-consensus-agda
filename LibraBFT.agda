@@ -807,9 +807,8 @@ module LibraBFT
   createTimeoutCond' rss a mbr smr =
     record rss { recStore = createTimeoutCond'' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
 
-  -- TODO: I don't think we'll literally put Timeouts in RecordStore; see email (subject "Lemma S1 does not hold!" ...)
   createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
-                                                                      -- TODO: after mering with Lisandra, naming conventions
+                                                                      -- TODO: after merging with Lisandra, naming conventions
   createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
 
   -- fn process_pacemaker_actions( &mut self,
