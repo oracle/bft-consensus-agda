@@ -194,6 +194,17 @@ module LibraBFT
                            ⊎
                            (I sᵢ) ← R (B b) × 1 ≤ round (B b)
 
+  {-- Needs to come after EpochConfiguration definition
+  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
+  --  at least (ecN ∸ ecF) pairs (a,s)
+  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
+  --  for each pair (a,s), the following should hold:
+  --    isVoter ec a
+  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
+  --      to and including commitment
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
+  --}
 
   Valid (B b) rs = ValidBlock b rs
   Valid (Q q) rs = ∃[ b ] ( b ∈Rs rs × R b ← R (Q q) × round (Q q) ≡ round b )
@@ -683,18 +694,36 @@ module LibraBFT
   _ : isHonest ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
-  -- TODO: we need to state the BFT assumption (that there are at most f bad guys, or equivalently,
-  -- at least n - f good guys), so that we can used it in proofs.  It would be good to do this in a
-  -- way that abstract away from the particular representation of EpochConfiguration.  Here is an
-  -- attempt, using the isHonest? decidable instance.  I can't get it to typecheck though.  I am not
-  -- sure how to import and instantiate the anonymous module in Data.Vec.Bounded in order to provide
-  -- the right predicate to filter (renamed to filterVec here), and there seems to be some issue
-  -- related to levels but I haven't figured it out after a bit of mucking around.
-  {-
+  -- TODO: We should be able to prove this for any EpochConfiguration because it follows from the
+  -- constraints on that type (we have exactly N - F) "good guys", which are distinct and are
+  -- indexes into votingRights (authors), which are also distinct.  But it is not clear if this
+  -- is in a useful form to use in proofs, so not bothering to prove it now.  When we work on Lemma
+  -- S2, we will need to use this assumption, so we can see then whether this is a useful way to
+  -- state the assumption.  I think we will generally use BFTQuorumIntersection (below), so perhaps
+  -- this definition is not needed.
+
   BFTAssumption : (ec : EpochConfiguration)
-    → Data.Vec.Bounded.Vec≤.length (filterVec {P = isHonest? ec} (Data.Vec.Bounded.fromVec (ecVotingRights ec))) > (n ec) ∸ (f ec)
+    → Data.Vec.Bounded.Vec≤.length
+        (filterVec {P = isHonestP ec} (isHonest? ec) (Data.Vec.Bounded.fromVec (ecVotingRights ec)))
+      ≡ (ecN ec) ∸ (ecF ec)
   BFTAssumption = {!!}
-  -}
+
+  -- TODO: move near other validity conditions, which will need to depend on EpochConfiguration
+  --       See commented out definition and notes above
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
+
+  -- Define a notion of an author being "in" a quorum certificate for a given EpochConfiguration
+  _∈Qs_for_ : Author → QC → EpochConfiguration → Set
+  a ∈Qs q for ec = {!!}
+
+  -- Should be provable from constraints on EpochConfigurations
+  BFTQuorumIntersection : (ec : EpochConfiguration)
+                        → (q₁ q₂ : QC)
+                        → validQC ec q₁
+                        → validQC ec q₂
+                        → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
+  BFTQuorumIntersection = {!!}
 
 ---------------------- Update Skeleton ----------------
 
