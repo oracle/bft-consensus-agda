@@ -100,6 +100,7 @@ module LibraBFT
       author    : Author
 
   record Initial : Set where
+    constructor mkInitial
     field
       epochId : EpochId
       seed    : ℕ
@@ -118,19 +119,38 @@ module LibraBFT
     V : Vote    → Record
     T : Timeout → Record
 
+
+  open Initial
+
+  -- This seems silly, there should be a more generic way
+  -- Also, after figuring this out, I figured out I didn't
+  -- need it, at least for the reason I thought I needed it.
+  -- Leaving it here in case someone helps me learn how not
+  -- to waste time on this in future!
+  ≡-Initial : ∀ {e₁ e₂ : EpochId} {s₁ s₂ : ℕ}
+            → e₁ ≡ e₂
+            → s₁ ≡ s₂
+            → mkInitial e₁ s₁ ≡ mkInitial e₂ s₂
+  ≡-Initial refl refl = refl
+
+  _≟Initial_ : (i₁ i₂ : Initial) → Dec (i₁ ≡ i₂)
+  i₁ ≟Initial i₂
+     with epochId i₁ ≟ epochId i₂
+  ...| no  xx = no (xx ∘ (cong epochId))
+  ...| yes xx
+       with seed i₁ ≟ seed i₂
+  ...|   yes xx1 = yes (≡-Initial xx xx1)
+  ...|   no  xx1 = no (xx1 ∘ (cong seed))
+
   round : Record → Round
   round (B b) = Block.round b
   round (Q q) = QC.round q
   round (V v) = Vote.round v
   round (T t) = Timeout.toRound t
 
-
-
   data RecOrInit : Set where
     I : Initial → RecOrInit
     R : Record  → RecOrInit
-
-
 
  -- Hash Functions ----------------------------------------------
   postulate
@@ -144,7 +164,7 @@ module LibraBFT
 
   -- Definition of R₁ ← R₂
   data _←_ : RecOrInit → RecOrInit → Set where
-    i←B : ∀ {i : Initial} {b : Block}
+    I←B : ∀ {i : Initial} {b : Block}
           → HashR (I i) ≡  Block.prevQCHash b
           → I i ← R (B b)
     Q←B : ∀ {q : QC} {b : Block}
@@ -161,90 +181,47 @@ module LibraBFT
 
 ----------------------------------------------------------------
 
+  data Verifiable : RecOrInit → Set
 
-------------------------- RecordStore --------------------------
+  dependsOnBlock   : Record → Set
+  dependsOnBlock   r = ∃[ b ]  (Verifiable (R b) × R b ← R r × round r ≡ round b)
 
-  data RecordStore (sᵢ : Initial) : Set
+  dependsOnQC      : Record → Set
+  dependsOnQC      r = ∃[ q ]  (Verifiable (R q) × R q ← R r × round q < round r)
 
-  Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
-
-  data RecordStore sᵢ where
-    empty  : RecordStore sᵢ
-    insert : {r : Record} (s : RecordStore sᵢ)
-             → Valid r s → RecordStore sᵢ
-
-
-  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
-    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs (insert s v)
-    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
-           → r ∈Rs s
-           → r ∈Rs (insert s v)
-
-  ValidBlock : {sᵢ : Initial} → Block → RecordStore sᵢ → Set
-  ValidBlock {sᵢ} b rs =  ∃[ q ] ( q ∈Rs rs × R q ← R (B b) × round q < round (B b) )
-                           ⊎
-                           (I sᵢ) ← R (B b) × 1 ≤ round (B b)
-
-  {-- Needs to come after EpochConfiguration definition
-  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
-  --  at least (ecN ∸ ecF) pairs (a,s)
-  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
-  --  for each pair (a,s), the following should hold:
-  --    isVoter ec a
-  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
-  --      to and including commitment
-  validQC : EpochConfiguration → QC → Set
-  validQC ec q = {!!}
-  --}
-
-  Valid (B b) rs = ValidBlock b rs
-  Valid (Q q) rs = ∃[ b ] ( b ∈Rs rs × R b ← R (Q q) × round (Q q) ≡ round b )
-  Valid (V v) rs = ⊥
-  Valid (T t) rs = ⊥
-
+  dependsOnInitial : Record → Set
+  dependsOnInitial r = ∃[ sᵢ ] ((I sᵢ) ← R r × 1 ≤ round r) -- Note: sᵢ is existentially quantified,
+                                                            -- as this condition does not depend on
+                                                            -- any particular initial hash
+  data Verifiable where
+    I : ∀ i → Verifiable (I i)
+    B : ∀ (b : Block) → dependsOnQC    (B b) ⊎ dependsOnInitial (B b) → Verifiable (R (B b))
+    Q : ∀ (q : QC)    → dependsOnBlock (Q q)                          → Verifiable (R (Q q))
+    V : ∀ (v : Vote)  → dependsOnBlock (V v)                          → Verifiable (R (V v))
 
 -- Lemma S₁ ---------------------------------------------------
 
-  -- 1
-  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
-          → r ∈Rs s
-          → (I sᵢ) ←⋆ R r
-
-  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
-  hᵢ←⋆R {r = B b} (here empty vB)
-    with vB
-  ... | inj₂  ⟨ sᵢ←B , 1≤rB ⟩ = ss0 sᵢ←B
-
-  hᵢ←⋆R {r = B b} (here (insert s x) vB)
-     with vB
-  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←B
-  ... | inj₂ ⟨ sᵢ←B , 1≤rB ⟩                  = ss0 sᵢ←B
-
-  hᵢ←⋆R {r = Q q} (here s vQ)
-    with vQ
-  ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←Q
-
-
+  -- Note: part 1 of Lemma S1 comes later, as it depends on RecordStoreState because of the
+  -- "previously verified" requirement in Section 4.2
 
   -- 2
-  -- I think we should prove injectivity in Record Chains instead
   ←inj : ∀ {r₀ r₁ r₂ : RecOrInit} → (r₀ ← r₂) → (r₁ ← r₂)
            → r₀ ≡ r₁ ⊎ HashBroke
-  ←inj {i₀} {i₁} {b} (i←B i₀←b) (i←B i₁←b)
+  ←inj {i₀} {i₁} {b} (I←B i₀←b) (I←B i₁←b)
     with hash-cr (trans i₀←b (sym i₁←b))
   ... | inj₁ ⟨ i₀≢i₁ , hi₀≡hi₁ ⟩
              = inj₂ ⟨ ⟨ encodeR i₀ , encodeR i₁ ⟩ , ⟨ i₀≢i₁ , hi₀≡hi₁ ⟩ ⟩
   ... | inj₂ i₀≡i₁
              = inj₁ (encodeR-inj i₀≡i₁)
 
-  ←inj {i} {q} {b} (i←B i←b) (Q←B q←b)
+  ←inj {i} {q} {b} (I←B i←b) (Q←B q←b)
     with hash-cr (trans i←b (sym q←b))
   ... | inj₁ ⟨ i≢q , hi≡hq ⟩
              = inj₂ ⟨ ⟨ encodeR i , encodeR q ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
   ... | inj₂ i≡q
              = contradiction (encodeR-inj i≡q) λ ()
 
-  ←inj {q} {i} {b} (Q←B q←b) (i←B i←b)
+  ←inj {q} {i} {b} (Q←B q←b) (I←B i←b)
     with hash-cr (trans i←b (sym q←b))
   ... | inj₁ ⟨ i≢q , hi≡hq ⟩
              = inj₂ ⟨ ⟨ encodeR i , encodeR q ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
@@ -265,224 +242,60 @@ module LibraBFT
   ... | inj₂ b₀≡b₁
              = inj₁ (encodeR-inj b₀≡b₁)
 
-
   -- 3
   -- Aux Lemma
-  ¬r←⋆sᵢ : ∀  {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
-               → r ∈Rs s
+  ¬r←⋆sᵢ : ∀  {sᵢ : Initial} {r : Record}
                → ¬ (R r ←⋆ (I sᵢ))
-  ¬r←⋆sᵢ r∈s (ss0 ())
-  ¬r←⋆sᵢ r∈s (ssr r←⋆r₁ ())
+  ¬r←⋆sᵢ (ss0 ())
+  ¬r←⋆sᵢ (ssr r←⋆r₁ ())
 
   -- Aux Lemma
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record} {s₀ s₁ : RecordStore sᵢ}
-                 → r₀ ∈Rs s₀ → r₁ ∈Rs s₁
+  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}
                  → R r₀ ←⋆ R r₁
-                 → round r₀ ≤ round r₁ ⊎ HashBroke
-  r₀←⋆r₁→rr₀≤rr₁ r₀∈s (there r' s v r₁∈s) r₀←⋆r₁
-                               = r₀←⋆r₁→rr₀≤rr₁ r₀∈s r₁∈s r₀←⋆r₁
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
-    with v₁
-  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩
-      with ←inj r₀←r₁ q←r₁
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-  ...   | inj₁ refl            = inj₁ (<⇒≤ rq<rb)
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
-      | inj₂  ⟨ sᵢ←r₁ , 1≤rb ⟩
-      with ←inj r₀←r₁ sᵢ←r₁
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} r₀∈s (here s₁ v₁) (ss0 r₀←r₁)
-    with v₁
-  ... | ⟨ b , ⟨ b∈s , ⟨ b←r₁ , refl ⟩ ⟩ ⟩
-     with ←inj r₀←r₁ b←r₁
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-  ...   | inj₁ refl            = inj₁ ≤-refl
-
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b}  r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
+                 → Verifiable (R r₁)
+                 → HashBroke ⊎ round r₀ ≤ round r₁
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
      with v₁
-  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₁ , rq<rb ⟩ ⟩ ⟩
-      with ←inj r₀←r₁ q←r₁
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-  ...   | inj₁ refl
-        with r₀←⋆r₁→rr₀≤rr₁ r₀∈s q∈s r₀←⋆r₁
-  ...     | inj₁ rr₀≤rq        = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
-  ...     | inj₂ hashbroke     = inj₂ hashbroke
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
-      | inj₂ ⟨ sᵢ←r₁ , 1≤rb ⟩
-      with ←inj r₀←r₁ sᵢ←r₁
-  ... | inj₁ refl              = ⊥-elim (¬r←⋆sᵢ r₀∈s r₀←⋆r₁)
-  ... | inj₂ hashbroke         = inj₂ hashbroke
+  ...| B blk prf
+       with prf
+  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
+  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
 
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} r₀∈s (here s₁ v₁) (ssr r₀←⋆r₁ r₀←r₁)
-    with v₁
-  ... | ⟨ b , ⟨ b∈s , ⟨ b←r₁ , refl ⟩ ⟩ ⟩
-     with ←inj r₀←r₁ b←r₁
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-  ...   | inj₁ refl
-        with r₀←⋆r₁→rr₀≤rr₁ r₀∈s b∈s r₀←⋆r₁
-  ...     | inj₂ hashbroke     = inj₂ hashbroke
-  ...     | inj₁ rr₀≤rb        = inj₁ rr₀≤rb
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
+       with v₁
+  ...| Q qc prf
+       with prf
+  ...|   dob = {!!}      -- QC q depends directly on Block
 
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {R r} r₀←⋆r r←r₁) (B b (inj₁ doqc)) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {R r} r₀←⋆r r←r₁) (B b (inj₂ doi))  = {!!}
 
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₀} {r₁ = B b} (ssr {I i} r₀←⋆r r←r₁) = ⊥-elim ((¬r←⋆sᵢ {i} {r₀}) r₀←⋆r)
 
+  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
 
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {s₀ s₁ s₂ : RecordStore sᵢ}
-                 → r₀ ∈Rs s₀ → r₁ ∈Rs s₁ → r₂ ∈Rs s₂
-                 → R r₀ ←⋆ R r₂ → R r₁ ←⋆ R r₂
+  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record}
+                 → R r₀ ←⋆ R r₂
+                 → R r₁ ←⋆ R r₂
+                 → Verifiable (R r₀)
+                 → Verifiable (R r₁)
+                 → Verifiable (R r₂)
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ R r₁) ⊎ HashBroke
-  round-mono r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ss0 r₁←r₂) rr₀<rr₁
-     with ←inj r₀←r₂ r₁←r₂
-  ... | inj₁ refl                           = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
-  ... | inj₂ hashBroke                      = inj₂ hashBroke
+  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+     with r←r₂ | r′←r₂
+  ...| I←B {i₁} xx1 | I←B {i₂} xx2 = {!!}
+  ...| I←B xx1 | Q←B xx2 = {!!}
+  ...| B←Q xx1 | B←Q xx2 = {!!}
+  ...| Q←B xx1 | Q←B xx2 = {!!}
+  ...| Q←B xx1 | I←B xx2 = {!!}
 
-  round-mono  {r₁ = r₁} r₀∈s r₁∈s r₂∈s (ss0 r₀←r₂) (ssr r₁←⋆r r←r₂) rr₀<rr₁
-     with ←inj r₀←r₂ r←r₂
-  ... | inj₂ hashBroke                      = inj₂ hashBroke
-  ... | inj₁ refl
-      with r₀←⋆r₁→rr₀≤rr₁ r₁∈s r₀∈s r₁←⋆r
-  ...   |  inj₁ rr₁≤rr₀                     = ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
-  ...   |  inj₂ hashbroke                   = inj₂ hashbroke
+  round-mono (ss0 r₀←r₂)      (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
-  round-mono r₀∈s r₁∈s r₂∈s (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)        rr₀<rr₁
-     with ←inj r₁←r₂ r←r₂
-  ... | inj₂ hashBroke                      = inj₂ hashBroke
-  ... | inj₁ refl                           = inj₁ r₀←⋆r
+  round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
-  round-mono {r₂ = B b} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
-    with v
-  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ q←r₂ , rq<rb ⟩ ⟩ ⟩
-       with ←inj r←r₂ q←r₂ | ←inj rₓ←r₂ q←r₂
-  ...    | _               | inj₂ hashbroke = inj₂ hashbroke
-  ...    | inj₂ hashbroke  | inj₁ _         = inj₂ hashbroke
-  ...    | inj₁ refl       | inj₁ refl      = round-mono r₀∈s r₁∈s q∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
-  round-mono {r₂ = B b} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
-      | inj₂  ⟨ sᵢ←r₂ , 1≤rb ⟩
-         with ←inj r←r₂ sᵢ←r₂
-  ...      | inj₂ hashbroke                 = inj₂ hashbroke
-  ...      | inj₁ refl                      = ⊥-elim (¬r←⋆sᵢ r₀∈s r₀←⋆r)
+  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
-  round-mono {r₂ = Q x₁} r₀∈s r₁∈s (here s v) (ssr r₀←⋆r r←r₂) (ssr r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
-    with v
-  ... | ⟨ b , ⟨ b∈s , ⟨ b←r₂ , rb<rq ⟩ ⟩ ⟩
-       with ←inj r←r₂ b←r₂ | ←inj rₓ←r₂ b←r₂
-  ...    | _               | inj₂ hashbroke = inj₂ hashbroke
-  ...    | inj₂ hashbroke  | inj₁ _         = inj₂ hashbroke
-  ...    | inj₁ refl       | inj₁ refl      = round-mono r₀∈s r₁∈s b∈s r₀←⋆r r₁←⋆rₓ rr₀<rr₁
-
-  round-mono r₀∈s r₁∈s (there r' s v r₂∈s) r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
-                                            = round-mono r₀∈s r₁∈s r₂∈s r₀←⋆r₂ r₁←⋆r₂ rr₀<rr₁
-
-
-----------------------------------------------------------------
-
-
------------------------- RecordStoreState ----------------------
-
-  record RecordStoreState : Set where
-    field
-      epoch     : EpochId
-      sᵢ        : Initial
-      recStore  : RecordStore sᵢ
-      curRound  : Round
-      highQCR   : Round
-      listVotes : List Vote
-      -- initialState : State
-      -- highCommR    : Round
-----------------------------------------------------------------
-
-  open RecordStoreState
-
-  lemma1-1 : RecordStoreState → Set
-  lemma1-1 rss = ∀ {r}
-               → r ∈Rs (recStore rss)
-               → (I (sᵢ rss)) ←⋆ R r
-
-  record AuxRecordStoreState : Set where
-    field
-      auxRssData     : RecordStoreState
-      auxRssLemma1-1 : lemma1-1 auxRssData
-
--------------------- RecordStoreState tests --------------------
-
-  rss1 : RecordStoreState
-  rss1 = record {
-             epoch     = 1
-           ; sᵢ        = record { epochId = 1 ; seed = 1 }
-           ; recStore  = empty
-           ; curRound  = 1
-           ; highQCR   = 1 -- should this be a Maybe?
-           ; listVotes = []
-         }
-
-  arss1 : AuxRecordStoreState
-  arss1 = record {
-              auxRssData = rss1
-            ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
-          }
-
--------------------------- NodeState ---------------------------
-
-  NodeTime : Set
-  NodeTime = {!!}
-
-
-  FakeTypeActiveNodes : Set
-  -- Paper says HashSet<Author>
-
-  OneSender : Set
-  OneSender = Author × Round
-
-  LatestSenders : Set
-  LatestSenders = List OneSender  -- Paper says Vec, but I think List may suffice for us and is easier to deal with
-
-  Duration : Set
-  Duration = ℕ
-
-  {- Couldn't make Float work, keep as ℕ for now
-     See: https://agda.readthedocs.io/en/v2.6.0.1/language/built-ins.html#floats
-     postulate Float : Set
-     {-# BUILTIN FLOAT Float #-}
-  -}
-
-  GammaType : Set
-  GammaType = ℕ  -- Should be Float, but see above comment
-
-
-
-  -- Section 7.9, page 26
-  record PacemakerState : Set where
-    field
-      pmsActiveRound       : Round
-      pmsActiveLeader      : Maybe Author
-      pmsActiveRoundStart  : NodeTime
-      pmsActiveNodes       : FakeTypeActiveNodes
-      pmsBroadcastInterval : Duration
-      pmsDelta             : Duration
-      pmsGamma             : GammaType
-
-  open PacemakerState
-
-  -- Section 5.6, page 17
-  record NodeState : Set where
-    field
-      author    : Author
-      epoch     : EpochId
-      lockRound : Round
-      -- latestVotedRound : Round
-      nsRecordStore         : RecordStoreState
-      nsPaceMaker           : PacemakerState
-      nsEpochId             : EpochId
-      nsLocalAuthor         : Author
-      -- nsLatestVotedRound : Round
-      nsLockedRound         : Round
-      nsLatestBroadcast     : NodeTime
-      -- nsLatestSenders    : LatestSenders
-      -- nsTracker          : DataTracker
-      -- nsPastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
-
-  open NodeState
 
 -------------------- Properties of Authors  ---------------------
 
@@ -642,9 +455,7 @@ module LibraBFT
   goodGuyIsAuthor ec a x = a ≡ lookupVec (ecVotingRights ec) x
 
   goodGuyIsAuthor? : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Dec (goodGuyIsAuthor ec a x)
-  goodGuyIsAuthor? ec a  x with a ≟ lookupVec (ecVotingRights ec) x
-  ...| yes xxx = yes xxx
-  ...| no  xxx = no  xxx
+  goodGuyIsAuthor? ec a  x = a ≟ lookupVec (ecVotingRights ec) x
 
   isHonestP : (ec : EpochConfiguration)
             → (a  : Author)
@@ -678,6 +489,117 @@ module LibraBFT
   _ : isHonest ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
+------------------------- RecordStore --------------------------
+
+  data RecordStore (sᵢ : Initial) : Set
+
+  Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
+
+  data RecordStore sᵢ where
+    empty  : RecordStore sᵢ
+    insert : {r : Record} (s : RecordStore sᵢ)
+             → Valid r s → RecordStore sᵢ
+
+
+  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
+    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs (insert s v)
+    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
+           → r ∈Rs s
+           → r ∈Rs (insert s v)
+
+  ValidBlock : {sᵢ : Initial} → Block → RecordStore sᵢ → Set
+  ValidBlock {sᵢ} b rs = Verifiable (R (B b))
+                         ⊎
+                         (I sᵢ) ← R (B b)
+
+  Valid (B b) rs = ValidBlock b rs
+  Valid (Q q) rs = ∃[ b ] ( b ∈Rs rs × R b ← R (Q q) × round (Q q) ≡ round b )
+  Valid (V v) rs = ⊥
+  Valid (T t) rs = ⊥
+
+  {-- Needs to come after EpochConfiguration definition
+  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
+  --  at least (ecN ∸ ecF) pairs (a,s)
+  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
+  --  for each pair (a,s), the following should hold:
+  --    isVoter ec a
+  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
+  --      to and including commitment
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
+  --}
+
+
+------------------------ RecordStoreState ----------------------
+
+  record RecordStoreState : Set where
+    field
+      epoch     : EpochId
+      sᵢ        : Initial
+      recStore  : RecordStore sᵢ
+      curRound  : Round
+      highQCR   : Round
+      listVotes : List Vote
+      -- initialState : State
+      -- highCommR    : Round
+----------------------------------------------------------------
+
+  open RecordStoreState
+
+  lemma1-1 : RecordStoreState → Set
+  lemma1-1 rss = ∀ {r}
+               → r ∈Rs (recStore rss)
+               → (I (sᵢ rss)) ←⋆ R r
+
+  record AuxRecordStoreState : Set where
+    field
+      auxRssData     : RecordStoreState
+      auxRssLemma1-1 : lemma1-1 auxRssData
+
+-------------------- RecordStoreState tests --------------------
+
+  rss1 : RecordStoreState
+  rss1 = record {
+             epoch     = 1
+           ; sᵢ        = record { epochId = 1 ; seed = 1 }
+           ; recStore  = empty
+           ; curRound  = 1
+           ; highQCR   = 1 -- should this be a Maybe?
+           ; listVotes = []
+         }
+
+  arss1 : AuxRecordStoreState
+  arss1 = record {
+              auxRssData = rss1
+            ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
+          }
+
+
+-------------------- Lemma S1, part 1 --------------------
+
+{- Needs to be reworked because of changing definitions
+  -- 1
+  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
+          → r ∈Rs s
+          → (I sᵢ) ←⋆ R r
+
+  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
+  hᵢ←⋆R {r = B b} (here empty vB)
+    with vB
+  ... | inj₂  ⟨ sᵢ←B , 1≤rB ⟩ = ss0 sᵢ←B
+
+  hᵢ←⋆R {r = B b} (here (insert s x) vB)
+     with vB
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←B
+  ... | inj₂ ⟨ sᵢ←B , 1≤rB ⟩                  = ss0 sᵢ←B
+
+  hᵢ←⋆R {r = Q q} (here s vQ)
+    with vQ
+  ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←Q
+-}
+
+-------------------------- BFT assumption -----------------------
+
   -- TODO: We should be able to prove this for any EpochConfiguration because it follows from the
   -- constraints on that type (we have exactly N - F) "good guys", which are distinct and are
   -- indexes into votingRights (authors), which are also distinct.  But it is not clear if this
@@ -708,6 +630,81 @@ module LibraBFT
                         → validQC ec q₂
                         → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
   BFTQuorumIntersection = {!!}
+
+
+  {-- Needs to come after EpochConfiguration definition
+  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
+  --  at least (ecN ∸ ecF) pairs (a,s)
+  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
+  --  for each pair (a,s), the following should hold:
+  --    isVoter ec a
+  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
+  --      to and including commitment
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
+  --}
+
+-------------------------- NodeState ---------------------------
+
+  NodeTime : Set
+  NodeTime = {!!}
+
+
+  FakeTypeActiveNodes : Set
+  -- Paper says HashSet<Author>
+
+  OneSender : Set
+  OneSender = Author × Round
+
+  LatestSenders : Set
+  LatestSenders = List OneSender  -- Paper says Vec, but I think List may suffice for us and is easier to deal with
+
+  Duration : Set
+  Duration = ℕ
+
+  {- Couldn't make Float work, keep as ℕ for now
+     See: https://agda.readthedocs.io/en/v2.6.0.1/language/built-ins.html#floats
+     postulate Float : Set
+     {-# BUILTIN FLOAT Float #-}
+  -}
+
+  GammaType : Set
+  GammaType = ℕ  -- Should be Float, but see above comment
+
+
+
+  -- Section 7.9, page 26
+  record PacemakerState : Set where
+    field
+      pmsActiveRound       : Round
+      pmsActiveLeader      : Maybe Author
+      pmsActiveRoundStart  : NodeTime
+      pmsActiveNodes       : FakeTypeActiveNodes
+      pmsBroadcastInterval : Duration
+      pmsDelta             : Duration
+      pmsGamma             : GammaType
+
+  open PacemakerState
+
+  -- Section 5.6, page 17
+  record NodeState : Set where
+    field
+      author    : Author
+      epoch     : EpochId
+      lockRound : Round
+      -- latestVotedRound : Round
+      nsRecordStore         : RecordStoreState
+      nsPaceMaker           : PacemakerState
+      nsEpochId             : EpochId
+      nsLocalAuthor         : Author
+      -- nsLatestVotedRound : Round
+      nsLockedRound         : Round
+      nsLatestBroadcast     : NodeTime
+      -- nsLatestSenders    : LatestSenders
+      -- nsTracker          : DataTracker
+      -- nsPastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
+
+  open NodeState
 
 ---------------------- Update Skeleton ----------------
 
