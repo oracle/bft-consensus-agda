@@ -118,10 +118,6 @@ module LibraBFT
     V : Vote    → Record
     T : Timeout → Record
 
-  data HashOrRec : Set where
-   horRec  : Record → HashOrRec
-   horHash : Hash   → HashOrRec
-
   round : Record → Round
   round (B b) = Block.round b
   round (Q q) = QC.round q
@@ -183,11 +179,6 @@ module LibraBFT
     there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
            → r ∈Rs s
            → r ∈Rs (insert s v)
-
-  -- This seems weird and unnecessarily complicated, but I couldn't make it simpler without leaving warnings
-  whatPartOfEmptyDidYouNotUnderstand : ∀ {sᵢ} {r : Record} {rs : RecordStore sᵢ} → rs ≡ empty → r ∈Rs rs → ⊥
-  whatPartOfEmptyDidYouNotUnderstand {sᵢ} {r} {rs} rs≡empty r∈Rsrs rewrite rs≡empty with r∈Rsrs
-  ...| ()
 
   ValidBlock : {sᵢ : Initial} → Block → RecordStore sᵢ → Set
   ValidBlock {sᵢ} b rs =  ∃[ q ] ( q ∈Rs rs × R q ← R (B b) × round q < round (B b) )
@@ -428,9 +419,8 @@ module LibraBFT
   arss1 : AuxRecordStoreState
   arss1 = record {
               auxRssData = rss1
-            ; auxRssLemma1-1 = λ {r} x → ⊥-elim ( whatPartOfEmptyDidYouNotUnderstand {r = r} {rs = recStore rss1} refl x )
+            ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
           }
-
 
 -------------------------- NodeState ---------------------------
 
