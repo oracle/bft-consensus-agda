@@ -577,12 +577,12 @@ module LibraBFT
       -- Required properties for parameters and votingRights
       ecAux0<n  : 0 < ecN
       ecAux3f<n : 3 * ecF < ecN                    -- Require n > 3 * f
-      ecAuxVotersDistinct : DistinctVec {Level.zero} {Author} _≡_ {ecN} ecVotingRights
+      ecAuxVotersDistinct : DistinctVec _≡_ ecVotingRights
                                                    -- For now we consider all "active" authors have equal voting rights
       ecAuxGoodGuys : Vec (Fin ecN) (ecN ∸ ecF)    -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
                                                    -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
                                                    -- we model them by index into votingRights, rather than as Authors
-      ecAuxGoodGuysDistinct : DistinctVec {Level.zero} {Fin ecN} _≡_ {ecN ∸ ecF} ecAuxGoodGuys
+      ecAuxGoodGuysDistinct : DistinctVec _≡_ ecAuxGoodGuys
 
   open EpochConfiguration
 
@@ -610,9 +610,9 @@ module LibraBFT
         ; ecVotingRights        = dummyAuthors testN
         ; ecAux0<n              = 0<testN
         ; ecAux3f<n             = 3*testF<testN
-        ; ecAuxVotersDistinct   = dummyAuthorsDistinct {testN}
+        ; ecAuxVotersDistinct   = dummyAuthorsDistinct
         ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
-        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct {testN ∸ testF} {testF}
+        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct
         }
 
   _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
