@@ -799,17 +799,17 @@ module LibraBFT
       commEnv    : CommunicationEnvironment
       -- TODO: what other side effects might we need to track?
 
-  createTimeoutCond'' : ∀ {h} → RecordStore h → Author → Maybe Round → SmrContext → RecordStore h
-  createTimeoutCond'' rs _ nothing  _ = rs
-  createTimeoutCond'' rs _ (just r) _ = {!!} -- insert rs {!!} {!!}
+  createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
+  createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
 
-  createTimeoutCond' : RecordStoreState → Author → Maybe Round → SmrContext → RecordStoreState
-  createTimeoutCond' rss a mbr smr =
-    record rss { recStore = createTimeoutCond'' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a mbr smr }
+  createTimeout : RecordStoreState → Author → Round → SmrContext → RecordStoreState
+  createTimeout rss a r smr =
+    record rss { recStore = createTimeout' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a r smr }
 
-  createTimeoutCond : NodeState → Author → Maybe Round → SmrContext → NodeState
+  createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
+  createTimeoutCond ns nothing  _   = ns
                                                                       -- TODO: after merging with Lisandra, naming conventions
-  createTimeoutCond ns a r smr = record ns { nsRecordStore = createTimeoutCond' (NodeState.nsRecordStore ns) a r smr }
+  createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
 
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
@@ -836,9 +836,8 @@ module LibraBFT
   -- if let Some(round) = pacemaker_actions.should_create_timeout {
   --   self.record_store.create_timeout(self.local_author, round, smr_context);
   -- }
-      la₀   = nsLocalAuthor self₀
       round = puaShouldCreateTimeout pacemakerActions
-      self₁ = createTimeoutCond self₀ la₀ round smrContext₀
+      self₁ = createTimeoutCond self₀ round smrContext₀
 
   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
   --   self.record_store.propose_block(
