@@ -519,6 +519,13 @@ module LibraBFT
            → r ∈Rs s
            → r ∈Rs (insert s v)
 
+  -- A Record is "valid" to add to a RecordStore if it is Verifiable and furthermore the record on which
+  -- it depends is in that RecordStore ("previously verified" in the parlance of the LibraBFT paper).
+  -- The definitions of Verifiable and Valid are quite similar and could be more closely aligned (e.g.,
+  -- by passing a Maybe RecordStore to Verifiable and checking that the existentially quantidied Record
+  -- is in the RecordStore (if any).  However, we prefer to avoid any mention of RecordStores at all in
+  -- the definition of Verifiable so that we don't need to deal with them in proofs of properties that
+  -- don't require them.
   data Valid where
     B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
     Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b))                          → Valid (Q q) rs
