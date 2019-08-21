@@ -369,168 +369,56 @@ module LibraBFT
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
-  data _←_ : RecOrInit → RecOrInit → Set where
+  data _←_ : RecOrInit → Record → Set where
     I←B : ∀ {i : Initial} {b : Block}
           → HashR (I i) ≡  Block.prevQCHash b
-          → I i ← R (B b)
+          → I i ← B b
     Q←B : ∀ {q : QC} {b : Block}
           → HashR (R (Q q)) ≡  Block.prevQCHash b
-          → R (Q q) ← R (B b)
+          → R (Q q) ← B b
     B←Q : ∀ {b : Block} {q : QC}
           → HashR (R (B b)) ≡ QC.blockHash q
-          → R (B b) ← R (Q q)
+          → R (B b) ← Q q
 
-  data _←⋆_ (r₁ r₂ : RecOrInit) : Set where
+  data _←⋆_ (r₁ : RecOrInit) (r₂ : Record) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
-    ssr : ∀ {r : RecOrInit} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
-
-
-----------------------------------------------------------------
-
-  data Verifiable : RecOrInit → Set
-
-  _dependsOnBlock_   : Record → Block → Set
-  r dependsOnBlock b = Verifiable (R (B b)) × R (B b) ← R r × round (B b) ≡ round r
-
-  _dependsOnQC_      : Record → QC → Set
-  r dependsOnQC q    = Verifiable (R (Q q)) × R (Q q) ← R r × round (Q q) < round r
-
-  _dependsOnInitial_  : Record → Initial → Set
-  r dependsOnInitial i = (I i) ← R r × 1 ≤ round r
-
-  data Verifiable where
-    I : ∀ i → Verifiable (I i)
-    B : ∀ (b : Block) → ∃[ q ]((B b) dependsOnQC q)    ⊎ ∃[ i ]((B b) dependsOnInitial i) → Verifiable (R (B b))
-    Q : ∀ (q : QC)    → ∃[ b ]((Q q) dependsOnBlock b)                                    → Verifiable (R (Q q))
-    V : ∀ (v : Vote)  → ∃[ b ]((V v) dependsOnBlock b)                                    → Verifiable (R (V v))
-
--- Lemma S₁ ---------------------------------------------------
-
-  -- Note: part 1 of Lemma S1 comes later, as it depends on RecordStoreState because of the
-  -- "previously verified" requirement in Section 4.2
-
-  -- 2
-  ←inj : ∀ {r₀ r₁ r₂ : RecOrInit} → (r₀ ← r₂) → (r₁ ← r₂)
-           → r₀ ≡ r₁ ⊎ HashBroke
-  ←inj {i₀} {i₁} {b} (I←B i₀←b) (I←B i₁←b)
-    with hash-cr (trans i₀←b (sym i₁←b))
-  ... | inj₁ ⟨ i₀≢i₁ , hi₀≡hi₁ ⟩
-             = inj₂ ⟨ ⟨ encodeR i₀ , encodeR i₁ ⟩ , ⟨ i₀≢i₁ , hi₀≡hi₁ ⟩ ⟩
-  ... | inj₂ i₀≡i₁
-             = inj₁ (encodeR-inj i₀≡i₁)
-
-  ←inj {i} {q} {b} (I←B i←b) (Q←B q←b)
-    with hash-cr (trans i←b (sym q←b))
-  ... | inj₁ ⟨ i≢q , hi≡hq ⟩
-             = inj₂ ⟨ ⟨ encodeR i , encodeR q ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
-  ... | inj₂ i≡q
-             = contradiction (encodeR-inj i≡q) λ ()
-
-  ←inj {q} {i} {b} (Q←B q←b) (I←B i←b)
-    with hash-cr (trans i←b (sym q←b))
-  ... | inj₁ ⟨ i≢q , hi≡hq ⟩
-             = inj₂ ⟨ ⟨ encodeR i , encodeR q ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
-  ... | inj₂ i≡q
-             = contradiction (encodeR-inj i≡q) λ ()
-
-  ←inj {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
-    with hash-cr (trans q₀←b (sym q₁←b))
-  ... | inj₁ ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩
-             = inj₂ ⟨ ⟨ encodeR q₀ , encodeR q₁ ⟩ , ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩ ⟩
-  ... | inj₂ q₁≡q₂
-             = inj₁ (encodeR-inj q₁≡q₂)
-
-  ←inj {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
-    with hash-cr (trans b₀←q (sym b₁←q))
-  ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
-             = inj₂ ⟨ ⟨ encodeR b₀ , encodeR b₁ ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
-  ... | inj₂ b₀≡b₁
-             = inj₁ (encodeR-inj b₀≡b₁)
-
-  -- 3
-  -- Aux Lemma
-  ¬r←⋆sᵢ : ∀  {sᵢ : Initial} {r : Record}
-               → ¬ (R r ←⋆ (I sᵢ))
-  ¬r←⋆sᵢ (ss0 ())
-  ¬r←⋆sᵢ (ssr r←⋆r₁ ())
-
-  -- Aux Lemma
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}
-                 → R r₀ ←⋆ R r₁
-                 → Verifiable (R r₁)
-                 → HashBroke ⊎ round r₀ ≤ round r₁
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
-     with v₁
-  ...| B blk prf
-       with prf
-  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
-  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
-
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
-       with v₁
-  ...| Q qc prf
-       with prf
-  ...|   dob = {!!}      -- QC q depends directly on Block
-
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {R r} r₀←⋆r r←r₁) (B b (inj₁ doqc)) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {R r} r₀←⋆r r←r₁) (B b (inj₂ doi))  = {!!}
-
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₀} {r₁ = B b} (ssr {I i} r₀←⋆r r←r₁) = ⊥-elim ((¬r←⋆sᵢ {i} {r₀}) r₀←⋆r)
-
-  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
-
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record}
-                 → R r₀ ←⋆ R r₂
-                 → R r₁ ←⋆ R r₂
-                 → Verifiable (R r₀)
-                 → Verifiable (R r₁)
-                 → Verifiable (R r₂)
-                 → round r₀ < round r₁
-                 → (R r₀ ←⋆ R r₁) ⊎ HashBroke
-  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
-     with r←r₂ | r′←r₂
-  ...| I←B {i₁} xx1 | I←B {i₂} xx2 = {!!}
-  ...| I←B xx1 | Q←B xx2 = {!!}
-  ...| B←Q xx1 | B←Q xx2 = {!!}
-  ...| Q←B xx1 | Q←B xx2 = {!!}
-  ...| Q←B xx1 | I←B xx2 = {!!}
-
-  round-mono (ss0 r₀←r₂)      (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁ = {!!}
-
-  round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
-
-  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
+    ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
 ------------------------- RecordStore --------------------------
 
   data RecordStore (sᵢ : Initial) : Set
 
-  data Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
+  data Valid : {sᵢ : Initial} → Record → Maybe (RecordStore sᵢ) → Set
 
   data RecordStore sᵢ where
     empty  : RecordStore sᵢ
     insert : {r : Record} (s : RecordStore sᵢ)
-             → Valid r s → RecordStore sᵢ
+             → Valid r (just s) → RecordStore sᵢ
 
+  data _∈Rs_ {sᵢ} (r : Record) : Maybe (RecordStore sᵢ) → Set where
+    vacuous : ∀ (v : Valid {sᵢ} r nothing) → r ∈Rs nothing
+    here  : ∀ (s : RecordStore sᵢ) (v : Valid r (just s)) → r ∈Rs just (insert s v)
+    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' (just s))
+           → r ∈Rs just s
+           → r ∈Rs just (insert s v)
 
-  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
-    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs (insert s v)
-    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
-           → r ∈Rs s
-           → r ∈Rs (insert s v)
+  _dependsOnBlock_wrt_   : ∀ {sᵢ} Record → Block → Maybe (RecordStore sᵢ) → Set
+  r dependsOnBlock b wrt rsMB = Valid (B b) rsMB × R (B b) ← r × round (B b) ≡ round r
 
-  -- A Record is "valid" to add to a RecordStore if it is Verifiable and furthermore the record on which
-  -- it depends is in that RecordStore ("previously verified" in the parlance of the LibraBFT paper).
-  -- The definitions of Verifiable and Valid are quite similar and could be more closely aligned (e.g.,
-  -- by passing a Maybe RecordStore to Verifiable and checking that the existentially quantidied Record
-  -- is in the RecordStore (if any).  However, we prefer to avoid any mention of RecordStores at all in
-  -- the definition of Verifiable so that we don't need to deal with them in proofs of properties that
-  -- don't require them.
+  _dependsOnQC_wrt_      : ∀ {sᵢ} Record → QC → Maybe (RecordStore sᵢ) → Set
+  r dependsOnQC q wrt rsMB = Valid (Q q) rsMB × R (Q q) ← r × round (Q q) < round r
+
+  _dependsOnInitial_  : Record → Initial → Set
+  r dependsOnInitial i = (I i) ← r × 1 ≤ round r
+
+  -- Some properties we prove about records are with respect to a particular RecordStore, while
+  -- others are independent of RecordStore.  Therefore the constructors for Valid accept a
+  -- Maybe RecordStore, allowing validation against a RecordStore only if one is provided.
   data Valid where
-    B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
-    Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b))                          → Valid (Q q) rs
-    V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b))                          → Valid (V v) rs
-    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                             → Valid (T t) rs
+    B : ∀ {sᵢ} (b : Block)   (rsMB : Maybe (RecordStore sᵢ)) → (∃[ q ] ((Q q) ∈Rs rsMB × (B b) dependsOnQC q wrt rsMB)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rsMB
+    Q : ∀ {sᵢ} (q : QC)      (rsMB : Maybe (RecordStore sᵢ)) → (∃[ b ] ((B b) ∈Rs rsMB × (Q q) dependsOnBlock b wrt rsMB))                          → Valid (Q q) rsMB
+    V : ∀ {sᵢ} (v : Vote)    (rsMB : Maybe (RecordStore sᵢ)) → (∃[ b ] ((B b) ∈Rs rsMB × (V v) dependsOnBlock b wrt rsMB))                          → Valid (V v) rsMB
+    T : ∀ {sᵢ} (t : Timeout) (rsMB : Maybe (RecordStore sᵢ))                                                                                        → Valid (T t) rsMB
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -544,6 +432,78 @@ module LibraBFT
   validQC ec q = {!!}
   --}
 
+-- Lemma S₁ ---------------------------------------------------
+
+  -- Note: part 1 of Lemma S1 comes later, as it depends on RecordStoreState because of the
+  -- "previously verified" requirement in Section 4.2
+
+  -- 2
+  ←inj : ∀ {r₀ : RecOrInit}{r₁ r₂ : Record} → (r₀ ← r₂) → (R r₁ ← r₂)
+           → r₀ ≡ R r₁ ⊎ HashBroke
+  ←inj {i} {q} {b} (I←B i←b) (Q←B q←b)
+    with hash-cr (trans i←b (sym q←b))
+  ... | inj₁ ⟨ i≢q , hi≡hq ⟩
+             = inj₂ ⟨ ⟨ encodeR i , encodeR (R q) ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
+  ... | inj₂ i≡q
+             = contradiction (encodeR-inj i≡q) λ ()
+
+  ←inj {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
+    with hash-cr (trans q₀←b (sym q₁←b))
+  ... | inj₁ ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩
+             = inj₂ ⟨ ⟨ encodeR q₀ , encodeR (R q₁) ⟩ , ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩ ⟩
+  ... | inj₂ q₁≡q₂
+             = inj₁ (encodeR-inj q₁≡q₂)
+
+  ←inj {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
+    with hash-cr (trans b₀←q (sym b₁←q))
+  ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
+             = inj₂ ⟨ ⟨ encodeR b₀ , encodeR (R b₁) ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
+  ... | inj₂ b₀≡b₁
+             = inj₁ (encodeR-inj b₀≡b₁)
+
+  -- 3
+
+  -- Aux Lemma
+  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}
+                 → R r₀ ←⋆ r₁
+                 → Valid {sᵢ} r₁ nothing
+                 → HashBroke ⊎ round r₀ ≤ round r₁
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
+     with v₁
+  ...| B blk nothing prf
+       with prf
+  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
+  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
+
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
+       with v₁
+  ...| Q qc nothing prf
+       with prf
+  ...|   dob = {!!}      -- QC q depends directly on Block
+
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b nothing (inj₁ doqc)) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b nothing (inj₂ doi))  = {!!}
+
+  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
+
+  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record}
+                 → R r₀ ←⋆ r₂
+                 → R r₁ ←⋆ r₂
+                 → Valid {sᵢ} r₀ nothing
+                 → Valid {sᵢ} r₁ nothing
+                 → Valid {sᵢ} r₂ nothing
+                 → round r₀ < round r₁
+                 → (R r₀ ←⋆ r₁) ⊎ HashBroke
+  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+     with r←r₂ | r′←r₂
+  ...| B←Q xx1 | B←Q xx2 = {!!}
+  ...| Q←B xx1 | Q←B xx2 = {!!}
+
+  round-mono (ss0 r₀←r₂)      (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁ = {!!}
+
+  round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
+
+  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
 ------------------------ RecordStoreState ----------------------
 
@@ -564,30 +524,30 @@ module LibraBFT
 -------------------- Lemma S1, part 1 --------------------
 
   hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {isCR : isChainableRecord r} {s : RecordStore sᵢ}
-          → r ∈Rs s
-          → (I sᵢ) ←⋆ R r
+          → r ∈Rs just s
+          → (I sᵢ) ←⋆ r
 
   hᵢ←⋆R {isCR = isCR} (there _ s _ r∈s) = hᵢ←⋆R {isCR = isCR} r∈s
   hᵢ←⋆R {r = B b} (here rs vB)
     with vB
-  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
-  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
+  ...| B {sᵢ} .b (just rs) (inj₂ ⟨ doi , _ ⟩) = ss0 doi
+  ...| B {sᵢ} .b (just rs) (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
        ssr (((hᵢ←⋆R {sᵢ} {Q qc} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
 
   hᵢ←⋆R {r = Q q} (here rs vQ)
      with vQ
-  ...| Q {sᵢ} .q rs ⟨ b , (b∈rs , qDOb) ⟩ =
+  ...| Q {sᵢ} .q (just rs) ⟨ b , (b∈rs , qDOb) ⟩ =
        ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
 
   hᵢ←⋆R {r = V v} (here rs vV)
      with vV
-  ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
+  ...| V {sᵢ} .v (just rs) ⟨ b , (b∈rs , vDOb) ⟩ =
        ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
 
   lemma1-1 : RecordStoreState → Set
-               → r ∈Rs (recStore rss)
-               → (I (sᵢ rss)) ←⋆ R r
   lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
+               → r ∈Rs just (recStore rss)
+               → (I (sᵢ rss)) ←⋆ r
 
   record AuxRecordStoreState : Set where
     field
@@ -626,7 +586,7 @@ module LibraBFT
   rss2 : RecordStoreState
   rss2 = record rss1 { recStore = insert {sᵢ rss1} {B block1}
                                          (recStore rss1)
-                                         (B {sᵢ rss1} block1 empty (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
+                                         (B {sᵢ rss1} block1 (just empty) (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
 
   arss2 : AuxRecordStoreState
   arss2 = record {
