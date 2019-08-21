@@ -627,7 +627,8 @@ module LibraBFT
             ; auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
           }
 
-  -- TODO : Add tests showing we can add QCs and Votes and preserve lemma 1-1
+  -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
+  -- Votes and still preserve lemma 1-1
 
 -------------------------- BFT assumption -----------------------
 
