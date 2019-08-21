@@ -349,13 +349,22 @@ module LibraBFT
 
   --- Good guys
 
+  -- TODO: move to lemmas
+  finsuc-injective : ∀ {n : ℕ} {i j : Fin n} → Fin.suc i ≡ Fin.suc j → i ≡ j
+  finsuc-injective {n} {i} {.i} refl = refl
+
   upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
   upgrade {take} {drop} x = Data.Fin.inject≤ {take} {take + drop} x (m≤m+n take drop)
 
   upgrade-injective : ∀ {take drop} {i j}
                       → upgrade {take} {drop} i ≡ upgrade {take} {drop} j
                       → i ≡ j
-  upgrade-injective = {!!}
+  upgrade-injective {i = Data.Fin.0F} {j = Data.Fin.0F} ui≡uj = refl
+  upgrade-injective {i = Fin.suc i}   {j = Fin.suc j}   ui≡uj
+    with i ≟Fin j
+  ... | yes p = cong Fin.suc p
+  ... | no ¬p = let i≡j = upgrade-injective (finsuc-injective ui≡uj)
+                in contradiction i≡j ¬p
 
   dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
   dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
