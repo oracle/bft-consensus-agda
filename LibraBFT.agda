@@ -388,37 +388,37 @@ module LibraBFT
 
   data RecordStore (sᵢ : Initial) : Set
 
-  data Valid : {sᵢ : Initial} → Record → Maybe (RecordStore sᵢ) → Set
+  data Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
 
   data RecordStore sᵢ where
     empty  : RecordStore sᵢ
     insert : {r : Record} (s : RecordStore sᵢ)
-             → Valid r (just s) → RecordStore sᵢ
+             → Valid r s → RecordStore sᵢ
 
-  data _∈Rs_ {sᵢ} (r : Record) : Maybe (RecordStore sᵢ) → Set where
-    vacuous : ∀ (v : Valid {sᵢ} r nothing) → r ∈Rs nothing
-    here  : ∀ (s : RecordStore sᵢ) (v : Valid r (just s)) → r ∈Rs just (insert s v)
-    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' (just s))
-           → r ∈Rs just s
-           → r ∈Rs just (insert s v)
+  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
+    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs insert s v
+    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
+           → r ∈Rs s
+           → r ∈Rs (insert s v)
 
-  _dependsOnBlock_wrt_   : ∀ {sᵢ} Record → Block → Maybe (RecordStore sᵢ) → Set
-  r dependsOnBlock b wrt rsMB = Valid (B b) rsMB × R (B b) ← r × round (B b) ≡ round r
+  _dependsOnBlock_wrt_   : ∀ {sᵢ} Record → Block → RecordStore sᵢ → Set
+  r dependsOnBlock b wrt rs = Valid (B b) rs × R (B b) ← r × round (B b) ≡ round r
 
-  _dependsOnQC_wrt_      : ∀ {sᵢ} Record → QC → Maybe (RecordStore sᵢ) → Set
-  r dependsOnQC q wrt rsMB = Valid (Q q) rsMB × R (Q q) ← r × round (Q q) < round r
+  _dependsOnQC_wrt_      : ∀ {sᵢ} Record → QC → RecordStore sᵢ → Set
+  r dependsOnQC q wrt rs = Valid (Q q) rs × R (Q q) ← r × round (Q q) < round r
 
   _dependsOnInitial_  : Record → Initial → Set
   r dependsOnInitial i = (I i) ← r × 1 ≤ round r
 
-  -- Some properties we prove about records are with respect to a particular RecordStore, while
-  -- others are independent of RecordStore.  Therefore the constructors for Valid accept a
-  -- Maybe RecordStore, allowing validation against a RecordStore only if one is provided.
+  -- Conditions required to add a Record to a RecordStore (which contained "previously verified"
+  -- records, in the parlance of the LibraBFT paper.  Some properties do not depend on any
+  -- particular RecordStore and their proofs can ignore the RecordStore, other than passing it to
+  -- recursive invocations.
   data Valid where
-    B : ∀ {sᵢ} (b : Block)   (rsMB : Maybe (RecordStore sᵢ)) → (∃[ q ] ((Q q) ∈Rs rsMB × (B b) dependsOnQC q wrt rsMB)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rsMB
-    Q : ∀ {sᵢ} (q : QC)      (rsMB : Maybe (RecordStore sᵢ)) → (∃[ b ] ((B b) ∈Rs rsMB × (Q q) dependsOnBlock b wrt rsMB))                          → Valid (Q q) rsMB
-    V : ∀ {sᵢ} (v : Vote)    (rsMB : Maybe (RecordStore sᵢ)) → (∃[ b ] ((B b) ∈Rs rsMB × (V v) dependsOnBlock b wrt rsMB))                          → Valid (V v) rsMB
-    T : ∀ {sᵢ} (t : Timeout) (rsMB : Maybe (RecordStore sᵢ))                                                                                        → Valid (T t) rsMB
+    B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
+    Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                          → Valid (Q q) rs
+    V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                          → Valid (V v) rs
+    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                                      → Valid (T t) rs
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -464,34 +464,43 @@ module LibraBFT
   -- 3
 
   -- Aux Lemma
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}
+  -- This property does not depend on any particular RecordStore, and referring
+  -- to it will unnecessarily complicate proofs.  The parameters is needed for
+  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
+  -- a reminder.
+  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}{doNotUse : RecordStore sᵢ} 
                  → R r₀ ←⋆ r₁
-                 → Valid {sᵢ} r₁ nothing
+                 → Valid {sᵢ} r₁ doNotUse
                  → HashBroke ⊎ round r₀ ≤ round r₁
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
      with v₁
-  ...| B blk nothing prf
+  ...| B blk _ prf
        with prf
   ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
   ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
 
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
        with v₁
-  ...| Q qc nothing prf
+  ...| Q qc _ prf
        with prf
   ...|   dob = {!!}      -- QC q depends directly on Block
 
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b nothing (inj₁ doqc)) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b nothing (inj₂ doi))  = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₁ doqc)) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₂ doi))  = {!!}
 
   r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
 
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record}
+  -- Lemma 1, part 3
+  -- This property does not depend on any particular RecordStore, and referring
+  -- to it will unnecessarily complicate proofs.  The parameters is needed for
+  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
+  -- a reminder.
+  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {doNotUse : RecordStore sᵢ}
                  → R r₀ ←⋆ r₂
                  → R r₁ ←⋆ r₂
-                 → Valid {sᵢ} r₀ nothing
-                 → Valid {sᵢ} r₁ nothing
-                 → Valid {sᵢ} r₂ nothing
+                 → Valid {sᵢ} r₀ doNotUse
+                 → Valid {sᵢ} r₁ doNotUse
+                 → Valid {sᵢ} r₂ doNotUse
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
@@ -524,29 +533,29 @@ module LibraBFT
 -------------------- Lemma S1, part 1 --------------------
 
   hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {isCR : isChainableRecord r} {s : RecordStore sᵢ}
-          → r ∈Rs just s
+          → r ∈Rs s
           → (I sᵢ) ←⋆ r
 
   hᵢ←⋆R {isCR = isCR} (there _ s _ r∈s) = hᵢ←⋆R {isCR = isCR} r∈s
   hᵢ←⋆R {r = B b} (here rs vB)
     with vB
-  ...| B {sᵢ} .b (just rs) (inj₂ ⟨ doi , _ ⟩) = ss0 doi
-  ...| B {sᵢ} .b (just rs) (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
+  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
+  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
        ssr (((hᵢ←⋆R {sᵢ} {Q qc} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
 
   hᵢ←⋆R {r = Q q} (here rs vQ)
      with vQ
-  ...| Q {sᵢ} .q (just rs) ⟨ b , (b∈rs , qDOb) ⟩ =
+  ...| Q {sᵢ} .q rs ⟨ b , (b∈rs , qDOb) ⟩ =
        ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
 
   hᵢ←⋆R {r = V v} (here rs vV)
      with vV
-  ...| V {sᵢ} .v (just rs) ⟨ b , (b∈rs , vDOb) ⟩ =
+  ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
        ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
 
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
-               → r ∈Rs just (recStore rss)
+               → r ∈Rs recStore rss
                → (I (sᵢ rss)) ←⋆ r
 
   record AuxRecordStoreState : Set where
@@ -586,7 +595,7 @@ module LibraBFT
   rss2 : RecordStoreState
   rss2 = record rss1 { recStore = insert {sᵢ rss1} {B block1}
                                          (recStore rss1)
-                                         (B {sᵢ rss1} block1 (just empty) (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
+                                         (B {sᵢ rss1} block1 empty (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
 
   arss2 : AuxRecordStoreState
   arss2 = record {
