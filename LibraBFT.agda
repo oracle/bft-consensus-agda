@@ -66,6 +66,206 @@ module LibraBFT
 
  ----------------------------------------------------------------
 
+---------------------- Epoch Configuration  ---------------------
+
+  -- TODO: Move to more generic location
+  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) {n} (v : Vec {ℓ} A n) : Set (Level.suc ℓ) where
+    distinct : (∀ (i j : Fin n) → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j)))
+             → DistinctVec _P_ v
+
+  record EpochConfiguration : Set (Level.suc Level.zero) where
+    field
+      ecN : ℕ                               -- Total number of nodes who can vote in this epoch
+      ecF : ℕ                               -- Maxiumum number of faulty nodes in this epoch
+      ecVotingRights : Vec Author ecN
+      -- Required properties for parameters and votingRights
+      ecAux0<n  : 0 < ecN
+      ecAux3f<n : 3 * ecF < ecN                    -- Require n > 3 * f
+      ecAuxVotersDistinct : DistinctVec _≡_ ecVotingRights
+                                                   -- For now we consider all "active" authors have equal voting rights
+      ecAuxGoodGuys : Vec (Fin ecN) (ecN ∸ ecF)    -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
+                                                   -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
+                                                   -- we model them by index into votingRights, rather than as Authors
+      ecAuxGoodGuysDistinct : DistinctVec _≡_ ecAuxGoodGuys
+
+  open EpochConfiguration
+
+  isVoter? : (ec : EpochConfiguration)
+           → (a : Author)
+           → Dec (AnyVec (a ≡_) (ecVotingRights ec))
+  isVoter? ec a = anyVec (a ≟_) {ecN ec} (ecVotingRights ec)
+
+  isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
+  isVoter ec a with isVoter? ec a
+  ...| no  _ = false
+  ...| yes _ = true
+
+------------------------- Begin test data ----------------------
+
+  testF = 1
+
+  testN = 4
+  0<testN : 0 < testN
+  0<testN = s≤s z≤n
+
+  3*testF<testN : (3 * testF) < testN
+  3*testF<testN = s≤s (s≤s (s≤s (s≤s z≤n)))
+
+-------------------- Properties of Authors  ---------------------
+
+  dummyAuthor : ℕ → Author
+  dummyAuthor i = i
+
+  dummyAuthors : ∀ n → Vec Author n
+  dummyAuthors  n = tabulateVec (dummyAuthor ∘ toℕ)
+
+------------------------- Begin tests ----------------------
+
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
+  _ = refl
+
+  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 0
+  _ = refl
+
+------------------------- End tests ----------------------
+
+  dummyAuthorsBijective : ∀ {n} → {i : Fin n} → lookupVec (dummyAuthors n) i ≡ dummyAuthor (toℕ i)
+  dummyAuthorsBijective {n} {i} rewrite (lookup∘tabulate {n = n} toℕ) i = refl
+
+  dummyAuthorsDistinct′ : ∀ {n}
+                          → 0 < n
+                          → {i j : Fin n}
+                          → i ≡ j ⊎ ¬ lookupVec (dummyAuthors n) i ≡ lookupVec (dummyAuthors n) j
+  dummyAuthorsDistinct′ {n} 0<n {i} {j}
+     with toℕ i ≟ toℕ j
+  ...| yes xxx = inj₁ (toℕ-injective xxx)
+  ...| no  xxx rewrite dummyAuthorsBijective {n} {i}
+                     | dummyAuthorsBijective {n} {j} = inj₂ xxx
+
+  dummyAuthorsDistinct : ∀ {n} → DistinctVec {Level.zero} _≡_ (dummyAuthors n)
+  dummyAuthorsDistinct {0}     = distinct λ ()
+  dummyAuthorsDistinct {suc n} = distinct (λ i j → dummyAuthorsDistinct′ {suc n} (s≤s z≤n) {i} {j})
+
+  --- Good guys
+
+  -- TODO: move to lemmas
+  finsuc-injective : ∀ {n : ℕ} {i j : Fin n} → Fin.suc i ≡ Fin.suc j → i ≡ j
+  finsuc-injective {n} {i} {.i} refl = refl
+
+  upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
+  upgrade {take} {drop} x = Data.Fin.inject≤ {take} {take + drop} x (m≤m+n take drop)
+
+  upgrade-injective : ∀ {take drop} {i j}
+                      → upgrade {take} {drop} i ≡ upgrade {take} {drop} j
+                      → i ≡ j
+  upgrade-injective {i = Data.Fin.0F} {j = Data.Fin.0F} ui≡uj = refl
+  upgrade-injective {i = Fin.suc i}   {j = Fin.suc j}   ui≡uj
+    with i ≟Fin j
+  ... | yes p = cong Fin.suc p
+  ... | no ¬p = let i≡j = upgrade-injective (finsuc-injective ui≡uj)
+                in contradiction i≡j ¬p
+
+  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
+  dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
+
+  dummyGoodGuysBijective : ∀ n-f f
+                         → 0 < n-f
+                         → {i : Fin n-f}
+                         → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
+  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i 
+
+  dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
+                          → 0 < n-f
+                          → {i j : Fin n-f}
+                          → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
+  dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
+     with i ≟Fin j
+  ...| yes xxx = inj₁ xxx
+  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}
+                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx (upgrade-injective {n-f} {f} {i} {j} x)
+
+  dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
+  dummyGoodGuysDistinct {0}     = distinct λ ()
+  dummyGoodGuysDistinct {suc n-f} = distinct (λ i j → dummyGoodGuysDistinct′ {suc n-f} (s≤s z≤n) {i} {j})
+
+  ec1 : EpochConfiguration
+  ec1 = record {
+          ecN                   = testN
+        ; ecF                   = testF
+        ; ecVotingRights        = dummyAuthors testN
+        ; ecAux0<n              = 0<testN
+        ; ecAux3f<n             = 3*testF<testN
+        ; ecAuxVotersDistinct   = dummyAuthorsDistinct
+        ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
+        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct
+        }
+
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
+  _ = refl
+
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
+  _ = refl
+
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
+  _ = refl
+
+  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
+  _ = refl
+
+  _ : isVoter ec1 (dummyAuthor 0) ≡ true
+  _ = refl
+
+  _ : isVoter ec1 (dummyAuthor 3) ≡ true
+  _ = refl
+
+  _ : isVoter ec1 (dummyAuthor 5) ≡ false
+  _ = refl
+
+------------------------- End test data ----------------------
+
+  goodGuyIsAuthor : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Set
+  goodGuyIsAuthor ec a x = a ≡ lookupVec (ecVotingRights ec) x
+
+  goodGuyIsAuthor? : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Dec (goodGuyIsAuthor ec a x)
+  goodGuyIsAuthor? ec a  x = a ≟ lookupVec (ecVotingRights ec) x
+
+  isHonestP : (ec : EpochConfiguration)
+            → (a  : Author)
+            → Set
+  isHonestP ec a = AnyVec (goodGuyIsAuthor ec a) (ecAuxGoodGuys ec)
+
+  isHonest? : (ec : EpochConfiguration)
+            → (a  : Author)
+            → Dec (isHonestP ec a)
+  isHonest? ec a = anyVec (goodGuyIsAuthor? ec a) {ecN ec ∸ ecF ec} (ecAuxGoodGuys ec)
+
+  isHonest : (ec : EpochConfiguration)
+           → (a  : Author)
+           → Bool
+  isHonest ec a with isHonest? ec a
+  ...| yes _ = true
+  ...| no  _ = false
+
+  _ : isHonest ec1 (dummyAuthor 0) ≡ true
+  _ = refl
+
+  _ : isHonest ec1 (dummyAuthor 1) ≡ true
+  _ = refl
+
+  _ : isHonest ec1 (dummyAuthor 2) ≡ true
+  _ = refl
+
+  _ : isHonest ec1 (dummyAuthor 3) ≡ false
+  _ = refl
+
+  _ : isHonest ec1 (dummyAuthor 5) ≡ false
+  _ = refl
 
  --------------------------- Record -----------------------------
 
@@ -91,6 +291,7 @@ module LibraBFT
 
  -- QuorumCertificate ------------------------------
   record QC : Set where
+  -- TODO: record QC (ec : EpochConfiguration) : Set where
     field
       -- epoch     : EpochId
       blockHash : BlockHash
@@ -114,6 +315,7 @@ module LibraBFT
       --toSignature : Signature
 
   data Record : Set where
+  -- TODO: data Record (ec : EpochConfiguration) : Set where
     B : Block   → Record
     Q : QC      → Record
     V : Vote    → Record
@@ -298,208 +500,6 @@ module LibraBFT
   round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
   round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
-
-
--------------------- Properties of Authors  ---------------------
-
-  dummyAuthor : ℕ → Author
-  dummyAuthor i = i
-
-  dummyAuthors : ∀ n → Vec Author n
-  dummyAuthors  n = tabulateVec (dummyAuthor ∘ toℕ)
-
-------------------------- Begin tests ----------------------
-
-  testN = 4
-  0<testN : 0 < testN
-  0<testN = s≤s z≤n
-
-  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {3} (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {2} (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {1} (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
-  _ = refl
-
-  _ : Data.Vec.lookup (dummyAuthors testN) (Data.Fin.fromℕ≤ {0} (s≤s z≤n))                   ≡ dummyAuthor 0
-  _ = refl
-
-------------------------- End tests ----------------------
-
-  -- TODO: Move to more generic location
-  data DistinctVec {ℓ} {A} (_P_ : A → A → Set ℓ) {n} (v : Vec {ℓ} A n) : Set (Level.suc ℓ) where
-    distinct : (∀ (i j : Fin n) → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j)))
-             → DistinctVec _P_ v
-
-  dummyAuthorsBijective : ∀ {n} → {i : Fin n} → lookupVec (dummyAuthors n) i ≡ dummyAuthor (toℕ i)
-  dummyAuthorsBijective {n} {i} rewrite (lookup∘tabulate {n = n} toℕ) i = refl
-
-  dummyAuthorsDistinct′ : ∀ {n}
-                          → 0 < n
-                          → {i j : Fin n}
-                          → i ≡ j ⊎ ¬ lookupVec (dummyAuthors n) i ≡ lookupVec (dummyAuthors n) j
-  dummyAuthorsDistinct′ {n} 0<n {i} {j}
-     with toℕ i ≟ toℕ j
-  ...| yes xxx = inj₁ (toℕ-injective xxx)
-  ...| no  xxx rewrite dummyAuthorsBijective {n} {i}
-                     | dummyAuthorsBijective {n} {j} = inj₂ xxx
-
-  dummyAuthorsDistinct : ∀ {n} → DistinctVec {Level.zero} _≡_ (dummyAuthors n)
-  dummyAuthorsDistinct {0}     = distinct λ ()
-  dummyAuthorsDistinct {suc n} = distinct (λ i j → dummyAuthorsDistinct′ {suc n} (s≤s z≤n) {i} {j})
-
-  --- Good guys
-
-  -- TODO: move to lemmas
-  finsuc-injective : ∀ {n : ℕ} {i j : Fin n} → Fin.suc i ≡ Fin.suc j → i ≡ j
-  finsuc-injective {n} {i} {.i} refl = refl
-
-  upgrade : ∀ {take drop} → Fin take → Fin (take + drop)
-  upgrade {take} {drop} x = Data.Fin.inject≤ {take} {take + drop} x (m≤m+n take drop)
-
-  upgrade-injective : ∀ {take drop} {i j}
-                      → upgrade {take} {drop} i ≡ upgrade {take} {drop} j
-                      → i ≡ j
-  upgrade-injective {i = Data.Fin.0F} {j = Data.Fin.0F} ui≡uj = refl
-  upgrade-injective {i = Fin.suc i}   {j = Fin.suc j}   ui≡uj
-    with i ≟Fin j
-  ... | yes p = cong Fin.suc p
-  ... | no ¬p = let i≡j = upgrade-injective (finsuc-injective ui≡uj)
-                in contradiction i≡j ¬p
-
-  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
-  dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
-
-  dummyGoodGuysBijective : ∀ n-f f
-                         → 0 < n-f
-                         → {i : Fin n-f}
-                         → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
-  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i 
-
-  dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
-                          → 0 < n-f
-                          → {i j : Fin n-f}
-                          → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
-  dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
-     with i ≟Fin j
-  ...| yes xxx = inj₁ xxx
-  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}
-                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx (upgrade-injective {n-f} {f} {i} {j} x)
-
-  dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
-  dummyGoodGuysDistinct {0}     = distinct λ ()
-  dummyGoodGuysDistinct {suc n-f} = distinct (λ i j → dummyGoodGuysDistinct′ {suc n-f} (s≤s z≤n) {i} {j})
-
----------------------- Epoch Configuration  ---------------------
-
-  record EpochConfiguration : Set (Level.suc Level.zero) where
-    field
-      ecN : ℕ                               -- Total number of nodes who can vote in this epoch
-      ecF : ℕ                               -- Maxiumum number of faulty nodes in this epoch
-      ecVotingRights : Vec Author ecN
-      -- Required properties for parameters and votingRights
-      ecAux0<n  : 0 < ecN
-      ecAux3f<n : 3 * ecF < ecN                    -- Require n > 3 * f
-      ecAuxVotersDistinct : DistinctVec _≡_ ecVotingRights
-                                                   -- For now we consider all "active" authors have equal voting rights
-      ecAuxGoodGuys : Vec (Fin ecN) (ecN ∸ ecF)    -- OK to model exactly f bad guys; if fewer, it's as if some bad guys
-                                                   -- behave exactly like good guys.  To ensure goodGuys are in votingRights,
-                                                   -- we model them by index into votingRights, rather than as Authors
-      ecAuxGoodGuysDistinct : DistinctVec _≡_ ecAuxGoodGuys
-
-  open EpochConfiguration
-
-  isVoter? : (ec : EpochConfiguration)
-           → (a : Author)
-           → Dec (AnyVec (a ≡_) (ecVotingRights ec))
-  isVoter? ec a = anyVec (a ≟_) {ecN ec} (ecVotingRights ec)
-
-  isVoter : (ec : EpochConfiguration) → (a : Author) → Bool
-  isVoter ec a with isVoter? ec a
-  ...| no  _ = false
-  ...| yes _ = true
-
-------------------------- Begin test data ----------------------
-
-  testF = 1
-
-  3*testF<testN : (3 * testF) < testN
-  3*testF<testN = s≤s (s≤s (s≤s (s≤s z≤n)))
-
-  ec1 : EpochConfiguration
-  ec1 = record {
-          ecN                   = testN
-        ; ecF                   = testF
-        ; ecVotingRights        = dummyAuthors testN
-        ; ecAux0<n              = 0<testN
-        ; ecAux3f<n             = 3*testF<testN
-        ; ecAuxVotersDistinct   = dummyAuthorsDistinct
-        ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
-        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct
-        }
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 3) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 5) ≡ false
-  _ = refl
-
-------------------------- End test data ----------------------
-
-  goodGuyIsAuthor : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Set
-  goodGuyIsAuthor ec a x = a ≡ lookupVec (ecVotingRights ec) x
-
-  goodGuyIsAuthor? : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Dec (goodGuyIsAuthor ec a x)
-  goodGuyIsAuthor? ec a  x = a ≟ lookupVec (ecVotingRights ec) x
-
-  isHonestP : (ec : EpochConfiguration)
-            → (a  : Author)
-            → Set
-  isHonestP ec a = AnyVec (goodGuyIsAuthor ec a) (ecAuxGoodGuys ec)
-
-  isHonest? : (ec : EpochConfiguration)
-            → (a  : Author)
-            → Dec (isHonestP ec a)
-  isHonest? ec a = anyVec (goodGuyIsAuthor? ec a) {ecN ec ∸ ecF ec} (ecAuxGoodGuys ec)
-
-  isHonest : (ec : EpochConfiguration)
-           → (a  : Author)
-           → Bool
-  isHonest ec a with isHonest? ec a
-  ...| yes _ = true
-  ...| no  _ = false
-
-  _ : isHonest ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 1) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 2) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 3) ≡ false
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 5) ≡ false
-  _ = refl
 
 ------------------------- RecordStore --------------------------
 
