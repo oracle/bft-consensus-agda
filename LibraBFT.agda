@@ -186,26 +186,17 @@ module LibraBFT
   _dependsOnBlock_   : Record → Block → Set
   r dependsOnBlock b = Verifiable (R (B b)) × R (B b) ← R r × round (B b) ≡ round r
 
-  dependsOnSomeBlock : Record → Set
-  dependsOnSomeBlock r = ∃[ b ] (r dependsOnBlock b)
-
   _dependsOnQC_      : Record → QC → Set
   r dependsOnQC q    = Verifiable (R (Q q)) × R (Q q) ← R r × round (Q q) < round r
-
-  dependsOnSomeQC    : Record → Set
-  dependsOnSomeQC r  = ∃[ q ] (r dependsOnQC q)
 
   _dependsOnInitial_  : Record → Initial → Set
   r dependsOnInitial i = (I i) ← R r × 1 ≤ round r
 
-  dependsOnSomeInitial : Record → Set
-  dependsOnSomeInitial r = ∃[ i ] (r dependsOnInitial i)
-
   data Verifiable where
     I : ∀ i → Verifiable (I i)
-    B : ∀ (b : Block) → dependsOnSomeQC    (B b) ⊎ dependsOnSomeInitial (B b) → Verifiable (R (B b))
-    Q : ∀ (q : QC)    → dependsOnSomeBlock (Q q)                              → Verifiable (R (Q q))
-    V : ∀ (v : Vote)  → dependsOnSomeBlock (V v)                              → Verifiable (R (V v))
+    B : ∀ (b : Block) → ∃[ q ]((B b) dependsOnQC q)    ⊎ ∃[ i ]((B b) dependsOnInitial i) → Verifiable (R (B b))
+    Q : ∀ (q : QC)    → ∃[ b ]((Q q) dependsOnBlock b)                                    → Verifiable (R (Q q))
+    V : ∀ (v : Vote)  → ∃[ b ]((V v) dependsOnBlock b)                                    → Verifiable (R (V v))
 
 -- Lemma S₁ ---------------------------------------------------
 
@@ -558,6 +549,29 @@ module LibraBFT
 
   open RecordStoreState
 
+-------------------- Lemma S1, part 1 --------------------
+
+  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
+          → r ∈Rs s
+          → (I sᵢ) ←⋆ R r
+
+  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
+  hᵢ←⋆R {r = B b} (here rs vB)
+    with vB
+  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
+  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
+       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
+
+  hᵢ←⋆R {r = Q q} (here rs vQ)
+     with vQ
+  ...| Q {sᵢ} .q rs ⟨ b , (b∈rs , qDOb) ⟩ =
+       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
+
+  hᵢ←⋆R {r = V v} (here rs vV)
+     with vV
+  ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
+       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
+
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r}
                → r ∈Rs (recStore rss)
@@ -586,29 +600,29 @@ module LibraBFT
             ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
           }
 
+  testInit : Initial
+  testInit = record { epochId = 1
+                    ; seed    = 1
+                    }
 
--------------------- Lemma S1, part 1 --------------------
+  block1 : Block
+  block1 = record { round = 1
+                  ; prevQCHash = HashR (I testInit)
+                  ; author = dummyAuthor 0
+                  }
 
-  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
-          → r ∈Rs s
-          → (I sᵢ) ←⋆ R r
+  rss2 : RecordStoreState
+  rss2 = record rss1 { recStore = insert {sᵢ rss1} {B block1}
+                                         (recStore rss1)
+                                         (B {sᵢ rss1} block1 empty (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
 
-  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
-  hᵢ←⋆R {r = B b} (here rs vB)
-    with vB
-  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
-  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , ( q∈rs , bDOq )⟩) =
-       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
+  arss2 : AuxRecordStoreState
+  arss2 = record {
+              auxRssData = rss2
+            ; auxRssLemma1-1 = λ {r} x → hᵢ←⋆R x
+          }
 
-  hᵢ←⋆R {r = Q q} (here rs vQ)
-     with vQ
-  ...| Q {sᵢ} .q rs ⟨ b , ( b∈rs , qDOb ) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
-
-  hᵢ←⋆R {r = V v} (here rs vV)
-     with vV
-  ...| V {sᵢ} .v rs ⟨ b , ( b∈rs , vDOb ) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
+  -- TODO : Add tests showing we can add QCs and Votes and preserve lemma 1-1
 
 -------------------------- BFT assumption -----------------------
 
