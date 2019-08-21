@@ -119,6 +119,10 @@ module LibraBFT
     V : Vote    → Record
     T : Timeout → Record
 
+  data isChainableRecord : Record → Set where
+    B : ∀ (b : Block) → isChainableRecord (B b)
+    Q : ∀ (q : QC)    → isChainableRecord (Q q)
+    V : ∀ (v : Vote)  → isChainableRecord (V v)
 
   open Initial
 
@@ -516,9 +520,10 @@ module LibraBFT
            → r ∈Rs (insert s v)
 
   data Valid where
-    B : ∀ {sᵢ} (b : Block) (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
-    Q : ∀ {sᵢ} (q : QC)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b))                          → Valid (Q q) rs
-    V : ∀ {sᵢ} (v : Vote)  (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b))                          → Valid (V v) rs
+    B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
+    Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b))                          → Valid (Q q) rs
+    V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b))                          → Valid (V v) rs
+    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                             → Valid (T t) rs
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -551,31 +556,31 @@ module LibraBFT
 
 -------------------- Lemma S1, part 1 --------------------
 
-  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
+  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {isCR : isChainableRecord r} {s : RecordStore sᵢ}
           → r ∈Rs s
           → (I sᵢ) ←⋆ R r
 
-  hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
+  hᵢ←⋆R {isCR = isCR} (there _ s _ r∈s) = hᵢ←⋆R {isCR = isCR} r∈s
   hᵢ←⋆R {r = B b} (here rs vB)
     with vB
   ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
   ...| B {sᵢ} .b rs (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
-       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
+       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
 
   hᵢ←⋆R {r = Q q} (here rs vQ)
      with vQ
   ...| Q {sᵢ} .q rs ⟨ b , (b∈rs , qDOb) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
+       ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
 
   hᵢ←⋆R {r = V v} (here rs vV)
      with vV
   ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
+       ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
 
   lemma1-1 : RecordStoreState → Set
-  lemma1-1 rss = ∀ {r}
                → r ∈Rs (recStore rss)
                → (I (sᵢ rss)) ←⋆ R r
+  lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
 
   record AuxRecordStoreState : Set where
     field
@@ -619,7 +624,7 @@ module LibraBFT
   arss2 : AuxRecordStoreState
   arss2 = record {
               auxRssData = rss2
-            ; auxRssLemma1-1 = λ {r} x → hᵢ←⋆R x
+            ; auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
           }
 
   -- TODO : Add tests showing we can add QCs and Votes and preserve lemma 1-1
