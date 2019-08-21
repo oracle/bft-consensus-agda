@@ -183,21 +183,29 @@ module LibraBFT
 
   data Verifiable : RecOrInit → Set
 
-  dependsOnBlock   : Record → Set
-  dependsOnBlock   r = ∃[ b ]  (Verifiable (R b) × R b ← R r × round r ≡ round b)
+  _dependsOnBlock_   : Record → Block → Set
+  r dependsOnBlock b = Verifiable (R (B b)) × R (B b) ← R r × round (B b) ≡ round r
 
-  dependsOnQC      : Record → Set
-  dependsOnQC      r = ∃[ q ]  (Verifiable (R q) × R q ← R r × round q < round r)
+  dependsOnSomeBlock : Record → Set
+  dependsOnSomeBlock r = ∃[ b ] (r dependsOnBlock b)
 
-  dependsOnInitial : Record → Set
-  dependsOnInitial r = ∃[ sᵢ ] ((I sᵢ) ← R r × 1 ≤ round r) -- Note: sᵢ is existentially quantified,
-                                                            -- as this condition does not depend on
-                                                            -- any particular initial hash
+  _dependsOnQC_      : Record → QC → Set
+  r dependsOnQC q    = Verifiable (R (Q q)) × R (Q q) ← R r × round (Q q) < round r
+
+  dependsOnSomeQC    : Record → Set
+  dependsOnSomeQC r  = ∃[ q ] (r dependsOnQC q)
+
+  _dependsOnInitial_  : Record → Initial → Set
+  r dependsOnInitial i = (I i) ← R r × 1 ≤ round r
+
+  dependsOnSomeInitial : Record → Set
+  dependsOnSomeInitial r = ∃[ i ] (r dependsOnInitial i)
+
   data Verifiable where
     I : ∀ i → Verifiable (I i)
-    B : ∀ (b : Block) → dependsOnQC    (B b) ⊎ dependsOnInitial (B b) → Verifiable (R (B b))
-    Q : ∀ (q : QC)    → dependsOnBlock (Q q)                          → Verifiable (R (Q q))
-    V : ∀ (v : Vote)  → dependsOnBlock (V v)                          → Verifiable (R (V v))
+    B : ∀ (b : Block) → dependsOnSomeQC    (B b) ⊎ dependsOnSomeInitial (B b) → Verifiable (R (B b))
+    Q : ∀ (q : QC)    → dependsOnSomeBlock (Q q)                              → Verifiable (R (Q q))
+    V : ∀ (v : Vote)  → dependsOnSomeBlock (V v)                              → Verifiable (R (V v))
 
 -- Lemma S₁ ---------------------------------------------------
 
@@ -502,7 +510,7 @@ module LibraBFT
 
   data RecordStore (sᵢ : Initial) : Set
 
-  Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
+  data Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
 
   data RecordStore sᵢ where
     empty  : RecordStore sᵢ
@@ -516,15 +524,10 @@ module LibraBFT
            → r ∈Rs s
            → r ∈Rs (insert s v)
 
-  ValidBlock : {sᵢ : Initial} → Block → RecordStore sᵢ → Set
-  ValidBlock {sᵢ} b rs = Verifiable (R (B b))
-                         ⊎
-                         (I sᵢ) ← R (B b)
-
-  Valid (B b) rs = ValidBlock b rs
-  Valid (Q q) rs = ∃[ b ] ( b ∈Rs rs × R b ← R (Q q) × round (Q q) ≡ round b )
-  Valid (V v) rs = ⊥
-  Valid (T t) rs = ⊥
+  data Valid where
+    B : ∀ {sᵢ} (b : Block) (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
+    Q : ∀ {sᵢ} (q : QC)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b))                          → Valid (Q q) rs
+    V : ∀ {sᵢ} (v : Vote)  (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b))                          → Valid (V v) rs
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -586,26 +589,26 @@ module LibraBFT
 
 -------------------- Lemma S1, part 1 --------------------
 
-{- Needs to be reworked because of changing definitions
-  -- 1
   hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {s : RecordStore sᵢ}
           → r ∈Rs s
           → (I sᵢ) ←⋆ R r
 
   hᵢ←⋆R (there _ s _ r∈s) = hᵢ←⋆R r∈s
-  hᵢ←⋆R {r = B b} (here empty vB)
+  hᵢ←⋆R {r = B b} (here rs vB)
     with vB
-  ... | inj₂  ⟨ sᵢ←B , 1≤rB ⟩ = ss0 sᵢ←B
+  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
+  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , ( q∈rs , bDOq )⟩) =
+       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
 
-  hᵢ←⋆R {r = B b} (here (insert s x) vB)
-     with vB
-  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ q←B , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←B
-  ... | inj₂ ⟨ sᵢ←B , 1≤rB ⟩                  = ss0 sᵢ←B
+  hᵢ←⋆R {r = Q q} (here rs vQ)
+     with vQ
+  ...| Q {sᵢ} .q rs ⟨ b , ( b∈rs , qDOb ) ⟩ =
+       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
 
-  hᵢ←⋆R {r = Q q} (here s vQ)
-    with vQ
-  ... |       ⟨ b , ⟨ b∈rs , ⟨ b←Q , snd ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←Q
--}
+  hᵢ←⋆R {r = V v} (here rs vV)
+     with vV
+  ...| V {sᵢ} .v rs ⟨ b , ( b∈rs , vDOb ) ⟩ =
+       ssr (hᵢ←⋆R {sᵢ} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
 
 -------------------------- BFT assumption -----------------------
 
