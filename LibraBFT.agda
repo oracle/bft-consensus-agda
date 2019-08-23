@@ -652,11 +652,55 @@ module LibraBFT
   validQC ec q = {!!}
   --}
 
+---------------- Message types ----------------
+
+  record DataSyncNotification : Set where
+    field
+      -- Current epoch identifier.
+      dsnCurrentEpoch : EpochId
+      -- Tail QC of the highest commit rule.
+      dsnHighestCommitCertificate : Maybe QC
+      -- Highest QC.
+      dsnHighestQuorumCertificate : Maybe QC
+      -- Timeouts in the highest TC, then at the current round, if any.
+      dsnTimeouts : List Timeout
+      -- Sender's vote at the current round, if any (meant for the proposer).
+      dsnCurrentVote : Maybe Vote
+      -- Known proposed block at the current round, if any.
+      dsnProposedBlock : Maybe Block
+      -- Active round of the sender's pacemaker.
+      dsnActiveRound : Round
+
+  record DataSyncRequest : Set where
+    field
+      -- Current epoch identifier.
+      dsreqCurrentEpoch : EpochId
+      -- Selection of rounds for which the receiver already knows a QC.
+      dsreqKnownQuorumCertificates : List Round
+
+  record EpochRecords : Set where
+    field
+      erEpochId : EpochId
+      erRecords : List Record -- Could constrain them to be for the epoch, but should we?
+
+  record DataSyncResponse : Set where
+    field
+      -- Current epoch identifier
+      dsrspCurrentEpoch : EpochId
+      -- Records for the receiver to insert, for each epoch, in the given order.
+      dsrspRecords : List EpochRecords
+      -- Active round of the sender's pacemaker.
+      dsrspActiveRound : Round
+
+  data Message : (s r : Author) → Set where
+    DSN   : ∀ (s r : Author) → DataSyncNotification → Message s r
+    DSREQ : ∀ (s r : Author) → DataSyncRequest      → Message s r
+    DSRSP : ∀ (s r : Author) → DataSyncResponse     → Message s r
+
 -------------------------- NodeState ---------------------------
 
   NodeTime : Set
-  NodeTime = {!!}
-
+  NodeTime = ℕ
 
   FakeTypeActiveNodes : Set
   -- Paper says HashSet<Author>
@@ -748,45 +792,7 @@ module LibraBFT
     mkPacemakerUpdateActions
       nothing nothing nothing false nothing
 
-------------- Musings about high-level state for proving properties -------
-
-  -- Nothing here yet, just placeholders
-  -- This will model the NodeStates for each Author.  Eventually, we will
-  -- define executions of the system, so that we can prove properties like
-  -- invariants (in every execution, every honest node's state has certain
-  -- properties, etc.).  This will require us to track node states and
-  -- state machine contexts for each participant (Author)
-  data AuthorNodeStates : Set where
-  data AuthorStateMachineContexts : Set where
-
-------------------------------- Pseudomonad --------------------------------
-
-  -- In an effort to make our Agda proofs mirror the Haskell code Harold is
-  -- writing, I came to realise that we'd need some Monad-like notion for
-  -- representing the environment and states of various participants.  I see
-  -- that there is some explicit support for Monad-like functionality in the
-  -- Agda standard library:
-  --   https://github.com/agda/agda-stdlib/blob/v1.0/src/Data/Container/FreeMonad.agda  -- and also some syntactic sugar for do notation:
-  --   https://agda.readthedocs.io/en/v2.6.0.1/language/syntactic-sugar.html
-  -- However, I want to discuss this first with Victor and have not spent time
-  -- to learn about it, so initially I am contonuing with my "poor person's"
-  -- version to make progress and develop intuition.
-
-  -- Nothing here yet, just a placeholder
-  -- This will likely model a set of messages, but we will need to think about
-  -- the communication model to decide more detail, such as whether we will
-  -- allow message duplication, loss, reodering, etc.
-  data CommunicationEnvironment : Set where
-
-  -- This is not really a monad as such; we will pass these around explicitly,
-  -- getting new versions back, allowing us to model side effects, but only
-  -- relative to the explicitly constructed PseudoMonad.  This probably won't
-  -- last long, but is what am exploring as a first cut.  So far, I think we
-  -- may need to send messages and update our nodestate via this "monad".
-  record PseudoMonad : Set where
-    field
-      commEnv    : CommunicationEnvironment
-      -- TODO: what other side effects might we need to track?
+---------------------- Libra BFT Algorithm components ---------------
 
   createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
   createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
@@ -1043,4 +1049,129 @@ module LibraBFT
        pmFinal      = {!!}
        actionsFinal = {!!}
      in ( pmFinal , actionsFinal )
+
+---------------- Global system state -------------
+
+{-
+  - Authors (nodes, verifiers, consensus participants, whatever you want to call them)
+  - Clients (they invoke commands and get responses; no need to model these in initially)
+
+  - System state
+    - For each author
+      - NodeState
+      - SmrContext (how many?  One per branch in RecordStore? One per block?)
+    - Systemwide
+      - Communication
+        - Channels?  No, too detailed and specific
+        - Need to think about assumptions on ordering, duplication, dropping, mutating
+
+        - My first thought is that we should model reordring, duplication and dropping, but not
+          mutating (messages are signed).  I also think we should consider point-to-point messages
+          that have a source and destination (e.g., one author to another).  Therefore, we can model
+          our communication system as a collection of indexes sets of messages.  Messages_i_j is
+          that set of all messages ever sent from i to j.
+
+        - Author a₁ "sending" a message will be adding an element Messages a₁ aᵢ for some aᵢ.
+
+        - Author a₁ "receiving" a message will be possible for any element in Messages aᵢ a₁ for any
+          aᵢ.
+
+        - In this context, we would prove an invariant for the increasing round rules that says
+          something like:
+
+            honestVotes : ∀ {sc : SystemConfiguration}
+                          → {ec : EpochConfiguration} {a : Author} {b : Block}
+                          → {v₁ v₂ : Vote}
+                          → ∃[ r ](v₁ ∈-msgs (messages sc) a r)
+                          → ∃[ r ](v₂ ∈-msgs (messages sc) a r)
+                          → Vote.round v₁ ≡ Vote.round v₂
+                          → Vote.author v₁ ≡ a
+                          → Vote.author v₂ ≡ a
+                          → isHonestP ec a
+                          → Vote.blockHash v₁ ≡ Vote.blockHash v₂
+
+          The above would be simpler if messages had associated recipients, so we would just have
+          a set of all messages ever sent by a given Author.  For this particular property, it
+          does not matter whether the conflicting votes were sent to the same recipient or
+          different.
+
+  - Protocol vs. Algorithm
+
+    We should aim for a clean separation between how authors *behave* as observed from outside, and
+    how they might achieve that behavior.  For example, a dishonest node might sign two different
+    votes for the same round, while an honest one will not.  This will be captured by the algorithm
+    authors use (keep track of latest_voted_round, respect it when creating votes), but the
+    observable behavior is about what Vote it communicates, not what it creates or how it decides to
+    create them.
+-}
+
+  data MessagePool : Set where
+    empty  : MessagePool
+    insert : ∀ {s r : Author} (mp : MessagePool) → Message s r → MessagePool
+
+  data _∈mp_ {s r : Author} (m : Message s r) : MessagePool → Set where
+    here  : ∀ {s r : Author} {m′ : Message s r} {mp : MessagePool} → m ∈mp (insert mp m)
+    there : ∀ {s′ r′ : Author} {m′ : Message s′ r′} {mp : MessagePool} → m ∈mp mp → m ∈mp (insert mp m′)
+
+  record GlobalSystemState : Set where
+    constructor gss
+    field
+      gssNodeStates  : Author → NodeState
+      gssSmrContexts : Author → SmrContext -- Not sure if we need more than one
+      gssMessagePool : MessagePool
+
+  open GlobalSystemState
+
+  initialGlobalState : GlobalSystemState
+  initialGlobalState = {!!}
+---------- Actions ---------
+
+  processNodeUpdateActions : MessagePool → Author → NodeState → NodeUpdateActions → MessagePool
+  processNodeUpdateActions mp₀ a ns (mkNodeUpdateAction ssu snl sb) = {!!}
+
+---------- Actions and reachable states ----------
+  -- Update a function of type A → B on one input, given a decidability instance for A's
+  -- The syntax is slightly ugly, but I couldn't do better in reasonable time
+  -- TODO: Move somewhere more generic
+  _[_:=_,_] : {A : Set} {A₂ : Set}
+             (f : A → A₂)
+           → A → A₂
+           → (_xx_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → A → A₂
+  _[_:=_,_] {A = A} {A₂ = A₂} f a₁ b _xx_ a₂
+     with a₁ xx a₂
+  ...| yes _ = b
+  ...| no  _ = f a₂
+
+  effUpdateNode : {a : Author} → (preState : GlobalSystemState) → GlobalSystemState
+  effUpdateNode {a} pre =
+    let nss₀  = gssNodeStates pre
+        ns₀   = nss₀ a
+        smrs₀ = gssSmrContexts pre
+        smr₀  = smrs₀ a
+        nt    = 0 -- TODO
+        mp₀   = gssMessagePool pre
+        ( ns₁ , ( smr₁ , nua )) = updateNode ns₀ nt smr₀
+        mp₁   = processNodeUpdateActions mp₀ a ns₁ nua
+        nss₁  = nss₀  [ a := ns₁  , _≟ℕ_  ]
+        smrs₁ = smrs₀ [ a := smr₁ , _≟ℕ_  ]
+    in gss nss₁ smrs₁ mp₁
+
+  data ReachableState : (gss : GlobalSystemState) → Set where
+    rsEmpty      : ReachableState initialGlobalState
+    rsUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
+                 → ReachableState preState
+                 → ReachableState (effUpdateNode {a} preState)
+
+---------- Properties that depend on algorithm (for honest authors only, of course) --------
+
+  -- Section 5.4, p. 16
+  -- [LIBRA-DIFF] The paper says: (increasing-round) An honest node that voted once for ?? in the
+  -- past may only vote for ??′ if round(??) < round(??′).  WHat it really should say is that an
+  -- honest node does not create different votes for the same round and block.  Nobody can tell what
+  -- *order* the votes are created in.
+
+  -- This is roughly the property we want, but nothing about it connects it to the actual algorithm.
+  -- We cannot prove this property because of course counterexamples *exist*.  How to represent the
+  -- fact that an honest author won't *create* them?
 
