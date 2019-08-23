@@ -269,7 +269,7 @@ module LibraBFT
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
-  record Block : Set where
+  record Block (ec : EpochConfiguration) : Set where
     field
       --command    : Command
       prevQCHash : QCHash
@@ -278,7 +278,7 @@ module LibraBFT
       --signature  : Signature
 
  -- Vote -------------------------------------------
-  record Vote : Set where
+  record Vote (ec : EpochConfiguration) : Set where
     field
       --epoch     : EpochId
       round     : Round
@@ -288,23 +288,17 @@ module LibraBFT
       --signature : Signature
 
  -- QuorumCertificate ------------------------------
-  record QC : Set where
+  record QC (ec : EpochConfiguration) : Set where
   -- TODO: record QC (ec : EpochConfiguration) : Set where
     field
       -- epoch     : EpochId
       blockHash : BlockHash
       round     : Round
       -- state     : State
-      votes     : List Vote
+      votes     : Vec (Vote ec) (ecN ec)
       author    : Author
 
-  record Initial : Set where
-    constructor mkInitial
-    field
-      epochId : EpochId
-      seed    : ℕ
-
-  record Timeout : Set where
+  record Timeout (ec : EpochConfiguration) : Set where
     constructor mkTimeout
     field
       toEpochId : EpochId
@@ -312,17 +306,25 @@ module LibraBFT
       toAuthor  : Author
       --toSignature : Signature
 
-  data Record : Set where
+  data Record (ec : EpochConfiguration) : Set where
   -- TODO: data Record (ec : EpochConfiguration) : Set where
-    B : Block   → Record
-    Q : QC      → Record
-    V : Vote    → Record
-    T : Timeout → Record
+    B : Block   ec → Record ec
+    Q : QC      ec → Record ec
+    V : Vote    ec → Record ec
+    T : Timeout ec → Record ec
 
-  data isChainableRecord : Record → Set where
-    B : ∀ (b : Block) → isChainableRecord (B b)
-    Q : ∀ (q : QC)    → isChainableRecord (Q q)
-    V : ∀ (v : Vote)  → isChainableRecord (V v)
+  -- Votes are on the chain?? I think it gets confusing having this predicate and also RecOrInit,
+  -- I thinks votes can be on RecordStore but not in the chain
+  data isChainableRecord {ec : EpochConfiguration} : Record ec → Set where
+    B : ∀ (b : Block ec) → isChainableRecord (B b)
+    Q : ∀ (q : QC    ec) → isChainableRecord (Q q)
+    --V : ∀ (v : Vote  ec) → isChainableRecord (V v)
+
+  record Initial (ec : EpochConfiguration) : Set where
+    constructor mkInitial
+    field
+      epochId : EpochId
+      seed    : ℕ
 
   open Initial
 
@@ -331,13 +333,13 @@ module LibraBFT
   -- need it, at least for the reason I thought I needed it.
   -- Leaving it here in case someone helps me learn how not
   -- to waste time on this in future!
-  ≡-Initial : ∀ {e₁ e₂ : EpochId} {s₁ s₂ : ℕ}
+  ≡-Initial : ∀ {ec : EpochConfiguration} {e₁ e₂ : EpochId} {s₁ s₂ : ℕ}
             → e₁ ≡ e₂
             → s₁ ≡ s₂
-            → mkInitial e₁ s₁ ≡ mkInitial e₂ s₂
+            → mkInitial {ec} e₁ s₁ ≡ mkInitial {ec} e₂ s₂
   ≡-Initial refl refl = refl
 
-  _≟Initial_ : (i₁ i₂ : Initial) → Dec (i₁ ≡ i₂)
+  _≟Initial_ : {ec : EpochConfiguration} (i₁ i₂ : Initial ec) → Dec (i₁ ≡ i₂)
   i₁ ≟Initial i₂
      with epochId i₁ ≟ epochId i₂
   ...| no  xx = no (xx ∘ (cong epochId))
@@ -346,77 +348,82 @@ module LibraBFT
   ...|   yes refl = yes refl
   ...|   no  xx1 = no (xx1 ∘ (cong seed))
 
-  round : Record → Round
+  round : {ec : EpochConfiguration} → Record ec → Round
   round (B b) = Block.round b
   round (Q q) = QC.round q
   round (V v) = Vote.round v
   round (T t) = Timeout.toRound t
 
-  data ChainableRecord : Set where
-    I : Initial → ChainableRecord
-    R : Record  → ChainableRecord
+  data RecOrInit (ec : EpochConfiguration) : Set where
+    I : Initial ec  → RecOrInit ec
+    R : Record  ec  → RecOrInit ec
 
  -- Hash Functions ----------------------------------------------
   postulate
-    encodeR     : ChainableRecord → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : ChainableRecord} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+    encodeR     : {ec : EpochConfiguration} → RecOrInit ec → ByteString
+    encodeR-inj : ∀ {ec : EpochConfiguration} {r₀ r₁ : RecOrInit ec} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
 
+  HashR : {ec : EpochConfiguration} → RecOrInit ec → Hash
   HashR = hash ∘ encodeR
 
 
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
-  data _←_ : ChainableRecord → Record → Set where
-    I←B : ∀ {i : Initial} {b : Block}
+  data _←_  {ec : EpochConfiguration} : RecOrInit ec → Record ec → Set where
+    I←B : ∀ {i : Initial ec} {b : Block ec}
           → HashR (I i) ≡  Block.prevQCHash b
           → I i ← B b
-    Q←B : ∀ {q : QC} {b : Block}
+    Q←B : ∀ {q : QC ec} {b : Block ec}
           → HashR (R (Q q)) ≡  Block.prevQCHash b
           → R (Q q) ← B b
-    B←Q : ∀ {b : Block} {q : QC}
+    B←Q : ∀ {b : Block ec} {q : QC ec}
           → HashR (R (B b)) ≡ QC.blockHash q
           → R (B b) ← Q q
 
-  data _←⋆_ (r₁ : ChainableRecord) (r₂ : Record) : Set where
+  data _←⋆_ {ec : EpochConfiguration} (r₁ : RecOrInit ec) (r₂ : Record ec) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
-    ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
+    ssr : ∀ {r : Record ec} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
 ------------------------- RecordStore --------------------------
 
-  data RecordStore (sᵢ : Initial) : Set
+  data RecordStore (ec : EpochConfiguration) (sᵢ : Initial ec) : Set
 
-  data Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
+  data Valid {ec : EpochConfiguration} {sᵢ : Initial ec} : Record ec → RecordStore ec sᵢ → Set
 
-  data RecordStore sᵢ where
-    empty  : RecordStore sᵢ
-    insert : {r : Record} (s : RecordStore sᵢ)
-             → Valid r s → RecordStore sᵢ
+  data RecordStore ec sᵢ where
+    empty  : RecordStore ec sᵢ
+    insert : {r : Record ec} (s : RecordStore ec sᵢ)
+             → Valid r s → RecordStore ec sᵢ
 
-  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
-    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs insert s v
-    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
-           → r ∈Rs s
-           → r ∈Rs (insert s v)
 
-  _dependsOnBlock_wrt_   : ∀ {sᵢ} Record → Block → RecordStore sᵢ → Set
-  r dependsOnBlock b wrt rs = Valid (B b) rs × R (B b) ← r × round (B b) ≡ round r
+  -- I don't think we need to have (q ∈Rs rs) neither to validate wrt rs, only wrt (Initial ec)
+  -- Maybe I will change my mind when trying to prove lemmas, for now let's go with RecordStore
+  ValidBlock : ∀ {ec} {sᵢ} → Block ec → RecordStore ec sᵢ → Set
+  ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( Valid q rs × R q ← B b × round q < round (B b) )
+                              ⊎
+                              I sᵢ ← B b × 1 ≤ round (B b)
 
-  _dependsOnQC_wrt_      : ∀ {sᵢ} Record → QC → RecordStore sᵢ → Set
-  r dependsOnQC q wrt rs = Valid (Q q) rs × R (Q q) ← r × round (Q q) < round r
+  -- TODO : Complete the definition of Valid QC
+  ValidQC : ∀ {ec} {sᵢ} → QC ec → RecordStore ec sᵢ → Set
+  ValidQC q rs = ∃[ b ] ( Valid b rs × R b ← Q q × round b ≡ round (Q q) )
 
-  _dependsOnInitial_  : Record → Initial → Set
-  r dependsOnInitial i = (I i) ← r × 1 ≤ round r
+  ValidVote : ∀ {ec} {sᵢ} → Vote ec → RecordStore ec sᵢ → Set
+  ValidVote v rs = ∃[ b ] ( Valid (B b) rs × HashR (R (B b)) ≡ Vote.blockHash v × round (B b) ≡ round (V v) )
+
 
   -- Conditions required to add a Record to a RecordStore (which contained "previously verified"
   -- records, in the parlance of the LibraBFT paper.  Some properties do not depend on any
   -- particular RecordStore and their proofs can ignore the RecordStore, other than passing it to
   -- recursive invocations.
-  data Valid where
-    B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
-    Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                          → Valid (Q q) rs
-    V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                          → Valid (V v) rs
-    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                                    → Valid (T t) rs
+
+  -- TODO: Validate records wrt epoch configuration instead of RecordStore
+
+  data Valid {ec} {sᵢ} where
+    ValidB : ∀ {b : Block   ec} {rs : RecordStore ec sᵢ} → ValidBlock b rs → Valid (B b) rs
+    ValidQ : ∀ {q : QC      ec} {rs : RecordStore ec sᵢ} → ValidQC    q rs → Valid (Q q) rs
+    --ValidV : ∀ {v : Vote    ec} {rs : RecordStore ec sᵢ} → ValidVote  v rs → Valid (V v) rs
+    --ValidT : ∀ {t : Timeout ec} {rs : RecordStore ec sᵢ}                   → Valid (T t) rs
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -430,29 +437,35 @@ module LibraBFT
   validQC ec q = {!!}
   --}
 
+  data _∈Rs_ {ec} {sᵢ} (r : Record ec) : RecordStore ec sᵢ → Set where
+    here  : ∀ (s : RecordStore ec sᵢ) (v : Valid r s) → r ∈Rs insert s v
+    there : ∀ (r' : Record ec) (s : RecordStore ec sᵢ) (v : Valid r' s)
+           → r ∈Rs s
+           → r ∈Rs (insert s v)
+
 -- Lemma S₁ ---------------------------------------------------
 
   -- Note: part 1 of Lemma S1 comes later, as it depends on RecordStoreState because of the
   -- "previously verified" requirement in Section 4.2
 
   -- 2
-  ←inj : ∀ {r₀ : ChainableRecord}{r₁ r₂ : Record} → (r₀ ← r₂) → (R r₁ ← r₂)
+  ←inj : ∀ {ec : EpochConfiguration} {r₀ : RecOrInit ec} {r₁ r₂ : Record ec} → (r₀ ← r₂) → (R r₁ ← r₂)
            → r₀ ≡ R r₁ ⊎ HashBroke
-  ←inj {i} {q} {b} (I←B i←b) (Q←B q←b)
+  ←inj {ec} {i} {q} {b} (I←B i←b) (Q←B q←b)
     with hash-cr (trans i←b (sym q←b))
   ... | inj₁ ⟨ i≢q , hi≡hq ⟩
              = inj₂ ⟨ ⟨ encodeR i , encodeR (R q) ⟩ , ⟨ i≢q , hi≡hq ⟩ ⟩
   ... | inj₂ i≡q
              = contradiction (encodeR-inj i≡q) λ ()
 
-  ←inj {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
+  ←inj {ec} {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
     with hash-cr (trans q₀←b (sym q₁←b))
   ... | inj₁ ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩
              = inj₂ ⟨ ⟨ encodeR q₀ , encodeR (R q₁) ⟩ , ⟨ q₀≢q₁ , hq₀≡hq₁ ⟩ ⟩
   ... | inj₂ q₁≡q₂
              = inj₁ (encodeR-inj q₁≡q₂)
 
-  ←inj {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
+  ←inj {ec} {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
     with hash-cr (trans b₀←q (sym b₁←q))
   ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
              = inj₂ ⟨ ⟨ encodeR b₀ , encodeR (R b₁) ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
@@ -463,46 +476,45 @@ module LibraBFT
 
   -- Aux Lemma
 
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record} {rs : RecordStore sᵢ}
+  r₀←⋆r₁→rr₀≤rr₁ : {ec : EpochConfiguration} {sᵢ : Initial ec} {r₀ r₁ : Record ec} {rs : RecordStore ec sᵢ}
                  → R r₀ ←⋆ r₁
                  → Valid r₁ rs
                  → round r₀ ≤ round r₁ ⊎ HashBroke
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (B blk _ prf)
-    with prf
-  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
+     with prf
+  ... | inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩
       with ←inj r₀←b q←b
   ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
   ...   | inj₂ hashbroke = inj₂ hashbroke
-
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b)  (B blk _ prf)
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
       | inj₂ ⟨ i←b , 1≤rb ⟩
       with ←inj i←b r₀←b
   ...   | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (Q qc _ prf)
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (ValidQ prf)
     with prf
-  ... |   ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
+  ... |   ⟨ b , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩
       with ←inj r₀←q b←q
   ...   | inj₁ refl            = inj₁ ≤-refl
   ...   | inj₂ hashbroke       = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (B b rs prf)
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
     with prf
-  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+  ... | inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩
       with ←inj r←b q←b
   ...   | inj₂ hashbroke = inj₂ hashbroke
   ...   | inj₁ refl
         with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vQ
   ...     | inj₁ rr₀≤rq    = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
   ...     | inj₂ hashbroke = inj₂ hashbroke
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (B b rs prf)
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
       | inj₂ ⟨ i←b , 1≤rb ⟩
       with ←inj i←b r←b
   ...   | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (Q qc rs prf)
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (ValidQ prf)
     with prf
-  ... | ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
+  ... | ⟨ b , ⟨  vB , ⟨ b←q , refl ⟩ ⟩ ⟩
       with ←inj r←q b←q
   ...   | inj₂ hashbroke       = inj₂ hashbroke
   ...   | inj₁ refl
@@ -512,7 +524,7 @@ module LibraBFT
 
 
   -- Lemma 1, part 3
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {rs : RecordStore sᵢ}
+  round-mono : ∀ {ec : EpochConfiguration} {sᵢ : Initial ec} {r₀ r₁ r₂ : Record ec} {rs : RecordStore ec sᵢ}
                  → R r₀ ←⋆ r₂
                  → R r₁ ←⋆ r₂
                  → Valid r₀ rs → Valid r₁ rs → Valid r₂ rs
@@ -539,19 +551,19 @@ module LibraBFT
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
     with v₂
-  ... | B b rs (inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ )
+  ... | ValidB (inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ )
       with ←inj r←r₂ r′←r₂ | ←inj r←r₂ q←b
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vQ rr₀<rr₁
   ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
   ...    | _               | inj₂ hashbroke = inj₂ hashbroke
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
-      | B b rs (inj₂ ⟨ i←b , _ ⟩)
+      | ValidB (inj₂ ⟨ i←b , _ ⟩)
       with ←inj i←b r←r₂
   ...    | inj₂ hashbroke                   = inj₂ hashbroke
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
-      | Q q rs ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩
+      | ValidQ ⟨ b , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩
       with ←inj r←r₂ r′←r₂ | ←inj r←r₂ b←q
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
   ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
@@ -561,14 +573,15 @@ module LibraBFT
 
 ------------------------ RecordStoreState ----------------------
 
-  record RecordStoreState : Set where
+  record RecordStoreState : Set₁ where
     field
-      epoch     : EpochId
-      sᵢ        : Initial
-      recStore  : RecordStore sᵢ
-      curRound  : Round
-      highQCR   : Round
-      listVotes : List Vote
+      epoch       : EpochId
+      epochConfig : EpochConfiguration
+      sᵢ          : Initial epochConfig
+      recStore    : RecordStore epochConfig sᵢ
+      curRound    : Round
+      highQCR     : Round
+      listVotes   : List (Vote epochConfig)
       -- initialState : State
       -- highCommR    : Round
 ----------------------------------------------------------------
@@ -576,34 +589,21 @@ module LibraBFT
   open RecordStoreState
 
 -------------------- Lemma S1, part 1 --------------------
-
-  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {isCR : isChainableRecord r} {s : RecordStore sᵢ}
-          → r ∈Rs s
+  -- I think that Votes should not be in RecordStore because we have the List of Votes in the RecordStoreState
+  -- which will have the list of votes received
+  hᵢ←⋆R : ∀ {ec : EpochConfiguration} {sᵢ : Initial ec} {r : Record ec} {s : RecordStore ec sᵢ}
+          → Valid r s
           → (I sᵢ) ←⋆ r
-
-  hᵢ←⋆R {isCR = isCR} (there _ s _ r∈s) = hᵢ←⋆R {isCR = isCR} r∈s
-  hᵢ←⋆R {r = B b} (here rs vB)
-    with vB
-  ...| B {sᵢ} .b rs (inj₂ ⟨ doi , _ ⟩) = ss0 doi
-  ...| B {sᵢ} .b rs (inj₁ ⟨ qc , (q∈rs , bDOq )⟩) =
-       ssr (((hᵢ←⋆R {sᵢ} {Q qc} {Q qc} {rs} q∈rs))) (proj₁ (proj₂ bDOq) )
-
-  hᵢ←⋆R {r = Q q} (here rs vQ)
-     with vQ
-  ...| Q {sᵢ} .q rs ⟨ b , (b∈rs , qDOb) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ qDOb))
-
-  hᵢ←⋆R {r = V v} (here rs vV)
-     with vV
-  ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
-       ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
+  hᵢ←⋆R (ValidB (inj₂ ⟨ i←b , _ ⟩))                    = ss0 i←b
+  hᵢ←⋆R (ValidB (inj₁ ⟨ Q q , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩)) = ssr (hᵢ←⋆R vQ) q←b
+  hᵢ←⋆R (ValidQ       ⟨ B b , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩)  = ssr (hᵢ←⋆R vB) b←q
 
   lemma1-1 : RecordStoreState → Set
-  lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
-               → r ∈Rs recStore rss
+  lemma1-1 rss = ∀ {r : Record (epochConfig rss)}
+               → Valid r (recStore rss)
                → (I (sᵢ rss)) ←⋆ r
 
-  record AuxRecordStoreState : Set where
+  record AuxRecordStoreState : Set₁ where
     field
       auxRssData     : RecordStoreState
       auxRssLemma1-1 : lemma1-1 auxRssData
@@ -612,40 +612,39 @@ module LibraBFT
 
   rss1 : RecordStoreState
   rss1 = record {
-             epoch     = 1
-           ; sᵢ        = record { epochId = 1 ; seed = 1 }
-           ; recStore  = empty
-           ; curRound  = 1
-           ; highQCR   = 1 -- should this be a Maybe?
-           ; listVotes = []
+             epoch       = 1
+           ; epochConfig = ec1
+           ; sᵢ          = record { epochId = 1 ; seed = 1 }
+           ; recStore    = empty
+           ; curRound    = 1
+           ; highQCR     = 1 -- should this be a Maybe?
+           ; listVotes   = []
          }
 
   arss1 : AuxRecordStoreState
   arss1 = record {
               auxRssData = rss1
-            ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
+            ; auxRssLemma1-1 = λ x → hᵢ←⋆R x --contradiction x (λ ())
           }
 
-  testInit : Initial
+  testInit : {ec : EpochConfiguration} → Initial ec
   testInit = record { epochId = 1
                     ; seed    = 1
                     }
 
-  block1 : Block
-  block1 = record { round = 1
-                  ; prevQCHash = HashR (I testInit)
+  block1 :  {ec : EpochConfiguration} → Block ec
+  block1 {ec} = record { round = 1
+                  ; prevQCHash = HashR (I (testInit {ec}))
                   ; author = dummyAuthor 0
                   }
 
   rss2 : RecordStoreState
-  rss2 = record rss1 { recStore = insert {sᵢ rss1} {B block1}
-                                         (recStore rss1)
-                                         (B {sᵢ rss1} block1 empty (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
+  rss2 = record rss1 { recStore = insert empty (ValidB (inj₂ ⟨ I←B {ec1} {testInit} {block1} refl , s≤s z≤n ⟩))}
 
   arss2 : AuxRecordStoreState
   arss2 = record {
               auxRssData = rss2
-            ; auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
+            ; auxRssLemma1-1 = λ x → hᵢ←⋆R x
           }
 
   -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
@@ -669,16 +668,16 @@ module LibraBFT
 
   -- TODO: move near other validity conditions, which will need to depend on EpochConfiguration
   --       See commented out definition and notes above
-  validQC : EpochConfiguration → QC → Set
-  validQC ec q = {!!}
+  validQC : (ec : EpochConfiguration) → QC ec → Set
+  validQC q = {!!}
 
   -- Define a notion of an author being "in" a quorum certificate for a given EpochConfiguration
-  _∈Qs_for_ : Author → QC → EpochConfiguration → Set
+  _∈Qs_for_ :  {ec : EpochConfiguration} → Author → QC ec → EpochConfiguration → Set
   a ∈Qs q for ec = {!!}
 
   -- Should be provable from constraints on EpochConfigurations
   BFTQuorumIntersection : (ec : EpochConfiguration)
-                        → (q₁ q₂ : QC)
+                        → (q₁ q₂ : QC ec)
                         → validQC ec q₁
                         → validQC ec q₂
                         → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
@@ -704,6 +703,7 @@ module LibraBFT
 
 
   FakeTypeActiveNodes : Set
+  FakeTypeActiveNodes = {!!}
   -- Paper says HashSet<Author>
 
   OneSender : Set
@@ -740,7 +740,8 @@ module LibraBFT
   open PacemakerState
 
   -- Section 5.6, page 17
-  record NodeState : Set where
+  -- I think it sould also receive as a parameter the epoch configuration
+  record NodeState : Set₁ where
     field
       author    : Author
       epoch     : EpochId
@@ -833,28 +834,29 @@ module LibraBFT
       commEnv    : CommunicationEnvironment
       -- TODO: what other side effects might we need to track?
 
-  createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
-  createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
+  createTimeout' : ∀ {ec} {h} → RecordStore ec h → Author → Round → SmrContext → RecordStore ec h
+  createTimeout' rs _ r _ = {!!} -- insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
 
   createTimeout : RecordStoreState → Author → Round → SmrContext → RecordStoreState
   createTimeout rss a r smr =
-    record rss { recStore = createTimeout' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a r smr }
+    record rss { recStore = createTimeout' {epochConfig rss} {sᵢ rss} (recStore rss) a r smr }
 
   createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
   createTimeoutCond ns nothing  _   = ns
                                                                       -- TODO: after merging with Lisandra, naming conventions
   createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
 
-  proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
+  proposeBlock : {ec : EpochConfiguration} → NodeState → Author → QCHash → NodeTime → SmrContext → Block ec × BlockHash
   proposeBlock = {!!}
 
-  proposeBlockCond : NodeState
+  proposeBlockCond : {ec : EpochConfiguration}
+                   → NodeState
                    → Maybe QCHash
                    → SmrContext
                    → NodeState × SmrContext
   proposeBlockCond ns nothing smr = ns , smr
-  proposeBlockCond ns (just qch) smr =
-    let (blk , blkHash) = proposeBlock
+  proposeBlockCond {ec} ns (just qch) smr =
+    let (blk , blkHash) = proposeBlock {ec}
                             ns
                             (NodeState.author ns)
                             qch
@@ -870,11 +872,12 @@ module LibraBFT
   --                               smr_context: &mut SMRContext,
   --                             ) -> NodeUpdateActions {
   processPacemakerActions :
-      NodeState
+      EpochConfiguration
+    → NodeState
     → PacemakerUpdateActions
     → SmrContext
     → NodeState × SmrContext × NodeUpdateActions
-  processPacemakerActions self₀ pacemakerActions smrContext₀ =
+  processPacemakerActions ec self₀ pacemakerActions smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
       actions = record NodeUpdateActions∷new {
@@ -904,7 +907,7 @@ module LibraBFT
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
-      (self₂ , smrContext₁) = proposeBlockCond self₁ previousQCHashMB smrContext₀
+      (self₂ , smrContext₁) = proposeBlockCond {ec} self₁ previousQCHashMB smrContext₀
 
 
 
@@ -915,22 +918,23 @@ module LibraBFT
     in {!!}
 
   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
-  updateNode : NodeState
+  updateNode : EpochConfiguration
+             → NodeState
              → NodeTime
              → SmrContext
              → NodeState × SmrContext × NodeUpdateActions
-  updateNode self₀ clock smrContext₀ =
+  updateNode ec self₀ clock smrContext₀ =
     let
 
   -- let latest_senders = self.read_and_reset_latest_senders();
-         latestSenders = {!!}
+         --latestSenders = {!!}
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
          pacemakerActions = {!!}
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
          -- Can't keep this organized as in paper, because can't do with & where here
-         (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
+         (self₁ , actions₀) = processPacemakerActions ec self₀ pacemakerActions smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
@@ -1011,7 +1015,7 @@ module LibraBFT
   updatePMSandPUA s a ar cl
     -- // If the active round was just updated..
     -- if active_round > self.active_round { // .. store the new value
-    with (ar >? (pmsActiveRound s))
+     with (ar >? (pmsActiveRound s))
                               -- // .. notify the leader to be counted as an "active node".
                               -- actions.should_notify_leader = self.active_leader;
   ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
@@ -1030,8 +1034,9 @@ module LibraBFT
 
   updatePacemaker : PacemakerState
                    → Author
-                   → {h : Initial}
-                   → RecordStore h
+                   → {ec : EpochConfiguration}
+                   → {h : Initial ec}
+                   → RecordStore ec h
                    → NodeTime
                    → LatestSenders
                    → NodeTime
