@@ -57,7 +57,6 @@ module LibraBFT
   BlockHash : Set
   BlockHash = Hash
 
-  -- don't know if it's better to model the threshold-signature
   Signature : Set
   Signature = Hash
 
@@ -178,7 +177,7 @@ module LibraBFT
                          → 0 < n-f
                          → {i : Fin n-f}
                          → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
-  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i 
+  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i
 
   dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
                           → 0 < n-f
@@ -270,7 +269,6 @@ module LibraBFT
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
- -- Don't know if it needs the epoch or the round
   record Block : Set where
     field
       --command    : Command
@@ -343,9 +341,9 @@ module LibraBFT
   i₁ ≟Initial i₂
      with epochId i₁ ≟ epochId i₂
   ...| no  xx = no (xx ∘ (cong epochId))
-  ...| yes xx
+  ...| yes refl
        with seed i₁ ≟ seed i₂
-  ...|   yes xx1 = yes (≡-Initial xx xx1)
+  ...|   yes refl = yes refl
   ...|   no  xx1 = no (xx1 ∘ (cong seed))
 
   round : Record → Round
@@ -354,14 +352,14 @@ module LibraBFT
   round (V v) = Vote.round v
   round (T t) = Timeout.toRound t
 
-  data RecOrInit : Set where
-    I : Initial → RecOrInit
-    R : Record  → RecOrInit
+  data ChainableRecord : Set where
+    I : Initial → ChainableRecord
+    R : Record  → ChainableRecord
 
  -- Hash Functions ----------------------------------------------
   postulate
-    encodeR     : RecOrInit → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : RecOrInit} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+    encodeR     : ChainableRecord → ByteString
+    encodeR-inj : ∀ {r₀ r₁ : ChainableRecord} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
 
   HashR = hash ∘ encodeR
 
@@ -369,7 +367,7 @@ module LibraBFT
   -- 4.7. Mathematical Notations --------------------------------
 
   -- Definition of R₁ ← R₂
-  data _←_ : RecOrInit → Record → Set where
+  data _←_ : ChainableRecord → Record → Set where
     I←B : ∀ {i : Initial} {b : Block}
           → HashR (I i) ≡  Block.prevQCHash b
           → I i ← B b
@@ -380,7 +378,7 @@ module LibraBFT
           → HashR (R (B b)) ≡ QC.blockHash q
           → R (B b) ← Q q
 
-  data _←⋆_ (r₁ : RecOrInit) (r₂ : Record) : Set where
+  data _←⋆_ (r₁ : ChainableRecord) (r₂ : Record) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
     ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
@@ -418,7 +416,7 @@ module LibraBFT
     B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
     Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                          → Valid (Q q) rs
     V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                          → Valid (V v) rs
-    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                                      → Valid (T t) rs
+    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                                    → Valid (T t) rs
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -438,7 +436,7 @@ module LibraBFT
   -- "previously verified" requirement in Section 4.2
 
   -- 2
-  ←inj : ∀ {r₀ : RecOrInit}{r₁ r₂ : Record} → (r₀ ← r₂) → (R r₁ ← r₂)
+  ←inj : ∀ {r₀ : ChainableRecord}{r₁ r₂ : Record} → (r₀ ← r₂) → (R r₁ ← r₂)
            → r₀ ≡ R r₁ ⊎ HashBroke
   ←inj {i} {q} {b} (I←B i←b) (Q←B q←b)
     with hash-cr (trans i←b (sym q←b))
@@ -464,55 +462,102 @@ module LibraBFT
   -- 3
 
   -- Aux Lemma
-  -- This property does not depend on any particular RecordStore, and referring
-  -- to it will unnecessarily complicate proofs.  The parameters is needed for
-  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
-  -- a reminder.
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}{doNotUse : RecordStore sᵢ} 
+
+  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record} {rs : RecordStore sᵢ}
                  → R r₀ ←⋆ r₁
-                 → Valid {sᵢ} r₁ doNotUse
-                 → HashBroke ⊎ round r₀ ≤ round r₁
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
-     with v₁
-  ...| B blk _ prf
-       with prf
-  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
-  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
+                 → Valid r₁ rs
+                 → round r₀ ≤ round r₁ ⊎ HashBroke
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (B blk _ prf)
+    with prf
+  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+      with ←inj r₀←b q←b
+  ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
+  ...   | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
-       with v₁
-  ...| Q qc _ prf
-       with prf
-  ...|   dob = {!!}      -- QC q depends directly on Block
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b)  (B blk _ prf)
+      | inj₂ ⟨ i←b , 1≤rb ⟩
+      with ←inj i←b r₀←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₁ doqc)) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₂ doi))  = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (Q qc _ prf)
+    with prf
+  ... |   ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
+      with ←inj r₀←q b←q
+  ...   | inj₁ refl            = inj₁ ≤-refl
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (B b rs prf)
+    with prf
+  ... | inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+      with ←inj r←b q←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
+  ...   | inj₁ refl
+        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vQ
+  ...     | inj₁ rr₀≤rq    = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
+  ...     | inj₂ hashbroke = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (B b rs prf)
+      | inj₂ ⟨ i←b , 1≤rb ⟩
+      with ←inj i←b r←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
+
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (Q qc rs prf)
+    with prf
+  ... | ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
+      with ←inj r←q b←q
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  ...   | inj₁ refl
+        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vB
+  ...     | inj₁ rr₀≤rq    = inj₁ rr₀≤rq
+  ...     | inj₂ hashbroke = inj₂ hashbroke
+
 
   -- Lemma 1, part 3
-  -- This property does not depend on any particular RecordStore, and referring
-  -- to it will unnecessarily complicate proofs.  The parameters is needed for
-  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
-  -- a reminder.
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {doNotUse : RecordStore sᵢ}
+  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {rs : RecordStore sᵢ}
                  → R r₀ ←⋆ r₂
                  → R r₁ ←⋆ r₂
-                 → Valid {sᵢ} r₀ doNotUse
-                 → Valid {sᵢ} r₁ doNotUse
-                 → Valid {sᵢ} r₂ doNotUse
+                 → Valid r₀ rs → Valid r₁ rs → Valid r₂ rs
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
+
+  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)        v₀ v₁ v₂ rr₀<rr₁
+    with ←inj r₀←r₂ r₁←r₂
+  ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
+  ... | inj₂ hashbroke = inj₂ hashbroke
+
+  round-mono (ss0 r₀←r₂)      (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+    with ←inj r₀←r₂ r′←r₂
+  ... | inj₂ hashBroke                      = inj₂ hashBroke
+  ... | inj₁ refl
+      with r₀←⋆r₁→rr₀≤rr₁ r₁←⋆r′ v₀
+  ...   |  inj₁ rr₁≤rr₀                     = ⊥-elim (≤⇒≯ rr₁≤rr₀ rr₀<rr₁)
+  ...   |  inj₂ hashbroke                   = inj₂ hashbroke
+
+  round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)        v₀ v₁ v₂ rr₀<rr₁
+    with ←inj r₁←r₂ r←r₂
+  ... | inj₁ refl                           = inj₁ r₀←⋆r
+  ... | inj₂ hashBroke                      = inj₂ hashBroke
+
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
-     with r←r₂ | r′←r₂
-  ...| B←Q xx1 | B←Q xx2 = {!!}
-  ...| Q←B xx1 | Q←B xx2 = {!!}
+    with v₂
+  ... | B b rs (inj₁ ⟨ q , ⟨ q∈s , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ )
+      with ←inj r←r₂ r′←r₂ | ←inj r←r₂ q←b
+  ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vQ rr₀<rr₁
+  ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
+  ...    | _               | inj₂ hashbroke = inj₂ hashbroke
 
-  round-mono (ss0 r₀←r₂)      (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁ = {!!}
+  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+      | B b rs (inj₂ ⟨ i←b , _ ⟩)
+      with ←inj i←b r←r₂
+  ...    | inj₂ hashbroke                   = inj₂ hashbroke
 
-  round-mono (ssr r₀←⋆r r←r₂) (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
+  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+      | Q q rs ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩
+      with ←inj r←r₂ r′←r₂ | ←inj r←r₂ b←q
+  ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
+  ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
+  ...    | _               | inj₂ hashbroke = inj₂ hashbroke
 
-  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
+
 
 ------------------------ RecordStoreState ----------------------
 
