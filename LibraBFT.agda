@@ -326,6 +326,10 @@ module LibraBFT
     Q : ∀ (q : QC)    → isChainableRecord (Q q)
     V : ∀ (v : Vote)  → isChainableRecord (V v)
 
+  data _∈Rec_ : Record → Record → Set where
+    V∈V  : ∀ (v₁ v₂ : Vote) → v₁ ≡ v₂ → (V v₁) ∈Rec (V v₂)
+    -- V∈QC : ∀ (v : Vote) (q : QC) →  TODO: ... Data.List.Any
+
   open Initial
 
   -- This seems silly, there should be a more generic way
@@ -696,6 +700,16 @@ module LibraBFT
     DSN   : ∀ (s r : Author) → DataSyncNotification → Message s r
     DSREQ : ∀ (s r : Author) → DataSyncRequest      → Message s r
     DSRSP : ∀ (s r : Author) → DataSyncResponse     → Message s r
+
+  data _∈msg_ : Record → Message → Set where
+    -- DSRSP : ∀ {v : Vote} → {m : Message.DSRSP _ _ dsr} → (V v) ∈Rec TODO see if (V v) is in dsrspRecords .... → (V v) ∈msg m
+    -- DSN   : ∀ {v : Vote} → {m : Message.DSN   _ _ dsn} → (V v) ∈Rec TODO see if (V v) is in dsnHighestCommitCertificate,  (perhaps not necessary since we have quorum)
+    --                                                                                         dsnHighestQuorumCertificate,  (perhaps not necessary since we have quorum)
+    --                                                                                         dsnCurrentEpoch
+                                                                                               .... → (V c) ∈msg m
+
+
+
 
 -------------------------- NodeState ---------------------------
 
@@ -1169,9 +1183,17 @@ module LibraBFT
   -- [LIBRA-DIFF] The paper says: (increasing-round) An honest node that voted once for ?? in the
   -- past may only vote for ??′ if round(??) < round(??′).  WHat it really should say is that an
   -- honest node does not create different votes for the same round and block.  Nobody can tell what
-  -- *order* the votes are created in.
+  -- *order* the votes are created in.  Furthermore, it doesn't matter if an honest node *creates*
+  -- contradictory votes.  What matters is if it *sends* them somewhere.
 
-  -- This is roughly the property we want, but nothing about it connects it to the actual algorithm.
-  -- We cannot prove this property because of course counterexamples *exist*.  How to represent the
-  -- fact that an honest author won't *create* them?
-
+  honestVotesConsistent : ∀ {a : Author}
+                            {m₁ m₂ : Message a _}
+                            {v₁ v₂ : Vote}
+                            {s : ReachableState}
+                          → m₁ ∈mp gssMessagePool s
+                          → m₂ ∈mp gssMessagePool s
+                          → v₁ ∈msg m₁
+                          → v₂ ∈msg m₂
+                          → isHonestP a
+                          → blockHash v₁ ≡ blockHash v₂
+  honestVotesConsistent = ?
