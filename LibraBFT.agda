@@ -396,17 +396,22 @@ module LibraBFT
     insert : {r : Record ec} (s : RecordStore ec sᵢ)
              → Valid r s → RecordStore ec sᵢ
 
+  data _∈_ {ec} {sᵢ} (r : Record ec) : RecordStore ec sᵢ → Set where
+    here  : ∀ (s : RecordStore ec sᵢ) (v : Valid r s) → r ∈ insert s v
+    there : ∀ (r' : Record ec) (s : RecordStore ec sᵢ) (v : Valid r' s)
+           → r ∈ s
+           → r ∈ (insert s v)
 
   -- I don't think we need to have (q ∈Rs rs) neither to validate wrt rs, only wrt (Initial ec)
   -- Maybe I will change my mind when trying to prove lemmas, for now let's go with RecordStore
   ValidBlock : ∀ {ec} {sᵢ} → Block ec → RecordStore ec sᵢ → Set
-  ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( Valid q rs × R q ← B b × round q < round (B b) )
+  ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( q ∈ rs × Valid q rs × R q ← B b × round q < round (B b) )
                               ⊎
                               I sᵢ ← B b × 1 ≤ round (B b)
 
   -- TODO : Complete the definition of Valid QC
   ValidQC : ∀ {ec} {sᵢ} → QC ec → RecordStore ec sᵢ → Set
-  ValidQC q rs = ∃[ b ] ( Valid b rs × R b ← Q q × round b ≡ round (Q q) )
+  ValidQC q rs = ∃[ b ] ( b ∈ rs × Valid b rs × R b ← Q q × round b ≡ round (Q q) )
 
   ValidVote : ∀ {ec} {sᵢ} → Vote ec → RecordStore ec sᵢ → Set
   ValidVote v rs = ∃[ b ] ( Valid (B b) rs × HashR (R (B b)) ≡ Vote.blockHash v × round (B b) ≡ round (V v) )
@@ -437,11 +442,6 @@ module LibraBFT
   validQC ec q = {!!}
   --}
 
-  data _∈Rs_ {ec} {sᵢ} (r : Record ec) : RecordStore ec sᵢ → Set where
-    here  : ∀ (s : RecordStore ec sᵢ) (v : Valid r s) → r ∈Rs insert s v
-    there : ∀ (r' : Record ec) (s : RecordStore ec sᵢ) (v : Valid r' s)
-           → r ∈Rs s
-           → r ∈Rs (insert s v)
 
 -- Lemma S₁ ---------------------------------------------------
 
@@ -482,7 +482,7 @@ module LibraBFT
                  → round r₀ ≤ round r₁ ⊎ HashBroke
   r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
      with prf
-  ... | inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
       with ←inj r₀←b q←b
   ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
   ...   | inj₂ hashbroke = inj₂ hashbroke
@@ -493,14 +493,14 @@ module LibraBFT
 
   r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (ValidQ prf)
     with prf
-  ... |   ⟨ b , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩
+  ... |   ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
       with ←inj r₀←q b←q
   ...   | inj₁ refl            = inj₁ ≤-refl
   ...   | inj₂ hashbroke       = inj₂ hashbroke
 
   r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
     with prf
-  ... | inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
       with ←inj r←b q←b
   ...   | inj₂ hashbroke = inj₂ hashbroke
   ...   | inj₁ refl
@@ -514,7 +514,7 @@ module LibraBFT
 
   r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (ValidQ prf)
     with prf
-  ... | ⟨ b , ⟨  vB , ⟨ b←q , refl ⟩ ⟩ ⟩
+  ... | ⟨ b , ⟨ b∈rs , ⟨  vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩
       with ←inj r←q b←q
   ...   | inj₂ hashbroke       = inj₂ hashbroke
   ...   | inj₁ refl
@@ -551,7 +551,7 @@ module LibraBFT
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
     with v₂
-  ... | ValidB (inj₁ ⟨ q , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ )
+  ... | ValidB (inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ )
       with ←inj r←r₂ r′←r₂ | ←inj r←r₂ q←b
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vQ rr₀<rr₁
   ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
@@ -563,7 +563,7 @@ module LibraBFT
   ...    | inj₂ hashbroke                   = inj₂ hashbroke
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
-      | ValidQ ⟨ b , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩
+      | ValidQ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩
       with ←inj r←r₂ r′←r₂ | ←inj r←r₂ b←q
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
   ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
@@ -591,16 +591,23 @@ module LibraBFT
 -------------------- Lemma S1, part 1 --------------------
   -- I think that Votes should not be in RecordStore because we have the List of Votes in the RecordStoreState
   -- which will have the list of votes received
-  hᵢ←⋆R : ∀ {ec : EpochConfiguration} {sᵢ : Initial ec} {r : Record ec} {s : RecordStore ec sᵢ}
-          → Valid r s
+  hᵢ←⋆R : ∀ {ec : EpochConfiguration} {sᵢ : Initial ec} {r : Record ec} {rs : RecordStore ec sᵢ}
+          → r ∈ rs
           → (I sᵢ) ←⋆ r
-  hᵢ←⋆R (ValidB (inj₂ ⟨ i←b , _ ⟩))                    = ss0 i←b
-  hᵢ←⋆R (ValidB (inj₁ ⟨ Q q , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩)) = ssr (hᵢ←⋆R vQ) q←b
-  hᵢ←⋆R (ValidQ       ⟨ B b , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩)  = ssr (hᵢ←⋆R vB) b←q
+  hᵢ←⋆R (here s (ValidB prf))
+    with prf
+  ... | inj₂ ⟨ i←b , _ ⟩ = ss0 i←b
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←b
+
+  hᵢ←⋆R (here s (ValidQ prf))
+    with prf
+  ... |      ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←q
+
+  hᵢ←⋆R (there r' s vR r∈rs) = hᵢ←⋆R r∈rs
 
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record (epochConfig rss)}
-               → Valid r (recStore rss)
+               → r ∈ (recStore rss)
                → (I (sᵢ rss)) ←⋆ r
 
   record AuxRecordStoreState : Set₁ where
@@ -624,7 +631,7 @@ module LibraBFT
   arss1 : AuxRecordStoreState
   arss1 = record {
               auxRssData = rss1
-            ; auxRssLemma1-1 = λ x → hᵢ←⋆R x --contradiction x (λ ())
+            ; auxRssLemma1-1 = λ x → contradiction x (λ ())
           }
 
   testInit : {ec : EpochConfiguration} → Initial ec
