@@ -282,7 +282,7 @@ module LibraBFT
  -- Vote -------------------------------------------
   record Vote : Set where
     field
-      --epoch     : EpochId
+      epochId   : EpochId
       round     : Round
       blockHash : BlockHash
       -- state     : State
@@ -701,12 +701,12 @@ module LibraBFT
     DSREQ : ∀ (s r : Author) → DataSyncRequest      → Message s r
     DSRSP : ∀ (s r : Author) → DataSyncResponse     → Message s r
 
-  data _∈msg_ : Record → Message → Set where
+  data _∈msg_ : {s r : Author} → Record → Message s r → Set where
     -- DSRSP : ∀ {v : Vote} → {m : Message.DSRSP _ _ dsr} → (V v) ∈Rec TODO see if (V v) is in dsrspRecords .... → (V v) ∈msg m
     -- DSN   : ∀ {v : Vote} → {m : Message.DSN   _ _ dsn} → (V v) ∈Rec TODO see if (V v) is in dsnHighestCommitCertificate,  (perhaps not necessary since we have quorum)
     --                                                                                         dsnHighestQuorumCertificate,  (perhaps not necessary since we have quorum)
     --                                                                                         dsnCurrentEpoch
-                                                                                               .... → (V c) ∈msg m
+    --                                                                                         .... → (V c) ∈msg m
 
 
 
@@ -1189,11 +1189,17 @@ module LibraBFT
   honestVotesConsistent : ∀ {a : Author}
                             {m₁ m₂ : Message a _}
                             {v₁ v₂ : Vote}
-                            {s : ReachableState}
+                            {s : GlobalSystemState}
+                          → ReachableState s
                           → m₁ ∈mp gssMessagePool s
                           → m₂ ∈mp gssMessagePool s
-                          → v₁ ∈msg m₁
-                          → v₂ ∈msg m₂
-                          → isHonestP a
-                          → blockHash v₁ ≡ blockHash v₂
-  honestVotesConsistent = ?
+                          → (V v₁) ∈msg m₁
+                          → (V v₂) ∈msg m₂
+                          → Vote.epochId v₁ ≡ Vote.epochId v₂
+                          → Vote.round v₁   ≡ Vote.round v₂
+                          → isHonestP {!!} a  -- TODO: need to get EpochConfiguration in which a is
+                                               -- a voter, matches epochId Raises question of where
+                                               -- EpochConfigurations come from.  NodeState of who's
+                                               -- asking (which is not mentioned yet)
+                          → Vote.blockHash v₁ ≡ Vote.blockHash v₂
+  honestVotesConsistent = {!!}
