@@ -889,6 +889,107 @@ module LibraBFT
 
     in {!!}
 
+  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
+  newPMSValue self activeRound clock = record self {
+  --    // .. store the new value
+  --    self.active_round = active_round;
+                    pmsActiveRound = activeRound
+  --    // .. start a timer
+  --    self.active_round_start = clock;
+                  ; pmsActiveRoundStart = clock
+  --    // .. recompute the leader
+  --    self.active_leader = Some(Self::leader(record_store, active_round));
+                  ; pmsActiveLeader = just {!!}
+  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
+  --    self.active_nodes = HashSet::new();
+                  ; pmsActiveNodes = {!!}
+                  }
+  --  }
+
+  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
+     → PacemakerState × PacemakerUpdateActions
+  updatePMSandPUA s a ar cl
+    -- // If the active round was just updated..
+    -- if active_round > self.active_round { // .. store the new value
+    with (ar >? (pmsActiveRound s))
+                              -- // .. notify the leader to be counted as an "active node".
+                              -- actions.should_notify_leader = self.active_leader;
+  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
+  ...| no  _ = (s , a)
+
+  -- Section 7.10, page 27
+  -- fn update_pacemaker(
+  --     &mut self,
+  --     local_author: Author,
+  --     record_store: &RecordStore,
+  --     mut latest_broadcast: NodeTime,
+  --     latest_senders: Vec<(Author, Round)>,
+  --     clock: NodeTime,
+  -- ) -> PacemakerUpdateActions {
+
+  updatePacemaker : PacemakerState
+                  → Author
+                  → {h : Initial}
+                  → RecordStore h
+                  → NodeTime
+                  → LatestSenders
+                  → NodeTime
+                  → PacemakerState × PacemakerUpdateActions
+  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
+
+     let
+  --  // Initialize actions with default values.
+  --  let mut actions = PacemakerUpdateActions::new();
+       actions₀ = PacemakerUpdateActions∷new
+
+  --  // Recompute the active round.
+  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
+       activeRound = {!!}
+
+       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
+
+  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
+  --  for (author, round) in latest_senders {
+  --    if round == active_round {
+  --      self.active_nodes.insert(author);
+  --  } }
+  --  // If we are the leader and have seen a quorum of active node..
+  --  if self.active_leader == Some(local_author)
+  --    && record_store.is_quorum(&self.active_nodes)
+  --    && record_store.proposed_block(&*self) == None {
+  --    // .. propose a block on top of the highest QC that we know.
+  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
+  --    // .. force an immediate update to vote on our own proposal.
+  --    actions.should_schedule_update = Some(clock);
+  --  }
+  --  // Enforce sufficiently frequent broadcasts.
+  --  if clock >= latest_broadcast + self.broadcast_interval {
+  --    actions.should_broadcast = true;
+  --    latest_broadcast = clock;
+  --  }
+  -- // If we have not yet, create a timeout after the maximal duration for rounds.
+  -- let deadline = if record_store.has_timeout(local_author, active_round) {
+  --                  NodeTime::never()
+  --                } else {
+  --                  self.active_round_start + self.duration(record_store, active_round)
+  --                };
+  -- if clock >= deadline {
+  --   actions.should_create_timeout = Some(active_round);
+  --   actions.should_broadcast = true;
+  -- }
+  -- // Make sure this update function is run again soon enough.
+  -- actions.should_schedule_update = Some(std::cmp::min(
+  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
+  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
+  -- ));
+  -- actions
+
+       pmFinal      = {!!}
+       actionsFinal = {!!}
+     in ( pmFinal , actionsFinal )
+
+----------------------------- updateNode ------------------------
+
   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
   updateNode : NodeState
              → NodeTime
@@ -901,11 +1002,17 @@ module LibraBFT
          latestSenders = {!!}
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
-         pacemakerActions = {!!}
+         pms₀ = nsPaceMaker self₀
+         (pms₁ , pmActs ) = updatePacemaker pms₀
+                                            (nsLocalAuthor self₀)
+                                            (recStore (nsRecordStore self₀))
+                                            (nsLatestBroadcast self₀)
+                                            latestSenders
+                                            clock
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
          -- Can't keep this organized as in paper, because can't do with & where here
-         (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
+         (self₁ , actions₀) = processPacemakerActions self₀ pmActs smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
@@ -962,107 +1069,6 @@ module LibraBFT
 
     in
       (nsFinal , ( smrContextFinal , actionsFinal ))
-
-
-  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
-  newPMSValue self activeRound clock = record self {
-  --    // .. store the new value
-  --    self.active_round = active_round;
-                    pmsActiveRound = activeRound
-  --    // .. start a timer
-  --    self.active_round_start = clock;
-                  ; pmsActiveRoundStart = clock
-  --    // .. recompute the leader
-  --    self.active_leader = Some(Self::leader(record_store, active_round));
-                  ; pmsActiveLeader = just {!!}
-  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
-  --    self.active_nodes = HashSet::new();
-                  ; pmsActiveNodes = {!!}
-                  }
-  --  }
-
-  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
-     → PacemakerState × PacemakerUpdateActions
-  updatePMSandPUA s a ar cl
-    -- // If the active round was just updated..
-    -- if active_round > self.active_round { // .. store the new value
-    with (ar >? (pmsActiveRound s))
-                              -- // .. notify the leader to be counted as an "active node".
-                              -- actions.should_notify_leader = self.active_leader;
-  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
-  ...| no  _ = (s , a)
-
-
-  -- Section 7.10, page 27
-  -- fn update_pacemaker(
-  --     &mut self,
-  --     local_author: Author,
-  --     record_store: &RecordStore,
-  --     mut latest_broadcast: NodeTime,
-  --     latest_senders: Vec<(Author, Round)>,
-  --     clock: NodeTime,
-  -- ) -> PacemakerUpdateActions {
-
-  updatePacemaker : PacemakerState
-                   → Author
-                   → {h : Initial}
-                   → RecordStore h
-                   → NodeTime
-                   → LatestSenders
-                   → NodeTime
-                   → PacemakerState × PacemakerUpdateActions
-  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
-
-     let
-  --  // Initialize actions with default values.
-  --  let mut actions = PacemakerUpdateActions::new();
-       actions₀ = PacemakerUpdateActions∷new
-
-  --  // Recompute the active round.
-  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
-       activeRound = {!!}
-
-       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
-
-  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
-  --  for (author, round) in latest_senders {
-  --    if round == active_round {
-  --      self.active_nodes.insert(author);
-  --  } }
-  --  // If we are the leader and have seen a quorum of active node..
-  --  if self.active_leader == Some(local_author)
-  --    && record_store.is_quorum(&self.active_nodes)
-  --    && record_store.proposed_block(&*self) == None {
-  --    // .. propose a block on top of the highest QC that we know.
-  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
-  --    // .. force an immediate update to vote on our own proposal.
-  --    actions.should_schedule_update = Some(clock);
-  --  }
-  --  // Enforce sufficiently frequent broadcasts.
-  --  if clock >= latest_broadcast + self.broadcast_interval {
-  --    actions.should_broadcast = true;
-  --    latest_broadcast = clock;
-  --  }
-  -- // If we have not yet, create a timeout after the maximal duration for rounds.
-  -- let deadline = if record_store.has_timeout(local_author, active_round) {
-  --                  NodeTime::never()
-  --                } else {
-  --                  self.active_round_start + self.duration(record_store, active_round)
-  --                };
-  -- if clock >= deadline {
-  --   actions.should_create_timeout = Some(active_round);
-  --   actions.should_broadcast = true;
-  -- }
-  -- // Make sure this update function is run again soon enough.
-  -- actions.should_schedule_update = Some(std::cmp::min(
-  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
-  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
-  -- ));
-  -- actions
-
-       pmFinal      = {!!}
-       actionsFinal = {!!}
-     in ( pmFinal , actionsFinal )
 
 ---------------- Global system state -------------
 
@@ -1140,8 +1146,21 @@ module LibraBFT
   initialGlobalState = {!!}
 ---------- Actions ---------
 
+  processShouldNotifyLeader : Maybe Author → NodeState → MessagePool → MessagePool
+  processShouldNotifyLeader nothing    _  mp = mp
+  processShouldNotifyLeader (just ldr) ns mp = insert {nsLocalAuthor ns} {ldr} mp {!!}   -- TODO: Send DataSyncNotification to leader?
+
+  processShouldBroadcast : Bool → NodeState → MessagePool → MessagePool
+  processShouldBroadcast false _  mp = mp
+  processShouldBroadcast true  ns mp = {!!}       -- TODO: Send DataSyncNotification to .. whom?  Containing what?
+                                                   -- From p. 19: // Ask that we reshare the proposal. (proposed_block)
+                                                   -- From p. 38  // Access the block proposed by the leader chosen by the Pacemaker (if any).
+
   processNodeUpdateActions : MessagePool → Author → NodeState → NodeUpdateActions → MessagePool
-  processNodeUpdateActions mp₀ a ns (mkNodeUpdateAction ssu snl sb) = {!!}
+  processNodeUpdateActions mp₀ a ns (mkNodeUpdateAction ssu snl sb) =
+    let mp₁ = processShouldNotifyLeader snl ns mp₀
+        mp₂ = processShouldBroadcast    sb  ns mp₁
+    in mp₂
 
 ---------- Actions and reachable states ----------
   -- Update a function of type A → B on one input, given a decidability instance for A's
@@ -1172,10 +1191,10 @@ module LibraBFT
     in gss nss₁ smrs₁ mp₁
 
   data ReachableState : (gss : GlobalSystemState) → Set where
-    rsEmpty      : ReachableState initialGlobalState
-    rsUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
-                 → ReachableState preState
-                 → ReachableState (effUpdateNode {a} preState)
+    rchstEmpty      : ReachableState initialGlobalState
+    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
+                    → ReachableState preState
+                    → ReachableState (effUpdateNode {a} preState)
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 
