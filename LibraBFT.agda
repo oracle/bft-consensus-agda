@@ -1150,10 +1150,10 @@ module LibraBFT
   _[_:=_,_] : {A : Set} {A₂ : Set}
              (f : A → A₂)
            → A → A₂
-           → (_xx_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
            → A → A₂
-  _[_:=_,_] {A = A} {A₂ = A₂} f a₁ b _xx_ a₂
-     with a₁ xx a₂
+  _[_:=_,_] {A = A} {A₂ = A₂} f a₁ b _≟_ a₂
+     with a₁ ≟ a₂
   ...| yes _ = b
   ...| no  _ = f a₂
 
