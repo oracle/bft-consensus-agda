@@ -72,7 +72,7 @@ module LibraBFT
     distinct : (∀ (i j : Fin n) → i ≡ j ⊎ (¬ (lookupVec v i) P (lookupVec v j)))
              → DistinctVec _P_ v
 
-  record EpochConfiguration : Set (Level.suc Level.zero) where
+  record EpochConfiguration : Set₁ where
     field
       ecN : ℕ                               -- Total number of nodes who can vote in this epoch
       ecF : ℕ                               -- Maxiumum number of faulty nodes in this epoch
@@ -266,37 +266,47 @@ module LibraBFT
   _ : isHonest ec1 (dummyAuthor 5) ≡ false
   _ = refl
 
+
+
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
   record Block (ec : EpochConfiguration) : Set where
     field
-      --command    : Command
-      prevQCHash : QCHash
-      round      : Round
-      author     : Author
-      --signature  : Signature
+      bCommand    : Command
+      bPrevQCHash : QCHash
+      bRound      : Round
+      bAuthor     : Author
+      --bSignature  : Signature
+  open Block
 
  -- Vote -------------------------------------------
   record Vote (ec : EpochConfiguration) : Set where
     field
-      --epoch     : EpochId
-      round     : Round
-      blockHash : BlockHash
-      -- state     : State
-      author    : Author
-      --signature : Signature
+      vepoch     : EpochId
+      vRound     : Round
+      vBlockHash : BlockHash
+      vState     : State
+      vAuthor    : Author
+      vSignature : Signature
+  open Vote
+
+  _≡-Author_ : {ec : EpochConfiguration} → Vote ec → Vote ec → Set
+  v₁ ≡-Author v₂ = vAuthor v₁ ≡ vAuthor v₂
+
 
  -- QuorumCertificate ------------------------------
-  record QC (ec : EpochConfiguration) : Set where
+  record QC (ec : EpochConfiguration) : Set₁ where
   -- TODO: record QC (ec : EpochConfiguration) : Set where
     field
-      -- epoch     : EpochId
-      blockHash : BlockHash
-      round     : Round
-      -- state     : State
-      votes     : Vec (Vote ec) (ecN ec)
-      author    : Author
+      -- qEpoch      : EpochId
+      qBlockHash     : BlockHash
+      qRound         : Round
+      qState         : State
+      qVotes         : Vec (Vote ec) (ecN ec)
+      qVotesDistinct : DistinctVec _≡-Author_ qVotes
+      qAuthor        : Author
+  open QC
 
   record Timeout (ec : EpochConfiguration) : Set where
     constructor mkTimeout
@@ -306,7 +316,7 @@ module LibraBFT
       toAuthor  : Author
       --toSignature : Signature
 
-  data Record (ec : EpochConfiguration) : Set where
+  data Record (ec : EpochConfiguration) : Set₁ where
   -- TODO: data Record (ec : EpochConfiguration) : Set where
     B : Block   ec → Record ec
     Q : QC      ec → Record ec
@@ -349,12 +359,12 @@ module LibraBFT
   ...|   no  xx1 = no (xx1 ∘ (cong seed))
 
   round : {ec : EpochConfiguration} → Record ec → Round
-  round (B b) = Block.round b
-  round (Q q) = QC.round q
-  round (V v) = Vote.round v
+  round (B b) = Block.bRound b
+  round (Q q) = QC.qRound q
+  round (V v) = Vote.vRound v
   round (T t) = Timeout.toRound t
 
-  data RecOrInit (ec : EpochConfiguration) : Set where
+  data RecOrInit (ec : EpochConfiguration) : Set₁ where
     I : Initial ec  → RecOrInit ec
     R : Record  ec  → RecOrInit ec
 
@@ -372,24 +382,24 @@ module LibraBFT
   -- Definition of R₁ ← R₂
   data _←_  {ec : EpochConfiguration} : RecOrInit ec → Record ec → Set where
     I←B : ∀ {i : Initial ec} {b : Block ec}
-          → HashR (I i) ≡  Block.prevQCHash b
+          → HashR (I i) ≡  bPrevQCHash b
           → I i ← B b
     Q←B : ∀ {q : QC ec} {b : Block ec}
-          → HashR (R (Q q)) ≡  Block.prevQCHash b
+          → HashR (R (Q q)) ≡  bPrevQCHash b
           → R (Q q) ← B b
     B←Q : ∀ {b : Block ec} {q : QC ec}
-          → HashR (R (B b)) ≡ QC.blockHash q
+          → HashR (R (B b)) ≡ qBlockHash q
           → R (B b) ← Q q
 
-  data _←⋆_ {ec : EpochConfiguration} (r₁ : RecOrInit ec) (r₂ : Record ec) : Set where
+  data _←⋆_ {ec : EpochConfiguration} (r₁ : RecOrInit ec) (r₂ : Record ec) : Set₁ where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
     ssr : ∀ {r : Record ec} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
 ------------------------- RecordStore --------------------------
 
-  data RecordStore (ec : EpochConfiguration) (sᵢ : Initial ec) : Set
+  data RecordStore (ec : EpochConfiguration) (sᵢ : Initial ec) : Set₁
 
-  data Valid {ec : EpochConfiguration} {sᵢ : Initial ec} : Record ec → RecordStore ec sᵢ → Set
+  data Valid {ec : EpochConfiguration} {sᵢ : Initial ec} : Record ec → RecordStore ec sᵢ → Set₁
 
   data RecordStore ec sᵢ where
     empty  : RecordStore ec sᵢ
@@ -402,27 +412,23 @@ module LibraBFT
            → r ∈ s
            → r ∈ (insert s v)
 
-  -- I don't think we need to have (q ∈Rs rs) neither to validate wrt rs, only wrt (Initial ec)
-  -- Maybe I will change my mind when trying to prove lemmas, for now let's go with RecordStore
-  ValidBlock : ∀ {ec} {sᵢ} → Block ec → RecordStore ec sᵢ → Set
+  -- TODO: Validate records wrt epoch configuration
+  ValidBlock : ∀ {ec} {sᵢ} → Block ec → RecordStore ec sᵢ → Set₁
   ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( q ∈ rs × Valid q rs × R q ← B b × round q < round (B b) )
                               ⊎
                               I sᵢ ← B b × 1 ≤ round (B b)
 
-  -- TODO : Complete the definition of Valid QC
-  ValidQC : ∀ {ec} {sᵢ} → QC ec → RecordStore ec sᵢ → Set
+  ValidQC : ∀ {ec} {sᵢ} → QC ec → RecordStore ec sᵢ → Set₁
   ValidQC q rs = ∃[ b ] ( b ∈ rs × Valid b rs × R b ← Q q × round b ≡ round (Q q) )
 
-  ValidVote : ∀ {ec} {sᵢ} → Vote ec → RecordStore ec sᵢ → Set
-  ValidVote v rs = ∃[ b ] ( Valid (B b) rs × HashR (R (B b)) ≡ Vote.blockHash v × round (B b) ≡ round (V v) )
+  ValidVote : ∀ {ec} {sᵢ} → Vote ec → RecordStore ec sᵢ → Set₁
+  ValidVote v rs = ∃[ b ] ( Valid (B b) rs × HashR (R (B b)) ≡ vBlockHash v × round (B b) ≡ round (V v) )
 
 
   -- Conditions required to add a Record to a RecordStore (which contained "previously verified"
   -- records, in the parlance of the LibraBFT paper.  Some properties do not depend on any
   -- particular RecordStore and their proofs can ignore the RecordStore, other than passing it to
   -- recursive invocations.
-
-  -- TODO: Validate records wrt epoch configuration instead of RecordStore
 
   data Valid {ec} {sᵢ} where
     ValidB : ∀ {b : Block   ec} {rs : RecordStore ec sᵢ} → ValidBlock b rs → Valid (B b) rs
@@ -605,7 +611,7 @@ module LibraBFT
 
   hᵢ←⋆R (there r' s vR r∈rs) = hᵢ←⋆R r∈rs
 
-  lemma1-1 : RecordStoreState → Set
+  lemma1-1 : RecordStoreState → Set₁
   lemma1-1 rss = ∀ {r : Record (epochConfig rss)}
                → r ∈ (recStore rss)
                → (I (sᵢ rss)) ←⋆ r
@@ -631,7 +637,7 @@ module LibraBFT
   arss1 : AuxRecordStoreState
   arss1 = record {
               auxRssData = rss1
-            ; auxRssLemma1-1 = λ x → contradiction x (λ ())
+            ; auxRssLemma1-1 = λ x → contradiction x (λ ()) -- or  hᵢ←⋆R x 
           }
 
   testInit : {ec : EpochConfiguration} → Initial ec
@@ -640,13 +646,14 @@ module LibraBFT
                     }
 
   block1 :  {ec : EpochConfiguration} → Block ec
-  block1 {ec} = record { round = 1
-                  ; prevQCHash = HashR (I (testInit {ec}))
-                  ; author = dummyAuthor 0
-                  }
+  block1 {ec} = record { bCommand = 1
+                       ; bRound = 1
+                       ; bPrevQCHash = HashR (I (testInit {ec}))
+                       ; bAuthor = dummyAuthor 0
+                       }
 
   rss2 : RecordStoreState
-  rss2 = record rss1 { recStore = insert empty (ValidB (inj₂ ⟨ I←B {ec1} {testInit} {block1} refl , s≤s z≤n ⟩))}
+  rss2 = record rss1 { recStore = insert empty (ValidB (inj₂ ⟨ I←B {b = block1} refl , s≤s z≤n ⟩))}
 
   arss2 : AuxRecordStoreState
   arss2 = record {
@@ -675,8 +682,9 @@ module LibraBFT
 
   -- TODO: move near other validity conditions, which will need to depend on EpochConfiguration
   --       See commented out definition and notes above
-  validQC : (ec : EpochConfiguration) → QC ec → Set
-  validQC q = {!!}
+
+  --validQC : {ec : EpochConfiguration} → QC ec → Set
+  --validQC q = {!!}
 
   -- Define a notion of an author being "in" a quorum certificate for a given EpochConfiguration
   _∈Qs_for_ :  {ec : EpochConfiguration} → Author → QC ec → EpochConfiguration → Set
@@ -685,8 +693,8 @@ module LibraBFT
   -- Should be provable from constraints on EpochConfigurations
   BFTQuorumIntersection : (ec : EpochConfiguration)
                         → (q₁ q₂ : QC ec)
-                        → validQC ec q₁
-                        → validQC ec q₂
+                        → QC ec
+                        → QC ec
                         → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
   BFTQuorumIntersection = {!!}
 
