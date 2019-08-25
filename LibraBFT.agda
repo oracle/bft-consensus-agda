@@ -1205,7 +1205,13 @@ module LibraBFT
   -- *order* the votes are created in.  Furthermore, it doesn't matter if an honest node *creates*
   -- contradictory votes.  What matters is if it *sends* them somewhere.
 
+  -- TODO: The following is not quite right yet, because it applies to any EpochConfiguration.  So
+  -- we could make up an EpochConfiguration in which some bad guy appears honest, and this property
+  -- might not hold.  We will need something that ties ec to the epoch in question, which essentially
+  -- says that ec is the "official" EpochConfiguration for that epoch.  This will be a function of
+  -- committed state (platform data in the parlance of our ASAPD in Juno).
   honestVotesConsistent : ∀ {a : Author}
+                            {ec : EpochConfiguration}
                             {m₁ m₂ : Message a _}
                             {v₁ v₂ : Vote}
                             {s : GlobalSystemState}
@@ -1216,9 +1222,6 @@ module LibraBFT
                           → (V v₂) ∈msg m₂
                           → Vote.epochId v₁ ≡ Vote.epochId v₂
                           → Vote.round v₁   ≡ Vote.round v₂
-                          → isHonestP {!!} a  -- TODO: need to get EpochConfiguration in which a is
-                                               -- a voter, matches epochId Raises question of where
-                                               -- EpochConfigurations come from.  NodeState of who's
-                                               -- asking (which is not mentioned yet)
+                          → isHonestP ec a
                           → Vote.blockHash v₁ ≡ Vote.blockHash v₂
   honestVotesConsistent = {!!}
