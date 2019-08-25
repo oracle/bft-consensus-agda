@@ -1,10 +1,13 @@
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
-open import Data.Nat renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
+open import Data.Nat hiding (_⊔_) renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
 open import Data.Nat.Properties
 open import Data.List renaming (map to List-map)
 open import Data.List.Properties using (∷-injective; length-++)
 open import Data.Empty
+open import Data.List.Any
+open import Data.Vec hiding (_++_)
+open import Level using (0ℓ)
 
 
 
@@ -30,3 +33,9 @@ module Lemmas where
         → 1 ≤ length m → [] ≡ m ++ n → ⊥
  ++-abs [] ()
  ++-abs (x ∷ m) imp ()
+
+
+ data All-vec {ℓ} {A : Set ℓ} (P : A → Set ℓ) : ∀ {n} → Vec {ℓ} A n → Set (Level.suc ℓ) where
+   []  : All-vec P []
+   _∷_ : ∀ {x n} {xs : Vec A n} (px : P x) (pxs : All-vec P xs) → All-vec P (x ∷ xs)
+
