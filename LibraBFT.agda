@@ -808,18 +808,6 @@ module LibraBFT
 
 ---------------------- Libra BFT Algorithm components ---------------
 
-  createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
-  createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
-
-  createTimeout : RecordStoreState → Author → Round → SmrContext → RecordStoreState
-  createTimeout rss a r smr =
-    record rss { recStore = createTimeout' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a r smr }
-
-  createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
-  createTimeoutCond ns nothing  _   = ns
-                                                                      -- TODO: after merging with Lisandra, naming conventions
-  createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
-
   proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
   proposeBlock = {!!}
 
@@ -839,6 +827,18 @@ module LibraBFT
                  ; nsLatestBroadcast = {!!}    -- TODO: this is just random crap while experimenting
                  }
        , {!!}
+
+  createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
+  createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
+
+  createTimeout : RecordStoreState → Author → Round → SmrContext → RecordStoreState
+  createTimeout rss a r smr =
+    record rss { recStore = createTimeout' {RecordStoreState.sᵢ rss} (RecordStoreState.recStore rss) a r smr }
+
+  createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
+  createTimeoutCond ns nothing  _   = ns
+                                                                      -- TODO: after merging with Lisandra, naming conventions
+  createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
 
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
