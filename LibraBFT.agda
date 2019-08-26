@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import Data.Nat renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
 open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
@@ -63,6 +65,34 @@ module LibraBFT
 
   State : Set
   State = Hash
+
+  -- Update a function of type A → B on one input, given a decidability instance for A's
+  -- The syntax is slightly ugly, but I couldn't do better in reasonable time
+  -- TODO: Move somewhere more generic
+
+
+  overrideFn : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {A₂ : Set ℓ₂}
+             (f : A → A₂)
+           → A → A₂
+           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → A → A₂
+  overrideFn {A = A} {A₂ = A₂} f a₁ b _≟xx_ a₂
+     with a₁ ≟xx a₂
+  ...| yes _ = b
+  ...| no  _ = f a₂
+
+  _[_:=_,_] : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {A₂ : Set ℓ₂}
+             (f : A → A₂)
+           → A → A₂
+           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → A → A₂
+  _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {A₂ = A₂} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {A₂} f a₁ b _≟xx_
+
+  HashMap : Set → Set → Set
+  HashMap H T = H → Maybe T
+
+  emptyHM : {H : Set} → {T : Set} → HashMap H T
+  emptyHM {H} {T} h = nothing
 
  ----------------------------------------------------------------
 
@@ -171,64 +201,6 @@ module LibraBFT
   ... | no ¬p = let i≡j = upgrade-injective (finsuc-injective ui≡uj)
                 in contradiction i≡j ¬p
 
-  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
-  dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
-
-  dummyGoodGuysBijective : ∀ n-f f
-                         → 0 < n-f
-                         → {i : Fin n-f}
-                         → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
-  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i 
-
-  dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
-                          → 0 < n-f
-                          → {i j : Fin n-f}
-                          → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
-  dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
-     with i ≟Fin j
-  ...| yes xxx = inj₁ xxx
-  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}
-                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx (upgrade-injective {n-f} {f} {i} {j} x)
-
-  dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
-  dummyGoodGuysDistinct {0}     = distinct λ ()
-  dummyGoodGuysDistinct {suc n-f} = distinct (λ i j → dummyGoodGuysDistinct′ {suc n-f} (s≤s z≤n) {i} {j})
-
-  ec1 : EpochConfiguration
-  ec1 = record {
-          ecN                   = testN
-        ; ecF                   = testF
-        ; ecVotingRights        = dummyAuthors testN
-        ; ecAux0<n              = 0<testN
-        ; ecAux3f<n             = 3*testF<testN
-        ; ecAuxVotersDistinct   = dummyAuthorsDistinct
-        ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
-        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct
-        }
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 3) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 5) ≡ false
-  _ = refl
-
-------------------------- End test data ----------------------
-
   goodGuyIsAuthor : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Set
   goodGuyIsAuthor ec a x = a ≡ lookupVec (ecVotingRights ec) x
 
@@ -252,26 +224,12 @@ module LibraBFT
   ...| yes _ = true
   ...| no  _ = false
 
-  _ : isHonest ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 1) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 2) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 3) ≡ false
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 5) ≡ false
-  _ = refl
-
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
  -- Don't know if it needs the epoch or the round
   record Block : Set where
+    constructor mkBlock
     field
       --command    : Command
       prevQCHash : QCHash
@@ -313,6 +271,7 @@ module LibraBFT
       toRound   : Round
       toAuthor  : Author
       --toSignature : Signature
+  open Timeout
 
   data Record : Set where
   -- TODO: data Record (ec : EpochConfiguration) : Set where
@@ -388,41 +347,132 @@ module LibraBFT
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
     ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
-------------------------- RecordStore --------------------------
+------------------------ RecordStoreState ----------------------
 
-  data RecordStore (sᵢ : Initial) : Set
+  record RecordStoreState : Set₁ where
+    constructor mkRecordStoreState
+    field
+      rssEpochId              : EpochId
+      rssConfiguration        : EpochConfiguration
+      rssInitial              : Initial  -- LIBRA-DIFF, we store the Initial structure;
+                                  -- Libra say QuorumCertificateHash, but it's not really one.
+      -- rssInitiaState   : State
+      rssBlocks               : HashMap BlockHash Block
+      rssQCs                  : HashMap QCHash QC
+      rssRoundToQChash        : HashMap Round QCHash
+      rssCurrentProposedBlock : Maybe BlockHash
+      rssHighestQCRound       : Round
+      -- rssHighestTCRound       : Round
+      rssCurrentRound         : Round
+      -- rssHighest2ChainRound   : Round
+      -- rssHighestCommittedRound : Round
+      -- rssHighestTimoutCertificate : Maybe (List Timeout)
+      rssCurrentTimeouts : HashMap Author Timeout
+      rssCurrentVotes    : HashMap Author Vote
+      -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
+      -- rssCurrentElection : ?
 
-  data Valid : {sᵢ : Initial} → Record → RecordStore sᵢ → Set
+  open RecordStoreState
 
-  data RecordStore sᵢ where
-    empty  : RecordStore sᵢ
-    insert : {r : Record} (s : RecordStore sᵢ)
-             → Valid r s → RecordStore sᵢ
+  emptyRSS : EpochId → EpochConfiguration → Initial → RecordStoreState
+  emptyRSS eid ecfg init = record {
+      rssEpochId              = eid
+    ; rssConfiguration        = ecfg
+    ; rssInitial              = init
+      -- rssInitiaState   : State
+    ; rssBlocks               = emptyHM
+    ; rssQCs                  = emptyHM
+    ; rssRoundToQChash        = emptyHM
+    ; rssCurrentProposedBlock = nothing
+    ; rssHighestQCRound       = 0
+      -- rssHighestTCRound    = 0
+    ; rssCurrentRound         = 1
+      -- rssHighest2ChainRound   : Round
+      -- rssHighestCommittedRound : Round
+      -- rssHighestTimoutCertificate : Maybe (List Timeout)
+    ; rssCurrentTimeouts      = emptyHM
+    ; rssCurrentVotes         = emptyHM
+      -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
+      -- rssCurrentElection : ?
+    }
 
-  data _∈Rs_ {sᵢ} (r : Record) : RecordStore sᵢ → Set where
-    here  : ∀ (s : RecordStore sᵢ) (v : Valid r s) → r ∈Rs insert s v
-    there : ∀ (r' : Record) (s : RecordStore sᵢ) (v : Valid r' s)
-           → r ∈Rs s
-           → r ∈Rs (insert s v)
+----------------------------------------------------------------
 
-  _dependsOnBlock_wrt_   : ∀ {sᵢ} Record → Block → RecordStore sᵢ → Set
+  _∈QC_ : Vote → QC → Set
+  v ∈QC q = {!!}
+
+  _∈Rs′_ : ∀ (r : Record) → RecordStoreState → Set
+  (B b) ∈Rs′ rss = ∃[ h ]((rssBlocks rss) h ≡ just b)
+  (Q q) ∈Rs′ rss = ∃[ h ](rssQCs rss h ≡ just q)
+  (V v) ∈Rs′ rss = ∃[ a ](rssCurrentVotes rss a ≡ just v)
+  (T t) ∈Rs′ rss = ∃[ a ](rssCurrentTimeouts rss a ≡ just t)
+
+  _∈Rs_ : ∀ (r : Record) → RecordStoreState → Set
+  (B b) ∈Rs rss = (B b) ∈Rs′ rss
+  (Q q) ∈Rs rss = (Q q) ∈Rs′ rss
+  (V v) ∈Rs rss = (V v) ∈Rs′ rss ⊎ ∃[ q ] ((Q q) ∈Rs′ rss × v ∈QC q )
+  (T t) ∈Rs rss = (T t) ∈Rs′ rss
+
+  emptyIsEmpty : ∀ (r : Record) (eid : EpochId) (ec : EpochConfiguration) (i : Initial) → ¬ (r ∈Rs emptyRSS eid ec i)
+  emptyIsEmpty (B b) eid ec i ⟨ _ , () ⟩
+  emptyIsEmpty (Q q) eid ec i ⟨ _ , () ⟩
+  emptyIsEmpty (V v) eid ec i (inj₁ ⟨ _ , () ⟩)
+  emptyIsEmpty (V v) eid ec i (inj₂ ⟨ _ , (⟨ _ , () ⟩ , _) ⟩ )
+  emptyIsEmpty (T t) eid ec i ⟨ _ , () ⟩
+
+  -- These simply insert records into the RecordStoreState; it says nothing about Valid conditions, which is reserved for
+  -- inserting into an AuxRecordStoreState that maintains invariants about the contents of the RecordStoreState.
+  rssInsert : Record → RecordStoreState → RecordStoreState
+  rssInsert (B b) rs = record rs { rssBlocks          = (rssBlocks rs)          [ (HashR (R (B b))) := (just b) , _≟Hash_ ] }
+  rssInsert (Q q) rs = record rs { rssQCs             = (rssQCs rs)             [ (HashR (R (Q q))) := (just q) , _≟Hash_ ] }
+  rssInsert (V v) rs = record rs { rssCurrentVotes    = (rssCurrentVotes rs)    [ (Vote.author v)   := (just v) , _≟ℕ_    ] }
+  rssInsert (T t) rs = record rs { rssCurrentTimeouts = (rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ] }
+
+  memberAfterInsert : ∀ {b : Block} {rss : RecordStoreState}
+                    → (B b) ∈Rs (rssInsert (B b) rss)
+  memberAfterInsert {b} {rss} = ⟨ HashR (R (B b)) , prf b rss ⟩
+     where prf : ∀ (b0 : Block)
+               → (rss0 : RecordStoreState)
+               → rssBlocks (rssInsert (B b0) rss0) (HashR (R (B b0))) ≡ just b0
+           prf b0 rss0 with (HashR (R (B b0))) ≟Hash (HashR (R (B b0)))
+           ...|          yes xx rewrite xx = refl
+           ...|          no  xx = ⊥-elim (xx refl)
+
+  data Valid : Record → RecordStoreState → Set
+
+  _dependsOnBlock_wrt_   : ∀ Record → Block → RecordStoreState → Set
   r dependsOnBlock b wrt rs = Valid (B b) rs × R (B b) ← r × round (B b) ≡ round r
 
-  _dependsOnQC_wrt_      : ∀ {sᵢ} Record → QC → RecordStore sᵢ → Set
+  _dependsOnQC_wrt_      : ∀ Record → QC → RecordStoreState → Set
   r dependsOnQC q wrt rs = Valid (Q q) rs × R (Q q) ← r × round (Q q) < round r
 
   _dependsOnInitial_  : Record → Initial → Set
   r dependsOnInitial i = (I i) ← r × 1 ≤ round r
 
-  -- Conditions required to add a Record to a RecordStore (which contained "previously verified"
-  -- records, in the parlance of the LibraBFT paper.  Some properties do not depend on any
-  -- particular RecordStore and their proofs can ignore the RecordStore, other than passing it to
+  -- Conditions required to add a Record to a RecordStoreState (which contains "previously verified"
+  -- records, in the parlance of the LibraBFT paper).  Some properties do not depend on any
+  -- particular RecordStoreState and their proofs can ignore the RecordStoreState, other than passing it to
   -- recursive invocations.
   data Valid where
-    B : ∀ {sᵢ} (b : Block)   (rs : RecordStore sᵢ) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial sᵢ → Valid (B b) rs
-    Q : ∀ {sᵢ} (q : QC)      (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                          → Valid (Q q) rs
-    V : ∀ {sᵢ} (v : Vote)    (rs : RecordStore sᵢ) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                          → Valid (V v) rs
-    T : ∀ {sᵢ} (t : Timeout) (rs : RecordStore sᵢ)                                                                                      → Valid (T t) rs
+    B : ∀ (b : Block)   (rs : RecordStoreState) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial (rssInitial rs) → Valid (B b) rs
+    Q : ∀ (q : QC)      (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                                       → Valid (Q q) rs
+    V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
+    T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
+
+  data ValidRSS : RecordStoreState → Set₁ where
+    vRSSInit   : ∀ (rs : RecordStoreState) → ValidRSS rs  -- TODO: constrain initial conditions?
+    vRSSInsert : ∀ {r : Record }{ rs : RecordStoreState } → ValidRSS rs → Valid r rs → ValidRSS (rssInsert r rs)
+
+  lemma1-1 : RecordStoreState → Set
+  lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
+               → r ∈Rs rss
+               → (I (rssInitial rss)) ←⋆ r
+
+  record AuxRecordStoreState : Set₁ where
+    field
+      auxRssData     : RecordStoreState
+      auxRssLemma1-1 : lemma1-1 auxRssData
+
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -472,9 +522,9 @@ module LibraBFT
   -- to it will unnecessarily complicate proofs.  The parameters is needed for
   -- recursive invocations of Valid, so it it provided but named "doNotUse" as
   -- a reminder.
-  r₀←⋆r₁→rr₀≤rr₁ : {sᵢ : Initial} {r₀ r₁ : Record}{doNotUse : RecordStore sᵢ} 
+  r₀←⋆r₁→rr₀≤rr₁ : {r₀ r₁ : Record}{doNotUse : RecordStoreState}
                  → R r₀ ←⋆ r₁
-                 → Valid {sᵢ} r₁ doNotUse
+                 → Valid r₁ doNotUse
                  → HashBroke ⊎ round r₀ ≤ round r₁
   r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
      with v₁
@@ -499,12 +549,12 @@ module LibraBFT
   -- to it will unnecessarily complicate proofs.  The parameters is needed for
   -- recursive invocations of Valid, so it it provided but named "doNotUse" as
   -- a reminder.
-  round-mono : ∀  {sᵢ : Initial} {r₀ r₁ r₂ : Record} {doNotUse : RecordStore sᵢ}
+  round-mono : ∀  {r₀ r₁ r₂ : Record} {doNotUse : RecordStoreState}
                  → R r₀ ←⋆ r₂
                  → R r₁ ←⋆ r₂
-                 → Valid {sᵢ} r₀ doNotUse
-                 → Valid {sᵢ} r₁ doNotUse
-                 → Valid {sᵢ} r₂ doNotUse
+                 → Valid r₀ doNotUse
+                 → Valid r₁ doNotUse
+                 → Valid r₂ doNotUse
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
@@ -518,28 +568,16 @@ module LibraBFT
 
   round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)         v₀ v₁ v₂ rr₀<rr₁ = {!!}
 
------------------------- RecordStoreState ----------------------
-
-  record RecordStoreState : Set where
-    field
-      epoch     : EpochId
-      sᵢ        : Initial
-      recStore  : RecordStore sᵢ
-      curRound  : Round
-      highQCR   : Round
-      listVotes : List Vote
-      -- initialState : State
-      -- highCommR    : Round
-----------------------------------------------------------------
-
-  open RecordStoreState
-
 -------------------- Lemma S1, part 1 --------------------
 
-  hᵢ←⋆R : ∀ {sᵢ : Initial} {r : Record} {isCR : isChainableRecord r} {s : RecordStore sᵢ}
-          → r ∈Rs s
-          → (I sᵢ) ←⋆ r
+  -- TODO: this is broken now.  We need to extend the auxRecordStoreState with a proof,
+  -- and use it inductively
 
+  hᵢ←⋆R : ∀ {r : Record} {isCR : isChainableRecord r} {rs : RecordStoreState}
+          → r ∈Rs rs
+          → (I (rssInitial rs)) ←⋆ r
+  hᵢ←⋆R = {!!}
+{-
   hᵢ←⋆R {isCR = isCR} (there _ s _ r∈s) = hᵢ←⋆R {isCR = isCR} r∈s
   hᵢ←⋆R {r = B b} (here rs vB)
     with vB
@@ -556,59 +594,7 @@ module LibraBFT
      with vV
   ...| V {sᵢ} .v rs ⟨ b , (b∈rs , vDOb) ⟩ =
        ssr (hᵢ←⋆R {sᵢ} {B b} {B b} {rs} b∈rs) (proj₁ (proj₂ vDOb))
-
-  lemma1-1 : RecordStoreState → Set
-  lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
-               → r ∈Rs recStore rss
-               → (I (sᵢ rss)) ←⋆ r
-
-  record AuxRecordStoreState : Set where
-    field
-      auxRssData     : RecordStoreState
-      auxRssLemma1-1 : lemma1-1 auxRssData
-
--------------------- RecordStoreState tests --------------------
-
-  rss1 : RecordStoreState
-  rss1 = record {
-             epoch     = 1
-           ; sᵢ        = record { epochId = 1 ; seed = 1 }
-           ; recStore  = empty
-           ; curRound  = 1
-           ; highQCR   = 1 -- should this be a Maybe?
-           ; listVotes = []
-         }
-
-  arss1 : AuxRecordStoreState
-  arss1 = record {
-              auxRssData = rss1
-            ; auxRssLemma1-1 = λ {r} x → contradiction x (λ ())
-          }
-
-  testInit : Initial
-  testInit = record { epochId = 1
-                    ; seed    = 1
-                    }
-
-  block1 : Block
-  block1 = record { round = 1
-                  ; prevQCHash = HashR (I testInit)
-                  ; author = dummyAuthor 0
-                  }
-
-  rss2 : RecordStoreState
-  rss2 = record rss1 { recStore = insert {sᵢ rss1} {B block1}
-                                         (recStore rss1)
-                                         (B {sᵢ rss1} block1 empty (inj₂ ⟨ I←B {sᵢ rss1} {block1} refl , s≤s z≤n ⟩))}
-
-  arss2 : AuxRecordStoreState
-  arss2 = record {
-              auxRssData = rss2
-            ; auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
-          }
-
-  -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
-  -- Votes and still preserve lemma 1-1
+-}
 
 -------------------------- BFT assumption -----------------------
 
@@ -717,7 +703,7 @@ module LibraBFT
   NodeTime = ℕ
 
   FakeTypeActiveNodes : Set
-  -- Paper says HashSet<Author>
+  FakeTypeActiveNodes = List Author  -- TODO: Paper says HashSet<Author>
 
   OneSender : Set
   OneSender = Author × Round
@@ -741,6 +727,7 @@ module LibraBFT
 
   -- Section 7.9, page 26
   record PacemakerState : Set where
+    constructor mkPacemakerState
     field
       pmsActiveRound       : Round
       pmsActiveLeader      : Maybe Author
@@ -750,20 +737,20 @@ module LibraBFT
       pmsDelta             : Duration
       pmsGamma             : GammaType
 
+  pm0 : PacemakerState
+  pm0 = mkPacemakerState 0 nothing 0 [] 0 0 0
+
   open PacemakerState
 
   -- Section 5.6, page 17
-  record NodeState : Set where
+  record NodeState : Set₁ where
+    constructor mkNodeState
     field
-      author    : Author
-      epoch     : EpochId
-      lockRound : Round
-      -- latestVotedRound : Round
-      nsRecordStore         : RecordStoreState
+      nsRecordStoreState    : RecordStoreState
       nsPaceMaker           : PacemakerState
       nsEpochId             : EpochId
       nsLocalAuthor         : Author
-      -- nsLatestVotedRound : Round
+      -- latestVotedRound : Round
       nsLockedRound         : Round
       nsLatestBroadcast     : NodeTime
       -- nsLatestSenders    : LatestSenders
@@ -775,7 +762,7 @@ module LibraBFT
 ---------------------- Update Skeleton ----------------
 
   SmrContext : Set
-  SmrContext = {!!}
+  SmrContext = ℕ    -- TODO: placeholder
 
   record NodeUpdateActions : Set where
     constructor mkNodeUpdateAction
@@ -809,7 +796,11 @@ module LibraBFT
 ---------------------- Libra BFT Algorithm components ---------------
 
   proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
-  proposeBlock = {!!}
+  proposeBlock ns a qch nt smr =
+    let rss = nsRecordStoreState ns
+        rnd = rssCurrentRound rss
+        b = mkBlock qch rnd a  -- TODO: other fields
+    in ( b , HashR (R (B b)) )
 
   proposeBlockCond : NodeState
                    → Maybe QCHash
@@ -819,15 +810,15 @@ module LibraBFT
   proposeBlockCond ns (just qch) smr =
     let (blk , blkHash) = proposeBlock
                             ns
-                            (NodeState.author ns)
+                            (nsLocalAuthor ns)
                             qch
                             (nsLatestBroadcast ns)
                             smr
-    in record ns { nsRecordStore     = {!!}
-                 ; nsLatestBroadcast = {!!}    -- TODO: this is just random crap while experimenting
-                 }
-       , {!!}
+        rss = nsRecordStoreState ns
+    in record ns {nsRecordStoreState = rssInsert (B blk) rss }
+       , smr
 
+{-
   createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
   createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
 
@@ -837,9 +828,8 @@ module LibraBFT
 
   createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
   createTimeoutCond ns nothing  _   = ns
-                                                                      -- TODO: after merging with Lisandra, naming conventions
-  createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
-
+  createTimeoutCond ns (just r) smr = record ns { nsRecordStoreState = createTimeout (nsRecordStoreState ns) (nsLocalAuthor ns) r smr }
+-}
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
   --                               smr_context: &mut SMRContext,
@@ -866,7 +856,7 @@ module LibraBFT
   --   self.record_store.create_timeout(self.local_author, round, smr_context);
   -- }
       round = puaShouldCreateTimeout pacemakerActions
-      self₁ = createTimeoutCond self₀ round smrContext₀
+      self₁ = self₀ -- TODO createTimeoutCond self₀ round smrContext₀
 
   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
   --   self.record_store.propose_block(
@@ -899,10 +889,10 @@ module LibraBFT
                   ; pmsActiveRoundStart = clock
   --    // .. recompute the leader
   --    self.active_leader = Some(Self::leader(record_store, active_round));
-                  ; pmsActiveLeader = just {!!}
+                  ; pmsActiveLeader = just clock
   --    // .. reset the set of nodes known to have entered this round (useful for leaders).
   --    self.active_nodes = HashSet::new();
-                  ; pmsActiveNodes = {!!}
+                  ; pmsActiveNodes = []
                   }
   --  }
 
@@ -929,8 +919,7 @@ module LibraBFT
 
   updatePacemaker : PacemakerState
                   → Author
-                  → {h : Initial}
-                  → RecordStore h
+                  → RecordStoreState
                   → NodeTime
                   → LatestSenders
                   → NodeTime
@@ -944,7 +933,7 @@ module LibraBFT
 
   --  // Recompute the active round.
   --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
-       activeRound = {!!}
+       activeRound = clock
 
        (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
 
@@ -999,13 +988,13 @@ module LibraBFT
     let
 
   -- let latest_senders = self.read_and_reset_latest_senders();
-         latestSenders = {!!}
+         latestSenders = []
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
          pms₀ = nsPaceMaker self₀
          (pms₁ , pmActs ) = updatePacemaker pms₀
                                             (nsLocalAuthor self₀)
-                                            (recStore (nsRecordStore self₀))
+                                            (nsRecordStoreState self₀)
                                             (nsLatestBroadcast self₀)
                                             latestSenders
                                             clock
@@ -1064,7 +1053,7 @@ module LibraBFT
   -- actions
 
          nsFinal = {!!}
-         smrContextFinal = {!!}
+         smrContextFinal = smrContext₀
          actionsFinal = {!!}
 
     in
@@ -1133,11 +1122,11 @@ module LibraBFT
     here  : ∀ {s r : Author} {m′ : Message s r} {mp : MessagePool} → m ∈mp (insert mp m)
     there : ∀ {s′ r′ : Author} {m′ : Message s′ r′} {mp : MessagePool} → m ∈mp mp → m ∈mp (insert mp m′)
 
-  record GlobalSystemState : Set where
+  record GlobalSystemState : Set₁ where
     constructor gss
     field
       gssNodeStates  : Author → NodeState
-      gssSmrContexts : Author → SmrContext -- Not sure if we need more than one
+      gssSmrContexts : Author → SmrContext
       gssMessagePool : MessagePool
 
   open GlobalSystemState
@@ -1152,7 +1141,7 @@ module LibraBFT
 
   processShouldBroadcast : Bool → NodeState → MessagePool → MessagePool
   processShouldBroadcast false _  mp = mp
-  processShouldBroadcast true  ns mp = {!!}       -- TODO: Send DataSyncNotification to .. whom?  Containing what?
+  processShouldBroadcast true  ns mp = mp       -- TODO: Send DataSyncNotification to .. whom?  Containing what?
                                                    -- From p. 19: // Ask that we reshare the proposal. (proposed_block)
                                                    -- From p. 38  // Access the block proposed by the leader chosen by the Pacemaker (if any).
 
@@ -1163,18 +1152,6 @@ module LibraBFT
     in mp₂
 
 ---------- Actions and reachable states ----------
-  -- Update a function of type A → B on one input, given a decidability instance for A's
-  -- The syntax is slightly ugly, but I couldn't do better in reasonable time
-  -- TODO: Move somewhere more generic
-  _[_:=_,_] : {A : Set} {A₂ : Set}
-             (f : A → A₂)
-           → A → A₂
-           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-           → A → A₂
-  _[_:=_,_] {A = A} {A₂ = A₂} f a₁ b _≟_ a₂
-     with a₁ ≟ a₂
-  ...| yes _ = b
-  ...| no  _ = f a₂
 
   effUpdateNode : {a : Author} → (preState : GlobalSystemState) → GlobalSystemState
   effUpdateNode {a} pre =
@@ -1190,7 +1167,7 @@ module LibraBFT
         smrs₁ = smrs₀ [ a := smr₁ , _≟ℕ_  ]
     in gss nss₁ smrs₁ mp₁
 
-  data ReachableState : (gss : GlobalSystemState) → Set where
+  data ReachableState : (gss : GlobalSystemState) → Set₁ where
     rchstEmpty      : ReachableState initialGlobalState
     rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
                     → ReachableState preState
