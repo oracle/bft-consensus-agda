@@ -479,9 +479,11 @@ module LibraBFT
     vRSSInsert : ∀ {r : Record }{rs : RecordStoreState}
                → ValidRSS rs
                → Valid r rs
-               → AuxRecordStoreState (rssInsert r rs)
                → ValidRSS (rssInsert r rs)
 
+  auxRecordStoreStateProperties : ∀ {rs : RecordStoreState} → ValidRSS rs → AuxRecordStoreState rs
+  auxRecordStoreStateProperties = {!!}
+  
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
   --  at least (ecN ∸ ecF) pairs (a,s)
@@ -766,10 +768,6 @@ module LibraBFT
       -- nsPastRecordStores : EpochId → RecordStoreState  -- How to model map?  AVL?  Homegrown?
 
   open NodeState
-
-  record AuxNodeState (ns : NodeState) : Set₁ where
-    field
-      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
 
 ---------------------- Update Skeleton ----------------
 
@@ -1071,14 +1069,22 @@ module LibraBFT
 
 ---------------- Valid NodeState ---------------
 
+  record AuxNodeState (ns : NodeState) : Set₁ where
+    field
+      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
+
   data ValidNodeState : NodeState → Set₁ where
     vNSInit   : ∀ {ns : NodeState}
               → AuxNodeState ns
               → ValidNodeState ns
     vNSUpdate : ∀ {ns : NodeState}{nt : NodeTime}{smr : SmrContext }
               → ValidNodeState ns
-              → AuxNodeState (proj₁ (updateNode ns nt smr))
               → ValidNodeState (proj₁ (updateNode ns nt smr))
+
+  auxNodeStateProperties : ∀ {ns : NodeState}
+                         → ValidNodeState ns
+                         → AuxNodeState ns
+  auxNodeStateProperties = {!!}
 
 ---------------- Global system state -------------
 
@@ -1192,17 +1198,33 @@ module LibraBFT
   ...| nothing  = pre
   ...| just ns₀ = effUpdateNode′ a ns₀ pre
 
-  data AuxGlobalSystemState : GlobalSystemState → Set₁ where
-    auxGssNodeStateValid : ∀ {gss} {a} {ns} → gssNodeStates gss a ≡ (just ns) → ValidNodeState ns → AuxGlobalSystemState gss
+  record AuxGlobalSystemState (gss : GlobalSystemState) : Set₁ where
+    field
+      auxGssValidNodeStates : ∀ {a} {ns} {gss} → gssNodeStates gss a ≡ just ns → ValidNodeState ns
 
   -- Question: do we need an AuxGlobalSystemState?  Maybe when we get to liveness?
   data ReachableState : (gss : GlobalSystemState) → Set₁ where
-    rchstEmpty      : ReachableState initialGlobalState
-    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
+    rchstEmpty      : ∀ {init : GlobalSystemState} → AuxGlobalSystemState init → ReachableState init
+    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState}
                     → ReachableState preState
                     → ReachableState (effUpdateNode a preState)
     -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
     -- because state only serves to constrain what messages honest guys send.
+
+  updatePreservesValidNodeStates : ∀ {pre : GlobalSystemState}
+                                     {a   : Author}
+                                   → ReachableState pre
+                                   → AuxGlobalSystemState pre
+                                   → AuxGlobalSystemState (effUpdateNode a pre)
+  updatePreservesValidNodeStates {pre} {a} rchPre auxPre = {!!}
+
+  reachableStateProperties : ∀ {gss : GlobalSystemState}
+                           → ReachableState gss
+                           → AuxGlobalSystemState gss
+  reachableStateProperties {gs} rch with rch
+  ...| rchstEmpty {init} auxprf = auxprf
+  ...| rchstUpdateNode {a} {nt} {pre} rch′ =
+         updatePreservesValidNodeStates {pre} {a} rch′ (reachableStateProperties {pre} rch′)
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 
