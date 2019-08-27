@@ -14,6 +14,7 @@ open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Data.List.Any
 open import Data.List.All
 open import Data.Maybe
+open import Data.Maybe.Properties using (just-injective)
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (¬_)
@@ -90,6 +91,21 @@ module LibraBFT
            → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
            → A → A₂
   _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {A₂ = A₂} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {A₂} f a₁ b _≟xx_
+
+  equalAfterOverride     : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+                         → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+                         → {a : A}{a₂ : A}{b : B}
+                         → (f : A → B)
+                         → (f [ a := b , _≟_ ]) a ≡ b
+  equalAfterOverride = {!!}
+
+  overridePreservesOther : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+                         → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+                         → {a : A}{a₂ : A}{b : B}
+                         → (f : A → B)
+                         → a ≢ a₂
+                         → (f [ a := b , _≟_ ]) a₂ ≡ f a₂
+  overridePreservesOther = {!!}
 
   HashMap : Set → Set → Set
   HashMap H T = H → Maybe T
@@ -1180,12 +1196,11 @@ module LibraBFT
 
 ---------- Actions and reachable states ----------
 
-  effUpdateNode′ : Author → NodeState → GlobalSystemState → GlobalSystemState
-  effUpdateNode′ a ns₀ pre =
+  effUpdateNode′ : Author → NodeTime → NodeState → GlobalSystemState → GlobalSystemState
+  effUpdateNode′ a nt ns₀ pre =
     let nss₀  = gssNodeStates pre
         smrs₀ = gssSmrContexts pre
         smr₀  = smrs₀ a
-        nt    = 0 -- TODO
         mp₀   = gssMessagePool pre
         ( ns₁ , ( smr₁ , nua )) = updateNode ns₀ nt smr₀
         mp₁   = processNodeUpdateActions mp₀ a ns₁ nua
@@ -1193,38 +1208,63 @@ module LibraBFT
         smrs₁ = smrs₀ [ a := smr₁        , _≟ℕ_  ]
     in gss nss₁ smrs₁ mp₁
 
-  effUpdateNode : Author → GlobalSystemState → GlobalSystemState
-  effUpdateNode a pre with gssNodeStates pre a
+  effUpdateNode : Author → NodeTime → GlobalSystemState → GlobalSystemState
+  effUpdateNode a nt pre with gssNodeStates pre a
   ...| nothing  = pre
-  ...| just ns₀ = effUpdateNode′ a ns₀ pre
+  ...| just ns₀ = effUpdateNode′ a nt ns₀ pre
 
   record AuxGlobalSystemState (gss : GlobalSystemState) : Set₁ where
     field
       auxGssValidNodeStates : ∀ {a} {ns} {gss} → gssNodeStates gss a ≡ just ns → ValidNodeState ns
+
+  open AuxGlobalSystemState
 
   -- Question: do we need an AuxGlobalSystemState?  Maybe when we get to liveness?
   data ReachableState : (gss : GlobalSystemState) → Set₁ where
     rchstEmpty      : ∀ {init : GlobalSystemState} → AuxGlobalSystemState init → ReachableState init
     rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState}
                     → ReachableState preState
-                    → ReachableState (effUpdateNode a preState)
+                    → ReachableState (effUpdateNode a nt preState)
     -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
     -- because state only serves to constrain what messages honest guys send.
 
+  updateNodePreservesOtherNodeState : ∀ {a a′         : Author}
+                                        {nt           : NodeTime}
+                                        {pre          : GlobalSystemState}
+                                      → a ≢ a′
+                                      → gssNodeStates (effUpdateNode a nt pre) a′ ≡ gssNodeStates pre a′
+  updateNodePreservesOtherNodeState = {!!}
+
+  nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
+  nothing≢just = λ ()
+
   updatePreservesValidNodeStates : ∀ {pre : GlobalSystemState}
                                      {a   : Author}
+                                     {nt  : NodeTime}
                                    → ReachableState pre
                                    → AuxGlobalSystemState pre
-                                   → AuxGlobalSystemState (effUpdateNode a pre)
-  updatePreservesValidNodeStates {pre} {a} rchPre auxPre = {!!}
+                                   → AuxGlobalSystemState (effUpdateNode a nt pre)
+  updatePreservesValidNodeStates {pre} {a} {nt} rchPre auxPre =
+       record { auxGssValidNodeStates = λ {a′} {postNS} prf → {! postNSfor {pre} auxPre a′ a nt!}}
+         where postNSfor : {pre    : GlobalSystemState}
+                           {ns     : NodeState}
+                         → (auxPre : AuxGlobalSystemState pre)
+                         → (a′ : Author)
+                         → (a  : Author)
+                         → (nt : NodeTime)
+                         → gssNodeStates (effUpdateNode a nt pre) a′ ≡ just ns → ValidNodeState ns
+               postNSfor {pre} {ns} auxPre a′ a nt prf with a ≟ℕ a′ | gssNodeStates (effUpdateNode a nt pre) a′ | inspect (gssNodeStates (effUpdateNode a nt pre)) a′
+               ...| no  a≢a′ | nothing    | Reveal[ x ] rewrite prf = ⊥-elim (nothing≢just prf)
+               ...| no  a≢a′ | (just ns0) | Reveal[ x ] = vNSUpdate {ns0} {nt} (((auxGssValidNodeStates auxPre) {a′} {ns0} {pre})
+                                                                            (trans (sym (updateNodePreservesOtherNodeState {a} {a′} {nt} {pre} a≢a′)) x))
+               ...| yes a≡a′ | _          | _ rewrite a≡a′ = {!!}
 
   reachableStateProperties : ∀ {gss : GlobalSystemState}
                            → ReachableState gss
                            → AuxGlobalSystemState gss
-  reachableStateProperties {gs} rch with rch
-  ...| rchstEmpty {init} auxprf = auxprf
-  ...| rchstUpdateNode {a} {nt} {pre} rch′ =
-         updatePreservesValidNodeStates {pre} {a} rch′ (reachableStateProperties {pre} rch′)
+  reachableStateProperties {gs} (rchstEmpty {init} auxprf) = auxprf
+  reachableStateProperties {gs} (rchstUpdateNode {a} {nt} {pre} rch′) =
+         updatePreservesValidNodeStates {pre} {a} {nt} rch′ (reachableStateProperties {pre} rch′)
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 
