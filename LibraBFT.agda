@@ -66,6 +66,9 @@ module LibraBFT
   State : Set
   State = Hash
 
+  SmrContext : Set
+  SmrContext = ℕ    -- TODO: placeholder
+
   -- Update a function of type A → B on one input, given a decidability instance for A's
   -- The syntax is slightly ugly, but I couldn't do better in reasonable time
   -- TODO: Move somewhere more generic
@@ -459,20 +462,25 @@ module LibraBFT
     V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
     T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
 
-  data ValidRSS : RecordStoreState → Set₁ where
-    vRSSInit   : ∀ (rs : RecordStoreState) → ValidRSS rs  -- TODO: constrain initial conditions?
-    vRSSInsert : ∀ {r : Record }{ rs : RecordStoreState } → ValidRSS rs → Valid r rs → ValidRSS (rssInsert r rs)
-
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
                → r ∈Rs rss
                → (I (rssInitial rss)) ←⋆ r
 
-  record AuxRecordStoreState : Set₁ where
+  -- Given a RecordStoreState, auxiliary properties about it
+  record AuxRecordStoreState (rss : RecordStoreState) : Set₁ where
     field
-      auxRssData     : RecordStoreState
-      auxRssLemma1-1 : lemma1-1 auxRssData
+      auxRssLemma1-1 : lemma1-1 rss
 
+  data ValidRSS : RecordStoreState → Set₁ where
+    vRSSInit   : ∀ {rs : RecordStoreState}
+               → AuxRecordStoreState rs
+               → ValidRSS rs
+    vRSSInsert : ∀ {r : Record }{rs : RecordStoreState}
+               → ValidRSS rs
+               → Valid r rs
+               → AuxRecordStoreState (rssInsert r rs)
+               → ValidRSS (rssInsert r rs)
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -759,10 +767,11 @@ module LibraBFT
 
   open NodeState
 
----------------------- Update Skeleton ----------------
+  record AuxNodeState (ns : NodeState) : Set₁ where
+    field
+      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
 
-  SmrContext : Set
-  SmrContext = ℕ    -- TODO: placeholder
+---------------------- Update Skeleton ----------------
 
   record NodeUpdateActions : Set where
     constructor mkNodeUpdateAction
@@ -1057,7 +1066,19 @@ module LibraBFT
          actionsFinal = {!!}
 
     in
-      (nsFinal , ( smrContextFinal , actionsFinal ))
+      (nsFinal , (smrContextFinal , actionsFinal ))
+
+
+---------------- Valid NodeState ---------------
+
+  data ValidNodeState : NodeState → Set₁ where
+    vNSInit   : ∀ {ns : NodeState}
+              → AuxNodeState ns
+              → ValidNodeState ns
+    vNSUpdate : ∀ {ns : NodeState}{nt : NodeTime}{smr : SmrContext }
+              → ValidNodeState ns
+              → AuxNodeState (proj₁ (updateNode ns nt smr))
+              → ValidNodeState (proj₁ (updateNode ns nt smr))
 
 ---------------- Global system state -------------
 
@@ -1125,8 +1146,8 @@ module LibraBFT
   record GlobalSystemState : Set₁ where
     constructor gss
     field
-      gssNodeStates  : Author → NodeState
-      gssSmrContexts : Author → SmrContext
+      gssNodeStates  : Author → Maybe NodeState   -- Nothing for non-existent or unstarted authors
+      gssSmrContexts : Author → SmrContext        -- Some default for non-existent or unstarted authors
       gssMessagePool : MessagePool
 
   open GlobalSystemState
@@ -1153,25 +1174,35 @@ module LibraBFT
 
 ---------- Actions and reachable states ----------
 
-  effUpdateNode : {a : Author} → (preState : GlobalSystemState) → GlobalSystemState
-  effUpdateNode {a} pre =
+  effUpdateNode′ : Author → NodeState → GlobalSystemState → GlobalSystemState
+  effUpdateNode′ a ns₀ pre =
     let nss₀  = gssNodeStates pre
-        ns₀   = nss₀ a
         smrs₀ = gssSmrContexts pre
         smr₀  = smrs₀ a
         nt    = 0 -- TODO
         mp₀   = gssMessagePool pre
         ( ns₁ , ( smr₁ , nua )) = updateNode ns₀ nt smr₀
         mp₁   = processNodeUpdateActions mp₀ a ns₁ nua
-        nss₁  = nss₀  [ a := ns₁  , _≟ℕ_  ]
-        smrs₁ = smrs₀ [ a := smr₁ , _≟ℕ_  ]
+        nss₁  = nss₀  [ a := (just ns₁)  , _≟ℕ_  ]
+        smrs₁ = smrs₀ [ a := smr₁        , _≟ℕ_  ]
     in gss nss₁ smrs₁ mp₁
 
+  effUpdateNode : Author → GlobalSystemState → GlobalSystemState
+  effUpdateNode a pre with gssNodeStates pre a
+  ...| nothing  = pre
+  ...| just ns₀ = effUpdateNode′ a ns₀ pre
+
+  data AuxGlobalSystemState : GlobalSystemState → Set₁ where
+    auxGssNodeStateValid : ∀ {gss} {a} {ns} → gssNodeStates gss a ≡ (just ns) → ValidNodeState ns → AuxGlobalSystemState gss
+
+  -- Question: do we need an AuxGlobalSystemState?  Maybe when we get to liveness?
   data ReachableState : (gss : GlobalSystemState) → Set₁ where
     rchstEmpty      : ReachableState initialGlobalState
     rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
                     → ReachableState preState
-                    → ReachableState (effUpdateNode {a} preState)
+                    → ReachableState (effUpdateNode a preState)
+    -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
+    -- because state only serves to constrain what messages honest guys send.
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 

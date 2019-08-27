@@ -135,14 +135,12 @@ module TestRecordStore
   rss0 : RecordStoreState
   rss0 = emptyRSS 1 ec0 init0
 
-  arss0 : AuxRecordStoreState
-  arss0 = record {
-              auxRssData = rss0
-            ; auxRssLemma1-1 = λ {r} {isCR} x →
-                                contradiction x (emptyIsEmpty r
-                                                              (rssEpochId rss0)
-                                                              (rssConfiguration rss0)
-                                                              (rssInitial rss0))
+  arss0 : AuxRecordStoreState rss0
+  arss0 = record { auxRssLemma1-1 = λ {r} {isCR} x →
+                                   contradiction x (emptyIsEmpty r
+                                                                 (rssEpochId rss0)
+                                                                 (rssConfiguration rss0)
+                                                                 (rssInitial rss0))
           }
 
   block0 : Block
@@ -185,10 +183,9 @@ module TestRecordStore
   rss1 : RecordStoreState
   rss1 = rssInsert (B block0) rss0
 
-  arss1 : AuxRecordStoreState
+  arss1 : AuxRecordStoreState rss1
   arss1 = record {
-              auxRssData = rss1
-            ; auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
+            auxRssLemma1-1 = λ {r} {isCR} x → hᵢ←⋆R {r = r} {isCR = isCR} x
           }
 
   -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
