@@ -286,7 +286,7 @@ module LibraBFT
       vEpoch     : EpochId
       vRound     : Round
       vBlockHash : BlockHash
-      vState     : State
+      --vState     : State
       vAuthor    : Author
       vSignature : Signature
   open Vote
@@ -299,7 +299,7 @@ module LibraBFT
       qEpoch         : EpochId
       qBlockHash     : BlockHash
       qRound         : Round
-      qState         : State
+      --qState         : State
       qVotes         : List Vote
       qAuthor        : Author
   open QC
@@ -326,6 +326,10 @@ module LibraBFT
     Q : ∀ (q : QC)    → isChainableRecord (Q q)
     --V : ∀ (v : Vote  ec) → isChainableRecord (V v)
 
+  -- The hash of this structure will be the root of RecordStore. With this defintion we can
+  -- represent the depends relation r₁ ← r₂, which means hash r₁ = prevHash r₂, where r₁ can
+  -- be a chainable record as a Block or QC but can also be this Initial structure (which only
+  -- a Block can extend, see definition of _←_)
   record Initial : Set where
     constructor mkInitial
     field
@@ -390,6 +394,9 @@ module LibraBFT
     B←Q : ∀ {b : Block} {q : QC}
           → HashR (R (B b)) ≡ qBlockHash q
           → R (B b) ← Q q
+    B←V : ∀ {b : Block} {v : Vote}
+          → HashR (R (B b)) ≡ vBlockHash v
+          → R (B b) ← V v
 
   data _←⋆_ (r₁ : RecOrInit) (r₂ : Record) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
@@ -415,7 +422,7 @@ module LibraBFT
             → r ∈Rs (insert s v)
     inQC  : ∀ {s : RecordStore ec sᵢ} {v : Vote} {qc : QC}
             → (Q qc) ∈Rs s
-            --→ v ∈ (qVotes qc)
+            → v ∈ (qVotes qc)
             → V v ∈Rs s
 
   qSize :  EpochConfiguration → ℕ
@@ -432,10 +439,30 @@ module LibraBFT
                               I sᵢ ← B b × 1 ≤ bRound b
 
   _validVoteInQC_ : Vote → QC → Set
-  v validVoteInQC qc = (vEpoch v ≡ qEpoch qc) × (vBlockHash v ≡ qBlockHash qc) × (vRound v ≡ qRound qc) × (vState v ≡ qState qc) -- × signature valid
+  v validVoteInQC qc = (vEpoch v ≡ qEpoch qc) × (vBlockHash v ≡ qBlockHash qc) × (vRound v ≡ qRound qc) --× (vState v ≡ qState qc) -- × signature valid
+
+
+  {-- Needs to come after EpochConfiguration definition
+  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
+  --  at least (ecN ∸ ecF) pairs (a,s)
+  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
+  --  for each pair (a,s), the following should hold:
+  --    isVoter ec a
+  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
+  --      to and including commitment
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
+  --}
+
+  _distinctElemsIn_ : {A : Set} → ℕ → List A → Set
+  size distinctElemsIn [] = size ≡ 0
+  size distinctElemsIn (x ∷ x₁) = x ∉ x₁ × ((size ∸ 1) distinctElemsIn x₁)
 
   validQC_wrt_ : QC → EpochConfiguration → Set
-  validQC q wrt ec = All (_validVoteInQC q) (qVotes q) × length (qVotes q) ≡ qSize ec
+  validQC q wrt ec = (qSize ec) distinctElemsIn (qVotes q)
+                   × All (_validVoteInQC q) (qVotes q)
+                   × All (λ x → isVoter ec (vAuthor x) ≡ true) (qVotes q)
+                     -- × Valid Signature
 
   -- TODO : Validate all Votes in a QC
   ValidQC : ∀ {ec} {sᵢ} → QC → RecordStore ec sᵢ → Set
@@ -453,17 +480,6 @@ module LibraBFT
     --ValidV : ∀ {v : Vote    ec} {rs : RecordStore ec sᵢ} → ValidVote  v rs → Valid (V v) rs
     --ValidT : ∀ {t : Timeout ec} {rs : RecordStore ec sᵢ}                   → Valid (T t) rs
 
-  {-- Needs to come after EpochConfiguration definition
-  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
-  --  at least (ecN ∸ ecF) pairs (a,s)
-  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
-  --  for each pair (a,s), the following should hold:
-  --    isVoter ec a
-  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
-  --      to and including commitment
-  validQC : EpochConfiguration → QC → Set
-  validQC ec q = {!!}
-  --}
 
 
 -- Lemma S₁ ---------------------------------------------------
@@ -490,6 +506,13 @@ module LibraBFT
 
   ←inj {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
     with hash-cr (trans b₀←q (sym b₁←q))
+  ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
+             = inj₂ ⟨ ⟨ encodeR b₀ , encodeR (R b₁) ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
+  ... | inj₂ b₀≡b₁
+             = inj₁ (encodeR-inj b₀≡b₁)
+
+  ←inj {b₀} {b₁} {v} (B←V b₀←v) (B←V b₁←v)
+     with hash-cr (trans b₀←v (sym b₁←v))
   ... | inj₁ ⟨ b₀≢b₁ , hb₀←hb₁ ⟩
              = inj₂ ⟨ ⟨ encodeR b₀ , encodeR (R b₁) ⟩ , ⟨ b₀≢b₁ , hb₀←hb₁ ⟩ ⟩
   ... | inj₂ b₀≡b₁
@@ -612,6 +635,7 @@ module LibraBFT
   open RecordStoreState
 
 -------------------- Lemma S1, part 1 --------------------
+
   -- I think that Votes should not be in RecordStore because we have the List of Votes in the RecordStoreState
   -- which will have the list of votes received
   hᵢ←⋆R : ∀ {ec sᵢ} {r : Record} {rs : RecordStore ec sᵢ}
@@ -620,15 +644,21 @@ module LibraBFT
   hᵢ←⋆R (here (ValidB prf))
     with prf
   ... | inj₂ ⟨ i←b , _ ⟩ = ss0 i←b
-  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←b
+  ... | inj₁ ⟨ _ , ⟨ q∈rs , ⟨ _ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←b
 
   hᵢ←⋆R (here (ValidQ prf))
     with prf
-  ... |      ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←q
+  ... |      ⟨ _ , ⟨ b∈rs , ⟨ _ , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←q
 
-  hᵢ←⋆R (there vR r∈rs) = hᵢ←⋆R r∈rs
+  hᵢ←⋆R (inQC (here (ValidQ prf)) v∈qc)
+    with prf
+  ... | ⟨ _ , ⟨ b∈rs , ⟨ _ , ⟨ B←Q b←q , ⟨ _ , ⟨ _  , ⟨ validVotes , _ ⟩ ⟩ ⟩ ⟩ ⟩ ⟩ ⟩
+      with witness v∈qc validVotes
+  ...    | ⟨ _ , ⟨ hq≡hb , _ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) (B←V (trans b←q (sym hq≡hb)))
 
-  hᵢ←⋆R (inQC x) = {!!}
+  hᵢ←⋆R (inQC (there _ q∈rs) v∈qc) = hᵢ←⋆R (inQC q∈rs v∈qc)
+
+  hᵢ←⋆R (there _ r∈rs)  = hᵢ←⋆R r∈rs
 
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record}
@@ -656,7 +686,7 @@ module LibraBFT
   arss1 : AuxRecordStoreState
   arss1 = record {
               auxRssData = rss1
-            ; auxRssLemma1-1 = λ x → {!!} --contradiction x (λ ()) -- or  hᵢ←⋆R x
+            ; auxRssLemma1-1 = λ { (inQC q∈∅ x₁) → contradiction q∈∅ λ ()}
           }
 
   testInit : Initial
@@ -671,6 +701,7 @@ module LibraBFT
                   ; bAuthor = dummyAuthor 0
                   }
 
+
   rss2 : RecordStoreState
   rss2 = record rss1 { recStore = insert empty (ValidB (inj₂ ⟨ I←B {b = block1} refl , s≤s z≤n ⟩))}
 
@@ -679,6 +710,23 @@ module LibraBFT
               auxRssData = rss2
             ; auxRssLemma1-1 = λ x → hᵢ←⋆R x
           }
+
+  qc1 : QC
+  qc1 = record
+          { qEpoch = 1
+          ; qBlockHash = HashR (R (B block1))
+          ; qRound = 1
+          --; qState = {!!}
+          ; qVotes = {!!}
+          ; qAuthor = {!!}
+          }
+
+  rss3 : RecordStoreState
+  rss3 = record rss2 { recStore = insert (recStore rss2)
+                                         (ValidQ {q = qc1} ⟨ B block1
+                                                           , ⟨ here ( ValidB (inj₂  ⟨ I←B {b = block1} refl , s≤s z≤n ⟩ ))
+                                                           , ⟨ ValidB (inj₂ ⟨ (I←B {b = block1} refl) , s≤s z≤n ⟩)
+                                                           , ⟨ (B←Q refl) , ⟨ refl , ⟨ {!!} , {!!} ⟩ ⟩ ⟩ ⟩ ⟩ ⟩) }
 
   -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
   -- Votes and still preserve lemma 1-1
@@ -714,19 +762,6 @@ module LibraBFT
                         → validQC q₂ wrt ec
                         → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
   BFTQuorumIntersection = {!!}
-
-
-  {-- Needs to come after EpochConfiguration definition
-  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
-  --  at least (ecN ∸ ecF) pairs (a,s)
-  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
-  --  for each pair (a,s), the following should hold:
-  --    isVoter ec a
-  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
-  --      to and including commitment
-  validQC : EpochConfiguration → QC → Set
-  validQC ec q = {!!}
-  --}
 
 ---------------- Message types ----------------
 
