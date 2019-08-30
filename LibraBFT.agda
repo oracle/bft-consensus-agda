@@ -74,46 +74,54 @@ module LibraBFT
   -- The syntax is slightly ugly, but I couldn't do better in reasonable time
   -- TODO: Move somewhere more generic
 
+  overrideOK : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             → (f : A → B)
+             → (a : A)
+             → (b : B)
+             → (a′ : A)
+             → (f′ : A → B)
+             → Set (ℓ₁ Level.⊔ ℓ₂)
+  overrideOK f a b a′ f′ = (a′ ≢ a × f′ a′ ≡ f a′) ⊎ (a′ ≡ a × f′ a′ ≡ b)
 
-  overrideFn : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {A₂ : Set ℓ₂}
-             (f : A → A₂)
-           → A → A₂
+  overrideProp : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+               → (f : A → B)
+               → (a : A)
+               → (b : B)
+               → (f′ : A → B)
+               → Set (ℓ₁ Level.⊔ ℓ₂)
+  overrideProp f a b f′ = ∀ a′ → overrideOK f a b a′ f′
+
+  overrideFn : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             (f : A → B)
+           → (a : A) → (b : B)
+           → ((a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → Σ ( A → B ) (λ f′ → overrideProp f a b f′)
+  overrideFn {A = A} {B = B} f a b _≟xx_ =
+     let f′ = (λ a₂ → selectVal f a b a₂)
+     in f′ ,  (λ a₂ → selectPrf f a b a₂)
+
+     where selectVal : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → B
+           selectVal f a b a₂ with a ≟xx a₂
+           ...| yes refl = b
+           ...| no  _    = f a₂
+           selectPrf : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → overrideOK f a b a₂ (λ a₃ → selectVal f a b a₃)
+           selectPrf f a b a₂ with a ≟xx a₂ | inspect (a ≟xx_) a₂
+           ...| yes refl | Reveal[ x ] rewrite x = inj₂ (refl , refl)
+           ...| no  xx   | Reveal[ x ] rewrite x = inj₁ ( (λ x₁ → xx (sym x₁)) , refl)
+
+  _[_:=_,_] : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             (f : A → B)
+           → (a : A) → (b : B)
            → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-           → A → A₂
-  overrideFn {A = A} {A₂ = A₂} f a₁ b _≟xx_ a₂
-     with a₁ ≟xx a₂
-  ...| yes _ = b
-  ...| no  _ = f a₂
+           → Σ ( A → B ) (λ f′ → overrideProp f a b f′)
+  _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {B = B} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {B} f a₁ b _≟xx_
 
-  _[_:=_,_] : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {A₂ : Set ℓ₂}
-             (f : A → A₂)
-           → A → A₂
-           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-           → A → A₂
-  _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {A₂ = A₂} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {A₂} f a₁ b _≟xx_
-
-  equalAfterOverride     : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
-                         → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-                         → {a : A}{a₂ : A}{b : B}
-                         → (f : A → B)
-                         → (f [ a := b , _≟_ ]) a ≡ b
-  equalAfterOverride = {!!}
-
-  overridePreservesOther : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
-                         → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-                         → {a : A}{a₂ : A}{b : B}
-                         → (f : A → B)
-                         → a ≢ a₂
-                         → (f [ a := b , _≟_ ]) a₂ ≡ f a₂
-  overridePreservesOther = {!!}
 
   HashMap : Set → Set → Set
-  HashMap H T = H → Maybe T
+  HashMap K V = K → Maybe V
 
-  emptyHM : {H : Set} → {T : Set} → HashMap H T
-  emptyHM {H} {T} h = nothing
-
- ----------------------------------------------------------------
+  emptyHM : {K : Set} → {V : Set} → HashMap K V
+  emptyHM {K} {V} k = nothing
 
 ---------------------- Epoch Configuration  ---------------------
 
@@ -421,9 +429,9 @@ module LibraBFT
   v ∈QC q = {!!}
 
   _∈Rs′_ : ∀ (r : Record) → RecordStoreState → Set
-  (B b) ∈Rs′ rss = ∃[ h ]((rssBlocks rss) h ≡ just b)
-  (Q q) ∈Rs′ rss = ∃[ h ](rssQCs rss h ≡ just q)
-  (V v) ∈Rs′ rss = ∃[ a ](rssCurrentVotes rss a ≡ just v)
+  (B b) ∈Rs′ rss = ∃[ h ](rssBlocks          rss h ≡ just b)
+  (Q q) ∈Rs′ rss = ∃[ h ](rssQCs             rss h ≡ just q)
+  (V v) ∈Rs′ rss = ∃[ a ](rssCurrentVotes    rss a ≡ just v)
   (T t) ∈Rs′ rss = ∃[ a ](rssCurrentTimeouts rss a ≡ just t)
 
   _∈Rs_ : ∀ (r : Record) → RecordStoreState → Set
@@ -442,10 +450,10 @@ module LibraBFT
   -- These simply insert records into the RecordStoreState; it says nothing about Valid conditions, which is reserved for
   -- inserting into an AuxRecordStoreState that maintains invariants about the contents of the RecordStoreState.
   rssInsert : Record → RecordStoreState → RecordStoreState
-  rssInsert (B b) rs = record rs { rssBlocks          = (rssBlocks rs)          [ (HashR (R (B b))) := (just b) , _≟Hash_ ] }
-  rssInsert (Q q) rs = record rs { rssQCs             = (rssQCs rs)             [ (HashR (R (Q q))) := (just q) , _≟Hash_ ] }
-  rssInsert (V v) rs = record rs { rssCurrentVotes    = (rssCurrentVotes rs)    [ (Vote.author v)   := (just v) , _≟ℕ_    ] }
-  rssInsert (T t) rs = record rs { rssCurrentTimeouts = (rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ] }
+  rssInsert (B b) rs = record rs { rssBlocks          = proj₁ ((rssBlocks rs)          [ (HashR (R (B b))) := (just b) , _≟Hash_ ]) }
+  rssInsert (Q q) rs = record rs { rssQCs             = proj₁ ((rssQCs rs)             [ (HashR (R (Q q))) := (just q) , _≟Hash_ ]) }
+  rssInsert (V v) rs = record rs { rssCurrentVotes    = proj₁ ((rssCurrentVotes rs)    [ (Vote.author v)   := (just v) , _≟ℕ_    ]) }
+  rssInsert (T t) rs = record rs { rssCurrentTimeouts = proj₁ ((rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ]) }
 
   memberAfterInsert : ∀ {b : Block} {rss : RecordStoreState}
                     → (B b) ∈Rs (rssInsert (B b) rss)
@@ -497,9 +505,6 @@ module LibraBFT
                → Valid r rs
                → ValidRSS (rssInsert r rs)
 
-  auxRecordStoreStateProperties : ∀ {rs : RecordStoreState} → ValidRSS rs → AuxRecordStoreState rs
-  auxRecordStoreStateProperties = {!!}
-  
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
   --  at least (ecN ∸ ecF) pairs (a,s)
@@ -785,6 +790,10 @@ module LibraBFT
 
   open NodeState
 
+  record AuxValidNodeState (ns : NodeState) : Set₁ where
+    field
+      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
+
 ---------------------- Update Skeleton ----------------
 
   record NodeUpdateActions : Set where
@@ -818,7 +827,7 @@ module LibraBFT
 
 ---------------------- Libra BFT Algorithm components ---------------
 
-  proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
+  proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash  -- TODO : properties
   proposeBlock ns a qch nt smr =
     let rss = nsRecordStoreState ns
         rnd = rssCurrentRound rss
@@ -1003,11 +1012,12 @@ module LibraBFT
 ----------------------------- updateNode ------------------------
 
   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
-  updateNode : NodeState
+  updateNode : (ns : NodeState)
              → NodeTime
              → SmrContext
-             → NodeState × SmrContext × NodeUpdateActions
-  updateNode self₀ clock smrContext₀ =
+             → AuxValidNodeState ns
+             → Σ ( NodeState × SmrContext × NodeUpdateActions) (λ x → AuxValidNodeState (proj₁ x))
+  updateNode self₀ clock smrContext₀ auxPreNS =
     let
 
   -- let latest_senders = self.read_and_reset_latest_senders();
@@ -1075,32 +1085,13 @@ module LibraBFT
   -- // Return desired node actions to environment.
   -- actions
 
-         nsFinal = {!!}
+         nsFinal = self₀  -- IMPORTANT TODO: this is for experimentation ONLY, sends back WRONG state!
          smrContextFinal = smrContext₀
          actionsFinal = {!!}
 
     in
-      (nsFinal , (smrContextFinal , actionsFinal ))
+      ((nsFinal , (smrContextFinal , actionsFinal)) , {!!} )
 
-
----------------- Valid NodeState ---------------
-
-  record AuxNodeState (ns : NodeState) : Set₁ where
-    field
-      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
-
-  data ValidNodeState : NodeState → Set₁ where
-    vNSInit   : ∀ {ns : NodeState}
-              → AuxNodeState ns
-              → ValidNodeState ns
-    vNSUpdate : ∀ {ns : NodeState}{nt : NodeTime}{smr : SmrContext }
-              → ValidNodeState ns
-              → ValidNodeState (proj₁ (updateNode ns nt smr))
-
-  auxNodeStateProperties : ∀ {ns : NodeState}
-                         → ValidNodeState ns
-                         → AuxNodeState ns
-  auxNodeStateProperties = {!!}
 
 ---------------- Global system state -------------
 
@@ -1174,6 +1165,12 @@ module LibraBFT
 
   open GlobalSystemState
 
+  record AuxGlobalSystemState (gss : GlobalSystemState) : Set₁ where
+    field
+      auxGssValidNodeStates : ∀ (a : Author) → {ns : NodeState} → gssNodeStates gss a ≡ just ns → AuxValidNodeState ns
+
+  open AuxGlobalSystemState
+
   initialGlobalState : GlobalSystemState
   initialGlobalState = {!!}
 ---------- Actions ---------
@@ -1196,75 +1193,82 @@ module LibraBFT
 
 ---------- Actions and reachable states ----------
 
-  effUpdateNode′ : Author → NodeTime → NodeState → GlobalSystemState → GlobalSystemState
-  effUpdateNode′ a nt ns₀ pre =
-    let nss₀  = gssNodeStates pre
-        smrs₀ = gssSmrContexts pre
-        smr₀  = smrs₀ a
-        mp₀   = gssMessagePool pre
-        ( ns₁ , ( smr₁ , nua )) = updateNode ns₀ nt smr₀
-        mp₁   = processNodeUpdateActions mp₀ a ns₁ nua
-        nss₁  = nss₀  [ a := (just ns₁)  , _≟ℕ_  ]
-        smrs₁ = smrs₀ [ a := smr₁        , _≟ℕ_  ]
-    in gss nss₁ smrs₁ mp₁
+  effUpdateNode′ : Author
+                 → (ns : NodeState)
+                 → AuxValidNodeState ns
+                 → SmrContext
+                 → NodeUpdateActions
+                 → (pre : GlobalSystemState)
+                 → AuxGlobalSystemState pre
+                 → Σ ( GlobalSystemState ) (λ post → AuxGlobalSystemState post)
+  effUpdateNode′ a ns₁ validns₁ smr₁ nua pre auxPre =
+                       let mp₀              = gssMessagePool pre
+                           mp₁              = processNodeUpdateActions mp₀ a ns₁ nua
+                           (nss₁ , nss₁prf) = (gssNodeStates pre)  [ a := (just ns₁)  , _≟ℕ_  ]
+                           (smrs₁ , _)      = (gssSmrContexts pre) [ a := smr₁        , _≟ℕ_  ]
+                           finalGss         = gss nss₁ smrs₁ mp₁
+                           in finalGss ,
+                             record { auxGssValidNodeStates =  λ a′ prf → postNSfor a′ a ns₁ validns₁ pre auxPre finalGss nss₁prf prf }
+                               where postNSfor : (a′ a    : Author)
+                                               → (ns₁     : NodeState)
+                                               → AuxValidNodeState ns₁
+                                               → (pre     : GlobalSystemState)
+                                               → (auxPre  : AuxGlobalSystemState pre)
+                                               → (post    : GlobalSystemState)
+                                               → (nss₁prf : overrideProp (gssNodeStates pre) a (just ns₁) (gssNodeStates post) )
+                                               → {ns      : NodeState}
+                                               → (prf     : gssNodeStates post a′ ≡ just ns)
+                                               → AuxValidNodeState ns
+                                     postNSfor a′ a ns₁ validns₁ pre auxPre post nss₁prf {ns}
+                                       with (gssNodeStates post) a′ | inspect (gssNodeStates post) a′
+                                     ...| nothing  | _ = λ ()
+                                     ...| just ns′ | Reveal[ nsprf ]
 
-  effUpdateNode : Author → NodeTime → GlobalSystemState → GlobalSystemState
-  effUpdateNode a nt pre with gssNodeStates pre a
-  ...| nothing  = pre
-  ...| just ns₀ = effUpdateNode′ a nt ns₀ pre
+                                         -- TODO: consider reordering the two "with"s below; I think it will become simpler
+                                         with a′ ≟ℕ a | nss₁prf a′
+                                           -- The new NodeState we have assigned to a′ (because a′ ≡ a), is valid
+                                     ...|  yes a′≡a | inj₁ xx2 = ⊥-elim ((proj₁ xx2) a′≡a)
+                                     ...|  yes a′≡a | inj₂ xx2 rewrite a′≡a = λ prf → subst AuxValidNodeState
+                                                                                            (just-injective prf)
+                                                                                            (subst AuxValidNodeState
+                                                                                                   (just-injective (trans (sym (proj₂ xx2)) nsprf))
+                                                                                                   validns₁)
+                                           -- If a′ ≢ a, then the auxilirary information about a′s NodeState is the same in the
+                                           -- post state as in the pre state.
+                                     ...|  no  xx | _ with nss₁prf a′
+                                     ...|               inj₂ xx1 = ⊥-elim (xx (proj₁ xx1))
+                                     ...|               inj₁ xx1 = λ prf → ((auxGssValidNodeStates auxPre) a′ {ns})
+                                                                         (trans (trans (sym (proj₂ xx1)) nsprf) prf)
 
-  record AuxGlobalSystemState (gss : GlobalSystemState) : Set₁ where
-    field
-      auxGssValidNodeStates : ∀ {a} {ns} {gss} → gssNodeStates gss a ≡ just ns → ValidNodeState ns
-
-  open AuxGlobalSystemState
+  effUpdateNode : Author
+                → NodeTime
+                → (pre : GlobalSystemState)
+                → AuxGlobalSystemState pre
+                → Σ ( GlobalSystemState ) (λ post → AuxGlobalSystemState post)
+  effUpdateNode a nt pre auxPre
+     with (gssNodeStates pre) a | inspect (gssNodeStates pre) a
+  ...|  nothing   | _             = pre , auxPre
+  ...|  (just ns) | Reveal[ prf ]
+        with updateNode ns nt (gssSmrContexts pre a) (auxGssValidNodeStates auxPre a prf)
+  ...|    (ns₁ , (smr₁ , nua)) , validns₁ = effUpdateNode′ a ns₁ validns₁ smr₁ nua pre auxPre
 
   -- Question: do we need an AuxGlobalSystemState?  Maybe when we get to liveness?
   data ReachableState : (gss : GlobalSystemState) → Set₁ where
     rchstEmpty      : ∀ {init : GlobalSystemState} → AuxGlobalSystemState init → ReachableState init
-    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState}
+    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {auxPre : AuxGlobalSystemState preState}
                     → ReachableState preState
-                    → ReachableState (effUpdateNode a nt preState)
+                    → ReachableState (proj₁ (effUpdateNode a nt preState auxPre))
     -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
     -- because state only serves to constrain what messages honest guys send.
 
-  updateNodePreservesOtherNodeState : ∀ {a a′         : Author}
-                                        {nt           : NodeTime}
-                                        {pre          : GlobalSystemState}
-                                      → a ≢ a′
-                                      → gssNodeStates (effUpdateNode a nt pre) a′ ≡ gssNodeStates pre a′
-  updateNodePreservesOtherNodeState = {!!}
-
   nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
   nothing≢just = λ ()
-
-  updatePreservesValidNodeStates : ∀ {pre : GlobalSystemState}
-                                     {a   : Author}
-                                     {nt  : NodeTime}
-                                   → ReachableState pre
-                                   → AuxGlobalSystemState pre
-                                   → AuxGlobalSystemState (effUpdateNode a nt pre)
-  updatePreservesValidNodeStates {pre} {a} {nt} rchPre auxPre =
-       record { auxGssValidNodeStates = λ {a′} {postNS} prf → {! postNSfor {pre} auxPre a′ a nt!}}
-         where postNSfor : {pre    : GlobalSystemState}
-                           {ns     : NodeState}
-                         → (auxPre : AuxGlobalSystemState pre)
-                         → (a′ : Author)
-                         → (a  : Author)
-                         → (nt : NodeTime)
-                         → gssNodeStates (effUpdateNode a nt pre) a′ ≡ just ns → ValidNodeState ns
-               postNSfor {pre} {ns} auxPre a′ a nt prf with a ≟ℕ a′ | gssNodeStates (effUpdateNode a nt pre) a′ | inspect (gssNodeStates (effUpdateNode a nt pre)) a′
-               ...| no  a≢a′ | nothing    | Reveal[ x ] rewrite prf = ⊥-elim (nothing≢just prf)
-               ...| no  a≢a′ | (just ns0) | Reveal[ x ] = vNSUpdate {ns0} {nt} (((auxGssValidNodeStates auxPre) {a′} {ns0} {pre})
-                                                                            (trans (sym (updateNodePreservesOtherNodeState {a} {a′} {nt} {pre} a≢a′)) x))
-               ...| yes a≡a′ | _          | _ rewrite a≡a′ = {!!}
 
   reachableStateProperties : ∀ {gss : GlobalSystemState}
                            → ReachableState gss
                            → AuxGlobalSystemState gss
   reachableStateProperties {gs} (rchstEmpty {init} auxprf) = auxprf
-  reachableStateProperties {gs} (rchstUpdateNode {a} {nt} {pre} rch′) =
-         updatePreservesValidNodeStates {pre} {a} {nt} rch′ (reachableStateProperties {pre} rch′)
+  reachableStateProperties {gs} (rchstUpdateNode {a} {nt} {pre} {auxPre} rch′) = proj₂ (effUpdateNode a nt pre auxPre)
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 
