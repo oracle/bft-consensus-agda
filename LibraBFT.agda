@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import Data.Nat renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
 open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
@@ -12,6 +14,7 @@ open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
 open import Data.List.Any
 open import Data.List.All
 open import Data.Maybe
+open import Data.Maybe.Properties using (just-injective)
 open import Function using (_∘_)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (¬_)
@@ -63,7 +66,61 @@ module LibraBFT
   State : Set
   State = Hash
 
- ----------------------------------------------------------------
+  SmrContext : Set
+  SmrContext = ℕ    -- TODO: placeholder
+
+  -- Update a function of type A → B on one input, given a decidability instance for A's
+  -- The syntax is slightly ugly, but I couldn't do better in reasonable time
+  -- TODO: Move somewhere more generic
+
+  overrideOK : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             → (f : A → B)
+             → (a : A)
+             → (b : B)
+             → (a′ : A)
+             → (f′ : A → B)
+             → Set (ℓ₁ Level.⊔ ℓ₂)
+  overrideOK f a b a′ f′ = (a′ ≢ a × f′ a′ ≡ f a′) ⊎ (a′ ≡ a × f′ a′ ≡ b)
+
+  overrideProp : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+               → (f : A → B)
+               → (a : A)
+               → (b : B)
+               → (f′ : A → B)
+               → Set (ℓ₁ Level.⊔ ℓ₂)
+  overrideProp f a b f′ = ∀ a′ → overrideOK f a b a′ f′
+
+  overrideFn : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             (f : A → B)
+           → (a : A) → (b : B)
+           → ((a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → Σ ( A → B ) (λ f′ → overrideProp f a b f′)
+  overrideFn {A = A} {B = B} f a b _≟xx_ =
+     let f′ = (λ a₂ → selectVal f a b a₂)
+     in f′ ,  (λ a₂ → selectPrf f a b a₂)
+
+     where selectVal : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → B
+           selectVal f a b a₂ with a ≟xx a₂
+           ...| yes refl = b
+           ...| no  _    = f a₂
+           selectPrf : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → overrideOK f a b a₂ (λ a₃ → selectVal f a b a₃)
+           selectPrf f a b a₂ with a ≟xx a₂ | inspect (a ≟xx_) a₂
+           ...| yes refl | Reveal[ x ] rewrite x = inj₂ (refl , refl)
+           ...| no  xx   | Reveal[ x ] rewrite x = inj₁ ( (λ x₁ → xx (sym x₁)) , refl)
+
+  _[_:=_,_] : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
+             (f : A → B)
+           → (a : A) → (b : B)
+           → (_≟_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
+           → Σ ( A → B ) (λ f′ → overrideProp f a b f′)
+  _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {B = B} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {B} f a₁ b _≟xx_
+
+
+  HashMap : Set → Set → Set
+  HashMap K V = K → Maybe V
+
+  emptyHM : {K : Set} → {V : Set} → HashMap K V
+  emptyHM {K} {V} k = nothing
 
 ---------------------- Epoch Configuration  ---------------------
 
@@ -170,63 +227,6 @@ module LibraBFT
   ... | no ¬p = let i≡j = upgrade-injective (finsuc-injective ui≡uj)
                 in contradiction i≡j ¬p
 
-  dummyGoodGuys : (take : ℕ) → (drop : ℕ) → Vec (Fin (take + drop)) take
-  dummyGoodGuys take drop = tabulateVec {n = take} (upgrade {take} {drop})
-
-  dummyGoodGuysBijective : ∀ n-f f
-                         → 0 < n-f
-                         → {i : Fin n-f}
-                         → lookupVec (dummyGoodGuys n-f f) i ≡ upgrade {n-f} {f} i
-  dummyGoodGuysBijective n-f f 0<f {i} = lookup∘tabulate {n = n-f} (upgrade {n-f} {f}) i
-
-  dummyGoodGuysDistinct′ : ∀ {n-f f : ℕ}
-                          → 0 < n-f
-                          → {i j : Fin n-f}
-                          → i ≡ j ⊎ ¬ lookupVec (dummyGoodGuys n-f f) i ≡ lookupVec (dummyGoodGuys n-f f) j
-  dummyGoodGuysDistinct′ {n-f} {f} 0<n-f {i} {j}
-     with i ≟Fin j
-  ...| yes xxx = inj₁ xxx
-  ...| no  xxx rewrite dummyGoodGuysBijective n-f f 0<n-f {i}
-                     | dummyGoodGuysBijective n-f f 0<n-f {j} = inj₂ λ x → xxx (upgrade-injective {n-f} {f} {i} {j} x)
-
-  dummyGoodGuysDistinct : ∀ {n-f} {f} → DistinctVec {Level.zero} _≡_ (dummyGoodGuys n-f f)
-  dummyGoodGuysDistinct {0}     = distinct λ ()
-  dummyGoodGuysDistinct {suc n-f} = distinct (λ i j → dummyGoodGuysDistinct′ {suc n-f} (s≤s z≤n) {i} {j})
-
-  ec1 : EpochConfiguration
-  ec1 = record {
-          ecN                   = testN
-        ; ecF                   = testF
-        ; ecVotingRights        = dummyAuthors testN
-        ; ecAux0<n              = 0<testN
-        ; ecAux3f<n             = 3*testF<testN
-        ; ecAuxVotersDistinct   = dummyAuthorsDistinct
-        ; ecAuxGoodGuys         = dummyGoodGuys (testN ∸ testF) testF
-        ; ecAuxGoodGuysDistinct = dummyGoodGuysDistinct
-        }
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s z≤n))                   ≡ dummyAuthor 0
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s z≤n)))             ≡ dummyAuthor 1
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s z≤n))))       ≡ dummyAuthor 2
-  _ = refl
-
-  _ : lookupVec (ecVotingRights ec1) (Data.Fin.fromℕ≤ (s≤s (s≤s (s≤s (s≤s z≤n))))) ≡ dummyAuthor 3
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 3) ≡ true
-  _ = refl
-
-  _ : isVoter ec1 (dummyAuthor 5) ≡ false
-  _ = refl
-
-------------------------- End test data ----------------------
 
   goodGuyIsAuthor : (ec : EpochConfiguration) → (a : Author) → (x  : Fin (ecN ec)) → Set
   goodGuyIsAuthor ec a x = a ≡ lookupVec (ecVotingRights ec) x
@@ -251,27 +251,11 @@ module LibraBFT
   ...| yes _ = true
   ...| no  _ = false
 
-  _ : isHonest ec1 (dummyAuthor 0) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 1) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 2) ≡ true
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 3) ≡ false
-  _ = refl
-
-  _ : isHonest ec1 (dummyAuthor 5) ≡ false
-  _ = refl
-
-
-
  --------------------------- Record -----------------------------
 
  -- Block ------------------------------------------
   record Block : Set where
+    constructor mkBlock
     field
       bCommand    : Command
       bPrevQCHash : QCHash
@@ -312,6 +296,7 @@ module LibraBFT
       toRound   : Round
       toAuthor  : Author
       --toSignature : Signature
+  open Timeout
 
   data Record : Set where
   -- TODO: data Record (ec : EpochConfiguration) : Set where
@@ -403,36 +388,115 @@ module LibraBFT
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
     ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (R r ← r₂) → r₁ ←⋆ r₂
 
-
-------------------------- RecordStore --------------------------
-
-  data RecordStore (ec : EpochConfiguration) (sᵢ : Initial) : Set
-
-  data Valid {ec : EpochConfiguration} {sᵢ : Initial} : Record → RecordStore ec sᵢ → Set
-
-  data RecordStore ec sᵢ where
-    empty  : RecordStore ec sᵢ
-    insert : {r : Record} (s : RecordStore ec sᵢ)
-             → Valid r s → RecordStore ec sᵢ
-
-  data _∈Rs_ {ec} {sᵢ} : Record → RecordStore ec sᵢ → Set where
-    here  : ∀ {s : RecordStore ec sᵢ} {r : Record} (v : Valid r s)
-            → r ∈Rs insert s v
-    there : ∀ {s : RecordStore ec sᵢ} {r r' : Record} (v : Valid r' s)
-            → r ∈Rs s
-            → r ∈Rs (insert s v)
-    inQC  : ∀ {s : RecordStore ec sᵢ} {v : Vote} {qc : QC}
-            → (Q qc) ∈Rs s
-            → v ∈ (qVotes qc)
-            → V v ∈Rs s
-
   qSize :  EpochConfiguration → ℕ
   qSize ec = ecN ec ∸ ecF ec
 
   _≡-Author_ : Vote → Vote → Set
   v₁ ≡-Author v₂ = vAuthor v₁ ≡ vAuthor v₂
 
+------------------------ RecordStoreState ----------------------
 
+  record RecordStoreState : Set₁ where
+    constructor mkRecordStoreState
+    field
+      rssEpochId              : EpochId
+      rssConfiguration        : EpochConfiguration
+      rssInitial              : Initial  -- LIBRA-DIFF, we store the Initial structure;
+                                  -- Libra say QuorumCertificateHash, but it's not really one.
+      -- rssInitiaState   : State
+      rssBlocks               : HashMap BlockHash Block
+      rssQCs                  : HashMap QCHash QC
+      rssRoundToQChash        : HashMap Round QCHash
+      rssCurrentProposedBlock : Maybe BlockHash
+      rssHighestQCRound       : Round
+      -- rssHighestTCRound       : Round
+      rssCurrentRound         : Round
+      -- rssHighest2ChainRound   : Round
+      -- rssHighestCommittedRound : Round
+      -- rssHighestTimoutCertificate : Maybe (List Timeout)
+      rssCurrentTimeouts : HashMap Author Timeout
+      rssCurrentVotes    : HashMap Author Vote
+      -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
+      -- rssCurrentElection : ?
+
+  open RecordStoreState
+
+  emptyRSS : EpochId → EpochConfiguration → Initial → RecordStoreState
+  emptyRSS eid ecfg init = record {
+      rssEpochId              = eid
+    ; rssConfiguration        = ecfg
+    ; rssInitial              = init
+      -- rssInitiaState   : State
+    ; rssBlocks               = emptyHM
+    ; rssQCs                  = emptyHM
+    ; rssRoundToQChash        = emptyHM
+    ; rssCurrentProposedBlock = nothing
+    ; rssHighestQCRound       = 0
+      -- rssHighestTCRound    = 0
+    ; rssCurrentRound         = 1
+      -- rssHighest2ChainRound   : Round
+      -- rssHighestCommittedRound : Round
+      -- rssHighestTimoutCertificate : Maybe (List Timeout)
+    ; rssCurrentTimeouts      = emptyHM
+    ; rssCurrentVotes         = emptyHM
+      -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
+      -- rssCurrentElection : ?
+    }
+
+----------------------------------------------------------------
+
+  _∈QC_ : Vote → QC → Set
+  v ∈QC q = {!!}
+
+  _∈Rs′_ : ∀ (r : Record) → RecordStoreState → Set
+  (B b) ∈Rs′ rss = ∃[ h ](rssBlocks          rss h ≡ just b)
+  (Q q) ∈Rs′ rss = ∃[ h ](rssQCs             rss h ≡ just q)
+  (V v) ∈Rs′ rss = ∃[ a ](rssCurrentVotes    rss a ≡ just v)
+  (T t) ∈Rs′ rss = ∃[ a ](rssCurrentTimeouts rss a ≡ just t)
+
+  _∈Rs_ : ∀ (r : Record) → RecordStoreState → Set
+  (B b) ∈Rs rss = (B b) ∈Rs′ rss
+  (Q q) ∈Rs rss = (Q q) ∈Rs′ rss
+  (V v) ∈Rs rss = (V v) ∈Rs′ rss ⊎ ∃[ q ] ((Q q) ∈Rs′ rss × v ∈QC q )
+  (T t) ∈Rs rss = (T t) ∈Rs′ rss
+
+  emptyIsEmpty : ∀ (r : Record) (eid : EpochId) (ec : EpochConfiguration) (i : Initial) → ¬ (r ∈Rs emptyRSS eid ec i)
+  emptyIsEmpty (B b) eid ec i ⟨ _ , () ⟩
+  emptyIsEmpty (Q q) eid ec i ⟨ _ , () ⟩
+  emptyIsEmpty (V v) eid ec i (inj₁ ⟨ _ , () ⟩)
+  emptyIsEmpty (V v) eid ec i (inj₂ ⟨ _ , (⟨ _ , () ⟩ , _) ⟩ )
+  emptyIsEmpty (T t) eid ec i ⟨ _ , () ⟩
+
+  -- These simply insert records into the RecordStoreState; it says nothing about Valid conditions, which is reserved for
+  -- inserting into an AuxRecordStoreState that maintains invariants about the contents of the RecordStoreState.
+  rssInsert : Record → RecordStoreState → RecordStoreState
+  rssInsert (B b) rs = record rs { rssBlocks          = proj₁ ((rssBlocks rs)          [ (HashR (R (B b))) := (just b) , _≟Hash_ ]) }
+  rssInsert (Q q) rs = record rs { rssQCs             = proj₁ ((rssQCs rs)             [ (HashR (R (Q q))) := (just q) , _≟Hash_ ]) }
+  rssInsert (V v) rs = record rs { rssCurrentVotes    = proj₁ ((rssCurrentVotes rs)    [ (Vote.vAuthor v)   := (just v) , _≟ℕ_    ]) }
+  rssInsert (T t) rs = record rs { rssCurrentTimeouts = proj₁ ((rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ]) }
+
+  memberAfterInsert : ∀ {b : Block} {rss : RecordStoreState}
+                    → (B b) ∈Rs (rssInsert (B b) rss)
+  memberAfterInsert {b} {rss} = ⟨ HashR (R (B b)) , prf b rss ⟩
+     where prf : ∀ (b0 : Block)
+               → (rss0 : RecordStoreState)
+               → rssBlocks (rssInsert (B b0) rss0) (HashR (R (B b0))) ≡ just b0
+           prf b0 rss0 with (HashR (R (B b0))) ≟Hash (HashR (R (B b0)))
+           ...|          yes xx rewrite xx = refl
+           ...|          no  xx = ⊥-elim (xx refl)
+
+  data Valid : Record → RecordStoreState → Set
+
+  _dependsOnBlock_wrt_   : ∀ Record → Block → RecordStoreState → Set
+  r dependsOnBlock b wrt rs = Valid (B b) rs × R (B b) ← r × round (B b) ≡ round r
+
+  _dependsOnQC_wrt_      : ∀ Record → QC → RecordStoreState → Set
+  r dependsOnQC q wrt rs = Valid (Q q) rs × R (Q q) ← r × round (Q q) < round r
+
+  _dependsOnInitial_ : Record → Initial → Set
+  r dependsOnInitial i = (I i) ← r × 1 ≤ round r
+
+{-
   -- TODO: Validate records wrt epoch configuration
   ValidBlock : ∀ {ec} {sᵢ} → Block → RecordStore ec sᵢ → Set
   ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( q ∈Rs rs × Valid q rs × R q ← B b × round q < bRound b )
@@ -442,18 +506,6 @@ module LibraBFT
   _validVoteInQC_ : Vote → QC → Set
   v validVoteInQC qc = (vEpoch v ≡ qEpoch qc) × (vBlockHash v ≡ qBlockHash qc) × (vRound v ≡ qRound qc) --× (vState v ≡ qState qc) -- × signature valid
 
-
-  {-- Needs to come after EpochConfiguration definition
-  -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
-  --  at least (ecN ∸ ecF) pairs (a,s)
-  --  the a's should be distinct (I don't think the paper says thus, but it's obviously needed)
-  --  for each pair (a,s), the following should hold:
-  --    isVoter ec a
-  --    s should be a signature by a on a vote constructed using the fields of the quorum certificate up
-  --      to and including commitment
-  validQC : EpochConfiguration → QC → Set
-  validQC ec q = {!!}
-  --}
 
   _distinctElemsIn_ : {A : Set} → ℕ → List A → Set
   size distinctElemsIn [] = size ≡ 0
@@ -480,6 +532,29 @@ module LibraBFT
     ValidQ : ∀ {q : QC}    {rs : RecordStore ec sᵢ} → ValidQC    q rs → Valid (Q q) rs
     --ValidV : ∀ {v : Vote    ec} {rs : RecordStore ec sᵢ} → ValidVote  v rs → Valid (V v) rs
     --ValidT : ∀ {t : Timeout ec} {rs : RecordStore ec sᵢ}                   → Valid (T t) rs
+
+-}
+  -- Conditions required to add a Record to a RecordStoreState (which contains "previously verified"
+  -- records, in the parlance of the LibraBFT paper).  Some properties do not depend on any
+  -- particular RecordStoreState and their proofs can ignore the RecordStoreState, other than passing it to
+  -- recursive invocations.
+  data Valid where
+    B : ∀ (b : Block)   (rs : RecordStoreState) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial (rssInitial rs) → Valid (B b) rs
+    Q : ∀ (q : QC)      (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                                       → Valid (Q q) rs
+    V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
+    T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
+
+  lemma1-1 : RecordStoreState → Set
+  lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
+               → r ∈Rs rss
+               → (I (rssInitial rss)) ←⋆ r
+
+  -- Given a RecordStoreState, auxiliary properties about it
+  record AuxRecordStoreState (rss : RecordStoreState) : Set₁ where
+    field
+      auxRssLemma1-1 : lemma1-1 rss
+
+  open AuxRecordStoreState
 
 
 
@@ -522,62 +597,47 @@ module LibraBFT
   -- 3
 
   -- Aux Lemma
-
-  r₀←⋆r₁→rr₀≤rr₁ : ∀ {ec sᵢ} {r₀ r₁ : Record} {rs : RecordStore ec sᵢ}
+  -- This property does not depend on any particular RecordStore, and referring
+  -- to it will unnecessarily complicate proofs.  The parameters is needed for
+  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
+  -- a reminder.
+  r₀←⋆r₁→rr₀≤rr₁ : {r₀ r₁ : Record}{doNotUse : RecordStoreState}
                  → R r₀ ←⋆ r₁
-                 → Valid r₁ rs
-                 → round r₀ ≤ round r₁ ⊎ HashBroke
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
-     with prf
-  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
-      with ←inj r₀←b q←b
-  ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
-  ...   | inj₂ hashbroke = inj₂ hashbroke
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
-      | inj₂ ⟨ i←b , 1≤rb ⟩
-      with ←inj i←b r₀←b
-  ...   | inj₂ hashbroke = inj₂ hashbroke
+                 → Valid r₁ doNotUse
+                 → HashBroke ⊎ round r₀ ≤ round r₁
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
+     with v₁
+  ...| B blk _ prf
+       with prf
+  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
+  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
 
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (ValidQ prf)
-    with prf
-  ... |   ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , ⟨ refl , snd ⟩ ⟩ ⟩ ⟩ ⟩
-      with ←inj r₀←q b←q
-  ...   | inj₁ refl            = inj₁ ≤-refl
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
+       with v₁
+  ...| Q qc _ prf
+       with prf
+  ...|   dob = {!!}      -- QC q depends directly on Block
 
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
-    with prf
-  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
-      with ←inj r←b q←b
-  ...   | inj₂ hashbroke = inj₂ hashbroke
-  ...   | inj₁ refl
-        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vQ
-  ...     | inj₁ rr₀≤rq    = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
-  ...     | inj₂ hashbroke = inj₂ hashbroke
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
-      | inj₂ ⟨ i←b , 1≤rb ⟩
-      with ←inj i←b r←b
-  ...   | inj₂ hashbroke = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₁ doqc)) = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₂ doi))  = {!!}
 
-  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (ValidQ prf)
-    with prf
-  ... | ⟨ b , ⟨ b∈rs , ⟨  vB , ⟨ b←q , ⟨ refl , snd ⟩ ⟩ ⟩ ⟩ ⟩
-      with ←inj r←q b←q
-  ...   | inj₂ hashbroke       = inj₂ hashbroke
-  ...   | inj₁ refl
-        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vB
-  ...     | inj₁ rr₀≤rq    = inj₁ rr₀≤rq
-  ...     | inj₂ hashbroke = inj₂ hashbroke
-
+  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
 
   -- Lemma 1, part 3
-  round-mono : ∀ {ec sᵢ} {r₀ r₁ r₂ : Record} {rs : RecordStore ec sᵢ}
+  -- This property does not depend on any particular RecordStore, and referring
+  -- to it will unnecessarily complicate proofs.  The parameters is needed for
+  -- recursive invocations of Valid, so it it provided but named "doNotUse" as
+  -- a reminder.
+  round-mono : ∀  {r₀ r₁ r₂ : Record} {doNotUse : RecordStoreState}
                  → R r₀ ←⋆ r₂
                  → R r₁ ←⋆ r₂
-                 → Valid r₀ rs → Valid r₁ rs → Valid r₂ rs
+                 → Valid r₀ doNotUse
+                 → Valid r₁ doNotUse
+                 → Valid r₂ doNotUse
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
-
+  round-mono = {!!}
+  {-
   round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)        _ _ _ rr₀<rr₁
     with ←inj r₀←r₂ r₁←r₂
   ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
@@ -616,122 +676,17 @@ module LibraBFT
   ...    | inj₁ _          | inj₂ hashbroke = inj₂ hashbroke
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
 
-
-
------------------------- RecordStoreState ----------------------
-
-  record RecordStoreState : Set₁ where
-    field
-      epoch       : EpochId
-      epochConfig : EpochConfiguration
-      sᵢ          : Initial
-      recStore    : RecordStore epochConfig sᵢ
-      curRound    : Round
-      highQCR     : Round
-      listVotes   : List Vote
-      -- initialState : State
-      -- highCommR    : Round
-----------------------------------------------------------------
-
-  open RecordStoreState
+  -}
 
 -------------------- Lemma S1, part 1 --------------------
 
-  -- I think that Votes should not be in RecordStore because we have the List of Votes in the RecordStoreState
-  -- which will have the list of votes received
-  hᵢ←⋆R : ∀ {ec sᵢ} {r : Record} {rs : RecordStore ec sᵢ}
+  -- TODO: this is broken now.  We need to extend the auxRecordStoreState with a proof,
+  -- and use it inductively
+
+  hᵢ←⋆R : ∀ {r : Record} {isCR : isChainableRecord r} {rs : RecordStoreState}
           → r ∈Rs rs
-          → (I sᵢ) ←⋆ r
-  hᵢ←⋆R (here (ValidB prf))
-    with prf
-  ... | inj₂ ⟨ i←b , _ ⟩ = ss0 i←b
-  ... | inj₁ ⟨ _ , ⟨ q∈rs , ⟨ _ , ⟨ q←b , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R q∈rs) q←b
-
-  hᵢ←⋆R (here (ValidQ prf))
-    with prf
-  ... |      ⟨ _ , ⟨ b∈rs , ⟨ _ , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) b←q
-
-  hᵢ←⋆R (inQC (here (ValidQ prf)) v∈qc)
-    with prf
-  ... | ⟨ _ , ⟨ b∈rs , ⟨ _ , ⟨ B←Q b←q , ⟨ _ , ⟨ _  , ⟨ validVotes , _ ⟩ ⟩ ⟩ ⟩ ⟩ ⟩ ⟩
-      with witness v∈qc validVotes
-  ...    | ⟨ _ , ⟨ hq≡hb , _ ⟩ ⟩ = ssr (hᵢ←⋆R b∈rs) (B←V (trans b←q (sym hq≡hb)))
-
-  hᵢ←⋆R (inQC (there _ q∈rs) v∈qc) = hᵢ←⋆R (inQC q∈rs v∈qc)
-
-  hᵢ←⋆R (there _ r∈rs)  = hᵢ←⋆R r∈rs
-
-  lemma1-1 : RecordStoreState → Set
-  lemma1-1 rss = ∀ {r : Record}
-               → r ∈Rs (recStore rss)
-               → (I (sᵢ rss)) ←⋆ r
-
-  record AuxRecordStoreState : Set₁ where
-    field
-      auxRssData     : RecordStoreState
-      auxRssLemma1-1 : lemma1-1 auxRssData
-
--------------------- RecordStoreState tests --------------------
-
-  rss1 : RecordStoreState
-  rss1 = record {
-             epoch       = 1
-           ; epochConfig = ec1
-           ; sᵢ          = record { epochId = 1 ; seed = 1 }
-           ; recStore    = empty
-           ; curRound    = 1
-           ; highQCR     = 1 -- should this be a Maybe?
-           ; listVotes   = []
-         }
-
-  arss1 : AuxRecordStoreState
-  arss1 = record {
-              auxRssData = rss1
-            ; auxRssLemma1-1 = λ { (inQC q∈∅ x₁) → contradiction q∈∅ λ ()}
-          }
-
-  testInit : Initial
-  testInit = record { epochId = 1
-                    ; seed    = 1
-                    }
-
-  block1 : Block
-  block1 = record { bCommand = 1
-                  ; bRound = 1
-                  ; bPrevQCHash = HashR (I testInit)
-                  ; bAuthor = dummyAuthor 0
-                  }
-
-
-  rss2 : RecordStoreState
-  rss2 = record rss1 { recStore = insert empty (ValidB (inj₂ ⟨ I←B {b = block1} refl , s≤s z≤n ⟩))}
-
-  arss2 : AuxRecordStoreState
-  arss2 = record {
-              auxRssData = rss2
-            ; auxRssLemma1-1 = λ x → hᵢ←⋆R x
-          }
-
-  qc1 : QC
-  qc1 = record
-          { qEpoch = 1
-          ; qBlockHash = HashR (R (B block1))
-          ; qRound = 1
-          --; qState = {!!}
-          ; qVotes = {!!}
-          ; qAuthor = {!!}
-          }
-
-  rss3 : RecordStoreState
-  rss3 = record rss2 { recStore = insert (recStore rss2)
-                                         (ValidQ {q = qc1} ⟨ B block1
-                                                           , ⟨ here ( ValidB (inj₂  ⟨ I←B {b = block1} refl , s≤s z≤n ⟩ ))
-                                                           , ⟨ ValidB (inj₂ ⟨ (I←B {b = block1} refl) , s≤s z≤n ⟩)
-                                                           , ⟨ (B←Q refl) , ⟨ refl , ⟨ {!!} , {!!} ⟩ ⟩ ⟩ ⟩ ⟩ ⟩) }
-
-  -- TODO : Add tests showing we can also add Blocks that depend on QCs, and we can add QCs and
-  -- Votes and still preserve lemma 1-1
-
+          → (I (rssInitial rs)) ←⋆ r
+  hᵢ←⋆R = {!!}
 -------------------------- BFT assumption -----------------------
 
   -- TODO: We should be able to prove this for any EpochConfiguration because it follows from the
@@ -750,7 +705,8 @@ module LibraBFT
 
   -- TODO: move near other validity conditions, which will need to depend on EpochConfiguration
   --       See commented out definition and notes above
-
+  validQC : EpochConfiguration → QC → Set
+  validQC ec q = {!!}
 
   -- Define a notion of an author being "in" a quorum certificate for a given EpochConfiguration
   _∈Qs_for_ :  Author → QC → EpochConfiguration → Set
@@ -759,8 +715,8 @@ module LibraBFT
   -- Should be provable from constraints on EpochConfigurations
   BFTQuorumIntersection : (ec : EpochConfiguration)
                         → (q₁ q₂ : QC)
-                        → validQC q₁ wrt ec
-                        → validQC q₂ wrt ec
+                        → validQC ec q₁
+                        → validQC ec q₂
                         → ∃[ a ] ( a ∈Qs q₁ for ec × a ∈Qs q₂ for ec × isHonestP ec a)
   BFTQuorumIntersection = {!!}
 
@@ -825,8 +781,7 @@ module LibraBFT
   NodeTime = ℕ
 
   FakeTypeActiveNodes : Set
-  FakeTypeActiveNodes = {!!}
-  -- Paper says HashSet<Author>
+  FakeTypeActiveNodes = List Author  -- TODO: Paper says HashSet<Author>
 
   OneSender : Set
   OneSender = Author × Round
@@ -850,6 +805,7 @@ module LibraBFT
 
   -- Section 7.9, page 26
   record PacemakerState : Set where
+    constructor mkPacemakerState
     field
       pmsActiveRound       : Round
       pmsActiveLeader      : Maybe Author
@@ -859,21 +815,20 @@ module LibraBFT
       pmsDelta             : Duration
       pmsGamma             : GammaType
 
+  pm0 : PacemakerState
+  pm0 = mkPacemakerState 0 nothing 0 [] 0 0 0
+
   open PacemakerState
 
   -- Section 5.6, page 17
-  -- I think it sould also receive as a parameter the epoch configuration
   record NodeState : Set₁ where
+    constructor mkNodeState
     field
-      author    : Author
-      epoch     : EpochId
-      lockRound : Round
-      -- latestVotedRound : Round
-      nsRecordStore         : RecordStoreState
+      nsRecordStoreState    : RecordStoreState
       nsPaceMaker           : PacemakerState
       nsEpochId             : EpochId
       nsLocalAuthor         : Author
-      -- nsLatestVotedRound : Round
+      -- latestVotedRound : Round
       nsLockedRound         : Round
       nsLatestBroadcast     : NodeTime
       -- nsLatestSenders    : LatestSenders
@@ -882,10 +837,11 @@ module LibraBFT
 
   open NodeState
 
----------------------- Update Skeleton ----------------
+  record AuxValidNodeState (ns : NodeState) : Set₁ where
+    field
+      auxNsValidRSS : AuxRecordStoreState (nsRecordStoreState ns)
 
-  SmrContext : Set₁
-  SmrContext = {!!}
+---------------------- Update Skeleton ----------------
 
   record NodeUpdateActions : Set where
     constructor mkNodeUpdateAction
@@ -918,8 +874,35 @@ module LibraBFT
 
 ---------------------- Libra BFT Algorithm components ---------------
 
-  createTimeout' : ∀ {ec} {h} → RecordStore ec h → Author → Round → SmrContext → RecordStore ec h
-  createTimeout' rs _ r _ = {!!} -- insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
+  proposeBlock : NodeState → Author → Command → QCHash → NodeTime → SmrContext → Block × BlockHash  -- TODO : properties
+  proposeBlock ns a cmd qch nt smr =
+    let rss = nsRecordStoreState ns
+        rnd = rssCurrentRound rss
+        b = mkBlock cmd qch rnd a  -- TODO: other fields
+    in ( b , HashR (R (B b)) )
+
+  proposeBlockCond : (ns : NodeState)
+                   → AuxValidNodeState ns
+                   → Maybe QCHash
+                   → SmrContext
+                   → Σ ( NodeState × SmrContext ) ( λ x → AuxValidNodeState (proj₁ x) )
+  proposeBlockCond ns₀ auxValidNS nothing smr = ((ns₀ , smr) , auxValidNS)
+  proposeBlockCond ns₀ auxValidNS (just qch) smr =
+    let (blk , blkHash) = proposeBlock
+                            ns₀
+                            (nsLocalAuthor ns₀)
+                            {!!}
+                            qch
+                            (nsLatestBroadcast ns₀)
+                            smr
+        rss = nsRecordStoreState ns₀
+        ns₁ = record ns₀ {nsRecordStoreState = rssInsert (B blk) rss }
+        auxNSValid = {!!}
+    in ((ns₁ , smr) , auxNSValid)
+
+{-
+  createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
+  createTimeout' rs _ r _ = insert rs {! !} -- Can't prove valid to insert timeout until definitions fleshed out
 
   createTimeout : RecordStoreState → Author → Round → SmrContext → RecordStoreState
   createTimeout rss a r smr =
@@ -927,39 +910,20 @@ module LibraBFT
 
   createTimeoutCond : NodeState → Maybe Round → SmrContext → NodeState
   createTimeoutCond ns nothing  _   = ns
-                                                                      -- TODO: after merging with Lisandra, naming conventions
-  createTimeoutCond ns (just r) smr = record ns { nsRecordStore = createTimeout (NodeState.nsRecordStore ns) (author ns) r smr }
-
-  proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash
-  proposeBlock = {!!}
-
-  proposeBlockCond : NodeState
-                   → Maybe QCHash
-                   → SmrContext
-                   → NodeState × SmrContext
-  proposeBlockCond ns nothing smr = ns , smr
-  proposeBlockCond ns (just qch) smr =
-    let (blk , blkHash) = proposeBlock
-                            ns
-                            (NodeState.author ns)
-                            qch
-                            (nsLatestBroadcast ns)
-                            smr
-    in record ns { nsRecordStore     = {!!}
-                 ; nsLatestBroadcast = {!!}    -- TODO: this is just random crap while experimenting
-                 }
-       , {!!}
-
+  createTimeoutCond ns (just r) smr = record ns { nsRecordStoreState = createTimeout (nsRecordStoreState ns) (nsLocalAuthor ns) r smr }
+-}
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
   --                               smr_context: &mut SMRContext,
   --                             ) -> NodeUpdateActions {
   processPacemakerActions :
-      NodeState
-    → PacemakerUpdateActions
+      (ns : NodeState)
+    → AuxValidNodeState ns
+    → (pma : PacemakerUpdateActions)
+{-  → AuxValidPacemakerUpdateActions pma ns  -- TODO define and pass -}
     → SmrContext
-    → NodeState × SmrContext × NodeUpdateActions
-  processPacemakerActions self₀ pacemakerActions smrContext₀ =
+    → Σ ( NodeState × SmrContext × NodeUpdateActions ) ( λ x → AuxValidNodeState (proj₁ x) )
+  processPacemakerActions self₀ auxPreValid pacemakerActions {- auxPMAValid -} smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
       actions = record NodeUpdateActions∷new {
@@ -976,7 +940,7 @@ module LibraBFT
   --   self.record_store.create_timeout(self.local_author, round, smr_context);
   -- }
       round = puaShouldCreateTimeout pacemakerActions
-      self₁ = createTimeoutCond self₀ round smrContext₀
+      self₁ = self₀ -- TODO createTimeoutCond self₀ round smrContext₀
 
   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
   --   self.record_store.propose_block(
@@ -989,7 +953,7 @@ module LibraBFT
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
-      (self₂ , smrContext₁) = proposeBlockCond self₁ previousQCHashMB smrContext₀
+      ((self₂ , smrContext₁) , postValidNS) = proposeBlockCond self₁ auxPreValid previousQCHashMB smrContext₀
 
 
 
@@ -997,25 +961,132 @@ module LibraBFT
   -- actions
   -- } }
 
-    in {!!}
+    in  (self₂ , (smrContext₁ , actions)) ,  postValidNS  -- TODO: Actions not updated yet
+
+  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
+  newPMSValue self activeRound clock = record self {
+  --    // .. store the new value
+  --    self.active_round = active_round;
+                    pmsActiveRound = activeRound
+  --    // .. start a timer
+  --    self.active_round_start = clock;
+                  ; pmsActiveRoundStart = clock
+  --    // .. recompute the leader
+  --    self.active_leader = Some(Self::leader(record_store, active_round));
+                  ; pmsActiveLeader = just clock
+  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
+  --    self.active_nodes = HashSet::new();
+                  ; pmsActiveNodes = []
+                  }
+  --  }
+
+  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
+     → PacemakerState × PacemakerUpdateActions
+  updatePMSandPUA s a ar cl
+    -- // If the active round was just updated..
+    -- if active_round > self.active_round { // .. store the new value
+     with (ar >? (pmsActiveRound s))
+                              -- // .. notify the leader to be counted as an "active node".
+                              -- actions.should_notify_leader = self.active_leader;
+  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
+  ...| no  _ = (s , a)
+
+  -- Section 7.10, page 27
+  -- fn update_pacemaker(
+  --     &mut self,
+  --     local_author: Author,
+  --     record_store: &RecordStore,
+  --     mut latest_broadcast: NodeTime,
+  --     latest_senders: Vec<(Author, Round)>,
+  --     clock: NodeTime,
+  -- ) -> PacemakerUpdateActions {
+
+  updatePacemaker : PacemakerState
+                  → Author
+                  → RecordStoreState
+                  → NodeTime
+                  → LatestSenders
+                  → NodeTime
+                  → PacemakerState × PacemakerUpdateActions
+  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
+
+     let
+  --  // Initialize actions with default values.
+  --  let mut actions = PacemakerUpdateActions::new();
+       actions₀ = PacemakerUpdateActions∷new
+
+  --  // Recompute the active round.
+  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
+       activeRound = clock
+
+       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
+
+  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
+  --  for (author, round) in latest_senders {
+  --    if round == active_round {
+  --      self.active_nodes.insert(author);
+  --  } }
+  --  // If we are the leader and have seen a quorum of active node..
+  --  if self.active_leader == Some(local_author)
+  --    && record_store.is_quorum(&self.active_nodes)
+  --    && record_store.proposed_block(&*self) == None {
+  --    // .. propose a block on top of the highest QC that we know.
+  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
+  --    // .. force an immediate update to vote on our own proposal.
+  --    actions.should_schedule_update = Some(clock);
+  --  }
+  --  // Enforce sufficiently frequent broadcasts.
+  --  if clock >= latest_broadcast + self.broadcast_interval {
+  --    actions.should_broadcast = true;
+  --    latest_broadcast = clock;
+  --  }
+  -- // If we have not yet, create a timeout after the maximal duration for rounds.
+  -- let deadline = if record_store.has_timeout(local_author, active_round) {
+  --                  NodeTime::never()
+  --                } else {
+  --                  self.active_round_start + self.duration(record_store, active_round)
+  --                };
+  -- if clock >= deadline {
+  --   actions.should_create_timeout = Some(active_round);
+  --   actions.should_broadcast = true;
+  -- }
+  -- // Make sure this update function is run again soon enough.
+  -- actions.should_schedule_update = Some(std::cmp::min(
+  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
+  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
+  -- ));
+  -- actions
+
+       pmFinal      = {!!}
+       actionsFinal = {!!}
+     in ( pmFinal , actionsFinal )
+
+----------------------------- updateNode ------------------------
 
   -- fn update_node(&mut self, clock: NodeTime, smr_context: &mut SMRContext) -> NodeUpdateActions {
-  updateNode : NodeState
+  updateNode : (ns : NodeState)
              → NodeTime
              → SmrContext
-             → NodeState × SmrContext × NodeUpdateActions
-  updateNode self₀ clock smrContext₀ =
+             → AuxValidNodeState ns
+             → Σ ( NodeState × SmrContext × NodeUpdateActions) (λ x → AuxValidNodeState (proj₁ x))
+  updateNode self₀ clock smrContext₀ auxPreNS =
     let
 
   -- let latest_senders = self.read_and_reset_latest_senders();
-         --latestSenders = {!!}
+         latestSenders = []
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
-         pacemakerActions = {!!}
+         pms₀ = nsPaceMaker self₀
+         (pms₁ , pmActs ) = updatePacemaker pms₀
+                                            (nsLocalAuthor self₀)
+                                            (nsRecordStoreState self₀)
+                                            (nsLatestBroadcast self₀)
+                                            latestSenders
+                                            clock
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
          -- Can't keep this organized as in paper, because can't do with & where here
-         (self₁ , actions₀) = processPacemakerActions self₀ pacemakerActions smrContext₀
+         ((self₁ , (smrContext₁ , actions₀)) , auxPrf ) = processPacemakerActions self₀ auxPreNS pmActs smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
@@ -1066,114 +1137,12 @@ module LibraBFT
   -- // Return desired node actions to environment.
   -- actions
 
-         nsFinal = {!!}
-         smrContextFinal = {!!}
+         smrContextFinal = smrContext₀
          actionsFinal = {!!}
 
     in
-      (nsFinal , ( smrContextFinal , actionsFinal ))
+      (self₁ , (smrContextFinal , actionsFinal)) , auxPrf
 
-
-  newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
-  newPMSValue self activeRound clock = record self {
-  --    // .. store the new value
-  --    self.active_round = active_round;
-                    pmsActiveRound = activeRound
-  --    // .. start a timer
-  --    self.active_round_start = clock;
-                  ; pmsActiveRoundStart = clock
-  --    // .. recompute the leader
-  --    self.active_leader = Some(Self::leader(record_store, active_round));
-                  ; pmsActiveLeader = just {!!}
-  --    // .. reset the set of nodes known to have entered this round (useful for leaders).
-  --    self.active_nodes = HashSet::new();
-                  ; pmsActiveNodes = {!!}
-                  }
-  --  }
-
-  updatePMSandPUA : PacemakerState → PacemakerUpdateActions → Round → NodeTime
-     → PacemakerState × PacemakerUpdateActions
-  updatePMSandPUA s a ar cl
-    -- // If the active round was just updated..
-    -- if active_round > self.active_round { // .. store the new value
-     with (ar >? (pmsActiveRound s))
-                              -- // .. notify the leader to be counted as an "active node".
-                              -- actions.should_notify_leader = self.active_leader;
-  ...| yes _ = (newPMSValue s ar cl , record a { puaShouldNotifyLeader = {!!} })
-  ...| no  _ = (s , a)
-
-
-  -- Section 7.10, page 27
-  -- fn update_pacemaker(
-  --     &mut self,
-  --     local_author: Author,
-  --     record_store: &RecordStore,
-  --     mut latest_broadcast: NodeTime,
-  --     latest_senders: Vec<(Author, Round)>,
-  --     clock: NodeTime,
-  -- ) -> PacemakerUpdateActions {
-
-  updatePacemaker : PacemakerState
-                   → Author
-                   → {ec : EpochConfiguration}
-                   → {h : Initial}
-                   → RecordStore ec h
-                   → NodeTime
-                   → LatestSenders
-                   → NodeTime
-                   → PacemakerState × PacemakerUpdateActions
-  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
-
-     let
-  --  // Initialize actions with default values.
-  --  let mut actions = PacemakerUpdateActions::new();
-       actions₀ = PacemakerUpdateActions∷new
-
-  --  // Recompute the active round.
-  --  let active_round = std::cmp::max(record_store.highest_quorum_certificate_round(), record_store.highest_timeout_certificate_round(),) + 1;
-       activeRound = {!!}
-
-       (self₁ , actions₁) = updatePMSandPUA self₀ actions₀ activeRound clock
-
-  --  // Update the set of "active nodes", i.e. received synchronizations at the same active round.
-  --  for (author, round) in latest_senders {
-  --    if round == active_round {
-  --      self.active_nodes.insert(author);
-  --  } }
-  --  // If we are the leader and have seen a quorum of active node..
-  --  if self.active_leader == Some(local_author)
-  --    && record_store.is_quorum(&self.active_nodes)
-  --    && record_store.proposed_block(&*self) == None {
-  --    // .. propose a block on top of the highest QC that we know.
-  --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
-  --    // .. force an immediate update to vote on our own proposal.
-  --    actions.should_schedule_update = Some(clock);
-  --  }
-  --  // Enforce sufficiently frequent broadcasts.
-  --  if clock >= latest_broadcast + self.broadcast_interval {
-  --    actions.should_broadcast = true;
-  --    latest_broadcast = clock;
-  --  }
-  -- // If we have not yet, create a timeout after the maximal duration for rounds.
-  -- let deadline = if record_store.has_timeout(local_author, active_round) {
-  --                  NodeTime::never()
-  --                } else {
-  --                  self.active_round_start + self.duration(record_store, active_round)
-  --                };
-  -- if clock >= deadline {
-  --   actions.should_create_timeout = Some(active_round);
-  --   actions.should_broadcast = true;
-  -- }
-  -- // Make sure this update function is run again soon enough.
-  -- actions.should_schedule_update = Some(std::cmp::min(
-  --    actions.should_schedule_update.unwrap_or(NodeTime::never()),
-  --    std::cmp::min(latest_broadcast + self.broadcast_interval, deadline),
-  -- ));
-  -- actions
-
-       pmFinal      = {!!}
-       actionsFinal = {!!}
-     in ( pmFinal , actionsFinal )
 
 ---------------- Global system state -------------
 
@@ -1241,52 +1210,117 @@ module LibraBFT
   record GlobalSystemState : Set₁ where
     constructor gss
     field
-      gssNodeStates  : Author → NodeState
-      gssSmrContexts : Author → SmrContext -- Not sure if we need more than one
+      gssNodeStates  : Author → Maybe NodeState   -- Nothing for non-existent or unstarted authors
+      gssSmrContexts : Author → SmrContext        -- Some default for non-existent or unstarted authors
       gssMessagePool : MessagePool
 
   open GlobalSystemState
+
+  record AuxGlobalSystemState (gss : GlobalSystemState) : Set₁ where
+    field
+      auxGssValidNodeStates : ∀ (a : Author) → {ns : NodeState} → gssNodeStates gss a ≡ just ns → AuxValidNodeState ns
+
+  open AuxGlobalSystemState
 
   initialGlobalState : GlobalSystemState
   initialGlobalState = {!!}
 ---------- Actions ---------
 
+  processShouldNotifyLeader : Maybe Author → NodeState → MessagePool → MessagePool
+  processShouldNotifyLeader nothing    _  mp = mp
+  processShouldNotifyLeader (just ldr) ns mp = insert {nsLocalAuthor ns} {ldr} mp {!!}   -- TODO: Send DataSyncNotification to leader?
+
+  processShouldBroadcast : Bool → NodeState → MessagePool → MessagePool
+  processShouldBroadcast false _  mp = mp
+  processShouldBroadcast true  ns mp = mp       -- TODO: Send DataSyncNotification to .. whom?  Containing what?
+                                                   -- From p. 19: // Ask that we reshare the proposal. (proposed_block)
+                                                   -- From p. 38  // Access the block proposed by the leader chosen by the Pacemaker (if any).
+
   processNodeUpdateActions : MessagePool → Author → NodeState → NodeUpdateActions → MessagePool
-  processNodeUpdateActions mp₀ a ns (mkNodeUpdateAction ssu snl sb) = {!!}
+  processNodeUpdateActions mp₀ a ns (mkNodeUpdateAction ssu snl sb) =
+    let mp₁ = processShouldNotifyLeader snl ns mp₀
+        mp₂ = processShouldBroadcast    sb  ns mp₁
+    in mp₂
 
 ---------- Actions and reachable states ----------
-  -- Update a function of type A → B on one input, given a decidability instance for A's
-  -- The syntax is slightly ugly, but I couldn't do better in reasonable time
-  -- TODO: Move somewhere more generic
-  _[_:=_,_] : {A : Set} {A₂ : Set₁}
-             (f : A → A₂)
-           → A → A₂
-           → (_xx_ : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂)))
-           → A → A₂
-  _[_:=_,_] {A = A} {A₂ = A₂} f a₁ b _xx_ a₂
-     with a₁ xx a₂
-  ...| yes _ = b
-  ...| no  _ = f a₂
 
-  effUpdateNode : {a : Author} → (preState : GlobalSystemState) → GlobalSystemState
-  effUpdateNode {a} pre =
-    let nss₀  = gssNodeStates pre
-        ns₀   = nss₀ a
-        smrs₀ = gssSmrContexts pre
-        smr₀  = smrs₀ a
-        nt    = 0 -- TODO
-        mp₀   = gssMessagePool pre
-        ( ns₁ , ( smr₁ , nua )) = updateNode ns₀ nt smr₀
-        mp₁   = processNodeUpdateActions mp₀ a ns₁ nua
-        nss₁  =  nss₀ [ a := ns₁  , _≟ℕ_  ]
-        smrs₁ = smrs₀ [ a := smr₁ , _≟ℕ_  ]
-    in gss nss₁ smrs₁ mp₁
+  effUpdateNode′ : Author
+                 → (ns : NodeState)
+                 → AuxValidNodeState ns
+                 → SmrContext
+                 → NodeUpdateActions
+                 → (pre : GlobalSystemState)
+                 → AuxGlobalSystemState pre
+                 → Σ ( GlobalSystemState ) (λ post → AuxGlobalSystemState post)
+  effUpdateNode′ a ns₁ validns₁ smr₁ nua pre auxPre =
+                       let mp₀              = gssMessagePool pre
+                           mp₁              = processNodeUpdateActions mp₀ a ns₁ nua
+                           (nss₁ , nss₁prf) = (gssNodeStates pre)  [ a := (just ns₁)  , _≟ℕ_  ]
+                           (smrs₁ , _)      = (gssSmrContexts pre) [ a := smr₁        , _≟ℕ_  ]
+                           finalGss         = gss nss₁ smrs₁ mp₁
+                           in finalGss ,
+                             record { auxGssValidNodeStates =  λ a′ prf → postNSfor a′ a ns₁ validns₁ pre auxPre finalGss nss₁prf prf }
+                               where postNSfor : (a′ a    : Author)
+                                               → (ns₁     : NodeState)
+                                               → AuxValidNodeState ns₁
+                                               → (pre     : GlobalSystemState)
+                                               → (auxPre  : AuxGlobalSystemState pre)
+                                               → (post    : GlobalSystemState)
+                                               → (nss₁prf : overrideProp (gssNodeStates pre) a (just ns₁) (gssNodeStates post) )
+                                               → {ns      : NodeState}
+                                               → (prf     : gssNodeStates post a′ ≡ just ns)
+                                               → AuxValidNodeState ns
+                                     postNSfor a′ a ns₁ validns₁ pre auxPre post nss₁prf {ns}
+                                       with (gssNodeStates post) a′ | inspect (gssNodeStates post) a′
+                                     ...| nothing  | _ = λ ()
+                                     ...| just ns′ | Reveal[ nsprf ]
 
+                                         -- TODO: consider reordering the two "with"s below; I think it will become simpler
+                                         with a′ ≟ℕ a | nss₁prf a′
+                                           -- The new NodeState we have assigned to a′ (because a′ ≡ a), is valid
+                                     ...|  yes a′≡a | inj₁ xx2 = ⊥-elim ((proj₁ xx2) a′≡a)
+                                     ...|  yes a′≡a | inj₂ xx2 rewrite a′≡a = λ prf → subst AuxValidNodeState
+                                                                                            (just-injective prf)
+                                                                                            (subst AuxValidNodeState
+                                                                                                   (just-injective (trans (sym (proj₂ xx2)) nsprf))
+                                                                                                   validns₁)
+                                           -- If a′ ≢ a, then the auxilirary information about a′s NodeState is the same in the
+                                           -- post state as in the pre state.
+                                     ...|  no  xx | _ with nss₁prf a′
+                                     ...|               inj₂ xx1 = ⊥-elim (xx (proj₁ xx1))
+                                     ...|               inj₁ xx1 = λ prf → ((auxGssValidNodeStates auxPre) a′ {ns})
+                                                                         (trans (trans (sym (proj₂ xx1)) nsprf) prf)
+
+  effUpdateNode : Author
+                → NodeTime
+                → (pre : GlobalSystemState)
+                → AuxGlobalSystemState pre
+                → Σ ( GlobalSystemState ) (λ post → AuxGlobalSystemState post)
+  effUpdateNode a nt pre auxPre
+     with (gssNodeStates pre) a | inspect (gssNodeStates pre) a
+  ...|  nothing   | _             = pre , auxPre
+  ...|  (just ns) | Reveal[ prf ]
+        with updateNode ns nt (gssSmrContexts pre a) (auxGssValidNodeStates auxPre a prf)
+  ...|    (ns₁ , (smr₁ , nua)) , validns₁ = effUpdateNode′ a ns₁ validns₁ smr₁ nua pre auxPre
+
+  -- Question: do we need an AuxGlobalSystemState?  Maybe when we get to liveness?
   data ReachableState : (gss : GlobalSystemState) → Set₁ where
-    rsEmpty      : ReachableState initialGlobalState
-    rsUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {preSmr : SmrContext}
-                 → ReachableState preState
-                 → ReachableState (effUpdateNode {a} preState)
+    rchstEmpty      : ∀ {init : GlobalSystemState} → AuxGlobalSystemState init → ReachableState init
+    rchstUpdateNode : ∀ {a : Author} {nt : NodeTime} {preState : GlobalSystemState} {auxPre : AuxGlobalSystemState preState}
+                    → ReachableState preState
+                    → ReachableState (proj₁ (effUpdateNode a nt preState auxPre))
+    -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
+    -- because state only serves to constrain what messages honest guys send.
+
+  nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
+  nothing≢just = λ ()
+
+  reachableStateProperties : ∀ {gss : GlobalSystemState}
+                           → ReachableState gss
+                           → AuxGlobalSystemState gss
+  reachableStateProperties {gs} (rchstEmpty {init} auxprf) = auxprf
+  reachableStateProperties {gs} (rchstUpdateNode {a} {nt} {pre} {auxPre} rch′) = proj₂ (effUpdateNode a nt pre auxPre)
+
 
 ---------- Properties that depend on algorithm (for honest authors only, of course) --------
 
@@ -1297,8 +1331,14 @@ module LibraBFT
   -- *order* the votes are created in.  Furthermore, it doesn't matter if an honest node *creates*
   -- contradictory votes.  What matters is if it *sends* them somewhere.
 
-  honestVotesConsistent : ∀ {a b : Author}
-                            {m₁ m₂ : Message a b}
+  -- TODO: The following is not quite right yet, because it applies to any EpochConfiguration.  So
+  -- we could make up an EpochConfiguration in which some bad guy appears honest, and this property
+  -- might not hold.  We will need something that ties ec to the epoch in question, which essentially
+  -- says that ec is the "official" EpochConfiguration for that epoch.  This will be a function of
+  -- committed state (platform data in the parlance of our ASAPD in Juno).
+  honestVotesConsistent : ∀ {a : Author}
+                            {ec : EpochConfiguration}
+                            {m₁ m₂ : Message a {!!}}
                             {v₁ v₂ : Vote}
                             {s : GlobalSystemState}
                           → ReachableState s
@@ -1307,10 +1347,7 @@ module LibraBFT
                           → (V v₁) ∈msg m₁
                           → (V v₂) ∈msg m₂
                           → Vote.vEpoch v₁ ≡ Vote.vEpoch v₂
-                          → Vote.vRound v₁ ≡ Vote.vRound v₂
-                          → isHonestP {!!} a  -- TODO: need to get EpochConfiguration in which a is
-                                               -- a voter, matches epochId Raises question of where
-                                               -- EpochConfigurations come from.  NodeState of who's
-                                               -- asking (which is not mentioned yet)
+                          → Vote.vRound v₁   ≡ Vote.vRound v₂
+                          → isHonestP ec a
                           → Vote.vBlockHash v₁ ≡ Vote.vBlockHash v₂
   honestVotesConsistent = {!!}
