@@ -496,14 +496,7 @@ module LibraBFT
     field
       auxRssLemma1-1 : lemma1-1 rss
 
-  data ValidRSS : RecordStoreState → Set₁ where
-    vRSSInit   : ∀ {rs : RecordStoreState}
-               → AuxRecordStoreState rs
-               → ValidRSS rs
-    vRSSInsert : ∀ {r : Record }{rs : RecordStoreState}
-               → ValidRSS rs
-               → Valid r rs
-               → ValidRSS (rssInsert r rs)
+  open AuxRecordStoreState
 
   {-- Needs to come after EpochConfiguration definition
   -- TODO: A valid quorum certificate for an EpochConfiguration ec should consist of:
@@ -792,7 +785,7 @@ module LibraBFT
 
   record AuxValidNodeState (ns : NodeState) : Set₁ where
     field
-      auxNsValidRSS : ValidRSS (nsRecordStoreState ns)
+      auxNsValidRSS : AuxRecordStoreState (nsRecordStoreState ns)
 
 ---------------------- Update Skeleton ----------------
 
@@ -834,21 +827,23 @@ module LibraBFT
         b = mkBlock qch rnd a  -- TODO: other fields
     in ( b , HashR (R (B b)) )
 
-  proposeBlockCond : NodeState
+  proposeBlockCond : (ns : NodeState)
+                   → AuxValidNodeState ns
                    → Maybe QCHash
                    → SmrContext
-                   → NodeState × SmrContext
-  proposeBlockCond ns nothing smr = ns , smr
-  proposeBlockCond ns (just qch) smr =
+                   → Σ ( NodeState × SmrContext ) ( λ x → AuxValidNodeState (proj₁ x) )
+  proposeBlockCond ns₀ auxValidNS nothing smr = ((ns₀ , smr) , auxValidNS)
+  proposeBlockCond ns₀ auxValidNS (just qch) smr =
     let (blk , blkHash) = proposeBlock
-                            ns
-                            (nsLocalAuthor ns)
+                            ns₀
+                            (nsLocalAuthor ns₀)
                             qch
-                            (nsLatestBroadcast ns)
+                            (nsLatestBroadcast ns₀)
                             smr
-        rss = nsRecordStoreState ns
-    in record ns {nsRecordStoreState = rssInsert (B blk) rss }
-       , smr
+        rss = nsRecordStoreState ns₀
+        ns₁ = record ns₀ {nsRecordStoreState = rssInsert (B blk) rss }
+        auxNSValid = {!!}
+    in ((ns₁ , smr) , auxNSValid)
 
 {-
   createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
@@ -867,11 +862,13 @@ module LibraBFT
   --                               smr_context: &mut SMRContext,
   --                             ) -> NodeUpdateActions {
   processPacemakerActions :
-      NodeState
-    → PacemakerUpdateActions
+      (ns : NodeState)
+    → AuxValidNodeState ns
+    → (pma : PacemakerUpdateActions)
+{-  → AuxValidPacemakerUpdateActions pma ns  -- TODO define and pass -}
     → SmrContext
-    → NodeState × SmrContext × NodeUpdateActions
-  processPacemakerActions self₀ pacemakerActions smrContext₀ =
+    → Σ ( NodeState × SmrContext × NodeUpdateActions ) ( λ x → AuxValidNodeState (proj₁ x) )
+  processPacemakerActions self₀ auxPreValid pacemakerActions {- auxPMAValid -} smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
       actions = record NodeUpdateActions∷new {
@@ -901,7 +898,7 @@ module LibraBFT
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
-      (self₂ , smrContext₁) = proposeBlockCond self₁ previousQCHashMB smrContext₀
+      ((self₂ , smrContext₁) , postValidNS) = proposeBlockCond self₁ auxPreValid previousQCHashMB smrContext₀
 
 
 
@@ -909,7 +906,7 @@ module LibraBFT
   -- actions
   -- } }
 
-    in {!!}
+    in  (self₂ , (smrContext₁ , actions)) ,  postValidNS  -- TODO: Actions not updated yet
 
   newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
   newPMSValue self activeRound clock = record self {
@@ -1034,7 +1031,7 @@ module LibraBFT
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
          -- Can't keep this organized as in paper, because can't do with & where here
-         (self₁ , actions₀) = processPacemakerActions self₀ pmActs smrContext₀
+         ((self₁ , (smrContext₁ , actions₀)) , auxPrf ) = processPacemakerActions self₀ auxPreNS pmActs smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
@@ -1085,12 +1082,11 @@ module LibraBFT
   -- // Return desired node actions to environment.
   -- actions
 
-         nsFinal = self₀  -- IMPORTANT TODO: this is for experimentation ONLY, sends back WRONG state!
          smrContextFinal = smrContext₀
          actionsFinal = {!!}
 
     in
-      ((nsFinal , (smrContextFinal , actionsFinal)) , {!!} )
+      (self₁ , (smrContextFinal , actionsFinal)) , auxPrf
 
 
 ---------------- Global system state -------------
