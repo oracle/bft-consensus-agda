@@ -100,13 +100,13 @@ module LibraBFT
      in f′ ,  (λ a₂ → selectPrf f a b a₂)
 
      where selectVal : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → B
-           selectVal f a b a₂ with a ≟xx a₂
-           ...| yes refl = b
-           ...| no  _    = f a₂
+           selectVal f a b a₂ with a₂ ≟xx a
+           ...| yes _ = b
+           ...| no  _ = f a₂
            selectPrf : (f : A → B) → (a : A) → (b : B) → (a₂ : A) → overrideOK f a b a₂ (λ a₃ → selectVal f a b a₃)
-           selectPrf f a b a₂ with a ≟xx a₂ | inspect (a ≟xx_) a₂
-           ...| yes refl | Reveal[ x ] rewrite x = inj₂ (refl , refl)
-           ...| no  xx   | Reveal[ x ] rewrite x = inj₁ ( (λ x₁ → xx (sym x₁)) , refl)
+           selectPrf f a b a₂ with a₂ ≟xx a
+           ...| yes refl = inj₂ ⟨ refl , refl ⟩
+           ...| no  a₂≢a = inj₁ ⟨ a₂≢a , refl ⟩
 
   _[_:=_,_] : {ℓ₁ ℓ₂ : Level.Level} {A : Set ℓ₁} {B : Set ℓ₂}
              (f : A → B)
@@ -119,7 +119,7 @@ module LibraBFT
   HashMap : Set → Set → Set
   HashMap K V = K → Maybe V
 
-  emptyHM : {K : Set} → {V : Set} → HashMap K V
+  emptyHM : ∀ {K V : Set} → HashMap K V
   emptyHM {K} {V} k = nothing
 
 ---------------------- Epoch Configuration  ---------------------
@@ -299,7 +299,6 @@ module LibraBFT
   open Timeout
 
   data Record : Set where
-  -- TODO: data Record (ec : EpochConfiguration) : Set where
     B : Block   → Record
     Q : QC      → Record
     V : Vote    → Record
@@ -348,6 +347,7 @@ module LibraBFT
   ...|   yes refl = yes refl
   ...|   no  xx1 = no (xx1 ∘ (cong seed))
 
+  --TODO : Delete this function
   round : Record → Round
   round (B b) = Block.bRound b
   round (Q q) = QC.qRound q
@@ -444,11 +444,11 @@ module LibraBFT
     }
 
 ----------------------------------------------------------------
-
   _∈QC_ : Vote → QC → Set
-  v ∈QC q = {!!}
+  v ∈QC q = v ∈ qVotes q
 
-  _∈Rs′_ : ∀ (r : Record) → RecordStoreState → Set
+  -- I would colapse this 2 defintions into one
+  _∈Rs′_ : Record → RecordStoreState → Set
   (B b) ∈Rs′ rss = ∃[ h ](rssBlocks          rss h ≡ just b)
   (Q q) ∈Rs′ rss = ∃[ h ](rssQCs             rss h ≡ just q)
   (V v) ∈Rs′ rss = ∃[ a ](rssCurrentVotes    rss a ≡ just v)
@@ -460,51 +460,44 @@ module LibraBFT
   (V v) ∈Rs rss = (V v) ∈Rs′ rss ⊎ ∃[ q ] ((Q q) ∈Rs′ rss × v ∈QC q )
   (T t) ∈Rs rss = (T t) ∈Rs′ rss
 
-  emptyIsEmpty : ∀ (r : Record) (eid : EpochId) (ec : EpochConfiguration) (i : Initial) → ¬ (r ∈Rs emptyRSS eid ec i)
-  emptyIsEmpty (B b) eid ec i ⟨ _ , () ⟩
-  emptyIsEmpty (Q q) eid ec i ⟨ _ , () ⟩
-  emptyIsEmpty (V v) eid ec i (inj₁ ⟨ _ , () ⟩)
-  emptyIsEmpty (V v) eid ec i (inj₂ ⟨ _ , (⟨ _ , () ⟩ , _) ⟩ )
-  emptyIsEmpty (T t) eid ec i ⟨ _ , () ⟩
+
+  emptyIsEmpty : ∀ {eid ec i} (r : Record) → ¬ (r ∈Rs emptyRSS eid ec i)
+  emptyIsEmpty (B b) ⟨ _ , () ⟩
+  emptyIsEmpty (Q q) ⟨ _ , () ⟩
+  emptyIsEmpty (V v) (inj₁ ⟨ _ , () ⟩)
+  emptyIsEmpty (V v) (inj₂ ⟨ _ , (⟨ _ , () ⟩ , _) ⟩ )
+  emptyIsEmpty (T t) ⟨ _ , () ⟩
+{-
+  -- Simpler
+  emptyIsEmpty : ∀ {eid ec i} (r : Record) → ¬ (r ∈Rs emptyRSS eid ec i)
+  emptyIsEmpty (V x₁) (inj₁ ())
+  emptyIsEmpty (V x₁) (inj₂ ())
+-}
 
   -- These simply insert records into the RecordStoreState; it says nothing about Valid conditions, which is reserved for
   -- inserting into an AuxRecordStoreState that maintains invariants about the contents of the RecordStoreState.
   rssInsert : Record → RecordStoreState → RecordStoreState
   rssInsert (B b) rs = record rs { rssBlocks          = proj₁ ((rssBlocks rs)          [ (HashR (R (B b))) := (just b) , _≟Hash_ ]) }
   rssInsert (Q q) rs = record rs { rssQCs             = proj₁ ((rssQCs rs)             [ (HashR (R (Q q))) := (just q) , _≟Hash_ ]) }
-  rssInsert (V v) rs = record rs { rssCurrentVotes    = proj₁ ((rssCurrentVotes rs)    [ (Vote.vAuthor v)   := (just v) , _≟ℕ_    ]) }
+  rssInsert (V v) rs = record rs { rssCurrentVotes    = proj₁ ((rssCurrentVotes rs)    [ (Vote.vAuthor v)  := (just v) , _≟ℕ_    ]) }
   rssInsert (T t) rs = record rs { rssCurrentTimeouts = proj₁ ((rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ]) }
+                                                                                        -- Why is the Author the key for the Timeout
 
   memberAfterInsert : ∀ {b : Block} {rss : RecordStoreState}
                     → (B b) ∈Rs (rssInsert (B b) rss)
-  memberAfterInsert {b} {rss} = ⟨ HashR (R (B b)) , prf b rss ⟩
+  memberAfterInsert {b} {rss} = ⟨ (HashR (R (B b))) , prf b rss ⟩ --⟨ HashR (R (B b)) , prf b rss ⟩
      where prf : ∀ (b0 : Block)
                → (rss0 : RecordStoreState)
                → rssBlocks (rssInsert (B b0) rss0) (HashR (R (B b0))) ≡ just b0
            prf b0 rss0 with (HashR (R (B b0))) ≟Hash (HashR (R (B b0)))
-           ...|          yes xx rewrite xx = refl
+           ...|          yes _  = refl
            ...|          no  xx = ⊥-elim (xx refl)
 
   data Valid : Record → RecordStoreState → Set
 
-  _dependsOnBlock_wrt_   : ∀ Record → Block → RecordStoreState → Set
-  r dependsOnBlock b wrt rs = Valid (B b) rs × R (B b) ← r × round (B b) ≡ round r
-
-  _dependsOnQC_wrt_      : ∀ Record → QC → RecordStoreState → Set
-  r dependsOnQC q wrt rs = Valid (Q q) rs × R (Q q) ← r × round (Q q) < round r
-
-  _dependsOnInitial_ : Record → Initial → Set
-  r dependsOnInitial i = (I i) ← r × 1 ≤ round r
-
-{-
-  -- TODO: Validate records wrt epoch configuration
-  ValidBlock : ∀ {ec} {sᵢ} → Block → RecordStore ec sᵢ → Set
-  ValidBlock {ec} {sᵢ} b rs = ∃[ q ] ( q ∈Rs rs × Valid q rs × R q ← B b × round q < bRound b )
-                              ⊎
-                              I sᵢ ← B b × 1 ≤ bRound b
 
   _validVoteInQC_ : Vote → QC → Set
-  v validVoteInQC qc = (vEpoch v ≡ qEpoch qc) × (vBlockHash v ≡ qBlockHash qc) × (vRound v ≡ qRound qc) --× (vState v ≡ qState qc) -- × signature valid
+  v validVoteInQC qc = (vEpoch v ≡ qEpoch qc) × (vBlockHash v ≡ qBlockHash qc) × (vRound v ≡ qRound qc) --× (vState v ≡ qState qc)
 
 
   _distinctElemsIn_ : {A : Set} → ℕ → List A → Set
@@ -513,36 +506,34 @@ module LibraBFT
 
   validQC_wrt_ : QC → EpochConfiguration → Set
   validQC q wrt ec = (qSize ec) distinctElemsIn (qVotes q)
-                   × All (_validVoteInQC q) (qVotes q)
                    × All (λ x → isVoter ec (vAuthor x) ≡ true) (qVotes q)
                      -- × Valid Signature
 
+  --TODO : Validate signatures
+  ValidBlock : Block → RecordStoreState → Set
+  ValidBlock b rss = ∃[ q ] ( Q q ∈Rs rss × Valid (Q q) rss × R (Q q) ← B b × qRound q < bRound b )
+                     ⊎
+                     I (rssInitial rss) ← B b × 1 ≤ bRound b
+
   -- TODO : Validate all Votes in a QC
-  ValidQC : ∀ {ec} {sᵢ} → QC → RecordStore ec sᵢ → Set
-  ValidQC {ec} q rs = ∃[ b ] ( b ∈Rs rs × Valid b rs × R b ← Q q × round b ≡ qRound q × validQC q wrt ec )
+  ValidQC : QC → RecordStoreState → Set
+  ValidQC q rss = ∃[ b ] ( (B b) ∈Rs rss × Valid (B b) rss × R (B b) ← Q q × bRound b ≡ qRound q )
+                  × All (_validVoteInQC q) (qVotes q)
+                  × validQC q wrt (rssConfiguration rss)
+
+  ValidVote : Vote → RecordStoreState → Set
+  ValidVote v rss = ∃[ q ] ( Q q ∈Rs rss × Valid (Q q) rss × v ∈ qVotes q )
 
 
-  -- Conditions required to add a Record to a RecordStore (which contained "previously verified"
-  -- records, in the parlance of the LibraBFT paper.  Some properties do not depend on any
-  -- particular RecordStore and their proofs can ignore the RecordStore, other than passing it to
-  -- recursive invocations.
-
-  data Valid {ec} {sᵢ} where
-    ValidB : ∀ {b : Block} {rs : RecordStore ec sᵢ} → ValidBlock b rs → Valid (B b) rs
-    ValidQ : ∀ {q : QC}    {rs : RecordStore ec sᵢ} → ValidQC    q rs → Valid (Q q) rs
-    --ValidV : ∀ {v : Vote    ec} {rs : RecordStore ec sᵢ} → ValidVote  v rs → Valid (V v) rs
-    --ValidT : ∀ {t : Timeout ec} {rs : RecordStore ec sᵢ}                   → Valid (T t) rs
-
--}
   -- Conditions required to add a Record to a RecordStoreState (which contains "previously verified"
   -- records, in the parlance of the LibraBFT paper).  Some properties do not depend on any
   -- particular RecordStoreState and their proofs can ignore the RecordStoreState, other than passing it to
   -- recursive invocations.
   data Valid where
-    B : ∀ (b : Block)   (rs : RecordStoreState) → (∃[ q ] ((Q q) ∈Rs rs × (B b) dependsOnQC q wrt rs)) ⊎ (B b) dependsOnInitial (rssInitial rs) → Valid (B b) rs
-    Q : ∀ (q : QC)      (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                                       → Valid (Q q) rs
-    V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
-    T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
+    ValidB : ∀ {b : Block} {rss : RecordStoreState} → ValidBlock b rss → Valid (B b) rss
+    ValidQ : ∀ {q : QC}    {rss : RecordStoreState} → ValidQC    q rss → Valid (Q q) rss
+    ValidV : ∀ {v : Vote}  {rss : RecordStoreState} → ValidVote  v rss → Valid (V v) rss
+    --T : ∀ (t : Timeout) (rss : RecordStoreState)                     → Valid (T t) rss -- They are excluded from lemma s1
 
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
@@ -595,6 +586,11 @@ module LibraBFT
              = inj₁ (encodeR-inj b₀≡b₁)
 
   -- 3
+  v∈q⇒b←v : ∀ {r q v}
+            → R r ← (Q q)
+            → vBlockHash v ≡ qBlockHash q
+            → R r ← V v
+  v∈q⇒b←v (B←Q refl) refl = B←V refl
 
   -- Aux Lemma
   -- This property does not depend on any particular RecordStore, and referring
@@ -604,24 +600,73 @@ module LibraBFT
   r₀←⋆r₁→rr₀≤rr₁ : {r₀ r₁ : Record}{doNotUse : RecordStoreState}
                  → R r₀ ←⋆ r₁
                  → Valid r₁ doNotUse
-                 → HashBroke ⊎ round r₀ ≤ round r₁
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = B b} (ss0 (Q←B x)) v₁
-     with v₁
-  ...| B blk _ prf
-       with prf
-  ...|   inj₁ xx = {!!}  -- Block b depends directly on QC
-  ...|   inj₂ xx = {!!}  -- Block b depends directly on Initial
+                 → round r₀ ≤ round r₁ ⊎ HashBroke
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
+     with prf
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+      with ←inj r₀←b q←b
+  ...   | inj₁ refl      = inj₁ (<⇒≤ rq<rb)
+  ...   | inj₂ hashbroke = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
+      | inj₂ ⟨ i←b , 1≤rb ⟩
+      with ←inj i←b r₀←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ {r₁ = Q q} (ss0 r₀←r₁) v₁
-       with v₁
-  ...| Q qc _ prf
-       with prf
-  ...|   dob = {!!}      -- QC q depends directly on Block
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←q) (ValidQ prf)
+    with prf
+  ... |   ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , _ ⟩
+      with ←inj r₀←q b←q
+  ...   | inj₁ refl            = inj₁ ≤-refl
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₁ doqc)) = {!!}
-  r₀←⋆r₁→rr₀≤rr₁ {sᵢ} {r₁ = B b} (ssr {r} r₀←⋆r r←r₁) (B b rs (inj₂ doi))  = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←v) (ValidV prf)
+    with prf
+  ... | ⟨ q , ⟨ q∈rs , ⟨ vQ , v∈q ⟩ ⟩ ⟩
+      with vQ
+  ...   | ValidQ ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , ⟨ validVotes , _ ⟩ ⟩
+        with witness v∈q validVotes
+  ...     | ⟨ _ , ⟨ hq≡hv , refl ⟩ ⟩
+         with ←inj r₀←v (v∈q⇒b←v b←q hq≡hv)
+  ...      | inj₁ refl      = inj₁ ≤-refl
+  ...      | inj₂ hashbroke = inj₂ hashbroke
 
-  r₀←⋆r₁→rr₀≤rr₁      {r₁ = Q q} (ssr r₀←⋆r r←r₁) v₁ = {!!}
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
+    with prf
+  ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
+      with ←inj r←b q←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
+  ...   | inj₁ refl
+        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vQ
+  ...     | inj₁ rr₀≤rq    = inj₁ (≤-trans rr₀≤rq (<⇒≤ rq<rb))
+  ...     | inj₂ hashbroke = inj₂ hashbroke
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←b) (ValidB prf)
+      | inj₂ ⟨ i←b , 1≤rb ⟩
+      with ←inj i←b r←b
+  ...   | inj₂ hashbroke = inj₂ hashbroke
+
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←q) (ValidQ prf)
+    with prf
+  ... |  ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , _ ⟩
+      with ←inj r←q b←q
+  ...   | inj₂ hashbroke       = inj₂ hashbroke
+  ...   | inj₁ refl
+        with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vB
+  ...     | inj₁ rr₀≤rq    = inj₁ rr₀≤rq
+  ...     | inj₂ hashbroke = inj₂ hashbroke
+
+  r₀←⋆r₁→rr₀≤rr₁ (ssr r₀←⋆r r←v) (ValidV prf)
+    with prf
+  ... | ⟨ q , ⟨ q∈rs , ⟨ vQ , v∈q ⟩ ⟩ ⟩
+      with vQ
+  ...   | ValidQ ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , ⟨ validVotes , _ ⟩ ⟩
+        with witness v∈q validVotes
+  ...     | ⟨ _ , ⟨ hq≡hv , refl ⟩ ⟩
+         with ←inj r←v (v∈q⇒b←v b←q hq≡hv)
+  ...      | inj₂ hashbroke = inj₂ hashbroke
+  ...      | inj₁ refl
+           with  r₀←⋆r₁→rr₀≤rr₁ r₀←⋆r vB
+  ...        | inj₁ rr₀≤rq    = inj₁ rr₀≤rq
+  ...        | inj₂ hashbroke = inj₂ hashbroke
 
   -- Lemma 1, part 3
   -- This property does not depend on any particular RecordStore, and referring
@@ -636,8 +681,6 @@ module LibraBFT
                  → Valid r₂ doNotUse
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
-  round-mono = {!!}
-  {-
   round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)        _ _ _ rr₀<rr₁
     with ←inj r₀←r₂ r₁←r₂
   ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
@@ -670,13 +713,22 @@ module LibraBFT
   ...    | inj₂ hashbroke                   = inj₂ hashbroke
 
   round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ _ rr₀<rr₁
-      | ValidQ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , _ ⟩ ⟩ ⟩ ⟩
+      | ValidQ  ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , _ ⟩
       with ←inj r←r₂ r′←r₂ | ←inj r←r₂ b←q
   ...    | inj₂ hashbroke  |  _             = inj₂ hashbroke
   ...    | inj₁ _          | inj₂ hashbroke = inj₂ hashbroke
   ...    | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
 
-  -}
+  round-mono (ssr r₀←⋆r r←r₂) (ssr r₁←⋆r′ r′←r₂) v₀ v₁ v₂ rr₀<rr₁
+      | ValidV ⟨ q , ⟨ q∈rs , ⟨ vQ , v∈q ⟩ ⟩ ⟩
+      with vQ
+  ...    | ValidQ ⟨ ⟨ b , ⟨ b∈rs , ⟨ vB , ⟨ b←q , refl ⟩ ⟩ ⟩ ⟩ , ⟨ validVotes , _ ⟩ ⟩
+         with witness v∈q validVotes
+  ...      | ⟨ _ , ⟨ hq≡hv , refl ⟩ ⟩
+           with ←inj r←r₂ r′←r₂ | ←inj r←r₂ (v∈q⇒b←v b←q hq≡hv)
+  ...         | inj₂ hashbroke  |  _             = inj₂ hashbroke
+  ...         | inj₁ _          | inj₂ hashbroke = inj₂ hashbroke
+  ...         | inj₁ refl       | inj₁ refl      = round-mono r₀←⋆r r₁←⋆r′ v₀ v₁ vB rr₀<rr₁
 
 -------------------- Lemma S1, part 1 --------------------
 
