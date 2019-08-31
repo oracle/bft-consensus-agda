@@ -123,6 +123,11 @@ module LibraBFT
   emptyHM : {K : Set} → {V : Set} → HashMap K V
   emptyHM {K} {V} k = nothing
 
+---------------------- Move somewhere more generic --------------
+
+  nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
+  nothing≢just = λ ()
+
 ---------------------- Epoch Configuration  ---------------------
 
   -- TODO: Move to more generic location
@@ -409,7 +414,7 @@ module LibraBFT
       -- rssInitiaState   : State
     ; rssBlocks               = emptyHM
     ; rssQCs                  = emptyHM
-    ; rssRoundToQChash        = emptyHM
+    ; rssRoundToQChash        = proj₁ (emptyHM [ 0 := just (HashR (I init)) , _≟ℕ_ ])
     ; rssCurrentProposedBlock = nothing
     ; rssHighestQCRound       = 0
       -- rssHighestTCRound    = 0
@@ -486,15 +491,25 @@ module LibraBFT
     V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
     T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
 
+  data _∈RsHash_ (h : Hash) (rss : RecordStoreState) : Set where
+    B : ∃[ b ] (HashR (R (B b)) ≡ h × (B b) ∈Rs rss ) → h ∈RsHash rss
+    Q : ∃[ q ] (HashR (R (Q q)) ≡ h × (Q q) ∈Rs rss ) → h ∈RsHash rss
+
+------------------------ RecordStoreState propereties --------------------
+
   lemma1-1 : RecordStoreState → Set
   lemma1-1 rss = ∀ {r : Record} {isCR : isChainableRecord r}
                → r ∈Rs rss
                → (I (rssInitial rss)) ←⋆ r
 
+  highestQCHashExists : RecordStoreState → Set
+  highestQCHashExists rss = ∃[ q ] (q ∈RsHash rss × rssRoundToQChash rss (rssHighestQCRound rss) ≡ just q)
+
   -- Given a RecordStoreState, auxiliary properties about it
   record AuxRecordStoreState (rss : RecordStoreState) : Set₁ where
     field
       auxRssLemma1-1 : lemma1-1 rss
+      auxRss∃QCHash  : highestQCHashExists rss
 
   open AuxRecordStoreState
 
@@ -787,6 +802,8 @@ module LibraBFT
     field
       auxNsValidRSS : AuxRecordStoreState (nsRecordStoreState ns)
 
+  open AuxValidNodeState
+
 ---------------------- Update Skeleton ----------------
 
   record NodeUpdateActions : Set where
@@ -818,6 +835,17 @@ module LibraBFT
     mkPacemakerUpdateActions
       nothing nothing nothing false nothing
 
+  data AuxValidPacemakerUpdateActions (pma : PacemakerUpdateActions) (rss : RecordStoreState ) : Set where
+    auxValidPMSBlockInRS : ∀ {qch : QCHash}
+                           → puaShouldProposeBlock pma ≡ just qch
+                           → qch ∈RsHash rss
+                           → AuxValidPacemakerUpdateActions pma rss
+
+  data AuxProposeBlockCondQCH (rss : RecordStoreState ) (qchMB : Maybe QCHash) : Set where
+    auxProposeBlockQCHOK : ∀ {qch : QCHash} → qchMB ≡ just qch → qch ∈RsHash rss → AuxProposeBlockCondQCH rss qchMB
+
+  open AuxValidPacemakerUpdateActions
+
 ---------------------- Libra BFT Algorithm components ---------------
 
   proposeBlock : NodeState → Author → QCHash → NodeTime → SmrContext → Block × BlockHash  -- TODO : properties
@@ -829,21 +857,26 @@ module LibraBFT
 
   proposeBlockCond : (ns : NodeState)
                    → AuxValidNodeState ns
-                   → Maybe QCHash
+                   → (qchMB : Maybe QCHash)
+                   → AuxProposeBlockCondQCH (nsRecordStoreState ns) qchMB
                    → SmrContext
                    → Σ ( NodeState × SmrContext ) ( λ x → AuxValidNodeState (proj₁ x) )
-  proposeBlockCond ns₀ auxValidNS nothing smr = ((ns₀ , smr) , auxValidNS)
-  proposeBlockCond ns₀ auxValidNS (just qch) smr =
+  proposeBlockCond ns₀ auxValidNS₀ nothing _ smr = ((ns₀ , smr) , auxValidNS₀)
+  proposeBlockCond ns₀ auxValidNS₀ (just qch) (auxProposeBlockQCHOK refl q∈r) smr =
     let (blk , blkHash) = proposeBlock
                             ns₀
                             (nsLocalAuthor ns₀)
                             qch
                             (nsLatestBroadcast ns₀)
                             smr
-        rss = nsRecordStoreState ns₀
-        ns₁ = record ns₀ {nsRecordStoreState = rssInsert (B blk) rss }
-        auxNSValid = {!!}
-    in ((ns₁ , smr) , auxNSValid)
+        rss₀ = nsRecordStoreState ns₀
+        rss₁ = rssInsert (B blk) rss₀
+        ns₁ = record ns₀ {nsRecordStoreState = rss₁}
+        auxRSSValid₁ : AuxRecordStoreState (nsRecordStoreState ns₁)
+        auxRSSValid₁ = record { auxRssLemma1-1 = {! auxRssLemma1-1 {rss₀} (auxNsValidRSS auxValidNS₀) !}  -- TODO: Have ind hyp, prove holds after insertion
+                              ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀} (auxNsValidRSS auxValidNS₀) !}   -- DITTO
+                              }
+    in ((ns₁ , smr) , {!!}) -- auxNSValid₁)
 
 {-
   createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
@@ -857,18 +890,33 @@ module LibraBFT
   createTimeoutCond ns nothing  _   = ns
   createTimeoutCond ns (just r) smr = record ns { nsRecordStoreState = createTimeout (nsRecordStoreState ns) (nsLocalAuthor ns) r smr }
 -}
+
+  -- TODO: figure out idiomatic way to extract value from maybe given a proof it is just something.
+  -- If nothing else, this could be refactored to mark it more generic so it can be used in other similar cases.
+  extractQch : (qchMB : Maybe QCHash)
+             → {pma : PacemakerUpdateActions}
+             → puaShouldProposeBlock pma ≡ qchMB
+             → {ns : NodeState}
+               → AuxValidPacemakerUpdateActions pma (nsRecordStoreState ns)
+             → AuxProposeBlockCondQCH (nsRecordStoreState ns) qchMB
+  extractQch nothing    refl (auxValidPMSBlockInRS xx _) = ⊥-elim (nothing≢just xx)
+  extractQch (just qch) refl {ns = ns} (auxValidPMSBlockInRS xx yy) =
+                                        auxProposeBlockQCHOK {nsRecordStoreState ns} {just qch} {qch} refl
+                                                             (subst (_∈RsHash (nsRecordStoreState ns)) (sym (just-injective xx)) yy)
+
   -- fn process_pacemaker_actions( &mut self,
   --                               pacemaker_actions: PacemakerUpdateActions,
   --                               smr_context: &mut SMRContext,
   --                             ) -> NodeUpdateActions {
+
   processPacemakerActions :
       (ns : NodeState)
     → AuxValidNodeState ns
     → (pma : PacemakerUpdateActions)
-{-  → AuxValidPacemakerUpdateActions pma ns  -- TODO define and pass -}
+    → AuxValidPacemakerUpdateActions pma (nsRecordStoreState ns)
     → SmrContext
     → Σ ( NodeState × SmrContext × NodeUpdateActions ) ( λ x → AuxValidNodeState (proj₁ x) )
-  processPacemakerActions self₀ auxPreValid pacemakerActions {- auxPMAValid -} smrContext₀ =
+  processPacemakerActions self₀ auxPreValid pacemakerActions auxPMAValid smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
       actions = record NodeUpdateActions∷new {
@@ -888,17 +936,20 @@ module LibraBFT
       self₁ = self₀ -- TODO createTimeoutCond self₀ round smrContext₀
 
   -- if let Some(previous_qc_hash) = pacemaker_actions.should_propose_block {
+      prevQCHashMB = puaShouldProposeBlock pacemakerActions
+
+      auxPrevQCHprf = extractQch prevQCHashMB {pacemakerActions} refl {self₁} auxPMAValid
+
   --   self.record_store.propose_block(
   --       self.local_author,
   --       previous_qc_hash,
   --       self.latest_broadcast,
   --       smr_context,
   --   );
-      previousQCHashMB = puaShouldProposeBlock pacemakerActions
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
-      ((self₂ , smrContext₁) , postValidNS) = proposeBlockCond self₁ auxPreValid previousQCHashMB smrContext₀
+      ((self₂ , smrContext₁) , postValidNS) = proposeBlockCond self₁ auxPreValid prevQCHashMB auxPrevQCHprf smrContext₀
 
 
 
@@ -906,7 +957,7 @@ module LibraBFT
   -- actions
   -- } }
 
-    in  (self₂ , (smrContext₁ , actions)) ,  postValidNS  -- TODO: Actions not updated yet
+    in (self₂ , (smrContext₁ , actions)) ,  postValidNS  -- TODO: Actions not updated yet
 
   newPMSValue : PacemakerState → Round → NodeTime → PacemakerState
   newPMSValue self activeRound clock = record self {
@@ -948,12 +999,13 @@ module LibraBFT
 
   updatePacemaker : PacemakerState
                   → Author
-                  → RecordStoreState
+                  → (rss : RecordStoreState)
                   → NodeTime
                   → LatestSenders
                   → NodeTime
-                  → PacemakerState × PacemakerUpdateActions
-  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock =
+                  → AuxRecordStoreState rss
+                  → Σ ( PacemakerState × PacemakerUpdateActions ) (λ x → AuxValidPacemakerUpdateActions (proj₂ x) rss)
+  updatePacemaker self₀ localAuthor recordStore latestBroadcast₀ latestSenders clock auxPreRSS =
 
      let
   --  // Initialize actions with default values.
@@ -977,6 +1029,11 @@ module LibraBFT
   --    && record_store.proposed_block(&*self) == None {
   --    // .. propose a block on top of the highest QC that we know.
   --    actions.should_propose_block = Some(record_store.highest_quorum_certificate_hash().clone());
+
+       ( highQCH , highQCHprf )   = auxRss∃QCHash auxPreRSS
+       actions₂    = record actions₁ { puaShouldProposeBlock = just highQCH }  -- TODO: this is unconditional for now, does not reflect algorithm
+       auxValidPUA = auxValidPMSBlockInRS {actions₂} {recordStore} {proj₁ (auxRss∃QCHash auxPreRSS)} refl (proj₁ highQCHprf)
+
   --    // .. force an immediate update to vote on our own proposal.
   --    actions.should_schedule_update = Some(clock);
   --  }
@@ -1003,8 +1060,8 @@ module LibraBFT
   -- actions
 
        pmFinal      = {!!}
-       actionsFinal = {!!}
-     in ( pmFinal , actionsFinal )
+       actionsFinal = actions₂
+     in (( pmFinal , actionsFinal ) , auxValidPUA)
 
 ----------------------------- updateNode ------------------------
 
@@ -1022,16 +1079,17 @@ module LibraBFT
 
   -- let pacemaker_actions = self.pacemaker.update_pacemaker( self.local_author, &self.record_store, self.latest_broadcast, latest_senders, clock,);
          pms₀ = nsPaceMaker self₀
-         (pms₁ , pmActs ) = updatePacemaker pms₀
+         ((pms₁ , pmActs ) , auxPMSOK) = updatePacemaker pms₀
                                             (nsLocalAuthor self₀)
                                             (nsRecordStoreState self₀)
                                             (nsLatestBroadcast self₀)
                                             latestSenders
                                             clock
+                                            (auxNsValidRSS auxPreNS)
 
 -- let mut actions = self.process_pacemaker_actions(pacemaker_actions, smr_context);
          -- Can't keep this organized as in paper, because can't do with & where here
-         ((self₁ , (smrContext₁ , actions₀)) , auxPrf ) = processPacemakerActions self₀ auxPreNS pmActs smrContext₀
+         ((self₁ , (smrContext₁ , actions₀)) , auxPrf) = processPacemakerActions self₀ auxPreNS pmActs auxPMSOK smrContext₀
 
 -- // Update locked round.
   -- self.locked_round = std::cmp::max(self.locked_round, self.record_store.highest_2chain_head_round());
@@ -1256,9 +1314,6 @@ module LibraBFT
                     → ReachableState (proj₁ (effUpdateNode a nt preState auxPre))
     -- TODO: Allow bad guys to send whatever messages they want.  No need to model their state,
     -- because state only serves to constrain what messages honest guys send.
-
-  nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
-  nothing≢just = λ ()
 
   reachableStateProperties : ∀ {gss : GlobalSystemState}
                            → ReachableState gss
