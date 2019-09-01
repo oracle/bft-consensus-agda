@@ -445,6 +445,11 @@ module LibraBFT
   (V v) ∈Rs rss = (V v) ∈Rs′ rss ⊎ ∃[ q ] ((Q q) ∈Rs′ rss × v ∈QC q )
   (T t) ∈Rs rss = (T t) ∈Rs′ rss
 
+  data _∈RsHash_ (h : Hash) (rss : RecordStoreState) : Set where
+    I :         HashR (I (rssInitial rss)) ≡ h        → h ∈RsHash rss
+    B : ∃[ b ] (HashR (R (B b)) ≡ h × (B b) ∈Rs rss ) → h ∈RsHash rss
+    Q : ∃[ q ] (HashR (R (Q q)) ≡ h × (Q q) ∈Rs rss ) → h ∈RsHash rss
+
   emptyIsEmpty : ∀ (r : Record) (eid : EpochId) (ec : EpochConfiguration) (i : Initial) → ¬ (r ∈Rs emptyRSS eid ec i)
   emptyIsEmpty (B b) eid ec i ⟨ _ , () ⟩
   emptyIsEmpty (Q q) eid ec i ⟨ _ , () ⟩
@@ -490,11 +495,6 @@ module LibraBFT
     Q : ∀ (q : QC)      (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (Q q) dependsOnBlock b wrt rs))                                       → Valid (Q q) rs
     V : ∀ (v : Vote)    (rs : RecordStoreState) → (∃[ b ] ((B b) ∈Rs rs × (V v) dependsOnBlock b wrt rs))                                       → Valid (V v) rs
     T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
-
-  data _∈RsHash_ (h : Hash) (rss : RecordStoreState) : Set where
-    I :         HashR (I (rssInitial rss)) ≡ h        → h ∈RsHash rss
-    B : ∃[ b ] (HashR (R (B b)) ≡ h × (B b) ∈Rs rss ) → h ∈RsHash rss
-    Q : ∃[ q ] (HashR (R (Q q)) ≡ h × (Q q) ∈Rs rss ) → h ∈RsHash rss
 
 ------------------------ RecordStoreState propereties --------------------
 
