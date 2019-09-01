@@ -492,6 +492,7 @@ module LibraBFT
     T : ∀ (t : Timeout) (rs : RecordStoreState)                                                                                                 → Valid (T t) rs
 
   data _∈RsHash_ (h : Hash) (rss : RecordStoreState) : Set where
+    I :         HashR (I (rssInitial rss)) ≡ h        → h ∈RsHash rss
     B : ∃[ b ] (HashR (R (B b)) ≡ h × (B b) ∈Rs rss ) → h ∈RsHash rss
     Q : ∃[ q ] (HashR (R (Q q)) ≡ h × (Q q) ∈Rs rss ) → h ∈RsHash rss
 
@@ -842,7 +843,8 @@ module LibraBFT
                            → AuxValidPacemakerUpdateActions pma rss
 
   data AuxProposeBlockCondQCH (rss : RecordStoreState ) (qchMB : Maybe QCHash) : Set where
-    auxProposeBlockQCHOK : ∀ {qch : QCHash} → qchMB ≡ just qch → qch ∈RsHash rss → AuxProposeBlockCondQCH rss qchMB
+    auxProposeBlockInit : ∀ {qch : QCHash} → qchMB ≡ just (HashR (I (rssInitial rss))) → AuxProposeBlockCondQCH rss qchMB
+    auxProposeBlockQC   : ∀ {qch : QCHash} → qchMB ≡ just qch → qch ∈RsHash rss        → AuxProposeBlockCondQCH rss qchMB
 
   open AuxValidPacemakerUpdateActions
 
@@ -862,7 +864,7 @@ module LibraBFT
                    → SmrContext
                    → Σ ( NodeState × SmrContext ) ( λ x → AuxValidNodeState (proj₁ x) )
   proposeBlockCond ns₀ auxValidNS₀ nothing _ smr = ((ns₀ , smr) , auxValidNS₀)
-  proposeBlockCond ns₀ auxValidNS₀ (just qch) (auxProposeBlockQCHOK refl q∈r) smr =
+  proposeBlockCond ns₀ auxValidNS₀ (just qch) pbCondPrf smr =
     let (blk , blkHash) = proposeBlock
                             ns₀
                             (nsLocalAuthor ns₀)
@@ -897,11 +899,11 @@ module LibraBFT
              → {pma : PacemakerUpdateActions}
              → puaShouldProposeBlock pma ≡ qchMB
              → {ns : NodeState}
-               → AuxValidPacemakerUpdateActions pma (nsRecordStoreState ns)
+             → AuxValidPacemakerUpdateActions pma (nsRecordStoreState ns)
              → AuxProposeBlockCondQCH (nsRecordStoreState ns) qchMB
   extractQch nothing    refl (auxValidPMSBlockInRS xx _) = ⊥-elim (nothing≢just xx)
   extractQch (just qch) refl {ns = ns} (auxValidPMSBlockInRS xx yy) =
-                                        auxProposeBlockQCHOK {nsRecordStoreState ns} {just qch} {qch} refl
+                                        auxProposeBlockQC {nsRecordStoreState ns} {just qch} {qch} refl
                                                              (subst (_∈RsHash (nsRecordStoreState ns)) (sym (just-injective xx)) yy)
 
   -- fn process_pacemaker_actions( &mut self,
