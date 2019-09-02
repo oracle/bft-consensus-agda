@@ -546,11 +546,17 @@ module LibraBFT
   highestQCHashExists : RecordStoreState → Set
   highestQCHashExists rss = ∃[ q ] (q ∈RsHash rss × rssRoundToQChash rss (rssHighestQCRound rss) ≡ just q)
 
+  rsRecsValid : RecordStoreState → Set
+  rsRecsValid rss = ∀ {r : Record} {isCR : isChainableRecord r}
+                  → r ∈Rs rss
+                  → Valid r rss
+
   -- Given a RecordStoreState, auxiliary properties about it
   record AuxRecordStoreState (rss : RecordStoreState) : Set₁ where
     field
-      auxRssLemma1-1 : lemma1-1 rss
-      auxRss∃QCHash  : highestQCHashExists rss
+      auxRssLemma1-1  : lemma1-1 rss
+      auxRss∃QCHash   : highestQCHashExists rss
+      auxRssRecsValid : rsRecsValid rss
 
   open AuxRecordStoreState
 
@@ -607,8 +613,8 @@ module LibraBFT
                  → R r₀ ←⋆ r₁
                  → Valid r₁ doNotUse
                  → round r₀ ≤ round r₁ ⊎ HashBroke
+  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf) = {!!}
 {- TODO: (Lisandra) restore after getting witness definition
-  r₀←⋆r₁→rr₀≤rr₁ (ss0 r₀←b) (ValidB prf)
      with prf
   ... | inj₁ ⟨ q , ⟨ q∈rs , ⟨ vQ , ⟨ q←b , rq<rb ⟩ ⟩ ⟩ ⟩
       with ←inj r₀←b q←b
@@ -689,8 +695,8 @@ module LibraBFT
                  → Valid r₂ doNotUse
                  → round r₀ < round r₁
                  → (R r₀ ←⋆ r₁) ⊎ HashBroke
+  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)        _ _ _ rr₀<rr₁ = {!!}
 {- TODO: (Lisandra) restore after getting witness definition
-  round-mono (ss0 r₀←r₂)      (ss0 r₁←r₂)        _ _ _ rr₀<rr₁
     with ←inj r₀←r₂ r₁←r₂
   ... | inj₁ refl = ⊥-elim (<⇒≢ rr₀<rr₁ refl)
   ... | inj₂ hashbroke = inj₂ hashbroke
@@ -969,36 +975,59 @@ module LibraBFT
 
 ---------------------- Libra BFT Algorithm components ---------------
 
-  proposeBlock : NodeState → Author → Command → QCHash → NodeTime → SmrContext → Block × BlockHash  -- TODO : properties
-  proposeBlock ns a cmd qch nt smr =
-    let rss = nsRecordStoreState ns
-        rnd = rssCurrentRound rss
-        b = mkBlock cmd qch rnd a  -- TODO: other fields
-    in ( b , HashR (R (B b)) )
+  proposeBlockPrf : (b   : Block)
+                  → (rss : RecordStoreState)
+                  → AuxRecordStoreState rss
+                  → AuxProposeBlockCondQCH rss (just (bPrevQCHash b))
+                  → ValidBlock b rss
+  proposeBlockPrf b rss _      (auxProposeBlockInit qchIsInit) =
+                    inj₂ ( I←B (sym (just-injective qchIsInit)) , {!!} )
+  proposeBlockPrf b rss auxRss (auxProposeBlockQC refl (Q ( qc , (qcHash , qcRec)))) =
+                    inj₁ ((qc , (qcRec , (auxRssRecsValid auxRss {Q qc} {Q qc} qcRec , ⟨ (Q←B qcHash) , {!!} ⟩ ))))  -- TODO: round number property
+  proposeBlockPrf b rss _      (auxProposeBlockQC refl (I x₁)) = ⊥-elim {!x₁!}   -- TODO: these cases can't happen unless HashBroke because
+  proposeBlockPrf b rss _      (auxProposeBlockQC refl (B x₁)) = ⊥-elim {!!}     -- bPrevQCHash b is the hash of a QC, but we don't know
+                                                                                  -- that here because our types do not distinguish the hashes
+                                                                                  -- of different records (see comment in proposeBlock)
 
-  proposeBlockCond : (ns : NodeState)
-                   → AuxValidNodeState ns
+  proposeBlock : (rss : RecordStoreState)
+               → Author
+               → Command
+               → (qch : QCHash)  -- TODO: this might be an initial hash, not a QCHash, but our types don't currently make a distinction
+               → NodeTime
+               → SmrContext
+               → AuxRecordStoreState rss
+               → AuxProposeBlockCondQCH rss (just qch)
+               → Σ ( Block × BlockHash ) ( λ x → ValidBlock (proj₁ x) rss)
+  proposeBlock rss a cmd qch nt smr auxPreRSS auxPbCondPrf =
+    let rnd = rssCurrentRound rss
+        b = mkBlock cmd qch rnd a  -- TODO: other fields
+    in (( b , HashR (R (B b)) ) , proposeBlockPrf b rss auxPreRSS auxPbCondPrf)
+
+  proposeBlockCond : Author
+                   → NodeTime
+                   → (rss : RecordStoreState)
                    → (qchMB : Maybe QCHash)
-                   → AuxProposeBlockCondQCH (nsRecordStoreState ns) qchMB
                    → SmrContext
-                   → Σ ( NodeState × SmrContext ) ( λ x → AuxValidNodeState (proj₁ x) )
-  proposeBlockCond ns₀ auxValidNS₀ nothing _ smr = ((ns₀ , smr) , auxValidNS₀)
-  proposeBlockCond ns₀ auxValidNS₀ (just qch) pbCondPrf smr =
-    let (blk , blkHash) = proposeBlock
-                            ns₀
-                            (nsLocalAuthor ns₀)
-                            {!!}
-                            qch
-                            (nsLatestBroadcast ns₀)
-                            smr
-        rss₀ = nsRecordStoreState ns₀
+                   → AuxRecordStoreState rss
+                   → AuxProposeBlockCondQCH rss qchMB
+                   → Σ ( RecordStoreState × SmrContext ) ( λ x → AuxRecordStoreState (proj₁ x) )
+  proposeBlockCond _ _         rss₀ nothing    smr auxPreRss   _            = ((rss₀ , smr) , auxPreRss)
+  proposeBlockCond a ltstBcast rss₀ (just qch) smr auxValidRss auxPbCondPrf =
+    let ((blk , blkHash) , blkPrf ) = proposeBlock
+                                        rss₀
+                                        a
+                                        0 -- TODO: Real Commands
+                                        qch
+                                        ltstBcast
+                                        smr
+                                        auxValidRss
+                                        auxPbCondPrf
         rss₁ = rssInsert (B blk) rss₀
-        ns₁ = record ns₀ {nsRecordStoreState = rss₁}
-        auxRSSValid₁ : AuxRecordStoreState (nsRecordStoreState ns₁)
-        auxRSSValid₁ = record { auxRssLemma1-1 = {! auxRssLemma1-1 {rss₀} (auxNsValidRSS auxValidNS₀) !}  -- TODO: Have ind hyp, prove holds after insertion
-                              ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀} (auxNsValidRSS auxValidNS₀) !}   -- DITTO
+        auxRSSValid₁ : AuxRecordStoreState rss₁
+        auxRSSValid₁ = record { auxRssLemma1-1 = {! auxRssLemma1-1 {rss₀} auxValidRss !}  -- TODO: Have ind hyp, prove holds after insertion
+                              ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
                               }
-    in ((ns₁ , smr) , {!!}) -- auxNSValid₁)
+    in ((rss₁ , smr) , auxRSSValid₁)
 
 {-
   createTimeout' : ∀ {h} → RecordStore h → Author → Round → SmrContext → RecordStore h
@@ -1038,7 +1067,7 @@ module LibraBFT
     → AuxValidPacemakerUpdateActions pma (nsRecordStoreState ns)
     → SmrContext
     → Σ ( NodeState × SmrContext × NodeUpdateActions ) ( λ x → AuxValidNodeState (proj₁ x) )
-  processPacemakerActions self₀ auxPreValid pacemakerActions auxPMAValid smrContext₀ =
+  processPacemakerActions self₀ auxPreValidNS pacemakerActions auxPMAValid smrContext₀ =
     let
   -- let mut actions = NodeUpdateActions::new();
       actions = record NodeUpdateActions∷new {
@@ -1071,9 +1100,16 @@ module LibraBFT
       -- TODO: we may need to modify the SMR context inside proposeBlock.  It's going to get
       -- painful here, as we will need to update both self amd SMR Context, based on the same
       -- condition
-      ((self₂ , smrContext₁) , postValidNS) = proposeBlockCond self₁ auxPreValid prevQCHashMB auxPrevQCHprf smrContext₀
+      ((rss₂ , smrContext₁) , postValidRss) = proposeBlockCond (nsLocalAuthor self₁)
+                                                               (nsLatestBroadcast self₁)
+                                                               (nsRecordStoreState self₁)
+                                                               prevQCHashMB
+                                                               smrContext₀
+                                                               (auxNsValidRSS auxPreValidNS)
+                                                               auxPrevQCHprf
 
-
+      self₂ = record self₁ { nsRecordStoreState = rss₂ }
+      postValidNS = {!!} -- use postValidRss and auxPrevalidNS
 
   -- }
   -- actions
