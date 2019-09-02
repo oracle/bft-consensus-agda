@@ -1055,7 +1055,7 @@ module LibraBFT
                                         auxPbCondPrf
         rss₁ = rssInsert (B blk) rss₀
         auxRSSValid₁ : AuxRecordStoreState rss₁
-        auxRSSValid₁ = record { auxRssLemma1-1 = lemma11Block {rss₀} (auxRssLemma1-1 auxValidRss) {blk} blkPrf -- auxValidRss {blk} blkPrf
+        auxRSSValid₁ = record { auxRssLemma1-1 = lemma11Block {rss₀} (auxRssLemma1-1 auxValidRss) {blk} blkPrf
                               ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
                               }
     in ((rss₁ , smr) , auxRSSValid₁)
