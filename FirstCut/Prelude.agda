@@ -78,3 +78,7 @@ module Prelude where
   open import Relation.Nullary
     hiding (Irrelevant)
     public
+
+  open import Relation.Nullary.Negation
+    using (contradiction)
+    public
