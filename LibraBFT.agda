@@ -284,7 +284,15 @@ module LibraBFT
   ≡Block refl refl refl refl = refl
 
   _≟Block_ : (b₁ b₂ : Block) → Dec (b₁ ≡ b₂)
-
+  b₁ ≟Block b₂ with bCommand b₁ ≟ℕ bCommand b₂
+  ...| no  xx   = no (xx ∘ cong bCommand)
+  ...| yes refl with (bPrevQCHash b₁) ≟Hash (bPrevQCHash b₂)
+  ...|            no  xx1  = no (xx1 ∘ cong bPrevQCHash)
+  ...|            yes refl with bRound b₁ ≟ bRound b₂
+  ...|                       no  xx2 = no (xx2 ∘ cong bRound)
+  ...|                       yes refl with bAuthor b₁ ≟ℕ bAuthor b₂
+  ...|                                  no  xx3 = no (xx3 ∘ cong bAuthor)
+  ...|                                  yes refl = yes refl
 
  -- Vote -------------------------------------------
   record Vote : Set where
