@@ -37,3 +37,24 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   data _←⋆_ (r₁ : Record) (r₂ : Record) : Set where
     ss0 : (r₁ ← r₂) → r₁ ←⋆ r₂
     ssr : ∀ {r : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
+
+
+  mutual
+  
+    data Valid : ∀ {r} → RecordChain r → Record → Set where
+      ValidBlockInit : ∀ {a} {b : Block a} → 1 ≤ bRound b → Valid empty (B b)
+      ValidBlockStep : ∀ {a a'} {b : Block a} {q : QC a'}
+                     → ( rc : RecordChain (Q q) )
+                     →  qRound q < bRound b
+                     → Valid rc (B b)
+      -- It's the leader that proposes the Block that sends the QC therefore we enforce it
+      -- by asking just one author
+      ValidQC        : ∀ {a} {q : QC a} {b : Block a}
+                     → (rc : RecordChain (B b))
+                     → qRound q ≡ bRound b
+                     → Valid rc (Q q)
+
+    data RecordChain : Record → Set where
+      empty : ∀ {hᵢ} → RecordChain (I hᵢ)
+      step  : ∀ {r r'} → (rc : RecordChain r) → r ← r' → Valid rc r' → RecordChain r'
+
