@@ -34,18 +34,12 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
           → HashR (B b) ≡ vBlockHash v
           → B b ← V v
 
-  -- This is the reflexive-transitive closure of _←_, as defined in 
-  -- section 4.7 in the paper. Note it is different than the previous
-  -- definition in the code. We must consider the 'reflexive' aspect as
-  -- we can see in the paper's proof of S4.
-  data _←⋆_ (r₁ : Record) : Record → Set₁ where
-    ssRefl : r₁ ←⋆ r₁
-    ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
-
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
   -- chain.
   mutual
+    -- One way of looking at a 'RecordChain r' is to think of it as 
+    -- one path from the epoch's initial record to r.
     data RecordChain : Record → Set₁ where
       empty : ∀ {hᵢ} → RecordChain (I hᵢ)
       step  : ∀ {r r'} → (rc : RecordChain r) → r ← r' → Valid rc r' → RecordChain r'
@@ -60,6 +54,27 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
                      → (rc : RecordChain (B b))
                      → qRound q ≡ bRound b
                      → Valid rc (Q q)
+
+
+  -- States that a given record belongs in a record chain.
+  data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
+    here   : ∀{rc : RecordChain r₀} → r₀ ∈RC rc
+    there  : ∀{r₁ r₂}{rc : RecordChain r₁}(p : r₁ ← r₂)(pv : Valid rc r₂)
+           → r₀ ∈RC rc
+           → r₀ ∈RC (step rc p pv)
+
+  -- This is the reflexive-transitive closure of _←_, as defined in 
+  -- section 4.7 in the paper. Note it is different than the previous
+  -- definition in the code. We must consider the 'reflexive' aspect as
+  -- we can see in the paper's proof of S4.
+  data _←⋆_ (r₁ : Record) : Record → Set₁ where
+    ssRefl : r₁ ←⋆ r₁
+    ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
+
+{-
+  data _←⋆_ : Record → Record → Set₁ where
+    witness : ∀{r₀ r₁}(rc : RecordChain r₁) → r₀ ∈RC rc → r₀ ←⋆ r₁
+-}
 
   ------------------------
   -- Lemma 1
@@ -106,11 +121,33 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
         → HashBroke ⊎ (r₀ ≡ r₁)
   ←-inj = lemmaS1-2
 
+  ←⋆-round-< : ∀{r₀ r₁}
+             → RecordChain r₁
+             → r₀ ←⋆ r₁
+             → HashBroke ⊎ (round r₀ ≤ round r₁)
+  ←⋆-round-< empty ssRefl                   = inj₂ z≤n
+  ←⋆-round-< (step path x x₁) ssRefl        = inj₂ ≤-refl
+  ←⋆-round-< (step path x vr₁) (ssStep r x₂) 
+    with lemmaS1-2 x₂ x 
+  ...| inj₁ hb   = inj₁ hb
+  ...| inj₂ refl 
+    with ←⋆-round-< path r
+  ...| inj₁ hb = inj₁ hb
+  ...| inj₂ rec = inj₂ (≤-trans rec {!!}) -- extract from vr₁
+
   lemmaS1-3 : ∀{r₀ r₁ r₂}
+            → RecordChain r₂
             → r₀ ←⋆ r₂ → r₁ ←⋆ r₂
             → round r₀ < round r₁
-            → r₀ ←⋆ r₂
-  lemmaS1-3 = {!!}
+            → r₀ ←⋆ r₁
+  lemmaS1-3 path ssRefl r1r2 hip 
+    with ←⋆-round-< path r1r2
+  ...| imp = {!!} -- impossible!
+  lemmaS1-3 path (ssStep r0r2 x) ssRefl hip = ssStep r0r2 x
+  lemmaS1-3 (step path x₂ x₃) (ssStep r0r2 x) (ssStep r1r2 x₁) hip 
+    with lemmaS1-2 x x₂
+  ...| inj₁ hb = {!!}
+  ...| inj₂ refl = ssStep (lemmaS1-3 path r0r2 {!!} {!!}) {!!}
 
   ----------------------
   -- Lemma 2

@@ -11,7 +11,11 @@ module Prelude where
   open import Data.Nat 
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
     public
-  
+
+  postulate 
+    ≤-refl : ∀{n} → n ≤ n
+    ≤-trans : ∀{m n o} → m ≤ n → n ≤ o → m ≤ o
+
   open import Data.List 
     renaming (map to List-map)
     hiding (fromMaybe; [_])
