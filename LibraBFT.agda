@@ -512,18 +512,18 @@ module LibraBFT
 
   --TODO : Validate signatures
   ValidBlock : Block → RecordStoreState → Set
-  ValidBlock b rss = ∃[ q ] ( Q q ∈Rs rss × Valid (Q q) rss × R (Q q) ← B b × qRound q < bRound b )
+  ValidBlock b rss = ∃[ q ] ( Q q ∈Rs rss × R (Q q) ← B b × qRound q < bRound b )
                      ⊎
                      I (rssInitial rss) ← B b × 1 ≤ bRound b
 
   -- TODO : Validate all Votes in a QC
   ValidQC : QC → RecordStoreState → Set
-  ValidQC q rss = ∃[ b ] ( (B b) ∈Rs rss × Valid (B b) rss × R (B b) ← Q q × bRound b ≡ qRound q )
+  ValidQC q rss = ∃[ b ] ( (B b) ∈Rs rss × R (B b) ← Q q × bRound b ≡ qRound q )
                   × All (_validVoteInQC q) (qVotes q)
                   × validQC q wrt (rssConfiguration rss)
 
   ValidVote : Vote → RecordStoreState → Set
-  ValidVote v rss = ∃[ q ] ( Q q ∈Rs rss × Valid (Q q) rss {- TODO: (Lisandra) restore this × v ∈ qVotes q -} )
+  ValidVote v rss = ∃[ q ] ( Q q ∈Rs rss {- TODO: (Lisandra) restore this × v ∈ qVotes q -} )
 
 
   -- Conditions required to add a Record to a RecordStoreState (which contains "previously verified"
@@ -546,17 +546,11 @@ module LibraBFT
   highestQCHashExists : RecordStoreState → Set
   highestQCHashExists rss = ∃[ q ] (q ∈RsHash rss × rssRoundToQChash rss (rssHighestQCRound rss) ≡ just q)
 
-  rsRecsValid : RecordStoreState → Set
-  rsRecsValid rss = ∀ {r : Record} {isCR : isChainableRecord r}
-                  → r ∈Rs rss
-                  → Valid r rss
-
   -- Given a RecordStoreState, auxiliary properties about it
   record AuxRecordStoreState (rss : RecordStoreState) : Set₁ where
     field
       auxRssLemma1-1  : lemma1-1 rss
       auxRss∃QCHash   : highestQCHashExists rss
-      auxRssRecsValid : rsRecsValid rss
 
   open AuxRecordStoreState
 
@@ -983,7 +977,7 @@ module LibraBFT
   proposeBlockPrf b rss _      (auxProposeBlockInit qchIsInit) =
                     inj₂ ( I←B (sym (just-injective qchIsInit)) , {!!} )
   proposeBlockPrf b rss auxRss (auxProposeBlockQC refl (Q ( qc , (qcHash , qcRec)))) =
-                    inj₁ ((qc , (qcRec , (auxRssRecsValid auxRss {Q qc} {Q qc} qcRec , ⟨ (Q←B qcHash) , {!!} ⟩ ))))  -- TODO: round number property
+                    inj₁ ((qc , (qcRec , ⟨ (Q←B qcHash) , {!!} ⟩ )))              -- TODO: round number property
   proposeBlockPrf b rss _      (auxProposeBlockQC refl (I x₁)) = ⊥-elim {!x₁!}   -- TODO: these cases can't happen unless HashBroke because
   proposeBlockPrf b rss _      (auxProposeBlockQC refl (B x₁)) = ⊥-elim {!!}     -- bPrevQCHash b is the hash of a QC, but we don't know
                                                                                   -- that here because our types do not distinguish the hashes
@@ -1024,8 +1018,8 @@ module LibraBFT
                                         auxPbCondPrf
         rss₁ = rssInsert (B blk) rss₀
         auxRSSValid₁ : AuxRecordStoreState rss₁
-        auxRSSValid₁ = record { auxRssLemma1-1 = {! auxRssLemma1-1 {rss₀} auxValidRss !}  -- TODO: Have ind hyp, prove holds after insertion
-                              ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
+        auxRSSValid₁ = record { auxRssLemma1-1  = {! auxRssLemma1-1 {rss₀} auxValidRss !}  -- TODO: Have ind hyp, prove holds after insertion
+                              ; auxRss∃QCHash   = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
                               }
     in ((rss₁ , smr) , auxRSSValid₁)
 
