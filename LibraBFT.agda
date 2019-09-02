@@ -122,6 +122,12 @@ module LibraBFT
   emptyHM : ∀ {K V : Set} → HashMap K V
   emptyHM {K} {V} k = nothing
 
+  _∈HM_ : ∀ {K : Set} {V : Set} (k : K) → HashMap K V → Set
+  k ∈HM hm = ∃[ v ]( hm k ≡ just v )
+
+  emptyIsEmpty : ∀ {K : Set} {V : Set} {k : K} → ¬ (k ∈HM emptyHM {K} {V})
+  emptyIsEmpty {k = k} = λ ()
+
 ---------------------- Move somewhere more generic --------------
 
   nothing≢just : ∀ {ℓ : Level.Level} {A : Set ℓ} {a : A} → nothing ≡ just a → ⊥
@@ -268,6 +274,18 @@ module LibraBFT
       --bSignature  : Signature
   open Block
 
+  ≡Block : ∀ {b₁ b₂ : Block}
+         → {cmd₁ cmd₂ : Command } → cmd₁ ≡ cmd₂
+         → {h₁ h₂     : QCHash  } → h₁   ≡ h₂
+         → {r₁ r₂     : Round   } → r₁   ≡ r₂
+         → {a₁ a₂     : Author  } → a₁   ≡ a₂
+         → mkBlock cmd₁ h₁ r₁ a₁ ≡
+           mkBlock cmd₂ h₂ r₂ a₂
+  ≡Block refl refl refl refl = refl
+
+  _≟Block_ : (b₁ b₂ : Block) → Dec (b₁ ≡ b₂)
+
+
  -- Vote -------------------------------------------
   record Vote : Set where
     field
@@ -401,22 +419,22 @@ module LibraBFT
       rssEpochId              : EpochId
       rssConfiguration        : EpochConfiguration
       rssInitial              : Initial  -- LIBRA-DIFF, we store the Initial structure;
-                                  -- Libra say QuorumCertificateHash, but it's not really one.
-      -- rssInitiaState   : State
+                                         -- Libra say QuorumCertificateHash, but it's not really one.
+      -- rssInitiaState       : State
       rssBlocks               : HashMap BlockHash Block
       rssQCs                  : HashMap QCHash QC
       rssRoundToQChash        : HashMap Round QCHash
       rssCurrentProposedBlock : Maybe BlockHash
       rssHighestQCRound       : Round
-      -- rssHighestTCRound       : Round
+      -- rssHighestTCRound    : Round
       rssCurrentRound         : Round
-      -- rssHighest2ChainRound   : Round
-      -- rssHighestCommittedRound : Round
+      -- rssHighest2ChainRound       : Round
+      -- rssHighestCommittedRound    : Round
       -- rssHighestTimoutCertificate : Maybe (List Timeout)
-      rssCurrentTimeouts : HashMap Author Timeout
-      rssCurrentVotes    : HashMap Author Vote
-      -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
-      -- rssCurrentElection : ?
+      rssCurrentTimeouts      : HashMap Author Timeout
+      rssCurrentVotes         : HashMap Author Vote
+      -- rssCurrentTimeoutWeight     : ℕ  -- LIBRA-DIFF: assume equal weights for now
+      -- rssCurrentElection          : ?
 
   open RecordStoreState
 
@@ -459,17 +477,25 @@ module LibraBFT
   (V v) ∈Rs rss = (V v) ∈Rs′ rss ⊎ ∃[ q ] ((Q q) ∈Rs′ rss × v ∈QC q )
   (T t) ∈Rs rss = (T t) ∈Rs′ rss
 
+  _≟BlockMB_ : (bMB₁ bMB₂ : Maybe Block) → Dec (bMB₁ ≡ bMB₂)
+  _≟BlockMB_ = Data.Maybe.Properties.≡-dec  _≟Block_
+
+
+  -- TODO: decidability instance is tricky because we need to capture the fact that a HashMap
+  -- uses the hash of the value as the key, which so far is not stated anywhere.  Without this,
+  -- we cannot prove that Record r is not in the Hashmap with some key other than HashR (R r).
+  _∈Rs?_ : ∀ (r : Record) → (rss : RecordStoreState) → Dec (r ∈Rs rss)
+  (B b) ∈Rs? rss with ((rssBlocks rss) (HashR (R (B b)))) ≟BlockMB just b
+  ...|             no  xx = no  ( λ x → ⊥-elim (xx {! !}))
+  ...|             yes xx = yes  ((HashR (R (B b))) , xx )
+  (Q q) ∈Rs? rss = {!!}
+  (V v) ∈Rs? rss = {!!} -- NOTE: not sure we'll need an instance here
+  (T t) ∈Rs? rss = {!!} -- NOTE: not sure we'll need an instance here
+
   data _∈RsHash_ (h : Hash) (rss : RecordStoreState) : Set where
     I :         HashR (I (rssInitial rss)) ≡ h        → h ∈RsHash rss
     B : ∃[ b ] (HashR (R (B b)) ≡ h × (B b) ∈Rs rss ) → h ∈RsHash rss
     Q : ∃[ q ] (HashR (R (Q q)) ≡ h × (Q q) ∈Rs rss ) → h ∈RsHash rss
-
-  emptyIsEmpty : ∀ (r : Record) (eid : EpochId) (ec : EpochConfiguration) (i : Initial) → ¬ (r ∈Rs emptyRSS eid ec i)
-  emptyIsEmpty (B b) eid ec i ⟨ _ , () ⟩
-  emptyIsEmpty (Q q) eid ec i ⟨ _ , () ⟩
-  emptyIsEmpty (V v) eid ec i (inj₁ ⟨ _ , () ⟩)
-  emptyIsEmpty (V v) eid ec i (inj₂ ⟨ _ , (⟨ _ , () ⟩ , _) ⟩ )
-  emptyIsEmpty (T t) eid ec i ⟨ _ , () ⟩
 
   -- These simply insert records into the RecordStoreState; it says nothing about Valid conditions, which is reserved for
   -- inserting into an AuxRecordStoreState that maintains invariants about the contents of the RecordStoreState.
@@ -479,7 +505,6 @@ module LibraBFT
   rssInsert (V v) rs = record rs { rssCurrentVotes    = proj₁ ((rssCurrentVotes rs)    [ (Vote.vAuthor v)  := (just v) , _≟ℕ_    ]) }
   rssInsert (T t) rs = record rs { rssCurrentTimeouts = proj₁ ((rssCurrentTimeouts rs) [ (toAuthor t)      := (just t) , _≟ℕ_    ]) }
                                                                                         -- Why is the Author the key for the Timeout
-
   memberAfterInsert : ∀ {b : Block} {rss : RecordStoreState}
                     → (B b) ∈Rs (rssInsert (B b) rss)
   memberAfterInsert {b} {rss} = ⟨ HashR (R (B b)) , prf b rss ⟩
@@ -997,6 +1022,18 @@ module LibraBFT
         b = mkBlock cmd qch rnd a  -- TODO: other fields
     in (( b , HashR (R (B b)) ) , proposeBlockPrf b rss auxPreRSS auxPbCondPrf)
 
+
+  lemma11Block : ∀ {rss₀ : RecordStoreState}
+                → lemma1-1 rss₀
+                → {b : Block}
+                → ValidBlock b rss₀
+                → lemma1-1 (rssInsert (B b) rss₀)
+  lemma11Block {rss₀} l1Pre {b} (inj₁ ( q , ( q∈rs , ( depPrf , rndPrf )))) {B b′} with b′ ≟Block b
+  ...| yes xx1 rewrite xx1 = λ x → ssr (l1Pre {Q q} {Q q} q∈rs) depPrf
+  ...| no  xx1 with (B b′) ∈Rs? rss₀
+  ...|           yes xx2 = λ _ → l1Pre {B b′} {B b′} xx2
+  ...|           no  xx2 = {!!}   -- TODO: b′ was not in rss before, and b′ ≢ b, so it's not in after either...
+
   proposeBlockCond : Author
                    → NodeTime
                    → (rss : RecordStoreState)
@@ -1018,8 +1055,8 @@ module LibraBFT
                                         auxPbCondPrf
         rss₁ = rssInsert (B blk) rss₀
         auxRSSValid₁ : AuxRecordStoreState rss₁
-        auxRSSValid₁ = record { auxRssLemma1-1  = {! auxRssLemma1-1 {rss₀} auxValidRss !}  -- TODO: Have ind hyp, prove holds after insertion
-                              ; auxRss∃QCHash   = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
+        auxRSSValid₁ = record { auxRssLemma1-1 = lemma11Block {rss₀} (auxRssLemma1-1 auxValidRss) {blk} blkPrf -- auxValidRss {blk} blkPrf
+                              ; auxRss∃QCHash  = {! auxRss∃QCHash {rss₀}  auxValidRss !} -- DITTO
                               }
     in ((rss₁ , smr) , auxRSSValid₁)
 
