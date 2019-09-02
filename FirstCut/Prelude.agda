@@ -45,3 +45,7 @@ module Prelude where
 
   open import Relation.Nullary
     public
+
+  open import Relation.Nullary.Negation
+    using (contradiction)
+    public

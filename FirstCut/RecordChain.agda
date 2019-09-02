@@ -34,7 +34,7 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
           → HashR (B b) ≡ vBlockHash v
           → B b ← V v
 
-  -- This is the reflexive-transitive closure of _←_, as defined in 
+  -- This is the reflexive-transitive closure of _←_, as defined in
   -- section 4.7 in the paper.
   data _←⋆_ (r₁ : Record) : Record → Set₁ where
     ssRefl : r₁ ←⋆ r₁
@@ -74,7 +74,31 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   lemmaS1-2 : ∀{r₀ r₁ r₂}
             → r₀ ← r₂ → r₁ ← r₂
             → HashBroke ⊎ (r₀ ≡ r₁)
-  lemmaS1-2 = {!!}
+  lemmaS1-2 {i₀} {i₁} {b} (I←B i₀←b) (I←B i₁←b)
+    with hash-cr (trans i₀←b (sym i₁←b))
+  ... | inj₁ (i₀≢i₁ , hi₀≡hi₁) = inj₁ ( ( encodeR i₀ , encodeR i₁ ) , ( i₀≢i₁ , hi₀≡hi₁ ) )
+  ... | inj₂ i₀≡i₁             = inj₂ (encodeR-inj i₀≡i₁)
+  lemmaS1-2 {i} {q} {b} (I←B i←b) (Q←B q←b)
+    with hash-cr (trans i←b (sym q←b))
+  ... | inj₁ (i≢q , hi≡hq)     = inj₁ ( ( encodeR i , encodeR q ) , ( i≢q , hi≡hq ) )
+  ... | inj₂ i≡q               = contradiction (encodeR-inj i≡q) λ ()
+  lemmaS1-2 {q} {i} {b} (Q←B q←b) (I←B i←b)
+    with hash-cr (trans i←b (sym q←b))
+  ... | inj₁ (i≢q , hi≡hq)     = inj₁ ( ( encodeR i , encodeR q ) , ( i≢q , hi≡hq ) )
+  ... | inj₂ i≡q               = contradiction (encodeR-inj i≡q) λ ()
+  lemmaS1-2 {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
+     with hash-cr (trans q₀←b (sym q₁←b))
+  ... | inj₁ (q₀≢q₁ , hq₀≡hq₁) = inj₁ ( ( encodeR q₀ , encodeR q₁ ) , ( q₀≢q₁ , hq₀≡hq₁ ) )
+  ... | inj₂ q₁≡q₂             = inj₂ (encodeR-inj q₁≡q₂)
+  lemmaS1-2 {b₀} {b₁} {q} (B←Q b₀←q) (B←Q b₁←q)
+     with hash-cr (trans b₀←q (sym b₁←q))
+  ... | inj₁ (b₀≢b₁ , hb₀←hb₁) = inj₁ ( ( encodeR b₀ , encodeR b₁ ), ( b₀≢b₁ , hb₀←hb₁ ) )
+  ... | inj₂ b₀≡b₁             = inj₂ (encodeR-inj b₀≡b₁)
+  lemmaS1-2 {b₀} {b₁} {v} (B←V b₀←v) (B←V b₁←v)
+     with hash-cr (trans b₀←v (sym b₁←v))
+  ... | inj₁ (b₀≢b₁ , hb₀←hb₁) = inj₁ ( (encodeR b₀ , encodeR b₁ ) , ( b₀≢b₁ , hb₀←hb₁ ) )
+  ... | inj₂ b₀≡b₁             = inj₂ (encodeR-inj b₀≡b₁)
+
 
   -- Better name for our lemma
   ←-inj : ∀{r₀ r₁ r₂}
