@@ -1140,7 +1140,7 @@ module LibraBFT
                                                                auxPrevQCHprf
 
       self₂ = record self₁ { nsRecordStoreState = rss₂ }
-      postValidNS = {!!} -- use postValidRss and auxPrevalidNS
+      postValidNS = record { auxNsValidRSS = postValidRss }
 
   -- }
   -- actions
