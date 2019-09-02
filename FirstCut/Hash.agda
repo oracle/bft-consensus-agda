@@ -1,23 +1,4 @@
-open import Data.Unit.NonEta
-open import Data.Empty
-open import Data.Sum
-open import Data.Product
-open import Data.Product.Properties
-open import Data.Nat renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
-open import Data.Nat.Properties
-open import Data.List renaming (map to List-map)
-open import Data.List.Properties using (∷-injective; ≡-dec)
-open import Data.List.Any
-open import Data.List.All
-open import Data.List.Relation.Pointwise using (decidable-≡)
-open import Data.Bool renaming (_≟_ to _≟Bool_)
-open import Data.Maybe renaming (map to Maybe-map)
-
-open import Function
-
-open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.Core
-open import Relation.Nullary
+open import Prelude
 
 module Hash where
 
@@ -45,7 +26,7 @@ module Hash where
  dummyHash = (dummyByteString , refl)
 
  _≟Hash_ : (h₁ h₂ : Hash) → Dec (h₁ ≡ h₂)
- (l , pl) ≟Hash (m , pm) with Data.List.Properties.≡-dec _≟Bool_ l m
+ (l , pl) ≟Hash (m , pm) with List-≡-dec _≟Bool_ l m
  ...| yes refl = yes (cong (_,_ l) (≡-pi pl pm))
  ...| no  abs  = no (abs ∘ ,-injectiveˡ)
 
@@ -104,10 +85,10 @@ module Hash where
   hash-concat-inj : ∀{l₁ l₂} → hash-concat l₁ ≡ hash-concat l₂ → HashBroke ⊎ l₁ ≡ l₂
   hash-concat-inj {[]} {x ∷ xs} h with hash-cr h
   ...| inj₁ col = inj₁ (([] , encodeH x ++ foldr _++_ [] (List-map encodeH xs)) , col)
-  ...| inj₂ abs = ⊥-elim (++-abs (encodeH x) (subst (Data.Nat._≤_ 1) (sym (encodeH-len {x})) (s≤s z≤n)) abs)
+  ...| inj₂ abs = ⊥-elim (++-abs (encodeH x) (subst (_≤_ 1) (sym (encodeH-len {x})) (s≤s z≤n)) abs)
   hash-concat-inj {x ∷ xs} {[]} h with hash-cr h
   ...| inj₁ col = inj₁ ((encodeH x ++ foldr _++_ [] (List-map encodeH xs) , []) , col)
-  ...| inj₂ abs = ⊥-elim (++-abs (encodeH x) (subst (Data.Nat._≤_ 1) (sym (encodeH-len {x})) (s≤s z≤n)) (sym abs))
+  ...| inj₂ abs = ⊥-elim (++-abs (encodeH x) (subst (_≤_ 1) (sym (encodeH-len {x})) (s≤s z≤n)) (sym abs))
   hash-concat-inj {[]}    {[]} h = inj₂ refl
   hash-concat-inj {x ∷ xs} {y ∷ ys} h with hash-cr h
   ...| inj₁ col = inj₁ ((encodeH x ++ foldr _++_ [] (List-map encodeH xs) , encodeH y ++ foldr _++_ [] (List-map encodeH ys)) , col)

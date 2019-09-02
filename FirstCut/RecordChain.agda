@@ -12,7 +12,7 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   open WithCryptoHash hash hash-cr
   open import Records ec
 
-  -- Hash Functions ----------------------------------------------
+  -- We need to encode records into bytestrings in order to hash them.
   postulate
     encodeR     : Record → ByteString
     encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
@@ -35,7 +35,9 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
           → B b ← V v
 
   -- This is the reflexive-transitive closure of _←_, as defined in 
-  -- section 4.7 in the paper.
+  -- section 4.7 in the paper. Note it is different than the previous
+  -- definition in the code. We must consider the 'reflexive' aspect as
+  -- we can see in the paper's proof of S4.
   data _←⋆_ (r₁ : Record) : Record → Set₁ where
     ssRefl : r₁ ←⋆ r₁
     ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
@@ -54,8 +56,6 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
                      → (rc : RecordChain (Q q))
                      → qRound q < bRound b
                      → Valid rc (B b)
-      -- It's the leader that proposes the Block that sends the QC therefore we enforce it
-      -- by asking just one author
       ValidQC        : {q : QC} {b : Block}
                      → (rc : RecordChain (B b))
                      → qRound q ≡ bRound b

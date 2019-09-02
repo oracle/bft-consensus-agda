@@ -1,16 +1,6 @@
-open import Relation.Binary.PropositionalEquality
-open import Data.Product
-open import Data.Nat hiding (_⊔_) renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
+open import Prelude
 open import Data.Nat.Properties
-open import Data.List renaming (map to List-map)
-open import Data.List.Properties using (∷-injective; length-++)
-open import Data.Empty
-open import Data.List.Any
-open import Data.Vec hiding (_++_)
 open import Level using (0ℓ)
-
-
-
 
 module Lemmas where
 

@@ -1,10 +1,26 @@
+-- This is a selection of useful function
+-- from the standard library that we tend to use a lot.
 module Prelude where
   
-  open import Data.Empty public 
+  open import Data.Unit.NonEta 
+    public
 
-  open import Data.Nat public
+  open import Data.Empty 
+    public 
+
+  open import Data.Nat 
+    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
+    public
   
-  open import Data.List public
+  open import Data.List 
+    renaming (map to List-map)
+    hiding (fromMaybe; [_])
+    public
+
+  open import Data.List.Properties 
+    renaming (≡-dec to List-≡-dec)
+    using (∷-injective)
+    public
 
   open import Data.List.Any
     using (Any; here; there)
@@ -14,21 +30,33 @@ module Prelude where
     using (Vec; []; _∷_)
     public
   
-  open import Data.Maybe
-    using (Maybe; just; nothing)
+  open import Data.List.Relation.Pointwise 
+    using (decidable-≡)
     public
-  
+
+  open import Data.Bool 
+    renaming (_≟_ to _≟Bool_)
+    hiding (_<_; _<?_; _≤_; T)
+    public
+
+  open import Data.Maybe 
+    renaming (map to Maybe-map; zip to Maybe-zip)
+    hiding (align; alignWith; zipWith)
+    public
+
   open import Data.Fin
     using (Fin; suc; zero)
     renaming (_<_ to _<Fin_)
     public
   
   open import Relation.Binary.PropositionalEquality
-    using (_≡_; refl; sym; trans; _≢_)
+    hiding (decSetoid)
+    public
+
+  open import Relation.Binary.Core
     public
   
   open import Data.Sum
-    using (_⊎_; inj₁; inj₂)
     public
   
   open import Function
@@ -36,12 +64,17 @@ module Prelude where
     public
 
   open import Data.Product
-    using (Σ; ∃-syntax; _×_; _,_)
-    public
- 
-  open import Relation.Unary
-    hiding (Irrelevant)
+    renaming (map to split; swap to ×-swap)
+    hiding (map₁; map₂; zip)
     public
 
+  open import Data.Product.Properties
+    public
+ 
+--  open import Relation.Unary
+--    hiding (Irrelevant; _⇒_)
+--    public
+
   open import Relation.Nullary
+    hiding (Irrelevant)
     public
