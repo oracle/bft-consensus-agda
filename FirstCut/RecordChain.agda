@@ -79,12 +79,21 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   ------------------------
   -- Lemma 1
 
+  InitialIrrel : (i j : Initial) → i ≡ j
+  InitialIrrel mkInitial mkInitial = refl
+
   -- LemmaS1-1 states that a record that has been flagged as 'valid' (paper section 4.2)
   -- depends upon the initial record.
   lemmaS1-1 : {i : Initial}{r : Record}
             → RecordChain r
             → (I i) ←⋆ r
-  lemmaS1-1 = {!!}
+  lemmaS1-1 {i} {i₀} (empty {hᵢ}) rewrite InitialIrrel i hᵢ = ssRefl
+  lemmaS1-1 {i} {r} (step rc r'←r vR)
+    with vR
+  ... | ValidBlockInit x = ssStep (lemmaS1-1 rc) r'←r
+  ... | ValidBlockStep rc x = ssStep (lemmaS1-1 rc) r'←r
+  ... | ValidQC rc x = ssStep (lemmaS1-1 rc) r'←r
+
 
   lemmaS1-2 : ∀{r₀ r₁ r₂}
             → r₀ ← r₂ → r₁ ← r₂
