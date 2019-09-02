@@ -993,7 +993,7 @@ module LibraBFT
                → Author
                → Command
                → (qch : QCHash)  -- TODO: this might be an initial hash, not a QCHash, but our types don't currently make a distinction
-               → NodeTime
+               → NodeTime        --       email discussion "Agdification: comment on Haskell version", maybe preimage should be auxiliary data
                → SmrContext
                → AuxRecordStoreState rss
                → AuxProposeBlockCondQCH rss (just qch)
