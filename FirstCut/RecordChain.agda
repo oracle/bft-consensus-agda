@@ -58,7 +58,7 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
                      → Valid rc (Q q)
 
   prevBlock : ∀{q} → RecordChain (Q q) → Block
-  prevBlock rc = {!!}
+  prevBlock (step {r = B b} _ (B←Q _) _) = b
 
 
   -- States that a given record belongs in a record chain.
@@ -202,22 +202,25 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
               → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
     where
 
-   lemmaS2 : {b₀ : Block}{q₀ : QC}
-           → {b₁ : Block}{q₁ : QC}
-           → {rc₀ : RecordChain (B b₀)} → Valid rc₀ (Q q₀)
-           → {rc₁ : RecordChain (B b₁)} → Valid rc₁ (Q q₁)
-           → (B b₀) ← (Q q₀)
-           → (B b₁) ← (Q q₁)
-           → bRound b₀ ≡ bRound b₁
-           → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
-   lemmaS2 {q₀ = q₀} {q₁ = q₁} (ValidQC rc0 p0) (ValidQC rc1 p1) b0q0 b1q1 rnd 
-     with q₀ ≟QC q₁
-   ...| yes refl with lemmaS1-2 b0q0 b1q1 
-   ...| inj₁ hb   = inj₁ hb
-   ...| inj₂ refl = inj₂ refl
-   lemmaS2 {q₀ = q₀} {q₁ = q₁} (ValidQC rc0 p0) (ValidQC rc1 p1) b0q0 b1q1 rnd 
-      | no  imp
+   -- TODO: When we bring in the state everywhere; this will remain very similar.
+   --       We will add another check for st₀ ≟State st₁ after checking the block
+   --       equality in (***); Naturally, if blocks are equal so is the state.
+   --       We will need some command-application-injective lemma.
+   --
+   --         1) when st₀ ≟State st₁ returns yes, we done.
+   --         2) when it returns no, and the blocks are different, no problem.
+   --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
+   lemmaS2 : {q₀ q₁ : QC}
+           → (rc₀ : RecordChain (Q q₀)) 
+           → (rc₁ : RecordChain (Q q₁)) 
+           → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
+           → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
+   lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
+                     (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+     with b₀ ≟Block b₁ -- (***)
+   ...| yes done = inj₂ done
+   ...| no  imp  
      with lemmaB1 q₀ q₁
    ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
-     with increasing-round-rule ? ? ? ?
-   ...| r = {!!} -- ⊥-elim (r rnd)
+     with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀
+   ...| abs = ⊥-elim (abs (irh {q' = q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ hyp imp))

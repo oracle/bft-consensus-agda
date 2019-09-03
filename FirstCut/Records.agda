@@ -26,6 +26,9 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
       --bSignature  : Signature
   open Block public 
 
+  postulate
+    _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
+
   record Vote  : Set where
     constructor mkVote
     field
