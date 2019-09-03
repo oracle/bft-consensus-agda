@@ -1,6 +1,7 @@
 open import Hash
 open import BasicTypes
 open import Prelude
+
 open import Data.Nat.Properties
 
 module RecordChain {f : ℕ} (ec : EpochConfig f)
@@ -56,6 +57,9 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
                      → qRound q ≡ bRound b
                      → Valid rc (Q q)
 
+  prevBlock : ∀{q} → RecordChain (Q q) → Block
+  prevBlock rc = {!!}
+
 
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
@@ -71,11 +75,6 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   data _←⋆_ (r₁ : Record) : Record → Set₁ where
     ssRefl : r₁ ←⋆ r₁
     ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
-
-{-
-  data _←⋆_ : Record → Record → Set₁ where
-    witness : ∀{r₀ r₁}(rc : RecordChain r₁) → r₀ ∈RC rc → r₀ ←⋆ r₁
--}
 
   ------------------------
   -- Lemma 1
@@ -173,6 +172,28 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   ... | inj₂ refl = lemmaS1-3 rc₀ rc₁ r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
 
+  -- A breakage of the "increasing round" voting constraint can only be
+  -- observed by witnessing a given author voting twice for different blocks
+  -- on the same round.
+  --
+  -- In our abstract model, we do not posses a notion of future or past, we
+  -- only model snapshopts of the system. Hence, we model the constraint as
+  -- "this will never happen to an honest node"
+  data IncreasingRoundBroke (ha : Author ec) {q} (rc : RecordChain (Q q))
+      (prf : ha ∈QC q) : Set₁ where
+    irh : ∀{q'}(rc' : RecordChain (Q q'))
+        → ha ∈QC q'
+        → qRound q ≡ qRound q'
+        → prevBlock rc ≢ prevBlock rc'
+        → IncreasingRoundBroke ha rc prf
+
+  postulate
+    increasing-round-rule 
+      : (ha : Author ec) → Honest {ec = ec} ha
+      → ∀{q}(rc : RecordChain (Q q))(hyp : ha ∈QC q) -- ha has voted for q
+      → ¬ (IncreasingRoundBroke ha rc hyp)           -- Hence, ha has not broken the rule
+
+
   ----------------------
   -- Lemma 2
 
@@ -180,16 +201,6 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
      (lemmaB1 : (q₁ : QC)(q₂ : QC) 
               → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
     where
-
-   postulate
-    increasing-round 
-      : (ha : Author ec) → Honest {ec = ec} ha
-      → {b₀ : Block}{q₀ : QC}
-      → {b₁ : Block}{q₁ : QC}
-      → ha ∈QC q₀ → (B b₀ ← Q q₀) -- a voted for q₀, which extends b₀
-      → ha ∈QC q₁ → (B b₁ ← Q q₁) -- a voted for q₁, which extends b₁
-      → q₀ ≢ q₁
-      → bRound b₀ ≢ bRound b₁
 
    lemmaS2 : {b₀ : Block}{q₀ : QC}
            → {b₁ : Block}{q₁ : QC}
@@ -208,5 +219,5 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
       | no  imp
      with lemmaB1 q₀ q₁
    ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
-     with increasing-round a honest a∈q₀ b0q0 a∈q₁ b1q1 imp
-   ...| r = ⊥-elim (r rnd)
+     with increasing-round-rule ? ? ? ?
+   ...| r = {!!} -- ⊥-elim (r rnd)
