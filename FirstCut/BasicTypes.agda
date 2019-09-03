@@ -14,6 +14,7 @@ module BasicTypes where
       authorsN : ℕ
       isBFT    : authorsN ≥ suc (3 * f)
 
+      -- seed  : ℕ
     QuorumSize : ℕ
     QuorumSize = authorsN ∸ f
   open EpochConfig public
