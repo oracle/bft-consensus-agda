@@ -1,6 +1,7 @@
 open import Hash
 open import BasicTypes
 open import Prelude
+open import Data.Nat.Properties
 
 module RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
@@ -130,14 +131,15 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
         → HashBroke ⊎ (r₀ ≡ r₁)
   ←-inj = lemmaS1-2
 
-  ←-round-< : ∀{r₀ r₁}
-            → (rc : RecordChain r₁)
-            → r₀ ← r₁
+
+  Valid-round-< : ∀{r₀ r₁}
+            → (rc : RecordChain r₀)
+            → Valid rc r₁
             → round r₀ ≤ round r₁
-  ←-round-< rc (I←B x) = z≤n
-  ←-round-< rc (Q←B x) = {!!}
-  ←-round-< rc (B←Q x) = {!!}
-  ←-round-< rc (B←V x) = {!!}
+  Valid-round-< empty (ValidBlockInit x) = z≤n
+  Valid-round-< rc (ValidBlockStep rc x) = <⇒≤ x
+  Valid-round-< rc (ValidQC rc refl)     = ≤-refl
+
 
   ←⋆-round-< : ∀{r₀ r₁}
              → RecordChain r₁
@@ -145,27 +147,31 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
              → HashBroke ⊎ (round r₀ ≤ round r₁)
   ←⋆-round-< empty ssRefl                   = inj₂ z≤n
   ←⋆-round-< (step path x x₁) ssRefl        = inj₂ ≤-refl
-  ←⋆-round-< (step path x vr₁) (ssStep r x₂) 
-    with lemmaS1-2 x₂ x 
+  ←⋆-round-< (step path x vr₁) (ssStep r x₂)
+    with lemmaS1-2 x₂ x
   ...| inj₁ hb   = inj₁ hb
-  ...| inj₂ refl 
+  ...| inj₂ refl
     with ←⋆-round-< path r
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ rec = inj₂ (≤-trans rec (←-round-< (step path x vr₁) x₂)) 
+  ...| inj₂ rec = inj₂ (≤-trans rec (Valid-round-< path vr₁))
 
   lemmaS1-3 : ∀{r₀ r₁ r₂}
-            → RecordChain r₂
+            → RecordChain r₀
+            → RecordChain r₁
             → r₀ ←⋆ r₂ → r₁ ←⋆ r₂
             → round r₀ < round r₁
-            → r₀ ←⋆ r₁
-  lemmaS1-3 path ssRefl r1r2 hip 
-    with ←⋆-round-< path r1r2
-  ...| imp = {!!} -- impossible!
-  lemmaS1-3 path (ssStep r0r2 x) ssRefl hip = ssStep r0r2 x
-  lemmaS1-3 (step path x₂ x₃) (ssStep r0r2 x) (ssStep r1r2 x₁) hip 
-    with lemmaS1-2 x x₂
-  ...| inj₁ hb = {!!}
-  ...| inj₂ refl = ssStep (lemmaS1-3 path r0r2 {!!} {!!}) {!!}
+            → HashBroke ⊎ r₀ ←⋆ r₁
+  lemmaS1-3 rc₀ rc₁ ssRefl ssRefl rr₀<rr₁ = inj₂ ssRefl
+  lemmaS1-3 rc₀ rc₁ ssRefl (ssStep r₁←⋆r r←r₀) rr₀<rr₁
+    with ←⋆-round-< rc₀ (ssStep r₁←⋆r r←r₀)
+  ... | inj₁ hb = inj₁ hb
+  ... | inj₂ r₁≤r₀ = contradiction r₁≤r₀ (<⇒≱ rr₀<rr₁)
+  lemmaS1-3 rc₀ rc₁ (ssStep r₀←⋆r r←r₁) ssRefl rr₀<rr₁ = inj₂ (ssStep r₀←⋆r r←r₁)
+  lemmaS1-3 rc₀ rc₁ (ssStep r₀←⋆r r←r₂) (ssStep r₁←⋆rₓ rₓ←r₂) rr₀<rr₁
+    with ←-inj r←r₂ rₓ←r₂
+  ... | inj₁ hb = inj₁ hb
+  ... | inj₂ refl = lemmaS1-3 rc₀ rc₁ r₀←⋆r r₁←⋆rₓ rr₀<rr₁
+
 
   ----------------------
   -- Lemma 2
