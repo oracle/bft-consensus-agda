@@ -60,6 +60,36 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   prevBlock : ∀{q} → RecordChain (Q q) → Block
   prevBlock (step {r = B b} _ (B←Q _) _) = b
 
+  -- Defition of 'previous_round' as in Paper Section 5.5
+  currRound : ∀{r} → RecordChain r → Round
+  currRound empty = 0
+  currRound (step {r = r} _ _ _) = round r
+
+  prevRound : ∀{r} → RecordChain r → Round
+  prevRound empty = 0
+  prevRound (step rc _ _) = currRound rc
+
+  -- A k-chain (paper Section 5.2) is a sequence of
+  -- blocks and quorum certificates for said blocks:
+  --
+  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₖ ← Cₖ
+  --
+  -- Our datatype 𝕂-chain captures exactly that structure.
+  --
+  data 𝕂-chain : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain 0 rc
+    s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
+            → (r←b : r   ← B b)
+            → (vb  : Valid rc (B b))
+            → (b←q : B b ← Q q)
+            → (vq  : Valid (step rc r←b vb) (Q q))
+            → 𝕂-chain k rc
+            → 𝕂-chain (suc k) (step (step rc r←b vb) b←q vq)
+
+  -- Returns the round of the block heading the k-chain.
+  kchainHeadRound : ∀{k r}{rc : RecordChain r} → 𝕂-chain k rc → Round
+  kchainHeadRound (0-chain {r = r})          = round r
+  kchainHeadRound (s-chain r←b vb b←q vq kk) = kchainHeadRound kk
 
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
@@ -187,12 +217,60 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
         → prevBlock rc ≢ prevBlock rc'
         → IncreasingRoundBroke ha rc prf
 
+  -- TODO: (FOR MARK) Eagles eye needed here!
   postulate
     increasing-round-rule 
       : (ha : Author ec) → Honest {ec = ec} ha
       → ∀{q}(rc : RecordChain (Q q))(hyp : ha ∈QC q) -- ha has voted for q
       → ¬ (IncreasingRoundBroke ha rc hyp)           -- Hence, ha has not broken the rule
 
+
+  {- TODO: We could think of gathering evidence that a node
+           knows about a record in a more expressive way.
+
+  data KnowsOf (α : Author ec) : Record → Set where
+    seenEvidence : ∀{q} → α ∈QC q → KnowsOf α (Q q)
+    isInMyRecordStore : ∀{r} → ⊥ {- r is in my record store and I'm α -} 
+                      → KnowsOf α r
+  -}
+
+  data KnowsOf (α : Author ec) : Record → Set where
+    seenEvidence : ∀{q} → α ∈QC q → KnowsOf α (Q q)
+
+  -- For the locked-round-rule (Sect 5.5), we observe its breakage
+  -- in a more intricate fashion;
+  --
+  -- If there exists a two chain as follows, call it c2,
+  --
+  --   ⋯ ← B₀ ← Q₀ ← B₁ ← Q₁ 
+  --
+  -- Such that we seen evidence that α knowsOf Q₁,
+  -- then, the following never happens as long as α is honest:
+  --
+  --   ⋯ ← B' ← Q' with α knowingOf Q' with prevRound B' < round B₀
+  --
+  -- That's because wince we know α knowsOf Q₁, it's locked_round is
+  -- at least round B₀. Therefore, since α is honest, it would never vote
+  -- for a node B' that extends something from before the 2-chain, after α
+  -- has seen the 2-chain.
+  data LockedRoundBroke (ha : Author ec) {r} {rc : RecordChain r} 
+                        (c2 : 𝕂-chain 2 rc) (hyp : KnowsOf ha r) (b' : Block) 
+      : Set₁ where
+    lrh : {q' : QC}(rc' : RecordChain (B b'))
+        → Valid rc' (Q q')
+        → B b' ← Q q'
+        → ha ∈QC q'
+        → prevRound rc' < kchainHeadRound c2
+        → LockedRoundBroke ha c2 hyp b'
+
+  -- TODO: (FOR MARK) Eagles eye needed here!
+  postulate
+    locked-round-rule
+      : (ha : Author ec) → Honest {ec = ec} ha
+      → ∀{r}{rc : RecordChain r}(c2 : 𝕂-chain 2 rc)
+      → (hyp : KnowsOf ha r)
+      → {b' : Block} 
+      → ¬ (LockedRoundBroke ha c2 hyp b')
 
   ----------------------
   -- Lemma 2
@@ -224,3 +302,30 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
    ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
      with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀
    ...| abs = ⊥-elim (abs (irh {q' = q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ hyp imp))
+
+  
+  module Lemma3-WithBFT 
+     (lemmaB1 : (q₁ : QC)(q₂ : QC) 
+              → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
+    where
+  
+   -- We just noted that when the paper mentions 'certified' or ' verified'
+   -- block, we encode it as a 'RecordChain' ending in said block.   
+
+   lemmaS3 : ∀{r}{rc : RecordChain r}
+           → (c3 : 𝕂-chain 3 rc)
+           → {b' : Block}{q' : QC}
+           → (certB : RecordChain (B b'))
+           → (b←q   : B b' ← Q q') → Valid certB (Q q')
+           → round r < bRound b'
+           → kchainHeadRound c3 ≤ prevRound certB 
+   lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+     with lemmaB1 q₂ q'
+   ...| (a , (a∈q₂ , a∈q' , honest)) 
+     with bRound b₂ ≤?ℕ bRound b'
+   ...| no imp 
+     with increasing-round-rule a honest (step _ b₂←q₂ vq₂) a∈q₂ 
+   ...| abs = ⊥-elim (abs (irh (step certB b←q' vq') a∈q' {!!} {!!}))
+   lemmaS3 {r} (s-chain {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+      | (a , (a∈q₂ , a∈q' , honest)) 
+      | yes prf = {!!}
