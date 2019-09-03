@@ -32,9 +32,9 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
     B←Q : {b : Block} {q : QC}
           → HashR (B b) ≡ qBlockHash q
           → B b ← Q q
-    B←V : {b : Block} {v : Vote}
-          → HashR (B b) ≡ vBlockHash v
-          → B b ← V v
+    -- B←V : {b : Block} {v : Vote}
+    --       → HashR (B b) ≡ vBlockHash v
+    --       → B b ← V v
 
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
@@ -148,10 +148,10 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
      with hash-cr (trans b₀←q (sym b₁←q))
   ... | inj₁ (b₀≢b₁ , hb₀←hb₁) = inj₁ ( ( encodeR b₀ , encodeR b₁ ), ( b₀≢b₁ , hb₀←hb₁ ) )
   ... | inj₂ b₀≡b₁             = inj₂ (encodeR-inj b₀≡b₁)
-  lemmaS1-2 {b₀} {b₁} {v} (B←V b₀←v) (B←V b₁←v)
-     with hash-cr (trans b₀←v (sym b₁←v))
-  ... | inj₁ (b₀≢b₁ , hb₀←hb₁) = inj₁ ( (encodeR b₀ , encodeR b₁ ) , ( b₀≢b₁ , hb₀←hb₁ ) )
-  ... | inj₂ b₀≡b₁             = inj₂ (encodeR-inj b₀≡b₁)
+  -- lemmaS1-2 {b₀} {b₁} {v} (B←V b₀←v) (B←V b₁←v)
+  --    with hash-cr (trans b₀←v (sym b₁←v))
+  -- ... | inj₁ (b₀≢b₁ , hb₀←hb₁) = inj₁ ( (encodeR b₀ , encodeR b₁ ) , ( b₀≢b₁ , hb₀←hb₁ ) )
+  -- ... | inj₂ b₀≡b₁             = inj₂ (encodeR-inj b₀≡b₁)
 
 
   -- Better name for our lemma
@@ -202,29 +202,85 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   ... | inj₂ refl = lemmaS1-3 rc₀ rc₁ r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
 
-  -- A breakage of the "increasing round" voting constraint can only be
-  -- observed by witnessing a given author voting twice for different blocks
-  -- on the same round.
-  --
-  -- In our abstract model, we do not posses a notion of future or past, we
-  -- only model snapshopts of the system. Hence, we model the constraint as
-  -- "this will never happen to an honest node"
-  data IncreasingRoundBroke (ha : Author ec) {q} (rc : RecordChain (Q q))
-      (prf : ha ∈QC q) : Set₁ where
-    irh : ∀{q'}(rc' : RecordChain (Q q'))
-        → ha ∈QC q'
-        → qRound q ≡ qRound q'
-        → prevBlock rc ≢ prevBlock rc'
-        → IncreasingRoundBroke ha rc prf
-
-  -- TODO: (FOR MARK) Eagles eye needed here!
   postulate
-    increasing-round-rule 
+    increasing-round-rule
       : (ha : Author ec) → Honest {ec = ec} ha
-      → ∀{q}(rc : RecordChain (Q q))(hyp : ha ∈QC q) -- ha has voted for q
-      → ¬ (IncreasingRoundBroke ha rc hyp)           -- Hence, ha has not broken the rule
+      → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q
+      → ∀{q'}(rc' : RecordChain (Q q')) (va' : ha ∈QC q') -- ha has voted for q'
+      → vOrder (∈QC-Vote {q} ha va) < vOrder (∈QC-Vote {q'} ha va')
+      → qRound q < qRound q' 
 
+    votes-only-once-rule
+      : (ha : Author ec) → Honest {ec = ec} ha
+      → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q
+      → ∀{q'}(rc' : RecordChain (Q q')) (va' : ha ∈QC q') -- ha has voted for q'
+      → vOrder (∈QC-Vote {q} ha va) ≡ vOrder (∈QC-Vote {q'} ha va')
+      → ∈QC-Vote {q} ha va ≡ ∈QC-Vote {q'} ha va'
 
+  ----------------------
+  -- Lemma 2
+
+  B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
+  B-inj refl = refl
+
+  module Lemma2-WithBFT 
+     (lemmaB1 : (q₁ : QC)(q₂ : QC) 
+              → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
+    where
+
+   -- TODO: When we bring in the state everywhere; this will remain very similar.
+   --       We will add another check for st₀ ≟State st₁ after checking the block
+   --       equality in (***); Naturally, if blocks are equal so is the state.
+   --       We will need some command-application-injective lemma.
+   --
+   --         1) when st₀ ≟State st₁ returns yes, we done.
+   --         2) when it returns no, and the blocks are different, no problem.
+   --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
+   lemmaS2 : {q₀ q₁ : QC}
+           → (rc₀ : RecordChain (Q q₀)) 
+           → (rc₁ : RecordChain (Q q₁)) 
+           → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
+           → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
+   lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
+                     (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+     with b₀ ≟Block b₁ -- (***)
+   ...| yes done = inj₂ done
+   ...| no  imp  
+     with lemmaB1 q₀ q₁
+   ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
+     with <-cmp (vOrder (∈QC-Vote {q₀} a a∈q₀)) (vOrder (∈QC-Vote {q₁} a a∈q₁))
+   ...| tri< va<va' _ _ 
+     with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀ 
+                                         {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ 
+                                         va<va'
+   ...| res = ⊥-elim (<⇒≢ res hyp)
+   lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
+                     (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest)) 
+      | tri> _ _ va'<va 
+     with increasing-round-rule a honest {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁  
+                                         {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀  
+                                         va'<va
+   ...| res = ⊥-elim (<⇒≢ res (sym hyp))
+   lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
+                     (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest)) 
+      | tri≈ _ va≡va' _ 
+     with votes-only-once-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀  
+                                        {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ 
+                                        va≡va'
+   ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
+                    , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
+
+-- ################
+-- ## WE ARE HERE
+
+-- Below is scratchpad
+
+{-
+  
   {- TODO: We could think of gathering evidence that a node
            knows about a record in a more expressive way.
 
@@ -272,38 +328,7 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
       → {b' : Block} 
       → ¬ (LockedRoundBroke ha c2 hyp b')
 
-  ----------------------
-  -- Lemma 2
 
-  module Lemma2-WithBFT 
-     (lemmaB1 : (q₁ : QC)(q₂ : QC) 
-              → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
-    where
-
-   -- TODO: When we bring in the state everywhere; this will remain very similar.
-   --       We will add another check for st₀ ≟State st₁ after checking the block
-   --       equality in (***); Naturally, if blocks are equal so is the state.
-   --       We will need some command-application-injective lemma.
-   --
-   --         1) when st₀ ≟State st₁ returns yes, we done.
-   --         2) when it returns no, and the blocks are different, no problem.
-   --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
-   lemmaS2 : {q₀ q₁ : QC}
-           → (rc₀ : RecordChain (Q q₀)) 
-           → (rc₁ : RecordChain (Q q₁)) 
-           → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
-           → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
-   lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
-                     (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
-     with b₀ ≟Block b₁ -- (***)
-   ...| yes done = inj₂ done
-   ...| no  imp  
-     with lemmaB1 q₀ q₁
-   ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
-     with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀
-   ...| abs = ⊥-elim (abs (irh {q' = q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ hyp imp))
-
-  
   module Lemma3-WithBFT 
      (lemmaB1 : (q₁ : QC)(q₂ : QC) 
               → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
@@ -311,7 +336,6 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   
    -- We just noted that when the paper mentions 'certified' or ' verified'
    -- block, we encode it as a 'RecordChain' ending in said block.   
-
    lemmaS3 : ∀{r}{rc : RecordChain r}
            → (c3 : 𝕂-chain 3 rc)
            → {b' : Block}{q' : QC}
@@ -329,3 +353,4 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
    lemmaS3 {r} (s-chain {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
       | (a , (a∈q₂ , a∈q' , honest)) 
       | yes prf = {!!}
+-}

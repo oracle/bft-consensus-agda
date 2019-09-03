@@ -33,8 +33,8 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
     constructor mkVote
     field
       vAuthor    : Author ec
-      vRound     : Round
       vBlockHash : BlockHash
+      vRound     : Round
       -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
       -- this is representing. This makes it much simpler to talk about thinks such as 
       -- the increasing round rule. 
@@ -77,6 +77,10 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
       -- Secondly, we expect it to have at least 'QuorumSize' number of
       -- votes, for the particular epoch in question.
       qVotes-C2      : QuorumSize ec ≤ length qVotes
+      -- All the votes must vote for the qBlockHash in here;
+      qVotes-C3      : All (λ v → vBlockHash v ≡ qBlockHash) qVotes
+      -- Likewise for rounds
+      qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
   open QC public
 
   -- TODO:
@@ -91,6 +95,10 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
   -- a given QC.
   _∈QC_  : Author ec → QC → Set
   a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
+
+  -- TODO: gets the vote of a ∈QC
+  postulate
+    ∈QC-Vote : ∀{q}(a : Author ec) → (a ∈QC q) → Vote
 
   -- The initial record is unique per epoch. Essentially, we just
   -- use the 'epochSeed' and the hash of the last record of the previous
@@ -112,8 +120,8 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
     I : Initial   → Record
     B : Block     → Record
     Q : QC        → Record
-    V : Vote      → Record
-    T : Timeout   → Record
+    -- V : Vote      → Record
+    -- T : Timeout   → Record
 
   -- Each record has a round
   round : Record → Round
@@ -122,5 +130,5 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
                   -- should we return a 'Maybe Round'? Using zero makes life simpler though.
   round (B b) = bRound b
   round (Q q) = qRound q
-  round (V v) = vRound v
-  round (T t) = toRound t
+  -- round (V v) = vRound v
+  -- round (T t) = toRound t

@@ -12,6 +12,10 @@ module Prelude where
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
     public
 
+  open import Data.Nat.Properties
+    using (<-cmp)
+    public
+
   open import Data.List 
     renaming (map to List-map)
     hiding (fromMaybe; [_])
@@ -24,6 +28,10 @@ module Prelude where
 
   open import Data.List.Any
     using (Any; here; there)
+    public
+
+  open import Data.List.All
+    using (All; []; _∷_)
     public
   
   open import Data.Vec
