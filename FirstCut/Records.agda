@@ -35,6 +35,10 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
       vAuthor    : Author ec
       vRound     : Round
       vBlockHash : BlockHash
+      -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
+      -- this is representing. This makes it much simpler to talk about thinks such as 
+      -- the increasing round rule. 
+      vOrder     : ℕ 
       --vState     : State
       --vSignature : Signature
   open Vote public
