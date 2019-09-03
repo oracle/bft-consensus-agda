@@ -130,6 +130,15 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
         → HashBroke ⊎ (r₀ ≡ r₁)
   ←-inj = lemmaS1-2
 
+  ←-round-< : ∀{r₀ r₁}
+            → (rc : RecordChain r₁)
+            → r₀ ← r₁
+            → round r₀ ≤ round r₁
+  ←-round-< rc (I←B x) = z≤n
+  ←-round-< rc (Q←B x) = {!!}
+  ←-round-< rc (B←Q x) = {!!}
+  ←-round-< rc (B←V x) = {!!}
+
   ←⋆-round-< : ∀{r₀ r₁}
              → RecordChain r₁
              → r₀ ←⋆ r₁
@@ -142,7 +151,7 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   ...| inj₂ refl 
     with ←⋆-round-< path r
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ rec = inj₂ (≤-trans rec {!!}) -- extract from vr₁
+  ...| inj₂ rec = inj₂ (≤-trans rec (←-round-< (step path x vr₁) x₂)) 
 
   lemmaS1-3 : ∀{r₀ r₁ r₂}
             → RecordChain r₂
