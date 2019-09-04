@@ -125,27 +125,76 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    ------------------
    -- Proposition S4
 
-   propS4 :  ∀{r}{rc : RecordChain r}
-          → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
-          → {q : QC}
-          → (certB : RecordChain (Q q))
-          → bRound (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) ≤ qRound q
-          -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
-          -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
-          -- to say that B₀ is a block in the RecordChain that goes all the way to C.
-          → B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
-   propS4 c3 certB b←q = {!!}
+    y+1+2-lemma : ∀{x y} → x ≤ y → y ≤ 2 + x
+                → y ≡ x ⊎ y ≡ suc x ⊎ y ≡ suc (suc x)
+    y+1+2-lemma hyp0 hyp1 = {!!}
 
-   -------------------
-   -- Theorem S5
+    3chain-round-lemma
+      : ∀{r}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc)
+      → bRound (c3 ⟦ zero ⟧ck) ≡ 2 + bRound (c3 ⟦ suc (suc zero) ⟧ck)
+    3chain-round-lemma c3 = {!!}
 
-   thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
-         → {b b' : Block}
-         → CommitRule rc  b
-         → CommitRule rc' b'
-         → (B b) ∈RC rc' ⊎ (B b') ∈RC rc -- Not conflicting means one extends the other.
-   thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
-     with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
-   ...| tri≈ _ r≡r' _  = inj₁ (propS4 c3 rc' {!!}) 
-   ...| tri< r<r' _ _  = inj₁ (propS4 c3 rc' {!!}) 
-   ...| tri> _ _ r'<r' = inj₂ (propS4 c3' rc {!!}) 
+    kchain-round-head-lemma
+      : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain-contigR (suc k) rc)
+      → round r ≡ bRound (c3 ⟦ zero ⟧ck)
+    kchain-round-head-lemma = {!!}
+
+    kchain-round-≤-lemma
+      : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
+      → round r ≤ bRound (c3 ⟦ ix ⟧ck)
+    kchain-round-≤-lemma = {!!}
+     
+    {-# TERMINATING #-}
+    propS4 :  ∀{r}{rc : RecordChain r}
+           → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+           → {q : QC}
+           → (certB : RecordChain (Q q))
+           → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q
+           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
+           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
+           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
+           → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
+    propS4 c3 {q} (step certB b←q vq {pq}) hyp
+      with qRound q ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
+    ...| yes rq≤rb₂ 
+      with y+1+2-lemma hyp (subst (qRound q ≤_) (3chain-round-lemma c3) rq≤rb₂)
+    ...| inj₁ case1       = {!!}
+    ...| inj₂ (inj₁ hb)   = {!!}
+    ...| inj₂ (inj₂ b≡b₀) = {!lemmaS2!}
+    propS4 c3 {q} (step certB b←q vq {pq}) hyp
+       | no  rb₂<rq 
+      with lemmaS3 (𝕂-chain-contigR-𝓤 c3) (step certB b←q vq {pq}) 
+          ( subst (_< qRound q) (sym (kchain-round-head-lemma c3)) (≰⇒> rb₂<rq) )
+    ...| ls3 
+      with certB | b←q
+    ...| empty                | ()
+    ...| step certB' res vres | (B←Q x) 
+      with certB' | res
+    ...| empty | (I←B y) = {!!} -- can't happen; no block has round 0, only Initial. Initial is not ot typ Block
+    ...| step {r = r} certB'' res' (ValidQC xx refl) {p''} | (Q←B {q = q*} y) 
+      with propS4 c3 (step certB'' res' (ValidQC xx refl) {p''}) ls3 
+    ...| inj₁ hb    = inj₁ hb
+    ...| inj₂ final = inj₂ (there (B←Q x) vq (there (Q←B y) vres final))
+{-
+      with propS4 c3 {!certB'!} {!!}
+    ...| RES = there (B←Q x) vq (there res vres {!propS4!})
+-}
+
+    -------------------
+    -- Theorem S5
+
+    thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
+          → {b b' : Block}
+          → CommitRule rc  b
+          → CommitRule rc' b'
+          → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
+    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
+      with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
+    ...| gogogo = {!!}
+{-
+    Translate the code below to with clauses returning HashBroke when needed
+
+    ...| tri≈ _ r≡r' _  = inj₁ (propS4 c3 rc' {!!}) 
+    ...| tri< r<r' _ _  = inj₁ (propS4 c3 rc' {!!}) 
+    ...| tri> _ _ r'<r' = inj₂ (propS4 c3' rc {!!}) 
+-}
