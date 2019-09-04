@@ -10,7 +10,7 @@ open import BasicTypes
 --  2) Sender have been aute'ed against an epoch.
 --  3) Signatures have been verified
 -- 
-module Records {f : ℕ} (ec : EpochConfig f)  where
+module Abstract.Records {f : ℕ} (ec : EpochConfig f)  where
 
   -- TODO: discuss if we want to keep signatures here.
   --  VCM: I'm leaning towards leaving signatures out and
@@ -122,6 +122,9 @@ module Records {f : ℕ} (ec : EpochConfig f)  where
     Q : QC        → Record
     -- V : Vote      → Record
     -- T : Timeout   → Record
+
+  B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
+  B-inj refl = refl
 
   -- Each record has a round
   round : Record → Round
