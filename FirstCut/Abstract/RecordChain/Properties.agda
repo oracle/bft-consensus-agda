@@ -26,13 +26,13 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
 
    open WithPool (_∈ pool curr)
 
-   ----------------------
-   -- Lemma 2
-
    module WithBFT 
       (lemmaB1 : (q₁ : QC)(q₂ : QC) 
                → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
      where
+
+    ----------------------
+    -- Lemma 2
 
 
     -- TODO: When we bring in the state everywhere; this will remain very similar.
@@ -82,6 +82,9 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                      , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
 
 
+    ----------------
+    -- Lemma S3
+
     -- We just noted that when the paper mentions 'certified' or ' verified'
     -- block, we encode it as a 'RecordChain' ending in said block.   
     lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
@@ -119,12 +122,16 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
        with locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq' {{!!}}) a∈q' va₂<va'
     ...| res = ≤-trans (kchainBlockRound≤ zero (suc zero) c2 z≤n) res
 
- {-
-      with bRound b₂ ≤?ℕ bRound b'
-    ...| no imp 
-      with increasing-round-rule a honest (step _ b₂←q₂ vq₂) a∈q₂ 
-    ...| abs = ⊥-elim (abs (irh (step certB b←q' vq') a∈q' {!!} {!!}))
-    lemmaS3 {r} (s-chain {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
-       | (a , (a∈q₂ , a∈q' , honest)) 
-       | yes prf = {!!}
- -}
+   ------------------
+   -- Proposition S4
+
+   propS4 :  ∀{r}{rc : RecordChain r}
+          → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+          → {q : QC}
+          → (certB : RecordChain (Q q))
+          → bRound (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) < qRound q
+          -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
+          -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
+          -- to say that B₀ is a block in the RecordChain that goes all the way to C.
+          → B (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) ∈RC certB
+   propS4 c3 certB b←q = {!!}
