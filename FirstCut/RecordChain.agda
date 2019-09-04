@@ -65,9 +65,12 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   currRound empty = 0
   currRound (step {r = r} _ _ _) = round r
 
+  -- TODO: prev round should be defined for blocks only...
   prevRound : ∀{r} → RecordChain r → Round
   prevRound empty = 0
-  prevRound (step rc _ _) = currRound rc
+  prevRound (step rc (I←B x) vr) = 0
+  prevRound (step rc (Q←B x) vr) = currRound rc
+  prevRound (step rc (B←Q x) vr) = prevRound rc
 
   -- A k-chain (paper Section 5.2) is a sequence of
   -- blocks and quorum certificates for said blocks:
@@ -90,6 +93,14 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
   kchainHeadRound : ∀{k r}{rc : RecordChain r} → 𝕂-chain k rc → Round
   kchainHeadRound (0-chain {r = r})          = round r
   kchainHeadRound (s-chain r←b vb b←q vq kk) = kchainHeadRound kk
+
+  kchainBlock : ∀{k r}{rc : RecordChain r} → Fin k → 𝕂-chain k rc → Block
+  kchainBlock zero    (s-chain {b = b} _ _ _ _ _) = b
+  kchainBlock (suc x) (s-chain r←b vb b←q vq kk)  = kchainBlock x kk
+
+  kchainBlockRound≤ : ∀{k r}{rc : RecordChain r}(x y : Fin k)(kc : 𝕂-chain k rc)
+                    → x ≤Fin y → bRound (kchainBlock y kc) ≤ bRound (kchainBlock x kc)
+  kchainBlockRound≤ = {!!}
 
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
@@ -274,66 +285,33 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
    ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
                     , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
 
--- ################
--- ## WE ARE HERE
-
--- Below is scratchpad
-
-{-
-  
-  {- TODO: We could think of gathering evidence that a node
-           knows about a record in a more expressive way.
-
-  data KnowsOf (α : Author ec) : Record → Set where
-    seenEvidence : ∀{q} → α ∈QC q → KnowsOf α (Q q)
-    isInMyRecordStore : ∀{r} → ⊥ {- r is in my record store and I'm α -} 
-                      → KnowsOf α r
-  -}
-
-  data KnowsOf (α : Author ec) : Record → Set where
-    seenEvidence : ∀{q} → α ∈QC q → KnowsOf α (Q q)
-
-  -- For the locked-round-rule (Sect 5.5), we observe its breakage
-  -- in a more intricate fashion;
-  --
-  -- If there exists a two chain as follows, call it c2,
-  --
-  --   ⋯ ← B₀ ← Q₀ ← B₁ ← Q₁ 
-  --
-  -- Such that we seen evidence that α knowsOf Q₁,
-  -- then, the following never happens as long as α is honest:
-  --
-  --   ⋯ ← B' ← Q' with α knowingOf Q' with prevRound B' < round B₀
-  --
-  -- That's because wince we know α knowsOf Q₁, it's locked_round is
-  -- at least round B₀. Therefore, since α is honest, it would never vote
-  -- for a node B' that extends something from before the 2-chain, after α
-  -- has seen the 2-chain.
-  data LockedRoundBroke (ha : Author ec) {r} {rc : RecordChain r} 
-                        (c2 : 𝕂-chain 2 rc) (hyp : KnowsOf ha r) (b' : Block) 
-      : Set₁ where
-    lrh : {q' : QC}(rc' : RecordChain (B b'))
-        → Valid rc' (Q q')
-        → B b' ← Q q'
-        → ha ∈QC q'
-        → prevRound rc' < kchainHeadRound c2
-        → LockedRoundBroke ha c2 hyp b'
-
-  -- TODO: (FOR MARK) Eagles eye needed here!
+  -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
+  -- TOEXPLAIN: prevRound is defined for blocks only on the paper; however,
+  --            it is cumbersome to open rc' to expose the block that comes
+  --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
+  --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
   postulate
     locked-round-rule
-      : (ha : Author ec) → Honest {ec = ec} ha
-      → ∀{r}{rc : RecordChain r}(c2 : 𝕂-chain 2 rc)
-      → (hyp : KnowsOf ha r)
-      → {b' : Block} 
-      → ¬ (LockedRoundBroke ha c2 hyp b')
-
+      : (α : Author ec) → Honest {ec = ec} α
+      → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
+      → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
+      → ∀{q'}(rc' : RecordChain (Q q'))
+      → (vα' : α ∈QC q')
+      → vOrder (∈QC-Vote {q} _ vα) < vOrder (∈QC-Vote {q'} _ vα')
+      → bRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
 
   module Lemma3-WithBFT 
      (lemmaB1 : (q₁ : QC)(q₂ : QC) 
               → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
     where
-  
+
+   ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC} → Valid certB (Q q)
+                 → qRound q ≡ bRound b   
+   ValidQ⇒Round≡ (ValidQC certB x) = x
+
+   ≤-unstep : ∀{m n} → suc m ≤ n → m ≤ n
+   ≤-unstep (s≤s ss) = ≤-step ss
+
    -- We just noted that when the paper mentions 'certified' or ' verified'
    -- block, we encode it as a 'RecordChain' ending in said block.   
    lemmaS3 : ∀{r}{rc : RecordChain r}
@@ -342,10 +320,37 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
            → (certB : RecordChain (B b'))
            → (b←q   : B b' ← Q q') → Valid certB (Q q')
            → round r < bRound b'
-           → kchainHeadRound c3 ≤ prevRound certB 
+           → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB 
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
      with lemmaB1 q₂ q'
    ...| (a , (a∈q₂ , a∈q' , honest)) 
+     -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
+     -- and error prone. We should factor out a predicate that analyzes the rounds of QC's and
+     -- returns us a judgement about the order of the votes.
+     with <-cmp (vOrder (∈QC-Vote {q₂} a a∈q₂)) (vOrder (∈QC-Vote {q'} a a∈q'))
+   ...| tri> _ _ va'<va₂ 
+     with increasing-round-rule a honest (step certB b←q' vq')               a∈q' 
+                                         (step (step rc r←b₂ vb₂) b₂←q₂ vq₂) a∈q₂ 
+                                         va'<va₂ 
+   ...| res rewrite ValidQ⇒Round≡ vq' = ⊥-elim (n≮n (bRound b') (≤-trans res (≤-unstep hyp)))
+   lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+      | (a , (a∈q₂ , a∈q' , honest)) 
+      | tri≈ _ va₂≡va' _ 
+     with votes-only-once-rule a honest (step (step rc r←b₂ vb₂) b₂←q₂ vq₂) a∈q₂ 
+                                        (step certB b←q' vq')               a∈q'
+                                        va₂≡va'
+   ...| res rewrite ValidQ⇒Round≡ vq' = {!!} -- res tells me both votes are the same; hyp tells
+                                             -- me the rounds of the QC's are different; 
+                                             -- votes can't be the same.
+   lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+      | (a , (a∈q₂ , a∈q' , honest)) 
+      | tri< va₂<va' _ _ 
+     with b←q' 
+   ...| B←Q xxx 
+      with locked-round-rule a honest {q₂} (s-chain r←b₂ vb₂ b₂←q₂ vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq') a∈q' va₂<va'
+   ...| res = ≤-trans (kchainBlockRound≤ zero (suc zero) c2 z≤n) res
+
+{-
      with bRound b₂ ≤?ℕ bRound b'
    ...| no imp 
      with increasing-round-rule a honest (step _ b₂←q₂ vq₂) a∈q₂ 

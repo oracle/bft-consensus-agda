@@ -54,7 +54,7 @@ module Prelude where
 
   open import Data.Fin
     using (Fin; suc; zero)
-    renaming (_<_ to _<Fin_)
+    renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_)
     public
   
   open import Relation.Binary.PropositionalEquality
