@@ -12,22 +12,31 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   where
 
   open WithCryptoHash hash hash-cr
-  open import Abstract.Records ec
+  open import Abstract.Records ec hash hash-cr
   open import Abstract.RecordChain ec hash hash-cr
   
   postulate _∈_ : ∀{a}{A : Set a} → A → List A → Set
-  
-  AllValid : List Record → ∀{r} → RecordChain r → Set
-  AllValid _ _ = Unit -- TODO: Write a predicate that ensures that all records in said recordchain are
-                      --       valid with respect to the given list
-
 
   record RecordStoreState : Set₁ where
     constructor rss
     field
-      valids  : List Record
-      correct : (r : Record) → r ∈ valids → Σ (RecordChain r) (AllValid valids) 
+      pool       : List Record
+      correct    : (r : Record) → r ∈ pool → WithPool.RecordChain (_∈ pool) r
+  open RecordStoreState public
+{-
+
+  module RecordChainForRSS (curr : RecordStoreState) where
+    open WithPool (_∈ pool curr) public
+-}
+{-
+
+  RecordChain : RecordStoreState → Record → Set₁
+  RecordChain curr r = WithPool.RecordChain (_∈ pool curr) r
       
+  𝕂-chain : {curr : RecordStoreState} 
+          → ℕ → ∀ {r} → RecordChain curr r → Set₁
+  𝕂-chain {curr} k rc = WithPool.𝕂-chain (_∈ pool curr) k rc
+-}
 
 {- 
 

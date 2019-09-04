@@ -1,5 +1,6 @@
 open import Prelude
 open import BasicTypes
+open import Hash
 
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
@@ -10,7 +11,12 @@ open import BasicTypes
 --  2) Sender have been aute'ed against an epoch.
 --  3) Signatures have been verified
 -- 
-module Abstract.Records {f : ℕ} (ec : EpochConfig f)  where
+module Abstract.Records {f : ℕ} (ec : EpochConfig f)  
+  -- A Hash function maps a bytestring into a hash.
+  (hash     : ByteString → Hash)
+  -- And is colission resistant
+  (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+ where
 
   -- TODO: discuss if we want to keep signatures here.
   --  VCM: I'm leaning towards leaving signatures out and
@@ -135,3 +141,26 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)  where
   round (Q q) = qRound q
   -- round (V v) = vRound v
   -- round (T t) = toRound t
+
+  -- We need to encode records into bytestrings in order to hash them.
+  postulate
+    encodeR     : Record → ByteString
+    encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+
+  HashR : Record → Hash
+  HashR = hash ∘ encodeR
+
+  data _←_ : Record → Record → Set where
+    I←B : {i : Initial} {b : Block}
+          → HashR (I i) ≡  bPrevQCHash b
+          → I i ← B b
+    Q←B : {q : QC} {b : Block}
+          → HashR (Q q) ≡  bPrevQCHash b
+          → Q q ← B b
+    B←Q : {b : Block} {q : QC}
+          → HashR (B b) ≡ qBlockHash q
+          → B b ← Q q
+    -- B←V : {b : Block} {v : Vote}
+    --       → HashR (B b) ≡ vBlockHash v
+    --       → B b ← V v
+

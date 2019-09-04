@@ -5,37 +5,24 @@ open import Prelude
 
 open import Data.Nat.Properties
 
+import Abstract.Records
+
 module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
-  (hash    : ByteString → Hash)
+  (hash     : ByteString → Hash)
   -- And is colission resistant
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
- where
+  (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+    where
 
-  open WithCryptoHash hash hash-cr
-  open import Abstract.Records ec
+ open WithCryptoHash hash hash-cr
+ open Abstract.Records ec hash hash-cr
 
-  -- We need to encode records into bytestrings in order to hash them.
-  postulate
-    encodeR     : Record → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+ module WithPool
+   -- The current record pool; abstracted by saying
+   -- whether a record is in the pool or not.
+   (IsInPool   : Record → Set)
+     where
 
-  HashR : Record → Hash
-  HashR = hash ∘ encodeR
-
-  data _←_ : Record → Record → Set where
-    I←B : {i : Initial} {b : Block}
-          → HashR (I i) ≡  bPrevQCHash b
-          → I i ← B b
-    Q←B : {q : QC} {b : Block}
-          → HashR (Q q) ≡  bPrevQCHash b
-          → Q q ← B b
-    B←Q : {b : Block} {q : QC}
-          → HashR (B b) ≡ qBlockHash q
-          → B b ← Q q
-    -- B←V : {b : Block} {v : Vote}
-    --       → HashR (B b) ≡ vBlockHash v
-    --       → B b ← V v
 
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
@@ -45,12 +32,15 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     -- one path from the epoch's initial record to r.
     data RecordChain : Record → Set₁ where
       empty : ∀ {hᵢ} → RecordChain (I hᵢ)
-      step  : ∀ {r r'} → (rc : RecordChain r) 
+      step  : ∀ {r r'}
+            → (rc : RecordChain r) 
             → r ← r' → Valid rc r' 
+            → {prf : IsInPool r'} 
             → RecordChain r'
 
     data Valid : ∀ {r} → RecordChain r → Record → Set₁ where
-      ValidBlockInit : {b : Block} {hᵢ : Initial} → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
+      ValidBlockInit : {b : Block} {hᵢ : Initial} 
+                     → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
       ValidBlockStep : {b : Block} {q : QC}
                      → (rc : RecordChain (Q q))
                      → qRound q < bRound b
@@ -91,11 +81,13 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain 0 rc
     s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
             → (r←b : r   ← B b)
+            → {prfB : IsInPool (B b)}
             → (vb  : Valid rc (B b))
             → (b←q : B b ← Q q)
-            → (vq  : Valid (step rc r←b vb) (Q q))
+            → {prfQ : IsInPool (Q q)}
+            → (vq  : Valid (step rc r←b vb {prfB}) (Q q))
             → 𝕂-chain k rc
-            → 𝕂-chain (suc k) (step (step rc r←b vb) b←q vq)
+            → 𝕂-chain (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
 
   -- Returns the round of the block heading the k-chain.
   kchainHeadRound : ∀{k r}{rc : RecordChain r} → 𝕂-chain k rc → Round
@@ -115,7 +107,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     here   : ∀{rc : RecordChain r₀} → r₀ ∈RC rc
     there  : ∀{r₁ r₂}{rc : RecordChain r₁}(p : r₁ ← r₂)(pv : Valid rc r₂)
            → r₀ ∈RC rc
-           → r₀ ∈RC (step rc p pv)
+           → {prf : IsInPool r₂}
+           → r₀ ∈RC (step rc p pv {prf})
 
   -- This is the reflexive-transitive closure of _←_, as defined in 
   -- section 4.7 in the paper. Note it is different than the previous
