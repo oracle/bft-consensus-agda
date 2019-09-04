@@ -129,9 +129,23 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
           → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q : QC}
           → (certB : RecordChain (Q q))
-          → bRound (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) < qRound q
+          → bRound (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) ≤ qRound q
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
-          → B (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) ∈RC certB
+          → B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
    propS4 c3 certB b←q = {!!}
+
+   -------------------
+   -- Theorem S5
+
+   thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
+         → {b b' : Block}
+         → CommitRule rc  b
+         → CommitRule rc' b'
+         → (B b) ∈RC rc' ⊎ (B b') ∈RC rc -- Not conflicting means one extends the other.
+   thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
+     with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
+   ...| tri≈ _ r≡r' _  = inj₁ (propS4 c3 rc' {!!}) 
+   ...| tri< r<r' _ _  = inj₁ (propS4 c3 rc' {!!}) 
+   ...| tri> _ _ r'<r' = inj₂ (propS4 c3' rc {!!}) 

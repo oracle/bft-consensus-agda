@@ -32,3 +32,6 @@ module Lemmas where
  ≤-unstep : ∀{m n} → suc m ≤ n → m ≤ n
  ≤-unstep (s≤s ss) = ≤-step ss
 
+ ≡⇒≤ : ∀{m n} → m ≡ n → m ≤ n
+ ≡⇒≤ refl = ≤-refl
+

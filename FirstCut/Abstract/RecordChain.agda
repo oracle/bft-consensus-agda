@@ -121,6 +121,9 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   𝕂-chain-contigR-𝓤  0-chain = 0-chain
   𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
 
+  _⟦_⟧ck : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → Block
+  chain ⟦ ix ⟧ck = kchainBlock ix (𝕂-chain-contigR-𝓤 chain)
+
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
     here   : ∀{rc : RecordChain r₀} → r₀ ∈RC rc
@@ -233,3 +236,13 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ... | inj₂ refl = lemmaS1-3 rc₀ rc₁ r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
 
+  -----------------
+  -- Commit Rule --
+
+  -- A block (and everything preceeding it) is said to match the commit rule
+  -- when it is the head of a contiguious 3-chain. Here we define an auxiliary
+  -- datatype to make definitions more bearable.
+  data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
+    commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc) 
+                → b ≡ c3 ⟦ suc (suc zero) ⟧ck
+                → CommitRule rc b
