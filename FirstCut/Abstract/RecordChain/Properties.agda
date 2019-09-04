@@ -48,8 +48,8 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
             → (rc₁ : RecordChain (Q q₁)) 
             → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
             → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
-    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa}) 
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
       with b₀ ≟Block b₁ -- (***)
     ...| yes done = inj₂ done
     ...| no  imp  
@@ -57,26 +57,26 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
       with <-cmp (vOrder (∈QC-Vote {q₀} a a∈q₀)) (vOrder (∈QC-Vote {q₁} a a∈q₁))
     ...| tri< va<va' _ _ 
-      with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀ 
-                                          {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ 
+      with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀ 
+                                          {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
                                           va<va'
     ...| res = ⊥-elim (<⇒≢ res hyp)
-    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa})
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
        | no imp
        |  (a , (a∈q₀ , a∈q₁ , honest)) 
        | tri> _ _ va'<va 
-      with increasing-round-rule a honest {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁  
-                                          {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀  
+      with increasing-round-rule a honest {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁  
+                                          {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀  
                                           va'<va
     ...| res = ⊥-elim (<⇒≢ res (sym hyp))
-    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl)) 
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl)) hyp 
+    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa}) 
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
        | no imp
        |  (a , (a∈q₀ , a∈q₁ , honest)) 
        | tri≈ _ va≡va' _ 
-      with votes-only-once-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl)) a∈q₀  
-                                         {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl)) a∈q₁ 
+      with votes-only-once-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀  
+                                         {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
                                          va≡va'
     ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
                      , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
@@ -91,7 +91,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
             → (b←q   : B b' ← Q q') → Valid certB (Q q')
             → round r < bRound b'
             → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB 
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
       with lemmaB1 q₂ q'
     ...| (a , (a∈q₂ , a∈q' , honest)) 
       -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
@@ -99,25 +99,25 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       -- returns us a judgement about the order of the votes.
       with <-cmp (vOrder (∈QC-Vote {q₂} a a∈q₂)) (vOrder (∈QC-Vote {q'} a a∈q'))
     ...| tri> _ _ va'<va₂ 
-      with increasing-round-rule a honest (step certB b←q' vq')               a∈q' 
-                                          (step (step rc r←b₂ vb₂) b₂←q₂ vq₂) a∈q₂ 
+      with increasing-round-rule a honest (step certB b←q' vq' {{!!}})           a∈q' 
+                                          (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
                                           va'<va₂ 
     ...| res rewrite ValidQ⇒Round≡ vq' = ⊥-elim (n≮n (bRound b') (≤-trans res (≤-unstep hyp)))
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri≈ _ va₂≡va' _ 
-      with votes-only-once-rule a honest (step (step rc r←b₂ vb₂) b₂←q₂ vq₂) a∈q₂ 
-                                         (step certB b←q' vq')               a∈q'
+      with votes-only-once-rule a honest (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
+                                         (step certB b←q' vq' {{!!}})               a∈q'
                                          va₂≡va'
     ...| res rewrite ValidQ⇒Round≡ vq' = {!!} -- res tells me both votes are the same; hyp tells
                                               -- me the rounds of the QC's are different; 
                                               -- votes can't be the same.
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ vb₂ b₂←q₂ vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri< va₂<va' _ _ 
       with b←q' 
     ...| B←Q xxx 
-       with locked-round-rule a honest {q₂} (s-chain r←b₂ vb₂ b₂←q₂ vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq') a∈q' va₂<va'
+       with locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq' {{!!}}) a∈q' va₂<va'
     ...| res = ≤-trans (kchainBlockRound≤ zero (suc zero) c2 z≤n) res
 
  {-
