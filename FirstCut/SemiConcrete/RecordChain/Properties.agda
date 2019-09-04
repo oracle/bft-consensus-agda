@@ -5,7 +5,7 @@ open import Prelude
 
 open import Data.Nat.Properties
 
-module SemiConcrete.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
+module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
   (hash    : ByteString → Hash)
   -- And is colission resistant
@@ -17,40 +17,14 @@ module SemiConcrete.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
  open import Abstract.RecordChain      ec hash hash-cr
  open import Abstract.RecordStoreState ec hash hash-cr
 
- module ForRSS (curr : RecordStoreState) where
+ module ForRSS 
+      (curr : RecordStoreState) 
+      (increasing-round-rule : Invariants.IncreasingRoundRule curr)
+      (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
+      (locked-round-rule     : Invariants.LockedRoundRule     curr)
+     where
 
    open WithPool (_∈ pool curr)
-    
-
-   postulate
-     increasing-round-rule
-       : (ha : Author ec) → Honest {ec = ec} ha
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : ha ∈QC q') -- ha has voted for q'
-       → vOrder (∈QC-Vote {q} ha va) < vOrder (∈QC-Vote {q'} ha va')
-       → qRound q < qRound q' 
-
-     votes-only-once-rule
-       : (ha : Author ec) → Honest {ec = ec} ha
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : ha ∈QC q') -- ha has voted for q'
-       → vOrder (∈QC-Vote {q} ha va) ≡ vOrder (∈QC-Vote {q'} ha va')
-       → ∈QC-Vote {q} ha va ≡ ∈QC-Vote {q'} ha va'
-
-     -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
-     -- TOEXPLAIN: prevRound is defined for blocks only on the paper; however,
-     --            it is cumbersome to open rc' to expose the block that comes
-     --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
-     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
-     locked-round-rule
-       : (α : Author ec) → Honest {ec = ec} α
-       → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
-       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
-       → ∀{q'}(rc' : RecordChain (Q q'))
-       → (vα' : α ∈QC q')
-       → vOrder (∈QC-Vote {q} _ vα) < vOrder (∈QC-Vote {q'} _ vα')
-       → bRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
-
 
    ----------------------
    -- Lemma 2
