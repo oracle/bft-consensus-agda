@@ -84,14 +84,13 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
 
     -- We just noted that when the paper mentions 'certified' or ' verified'
     -- block, we encode it as a 'RecordChain' ending in said block.   
-    lemmaS3 : ∀{r}{rc : RecordChain r}
-            → (c3 : 𝕂-chain 3 rc)
-            → {b' : Block}{q' : QC}
-            → (certB : RecordChain (B b'))
-            → (b←q   : B b' ← Q q') → Valid certB (Q q')
-            → round r < bRound b'
+    lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
+            → (c3 : 𝕂-chain 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
+            → {q' : QC}
+            → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
+            → round r₂ < qRound q'
             → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB 
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
       with lemmaB1 q₂ q'
     ...| (a , (a∈q₂ , a∈q' , honest)) 
       -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
@@ -99,20 +98,20 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       -- returns us a judgement about the order of the votes.
       with <-cmp (vOrder (∈QC-Vote {q₂} a a∈q₂)) (vOrder (∈QC-Vote {q'} a a∈q'))
     ...| tri> _ _ va'<va₂ 
-      with increasing-round-rule a honest (step certB b←q' vq' {{!!}})           a∈q' 
+      with increasing-round-rule a honest (step certB b←q' vq' {pq'})           a∈q' 
                                           (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
                                           va'<va₂ 
-    ...| res rewrite ValidQ⇒Round≡ vq' = ⊥-elim (n≮n (bRound b') (≤-trans res (≤-unstep hyp)))
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    ...| res = ⊥-elim (n≮n (qRound q') (≤-trans res (≤-unstep hyp)))
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri≈ _ va₂≡va' _ 
       with votes-only-once-rule a honest (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
-                                         (step certB b←q' vq' {{!!}})               a∈q'
+                                         (step certB b←q' vq' {pq'})               a∈q'
                                          va₂≡va'
-    ...| res rewrite ValidQ⇒Round≡ vq' = {!!} -- res tells me both votes are the same; hyp tells
-                                              -- me the rounds of the QC's are different; 
-                                              -- votes can't be the same.
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {b'} {q'} certB b←q' vq' hyp 
+    ...| res = {!!} -- res tells me both votes are the same; hyp tells
+                    -- me the rounds of the QC's are different; 
+                    -- votes can't be the same.
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri< va₂<va' _ _ 
       with b←q' 
