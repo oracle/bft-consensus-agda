@@ -13,7 +13,7 @@ module Prelude where
     public
 
   open import Data.Nat.Properties
-    using (<-cmp)
+    using (<-cmp; ≤-step)
     public
 
   open import Data.List 

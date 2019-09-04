@@ -29,3 +29,6 @@ module Lemmas where
    []  : All-vec P []
    _∷_ : ∀ {x n} {xs : Vec A n} (px : P x) (pxs : All-vec P xs) → All-vec P (x ∷ xs)
 
+ ≤-unstep : ∀{m n} → suc m ≤ n → m ≤ n
+ ≤-unstep (s≤s ss) = ≤-step ss
+
