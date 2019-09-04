@@ -45,7 +45,9 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     -- one path from the epoch's initial record to r.
     data RecordChain : Record → Set₁ where
       empty : ∀ {hᵢ} → RecordChain (I hᵢ)
-      step  : ∀ {r r'} → (rc : RecordChain r) → r ← r' → Valid rc r' → RecordChain r'
+      step  : ∀ {r r'} → (rc : RecordChain r) 
+            → r ← r' → Valid rc r' 
+            → RecordChain r'
 
     data Valid : ∀ {r} → RecordChain r → Record → Set₁ where
       ValidBlockInit : {b : Block} {hᵢ : Initial} → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)

@@ -17,6 +17,17 @@ module SemiConcrete.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
   open import Abstract.Records ec
 
   postulate
+    increasing-round-rule-complidated
+      : (ha : Author ec) → Honest {ec = ec} ha
+      → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q
+      → rc BelongsIn rss
+      → ∀{q'}(rc' : RecordChain (Q q')) (va' : ha ∈QC q') -- ha has voted for q'
+      → rc' BrlongsIn rss
+      → vOrder (∈QC-Vote {q} ha va) < vOrder (∈QC-Vote {q'} ha va')
+      → qRound q < qRound q' 
+
+
+  postulate
     increasing-round-rule
       : (ha : Author ec) → Honest {ec = ec} ha
       → ∀{q} (rc  : RecordChain (Q q))  (va  : ha ∈QC q)  -- ha has voted for q

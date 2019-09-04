@@ -9,9 +9,6 @@ open import Data.List.Any
 open import Data.Vec hiding (_++_)
 open import Level using (0ℓ)
 
-
-
-
 module Lemmas where
 
  ≡-pi : ∀{a}{A : Set a}{x y : A}(p q : x ≡ y) → p ≡ q
