@@ -359,3 +359,33 @@ module RecordChain {f : ℕ} (ec : EpochConfig f)
       | (a , (a∈q₂ , a∈q' , honest)) 
       | yes prf = {!!}
 -}
+
+  data 𝕂-chain-contigR : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain-contigR 0 rc
+    s-chain : ∀{k}{qₓ qₓ₊₁ : QC}{rc : RecordChain (Q qₓ)}{b : Block}
+            → (q←b : (Q qₓ) ← B b)
+            → (vb  : Valid rc (B b))
+            → bRound b ≡ suc (qRound qₓ)
+            → (b←q : B b ← Q qₓ₊₁)
+            → (vq  : Valid (step rc q←b vb) (Q qₓ₊₁))
+            → 𝕂-chain-contigR k rc
+            → 𝕂-chain-contigR (suc k) (step (step rc q←b vb) b←q vq)
+
+  𝕂-chain-contigR-𝓤 : ∀{r k}{rc : RecordChain r}
+                         → (cRChain : 𝕂-chain-contigR k rc)
+                         → 𝕂-chain k rc
+  𝕂-chain-contigR-𝓤  0-chain = 0-chain
+  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
+
+  module Proposition4-WithBFT
+     (lemmaB1 : (q₁ : QC)(q₂ : QC)
+              → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest {ec = ec} a))
+    where
+   proposition4 :  ∀{r}{rc : RecordChain r}
+                  → (c3 : 𝕂-chain-contigR 3 rc)
+                  → {b' : Block}{q' : QC}
+                  → (certB : RecordChain (B b'))
+                  → (b←q   : B b' ← Q q') → Valid certB (Q q')
+                  → bRound (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) < bRound b'
+                  → Σ ( RecordChain (B b') ) ( λ rc' → B (kchainBlock (suc (suc zero)) (𝕂-chain-contigR-𝓤 c3)) ∈RC rc')
+   proposition4 (s-chain q←b vb x₂ b←q₁ vq (s-chain q←b₁ vb₁ x₃ b←q₂ vq₁ (s-chain q←b₀ vb₀ rb₀≡rq+1 b←q₃ vq₂ 0-chain))) certB b←q x x₁ = {!!}
