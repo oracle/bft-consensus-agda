@@ -99,6 +99,8 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
       qRound         : Round
       --qState         : State
       qVotes         : List Vote
+      -- MSM: Same comment as before: these fields should be clearly demarcated as "auxiliary"
+      -- (see previous comments about prefix in name and/or separate type)
       -- Here are the coherence conditions. Firstly, we expect
       -- 'qVotes' to be sorted, which guarnatees distinct authors.
       qVotes-C1      : IsSorted (λ v₀ v₁ → vAuthor v₀ <Fin vAuthor v₁) qVotes 

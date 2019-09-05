@@ -210,6 +210,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ←-inj = lemmaS1-2
 
 
+  -- MSM: Why is the relation in the name < while the relation in the property is ≤ ?
   Valid-round-< : ∀{r₀ r₁}
             → (rc : RecordChain r₀)
             → Valid rc r₁
@@ -255,7 +256,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- Commit Rule --
 
   -- A block (and everything preceeding it) is said to match the commit rule
-  -- when it is the head of a contiguious 3-chain. Here we define an auxiliary
+  -- when the block is the head of a contiguious 3-chain. Here we define an auxiliary
   -- datatype to make definitions more bearable.
   data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
     commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc) 
