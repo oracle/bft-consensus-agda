@@ -122,15 +122,17 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
             → bRound b ≡ suc (round r)
             → (b←q : B b ← Q q')
             → {prfQ : IsInPool (Q q')}
-            → (vq  : Valid (step rc r←b vb {prfB}) (Q q'))
+            → {xx : RecordChain (B b)}
+            → xx ≡ step rc r←b vb {prfB}  -- MSM: I used xx to eliminate redundancy between lines 127 and 129; is there a better way (or at least a better name :-)).
+            → (vq  : Valid xx (Q q'))
             → 𝕂-chain-contigR k rc
-            → 𝕂-chain-contigR (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
+            → 𝕂-chain-contigR (suc k) (step xx b←q vq {prfQ})
 
   𝕂-chain-contigR-𝓤 : ∀{r k}{rc : RecordChain r}
                          → (cRChain : 𝕂-chain-contigR k rc)
                          → 𝕂-chain k rc
   𝕂-chain-contigR-𝓤  0-chain = 0-chain
-  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
+  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ refl vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
 
   _⟦_⟧ck : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → Block
   chain ⟦ ix ⟧ck = kchainBlock ix (𝕂-chain-contigR-𝓤 chain)
