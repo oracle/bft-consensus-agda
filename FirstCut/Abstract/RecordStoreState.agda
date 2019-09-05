@@ -33,7 +33,14 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   module Invariants (curr : RecordStoreState) where
 
     open WithPool (_∈ pool curr)
-  
+
+    -- MSM: still trying to get my head around vOrder, but one comment: the paper
+    -- talks about votes, not QCs, in the increasing-round-rule.  Of course, because
+    -- of signatures, a violation of the rules as stated here could only come from
+    -- a violation of (some precise statement of) the property in the paper, so not
+    -- sure it matters, at least as long as we're not going to have a SigForged
+    -- analogous to HashBroke (let's not :-)).
+
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of
     -- votes respect the rounds
