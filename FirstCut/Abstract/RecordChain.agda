@@ -3,8 +3,6 @@ open import Hash
 open import BasicTypes
 open import Prelude
 
-open import Data.Nat.Properties
-
 import Abstract.Records
 
 module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
@@ -20,7 +18,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
  module WithPool
    -- The current record pool; abstracted by saying
    -- whether a record is in the pool or not.
-   (IsInPool   : Record → Set)
+   (IsInPool            : Record → Set)
+   (IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁)
      where
 
   -- A record chain is a slice of the reflexive transitive closure with
@@ -58,7 +57,6 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
                 → Valid certB (Q q)
                 → qRound q ≡ bRound b   
   ValidQ⇒Round≡ (ValidQC certB x) = x
-
 
   prevBlock : ∀{q} → RecordChain (Q q) → Block
   prevBlock (step {r = B b} _ (B←Q _) _) = b
@@ -238,6 +236,38 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ... | inj₁ hb = inj₁ hb
   ... | inj₂ refl = lemmaS1-3 rc₀ rc₁ r₀←⋆r r₁←⋆rₓ rr₀<rr₁
 
+  ----------------------
+  -- RecordChain Irrelevance
+  --
+  -- i.e., unless the hash was broken, there is always only
+  --       one record chain up to a given record.
+  
+  ←-irrelevant : Irrelevant _←_
+  ←-irrelevant (I←B x) (I←B y) = cong I←B (≡-irrelevant x y) 
+  ←-irrelevant (Q←B x) (Q←B y) = cong Q←B (≡-irrelevant x y)
+  ←-irrelevant (B←Q x) (B←Q y) = cong B←Q (≡-irrelevant x y)
+
+  Valid-irrelevant : ∀{r r'}{rc : RecordChain r}(p₀ p₁ : Valid rc r') → p₀ ≡ p₁
+
+  RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) → HashBroke ⊎ rc₀ ≡ rc₁
+  RecordChain-irrelevant empty empty = inj₂ refl
+  RecordChain-irrelevant (step rc0 rc0←r vr₀ {p0}) (step rc1 rc1←r vr₁ {p1}) 
+    with lemmaS1-2 rc0←r rc1←r 
+  ...| inj₁ hb   = inj₁ hb
+  ...| inj₂ refl 
+    with RecordChain-irrelevant rc0 rc1
+  ...| inj₁ hb   = inj₁ hb
+  ...| inj₂ refl rewrite ←-irrelevant rc1←r rc0←r 
+     = inj₂ (cong₂ (λ P Q → step rc0 rc0←r P {Q}) 
+                       (Valid-irrelevant vr₀ vr₁) 
+                       (IsInPool-irrelevant p0 p1))
+
+  Valid-irrelevant (ValidBlockInit x)    (ValidBlockInit x₁) 
+    = cong ValidBlockInit (≤-irrelevant x x₁)
+  Valid-irrelevant (ValidBlockStep rc x) (ValidBlockStep .rc x₁) 
+    = cong (ValidBlockStep rc) (≤-irrelevant x x₁)
+  Valid-irrelevant (ValidQC rc x)        (ValidQC .rc x₁) 
+    = cong (ValidQC rc) (≡-irrelevant x x₁)
 
   -----------------
   -- Commit Rule --

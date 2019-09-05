@@ -13,7 +13,7 @@ module Prelude where
     public
 
   open import Data.Nat.Properties
-    using (<-cmp; ≤-step)
+    hiding (≡-irrelevant)
     public
 
   open import Data.List 
@@ -44,7 +44,7 @@ module Prelude where
 
   open import Data.Bool 
     renaming (_≟_ to _≟Bool_)
-    hiding (_<_; _<?_; _≤_; T)
+    hiding (_≤?_; _<_; _<?_; _≤_; T)
     public
 
   open import Data.Maybe 
@@ -63,6 +63,9 @@ module Prelude where
 
   open import Relation.Binary.Core
     public
+
+  ≡-irrelevant : ∀{a}{A : Set a} → Irrelevant {a} {A} _≡_
+  ≡-irrelevant refl refl = refl
   
   open import Data.Sum
     public
