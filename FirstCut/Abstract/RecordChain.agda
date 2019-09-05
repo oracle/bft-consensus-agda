@@ -2,6 +2,7 @@
 open import Hash
 open import BasicTypes
 open import Prelude
+open import Lemmas
 
 import Abstract.Records
 
@@ -286,3 +287,18 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc) 
                 → b ≡ c3 ⟦ suc (suc zero) ⟧ck
                 → CommitRule rc b
+
+
+  vote≡⇒QPrevHash≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
+  vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
+      with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
+  ... | refl | refl = refl
+
+  vote≡⇒QRound≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qRound q ≡ qRound q'
+  vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
+      with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
+  ... | refl | refl = refl
+
+  ¬bRound≡0 : ∀ {b} → RecordChain (B b) → ¬ (bRound b ≡ 0)
+  ¬bRound≡0 (step empty x (ValidBlockInit ())) refl
+  ¬bRound≡0 (step (step rc x₂ (ValidQC _ refl)) x (ValidBlockStep _ ())) refl
