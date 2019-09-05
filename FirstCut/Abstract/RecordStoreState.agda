@@ -40,8 +40,8 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     IncreasingRoundRule : Set₁
     IncreasingRoundRule 
        = (α : Author ec) → Honest {ec = ec} α
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- ha has voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- ha has voted for q'
+       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α has voted for q
+       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α has voted for q'
        → vOrder (∈QC-Vote {q} α va) < vOrder (∈QC-Vote {q'} α va')
        → qRound q < qRound q' 
 
