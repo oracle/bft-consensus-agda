@@ -28,6 +28,7 @@ module Prelude where
 
   open import Data.List.Any
     using (Any; here; there)
+    renaming (lookup to Any-lookup)
     public
 
   open import Data.List.All

@@ -43,6 +43,18 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     --         1) when st₀ ≟State st₁ returns yes, we done.
     --         2) when it returns no, and the blocks are different, no problem.
     --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
+
+{-
+  (α : Author ec) → Honest {ec = ec} α
+       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α αs voted for q
+       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α αs voted for q'
+       → vOrder (∈QC-Vote {q} α va) ≡ vOrder (∈QC-Vote {q'} α va')
+       → ∈QC-Vote {q} α va ≡ ∈QC-Vote {q'} α va'
+-}
+    vote≡⇒QH≡ : ∀ {q q'} {α : Author ec} {va  : α ∈QC q} {va' : α ∈QC q'} -- α αs voted for q'
+                  → ∈QC-Vote q va ≡ ∈QC-Vote q' va' → qBlockHash q ≡ qBlockHash q'
+    vote≡⇒QH≡ {q} {q'} {α} {va} {va'} x = {!!}
+
     lemmaS2 : {q₀ q₁ : QC}
             → (rc₀ : RecordChain (Q q₀)) 
             → (rc₁ : RecordChain (Q q₁)) 
@@ -55,7 +67,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...| no  imp  
       with lemmaB1 q₀ q₁
     ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
-      with <-cmp (vOrder (∈QC-Vote {q₀} a a∈q₀)) (vOrder (∈QC-Vote {q₁} a a∈q₁))
+      with <-cmp (vOrder (∈QC-Vote q₀ a∈q₀)) (vOrder (∈QC-Vote q₁ a∈q₁))
     ...| tri< va<va' _ _ 
       with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀ 
                                           {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
@@ -79,7 +91,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                                          {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
                                          va≡va'
     ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
-                     , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
+                   , trans h₀ (trans (vote≡⇒QH≡ res) (sym h₁))) -- extract from h₁, res and qVotes-C3!
 
 
     ----------------
@@ -108,7 +120,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
       -- and error prone. We should factor out a predicate that analyzes the rounds of QC's and
       -- returns us a judgement about the order of the votes.
-      with <-cmp (vOrder (∈QC-Vote {q₂} a a∈q₂)) (vOrder (∈QC-Vote {q'} a a∈q'))
+      with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
     ...| tri> _ _ va'<va₂ 
       with increasing-round-rule a honest (step certB b←q' vq' {pq'})           a∈q' 
                                           (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 

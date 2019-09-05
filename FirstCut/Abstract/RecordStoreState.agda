@@ -1,6 +1,7 @@
 open import Hash
 open import BasicTypes
 open import Prelude
+open import Lemmas
 
 open import Data.Nat.Properties
 
@@ -14,8 +15,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   open WithCryptoHash                 hash hash-cr
   open import Abstract.Records     ec hash hash-cr
   open import Abstract.RecordChain ec hash hash-cr
-  
-  postulate _∈_ : ∀{a}{A : Set a} → A → List A → Set
+
 
   -- TODO: Abstract away from lists and let the implemnter choose!
   record RecordStoreState : Set₁ where
@@ -42,7 +42,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
        = (α : Author ec) → Honest {ec = ec} α
        → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α has voted for q
        → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α has voted for q'
-       → vOrder (∈QC-Vote {q} α va) < vOrder (∈QC-Vote {q'} α va')
+       → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
        → qRound q < qRound q' 
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
@@ -52,8 +52,8 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
        = (α : Author ec) → Honest {ec = ec} α
        → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α αs voted for q
        → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α αs voted for q'
-       → vOrder (∈QC-Vote {q} α va) ≡ vOrder (∈QC-Vote {q'} α va')
-       → ∈QC-Vote {q} α va ≡ ∈QC-Vote {q'} α va'
+       → vOrder (∈QC-Vote q va) ≡ vOrder (∈QC-Vote q' va')
+       → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
     -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
     -- TOEXPLAIN: prevRound is defined for blocks only on the paper; however,
@@ -61,11 +61,11 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
     LockedRoundRule : Set₁
-    LockedRoundRule 
+    LockedRoundRule
       = (α : Author ec) → Honest {ec = ec} α
       → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
-      → vOrder (∈QC-Vote {q} _ vα) < vOrder (∈QC-Vote {q'} _ vα')
+      → vOrder (∈QC-Vote q vα) < vOrder (∈QC-Vote q' vα')
       → bRound (kchainBlock (suc zero) c2) ≤ prevRound rc'

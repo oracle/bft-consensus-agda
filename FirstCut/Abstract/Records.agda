@@ -1,6 +1,8 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 open import Prelude
 open import BasicTypes
 open import Hash
+open import Lemmas
 
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
@@ -53,18 +55,6 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
 
-  -- Extends an arbitrary relation to work on the head of
-  -- the supplied list, if any.
-  data OnHead {A : Set}(P : A → A → Set) (x : A) : List A → Set where
-    []  : OnHead P x []
-    _∷_ : ∀{y ys} → P x y → OnHead P x (y ∷ ys)
-
-  -- Estabilishes that a list is sorted according to the supplied
-  -- relation.
-  data IsSorted {A : Set}(_<_ : A → A → Set) : List A → Set where
-    []  : IsSorted _<_ []
-    _∷_ : ∀{x xs} → OnHead _<_ x xs → IsSorted _<_ xs → IsSorted _<_ (x ∷ xs)
-
   record QC : Set₁ where
     field
       qAuthor        : Author ec
@@ -97,18 +87,14 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   _∈QC_  : Author ec → QC → Set
   a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
 
-  _∈QCv_ : Vote → QC → Set
-  v ∈QCv qc = Any (λ v' → v' ≡ v) (qVotes qc)
-
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
-  ∈QC-Vote : ∀{q}(a : Author ec) → (a ∈QC q) → Vote
-  ∈QC-Vote _ _ = magic
-    where postulate magic : ∀{a}{A : Set a} → A
-  
-  ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q) 
-                   → (∈QC-Vote {q} a p) ∈QCv q
-  ∈QC-Vote-correct = magic
-    where postulate magic : ∀{a}{A : Set a} → A
+  ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
+  ∈QC-Vote q a∈q = Any-lookup a∈q
+
+
+  ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
+                   → (∈QC-Vote {a} q p) ∈ qVotes q
+  ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- The initial record is unique per epoch. Essentially, we just
   -- use the 'epochSeed' and the hash of the last record of the previous

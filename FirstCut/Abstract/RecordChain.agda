@@ -20,7 +20,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
  module WithPool
    -- The current record pool; abstracted by saying
    -- whether a record is in the pool or not.
-   (IsInPool   : Record → Set)
+   (IsInPool   : Record → Set₁)
      where
 
   -- A record chain is a slice of the reflexive transitive closure with
