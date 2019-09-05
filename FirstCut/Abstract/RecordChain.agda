@@ -23,34 +23,39 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
    (IsInPool   : Record → Set)
      where
 
-
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
   -- chain.
-  mutual
-    -- One way of looking at a 'RecordChain r' is to think of it as 
-    -- one path from the epoch's initial record to r.
-    data RecordChain : Record → Set₁ where
-      empty : ∀ {hᵢ} → RecordChain (I hᵢ)
-      step  : ∀ {r r'}
-            → (rc : RecordChain r) 
-            → r ← r' → Valid rc r' 
-            → {prf : IsInPool r'} 
-            → RecordChain r'
 
-    data Valid : ∀ {r} → RecordChain r → Record → Set₁ where
-      ValidBlockInit : {b : Block} {hᵢ : Initial} 
-                     → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
-      ValidBlockStep : {b : Block} {q : QC}
-                     → (rc : RecordChain (Q q))
-                     → qRound q < bRound b
-                     → Valid rc (B b)
-      ValidQC        : {q : QC} {b : Block}
-                     → (rc : RecordChain (B b))
-                     → qRound q ≡ bRound b
-                     → Valid rc (Q q)
+  -- One way of looking at a 'RecordChain r' is to think of it as 
+  -- one path from the epoch's initial record to r.
+  data RecordChain : Record → Set₁
 
-  ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC} → Valid certB (Q q)
+  data Valid : ∀ {r} → RecordChain r → Record → Set₁
+
+  data RecordChain where
+    empty : ∀ {hᵢ} → RecordChain (I hᵢ)
+    step  : ∀ {r r'}
+          → (rc : RecordChain r) 
+          → r ← r'
+          → Valid rc r' 
+          → {prf : IsInPool r'} 
+          → RecordChain r'
+
+  data Valid where
+    ValidBlockInit : {b : Block} {hᵢ : Initial} 
+                   → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
+    ValidBlockStep : {b : Block} {q : QC}
+                   → (rc : RecordChain (Q q))
+                   → qRound q < bRound b
+                   → Valid rc (B b)
+    ValidQC        : {q : QC} {b : Block}
+                   → (rc : RecordChain (B b))
+                   → qRound q ≡ bRound b
+                   → Valid rc (Q q)
+
+  ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC}
+                → Valid certB (Q q)
                 → qRound q ≡ bRound b   
   ValidQ⇒Round≡ (ValidQC certB x) = x
 
@@ -62,6 +67,11 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   currRound : ∀{r} → RecordChain r → Round
   currRound empty = 0
   currRound (step {r = r} _ _ _) = round r
+
+  -- MSM: Having 0 for previous round for both empty and one block
+  -- seems risky (reminds me of skiplog).  Should we make it Maybe Round?
+  -- LPS && LSP: Section 5.5 defines 'prevRound' exactly as we have. Returning  
+  --             Maybe Round here will make many proofs significantly harder.
 
   -- TODO: prev round should be defined for blocks only...
   prevRound : ∀{r} → RecordChain r → Round
@@ -111,15 +121,19 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
             → bRound b ≡ suc (round r)
             → (b←q : B b ← Q q')
             → {prfQ : IsInPool (Q q')}
-            → (vq  : Valid (step rc r←b vb {prfB}) (Q q'))
+            → {xx : RecordChain (B b)}
+            → xx ≡ step rc r←b vb {prfB}  -- MSM: I used xx to eliminate redundancy between lines 127 and 129; is there a better way (or at least a better name :-)).
+            -- VCM && LPS: We don't like this. This is yet another equality proof we have
+            -- to carry, whereas pattern matching was enough before.
+            → (vq  : Valid xx (Q q'))
             → 𝕂-chain-contigR k rc
-            → 𝕂-chain-contigR (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
+            → 𝕂-chain-contigR (suc k) (step xx b←q vq {prfQ})
 
   𝕂-chain-contigR-𝓤 : ∀{r k}{rc : RecordChain r}
                          → (cRChain : 𝕂-chain-contigR k rc)
                          → 𝕂-chain k rc
   𝕂-chain-contigR-𝓤  0-chain = 0-chain
-  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
+  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ refl vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
 
   _⟦_⟧ck : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → Block
   chain ⟦ ix ⟧ck = kchainBlock ix (𝕂-chain-contigR-𝓤 chain)
@@ -139,6 +153,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   data _←⋆_ (r₁ : Record) : Record → Set₁ where
     ssRefl : r₁ ←⋆ r₁
     ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
+
+  -- MSM: Any reason some properties are here and others are in Abstract.RecordChain.Properties?
 
   ------------------------
   -- Lemma 1
@@ -195,13 +211,14 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ←-inj = lemmaS1-2
 
 
-  Valid-round-< : ∀{r₀ r₁}
+  -- MSM: Why is the relation in the name < while the relation in the property is ≤ ?
+  Valid-round-≤ : ∀{r₀ r₁}
             → (rc : RecordChain r₀)
             → Valid rc r₁
             → round r₀ ≤ round r₁
-  Valid-round-< empty (ValidBlockInit x) = z≤n
-  Valid-round-< rc (ValidBlockStep rc x) = <⇒≤ x
-  Valid-round-< rc (ValidQC rc refl)     = ≤-refl
+  Valid-round-≤ empty (ValidBlockInit x) = z≤n
+  Valid-round-≤ rc (ValidBlockStep rc x) = <⇒≤ x
+  Valid-round-≤ rc (ValidQC rc refl)     = ≤-refl
 
 
   ←⋆-round-< : ∀{r₀ r₁}
@@ -216,7 +233,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ...| inj₂ refl
     with ←⋆-round-< path r
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ rec = inj₂ (≤-trans rec (Valid-round-< path vr₁))
+  ...| inj₂ rec = inj₂ (≤-trans rec (Valid-round-≤ path vr₁))
 
   lemmaS1-3 : ∀{r₀ r₁ r₂}
             → RecordChain r₀
@@ -240,7 +257,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- Commit Rule --
 
   -- A block (and everything preceeding it) is said to match the commit rule
-  -- when it is the head of a contiguious 3-chain. Here we define an auxiliary
+  -- when the block is the head of a contiguious 3-chain. Here we define an auxiliary
   -- datatype to make definitions more bearable.
   data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
     commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc) 

@@ -85,6 +85,15 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ----------------
     -- Lemma S3
 
+    -- MSM: Not sure I'm following this comment, but I think "certified" means there is a quorum
+    -- certificate that references the block, while "verified" just means it was valid to add (so a
+    -- block can be verified but not certified; however, it cannot be certified but not verified)..
+   
+    -- LPS && VCM: The first occurence of the string "certified" in the paper is at 4.2, the paper 
+    --  never defines what it actually means. Nevertheless, we have just found some simplification 
+    --  oppostunities while looking over our code trying to figure this out. We might be able to
+    --  make the distinction you mention. We think it makes sense.
+    
     -- We just noted that when the paper mentions 'certified' or ' verified'
     -- block, we encode it as a 'RecordChain' ending in said block.   
     lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
