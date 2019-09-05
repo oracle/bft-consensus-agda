@@ -187,7 +187,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     kchain-to-RecordChain-Q-prevBlock (s-chain r←b vb x (B←Q b←q) vq c) zero = refl
     kchain-to-RecordChain-Q-prevBlock (s-chain r←b vb x (B←Q b←q) vq c) (suc ix) 
       = kchain-to-RecordChain-Q-prevBlock c ix
-  
+
     propS4-base :  ∀{q}{rc : RecordChain (Q q)}
                 → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                 → {q' : QC}
@@ -195,9 +195,24 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                 → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q'
                 → qRound q' ≤ bRound (c3 ⟦ zero ⟧ck) 
                 → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
-    propS4-base c3 (step (step empty (I←B x₁) vq₁ {pq₁}) (B←Q x₀) (ValidQC _ refl) {pq₀}) hyp0 hyp1 
-      = {!!}
-    propS4-base c3 (step (step certB (Q←B x₁) vq₁ {pq₁}) (B←Q x₀) vq₀ {pq₀}) hyp0 hyp1 = {!!}
+    propS4-base c3 {q'} (step (step rec0 tr0 vb₁ {pb₀}) (B←Q x₀) (ValidQC _ refl) {pq₀}) hyp0 hyp1 
+      with c3 ⟦ zero ⟧ck           | inspect (_⟦_⟧ck c3) zero 
+         | c3 ⟦ suc zero ⟧ck       | inspect (_⟦_⟧ck c3) (suc zero)
+         | c3 ⟦ suc (suc zero) ⟧ck | inspect (_⟦_⟧ck c3) (suc (suc zero))
+    ...| B₂ | [ isB₂ ] | B₁ | [ isB₁ ] | B₀ | [ isB₀ ]
+      with tr0 | rec0 | vb₁
+    ...| I←B hi | empty | ValidBlockInit r 
+      with y+1+2-lemma hyp0 (subst (qRound q' ≤_) (trans (cong bRound (sym isB₂)) 
+                                                  (trans (3chain-round-lemma c3) 
+                                                         (cong (λ P → suc (suc (bRound P))) isB₀))) 
+                       hyp1)
+    ...| inj₁ y1          = {!lemmaS2'!}
+    ...| inj₂ (inj₁ refl) = {!!} -- r implies bRound b₀ == 0, but that should be impossible.
+    ...| inj₂ (inj₂ refl) = {!!}
+    propS4-base c3 (step (step rec0 tr0 vb₁ {pb₀}) (B←Q x₀) (ValidQC _ refl) {pq₀}) hyp0 hyp1 
+       | B₂ | [ isB₂ ] | B₁ | [ isB₁ ] | B₀ | [ isB₀ ]
+       | Q←B r₀ | step (step rec1 tr1 vq₂ {pb₁}) (B←Q x₁) (ValidQC _ refl) {pq₁} | _ 
+       = {!!}
 
     {-# TERMINATING #-}
     propS4 :  ∀{q}{rc : RecordChain (Q q)}
