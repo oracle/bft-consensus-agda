@@ -44,44 +44,49 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     --         2) when it returns no, and the blocks are different, no problem.
     --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
 
-    vote≡⇒QH≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
-    vote≡⇒QH≡ {q} {q'} v∈q v'∈q' refl
+    vote≡⇒QPrevHash≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
+    vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
     ... | refl | refl = refl
 
+    vote≡⇒QRound≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qRound q ≡ qRound q'
+    vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
+      with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
+    ... | refl | refl = refl
+
     lemmaS2 : {q₀ q₁ : QC}
-            → (rc₀ : RecordChain (Q q₀)) 
-            → (rc₁ : RecordChain (Q q₁)) 
+            → (rc₀ : RecordChain (Q q₀))
+            → (rc₁ : RecordChain (Q q₁))
             → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
             → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
-    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa}) 
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
+    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa})
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp
       with b₀ ≟Block b₁ -- (***)
     ...| yes done = inj₂ done
-    ...| no  imp  
+    ...| no  imp
       with lemmaB1 q₀ q₁
-    ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
+    ...|  (a , (a∈q₀ , a∈q₁ , honest))
       with <-cmp (vOrder (∈QC-Vote q₀ a∈q₀)) (vOrder (∈QC-Vote q₁ a∈q₁))
-    ...| tri< va<va' _ _ 
+    ...| tri< va<va' _ _
       with increasing-round-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va<va'
     ...| res = ⊥-elim (<⇒≢ res hyp)
     lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa})
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp
        | no imp
-       |  (a , (a∈q₀ , a∈q₁ , honest)) 
-       | tri> _ _ va'<va 
+       |  (a , (a∈q₀ , a∈q₁ , honest))
+       | tri> _ _ va'<va
       with increasing-round-rule a honest {q₁} {q₀} a∈q₁ a∈q₀ va'<va
     ...| res = ⊥-elim (<⇒≢ res (sym hyp))
-    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa}) 
-                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
+    lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa})
+                      (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp
        | no imp
-       |  (a , (a∈q₀ , a∈q₁ , honest)) 
-       | tri≈ _ va≡va' _ 
+       |  (a , (a∈q₀ , a∈q₁ , honest))
+       | tri≈ _ va≡va' _
       with votes-only-once-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va≡va'
     ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
                      v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
                  in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
-                         , trans h₀ (trans (vote≡⇒QH≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
+                         , trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
 
     -- Just like lemma S2, but with the unrolled RecordChain; this is sometimes
     -- easier to call.
@@ -102,47 +107,47 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     -- MSM: Not sure I'm following this comment, but I think "certified" means there is a quorum
     -- certificate that references the block, while "verified" just means it was valid to add (so a
     -- block can be verified but not certified; however, it cannot be certified but not verified)..
-   
-    -- LPS && VCM: The first occurence of the string "certified" in the paper is at 4.2, the paper 
-    --  never defines what it actually means. Nevertheless, we have just found some simplification 
+
+    -- LPS && VCM: The first occurence of the string "certified" in the paper is at 4.2, the paper
+    --  never defines what it actually means. Nevertheless, we have just found some simplification
     --  oppostunities while looking over our code trying to figure this out. We might be able to
     --  make the distinction you mention. We think it makes sense.
 
-    -- VCM: Now that I come to think of it, the paper author's must use "certified" and "verified" 
-    --      interchangeably in this theorem.    
-    --      If a quorum of verifiers voted for block B at round C, it means they validated said block 
+    -- VCM: Now that I come to think of it, the paper author's must use "certified" and "verified"
+    --      interchangeably in this theorem.
+    --      If a quorum of verifiers voted for block B at round C, it means they validated said block
 
     -- We just noted that when the paper mentions 'certified' or ' verified'
-    -- block, we encode it as a 'RecordChain' ending in said block.   
+    -- block, we encode it as a 'RecordChain' ending in said block.
     lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
             → (c3 : 𝕂-chain 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
             → {q' : QC}
             → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
             → round r₂ < qRound q'
-            → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB 
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
+            → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp
       with lemmaB1 q₂ q'
-    ...| (a , (a∈q₂ , a∈q' , honest)) 
+    ...| (a , (a∈q₂ , a∈q' , honest))
       -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
       -- and error prone. We should factor out a predicate that analyzes the rounds of QC's and
       -- returns us a judgement about the order of the votes.
       with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
-    ...| tri> _ _ va'<va₂ 
-      with increasing-round-rule a honest {q'} {q₂} a∈q' a∈q₂ va'<va₂ 
+    ...| tri> _ _ va'<va₂
+      with increasing-round-rule a honest {q'} {q₂} a∈q' a∈q₂ va'<va₂
     ...| res = ⊥-elim (n≮n (qRound q') (≤-trans res (≤-unstep hyp)))
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
-       | (a , (a∈q₂ , a∈q' , honest)) 
-       | tri≈ _ va₂≡va' _ 
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp
+       | (a , (a∈q₂ , a∈q' , honest))
+       | tri≈ _ va₂≡va' _
       with votes-only-once-rule a honest {q₂} {q'} a∈q₂ a∈q' va₂≡va'
-    ...| res = {!!} -- res tells me both votes are the same; hyp tells
-                    -- me the rounds of the QC's are different; 
-                    -- votes can't be the same.
-    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
-       | (a , (a∈q₂ , a∈q' , honest)) 
-       | tri< va₂<va' _ _ 
-      with b←q' 
-    ...| B←Q xxx 
-       with locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq' {{!!}}) a∈q' va₂<va'
+    ...| v₂≡v' = let v₂∈q₂ = ∈QC-Vote-correct q₂ a∈q₂
+                     v'∈q' = ∈QC-Vote-correct q' a∈q'
+                 in ⊥-elim (<⇒≢ hyp (vote≡⇒QRound≡ {q₂} {q'} v₂∈q₂ v'∈q' v₂≡v'))
+    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp
+       | (a , (a∈q₂ , a∈q' , honest))
+       | tri< va₂<va' _ _
+      with b←q'
+    ...| B←Q xxx
+       with locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) a∈q₂ {q'} (step certB (B←Q xxx) vq' {pq'}) a∈q' va₂<va'
     ...| res = ≤-trans (kchainBlockRound≤ zero (suc zero) c2 z≤n) res
 
    ------------------
