@@ -44,15 +44,6 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     --         2) when it returns no, and the blocks are different, no problem.
     --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
 
-    vote≡⇒QPrevHash≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
-    vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
-      with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
-    ... | refl | refl = refl
-
-    vote≡⇒QRound≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qRound q ≡ qRound q'
-    vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
-      with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
-    ... | refl | refl = refl
 
     lemmaS2 : {q₀ q₁ : QC}
             → (rc₀ : RecordChain (Q q₀))
@@ -180,6 +171,15 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       = step (step rc r←b vb {pb}) b←q vq {pq}
     kchain-to-RecordChain-Q (s-chain r←b vb x b←q vq c) (suc zz) 
       = kchain-to-RecordChain-Q c zz
+
+    kchain-to-RecordChain-B
+      : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain-contigR k rc)(ix : Fin k)
+      → RecordChain (B (c ⟦ ix ⟧ck))
+    kchain-to-RecordChain-B 0-chain ()
+    kchain-to-RecordChain-B (s-chain {rc = rc} r←b {pb} vb x b←q {pq} vq c) zero
+      = (step rc r←b vb {pb})
+    kchain-to-RecordChain-B (s-chain r←b vb x b←q vq c) (suc zz)
+      = kchain-to-RecordChain-B c zz
     
     kchain-to-RecordChain-Q-prevBlock
       : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain-contigR k rc)(ix : Fin k)
@@ -241,7 +241,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     -- ...| empty | ()
     ...| step certB' res vres | (B←Q x) 
       with certB' | res
-    ...| empty | (I←B y) = {!!} -- can't happen; no block has round 0, only Initial. Initial is not ot typ Block
+    ...| empty | (I←B y) = contradiction (n≤0⇒n≡0 ls3) (¬bRound≡0 (kchain-to-RecordChain-B c3 (suc (suc zero))))
     ...| step {r = r} certB'' res' (ValidQC xx refl) {p''} | (Q←B {q = q*} y) 
       with propS4 c3 (step certB'' res' (ValidQC xx refl) {p''}) ls3 
     ...| inj₁ hb    = inj₁ hb
