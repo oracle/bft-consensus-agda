@@ -164,7 +164,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
 
     kchain-round-≤-lemma
       : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
-      → round r ≤ bRound (c3 ⟦ ix ⟧ck)
+      → bRound (c3 ⟦ ix ⟧ck) ≤ round r
     kchain-round-≤-lemma = {!!}
 
     kchain-to-RecordChain-Q
@@ -183,6 +183,17 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     kchain-to-RecordChain-Q-prevBlock (s-chain r←b vb x (B←Q b←q) vq c) (suc ix) 
       = kchain-to-RecordChain-Q-prevBlock c ix
   
+    propS4-base :  ∀{q}{rc : RecordChain (Q q)}
+                → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+                → {q' : QC}
+                → (certB : RecordChain (Q q'))
+                → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q'
+                → qRound q' ≤ bRound (c3 ⟦ zero ⟧ck) 
+                → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
+    propS4-base c3 (step (step empty (I←B x₁) vq₁ {pq₁}) (B←Q x₀) (ValidQC _ refl) {pq₀}) hyp0 hyp1 
+      = {!!}
+    propS4-base c3 (step (step certB (Q←B x₁) vq₁ {pq₁}) (B←Q x₀) vq₀ {pq₀}) hyp0 hyp1 = {!!}
+
     {-# TERMINATING #-}
     propS4 :  ∀{q}{rc : RecordChain (Q q)}
            → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
@@ -193,9 +204,10 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
            -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
            -- to say that B₀ is a block in the RecordChain that goes all the way to C.
            → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
-    propS4 {rc = rc} c3 {q} (step certB (B←Q b←q) (ValidQC _ refl) {pq}) hyp
+    propS4 {rc = rc} c3 {q} (step certB b←q vq {pq}) hyp
       with qRound q ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
-    ...| yes rq≤rb₂ 
+    ...| yes rq≤rb₂ = propS4-base c3 (step certB b←q vq {pq}) hyp rq≤rb₂
+{-
       with y+1+2-lemma hyp (subst (qRound q ≤_) (3chain-round-lemma c3) rq≤rb₂)
     ...| inj₁ case1 
       with lemmaS2 (kchain-to-RecordChain-Q c3 (suc (suc zero))) (step certB (B←Q b←q) (ValidQC _ refl) {pq}) 
@@ -214,6 +226,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     propS4 c3 {q} (step certB b←q vq {pq}) hyp
        | yes rq≤rb₂ 
        | inj₂ (inj₂ b≡b₀) = {!lemmaS2!}
+-}
     propS4 c3 {q} (step certB b←q vq {pq}) hyp
        | no  rb₂<rq 
       with lemmaS3 (𝕂-chain-contigR-𝓤 c3) (step certB b←q vq {pq}) 
@@ -227,7 +240,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...| step {r = r} certB'' res' (ValidQC xx refl) {p''} | (Q←B {q = q*} y) 
       with propS4 c3 (step certB'' res' (ValidQC xx refl) {p''}) ls3 
     ...| inj₁ hb    = inj₁ hb
-    ...| inj₂ final = inj₂ (there (B←Q x) {!!} (there (Q←B y) vres final))
+    ...| inj₂ final = inj₂ (there (B←Q x) vq (there (Q←B y) vres final))
 {-
       with propS4 c3 {!certB'!} {!!}
     ...| RES = there (B←Q x) vq (there res vres {!propS4!})
@@ -236,6 +249,15 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     -------------------
     -- Theorem S5
 
+    kchain-round-≤-lemma'
+      : ∀{k q}{rc : RecordChain (Q q)}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
+      → bRound (c3 ⟦ ix ⟧ck) ≤ qRound q
+    kchain-round-≤-lemma' = {!!}
+
+    _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
+    f <$> (inj₁ hb) = inj₁ hb
+    f <$> (inj₂ x)  = inj₂ (f x)
+
     thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
           → {b b' : Block}
           → CommitRule rc  b
@@ -243,7 +265,9 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
           → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
     thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
       with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
-    ...| gogogo = {!!}
+    ...| tri≈ _ r≡r' _  = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') {!!})) 
+    ...| tri< r<r' _ _  = inj₁ <$> (propS4 c3 rc' {!!}) 
+    ...| tri> _ _ r'<r' = inj₂ <$> (propS4 c3' rc {!!}) 
 {-
     Translate the code below to with clauses returning HashBroke when needed
 
