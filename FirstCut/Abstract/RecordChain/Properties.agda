@@ -87,7 +87,11 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     --  never defines what it actually means. Nevertheless, we have just found some simplification 
     --  oppostunities while looking over our code trying to figure this out. We might be able to
     --  make the distinction you mention. We think it makes sense.
-    
+
+    -- VCM: Now that I come to think of it, the paper author's must use "certified" and "verified" 
+    --      interchangeably in this theorem.    
+    --      If a quorum of verifiers voted for block B at round C, it means they validated said block 
+
     -- We just noted that when the paper mentions 'certified' or ' verified'
     -- block, we encode it as a 'RecordChain' ending in said block.   
     lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
