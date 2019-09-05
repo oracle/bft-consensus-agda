@@ -27,30 +27,37 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
   -- chain.
-  mutual
-    -- One way of looking at a 'RecordChain r' is to think of it as 
+
+-- One way of looking at a 'RecordChain r' is to think of it as 
     -- one path from the epoch's initial record to r.
-    data RecordChain : Record → Set₁ where
-      empty : ∀ {hᵢ} → RecordChain (I hᵢ)
-      step  : ∀ {r r'}
-            → (rc : RecordChain r) 
-            → r ← r' → Valid rc r' 
-            → {prf : IsInPool r'} 
-            → RecordChain r'
 
-    data Valid : ∀ {r} → RecordChain r → Record → Set₁ where
-      ValidBlockInit : {b : Block} {hᵢ : Initial} 
-                     → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
-      ValidBlockStep : {b : Block} {q : QC}
-                     → (rc : RecordChain (Q q))
-                     → qRound q < bRound b
-                     → Valid rc (B b)
-      ValidQC        : {q : QC} {b : Block}
-                     → (rc : RecordChain (B b))
-                     → qRound q ≡ bRound b
-                     → Valid rc (Q q)
+  data RecordChain : Record → Set₁
 
-  ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC} → Valid certB (Q q)
+  data Valid : ∀ {r} → RecordChain r → Record → Set₁
+
+  data RecordChain where
+    empty : ∀ {hᵢ} → RecordChain (I hᵢ)
+    step  : ∀ {r r'}
+          → (rc : RecordChain r) 
+          → r ← r'
+          → Valid rc r' 
+          → {prf : IsInPool r'} 
+          → RecordChain r'
+
+  data Valid where
+    ValidBlockInit : {b : Block} {hᵢ : Initial} 
+                   → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
+    ValidBlockStep : {b : Block} {q : QC}
+                   → (rc : RecordChain (Q q))
+                   → qRound q < bRound b
+                   → Valid rc (B b)
+    ValidQC        : {q : QC} {b : Block}
+                   → (rc : RecordChain (B b))
+                   → qRound q ≡ bRound b
+                   → Valid rc (Q q)
+
+  ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC}
+                → Valid certB (Q q)
                 → qRound q ≡ bRound b   
   ValidQ⇒Round≡ (ValidQC certB x) = x
 
