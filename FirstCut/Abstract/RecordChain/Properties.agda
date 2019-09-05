@@ -24,7 +24,7 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       (locked-round-rule     : Invariants.LockedRoundRule     curr)
      where
 
-   open WithPool (_∈ pool curr)
+   open WithPool (_∈ pool curr) ∈-irrelevant
 
    module WithBFT 
       (lemmaB1 : (q₁ : QC)(q₂ : QC) 
@@ -57,27 +57,21 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...|  (a , (a∈q₀ , a∈q₁ , honest)) 
       with <-cmp (vOrder (∈QC-Vote {q₀} a a∈q₀)) (vOrder (∈QC-Vote {q₁} a a∈q₁))
     ...| tri< va<va' _ _ 
-      with increasing-round-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀ 
-                                          {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
-                                          va<va'
+      with increasing-round-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va<va'
     ...| res = ⊥-elim (<⇒≢ res hyp)
     lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa})
                       (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
        | no imp
        |  (a , (a∈q₀ , a∈q₁ , honest)) 
        | tri> _ _ va'<va 
-      with increasing-round-rule a honest {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁  
-                                          {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀  
-                                          va'<va
+      with increasing-round-rule a honest {q₁} {q₀} a∈q₁ a∈q₀ va'<va
     ...| res = ⊥-elim (<⇒≢ res (sym hyp))
     lemmaS2 {q₀} {q₁} (step {r = B b₀} rc₀ (B←Q h₀) (ValidQC .rc₀ refl) {pa}) 
                       (step {r = B b₁} rc₁ (B←Q h₁) (ValidQC .rc₁ refl) {pb}) hyp 
        | no imp
        |  (a , (a∈q₀ , a∈q₁ , honest)) 
        | tri≈ _ va≡va' _ 
-      with votes-only-once-rule a honest {q₀} (step rc₀ (B←Q h₀) (ValidQC rc₀ refl) {pa}) a∈q₀  
-                                         {q₁} (step rc₁ (B←Q h₁) (ValidQC rc₁ refl) {pb}) a∈q₁ 
-                                         va≡va'
+      with votes-only-once-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va≡va'
     ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
                      , trans h₀ {!!}) -- extract from h₁, res and qVotes-C3!
 
@@ -110,16 +104,12 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       -- returns us a judgement about the order of the votes.
       with <-cmp (vOrder (∈QC-Vote {q₂} a a∈q₂)) (vOrder (∈QC-Vote {q'} a a∈q'))
     ...| tri> _ _ va'<va₂ 
-      with increasing-round-rule a honest (step certB b←q' vq' {pq'})           a∈q' 
-                                          (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
-                                          va'<va₂ 
+      with increasing-round-rule a honest a∈q' a∈q₂ va'<va₂ 
     ...| res = ⊥-elim (n≮n (qRound q') (≤-trans res (≤-unstep hyp)))
     lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri≈ _ va₂≡va' _ 
-      with votes-only-once-rule a honest (step (step rc r←b₂ vb₂ {pb}) b₂←q₂ vq₂ {pq}) a∈q₂ 
-                                         (step certB b←q' vq' {pq'})               a∈q'
-                                         va₂≡va'
+      with votes-only-once-rule a honest a∈q₂ a∈q' va₂≡va'
     ...| res = {!!} -- res tells me both votes are the same; hyp tells
                     -- me the rounds of the QC's are different; 
                     -- votes can't be the same.

@@ -15,14 +15,22 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   open import Abstract.Records     ec hash hash-cr
   open import Abstract.RecordChain ec hash hash-cr
   
-  postulate _∈_ : ∀{a}{A : Set a} → A → List A → Set
+  -- VCM: There's a TRAP!
+  --
+  -- We must be sure to never add repeated records to our record store. 
+  -- Note that, as is, these postulates allows me to prove bottom.
+  -- That's because we are using a 'List' as the recordStoreState intead
+  -- of an abstract interface.
+  -- 
+  postulate _∈_          : ∀{a}{A : Set a} → A → List A → Set
+  postulate ∈-irrelevant : ∀{a}{A : Set a}{x : A}{l : List A}(p₀ p₁ : x ∈ l) → p₀ ≡ p₁ 
 
   -- TODO: Abstract away from lists and let the implemnter choose!
   record RecordStoreState : Set₁ where
     constructor rss
     field
       pool       : List Record
-      correct    : (r : Record) → r ∈ pool → WithPool.RecordChain (_∈ pool) r
+      correct    : (r : Record) → r ∈ pool → WithPool.RecordChain (_∈ pool) ∈-irrelevant r
   open RecordStoreState public
 
   -- Now, we need to state the invariants over the system that we seek to:
@@ -32,7 +40,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   --
   module Invariants (curr : RecordStoreState) where
 
-    open WithPool (_∈ pool curr)
+    open WithPool (_∈ pool curr) ∈-irrelevant
 
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of
@@ -40,8 +48,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     IncreasingRoundRule : Set₁
     IncreasingRoundRule 
        = (α : Author ec) → Honest {ec = ec} α
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α has voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α has voted for q'
+       → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote {q} α va) < vOrder (∈QC-Vote {q'} α va')
        → qRound q < qRound q' 
 
@@ -50,8 +57,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     VotesOnlyOnceRule : Set₁
     VotesOnlyOnceRule 
        = (α : Author ec) → Honest {ec = ec} α
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α αs voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α αs voted for q'
+       → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote {q} α va) ≡ vOrder (∈QC-Vote {q'} α va')
        → ∈QC-Vote {q} α va ≡ ∈QC-Vote {q'} α va'
 
