@@ -49,7 +49,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     IncreasingRoundRule 
        = (α : Author ec) → Honest {ec = ec} α
        → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
-       → vOrder (∈QC-Vote {q} α va) < vOrder (∈QC-Vote {q'} α va')
+       → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
        → qRound q < qRound q' 
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
@@ -58,8 +58,8 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     VotesOnlyOnceRule 
        = (α : Author ec) → Honest {ec = ec} α
        → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
-       → vOrder (∈QC-Vote {q} α va) ≡ vOrder (∈QC-Vote {q'} α va')
-       → ∈QC-Vote {q} α va ≡ ∈QC-Vote {q'} α va'
+       → vOrder (∈QC-Vote q va) ≡ vOrder (∈QC-Vote q' va')
+       → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
     -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
     -- TOEXPLAIN: prevRound is defined for blocks only on the paper; however,
