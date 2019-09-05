@@ -101,6 +101,10 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   kchainBlock zero    (s-chain {b = b} _ _ _ _ _) = b
   kchainBlock (suc x) (s-chain r←b vb b←q vq kk)  = kchainBlock x kk
 
+  kchainQC : ∀{k r}{rc : RecordChain r} → Fin k → 𝕂-chain k rc → QC
+  kchainQC zero    (s-chain {q = q} _ _ _ _ _) = q
+  kchainQC (suc x) (s-chain r←b vb b←q vq kk)  = kchainQC x kk
+
   kchainBlockRound≤ : ∀{k r}{rc : RecordChain r}(x y : Fin k)(kc : 𝕂-chain k rc)
                     → x ≤Fin y → bRound (kchainBlock y kc) ≤ bRound (kchainBlock x kc)
   kchainBlockRound≤ = {!!}
@@ -126,6 +130,9 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
 
   _⟦_⟧ck : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → Block
   chain ⟦ ix ⟧ck = kchainBlock ix (𝕂-chain-contigR-𝓤 chain)
+
+  _⟦_⟧ck' : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → QC
+  chain ⟦ ix ⟧ck' = kchainQC ix (𝕂-chain-contigR-𝓤 chain)
 
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where

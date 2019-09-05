@@ -87,6 +87,18 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
                    , trans h₀ (trans (vote≡⇒QH≡ res) (sym h₁))) -- extract from h₁, res and qVotes-C3!
 
+    -- Just like lemma S2, but with the unrolled RecordChain; this is sometimes
+    -- easier to call.
+    lemmaS2' : {b₀ b₁ : Block}{q₀ q₁ : QC}
+             → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)(v₀ : Valid rc₀ (Q q₀))
+             → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)(v₁ : Valid rc₁ (Q q₁))
+             → {prf0 : Q q₀ ∈ pool curr}
+             → {prf1 : Q q₁ ∈ pool curr}
+             → bRound b₀ ≡ bRound b₁
+             → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
+    lemmaS2' rc0 (B←Q p0) v0 rc1 (B←Q p1) v1 {prf0} {prf1} hyp
+      = lemmaS2 (step rc0 (B←Q p0) v0 {prf0}) (step rc1 (B←Q p1) v1 {prf1}) hyp
+
 
     ----------------
     -- Lemma S3
@@ -120,12 +132,12 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       -- returns us a judgement about the order of the votes.
       with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
     ...| tri> _ _ va'<va₂ 
-      with increasing-round-rule a honest a∈q' a∈q₂ va'<va₂ 
+      with increasing-round-rule a honest {q'} {q₂} a∈q' a∈q₂ va'<va₂ 
     ...| res = ⊥-elim (n≮n (qRound q') (≤-trans res (≤-unstep hyp)))
     lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp 
        | (a , (a∈q₂ , a∈q' , honest)) 
        | tri≈ _ va₂≡va' _ 
-      with votes-only-once-rule a honest a∈q₂ a∈q' va₂≡va'
+      with votes-only-once-rule a honest {q₂} {q'} a∈q₂ a∈q' va₂≡va'
     ...| res = {!!} -- res tells me both votes are the same; hyp tells
                     -- me the rounds of the QC's are different; 
                     -- votes can't be the same.
@@ -158,38 +170,68 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
       : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
       → round r ≤ bRound (c3 ⟦ ix ⟧ck)
     kchain-round-≤-lemma = {!!}
-     
+
+    kchain-to-RecordChain-Q
+      : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain-contigR k rc)(ix : Fin k)
+      → RecordChain (Q (c ⟦ ix ⟧ck'))
+    kchain-to-RecordChain-Q 0-chain () 
+    kchain-to-RecordChain-Q (s-chain {rc = rc} r←b {pb} vb x b←q {pq} vq c) zero 
+      = step (step rc r←b vb {pb}) b←q vq {pq}
+    kchain-to-RecordChain-Q (s-chain r←b vb x b←q vq c) (suc zz) 
+      = kchain-to-RecordChain-Q c zz
+    
+    kchain-to-RecordChain-Q-prevBlock
+      : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain-contigR k rc)(ix : Fin k)
+      → prevBlock (kchain-to-RecordChain-Q c ix) ≡ c ⟦ ix ⟧ck
+    kchain-to-RecordChain-Q-prevBlock (s-chain r←b vb x (B←Q b←q) vq c) zero = refl
+    kchain-to-RecordChain-Q-prevBlock (s-chain r←b vb x (B←Q b←q) vq c) (suc ix) 
+      = kchain-to-RecordChain-Q-prevBlock c ix
+  
     {-# TERMINATING #-}
-    propS4 :  ∀{r}{rc : RecordChain r}
+    propS4 :  ∀{q}{rc : RecordChain (Q q)}
            → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
-           → {q : QC}
-           → (certB : RecordChain (Q q))
-           → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q
+           → {q' : QC}
+           → (certB : RecordChain (Q q'))
+           → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q'
            -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
            -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
            -- to say that B₀ is a block in the RecordChain that goes all the way to C.
            → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
-    propS4 c3 {q} (step certB b←q vq {pq}) hyp
+    propS4 {rc = rc} c3 {q} (step certB (B←Q b←q) (ValidQC _ refl) {pq}) hyp
       with qRound q ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
     ...| yes rq≤rb₂ 
       with y+1+2-lemma hyp (subst (qRound q ≤_) (3chain-round-lemma c3) rq≤rb₂)
-    ...| inj₁ case1       = {!!}
-    ...| inj₂ (inj₁ hb)   = {!!}
-    ...| inj₂ (inj₂ b≡b₀) = {!lemmaS2!}
+    ...| inj₁ case1 
+      with lemmaS2 (kchain-to-RecordChain-Q c3 (suc (suc zero))) (step certB (B←Q b←q) (ValidQC _ refl) {pq}) 
+                   (sym (trans case1 (cong bRound (sym (kchain-to-RecordChain-Q-prevBlock c3 (suc (suc zero)))))))  
+    ...| inj₁ hb  = inj₁ hb
+    ...| inj₂ res rewrite kchain-to-RecordChain-Q-prevBlock c3 (suc (suc zero)) | res 
+       = inj₂ (there (B←Q b←q) (ValidQC _ refl) here)
+    propS4 c3 {q} (step certB b←q vq {pq}) hyp
+       | yes rq≤rb₂ 
+       | inj₂ (inj₁ case2)  
+      with lemmaS2 (kchain-to-RecordChain-Q c3 (suc zero)) {!!} 
+                   (sym (trans case2 {!!}))  
+    ...| inj₁ hb  = inj₁ hb
+    ...| inj₂ res rewrite kchain-to-RecordChain-Q-prevBlock c3 (suc zero) | res 
+       = inj₂ {!!}
+    propS4 c3 {q} (step certB b←q vq {pq}) hyp
+       | yes rq≤rb₂ 
+       | inj₂ (inj₂ b≡b₀) = {!lemmaS2!}
     propS4 c3 {q} (step certB b←q vq {pq}) hyp
        | no  rb₂<rq 
       with lemmaS3 (𝕂-chain-contigR-𝓤 c3) (step certB b←q vq {pq}) 
           ( subst (_< qRound q) (sym (kchain-round-head-lemma c3)) (≰⇒> rb₂<rq) )
     ...| ls3 
       with certB | b←q
-    ...| empty                | ()
+    -- ...| empty | ()
     ...| step certB' res vres | (B←Q x) 
       with certB' | res
     ...| empty | (I←B y) = {!!} -- can't happen; no block has round 0, only Initial. Initial is not ot typ Block
     ...| step {r = r} certB'' res' (ValidQC xx refl) {p''} | (Q←B {q = q*} y) 
       with propS4 c3 (step certB'' res' (ValidQC xx refl) {p''}) ls3 
     ...| inj₁ hb    = inj₁ hb
-    ...| inj₂ final = inj₂ (there (B←Q x) vq (there (Q←B y) vres final))
+    ...| inj₂ final = inj₂ (there (B←Q x) {!!} (there (Q←B y) vres final))
 {-
       with propS4 c3 {!certB'!} {!!}
     ...| RES = there (B←Q x) vq (there res vres {!propS4!})
@@ -213,3 +255,4 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     ...| tri< r<r' _ _  = inj₁ (propS4 c3 rc' {!!}) 
     ...| tri> _ _ r'<r' = inj₂ (propS4 c3' rc {!!}) 
 -}
+
