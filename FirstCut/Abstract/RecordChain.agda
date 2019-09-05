@@ -68,11 +68,6 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   currRound empty = 0
   currRound (step {r = r} _ _ _) = round r
 
-  -- MSM: Having 0 for previous round for both empty and one block
-  -- seems risky (reminds me of skiplog).  Should we make it Maybe Round?
-  -- LPS && LSP: Section 5.5 defines 'prevRound' exactly as we have. Returning  
-  --             Maybe Round here will make many proofs significantly harder.
-
   -- TODO: prev round should be defined for blocks only...
   prevRound : ∀{r} → RecordChain r → Round
   prevRound empty = 0
@@ -154,8 +149,6 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
     ssRefl : r₁ ←⋆ r₁
     ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
 
-  -- MSM: Any reason some properties are here and others are in Abstract.RecordChain.Properties?
-
   ------------------------
   -- Lemma 1
 
@@ -210,8 +203,6 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
         → HashBroke ⊎ (r₀ ≡ r₁)
   ←-inj = lemmaS1-2
 
-
-  -- MSM: Why is the relation in the name < while the relation in the property is ≤ ?
   Valid-round-≤ : ∀{r₀ r₁}
             → (rc : RecordChain r₀)
             → Valid rc r₁
@@ -219,7 +210,6 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   Valid-round-≤ empty (ValidBlockInit x) = z≤n
   Valid-round-≤ rc (ValidBlockStep rc x) = <⇒≤ x
   Valid-round-≤ rc (ValidQC rc refl)     = ≤-refl
-
 
   ←⋆-round-< : ∀{r₀ r₁}
              → RecordChain r₁
