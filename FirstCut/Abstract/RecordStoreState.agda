@@ -1,6 +1,7 @@
 open import Hash
 open import BasicTypes
 open import Prelude
+open import Lemmas
 
 open import Data.Nat.Properties
 
@@ -14,7 +15,7 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   open WithCryptoHash                 hash hash-cr
   open import Abstract.Records     ec hash hash-cr
   open import Abstract.RecordChain ec hash hash-cr
-  
+
   -- VCM: There's a TRAP!
   --
   -- We must be sure to never add repeated records to our record store. 
@@ -22,7 +23,6 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
   -- That's because we are using a 'List' as the recordStoreState intead
   -- of an abstract interface.
   -- 
-  postulate _∈_          : ∀{a}{A : Set a} → A → List A → Set
   postulate ∈-irrelevant : ∀{a}{A : Set a}{x : A}{l : List A}(p₀ p₁ : x ∈ l) → p₀ ≡ p₁ 
 
   -- TODO: Abstract away from lists and let the implemnter choose!
@@ -67,11 +67,11 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
     --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
     LockedRoundRule : Set₁
-    LockedRoundRule 
+    LockedRoundRule
       = (α : Author ec) → Honest {ec = ec} α
       → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
-      → vOrder (∈QC-Vote {q} _ vα) < vOrder (∈QC-Vote {q'} _ vα')
+      → vOrder (∈QC-Vote q vα) < vOrder (∈QC-Vote q' vα')
       → bRound (kchainBlock (suc zero) c2) ≤ prevRound rc'

@@ -35,3 +35,25 @@ module Lemmas where
  ≡⇒≤ : ∀{m n} → m ≡ n → m ≤ n
  ≡⇒≤ refl = ≤-refl
 
+ _∈_ : ∀ {a} {A : Set a} → A → List A → Set a
+ x ∈ l = Any (_≡ x) l
+
+ {-Any-lookup-correct : ∀ {a} {A : Set a} {x : A} {l : List A} → (p : x ∈ l) → Any-lookup p ∈ l
+ Any-lookup-correct (here refl) = here refl
+ Any-lookup-correct (there p)   = there (Any-lookup-correct p )
+-}
+   -- Extends an arbitrary relation to work on the head of
+  -- the supplied list, if any.
+ data OnHead {A : Set}(P : A → A → Set) (x : A) : List A → Set where
+    []  : OnHead P x []
+    _∷_ : ∀{y ys} → P x y → OnHead P x (y ∷ ys)
+
+  -- Estabilishes that a list is sorted according to the supplied
+  -- relation.
+ data IsSorted {A : Set}(_<_ : A → A → Set) : List A → Set where
+    []  : IsSorted _<_ []
+    _∷_ : ∀{x xs} → OnHead _<_ x xs → IsSorted _<_ xs → IsSorted _<_ (x ∷ xs)
+
+ Any-lookup-correct :  ∀ {a b} {A : Set a} {B : Set b} {tgt : B} {l : List A} {f : A → B} → (p : Any (λ x → f x ≡ tgt) l) → Any-lookup p ∈ l
+ Any-lookup-correct (here px) = here refl
+ Any-lookup-correct (there p) = there (Any-lookup-correct p)
