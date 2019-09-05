@@ -33,6 +33,28 @@ module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f)
       correct    : (r : Record) → r ∈ pool → WithPool.RecordChain (_∈ pool) ∈-irrelevant r
   open RecordStoreState public
 
+  {- Make the record above into a abstract interface:
+
+  RecordStoreState : Set₂ -- 𝓡
+  RecordStoreState = Σ (P : Record → Set)
+                       (λ pool → ∀ r → r ∈ pool → WithPool.RecordChain (_∈ pool) ∈-irrelevant r)
+
+  abstractRSS : Concrete.RecordStoreState → Abstract.RecordStoreState
+  abstractRSS ...
+
+  abstract-is-ok : ∀{r}{crss : Concrete.RecordStoreState} → r ∈ crss → r ∈ (abstractRSS crss)
+ 
+  algoRSS : 𝓡
+  algoRSS = ...
+
+  insertNetworkRecord : Concrete.Record → Concrete.RecordStoreState → Concrete.RecordStoreState
+  insertNetworkRecord = ...
+
+  inr-respects-irh : ∀{current nr} 
+                   → IncreasingRoundRule (abstractRSS current)
+                   → IncreasingRoundRule (abstractRSS (insertNetworkRecord nr current))
+  -}
+  
   -- Now, we need to state the invariants over the system that we seek to:
   --
   --  1) Guarantee when implementing the algo
