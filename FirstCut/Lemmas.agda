@@ -1,6 +1,7 @@
 open import Prelude
 open import Data.Nat.Properties
 open import Level using (0ℓ)
+open import Data.List.All
 
 module Lemmas where
 
@@ -57,3 +58,9 @@ module Lemmas where
  Any-lookup-correct :  ∀ {a b} {A : Set a} {B : Set b} {tgt : B} {l : List A} {f : A → B} → (p : Any (λ x → f x ≡ tgt) l) → Any-lookup p ∈ l
  Any-lookup-correct (here px) = here refl
  Any-lookup-correct (there p) = there (Any-lookup-correct p)
+
+ witness : {A : Set}{P : A → Set}{x : A}{xs : List A}
+         → x ∈ xs → All P xs → P x
+ witness {x = x} {xs = []} ()
+ witness {P = P } {x = x} {xh ∷ xt} (here px) all = subst P px (Data.List.All.head all)
+ witness {x = x} {xh ∷ xt} (there x∈xt) all = witness x∈xt (Data.List.All.tail all)

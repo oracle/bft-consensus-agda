@@ -44,16 +44,10 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     --         2) when it returns no, and the blocks are different, no problem.
     --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
 
-{-
-  (α : Author ec) → Honest {ec = ec} α
-       → ∀{q} (rc  : RecordChain (Q q))  (va  : α ∈QC q)  -- α αs voted for q
-       → ∀{q'}(rc' : RecordChain (Q q')) (va' : α ∈QC q') -- α αs voted for q'
-       → vOrder (∈QC-Vote {q} α va) ≡ vOrder (∈QC-Vote {q'} α va')
-       → ∈QC-Vote {q} α va ≡ ∈QC-Vote {q'} α va'
--}
-    vote≡⇒QH≡ : ∀ {q q'} {α : Author ec} {va  : α ∈QC q} {va' : α ∈QC q'} -- α αs voted for q'
-                  → ∈QC-Vote q va ≡ ∈QC-Vote q' va' → qBlockHash q ≡ qBlockHash q'
-    vote≡⇒QH≡ {q} {q'} {α} {va} {va'} x = {!!}
+    vote≡⇒QH≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
+    vote≡⇒QH≡ {q} {q'} v∈q v'∈q' refl
+      with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
+    ... | refl | refl = refl
 
     lemmaS2 : {q₀ q₁ : QC}
             → (rc₀ : RecordChain (Q q₀)) 
@@ -84,8 +78,10 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
        |  (a , (a∈q₀ , a∈q₁ , honest)) 
        | tri≈ _ va≡va' _ 
       with votes-only-once-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va≡va'
-    ...| res = inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj) 
-                   , trans h₀ (trans (vote≡⇒QH≡ res) (sym h₁))) -- extract from h₁, res and qVotes-C3!
+    ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
+                     v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
+                 in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
+                         , trans h₀ (trans (vote≡⇒QH≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
 
     -- Just like lemma S2, but with the unrolled RecordChain; this is sometimes
     -- easier to call.
