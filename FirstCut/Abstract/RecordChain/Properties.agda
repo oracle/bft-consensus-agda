@@ -257,7 +257,10 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
     kchain-round-≤-lemma'
       : ∀{k q}{rc : RecordChain (Q q)}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
       → bRound (c3 ⟦ ix ⟧ck) ≤ qRound q
-    kchain-round-≤-lemma' = {!!}
+    kchain-round-≤-lemma' (s-chain r←b vb x b←q (ValidQC _ refl) c3) zero = ≤-refl
+    kchain-round-≤-lemma' (s-chain (I←B imp) (ValidBlockInit prf) refl b←q (ValidQC _ refl) 0-chain) (suc ()) 
+    kchain-round-≤-lemma' (s-chain (Q←B imp) (ValidBlockStep _ prf) x b←q (ValidQC _ refl) c2) (suc ix) 
+      = ≤-trans (kchain-round-≤-lemma' c2 ix) (≤-unstep prf)
 
     _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
     f <$> (inj₁ hb) = inj₁ hb
@@ -270,14 +273,6 @@ module Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
           → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
     thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
       with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
-    ...| tri≈ _ r≡r' _  = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') {!!})) 
-    ...| tri< r<r' _ _  = inj₁ <$> (propS4 c3 rc' {!!}) 
-    ...| tri> _ _ r'<r' = inj₂ <$> (propS4 c3' rc {!!}) 
-{-
-    Translate the code below to with clauses returning HashBroke when needed
-
-    ...| tri≈ _ r≡r' _  = inj₁ (propS4 c3 rc' {!!}) 
-    ...| tri< r<r' _ _  = inj₁ (propS4 c3 rc' {!!}) 
-    ...| tri> _ _ r'<r' = inj₂ (propS4 c3' rc {!!}) 
--}
-
+    ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
+    ...| tri< r<r' _ _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≤-unstep r<r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
+    ...| tri> _ _ r'<r = inj₂ <$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3 (suc (suc zero))))) 
