@@ -27,6 +27,22 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- so I think we should just use the same definitions; that would imply including the signatures,
   -- even though we won't use them in the abstract (though conceibably we might in future, when
   -- considering accountability extensions)
+  
+  -- VCM && LPS: I think that the fact that we don't use the signature in the abstract
+  --             model suggest we should keep the datatypes separate.
+  --             Moreover, the fact that these types carry a number of 'aux' fields
+  --             as mentioned below, will nevertheless require some function
+  --             with type:
+  --
+  --               toAbstract :: SomeSystemState -> NetworkRecord -> Maybe Abstract.Record
+  --               toAbstract st x = if signatureOk x then ... 
+  --                                 if numberOfFieldsOk x then ...
+  --                                 ...
+  -- 
+  --             Another reason for doing so really is lowering the burden to understanding 
+  --             the abstract interface independently of the concrete model. The more unused 
+  --             things we have here, the more room for error.
+  
 
   record Block  : Set where
     constructor mkBlock
@@ -35,7 +51,6 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
       bCommand    : Command
       bPrevQCHash : QCHash
       bRound      : Round
-      --bSignature  : Signature
   open Block public 
 
   postulate
@@ -50,8 +65,12 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
 
       -- MSM: this is an "auxiliary" variable that would probably not be included in a real
       -- implementation (and is not included in the LibraBFT implementation we're modeling).  It's
-      -- therefore critical that we ensure that nothing in the model of the algorithm uses it.  I've
-      -- been following a convenition of preceding all types and fields names with "Aux" or "aux" to
+      -- therefore critical that we ensure that nothing in the model of the algorithm uses it.  
+      --  
+      --     LPS && VCM: Indeed. I think that if we keep Abstract.Record and Concrete.Record
+      --                 separate types, we are guaranted to never use it in the model of the algo.
+      -- 
+      -- I've been following a convenition of preceding all types and fields names with "Aux" or "aux" to
       -- make this easy to spot.  A related issue I mentioned before is whether we should include
       -- any aux fields in implementation types (as is done here with vOrder) or if we should have
       -- associated auxiliary types (e.g., AuxVote) to record Auxiliary information about the
@@ -62,6 +81,12 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
       -- for accountability reasons.  Overall, I lean towards keeping abstract and implementation
       -- types identical, and keeping any auxiliary information such as vOrder, invariants, etc. in
       -- auxiliary types.
+      --
+      --    LPS && VCM: We think that this being under the Abstract folder should be enough 
+      --                to make it clear that there are fields in these records used only
+      --                to prove theorems. Again, it might pay off to keep implementation and
+      --                model types separate. For example, the function that translates concrete 
+      --                to abstract record will also work as a specification of what we are abstracting over.
       
       -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
       -- this is representing. This makes it much simpler to talk about thinks such as 
@@ -100,7 +125,9 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
       --qState         : State
       qVotes         : List Vote
       -- MSM: Same comment as before: these fields should be clearly demarcated as "auxiliary"
-      -- (see previous comments about prefix in name and/or separate type)
+      -- (see previous comments about prefix in name and/or separate type) 
+      -- VCM && LPS: See above
+
       -- Here are the coherence conditions. Firstly, we expect
       -- 'qVotes' to be sorted, which guarnatees distinct authors.
       qVotes-C1      : IsSorted (λ v₀ v₁ → vAuthor v₀ <Fin vAuthor v₁) qVotes 
@@ -126,12 +153,23 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   _∈QC_  : Author ec → QC → Set
   a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
 
+  _∈QCv_ : Vote → QC → Set
+  v ∈QCv qc = Any (λ v' → v' ≡ v) (qVotes qc)
+
   -- MSM: I understand we're abstracting from some mundane lookup function here,
   -- but don't we need some constraint on the vote it returns?  Couldn't it just
   -- return a random vote that's not by a and/or not in q?
-  -- TODO: gets the vote of a ∈QC
-  postulate
-    ∈QC-Vote : ∀{q}(a : Author ec) → (a ∈QC q) → Vote
+  -- LPS && VCM: It is easier to add a correctness lemma, see below.
+
+  -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
+  ∈QC-Vote : ∀{q}(a : Author ec) → (a ∈QC q) → Vote
+  ∈QC-Vote _ _ = magic
+    where postulate magic : ∀{a}{A : Set a} → A
+  
+  ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q) 
+                   → (∈QC-Vote {q} a p) ∈QCv q
+  ∈QC-Vote-correct = magic
+    where postulate magic : ∀{a}{A : Set a} → A
 
   -- The initial record is unique per epoch. Essentially, we just
   -- use the 'epochSeed' and the hash of the last record of the previous
@@ -161,10 +199,7 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
 
   -- Each record has a round
   round : Record → Round
-  round (I i) = 0 -- (FOR MARK) here we said that the round of the
-                  -- initial record is zero. Do you think this is ok or
-                  -- should we return a 'Maybe Round'? Using zero makes life simpler though.
-                  -- (FROM MARK) I think 0 is fine.
+  round (I i) = 0
   round (B b) = bRound b
   round (Q q) = qRound q
   -- round (V v) = vRound v

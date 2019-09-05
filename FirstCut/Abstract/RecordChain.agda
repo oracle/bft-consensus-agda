@@ -23,16 +23,12 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
    (IsInPool   : Record → Set)
      where
 
-
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
   -- chain.
 
--- One way of looking at a 'RecordChain r' is to think of it as 
-    -- one path from the epoch's initial record to r.
-
-  -- MSM: I changed this to avoid obsolete "mutual" keyword (https://agda.readthedocs.io/en/v2.6.0.1/language/mutual-recursion.html#old-syntax-keyword-mutual)
-
+  -- One way of looking at a 'RecordChain r' is to think of it as 
+  -- one path from the epoch's initial record to r.
   data RecordChain : Record → Set₁
 
   data Valid : ∀ {r} → RecordChain r → Record → Set₁
@@ -74,6 +70,9 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
 
   -- MSM: Having 0 for previous round for both empty and one block
   -- seems risky (reminds me of skiplog).  Should we make it Maybe Round?
+  -- LPS && LSP: Section 5.5 defines 'prevRound' exactly as we have. Returning  
+  --             Maybe Round here will make many proofs significantly harder.
+
   -- TODO: prev round should be defined for blocks only...
   prevRound : ∀{r} → RecordChain r → Round
   prevRound empty = 0
@@ -124,6 +123,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
             → {prfQ : IsInPool (Q q')}
             → {xx : RecordChain (B b)}
             → xx ≡ step rc r←b vb {prfB}  -- MSM: I used xx to eliminate redundancy between lines 127 and 129; is there a better way (or at least a better name :-)).
+            -- VCM && LPS: We don't like this. This is yet another equality proof we have
+            -- to carry, whereas pattern matching was enough before.
             → (vq  : Valid xx (Q q'))
             → 𝕂-chain-contigR k rc
             → 𝕂-chain-contigR (suc k) (step xx b←q vq {prfQ})
@@ -211,13 +212,13 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
 
 
   -- MSM: Why is the relation in the name < while the relation in the property is ≤ ?
-  Valid-round-< : ∀{r₀ r₁}
+  Valid-round-≤ : ∀{r₀ r₁}
             → (rc : RecordChain r₀)
             → Valid rc r₁
             → round r₀ ≤ round r₁
-  Valid-round-< empty (ValidBlockInit x) = z≤n
-  Valid-round-< rc (ValidBlockStep rc x) = <⇒≤ x
-  Valid-round-< rc (ValidQC rc refl)     = ≤-refl
+  Valid-round-≤ empty (ValidBlockInit x) = z≤n
+  Valid-round-≤ rc (ValidBlockStep rc x) = <⇒≤ x
+  Valid-round-≤ rc (ValidQC rc refl)     = ≤-refl
 
 
   ←⋆-round-< : ∀{r₀ r₁}
@@ -232,7 +233,7 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ...| inj₂ refl
     with ←⋆-round-< path r
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ rec = inj₂ (≤-trans rec (Valid-round-< path vr₁))
+  ...| inj₂ rec = inj₂ (≤-trans rec (Valid-round-≤ path vr₁))
 
   lemmaS1-3 : ∀{r₀ r₁ r₂}
             → RecordChain r₀
