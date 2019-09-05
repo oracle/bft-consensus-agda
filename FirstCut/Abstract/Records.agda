@@ -22,6 +22,12 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   --  VCM: I'm leaning towards leaving signatures out and
   --       handlign these on the validation layer.
 
+  -- MSM: these definitions are virtually identical to those that are included in the "concrete"
+  -- model (such as it is, so far).  I see little to no advantage in duplicating these definitions,
+  -- so I think we should just use the same definitions; that would imply including the signatures,
+  -- even though we won't use them in the abstract (though conceibably we might in future, when
+  -- considering accountability extensions)
+
   record Block  : Set where
     constructor mkBlock
     field
@@ -41,6 +47,22 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
       vAuthor    : Author ec
       vBlockHash : BlockHash
       vRound     : Round
+
+      -- MSM: this is an "auxiliary" variable that would probably not be included in a real
+      -- implementation (and is not included in the LibraBFT implementation we're modeling).  It's
+      -- therefore critical that we ensure that nothing in the model of the algorithm uses it.  I've
+      -- been following a convenition of preceding all types and fields names with "Aux" or "aux" to
+      -- make this easy to spot.  A related issue I mentioned before is whether we should include
+      -- any aux fields in implementation types (as is done here with vOrder) or if we should have
+      -- associated auxiliary types (e.g., AuxVote) to record Auxiliary information about the
+      -- relevant implementation type (Vote, in this case). So far, I've preferred the latter
+      -- approach.  Sometimes we may want to be able to respresent values that don't (yet) have
+      -- associated auxiliary data or that don't satisfy the properties represented in the auxiliary
+      -- data.  For example, a signed message the does not comply with protocol rules might be kept
+      -- for accountability reasons.  Overall, I lean towards keeping abstract and implementation
+      -- types identical, and keeping any auxiliary information such as vOrder, invariants, etc. in
+      -- auxiliary types.
+      
       -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
       -- this is representing. This makes it much simpler to talk about thinks such as 
       -- the increasing round rule. 
@@ -102,6 +124,9 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   _∈QC_  : Author ec → QC → Set
   a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
 
+  -- MSM: I understand we're abstracting from some mundane lookup function here,
+  -- but don't we need some constraint on the vote it returns?  Couldn't it just
+  -- return a random vote that's not by a and/or not in q?
   -- TODO: gets the vote of a ∈QC
   postulate
     ∈QC-Vote : ∀{q}(a : Author ec) → (a ∈QC q) → Vote
@@ -137,6 +162,7 @@ module Abstract.Records {f : ℕ} (ec : EpochConfig f)
   round (I i) = 0 -- (FOR MARK) here we said that the round of the
                   -- initial record is zero. Do you think this is ok or
                   -- should we return a 'Maybe Round'? Using zero makes life simpler though.
+                  -- (FROM MARK) I think 0 is fine.
   round (B b) = bRound b
   round (Q q) = qRound q
   -- round (V v) = vRound v

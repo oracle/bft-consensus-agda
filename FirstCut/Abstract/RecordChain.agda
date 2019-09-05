@@ -31,6 +31,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
 -- One way of looking at a 'RecordChain r' is to think of it as 
     -- one path from the epoch's initial record to r.
 
+  -- MSM: I changed this to avoid obsolete "mutual" keyword (https://agda.readthedocs.io/en/v2.6.0.1/language/mutual-recursion.html#old-syntax-keyword-mutual)
+
   data RecordChain : Record → Set₁
 
   data Valid : ∀ {r} → RecordChain r → Record → Set₁
@@ -70,6 +72,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   currRound empty = 0
   currRound (step {r = r} _ _ _) = round r
 
+  -- MSM: Having 0 for previous round for both empty and one block
+  -- seems risky (reminds me of skiplog).  Should we make it Maybe Round?
   -- TODO: prev round should be defined for blocks only...
   prevRound : ∀{r} → RecordChain r → Round
   prevRound empty = 0
@@ -146,6 +150,8 @@ module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   data _←⋆_ (r₁ : Record) : Record → Set₁ where
     ssRefl : r₁ ←⋆ r₁
     ssStep : ∀ {r r₂ : Record} → (r₁ ←⋆ r) → (r ← r₂) → r₁ ←⋆ r₂
+
+  -- MSM: Any reason some properties are here and others are in Abstract.RecordChain.Properties?
 
   ------------------------
   -- Lemma 1
