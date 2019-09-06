@@ -4,7 +4,6 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-import LibraBFT.Abstract.Records
 
 module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
@@ -13,15 +12,23 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
     where
 
- open WithCryptoHash               hash hash-cr
- open LibraBFT.Abstract.Records ec hash hash-cr
+ open import LibraBFT.Abstract.Records          ec 
+ open        WithCryptoHash                        hash hash-cr
+ open import LibraBFT.Abstract.Records.Extends  ec hash hash-cr
+ open import LibraBFT.Abstract.RecordStoreState ec hash hash-cr
 
- module WithPool
+ module WithRSS
+   {a}{RSS : Set a}
    -- The current record pool; abstracted by saying
    -- whether a record is in the pool or not.
-   (IsInPool            : Record → Set₁)
-   (IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁)
+   (isRSS : isRecordStoreState RSS)
      where
+
+  IsInPool : Record → Set
+  IsInPool r = isInPool isRSS r
+
+  IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁
+  IsInPool-irrelevant = isInPool-irrelevant isRSS
 
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
@@ -302,3 +309,4 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   ¬bRound≡0 : ∀ {b} → RecordChain (B b) → ¬ (bRound b ≡ 0)
   ¬bRound≡0 (step empty x (ValidBlockInit ())) refl
   ¬bRound≡0 (step (step rc x₂ (ValidQC _ refl)) x (ValidBlockStep _ ())) refl
+

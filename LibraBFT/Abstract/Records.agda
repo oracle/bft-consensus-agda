@@ -1,7 +1,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.BasicTypes
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 
 -- Here we provide abstract definitions of
@@ -13,12 +12,18 @@ open import LibraBFT.Lemmas
 --  2) Sender have been aute'ed against an epoch.
 --  3) Signatures have been verified
 -- 
+-- This module does not brings in the hashing functionality
+-- because we'd like to keep dependencies separate. 
+-- The rextends relaion, _←_, is in LibraBFT.Abstract.Records.Extends
+--
 module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
-  -- A Hash function maps a bytestring into a hash.
-  (hash     : ByteString → Hash)
-  -- And is colission resistant
-  (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
  where
+
+  -- The initial record is unique per epoch. Essentially, we just
+  -- use the 'epochSeed' and the hash of the last record of the previous
+  -- epoch to piggyback the initial record.
+  data Initial : Set where
+    mkInitial : Initial
 
   record Block  : Set where
     constructor mkBlock
@@ -29,6 +34,7 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
       bRound      : Round
   open Block public 
 
+  -- TODO: Implement
   postulate
     _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
 
@@ -43,7 +49,6 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
       -- the increasing round rule. 
       vOrder     : ℕ 
       --vState     : State
-      --vSignature : Signature
   open Vote public
 
   -- * Quorum Certificates
@@ -82,6 +87,14 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- For now, anyway, I'll just postulate decidable equality of what we currently have.
   postulate _≟QC_ : (q₀ q₁ : QC) → Dec (q₀ ≡ q₁)
 
+  -- TODO: We are not handling timeouts yet
+  record Timeout : Set where
+    constructor mkTimeout
+    field
+      toAuthor  : Author ec
+      toRound   : Round
+  open Timeout public
+
   -- It's pretty easy to state whether an author has voted in
   -- a given QC.
   _∈QC_  : Author ec → QC → Set
@@ -95,21 +108,6 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
                    → (∈QC-Vote {a} q p) ∈ qVotes q
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
-
-  -- The initial record is unique per epoch. Essentially, we just
-  -- use the 'epochSeed' and the hash of the last record of the previous
-  -- epoch to piggyback the initial record.
-  data Initial : Set where
-    mkInitial : Initial
-
-  -- TODO: We are not handling timeouts yet
-  record Timeout : Set where
-    constructor mkTimeout
-    field
-      toAuthor  : Author ec
-      toRound   : Round
-      --toSignature : Signature
-  open Timeout public
 
   -- A record is defined by being either of the types introduced above.
   data Record : Set₁ where
@@ -129,26 +127,3 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   round (Q q) = qRound q
   -- round (V v) = vRound v
   -- round (T t) = toRound t
-
-  -- We need to encode records into bytestrings in order to hash them.
-  postulate
-    encodeR     : Record → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
-
-  HashR : Record → Hash
-  HashR = hash ∘ encodeR
-
-  data _←_ : Record → Record → Set where
-    I←B : {i : Initial} {b : Block}
-          → HashR (I i) ≡  bPrevQCHash b
-          → I i ← B b
-    Q←B : {q : QC} {b : Block}
-          → HashR (Q q) ≡  bPrevQCHash b
-          → Q q ← B b
-    B←Q : {b : Block} {q : QC}
-          → HashR (B b) ≡ qBlockHash q
-          → B b ← Q q
-    -- B←V : {b : Block} {v : Vote}
-    --       → HashR (B b) ≡ vBlockHash v
-    --       → B b ← V v
-
