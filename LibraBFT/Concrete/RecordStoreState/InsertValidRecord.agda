@@ -20,6 +20,13 @@ module LibraBFT.Concrete.RecordStoreState.InsertValidRecord
 
   import LibraBFT.Abstract.Records as Abstract
 
+  -- One option, is to say that we only insert valid records and split the validation
+  -- into another file; as we have right now.
+  --
+  -- Another option, which might be closer to our Haskell implementation,
+  -- would be to have 'insertNetworkRecord : RecordStoreState → Concrete.Record → Maybe RecordStoreState'
+  --  
+  -- I'm unsure of which one I actually prefer. This is just a sketch for now anyway
   insertValidRecord : (rss : RecordStoreState) → ValidRecord rss → RecordStoreState
   insertValidRecord = {!!}
  

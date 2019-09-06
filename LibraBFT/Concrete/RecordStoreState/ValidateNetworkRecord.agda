@@ -7,6 +7,7 @@ open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.EpochConfig
 open import LibraBFT.Concrete.Util.HashMap
 
+{- VCM: THIS DESIGN IS NOT FINAL; check comments on InsertValidRecord -}
 module LibraBFT.Concrete.RecordStoreState.ValidateNetworkRecord
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
