@@ -1,20 +1,18 @@
-open import Hash
-open import BasicTypes
-open import Prelude
-open import Lemmas
+open import LibraBFT.Prelude
+open import LibraBFT.Hash
+open import LibraBFT.BasicTypes
+open import LibraBFT.Lemmas
 
-open import Data.Nat.Properties
-
-module Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f) 
+module LibraBFT.Abstract.RecordStoreState {f : ℕ} (ec : EpochConfig f) 
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
-  open WithCryptoHash                 hash hash-cr
-  open import Abstract.Records     ec hash hash-cr
-  open import Abstract.RecordChain ec hash hash-cr
+  open WithCryptoHash                          hash hash-cr
+  open import LibraBFT.Abstract.Records     ec hash hash-cr
+  open import LibraBFT.Abstract.RecordChain ec hash hash-cr
 
   -- VCM: There's a TRAP!
   --

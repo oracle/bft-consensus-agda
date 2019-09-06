@@ -1,20 +1,20 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Hash
-open import BasicTypes
-open import Prelude
-open import Lemmas
+open import LibraBFT.Prelude
+open import LibraBFT.Hash
+open import LibraBFT.BasicTypes
+open import LibraBFT.Lemmas
 
-import Abstract.Records
+import LibraBFT.Abstract.Records
 
-module Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
+module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
   (hash     : ByteString → Hash)
   -- And is colission resistant
   (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
     where
 
- open WithCryptoHash hash hash-cr
- open Abstract.Records ec hash hash-cr
+ open WithCryptoHash               hash hash-cr
+ open LibraBFT.Abstract.Records ec hash hash-cr
 
  module WithPool
    -- The current record pool; abstracted by saying

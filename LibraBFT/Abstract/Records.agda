@@ -1,8 +1,8 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Prelude
-open import BasicTypes
-open import Hash
-open import Lemmas
+open import LibraBFT.Prelude
+open import LibraBFT.BasicTypes
+open import LibraBFT.Hash
+open import LibraBFT.Lemmas
 
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
@@ -13,7 +13,7 @@ open import Lemmas
 --  2) Sender have been aute'ed against an epoch.
 --  3) Signatures have been verified
 -- 
-module Abstract.Records {f : ℕ} (ec : EpochConfig f)  
+module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
   -- A Hash function maps a bytestring into a hash.
   (hash     : ByteString → Hash)
   -- And is colission resistant

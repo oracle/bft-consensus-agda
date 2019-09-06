@@ -1,9 +1,9 @@
-open import Prelude
-open import Hash
+open import LibraBFT.Prelude
+open import LibraBFT.Hash
 
 -- Exposition of the ground types that we build our abstract reasoning
 -- over. 
-module BasicTypes where
+module LibraBFT.BasicTypes where
 
   -- An 'EpochConfig f' carries the information we need tot
   -- survive at most 'f' byzantine failures. for now, this is

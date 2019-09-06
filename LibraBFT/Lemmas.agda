@@ -1,9 +1,8 @@
-open import Prelude
-open import Data.Nat.Properties
-open import Level using (0ℓ)
-open import Data.List.All
+open import LibraBFT.Prelude
 
-module Lemmas where
+open import Level using (0ℓ)
+
+module LibraBFT.Lemmas where
 
  ≡-pi : ∀{a}{A : Set a}{x y : A}(p q : x ≡ y) → p ≡ q
  ≡-pi refl refl = refl
@@ -62,5 +61,5 @@ module Lemmas where
  witness : {A : Set}{P : A → Set}{x : A}{xs : List A}
          → x ∈ xs → All P xs → P x
  witness {x = x} {xs = []} ()
- witness {P = P } {x = x} {xh ∷ xt} (here px) all = subst P px (Data.List.All.head all)
- witness {x = x} {xh ∷ xt} (there x∈xt) all = witness x∈xt (Data.List.All.tail all)
+ witness {P = P } {x = x} {xh ∷ xt} (here px) all = subst P px (All-head all)
+ witness {x = x} {xh ∷ xt} (there x∈xt) all = witness x∈xt (All-tail all)

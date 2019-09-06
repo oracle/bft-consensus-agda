@@ -1,8 +1,8 @@
-open import Prelude
+open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 
-module Hash where
+module LibraBFT.Hash where
 
- open import Lemmas
 
  -------------------------------------------------
  -- Hash function postulates

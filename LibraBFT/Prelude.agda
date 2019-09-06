@@ -1,6 +1,6 @@
 -- This is a selection of useful function
 -- from the standard library that we tend to use a lot.
-module Prelude where
+module LibraBFT.Prelude where
   
   open import Data.Unit.NonEta 
     public
@@ -33,6 +33,7 @@ module Prelude where
 
   open import Data.List.All
     using (All; []; _∷_)
+    renaming (head to All-head; tail to All-tail)
     public
   
   open import Data.Vec
