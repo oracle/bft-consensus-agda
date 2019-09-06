@@ -13,7 +13,6 @@ module LibraBFT.Concrete.EpochConfig where
     field
       ecEpochId        : EpochId
       ecValidAuthors   : List NodeId
-      ecMinAuthors     : 3 ≤ length ecValidAuthors
       ecInitialState   : State
       -- ecPubKeys  : NodeId → PubKey
       -- etc
@@ -29,6 +28,7 @@ module LibraBFT.Concrete.EpochConfig where
   -- It is only natural, then, that a Concrete.EpochConfig can 
   -- handle up to a maximum byzantine failures
   ecMaxByzantine : EpochConfig → ℕ
+  -- TODO: if number of authors is less than 3 then this returns 0
   ecMaxByzantine ec = div3 (length (ecValidAuthors ec) ∸ 1)
 
   -- Which in turn, enables us to construct an abstract epoch config

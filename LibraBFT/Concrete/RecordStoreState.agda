@@ -65,7 +65,7 @@ module LibraBFT.Concrete.RecordStoreState
    abstractRSS : AbstractRSS.isRecordStoreState 
                    (RecordStoreStateMut (Author (rssConfig rss)))
    abstractRSS = AbstractRSS.rss (_∈Mut (rssMutablePart rss)) 
-                              ∈Mut-irrelevant
+                                  ∈Mut-irrelevant
      where
        postulate _∈Mut_ : AbstractR.Record 
                         → RecordStoreStateMut (Author (rssConfig rss)) 
