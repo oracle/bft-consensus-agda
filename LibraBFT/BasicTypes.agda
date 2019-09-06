@@ -23,15 +23,6 @@ module LibraBFT.BasicTypes where
   Author : ∀ {f} → EpochConfig f → Set
   Author ec = Fin (authorsN ec)
 
-  -- TODO: Prove the BFT assumption. Feels like its just arithmetic,
-  -- but these are famous last words after the skiplog stuff, huh? :)
-
-  -- We must not inspect who is honest and who is not
-  -- We will use a postulate and produce values of said type using module parameters
-  postulate
-    Honest : ∀ {f} {ec : EpochConfig f} → Author ec → Set
-    -- Later in the future we can implement this as an abstract
-
   Round : Set
   Round = ℕ
 

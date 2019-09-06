@@ -11,6 +11,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
+  open import LibraBFT.Abstract.BFT              ec
   open import LibraBFT.Abstract.Records          ec 
   open        WithCryptoHash                        hash hash-cr
   open import LibraBFT.Abstract.Records.Extends  ec hash hash-cr
@@ -37,7 +38,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- votes respect the rounds
     IncreasingRoundRule : Set₁
     IncreasingRoundRule 
-       = (α : Author ec) → Honest {ec = ec} α
+       = (α : Author ec) → Honest α
        → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
        → qRound q < qRound q' 
@@ -46,7 +47,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- that α's n-th vote is always the same.
     VotesOnlyOnceRule : Set₁
     VotesOnlyOnceRule 
-       = (α : Author ec) → Honest {ec = ec} α
+       = (α : Author ec) → Honest α
        → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote q va) ≡ vOrder (∈QC-Vote q' va')
        → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
@@ -58,7 +59,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
     LockedRoundRule : Set₁
     LockedRoundRule
-      = (α : Author ec) → Honest {ec = ec} α
+      = (α : Author ec) → Honest α
       → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))
