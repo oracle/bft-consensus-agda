@@ -3,8 +3,6 @@ open import LibraBFT.Prelude
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
 -- they have been received through the wire and
@@ -18,40 +16,61 @@ open import LibraBFT.Abstract.EpochConfig
 -- because we'd like to keep dependencies separate. 
 -- The rextends relaion, _←_, is in LibraBFT.Abstract.Records.Extends
 --
-module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
+module LibraBFT.Concrete.Records 
  where
 
-  -- The initial record is unique per epoch. Essentially, we just
-  -- use the 'epochSeed' and the hash of the last record of the previous
-  -- epoch to piggyback the initial record.
-  data Initial : Set where
-    mkInitial : Initial
+  -- The concrete model will be receiving signed records.
+  -- They all share the same fields: they come from a node that 
+  -- produce some content and signed it. Upon validation
+  -- with a given concrete ' ec : EpochConfig', we should be able to
+  -- produce a 'Author ec' and view the signed content as an 
+  -- abstract record.
+  record Signed {A : Set} : Set where
+    constructor signed
+    field
+      sAuthor     : NodeId
+      sContent    : A
+      sSignature  : Signature
+  open Signed public
 
   record Block  : Set where
     constructor mkBlock
     field
-      bAuthor     : Author ec
       bCommand    : Command
       bPrevQCHash : QCHash
       bRound      : Round
   open Block public 
 
-  -- TODO: Implement
-  postulate
-    _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
-
   record Vote  : Set where
     constructor mkVote
     field
-      vAuthor    : Author ec
       vBlockHash : BlockHash
       vRound     : Round
-      -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
-      -- this is representing. This makes it much simpler to talk about thinks such as 
-      -- the increasing round rule. 
+      -- TODO: What to do with the concrete vOrder?
       vOrder     : ℕ 
       --vState     : State
   open Vote public
+
+  record QC : Set where
+    field
+      qBlockHash     : BlockHash
+      qRound         : Round
+      --qState         : State
+      qVotes         : List Vote
+  open QC public
+
+  data Record : Set where
+    B : Block     → Record
+    Q : QC        → Record
+    -- V : Vote      → Record
+    -- T : Timeout   → Record
+
+
+
+{-
+  -- TODO: Implement
+  postulate
+    _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
 
   -- * Quorum Certificates
   --
@@ -61,25 +80,6 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- We achive that by considering a sorted list of 'Vote's
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
-
-  record QC : Set₁ where
-    field
-      qAuthor        : Author ec
-      qBlockHash     : BlockHash
-      qRound         : Round
-      --qState         : State
-      qVotes         : List Vote
-      -- Here are the coherence conditions. Firstly, we expect
-      -- 'qVotes' to be sorted, which guarnatees distinct authors.
-      qVotes-C1      : IsSorted (λ v₀ v₁ → vAuthor v₀ <Fin vAuthor v₁) qVotes 
-      -- Secondly, we expect it to have at least 'QuorumSize' number of
-      -- votes, for the particular epoch in question.
-      qVotes-C2      : QuorumSize ec ≤ length qVotes
-      -- All the votes must vote for the qBlockHash in here;
-      qVotes-C3      : All (λ v → vBlockHash v ≡ qBlockHash) qVotes
-      -- Likewise for rounds
-      qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
-  open QC public
 
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
@@ -112,13 +112,6 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- A record is defined by being either of the types introduced above.
-  data Record : Set₁ where
-    I : Initial   → Record
-    B : Block     → Record
-    Q : QC        → Record
-    -- V : Vote      → Record
-    -- T : Timeout   → Record
-
   B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
   B-inj refl = refl
 
@@ -129,3 +122,4 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   round (Q q) = qRound q
   -- round (V v) = vRound v
   -- round (T t) = toRound t
+-}

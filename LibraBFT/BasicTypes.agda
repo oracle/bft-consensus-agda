@@ -5,23 +5,12 @@ open import LibraBFT.Hash
 -- over. 
 module LibraBFT.BasicTypes where
 
-  -- An 'EpochConfig f' carries the information we need tot
-  -- survive at most 'f' byzantine failures. for now, this is
-  -- only a lower bound on the number of overal authors.
-  record EpochConfig (f : ℕ) : Set where
-    field
-      epochId  : ℕ
-      authorsN : ℕ
-      isBFT    : authorsN ≥ suc (3 * f)
+  EpochId : Set
+  EpochId = ℕ
 
-      -- seed  : ℕ
-    QuorumSize : ℕ
-    QuorumSize = authorsN ∸ f
-  open EpochConfig public
-
-  -- An author is identifed in an epoch by a finite type.
-  Author : ∀ {f} → EpochConfig f → Set
-  Author ec = Fin (authorsN ec)
+  -- A node is a participant in the system. 
+  NodeId : Set
+  NodeId = ℕ
 
   Round : Set
   Round = ℕ

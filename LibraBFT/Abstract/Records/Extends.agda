@@ -3,6 +3,8 @@ open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 
+open import LibraBFT.Abstract.EpochConfig
+
 module LibraBFT.Abstract.Records.Extends
   {f : ℕ}(ec : EpochConfig f) 
   -- A Hash function maps a bytestring into a hash.
