@@ -15,11 +15,6 @@ module LibraBFT.Abstract.Records.Extends
   
   open import LibraBFT.Abstract.Records ec  
 
-  -- We need to encode records into bytestrings in order to hash them.
-  postulate
-    encodeR     : Record → ByteString
-    encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
-
   HashR : Record → Hash
   HashR = hash ∘ encodeR
 
@@ -31,7 +26,7 @@ module LibraBFT.Abstract.Records.Extends
           → HashR (Q q) ≡  bPrevQCHash b
           → Q q ← B b
     B←Q : {b : Block} {q : QC}
-          → HashR (B b) ≡ qBlockHash q
+          → HashR (B b) ≡ qBlockHash (qBase q)
           → B b ← Q q
     -- B←V : {b : Block} {v : Vote}
     --       → HashR (B b) ≡ vBlockHash v

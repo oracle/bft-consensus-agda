@@ -43,7 +43,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        = (α : Author ec) → Honest α
        → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
-       → qRound q < qRound q' 
+       → qRound (qBase q) < qRound (qBase q')
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
     -- that α's n-th vote is always the same.

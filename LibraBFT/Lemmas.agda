@@ -45,14 +45,28 @@ module LibraBFT.Lemmas where
    -- Extends an arbitrary relation to work on the head of
   -- the supplied list, if any.
  data OnHead {A : Set}(P : A → A → Set) (x : A) : List A → Set where
-    []  : OnHead P x []
-    _∷_ : ∀{y ys} → P x y → OnHead P x (y ∷ ys)
+    []   : OnHead P x []
+    on-∷ : ∀{y ys} → P x y → OnHead P x (y ∷ ys)
 
   -- Estabilishes that a list is sorted according to the supplied
   -- relation.
  data IsSorted {A : Set}(_<_ : A → A → Set) : List A → Set where
     []  : IsSorted _<_ []
     _∷_ : ∀{x xs} → OnHead _<_ x xs → IsSorted _<_ xs → IsSorted _<_ (x ∷ xs)
+
+ OnHead-prop : ∀{A}(P : A → A → Set)(x : A)(l : List A) 
+             → Irrelevant P
+             → isPropositional (OnHead P x l)
+ OnHead-prop P x [] hyp [] [] = refl
+ OnHead-prop P x (x₁ ∷ l) hyp (on-∷ x₂) (on-∷ x₃) = cong on-∷ (hyp x₂ x₃)
+
+ IsSorted-prop : ∀{A}(_<_ : A → A → Set)(l : List A) 
+               → Irrelevant _<_
+               → isPropositional (IsSorted _<_ l)
+ IsSorted-prop _<_ [] hyp [] []                  = refl
+ IsSorted-prop _<_ (x ∷ l) hyp (x₁ ∷ a) (x₂ ∷ b) 
+   = cong₂ _∷_ (OnHead-prop _<_ x l hyp x₁ x₂) 
+               (IsSorted-prop _<_ l hyp a b)
 
  Any-lookup-correct :  ∀ {a b} {A : Set a} {B : Set b} {tgt : B} {l : List A} {f : A → B} → (p : Any (λ x → f x ≡ tgt) l) → Any-lookup p ∈ l
  Any-lookup-correct (here px) = here refl

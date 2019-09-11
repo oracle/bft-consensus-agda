@@ -58,6 +58,10 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  open import Data.Maybe.Properties
+    using (just-injective)
+    public
+
   open import Data.Fin
     using (Fin; suc; zero)
     renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_)

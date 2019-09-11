@@ -1,8 +1,7 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
-open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
-
+open import LibraBFT.BasicTypes
+open import LibraBFT.Hash
 open import LibraBFT.Abstract.EpochConfig
 
 -- Here we provide abstract definitions of
@@ -21,38 +20,16 @@ open import LibraBFT.Abstract.EpochConfig
 module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
  where
 
-  -- The initial record is unique per epoch. Essentially, we just
-  -- use the 'epochSeed' and the hash of the last record of the previous
-  -- epoch to piggyback the initial record.
-  data Initial : Set where
-    mkInitial : Initial
-
-  record Block  : Set where
-    constructor mkBlock
-    field
-      bAuthor     : Author ec
-      bCommand    : Command
-      bPrevQCHash : QCHash
-      bRound      : Round
-  open Block public 
-
+  Block : Set
+  Block = BBlock (Author ec)
+  
   -- TODO: Implement
   postulate
     _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
 
-  record Vote  : Set where
-    constructor mkVote
-    field
-      vAuthor    : Author ec
-      vBlockHash : BlockHash
-      vRound     : Round
-      -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
-      -- this is representing. This makes it much simpler to talk about thinks such as 
-      -- the increasing round rule. 
-      vOrder     : ℕ 
-      --vState     : State
-  open Vote public
-
+  Vote : Set
+  Vote = BVote (Author ec)
+ 
   -- * Quorum Certificates
   --
   -- These are intersting. A Valid quorum certificate contains
@@ -61,24 +38,20 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- We achive that by considering a sorted list of 'Vote's
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
-
   record QC : Set₁ where
     field
-      qAuthor        : Author ec
-      qBlockHash     : BlockHash
-      qRound         : Round
-      --qState         : State
-      qVotes         : List Vote
+      qBase          : BQC (Author ec)
       -- Here are the coherence conditions. Firstly, we expect
       -- 'qVotes' to be sorted, which guarnatees distinct authors.
-      qVotes-C1      : IsSorted (λ v₀ v₁ → vAuthor v₀ <Fin vAuthor v₁) qVotes 
+      qVotes-C1      : IsSorted (λ v₀ v₁ → vAuthor v₀ <Fin vAuthor v₁) (qVotes qBase) 
       -- Secondly, we expect it to have at least 'QuorumSize' number of
       -- votes, for the particular epoch in question.
-      qVotes-C2      : QuorumSize ec ≤ length qVotes
+      qVotes-C2      : QuorumSize ec ≤ length (qVotes qBase)
       -- All the votes must vote for the qBlockHash in here;
-      qVotes-C3      : All (λ v → vBlockHash v ≡ qBlockHash) qVotes
+      qVotes-C3      : All (λ v → vBlockHash v ≡ qBlockHash qBase) 
+                           (qVotes qBase)
       -- Likewise for rounds
-      qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
+      qVotes-C4      : All (λ v → vRound v ≡ qRound qBase) (qVotes qBase)
   open QC public
 
   -- TODO:
@@ -89,18 +62,13 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- For now, anyway, I'll just postulate decidable equality of what we currently have.
   postulate _≟QC_ : (q₀ q₁ : QC) → Dec (q₀ ≡ q₁)
 
-  -- TODO: We are not handling timeouts yet
-  record Timeout : Set where
-    constructor mkTimeout
-    field
-      toAuthor  : Author ec
-      toRound   : Round
-  open Timeout public
+  Timeout : Set
+  Timeout = BTimeout (Author ec)
 
   -- It's pretty easy to state whether an author has voted in
   -- a given QC.
   _∈QC_  : Author ec → QC → Set
-  a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
+  a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes (qBase qc))
 
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
   ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
@@ -108,7 +76,7 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
 
 
   ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
-                   → (∈QC-Vote {a} q p) ∈ qVotes q
+                   → (∈QC-Vote {a} q p) ∈ qVotes (qBase q)
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- A record is defined by being either of the types introduced above.
@@ -119,6 +87,43 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
     -- V : Vote      → Record
     -- T : Timeout   → Record
 
+  encRecord : Encoder Record
+  encRecord = record 
+    { encode     = enc1 
+    ; encode-inj = λ {r} {s} → enc1-inj r s 
+    } where
+      enc1 : Record → ByteString
+      enc1 (I x) = false ∷ false ∷ encode encInitial x
+      enc1 (B x) = true  ∷ false ∷ encode (encBBlock (Author ec)) x 
+      enc1 (Q x) = false ∷ true  ∷ encode (encBQC (Author ec)) (qBase x)
+ 
+      postulate magic : ∀{a}{A : Set a} → A
+
+      -- TODO: Implement this later; The important bit
+      --       is that Agda easily understands that the type tags
+      --       work and discharges the difficult cases. 
+      --       Although long; the proof for QC will be boring; I already
+      --       proved the bits and pieces proof irrelevant in Lemmas.
+      enc1-inj : ∀ r s → enc1 r ≡ enc1 s → r ≡ s
+      enc1-inj (I x) (I x₁) hyp = magic
+      enc1-inj (B x) (B x₁) hyp = magic
+      enc1-inj (Q x) (Q x₁) hyp = magic
+      enc1-inj (I x) (B x₁) ()
+      enc1-inj (I x) (Q x₁) ()
+      enc1-inj (B x) (I x₁) ()
+      enc1-inj (B x) (Q x₁) ()
+      enc1-inj (Q x) (I x₁) ()
+      enc1-inj (Q x) (B x₁) ()
+
+  -- Now, the encodings we had as postulates
+  -- back in LibraBFT.Abstract.Record.Extends we can
+  -- define as first class citizens
+  encodeR : Record → ByteString
+  encodeR = encode encRecord
+
+  encodeR-inj : ∀ {r₀ r₁ : Record} → (encodeR r₀ ≡ encodeR r₁) → (r₀ ≡ r₁)
+  encodeR-inj = encode-inj encRecord
+
   B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
   B-inj refl = refl
 
@@ -126,6 +131,6 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   round : Record → Round
   round (I i) = 0
   round (B b) = bRound b
-  round (Q q) = qRound q
-  -- round (V v) = vRound v
+  round (Q q) = qRound (qBase q)
+  -- round (V v) = vRound v 
   -- round (T t) = toRound t

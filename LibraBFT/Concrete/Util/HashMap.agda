@@ -61,6 +61,14 @@ module LibraBFT.Concrete.Util.HashMap where
   _∈HM_ : ∀ {K : Set} {V : Set} (k : K) → HashMap K V → Set
   k ∈HM hm = ∃[ v ]( hm k ≡ just v )
 
+  ∈HM-irrelevant : ∀{K V}(k : K)(m : HashMap K V)(p₀ p₁ : k ∈HM m)
+                 → p₀ ≡ p₁
+  ∈HM-irrelevant k m (e , prf) (e' , prf') 
+    with m k
+  ...| just x 
+    with prf | prf'
+  ...| refl | refl = refl 
+
   emptyIsEmpty : ∀ {K : Set} {V : Set} {k : K} → ¬ (k ∈HM emptyHM {K} {V})
   emptyIsEmpty {k = k} = λ ()
 

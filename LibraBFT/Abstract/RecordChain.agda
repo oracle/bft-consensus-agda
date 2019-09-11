@@ -55,16 +55,16 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
                    → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
     ValidBlockStep : {b : Block} {q : QC}
                    → (rc : RecordChain (Q q))
-                   → qRound q < bRound b
+                   → qRound (qBase q) < bRound b
                    → Valid rc (B b)
     ValidQC        : {q : QC} {b : Block}
                    → (rc : RecordChain (B b))
-                   → qRound q ≡ bRound b
+                   → qRound (qBase q) ≡ bRound b
                    → Valid rc (Q q)
 
   ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC}
                 → Valid certB (Q q)
-                → qRound q ≡ bRound b   
+                → qRound (qBase q) ≡ bRound b   
   ValidQ⇒Round≡ (ValidQC certB x) = x
 
   prevBlock : ∀{q} → RecordChain (Q q) → Block
@@ -296,13 +296,20 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
                 → b ≡ c3 ⟦ suc (suc zero) ⟧ck
                 → CommitRule rc b
 
-
-  vote≡⇒QPrevHash≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qBlockHash q ≡ qBlockHash q'
+  vote≡⇒QPrevHash≡ : {q q' : QC} {v v' : Vote} 
+                   → v  ∈ qVotes (qBase q) 
+                   → v' ∈ qVotes (qBase q') 
+                   → v ≡ v' 
+                   →  qBlockHash (qBase q) ≡ qBlockHash (qBase q')
   vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
   ... | refl | refl = refl
 
-  vote≡⇒QRound≡ : ∀ {q q'} {v v' : Vote} → v ∈ qVotes q → v' ∈ qVotes q' → v ≡ v' →  qRound q ≡ qRound q'
+  vote≡⇒QRound≡ : {q q' : QC} {v v' : Vote} 
+                → v  ∈ qVotes (qBase q) 
+                → v' ∈ qVotes (qBase q') 
+                → v ≡ v' 
+                →  qRound (qBase q) ≡ qRound (qBase q')
   vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
   ... | refl | refl = refl

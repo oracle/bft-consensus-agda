@@ -3,6 +3,8 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
+open import LibraBFT.Abstract.EpochConfig
+
 module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
   -- A Hash function maps a bytestring into a hash.
   (hash    : ByteString → Hash)
@@ -112,7 +114,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
            → (c3 : 𝕂-chain 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
            → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
-           → round r₂ < qRound q'
+           → round r₂ < qRound (qBase q')
            → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp
      with lemmaB1 q₂ q'
@@ -123,7 +125,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
      with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂
      with increasing-round-rule a honest {q'} {q₂} a∈q' a∈q₂ va'<va₂
-   ...| res = ⊥-elim (n≮n (qRound q') (≤-trans res (≤-unstep hyp)))
+   ...| res = ⊥-elim (n≮n (qRound (qBase q')) (≤-trans res (≤-unstep hyp)))
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} vb₂ b₂←q₂ {pq} vq₂ c2) {q'} (step certB b←q' vq' {pq'}) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | tri≈ _ va₂≡va' _
@@ -190,8 +192,8 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → {q' : QC}
                → (certB : RecordChain (Q q'))
-               → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q'
-               → qRound q' ≤ bRound (c3 ⟦ zero ⟧ck) 
+               → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound (qBase q')
+               → qRound (qBase q') ≤ bRound (c3 ⟦ zero ⟧ck) 
                → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
    propS4-base c3 {q'} (step (step rec0 tr0 vb₁ {pb₀}) (B←Q x₀) (ValidQC _ refl) {pq₀}) hyp0 hyp1 
      with c3 ⟦ zero ⟧ck           | inspect (_⟦_⟧ck c3) zero 
@@ -200,7 +202,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    ...| B₂ | [ isB₂ ] | B₁ | [ isB₁ ] | B₀ | [ isB₀ ]
      with tr0 | rec0 | vb₁
    ...| I←B hi | empty | ValidBlockInit r 
-     with y+1+2-lemma hyp0 (subst (qRound q' ≤_) (trans (cong bRound (sym isB₂)) 
+     with y+1+2-lemma hyp0 (subst (qRound (qBase q') ≤_) (trans (cong bRound (sym isB₂)) 
                                                  (trans (3chain-round-lemma c3) 
                                                         (cong (λ P → suc (suc (bRound P))) isB₀))) 
                       hyp1)
@@ -217,13 +219,13 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
           → (c3 : 𝕂-chain-contigR 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q' : QC}
           → (certB : RecordChain (Q q'))
-          → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound q'
+          → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound (qBase q')
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
           → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
    propS4 {rc = rc} c3 {q} (step certB b←q vq {pq}) hyp
-     with qRound q ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
+     with qRound (qBase q) ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
    ...| yes rq≤rb₂ = propS4-base c3 (step certB b←q vq {pq}) hyp rq≤rb₂
 {-
      with y+1+2-lemma hyp (subst (qRound q ≤_) (3chain-round-lemma c3) rq≤rb₂)
@@ -248,7 +250,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    propS4 c3 {q} (step certB b←q vq {pq}) hyp
       | no  rb₂<rq 
      with lemmaS3 (𝕂-chain-contigR-𝓤 c3) (step certB b←q vq {pq}) 
-         ( subst (_< qRound q) (sym (kchain-round-head-lemma c3)) (≰⇒> rb₂<rq) )
+         ( subst (_< qRound (qBase q)) (sym (kchain-round-head-lemma c3)) (≰⇒> rb₂<rq) )
    ...| ls3 
      with certB | b←q
    -- ...| empty | ()
@@ -269,7 +271,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
 
    kchain-round-≤-lemma'
      : ∀{k q}{rc : RecordChain (Q q)}(c3 : 𝕂-chain-contigR k rc)(ix : Fin k)
-     → bRound (c3 ⟦ ix ⟧ck) ≤ qRound q
+     → bRound (c3 ⟦ ix ⟧ck) ≤ qRound (qBase q)
    kchain-round-≤-lemma' (s-chain r←b vb x b←q (ValidQC _ refl) c3) zero = ≤-refl
    kchain-round-≤-lemma' (s-chain (I←B imp) (ValidBlockInit prf) refl b←q (ValidQC _ refl) 0-chain) (suc ()) 
    kchain-round-≤-lemma' (s-chain (Q←B imp) (ValidBlockStep _ prf) x b←q (ValidQC _ refl) c2) (suc ix) 

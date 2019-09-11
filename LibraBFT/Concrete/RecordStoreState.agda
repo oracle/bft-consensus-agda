@@ -4,7 +4,6 @@ open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.EpochConfig
 open import LibraBFT.Concrete.Util.HashMap
 
@@ -21,8 +20,8 @@ module LibraBFT.Concrete.RecordStoreState
     constructor mkRecordStoreState
     field
       -- rssInitiaState       : State
-      rssBlocks               : HashMap BlockHash Block
-      rssQCs                  : HashMap QCHash QC
+      rssBlocks               : HashMap BlockHash (BBlock authors)
+      rssQCs                  : HashMap QCHash    (BQC    authors)
       rssRoundToQChash        : HashMap Round QCHash
       rssCurrentProposedBlock : Maybe BlockHash
       rssHighestQCRound       : Round
@@ -32,9 +31,10 @@ module LibraBFT.Concrete.RecordStoreState
       -- rssHighestCommittedRound    : Round
       -- rssHighestTimoutCertificate : Maybe (List Timeout)
       -- rssCurrentTimeouts      : HashMap authors Timeout
-      rssCurrentVotes         : HashMap authors Vote
+      rssCurrentVotes         : HashMap authors (BVote authors)
       -- rssCurrentTimeoutWeight     : ℕ  -- LIBRA-DIFF: assume equal weights for now
       -- rssCurrentElection          : ?
+  open RecordStoreStateMut
 
   record RecordStoreState : Set where
     constructor mkRecordStoreState
@@ -47,15 +47,32 @@ module LibraBFT.Concrete.RecordStoreState
       rssMutablePart          : RecordStoreStateMut (Author rssConfig)
   open RecordStoreState public
 
-
-
   module _ (rss : RecordStoreState) where
 
    import LibraBFT.Abstract.Records          (ecAbstract (rssConfig rss)) 
      as AbstractR
    import LibraBFT.Abstract.RecordStoreState (ecAbstract (rssConfig rss)) hash hash-cr 
      as AbstractRSS
-   
+
+   _∈Mut_ : AbstractR.Record 
+          → RecordStoreStateMut (Author (rssConfig rss)) 
+          → Set
+   (AbstractR.I x) ∈Mut rs 
+     = Unit
+   (AbstractR.B x) ∈Mut rs 
+     = hash (AbstractR.encodeR (AbstractR.B x)) ∈HM (rssBlocks rs)
+   (AbstractR.Q x) ∈Mut rs 
+     = hash (AbstractR.encodeR (AbstractR.Q x)) ∈HM (rssQCs rs)
+
+   ∈Mut-irrelevant : ∀{r}(p₀ p₁ : r ∈Mut (rssMutablePart rss)) → p₀ ≡ p₁
+   ∈Mut-irrelevant {AbstractR.I x} unit unit = refl
+   ∈Mut-irrelevant {AbstractR.B x} p0 p1     
+     = ∈HM-irrelevant (hash (AbstractR.encodeR (AbstractR.B x))) 
+                      (rssBlocks (rssMutablePart rss)) p0 p1
+   ∈Mut-irrelevant {AbstractR.Q x} p0 p1    
+     = ∈HM-irrelevant (hash (AbstractR.encodeR (AbstractR.Q x))) 
+                      (rssQCs (rssMutablePart rss)) p0 p1
+ 
    -- The abstract interface to RecordStoreState is
    -- to look at it from a 'Pool of Records' point of view.
    -- 
@@ -66,13 +83,6 @@ module LibraBFT.Concrete.RecordStoreState
                    (RecordStoreStateMut (Author (rssConfig rss)))
    abstractRSS = AbstractRSS.rss (_∈Mut (rssMutablePart rss)) 
                                   ∈Mut-irrelevant
-     where
-       postulate _∈Mut_ : AbstractR.Record 
-                        → RecordStoreStateMut (Author (rssConfig rss)) 
-                        → Set
-
-       postulate ∈Mut-irrelevant : ∀{r}(p₀ p₁ : r ∈Mut (rssMutablePart rss))
-                                 → p₀ ≡ p₁
                 
 
   emptyRSS : EpochId → EpochConfig → RecordStoreState

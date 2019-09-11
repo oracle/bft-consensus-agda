@@ -25,39 +25,25 @@ module LibraBFT.Concrete.Records
   -- with a given concrete ' ec : EpochConfig', we should be able to
   -- produce a 'Author ec' and view the signed content as an 
   -- abstract record.
-  record Signed {A : Set} : Set where
+  record Signed (A : Set) : Set where
     constructor signed
     field
-      sAuthor     : NodeId
       sContent    : A
+      sAuthor     : A → NodeId
       sSignature  : Signature
   open Signed public
 
-  record Block  : Set where
-    constructor mkBlock
-    field
-      bCommand    : Command
-      bPrevQCHash : QCHash
-      bRound      : Round
-  open Block public 
+  Block : Set
+  Block = Signed (BBlock NodeId)
 
-  record Vote  : Set where
-    constructor mkVote
-    field
-      vBlockHash : BlockHash
-      vRound     : Round
-      -- TODO: What to do with the concrete vOrder?
-      vOrder     : ℕ 
-      --vState     : State
-  open Vote public
+  QC : Set
+  QC = Signed (BQC NodeId)
 
-  record QC : Set where
-    field
-      qBlockHash     : BlockHash
-      qRound         : Round
-      --qState         : State
-      qVotes         : List Vote
-  open QC public
+  Vote : Set
+  Vote = Signed (BVote NodeId)
+
+  Timeout : Set
+  Timeout = Signed (BTimeout NodeId) 
 
   data Record : Set where
     B : Block     → Record
@@ -66,60 +52,3 @@ module LibraBFT.Concrete.Records
     -- T : Timeout   → Record
 
 
-
-{-
-  -- TODO: Implement
-  postulate
-    _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
-
-  -- * Quorum Certificates
-  --
-  -- These are intersting. A Valid quorum certificate contains
-  -- at least 'QuorumSize ec' votes from different authors.
-  -- 
-  -- We achive that by considering a sorted list of 'Vote's
-  -- with the _<_ relation from Data.Fin, which also guarantees
-  -- the authors are different. 
-
-  -- TODO:
-  -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
-  -- I agree. We can define our own equivalence relation comparing the size of the list, the author,
-  -- the round and the blockhash. We don't particuarly care about the votes!
-  -- 
-  -- For now, anyway, I'll just postulate decidable equality of what we currently have.
-  postulate _≟QC_ : (q₀ q₁ : QC) → Dec (q₀ ≡ q₁)
-
-  -- TODO: We are not handling timeouts yet
-  record Timeout : Set where
-    constructor mkTimeout
-    field
-      toAuthor  : Author ec
-      toRound   : Round
-  open Timeout public
-
-  -- It's pretty easy to state whether an author has voted in
-  -- a given QC.
-  _∈QC_  : Author ec → QC → Set
-  a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qVotes qc)
-
-  -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
-  ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
-  ∈QC-Vote q a∈q = Any-lookup a∈q
-
-
-  ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
-                   → (∈QC-Vote {a} q p) ∈ qVotes q
-  ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
-
-  -- A record is defined by being either of the types introduced above.
-  B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
-  B-inj refl = refl
-
-  -- Each record has a round
-  round : Record → Round
-  round (I i) = 0
-  round (B b) = bRound b
-  round (Q q) = qRound q
-  -- round (V v) = vRound v
-  -- round (T t) = toRound t
--}
