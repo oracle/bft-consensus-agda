@@ -30,7 +30,7 @@ module LibraBFT.BasicTypes where
   State : Set
   State = Hash
 
-  -- Records parametrized by a type of author execpt the initial
+  -- Records parameterized by a type of author execpt the initial
   -- record.
   --
   -- The initial record is unique per epoch. Essentially, we just
@@ -39,7 +39,7 @@ module LibraBFT.BasicTypes where
   data Initial : Set where
     mkInitial : Initial
 
-  -- All the other records will draw their autors from
+  -- All the other records will draw their authors from
   -- a given Set. They are named with a 'B' prefix standing for
   -- 'Basic' records.
   module _ (author : Set) where

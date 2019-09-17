@@ -57,7 +57,13 @@ module LibraBFT.Concrete.RecordStoreState
    _∈Mut_ : AbstractR.Record 
           → RecordStoreStateMut (Author (rssConfig rss)) 
           → Set
-   (AbstractR.I x) ∈Mut rs 
+   -- The initial record is not really *in* the record store,
+   -- but the record store knows of it, since it has
+   -- the epoch config. Hence, we'll just state that for the pusposes
+   -- of the _←_ relation, there is an initial in there.
+   --
+   -- Recall that the initial record is proof irrelevant.
+   (AbstractR.I _) ∈Mut rs 
      = Unit
    (AbstractR.B x) ∈Mut rs 
      = hash (AbstractR.encodeR (AbstractR.B x)) ∈HM (rssBlocks rs)

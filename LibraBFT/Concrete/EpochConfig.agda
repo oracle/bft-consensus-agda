@@ -40,6 +40,7 @@ module LibraBFT.Concrete.EpochConfig where
     { epochId  = ecEpochId ec 
     ; authorsN = length (ecValidAuthors ec) 
     ; isBFT    = todo
+    ; seed     = todo
     } where postulate todo : ∀{a}{A : Set a} → A 
 
   -- A prominent example are authors. Concrete authors are an index into
