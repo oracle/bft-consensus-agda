@@ -115,6 +115,7 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   kchainQC zero    (s-chain {q = q} _ _ _ _ _ _) = q
   kchainQC (suc x) (s-chain r←b vb _ b←q vq kk)  = kchainQC x kk
 
+  -- TODO: These guys go away, much better to have just one 𝕂-chain type.
   _⟦_⟧ck : ∀{k r P}{rc : RecordChain r} → 𝕂-chain P k rc → Fin k → Block
   chain ⟦ ix ⟧ck = kchainBlock ix chain
 
