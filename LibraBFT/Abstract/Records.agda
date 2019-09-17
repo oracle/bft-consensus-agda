@@ -93,7 +93,7 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
     ; encode-inj = λ {r} {s} → enc1-inj r s 
     } where
       enc1 : Record → ByteString
-      enc1 (I x) = false ∷ false ∷ encode encInitial x
+      enc1 (I _) = false ∷ false ∷ [] ++ encode encℕ (seed ec) ++ encode encℕ (epochId ec)
       enc1 (B x) = true  ∷ false ∷ encode (encBBlock (Author ec)) x 
       enc1 (Q x) = false ∷ true  ∷ encode (encBQC (Author ec)) (qBase x)
  

@@ -49,16 +49,13 @@ module LibraBFT.Hash where
 
  postulate
    -- Encoding and decoding
-   encodeℕ : ℕ   → ByteString
+   encℕ : Encoder ℕ
 
    -- Encodings have always the same size! (these could be any constant, really)
-   encodeℕ-len : ∀{n} → length (encodeℕ n) ≡ 8
-
-   -- Encodings are injections
-   encodeℕ-inj : ∀ i j → encodeℕ i ≡ encodeℕ j → i ≡ j
+   encodeℕ-len : ∀{n} → length (encode encℕ n) ≡ 8
 
  -- Naturally, if the size of the encoding is fixed by the type, it is always the same!
- encodeℕ-len-lemma : ∀ i j → length (encodeℕ i) ≡ length (encodeℕ j)
+ encodeℕ-len-lemma : ∀ i j → length (encode encℕ i) ≡ length (encode encℕ j)
  encodeℕ-len-lemma i j = trans (encodeℕ-len {i}) (sym (encodeℕ-len {j}))
 
  encodeH-len-lemma : ∀ i j → length (encodeH i) ≡ length (encodeH j)

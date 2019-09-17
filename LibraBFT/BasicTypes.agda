@@ -38,9 +38,6 @@ module LibraBFT.BasicTypes where
   -- epoch to piggyback the initial record.
   data Initial : Set where
     mkInitial : Initial
- 
-  postulate
-    encInitial : Encoder Initial
 
   -- All the other records will draw their autors from
   -- a given Set. They are named with a 'B' prefix standing for

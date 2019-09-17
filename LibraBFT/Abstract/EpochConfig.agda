@@ -13,7 +13,8 @@ module LibraBFT.Abstract.EpochConfig where
       authorsN : ℕ
       isBFT    : authorsN ≥ suc (3 * f)
 
-      -- seed  : ℕ
+      seed     : ℕ
+
     QuorumSize : ℕ
     QuorumSize = authorsN ∸ f
   open EpochConfig public
