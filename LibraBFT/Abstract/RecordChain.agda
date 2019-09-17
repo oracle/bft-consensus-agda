@@ -89,59 +89,50 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   --
   -- Our datatype 𝕂-chain captures exactly that structure.
   --
-  data 𝕂-chain : (k : ℕ){r : Record} → RecordChain r → Set₁ where
-    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain 0 rc
+  data 𝕂-chain (P : Record → Record → Set) : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain P 0 rc
     s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
             → (r←b : r   ← B b)
             → {prfB : IsInPool (B b)}
             → (vb  : Valid rc (B b))
+            → (prf : P r (B b))
             → (b←q : B b ← Q q)
             → {prfQ : IsInPool (Q q)}
             → (vq  : Valid (step rc r←b vb {prfB}) (Q q))
-            → 𝕂-chain k rc
-            → 𝕂-chain (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
+            → 𝕂-chain P k rc
+            → 𝕂-chain P (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
 
   -- Returns the round of the block heading the k-chain.
-  kchainHeadRound : ∀{k r}{rc : RecordChain r} → 𝕂-chain k rc → Round
-  kchainHeadRound (0-chain {r = r})          = round r
-  kchainHeadRound (s-chain r←b vb b←q vq kk) = kchainHeadRound kk
+  kchainHeadRound : ∀{k r P}{rc : RecordChain r} → 𝕂-chain P k rc → Round
+  kchainHeadRound (0-chain {r = r})            = round r
+  kchainHeadRound (s-chain r←b vb _ b←q vq kk) = kchainHeadRound kk
 
-  kchainBlock : ∀{k r}{rc : RecordChain r} → Fin k → 𝕂-chain k rc → Block
-  kchainBlock zero    (s-chain {b = b} _ _ _ _ _) = b
-  kchainBlock (suc x) (s-chain r←b vb b←q vq kk)  = kchainBlock x kk
+  kchainBlock : ∀{k r P}{rc : RecordChain r} → Fin k → 𝕂-chain P k rc → Block
+  kchainBlock zero    (s-chain {b = b} _ _ _ _ _ _) = b
+  kchainBlock (suc x) (s-chain r←b vb _ b←q vq kk)  = kchainBlock x kk
 
-  kchainQC : ∀{k r}{rc : RecordChain r} → Fin k → 𝕂-chain k rc → QC
-  kchainQC zero    (s-chain {q = q} _ _ _ _ _) = q
-  kchainQC (suc x) (s-chain r←b vb b←q vq kk)  = kchainQC x kk
+  kchainQC : ∀{k r P}{rc : RecordChain r} → Fin k → 𝕂-chain P k rc → QC
+  kchainQC zero    (s-chain {q = q} _ _ _ _ _ _) = q
+  kchainQC (suc x) (s-chain r←b vb _ b←q vq kk)  = kchainQC x kk
 
-  kchainBlockRound≤ : ∀{k r}{rc : RecordChain r}(x y : Fin k)(kc : 𝕂-chain k rc)
+  _⟦_⟧ck : ∀{k r P}{rc : RecordChain r} → 𝕂-chain P k rc → Fin k → Block
+  chain ⟦ ix ⟧ck = kchainBlock ix chain
+
+  _⟦_⟧ck' : ∀{k r P}{rc : RecordChain r} → 𝕂-chain P k rc → Fin k → QC
+  chain ⟦ ix ⟧ck' = kchainQC ix chain
+
+  kchainBlockRound≤ : ∀{k r P}{rc : RecordChain r}(x y : Fin k)(kc : 𝕂-chain P k rc)
                     → x ≤Fin y → bRound (kchainBlock y kc) ≤ bRound (kchainBlock x kc)
   kchainBlockRound≤ = {!!}
 
-  data 𝕂-chain-contigR : (k : ℕ){r : Record} → RecordChain r → Set₁ where
-    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain-contigR 0 rc
-    s-chain : ∀{k r}{q' : QC}{rc : RecordChain r}{b : Block}
-            → (r←b : r ← B b)
-            → {prfB : IsInPool (B b)}
-            → (vb  : Valid rc (B b))
-            → bRound b ≡ suc (round r)
-            → (b←q : B b ← Q q')
-            → {prfQ : IsInPool (Q q')}
-            → (vq  : Valid (step rc r←b vb {prfB}) (Q q'))
-            → 𝕂-chain-contigR k rc
-            → 𝕂-chain-contigR (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
+  Contig : Record → Record → Set
+  Contig r r' = round r' ≡ suc (round r)
 
-  𝕂-chain-contigR-𝓤 : ∀{r k}{rc : RecordChain r}
-                         → (cRChain : 𝕂-chain-contigR k rc)
-                         → 𝕂-chain k rc
-  𝕂-chain-contigR-𝓤  0-chain = 0-chain
-  𝕂-chain-contigR-𝓤  (s-chain q←b vb x b←q₊₁ vq cRChain) = s-chain q←b vb b←q₊₁ vq (𝕂-chain-contigR-𝓤 cRChain)
+  Simple : Record → Record → Set
+  Simple _ _ = Unit
 
-  _⟦_⟧ck : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → Block
-  chain ⟦ ix ⟧ck = kchainBlock ix (𝕂-chain-contigR-𝓤 chain)
-
-  _⟦_⟧ck' : ∀{k r}{rc : RecordChain r} → 𝕂-chain-contigR k rc → Fin k → QC
-  chain ⟦ ix ⟧ck' = kchainQC ix (𝕂-chain-contigR-𝓤 chain)
+  𝕂-chain-contig : (k : ℕ){r : Record} → RecordChain r → Set₁
+  𝕂-chain-contig = 𝕂-chain Contig
 
   -- States that a given record belongs in a record chain.
   data _∈RC_ (r₀ : Record) : ∀{r₁} → RecordChain r₁ → Set where
@@ -150,6 +141,15 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
            → r₀ ∈RC rc
            → {prf : IsInPool r₂}
            → r₀ ∈RC (step rc p pv {prf})
+
+  𝕂-chain-∈RC : ∀{r k P}{rc : RecordChain r}
+              → (c : 𝕂-chain P k rc)
+              → (x y : Fin k)
+              → x ≤Fin y
+              → {b : Block}(prf : kchainBlock x c ≡ b)
+              → (rc₁ : RecordChain (B b))
+              → B (kchainBlock y c) ∈RC rc₁
+  𝕂-chain-∈RC c x y x≤y hyp rc = {!!}
 
   -- This is the reflexive-transitive closure of _←_, as defined in 
   -- section 4.7 in the paper. Note it is different than the previous
@@ -188,11 +188,11 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   lemmaS1-2 {i} {q} {b} (I←B i←b) (Q←B q←b)
     with hash-cr (trans i←b (sym q←b))
   ... | inj₁ (i≢q , hi≡hq)     = inj₁ ( ( encodeR i , encodeR q ) , ( i≢q , hi≡hq ) )
-  ... | inj₂ i≡q               = contradiction (encodeR-inj i≡q) λ ()
+  ... | inj₂ ()
   lemmaS1-2 {q} {i} {b} (Q←B q←b) (I←B i←b)
     with hash-cr (trans i←b (sym q←b))
   ... | inj₁ (i≢q , hi≡hq)     = inj₁ ( ( encodeR i , encodeR q ) , ( i≢q , hi≡hq ) )
-  ... | inj₂ i≡q               = contradiction (encodeR-inj i≡q) λ ()
+  ... | inj₂ ()
   lemmaS1-2 {q₀} {q₁} {b} (Q←B q₀←b) (Q←B q₁←b)
      with hash-cr (trans q₀←b (sym q₁←b))
   ... | inj₁ (q₀≢q₁ , hq₀≡hq₁) = inj₁ ( ( encodeR q₀ , encodeR q₁ ) , ( q₀≢q₁ , hq₀≡hq₁ ) )
@@ -292,7 +292,7 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- when the block is the head of a contiguious 3-chain. Here we define an auxiliary
   -- datatype to make definitions more bearable.
   data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
-    commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain-contigR 3 rc) 
+    commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain Contig 3 rc) 
                 → b ≡ c3 ⟦ suc (suc zero) ⟧ck
                 → CommitRule rc b
 

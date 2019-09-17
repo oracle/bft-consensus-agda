@@ -61,8 +61,8 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
     LockedRoundRule : Set₁
     LockedRoundRule
-      = (α : Author ec) → Honest α
-      → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain (2 + n) rc)
+      = ∀{P}(α : Author ec) → Honest α
+      → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain P (2 + n) rc)
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
