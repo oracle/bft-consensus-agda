@@ -257,7 +257,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    ...| yes rq≤rb₂ = propS4-base c3 {q} (step certB b←q vq {pq}) hyp rq≤rb₂
    propS4 c3 {q} (step certB b←q vq {pq}) hyp
       | no  rb₂<rq 
-     with lemmaS3 c3 (step certB b←q vq {pq}) {!!}
+     with lemmaS3 c3 (step certB b←q vq {pq}) {!≰⇒> rb₂<rq -- then some magic with vq!}
    ...| ls3 
      with certB | b←q
    ...| step certB' res vres | (B←Q x) 
