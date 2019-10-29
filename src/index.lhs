@@ -18,6 +18,7 @@ Here we describe our Agda model and proofs
 of the relevant security properties of LibraBFT
 \end{abstract}
 
+%options agda
 %include src/body.lhs
 
 % the mandatory bibstyle

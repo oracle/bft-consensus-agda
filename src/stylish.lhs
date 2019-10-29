@@ -55,10 +55,12 @@
 %%% in kind annotations, it thinks it is a multiplication.
 %format Star       = "\HSCon{*}"
 
-%format :          = "\HSCon{\mathbin{:}}"
 %format nil        = "\HSCon{[]}"
 
+%format constructor = "\HSKeyword{constructor}"
 %format family     = "\HSKeyword{family}"
+%format record     = "\HSKeyword{record}"
+%format field      = "\HSKeyword{field}"
 %format pattern    = "\HSKeyword{pattern}"
 %format _          = "\HSSym{\anonymous} "
 %format ->         = "\HSSym{\to} "
