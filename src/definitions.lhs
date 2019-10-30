@@ -19,6 +19,7 @@
 \usetikzlibrary{positioning}
 \usetikzlibrary{calc}
 \usetikzlibrary{plotmarks}
+\usetikzlibrary{fit}
 
 %% Cleveref must be the last loaded package
 %% since it modifies the cross-ref system.
@@ -100,3 +101,29 @@
 %format lambda  = "\HS{\lambda}"
 %format dot     = "\HS{.}"
 %format ^=      = "\HS{\bumpeq}"
+%format :       = "\HS{\mathrel{:}}"
+
+
+%format Nat         = "\HT{\mathbb{N}}"
+%format MINUS       = "\HT{\mathbin{\dotminus}}"
+%format TIMES       = "\HT{\mathbin{\times}}"
+
+%%% Notation for this paper
+
+%% Macro to generate this: "adwddyyPwwdw"aPf{;wdw"aP
+
+%format RecordChain    = "\HT{\mathit{RecordChain}}"
+%format Valid          = "\HT{\mathit{Valid}}"
+%format IsInPool       = "\HT{\mathit{IsInPool}}"
+%format ValidBlockInit = "\HT{\mathit{ValidBlockInit}}"
+%format ValicBlockStep = "\HT{\mathit{ValicBlockStep}}"
+%format ValidQC        = "\HT{\mathit{ValidQC}}"
+%format BlockHash      = "\HT{\mathit{BlockHash}}"
+%format QC             = "\HT{\mathit{QC}}"
+%format Vote           = "\HT{\mathit{Vote}}"
+%format Block          = "\HT{\mathit{Block}}"
+%format EpochId        = "\HT{\mathit{EpochId}}"
+%format EpochConfig    = "\HT{\mathit{EpochConfig}}"
+
+%format EXT            = "\HT{\leftarrow}"
+%format EXTD           = "\HT{\_\leftarrow\_}"
