@@ -39,6 +39,7 @@
 \newcommand{\HSCon}[1]{\mathcolor{hsblue3}{#1}}
 \newcommand{\HSVar}[1]{\mathcolor{hsblue5}{\mathit{\ensuremath{#1}}}}
 \newcommand{\HSComment}[1]{\mathcolor{hsgold2}{\textit{#1}}}
+\newcommand{\HSPostulate}[1]{\mathcolor{hsblue2}{#1}}
 
 %subst keyword a = "\HSKeyword{" a "}"
 %subst conid a   = "\HSCon{" a "}"
@@ -57,6 +58,7 @@
 
 %format nil        = "\HSCon{[]}"
 
+%format postulate = "\HSKeyword{postulate}"
 %format constructor = "\HSKeyword{constructor}"
 %format family     = "\HSKeyword{family}"
 %format record     = "\HSKeyword{record}"
