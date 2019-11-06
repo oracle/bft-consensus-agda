@@ -47,25 +47,6 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
           → {prf : IsInPool r'} 
           → RecordChain r'
 
-{-
-  data Valid where
-    ValidBlockInit : {b : Block} {hᵢ : Initial} 
-                   → 1 ≤ bRound b → Valid (empty {hᵢ}) (B b)
-    ValidBlockStep : {b : Block} {q : QC}
-                   → (rc : RecordChain (Q q))
-                   → qRound (qBase q) < bRound b
-                   → Valid rc (B b)
-    ValidQC        : {q : QC} {b : Block}
-                   → (rc : RecordChain (B b))
-                   → qRound (qBase q) ≡ bRound b
-                   → Valid rc (Q q)
-
-  ValidQ⇒Round≡ : ∀{b}{certB : RecordChain (B b)}{q : QC}
-                → Valid certB (Q q)
-                → qRound (qBase q) ≡ bRound b   
-  ValidQ⇒Round≡ (ValidQC certB x) = x
--}
-
   prevBlock : ∀{q} → RecordChain (Q q) → Block
   prevBlock (step {r = B b} _ (B←Q _ _)) = b
 
