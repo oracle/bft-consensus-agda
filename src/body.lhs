@@ -46,23 +46,25 @@ CR hash = forall {x y} -> hash x == hash y -> Either (Collision hash x y) (x == 
 \end{code}
 \end{myhs}
 
-\section{Abstract LibraBFT}
+\section{The Model}
+
+  Before delving into the components of LibraBFT and how they were
+encoded in our model, it is worth looking at the high level architecture.
+A node participating in the LibraBFT network sends and receives messages
+and consequently, transition its internal state, first from $s_0$ to $s_1$, then to $s_2$ and
+so on and so forth. A concrete model, proving that an imlementation of the protocol
+is correct, that is, all the possible states we can reach will satisfy certain safety 
+properties -- committed entries never conflict (\Cref{thm:s5}) -- would proceed by
+of proving that the state transitions preserve the LibraBFT invariants. These
+invariants are provided by, and proven to guarantee \Cref{thm:s5}, by the
+abstract model, \Cref{sec:abstract-librabft}.
+
+\subsection{Abstract LibraBFT}
+\label{sec:abstract-librabft}
 
   In this section we go over the core constructions needed to
-encode LibraBFT in Agda. We start with a small description
-of how to work with hash functions in Agda, then \victor{...}
-This sets the stage for our proofs~\Cref{sec:proof}.
-
-\victor{I use the word ``chain'' later; would be good to give an idea of
-what it means here}
-
-\victor{
-The model:
-\begin{itemize}
-  \item The idea is to encode a state transition system;
-  \item Prove the properties as invariants of this system.
-\end{itemize}
-}
+encode the LibraBFT invariants and prove that they imply
+the necessary safety properties. 
 
 \subsection{Epochs and Records}
 
@@ -107,13 +109,14 @@ Author ec = Fin (authorsN ec)
 
   The properties we wish to prove often mention ``an honest
 author'', hence, we must bring the notion of \emph{honest} into our model. 
-The classic BFT lemma then states that for every two quorums of nodes,
+Given that we must not be able to inspect who is honest or not, we
+encode this as a postuate. Nevertheless, there are points in the proofs
+that we must use the existence of an honest author. This can be estailished
+by the classic BFT lemma, also wirten as a postulate here. 
+The classic BFT lemma states that for every two quorums of nodes,
 that is, a subset of nodes whose combined voting power is at least
 |QuorumSize|, there exists at least one honest node that belongs to
-both quorums. Since the information of whether a node is honest or is
-unexistent, we encode it through a postulated type |Honest|. The only
-way of inhabiting |Honest| is through another
-postulate, |lemmaB1|, which encodes the BFT assumption --- a |QC|
+both quorums. Our |lemmaB1| below encodes the BFT assumption --- a |QC|
 denotes a quorum certificate and |a inQC q| indicates |a|
 has voted in |q|, as we shall see shortly.
 
@@ -125,7 +128,7 @@ postulate
 \end{code}
 \end{myhs}
 
-\victor{I feel we need more info on honest nodes vs dishonest ones; 
+\victor{I feel we might need more info on honest nodes vs dishonest ones; 
 For that though, I need to find a better mental model}
 
 \begin{figure}
@@ -210,17 +213,17 @@ after round synchorinization has settled.}
 
   A typical round of LibraBFT, illustrated in
 \Cref{fig:librabft-simplified-execution}, consists in the leader
-broadcasting a new \emph{block} to the participants. Each other node
+broadcasting a new \emph{block} to the other notes. Each other node
 will then verify whether the aforementioned block is valid and, when
 that is the case, cast a vote.  When the leader receives enough votes,
-it issues a \emph{quorum certificate} and broadcasts this
+it issues a \emph{quorum certificate}, which consists in a set of votes, and broadcasts this
 certificate. This certifies that the block which it refers has been
 verified and concludes the round.  On the next round, another node
-will be the leader and the process is repeated. 
-
+will be the determined leader and the process is repeated. 
 
   The nodes participating in consensus maintain a pool of
-\emph{records} which we abstract by a type supporting
+\emph{records}. How this pool is implemented is uninportant,
+hence, we abstract it by a type supporting
 a predicate that indicates whether a record belonds in
 the pool, as shown with |isRecordStoreState| below.
 We require the |isInPool| predicate to be proof irrelevant for
@@ -228,7 +231,6 @@ technical reasons: we will be storing inhabitants of |isInPool|
 on some auxiliary proof objects throughout our model and
 we must be able to rewrite them freely. 
 \victor{more info on it? I don't wanna get too technical too fast}
-
 
 %format isInPoolirrelevant = "\HV{\wdw{isInPool}{irrelevant}}"
 \begin{myhs}
