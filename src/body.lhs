@@ -407,39 +407,16 @@ module _ (RSS : Set)(isRSS : isRecordStoreState RSS) where
     empty  : forall {hi} -> RecordChain (I hi)
     step   : forall {r r'}(rc : RecordChain r) 
            -> r EXT r'
-           -> ValidRound rc r' 
            -> {prf : isInPool isRSS r'} 
            -> RecordChain r'
 \end{code}
 \end{myhs}
 
-\victor{This makes me wonder... why do we even have |EXTD| and not
-just add the hashing contraints to |Valid|?}
-
-  Validity of records is estabilished in two steps. The |ValidRound| datatype
-makes sure that the round annotated within the record is consistent with 
-the rest of the chain whereas |EXTD| makes sure the previous hash field of
-the record matches the hash of the record it is extending. The |ValidRound|
-datatype must actually be declared as mutually recursive with |RecordChain|
-because of its first constructor, otherwise we would never be able to
-extend the empty |RecordChain|.
-
-\begin{myhs}
-\begin{code}
-module _ (RSS : Set)(isRSS : isRecordStoreState RSS) where
-  data ValidRound : {r : Record} -> RecordChain r -> Record -> Set where
-    ValidBlockInit  : {b : Block}{hi : Initial} 
-                    -> 1 <= bRound b -> ValidRound (empty {hi}) (B b)
-    ValidBlockStep  : {b : Block}{q : QC}(rc : RecordChain (Q q))
-                    -> qRound q < bRound b -> ValidRound rc (B b)
-    ValidQC         : {q : QC} {b : Block}(rc : RecordChain (B b))
-                    -> qRound q == bRound b -> ValidRound rc (Q q)
-\end{code}
-\end{myhs}
-
-  The |EXTD| relation is standalone from record chains as it only enforces
-that the hash of the previous record matches the \emph{previous hash} field
-of the next. The |EXTTRD| type is the reflexive-transitive closure of |EXT|.
+  We say that a record |r'| is valid with respect to |r|, hence, it can extend an existing
+record chain |rc : RecordChain r|, whenever |r'| has its |prevHash| field
+correctly set to |hash r| and the rounds where |r| and |r'| were issued
+are correctly related. We use the datatype |r EXTD r'| to capture both contraints.
+The |EXTTRD| type is the reflexive-transitive closure of |EXT|.
 
 \begin{myhs}
 \begin{code}
@@ -508,13 +485,11 @@ data Kchain (R : Record -> Record -> Set) : (k : Nat){r : Record} -> RecordChain
     schain  : forall {k r}{rc : RecordChain r}{b : Block}{q : QC}
             -> (r←b : r   ← B b)
             -> {prfB : IsInPool (B b)}
-            -> (vb  : Valid rc (B b))
             -> (prf : R r (B b))
             -> (b←q : B b ← Q q)
             -> {prfQ : IsInPool (Q q)}
-            -> (vq  : Valid (step rc r←b vb {prfB}) (Q q))
             -> Kchain R k rc
-            -> Kchain R (suc k) (step (step rc r←b vb {prfB}) b←q vq {prfQ})
+            -> Kchain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
 \end{code}
 \end{myhs}
 
