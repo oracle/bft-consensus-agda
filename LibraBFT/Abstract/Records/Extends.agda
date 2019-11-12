@@ -19,6 +19,10 @@ module LibraBFT.Abstract.Records.Extends
   HashR : Record → Hash
   HashR = hash ∘ encodeR
 
+  -- Most of the conditions in section 4.2 are ...
+  -- Only round numbers and hashes are actually critical to
+  -- thm S5!
+  -- warn of possible changes needed in the future?!
   data _←_ : Record → Record → Set where
     I←B : {i : Initial} {b : Block}
         → 1 ≤ bRound b
