@@ -32,7 +32,7 @@ module LibraBFT.Prelude where
 
   open import Data.List.Any
     using (Any; here; there)
-    renaming (lookup to Any-lookup)
+    renaming (lookup to Any-lookup; map to Any-map)
     public
 
   open import Data.List.All
@@ -64,7 +64,7 @@ module LibraBFT.Prelude where
 
   open import Data.Fin
     using (Fin; suc; zero)
-    renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_)
+    renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
     public
   
   open import Relation.Binary.PropositionalEquality

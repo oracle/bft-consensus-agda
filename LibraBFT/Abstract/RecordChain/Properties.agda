@@ -75,31 +75,9 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                 in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
                         , trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
 
-   lemmaS2' : {q₀ q₁ : QC}
-            → (rc₀ : RecordChain (Q q₀))
-            → (rc₁ : RecordChain (Q q₁))
-            → bRound (prevBlock rc₀) ≡ bRound (prevBlock rc₁)
-            → HashBroke ⊎ prevBlock rc₀ ≡ prevBlock rc₁ -- × qState q₀ ≡ qState q₁
-   lemmaS2' = {!!}
-
    ----------------
    -- Lemma S3
 
-   -- MSM: Not sure I'm following this comment, but I think "certified" means there is a quorum
-   -- certificate that references the block, while "verified" just means it was valid to add (so a
-   -- block can be verified but not certified; however, it cannot be certified but not verified)..
-
-   -- LPS && VCM: The first occurence of the string "certified" in the paper is at 4.2, the paper
-   --  never defines what it actually means. Nevertheless, we have just found some simplification
-   --  oppostunities while looking over our code trying to figure this out. We might be able to
-   --  make the distinction you mention. We think it makes sense.
-
-   -- VCM: Now that I come to think of it, the paper author's must use "certified" and "verified"
-   --      interchangeably in this theorem.
-   --      If a quorum of verifiers voted for block B at round C, it means they validated said block
-
-   -- We just noted that when the paper mentions 'certified' or ' verified'
-   -- block, we encode it as a 'RecordChain' ending in said block.
    lemmaS3 : ∀{P r₂}{rc : RecordChain r₂}
            → (c3 : 𝕂-chain P 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
@@ -134,62 +112,34 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
   ------------------
   -- Proposition S4
 
-   y+1+2-lemma : ∀{x y} → x ≤ y → y ≤ 2 + x
-               → y ≡ x ⊎ y ≡ suc x ⊎ y ≡ suc (suc x)
-   y+1+2-lemma hyp0 hyp1 = {!!}
+   -- The base case for lemma S4 resorts to a pretty simple
+   -- arithmetic statement.
+   propS4-base-arith
+     : ∀ n r
+     → n ≤ r → r ≤ (suc (suc n))
+     → r ∈ (suc (suc n) ∷ suc n ∷ n ∷ [])
+   propS4-base-arith .0 .0 z≤n z≤n = there (there (here refl))
+   propS4-base-arith .0 .1 z≤n (s≤s z≤n) = there (here refl)
+   propS4-base-arith .0 .2 z≤n (s≤s (s≤s z≤n)) = here refl
+   propS4-base-arith (suc r) (suc n) (s≤s h0) (s≤s h1) 
+     = ∈-cong suc (propS4-base-arith r n h0 h1)
 
-   3chain-round-lemma
-     : ∀{r}{rc : RecordChain r}(c3 : 𝕂-chain Contig 3 rc)
-     → bRound (c3 ⟦ zero ⟧ck) ≡ 2 + bRound (c3 ⟦ suc (suc zero) ⟧ck)
-   3chain-round-lemma c3 = {!!}
-
-   kchain-round-head-lemma
-     : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain Contig (suc k) rc)
-     → round r ≡ bRound (c3 ⟦ zero ⟧ck)
-   kchain-round-head-lemma = {!!}
-
-   kchain-round-≤-lemma
-     : ∀{k r}{rc : RecordChain r}(c3 : 𝕂-chain Contig k rc)(ix : Fin k)
-     → bRound (c3 ⟦ ix ⟧ck) ≤ round r
-   kchain-round-≤-lemma = {!!}
-
-   kchain-to-RecordChain-Q
-     : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain Contig k rc)(ix : Fin k)
-     → RecordChain (Q (c ⟦ ix ⟧ck'))
-   kchain-to-RecordChain-Q 0-chain () 
-   kchain-to-RecordChain-Q (s-chain {rc = rc} r←b {pb} x b←q {pq} c) zero 
-     = step (step rc r←b {pb}) b←q {pq}
-   kchain-to-RecordChain-Q (s-chain r←b x b←q c) (suc zz) 
-     = kchain-to-RecordChain-Q c zz
-
-   kchain-to-RecordChain-B
-     : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain Contig k rc)(ix : Fin k)
-     → RecordChain (B (c ⟦ ix ⟧ck))
-   kchain-to-RecordChain-B 0-chain ()
-   kchain-to-RecordChain-B (s-chain {rc = rc} r←b {pb} x b←q {pq} c) zero
-     = (step rc r←b {pb})
-   kchain-to-RecordChain-B (s-chain r←b x b←q c) (suc zz)
-     = kchain-to-RecordChain-B c zz
-
-   kchain-to-RecordChain-Q-prevBlock
-     : ∀{k r}{rc : RecordChain r}(c : 𝕂-chain Contig k rc)(ix : Fin k)
-     → prevBlock (kchain-to-RecordChain-Q c ix) ≡ c ⟦ ix ⟧ck
-   kchain-to-RecordChain-Q-prevBlock (s-chain r←b x (B←Q r b←q) c) zero = refl
-   kchain-to-RecordChain-Q-prevBlock (s-chain r←b x (B←Q r b←q) c) (suc ix) 
-     = kchain-to-RecordChain-Q-prevBlock c ix
-
+   -- Which is then translated to LibraBFT lingo
    propS4-base-lemma-1
      : ∀{q}{rc : RecordChain (Q q)}
      → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
-     → {b' : Block}(q' : QC)
-     → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
-     → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ bRound b'
-     → bRound b' ≤ bRound (c3 ⟦ zero ⟧ck) 
-     → bRound b' ∈ ( bRound (c3 ⟦ zero ⟧ck)
-                   ∷ bRound (c3 ⟦ (suc zero) ⟧ck)
-                   ∷ bRound (c3 ⟦ (suc (suc zero)) ⟧ck)
-                   ∷ [])
-   propS4-base-lemma-1 = {!!}
+     → (r : ℕ)
+     → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ r
+     → r ≤ bRound (c3 b⟦ zero ⟧) 
+     → r ∈ ( bRound (c3 b⟦ zero ⟧)
+           ∷ bRound (c3 b⟦ (suc zero) ⟧)
+           ∷ bRound (c3 b⟦ (suc (suc zero)) ⟧)
+           ∷ [])
+   propS4-base-lemma-1 (s-chain {b = b0} r←b0 p0 (B←Q refl b←q0) 
+                       (s-chain {b = b1} r←b1 p1 (B←Q refl b←q1) 
+                       (s-chain {r = R} {b = b2} r←b2 p2 (B←Q refl b←q2) 
+                        0-chain))) r hyp0 hyp1 
+     rewrite p0 | p1 | p2 = propS4-base-arith (suc (round R)) r hyp0 hyp1
 
    propS4-base-lemma-2
      : ∀{P k r}{rc : RecordChain r}
@@ -205,57 +155,70 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
                        q' certB ext (suc ix) hyp 
      = propS4-base-lemma-2 c q' certB ext ix hyp
 
+   _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
+   f <$> (inj₁ hb) = inj₁ hb
+   f <$> (inj₂ x)  = inj₂ (f x)
+
    propS4-base : ∀{q}{rc : RecordChain (Q q)}
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → {q' : QC}
                → (certB : RecordChain (Q q'))
-               → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound (qBase q')
-               → qRound (qBase q') ≤ bRound (c3 ⟦ zero ⟧ck) 
-               → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
-   propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
-     with propS4-base-lemma-1 c3 q' certB (B←Q refl x₀) hyp0 hyp1
+               → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ qRound (qBase q')
+               → qRound (qBase q') ≤ bRound (c3 b⟦ zero ⟧) 
+               → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
+   propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
+     with propS4-base-lemma-1 c3 (bRound b) hyp0 hyp1
    ...| here r 
      with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) zero r
    ...| inj₁ hb  = inj₁ hb
-   ...| inj₂ res = inj₂ (there (B←Q refl x₀) 
-                               (𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB))
+   ...| inj₂ res 
+     with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB
+   ...| inj₁ hb   = inj₁ hb
+   ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) 
        hyp0 hyp1 
       | there (here r) 
      with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) (suc zero) r 
    ...| inj₁ hb  = inj₁ hb 
-   ...| inj₂ res = inj₂ (there (B←Q refl x₀) 
-                               (𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB))
+   ...| inj₂ res 
+     with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB
+   ...| inj₁ hb   = inj₁ hb
+   ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
       | there (there (here r)) 
      with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) (suc (suc zero)) r
    ...| inj₁ hb  = inj₁ hb
-   ...| inj₂ res = inj₂ (there (B←Q refl x₀) 
-                               (𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB))
+   ...| inj₂ res 
+     with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB
+   ...| inj₁ hb   = inj₁ hb
+   ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
    {-# TERMINATING #-}
    propS4 :  ∀{q}{rc : RecordChain (Q q)}
           → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q' : QC}
           → (certB : RecordChain (Q q'))
-          → bRound (c3 ⟦ suc (suc zero) ⟧ck) ≤ qRound (qBase q')
+          → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ qRound (qBase q')
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
-          → HashBroke ⊎ B (c3 ⟦ suc (suc zero) ⟧ck) ∈RC certB
+          → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4 {rc = rc} c3 {q} (step certB b←q {pq}) hyp
-     with qRound (qBase q) ≤?ℕ bRound (c3 ⟦ zero ⟧ck) 
+     with qRound (qBase q) ≤?ℕ bRound (c3 b⟦ zero ⟧) 
    ...| yes rq≤rb₂ = propS4-base c3 {q} (step certB b←q {pq}) hyp rq≤rb₂
-   propS4 c3 {q} (step certB b←q {pq}) hyp
+   propS4 {q} c3 {q'} (step certB b←q {pq}) hyp
       | no  rb₂<rq 
-     with lemmaS3 c3 (step certB b←q {pq}) {!≰⇒> rb₂<rq -- then some magic with vq!}
+     with lemmaS3 c3 (step certB b←q {pq}) 
+                     (subst (_< qRound (qBase q')) 
+                            (kchainBlockRoundZero-lemma c3) 
+                            (≰⇒> rb₂<rq))
    ...| ls3 
      with certB | b←q
    ...| step certB' res | (B←Q rx x) 
      with certB' | res
    ...| empty | (I←B ry y) 
       = contradiction (n≤0⇒n≡0 ls3) 
-                      (¬bRound≡0 (kchain-to-RecordChain-B c3 (suc (suc zero))))
+                      (¬bRound≡0 (kchain-to-RecordChain-at-b⟦⟧ c3 (suc (suc zero))))
    ...| step {r = r} certB'' (B←Q refl res') {p''} | (Q←B {q = q*} ry y) 
      with propS4 c3 (step certB'' (B←Q refl res') {p''}) ls3 
    ...| inj₁ hb    = inj₁ hb
@@ -264,25 +227,13 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    -------------------
    -- Theorem S5
 
-   kchain-round-≤-lemma'
-     : ∀{k q}{rc : RecordChain (Q q)}(c3 : 𝕂-chain Contig k rc)(ix : Fin k)
-     → bRound (c3 ⟦ ix ⟧ck) ≤ qRound (qBase q)
-   kchain-round-≤-lemma' (s-chain r←b x (B←Q refl b←q) c3) zero = ≤-refl
-   kchain-round-≤-lemma' (s-chain (I←B prf imp) refl (B←Q refl _) 0-chain) (suc ()) 
-   kchain-round-≤-lemma' (s-chain (Q←B prf imp) x (B←Q refl _) c2) (suc ix) 
-     = ≤-trans (kchain-round-≤-lemma' c2 ix) (≤-unstep prf)
-
-   _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
-   f <$> (inj₁ hb) = inj₁ hb
-   f <$> (inj₂ x)  = inj₂ (f x)
-
    thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
          → {b b' : Block}
          → CommitRule rc  b
          → CommitRule rc' b'
          → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
-     with <-cmp (bRound (c3 ⟦ suc (suc zero) ⟧ck)) (bRound (c3' ⟦ suc (suc zero) ⟧ck)) 
+     with <-cmp (bRound (c3 b⟦ suc (suc zero) ⟧)) (bRound (c3' b⟦ suc (suc zero) ⟧)) 
    ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri< r<r' _ _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≤-unstep r<r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri> _ _ r'<r = inj₂ <$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3 (suc (suc zero))))) 

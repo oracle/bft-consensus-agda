@@ -38,6 +38,11 @@ module LibraBFT.Lemmas where
  _∈_ : ∀ {a} {A : Set a} → A → List A → Set a
  x ∈ l = Any (_≡ x) l
 
+ ∈-cong : ∀{a b}{A : Set a}{B : Set b}{x : A}{l : List A}
+        → (f : A → B) → x ∈ l → f x ∈ List-map f l
+ ∈-cong f (here px) = here (cong f px)
+ ∈-cong f (there hyp) = there (∈-cong f hyp)
+
  {-Any-lookup-correct : ∀ {a} {A : Set a} {x : A} {l : List A} → (p : x ∈ l) → Any-lookup p ∈ l
  Any-lookup-correct (here refl) = here refl
  Any-lookup-correct (there p)   = there (Any-lookup-correct p )
