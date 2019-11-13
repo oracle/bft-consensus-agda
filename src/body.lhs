@@ -397,7 +397,7 @@ the initial record into |r|, using only the records in a given record store stat
 The dependency on a given record store state is important: one must not conjure
 records to satisfy dependencies while proving theorems. The |RecordChain| datatype
 will then be parametrized by an arbitrary record store state and contain two
-constructors. One representing the empty chain, and another representing
+constructors -- one representing the empty chain, and another representing
 a chain that contains at least one valid record on its tail.
  
 \begin{myhs}
@@ -422,12 +422,15 @@ The |EXTTRD| type is the reflexive-transitive closure of |EXT|.
 \begin{code}
 data EXTD : Record -> Record -> Set where
   IEXTB  : {i : Initial} {b : Block}
+         -> 1 <= bRound b
          -> HashR (I i) ==  bPrevQCHash b
          -> I i EXT B b
   QEXTB  : {q : QC} {b : Block}
+         -> qRound < bRound b
          -> HashR (Q q) ==  bPrevQCHash b
          -> Q q EXT B b
   BEXTQ  : {b : Block} {q : QC}
+         -> qRound q == bRound b
          -> HashR (B b) ==  qBlockHash q
          -> B b EXT Q q
 
@@ -436,6 +439,13 @@ data EXTTRD (r0 : Record) : Record -> Set where
   ssStep  : forall {r1 r2 : Record} -> (r0 EXTTR r1) -> (r1 EXT r2) -> r0 EXTTR r2
 \end{code}
 \end{myhs}
+  
+  It is important to note that the original work~\cite{Baudet2019} describes
+a number of other validation conditions (Section 4.2). We stress that the majority
+of those are not relevant to correctness and should be checked when receiving
+a record through the wire. The conditions important for correctness, and hence,
+the ones we care about, are the monotonicity of round numbers and hash chaining,
+which are expressed in |EXTD| above.
 
   Another way of thinking about the |EXTD| relation is in terms of
 dependency. A value of type |r0 EXT r1| proves that |r1| depends on |r0|.
@@ -448,7 +458,7 @@ lemmaS11 : {i : Initial}{r : Record} -> RecordChain r -> (I i) EXTTR r
 \end{code}
 \end{myhs}
 
-  Its proof is an expected induction on |RecordChain|, extracting the
+  Its proof goes by induction on |RecordChain|, extracting the
 |EXTD| fields and building |EXTTRD|. A second, more interesting lemma,
 states the injectivity of |EXTD|. Its proof is also trivial and depends
 solely on the injectivity of the hash function, modulo hash collisions.
@@ -459,7 +469,7 @@ lemmaS12 : forall {r0 r1 r2} -> r0 EXT r2 -> r1 EXT r2 -> Either HashBroke (r0 =
 \end{code}
 \end{myhs}
 
-  The third and final lemma for now states that for whatever record |r2| that
+  A third lemma states that for whatever record |r2| that
 comes to depend on two others, |r0| and |r1|, then these two others must
 also be dependent -- again, modulo hash collisions.
 
@@ -472,11 +482,14 @@ lemmaS13  : ∀{r0 r1 r2} -> RecordChain r0 -> RecordChain r1
 \end{code}
 \end{myhs}
 
-  The last notion we need at the moment is that of a $k$-chain
-(Section 5.2 in the original paper~\cite{Baudet2019}), that is, a
-record chain with at least $k$ blocks in its tail. The definition
-below might seem intricate, but it is simply unfolding $k$ steps in a
-record chain. Both datatypes are shown in
+  These three lemmas estabilish a base for reasoning over the
+more intricate propositions we want to look into next. Before
+that, though, we must construct one last notion in Agda: that
+of at least $k$ certified blocks in the tail of a record chain.
+(Section 5.2 in the original paper~\cite{Baudet2019}) -- denoted
+a $k$-chain, defined below. The definition
+might seem intricate, but it is simply unfolding $k$ steps in a
+record chain. 
 
 \begin{myhs}
 \begin{code}
@@ -492,7 +505,6 @@ data Kchain (R : Record -> Record -> Set) : (k : Nat){r : Record} -> RecordChain
             -> Kchain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
 \end{code}
 \end{myhs}
-
 
   Note we parametrize |Kchain| by a relation |R|, over records. This enables us to
 use the same datatype to talk about \emph{simple} and \emph{contiguous} $k$-chains -- where the rounds of of each block in the chain are contiguous.
@@ -510,34 +522,10 @@ Kchain-contig = Kchain Contig
 \end{code}
 \end{myhs}
 
-  Which brings us to the \emph{commit rule}. In LibraBFT, a block is said
-to be commited if it is the head of a contiguous 3-chain, where the \emph{head}
-of a chain is defined below.
-
-\begin{myhs}
-\begin{code}
-kchainHead : forall {k r R}{rc : RecordChain r} -> Kchain R k rc -> Record
-kchainHead (zchain {r = r})       = r
-kchainHead (schain _ _ _ _ _ ch)  = kchainHead ch
-\end{code}
-\end{myhs}
-
-  When proving properties about $k$-chains it is often
-more useful to talk about the $n$-th block of a chain, counting
-from the tail. The head is but the $k$-th block of a $k$-chain:
-
-\begin{myhs}
-\begin{code}
-kchainBlock : forall {k r R}{rc : RecordChain r} -> Fin k -> Kchain R k rc -> Block
-kchainBlock zero     (schain {b = b}  _ _ _ _ _ _)   = b
-kchainBlock (suc x)  (schain          _ _ _ _ _ ch)  = kchainBlock x ch
-\end{code}
-\end{myhs}
-
-  Finally, we have the necessary notions to encode the commit rule, which states
-that a block is considered commited whenever it is the head of a contiguous $3$-chain.
-We encode this as a relation between record chains and blocks, by the |CommitRule|
-datatype defined below.
+  Which brings us to the \emph{commit rule}. In LibraBFT, a block is
+said to be commited if it is the start of a contiguous 3-chain.  We
+encode this as a relation between record chains and blocks, by the
+|CommitRule| datatype defined below.
 
 \begin{myhs}
 \begin{code}
@@ -548,11 +536,27 @@ data CommitRule : forall {r} -> RecordChain r -> Block -> Set1 where
 \end{code}
 \end{myhs}
 
+  The |kchainBlock|, here, enables us to lookup a block from
+the tail of the $k$-chain. Hence, the third block counting from
+the end of a 3-chain is the \emph{head} of the chain.
+
+\begin{myhs}
+\begin{code}
+kchainBlock : forall {k r R}{rc : RecordChain r} -> Fin k -> Kchain R k rc -> Block
+kchainBlock zero     (schain {b = b}  _ _ _ _ _ _)   = b
+kchainBlock (suc x)  (schain          _ _ _ _ _ ch)  = kchainBlock x ch
+\end{code}
+\end{myhs}
+
   Our objective then becomes clearer: we want to prove that the commit rule
 is safe, in the sense that if two blocks match the commit rule, they belong 
-to the same chain. That is, one extends the other.
+to the same chain, that is, one extends the other.
 This is estabilished by theorem S5 in the original paper.
-Our encoding of it is given below. 
+In more detail, it states that if there exists a record chain |rc|, which
+commits block |b| and a record chain |rc'|, which commits block |b'|, then
+either |b| was already commited by |rc'| or |b'| was already commited
+by |rc|. In other words, |rc| and |rc'| share a prefix.
+Using our definitions, we can encode this in |thmS5| below.
 
 \begin{myhs}
 \begin{code}
@@ -565,7 +569,8 @@ thmS5  : forall {q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
 \end{code}
 \end{myhs}
 
-  The |inRC| here estabilishes \victor{continue...}
+  The |inRC| here estabilishes a proof that a record belongs in a record chain.
+its definition is similar to traditional list membership:
 
 \begin{myhs}
 \begin{code}
