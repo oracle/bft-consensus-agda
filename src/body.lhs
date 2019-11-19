@@ -49,24 +49,52 @@ CR hash = forall {x y} -> hash x == hash y -> Either (Collision hash x y) (x == 
 \section{The Model}
 
   Before delving into the components of LibraBFT and how they were
-encoded in our model, it is worth looking at the high level architecture.
-A node participating in the LibraBFT network sends and receives messages
-and consequently, transition its internal state, first from $s_0$ to $s_1$, then to $s_2$ and
-so on and so forth. A concrete model, proving that an imlementation of the protocol
-is correct, that is, all the possible states we can reach will satisfy certain safety 
-properties -- committed entries never conflict (\Cref{thm:s5}) -- would proceed by
-of proving that the state transitions preserve the LibraBFT invariants. These
-invariants are provided by, and proven to guarantee \Cref{thm:s5}, by the
-abstract model, \Cref{sec:abstract-librabft}.
+encoded in our model, it is worth looking at the high level
+architecture.  A node participating in the LibraBFT network sends and
+receives messages and consequently, transition its internal state,
+first from $s_0$ to $s_1$, then to $s_2$ and so on and so forth. A
+concrete model, proving that an imlementation of the protocol is
+correct, that is, all the possible states we can reach will satisfy
+certain safety properties -- committed entries never conflict
+(\Cref{thm:s5}) -- would proceed by proving that the state transitions
+preserve the necessary invariants. These invariants, which have been
+proven to guarantee \Cref{thm:s5}, are provided by the abstract model,
+\Cref{sec:abstract-librabft}. We say that a given state |RSS| 
+satisfy these invariants through |SafeRSS| (\Cref{sec:main-safety-theorem}).
+
+  When implementing the concrete interface, \Cref{sec:concrete-librabft},
+which would carry the actual implementation of the node,
+one would implement an \emph{insert} function. This is the function
+that receives previously validated records and adds them to 
+the (concrete) store of the participant.
+
+\begin{myhs}
+\begin{code}
+insertValidRecord : (rss : RecordStoreState) -> ValidRecord rss -> RecordStoreState
+\end{code}
+\end{myhs}
+
+  To prove that this implementation is correct, we prove it respects
+the invariants required by the abstract model and conjure the necessary properties.
+We will look at this in more detail in \Cref{sec:concrete-librabft}, but
+it looks somewhat like the following:
+
+\begin{myhs}
+\begin{code}
+insert-isValid  : (rss : RecordStoreState)(r : ValidRecord rss)
+                -> SafeRSS rss
+                -> SafeRSS (insertValidRecord rss r)
+\end{code}
+\end{myhs}
 
 \subsection{Abstract LibraBFT}
 \label{sec:abstract-librabft}
 
   In this section we go over the core constructions needed to
-encode the LibraBFT invariants and prove that they imply
+encode the LibraBFT invariants in |SafeRSS| and prove that they imply
 the necessary safety properties. 
 
-\subsection{Epochs and Records}
+\subsubsection{Epochs and Records}
 
   In LibraBFT, time is divided in \emph{epochs}. Each epoch
 has a configuration which dictates who is allowed to participate in consensus
@@ -107,13 +135,18 @@ Author ec = Fin (authorsN ec)
 \end{code}
 \end{myhs}
 
-  The properties we wish to prove often mention ``an honest
-author'', hence, we must bring the notion of \emph{honest} into our model. 
+  The properties we wish to prove often require the
+existence of ``an honest author'' in a given set of authors. 
+This is important as it is the only way to assume
+that at least one author has been abiding by the
+rules of the protocol (\Cref{sec:voting-constraints}).
+Consequently, we must bring the notion of \emph{honest} into our model. 
 Given that we must not be able to inspect who is honest or not, we
-encode this as a postuate. Nevertheless, there are points in the proofs
-that we must use the existence of an honest author. This can be estailished
-by the classic BFT lemma, also wirten as a postulate here. 
-The classic BFT lemma states that for every two quorums of nodes,
+encode this as a postulate. In order to estabilish the
+honest of a node, then, one must rely on the classic BFT lemma, 
+also wirten as a postulate in our model.
+
+  The classic BFT lemma states that for every two quorums of nodes,
 that is, a subset of nodes whose combined voting power is at least
 |QuorumSize|, there exists at least one honest node that belongs to
 both quorums. Our |lemmaB1| below encodes the BFT assumption --- a |QC|
@@ -216,7 +249,8 @@ after round synchorinization has settled.}
 broadcasting a new \emph{block} to the other notes. Each other node
 will then verify whether the aforementioned block is valid and, when
 that is the case, cast a vote.  When the leader receives enough votes,
-it issues a \emph{quorum certificate}, which consists in a set of votes, and broadcasts this
+it issues a \emph{quorum certificate}, which consists in a set of votes, 
+and broadcasts this
 certificate. This certifies that the block which it refers has been
 verified and concludes the round.  On the next round, another node
 will be the determined leader and the process is repeated. 
@@ -248,7 +282,8 @@ the initial record. The edges of the tree indicate that a record
 \emph{extends} another. Naturally, records are only allowed to
 extend records that are either in the pool or are the initial record.
 This \emph{extends} relation is written |EXTD| and illustrated in
-\Cref{fig:recordstorestate}.
+\Cref{fig:recordstorestate}. We postpone its Agda definition until
+\Cref{sec:record-chain}.
 
 \begin{figure}
 \centering
@@ -304,7 +339,7 @@ dotted line. Records have their rounds as a subscript}
 Whenever a node receives a certified block -- a block
 followed by a valid quorum certificate -- it adds it
 to its pool extending one of leaves of the tree of blocks. 
-A path in this tree is denoted a \emph{chain}
+A path in this tree is denoted a |RecordChain|
 and consists of blocks alternating with quorum certificates.
 These are denoted in the original paper~\cite{Baudet2019}
 by: $B_0 \leftarrow Q_0 \leftarrow B_1 \cdots$.
@@ -330,8 +365,7 @@ We also store the necessary checks to ensure that a quorum certificate is valid,
 namely: (1) no duplicate votes are present; (2) we have at least |QuorumSize ec|
 votes; (3) all votes vote for the same block and (4) all votes happened on the same
 round. All the records can be seen in \Cref{fig:record-defs}.
-\victor{It is curious we do not use the properties in |QC| anywhere in the
-development, isn't it?} \victor{We do! I found c3 and c4 already} The original paper~\cite{Baudet2019} also defines timeouts
+The original paper~\cite{Baudet2019} also defines timeouts
 as a record. We did not consider timeouts in our first model for they pose no issue
 to safety. They are simply a mechanism to prevent a dishonest leader to stop progress.
 \victor{more on timeouts?}
@@ -357,6 +391,7 @@ module _ {f : Nat}(ec : EpochConfig f) where
       vAuthor       : Author ec
       vBlockHash    : BlockHash
       vRound        : Round
+      vOrder        : Nat        -- Used to impose invariants; not in original paper.
 
   record QC : Set where
    field
@@ -374,23 +409,17 @@ module _ {f : Nat}(ec : EpochConfig f) where
 \label{fig:record-defs}
 \end{figure}
 
-\subsection{Record Chains and the Commit Rule}
+\subsubsection{Record Chains and the Commit Rule}
+\label{sec:record-chains}
 
-  Record chains have already been informally introduced, for 
-example, in \Cref{fig:recordstorestate}.  A
-record chain into a record |r| is a path from the initial record into
-|r| through the tree of records that nodes keep locally. Naturally,
-one can only use valid records to build these chains. In this section
-we explore what does it mean for a record to be valid and how we
-encoded this in Agda. In fact, the type of record chains is the
-central datatype in our development.  The main property we want to
-verify (in a machine-checkable manner) that the LibraBFT protocol
-provides the safety guarantees that culminate in lemma
-S6~\cite{Baudet2019}, which states that blocks considered commited
-belong all to the \emph{same chain}.  That is, there is only one path
-from the root of the tree of records that is extended through commits.
-In other words, all new commits will take into account the same
-previously commited history.
+  Record chains, informally introduced in \Cref{fig:recordstorestate},
+represent an sequence of blocks extending one another in a
+participants state.  A record chain into a record |r| is a path from
+the initial record into |r| through the tree of records that nodes
+keep locally. Naturally, one can only use valid records to build these
+chains. In this section we explore what does it mean for a record to
+be valid and how we encoded this in Agda. In fact, the type of record
+chains is the central datatype in our development. 
 
   A value of type |RecordChain r| is a proof that we can build a path from
 the initial record into |r|, using only the records in a given record store state.
@@ -402,7 +431,7 @@ a chain that contains at least one valid record on its tail.
  
 \begin{myhs}
 \begin{code}
-module _ (RSS : Set)(isRSS : isRecordStoreState RSS) where
+module Abstract (RSS : Set)(isRSS : isRecordStoreState RSS) where
   data RecordChain  : Record -> Set where
     empty  : forall {hi} -> RecordChain (I hi)
     step   : forall {r r'}(rc : RecordChain r) 
@@ -415,37 +444,39 @@ module _ (RSS : Set)(isRSS : isRecordStoreState RSS) where
   We say that a record |r'| is valid with respect to |r|, hence, it can extend an existing
 record chain |rc : RecordChain r|, whenever |r'| has its |prevHash| field
 correctly set to |hash r| and the rounds where |r| and |r'| were issued
-are correctly related. We use the datatype |r EXTD r'| to capture both contraints.
+are correctly related. We use the datatype |r EXT r'| to capture both contraints.
 The |EXTTRD| type is the reflexive-transitive closure of |EXT|.
 
 \begin{myhs}
 \begin{code}
-data EXTD : Record -> Record -> Set where
-  IEXTB  : {i : Initial} {b : Block}
-         -> 1 <= bRound b
-         -> HashR (I i) ==  bPrevQCHash b
-         -> I i EXT B b
-  QEXTB  : {q : QC} {b : Block}
-         -> qRound < bRound b
-         -> HashR (Q q) ==  bPrevQCHash b
-         -> Q q EXT B b
-  BEXTQ  : {b : Block} {q : QC}
-         -> qRound q == bRound b
-         -> HashR (B b) ==  qBlockHash q
-         -> B b EXT Q q
+module Abstract (RSS : Set)(isRSS : isRecordStoreState RSS) where
+  data EXTD : Record -> Record -> Set where
+   IEXTB  : {i : Initial} {b : Block}
+          -> 1 <= bRound b
+          -> HashR (I i) ==  bPrevQCHash b
+          -> I i EXT B b
+   QEXTB  : {q : QC} {b : Block}
+          -> qRound < bRound b
+          -> HashR (Q q) ==  bPrevQCHash b
+          -> Q q EXT B b
+   BEXTQ  : {b : Block} {q : QC}
+          -> qRound q == bRound b
+          -> HashR (B b) ==  qBlockHash q
+          -> B b EXT Q q
 
-data EXTTRD (r0 : Record) : Record -> Set where
-  ssRefl  : r0 EXTTR r0
-  ssStep  : forall {r1 r2 : Record} -> (r0 EXTTR r1) -> (r1 EXT r2) -> r0 EXTTR r2
+  data EXTTRD (r0 : Record) : Record -> Set where
+   ssRefl  : r0 EXTTR r0
+   ssStep  : forall {r1 r2 : Record} -> (r0 EXTTR r1) -> (r1 EXT r2) -> r0 EXTTR r2
 \end{code}
 \end{myhs}
   
-  It is important to note that the original work~\cite{Baudet2019} describes
-a number of other validation conditions (Section 4.2). We stress that the majority
-of those are not relevant to correctness and should be checked when receiving
-a record through the wire. The conditions important for correctness, and hence,
-the ones we care about, are the monotonicity of round numbers and hash chaining,
-which are expressed in |EXTD| above.
+  It is important to note that the original work~\cite{Baudet2019}
+describes a number of other validation conditions (Section 4.2). We
+stress that the majority of those are not relevant to correctness and
+should be checked when receiving a record through the wire. The
+conditions important for correctness, and hence, the ones we brought
+into our model, are the monotonicity of round numbers and hash
+chaining, which are expressed in |EXTD| above.
 
   Another way of thinking about the |EXTD| relation is in terms of
 dependency. A value of type |r0 EXT r1| proves that |r1| depends on |r0|.
@@ -458,9 +489,9 @@ lemmaS11 : {i : Initial}{r : Record} -> RecordChain r -> (I i) EXTTR r
 \end{code}
 \end{myhs}
 
-  Its proof goes by induction on |RecordChain|, extracting the
+  The proof of |lemmaS11| goes by induction on |RecordChain|, extracting the
 |EXTD| fields and building |EXTTRD|. A second, more interesting lemma,
-states the injectivity of |EXTD|. Its proof is also trivial and depends
+states the injectivity of |EXTD|. Again, its proof is simple and depends
 solely on the injectivity of the hash function, modulo hash collisions.
 
 \begin{myhs}
@@ -471,7 +502,7 @@ lemmaS12 : forall {r0 r1 r2} -> r0 EXT r2 -> r1 EXT r2 -> Either HashBroke (r0 =
 
   A third lemma states that for whatever record |r2| that
 comes to depend on two others, |r0| and |r1|, then these two others must
-also be dependent -- again, modulo hash collisions.
+also be dependent. As expected, this is only true modulo hash collisions.
 
 \begin{myhs}
 \begin{code}
@@ -486,28 +517,31 @@ lemmaS13  : ∀{r0 r1 r2} -> RecordChain r0 -> RecordChain r1
 more intricate propositions we want to look into next. Before
 that, though, we must construct one last notion in Agda: that
 of at least $k$ certified blocks in the tail of a record chain.
-(Section 5.2 in the original paper~\cite{Baudet2019}) -- denoted
+(Section 5.2 in the original paper~\cite{Baudet2019}) --- denoted
 a $k$-chain, defined below. The definition
 might seem intricate, but it is simply unfolding $k$ steps in a
 record chain. 
 
 \begin{myhs}
 \begin{code}
-data Kchain (R : Record -> Record -> Set) : (k : Nat){r : Record} -> RecordChain r -> Set1 where
-    zchain  : forall {r}{rc : RecordChain r} -> Kchain R 0 rc
-    schain  : forall {k r}{rc : RecordChain r}{b : Block}{q : QC}
-            -> (r←b : r   ← B b)
-            -> {prfB : IsInPool (B b)}
-            -> (prf : R r (B b))
-            -> (b←q : B b ← Q q)
-            -> {prfQ : IsInPool (Q q)}
-            -> Kchain R k rc
-            -> Kchain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
+module Abstract (RSS : Set)(isRSS : isRecordStoreState RSS) where
+  data Kchain (R : Record -> Record -> Set) 
+    : (k : Nat){r : Record} -> RecordChain r -> Set1 where
+      zchain  : forall {r}{rc : RecordChain r} -> Kchain R 0 rc
+      schain  : forall {k r}{rc : RecordChain r}{b : Block}{q : QC}
+              -> (rb    : r   ← B b)
+              -> {prfB  : IsInPool (B b)}
+              -> (prf   : R r (B b))
+              -> (bq    : B b ← Q q)
+              -> {prfQ  : IsInPool (Q q)}
+              -> Kchain R k rc
+              -> Kchain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
 \end{code}
 \end{myhs}
 
   Note we parametrize |Kchain| by a relation |R|, over records. This enables us to
-use the same datatype to talk about \emph{simple} and \emph{contiguous} $k$-chains -- where the rounds of of each block in the chain are contiguous.
+use the same datatype to talk about \emph{simple} and \emph{contiguous} $k$-chains 
+--- where the rounds of of each block in the chain are contiguous.
 
 \begin{myhs}
 \begin{code}
@@ -548,29 +582,18 @@ kchainBlock (suc x)  (schain          _ _ _ _ _ ch)  = kchainBlock x ch
 \end{code}
 \end{myhs}
 
-  Our objective then becomes clearer: we want to prove that the commit rule
-is safe, in the sense that if two blocks match the commit rule, they belong 
-to the same chain, that is, one extends the other.
+  We say that the commit rule is safe if given two blocks that match the commit 
+rule, they belong to the same chain --- one chain extends the other.
 This is estabilished by theorem S5 in the original paper.
 In more detail, it states that if there exists a record chain |rc|, which
 commits block |b| and a record chain |rc'|, which commits block |b'|, then
 either |b| was already commited by |rc'| or |b'| was already commited
 by |rc|. In other words, |rc| and |rc'| share a prefix.
-Using our definitions, we can encode this in |thmS5| below.
+We will encode theorem S5 and discuss its proof in more
+detail in \Cref{sec:main-safety-theorem}.
 
-\begin{myhs}
-\begin{code}
-thmS5  : forall {q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
-       -> {b b' : Block}
-       -> CommitRule rc  b
-       -> CommitRule rc' b'
-       -> Either  HashBroke 
-                  (Either (B b inRC rc') (B b' inRC rc)
-\end{code}
-\end{myhs}
-
-  The |inRC| here estabilishes a proof that a record belongs in a record chain.
-its definition is similar to traditional list membership:
+  Membership in a record chain is encoded through
+the |inRC| datatype. Its definition is similar to traditional list membership:
 
 \begin{myhs}
 \begin{code}
@@ -583,13 +606,20 @@ data inRCD (r0 : Record) : ∀{r1} -> RecordChain r1 -> Set where
 \end{code}
 \end{myhs}
 
-
-\subsection{Voting Constraints}
+  
+\subsubsection{Voting Constraints as State Invariants}
 \label{sec:voting-constraints}
 
-  The LibraBFT protocol imposes two restrictions on which blocks
-an honest participant is allowed to vote for. These restrictions are
-in place to guarantee the safety of the commit rule. The first 
+  Recall the typical round of LibraBFT, 
+\Cref{fig:librabft-simplified-execution}. The leader 
+broadcasts a block and the rest of the nodes vote on said block
+if the block is \emph{valid}. In addition to block validity, 
+honest nodes will only cast votes if the voting constraints are satisfied.
+These constraints are put in place to ensure the safety of the commit
+rule, which is, in fact, the main proof of our model.
+
+  The LibraBFT protocol imposes three restrictions on which blocks
+an honest participant is allowed to vote for. The first 
 voting contraint is the \emph{increasing-round} constraint
 and is presented in the original work~\cite{Baudet2019} as:
 
@@ -598,42 +628,222 @@ An honest node that voted once for a block |b| in the past may only vote for |b'
 if |round b < round b'|
 \end{quote}
 
-  At this point, we have modeled a snapshot of a local honest participant's
-state at a single point in time, with the objective of verifying that
-having enough honest participants following the LibraBFT protocol
-implies the safety of the commit rule. Yet, the \emph{increasing-round} constraint
-poses a modeling challenge. Any attempt to naively encode this constraint in a model of
-a single local |RecordChain| will fail. The reason being the informal use
-of temporal modalities such as ``has voted'' and ``may only vote'' (in the future).
-Squinting at the \emph{increasing-round} constraint, though, we see that 
-it imposes an order on the votes an honest participant may cast. We proceed
-to add a |vOrder : Nat| field to the |Vote| record to make this explicit.
+  At this point in our model, though, we have only modeled a snapshot
+of a local honest participant's state at a single point in time
+(|isRecordStoreState|).  Yet, the \emph{increasing-round} constraint
+poses a difficulty. Any attempt to naively encode this constraint in a
+model of a single local |RecordChain| will fail. The reason being the
+informal use of temporal modalities such as ``has voted'' and ``may
+only vote'' (in the future).  Squinting at the \emph{increasing-round}
+constraint, though, we see that it imposes an invariant on
+the states of a local copy: the order that an honest participant
+has casted their votes is strictly increasing with respect to rounds.
+To encode this, we proceed to add a |vOrder : Nat| field
+to the |Vote| record to make this explicit in the model. This field is
+distinguished in \Cref{fig:record-defs}.
 
   With an explicit |vOrder| field, the task of encoding the \emph{increasing-round}
 constraint becomes much simpler. It states that if an honest participant |alpha|
-has voted for two blocks, the round of this blocks is proportional to the
+has voted for two blocks, the round of these blocks is proportional to the
 order in which |alpha| voted:
 
-\victor{this is more subtle than that... this is parametrized
-by a record store state and such; I'm unsure on how to tie this knot pedagogically
-at this moment}
 \begin{myhs}
 \begin{code}
-IncreasingRoundRule : Set1
-IncreasingRoundRule 
-   = (alpha : Author ec) → Honest alpha
-   -> forall {q q'}(va  : alpha inQC q)(va' : alpha inQC q') -- alpha has voted for q and q'
-   -> vOrder (inQCVote q va) < vOrder (inQCVote q' va')
-   -> qRound (qBase q) < qRound (qBase q')
+module Abstract {a}(RSS : Set a)(isRSS : isRecordStoreState RSS) where
+  IncreasingRoundRule : Set1
+  IncreasingRoundRule 
+     = (alpha : Author ec) -> Honest alpha
+     -> forall {q q'}(va  : alpha inQC q)(va' : alpha inQC q') -- alpha has voted for q and q'
+     -> vOrder (inQCVote q va) < vOrder (inQCVote q' va')
+     -> qRound (qBase q) < qRound (qBase q')
 \end{code}
 \end{myhs}
 
-  There are different mechanisms one could think of ensuring the relationship
-between |vOrder| and rounds. One example is to actually change the protocol and include
-|vOrder| directly in the network messages. This would enable honest participants
-to keep a tally and detect dishonest participants breaking this rule,
-increasing the accountability of the system. Translating |vOrder| to an actual
-implementation of LibraBFT is out of the scope of this paper, but we argue it
-is the observational consequence of the \emph{increasing-round} constraint
-and a realistic assumption to add to our abstract model.
+  There are different mechanisms one could use to ensure the
+relationship between |vOrder| and rounds. One example is to actually
+change the protocol and include |vOrder| directly in the network
+messages. This would enable honest participants to keep a tally and
+detect dishonest participants breaking this rule, increasing the
+accountability of the system. Translating |vOrder| to an actual
+implementation of LibraBFT is out of the scope of this paper, but the
+important point is that it is the observational consequence of the
+\emph{increasing-round} constraint and hence, a realistic piece of
+explicit information to add to our abstract model.
+
+  The second voting constraint states that an honest participant
+may vote at most once per round. In our vocabulary, this means the
+order field uniquely identifies the vote of an \emph{honest} participant.
+
+\begin{myhs}
+\begin{code}
+module Abstract {a}(RSS : Set a)(isRSS : isRecordStoreState RSS) where
+  VotesOnlyOnceRule : Set1
+  VotesOnlyOnceRule 
+     = (alpha : Author ec) -> Honest alpha
+     -> forall {q q'}(va  : alpha inQC q)(va' : alpha inQC q') -- alpha has voted for q and q'
+     -> vOrder (inQCVote q va) == vOrder (inQCVote q' va')
+     -> inQCVote q va == inQCVote q' va'
+\end{code}
+\end{myhs}
+
+  The third and final voting constraint -- named the |LockedRoundRule| -- is 
+more intricate. It specifies a lower bound on the round
+of blocks that can be extended by an honest participants vote.
+The intuition behind this rule is for
+honest participants to never \emph{revive} old forks of the state
+by extending blocks that have been settled long in the past.
+
+  The \emph{locked round} of an honest participant $\alpha$ is 
+the highest round of the head of a $2$-chain ever known to $\alpha$,
+or zero if $\alpha$ knows of no $2$-chain. This property, stated
+as an invariant in terms of |vOrder| states that given that $\alpha$
+knows of a $2$-chain, any vote isued by $\alpha$ \emph{after} its knowledge
+of the $2$-chain, is for a block issued at a round bigger than $\alpha$'s
+locked round. Note that the $2$-chain need not be contiguous.
+
+\begin{myhs}
+\begin{code}
+module Abstract {a}(RSS : Set a)(isRSS : isRecordStoreState RSS) where
+  LockedRoundRule : Set1
+  LockedRoundRule
+    = forall {Q}(alpha : Author ec) -> Honest alpha
+    -> forall {q}{rc : RecordChain (Q q)}{n : Nat}(c2 : Kchain Q (2 + n) rc)
+    -> (valpha : alpha inQC q) -- alpha knows of the 2-chain because it voted on the tail.
+    -> ∀{q'}(rc' : RecordChain (Q q'))
+    -> (valpha' : alpha inQC q')
+    -> vOrder (inQCVote q valpha) < vOrder (inQCVote q' valpha')
+    -> bRound (kchainBlock (suc zero) c2) <= prevRound rc'
+\end{code}
+\end{myhs}
+
+  Besides the voting constraints, we need one last correctness invariant 
+about record store states to separate the incorrect ones from the
+correct ones. As suggested in \Cref{fig:recordstorestate}, every record
+stored in the record pool must be part of a record chain. That is,
+it must have been validated and must extend some chain. We can encode
+this by requiring that one can always trace back a record chain from
+any record in the pool.
+
+\begin{myhs}
+\begin{code}
+module Abstract {a}(RSS : Set a)(isRSS : isRecordStoreState RSS) where
+  Correct : Set1
+  Correct = {r : Record} -> isInPool isRSS r -> RecordChain r
+\end{code}
+\end{myhs}
+
+  
+\subsubsection{Main Safety Theorem}
+\label{sec:main-safety-theorem}
+
+  With the correct vocabulary at hand, we are equipped to 
+speak about the safety theorems and in which circumstances
+they hold. We seek to prove that in a state where all the
+invariants hold, a newly commited block can only
+extend the chain containing the committed blocks.
+
+  We start encoding a \emph{safe} record store state as
+a record, which can later be passed around as (anonymous)
+module parameter, similar to what we have been doing so far.
+
+\begin{myhs}
+\begin{code}
+record SafeRSS {a}(RSS : Set a) : Set (suc a) where
+  fields
+    isRSS         : isRecordStoreState RSS
+
+    correct       : Correct              isRSS
+    incr-round    : IncreasingRoundRule  isRSS
+    votes-once    : VotesOnlyOnceRule    isRSS
+    locked-round  : LockedRoundRule      isRSS
+\end{code}
+\end{myhs}
+
+  Finally, to prove that the constraints of the protocol 
+imply that the commit rule is safe, it is sufficient
+to inhabit the |thmS5| defined below.
+
+\begin{myhs}
+\begin{code}
+module Abstract {a}(RSS : Set a)(safe : SafeRSS RSS) where
+  thmS5  : forall {q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
+         -> {b b' : Block}
+         -> CommitRule rc  b
+         -> CommitRule rc' b'
+         -> Either  HashBroke 
+                    (Either (B b inRC rc') (B b' inRC rc)
+\end{code}
+\end{myhs}
+
+  The proof of |thmS5| has been outlined in the original paper
+and is unremarkable, given that three other important lemmas hold.
+\victor{present the type of |lemmaS2|, |lemmaS3| and |propS4|} 
+
+\subsection{Using the Abstract Model}
+\label{sec:concrete-librabft}
+
+  The purpose of the abstract model is to shave away unecessary detail
+that is irrelevant to the main safety argument. Examples include
+verification of signatures, detection of malformed messages,
+detection of breakage of invariants. Moreover, our abstract model
+states a predicate about one specific snapshot of a state instead
+of being concerned with the transitions that led to a particular state.
+In this section, we explore how the abstract model can be used to
+reason about a particular implementation.
+
+  The core of any implementation of LibraBFT will rely on two major parts;
+a network layer, which we are not currently concerned with and an implementation
+of the functions that validate and insert records in a local copy
+of the state. This local concrete record store will consist in 
+a list of authorized authors for the current epoch and a mutable part,
+which will contain something like a hashmap for the records in store.
+For example, the records below could make the base for implementing
+an insertion function.
+
+\begin{myhs}
+\begin{code}
+record ConcreteRSS : Set where
+  field
+    rssEpochId    : EpochId
+    rssEpochConf  : ConcreteEpochConf                     -- public keys; authors; ...
+    rssMutable    : ConcreteMutRSS (Author rssEpochConf)  -- mutable part
+
+record ConcreteMutRSS (authors : Set) : Set where
+  field
+    rssRound        : Nat
+    rssLockedRound  : Nat           -- what's my locked round?
+    rssLastVote     : Vote authors  -- what's my last vote?
+    rssBlocks       : HashMap BlocKHash  (Block  authors)
+    rssQCs          : HashMap QCHash     (QC     authors)
+    ...
+\end{code}
+\end{myhs}
+
+  The abstract view of a concrete state is defined as a function
+that proces that any specific value |rss| or type |ConcreteRSS| satisfies
+the |isRecordStoreState| ``interface''.
+
+\begin{myhs}
+\begin{code}
+abstractRSS : (rss : ConcreteRSS)
+            -> isRecordStoreState (ConcreteMutRSS (Author (rssEpochConf rss)))
+\end{code}
+\end{myhs}
+
+  The |abstractRSS| function is very important since it enables us to instantiate
+the invariants for specific concrete states.
+
+\begin{myhs}
+\begin{code}
+ConcreteValidRSS : RecordStoreState -> Set1
+ConcreteValidRSS rss = Abstract.Valid (abstractRSS rss)
+
+ConcreteLockedRound : RecordStoreState -> Set1
+ConcreteLockedRound rss = Abstract.LockedRoundRule (abstractRSS rss)
+
+dots
+\end{code}
+\end{myhs}
+
+  
 
