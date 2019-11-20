@@ -472,9 +472,9 @@ module Abstract (RSS : Set)(isRSS : isRecordStoreState RSS) where
   
   It is important to note that the original work~\cite{Baudet2019}
 describes a number of other validation conditions (Section 4.2). We
-stress that the majority of those are not relevant to correctness and
-should be checked when receiving a record through the wire. The
-conditions important for correctness, and hence, the ones we brought
+stress that the majority of those are assumed to have been checked
+at this stage. The conditions directly relevant to
+the safety properties, which we have brought
 into our model, are the monotonicity of round numbers and hash
 chaining, which are expressed in |EXTD| above.
 
@@ -786,15 +786,124 @@ and is unremarkable, given that three other important lemmas hold.
 that is irrelevant to the main safety argument. Examples include
 verification of signatures, detection of malformed messages,
 detection of breakage of invariants. Moreover, our abstract model
-states a predicate about one specific snapshot of a state instead
-of being concerned with the transitions that led to a particular state.
+states predicates about one snapshot of a participant state
+instead of being concerned with the transitions that led to a particular state.
 In this section, we explore how the abstract model can be used to
 reason about a particular implementation.
+The core of any implementation of LibraBFT will rely on three major parts;
 
-  The core of any implementation of LibraBFT will rely on two major parts;
-a network layer, which we are not currently concerned with and an implementation
-of the functions that validate and insert records in a local copy
-of the state. This local concrete record store will consist in 
+\begin{enumerate}
+  \item At the lowest level, one will have to model a network layer
+        with operations such as send and receive providing certain guarantees.
+        This presents modelling challanges in its own and is a separate
+        effort from the work in this paper.
+
+  \item On top of the network layer, one would implemented the logic
+        layer of the protocol. This is where we can analyze received
+        messages and issue actions that work on the state or the enviroment.
+        The available actions might include network actions, 
+        for example \emph{issue-timeout} or \emph{broadcast-block},
+        but it will also inclue local actions, such as \emph{validate-network-record},
+        or \emph{insert-valid-record}.
+
+  \item Finally, one would implement the denotational semantics of the
+        possible actions with respect to a particular state type.
+        Any sane implementation would restrict the means by which
+        this state can be updated. In here, we will assume that the only
+        way to update a state is through \emph{insert-valid-record}.
+\end{enumerate}
+
+\begin{figure}
+\centering
+\victor{finish this drawing too... what to include?}
+\begin{tikzpicture}[
+   interact/.style={ cloud , draw
+                   , cloud puffs=9.7982 
+                   , cloud puff arc=120, aspect=2, inner ysep=0.2em}
+ , node distance = 2.4cm
+ ]
+\node                    (empty)    {|empty|};
+\node [right = 3cm of empty] (absempty) {$\emptyset$};
+\draw [->] (empty) -- (absempty) node [midway, above] {|abstractRSS|};
+
+\node [below = of empty] (st1)  {|st1|};
+\node [right = 3cm of st1]   (abs1) {$\{ r_1 \}$};
+\draw [->] (st1) -- (abs1) node [midway, above] {|abstractRSS|};
+\draw [->,dashed] (empty) -- (st1) node [midway,right] {|insert r1|};
+
+\node [below = of st1] (st2)  {|st2|};
+\node [right = 3cm of st2] (abs2) {$\{ r_1 , r_2 \}$};
+\draw [->] (st2) -- (abs2) node [midway, above] {|abstractRSS|};
+\draw [->,dashed] (st1) -- (st2) node [midway,right] {|insert r2|};
+
+\node [interact] at ($ (empty)!0.5!(st1) - (2,0) $) (int1) {interact};
+\draw [->] (empty) to[out=180, in=90]  ($ (int1.north) + (0,0.1) $);
+\draw [->] ($ (int1.south) - (0,0.1) $) to[out=270, in=180] (st1);
+
+\node [interact] at ($ (st1)!0.5!(st2)   - (2,0) $) (int2) {interact};
+\draw [->] (st1) to[out=180, in=90]  ($ (int2.north) + (0,0.1) $);
+\draw [->] ($ (int2.south) - (0,0.1) $) to[out=270, in=180] (st2);
+
+\node at ($ (absempty) + (-0.5, 0.5) $) (absfitstart) {};
+\node at ($ (abs2)     - (-0.5, 0.5) $) (absfitend) {};
+\node [fit = (absfitstart) (absfitend) , draw , rounded corners=2mm , dotted] 
+  (absbox) {};
+
+\node at (absbox.north) [below, inner sep=1mm] 
+  {|Abstract|}; 
+
+\end{tikzpicture}
+\caption{Diagram of the relationship between the different layers}
+\label{fig:concrete-diagram}
+\end{figure}
+
+  These layers are illustrated in \Cref{fig:concrete-diagram}, where we
+see that the initial state is fed to an interaction layer, which will
+send, receive and analize messages, eventually transitioning to a new state, |st1|.
+This new state should be the result of the evaluation of an
+\emph{insert-valid-record} action. The abstract view over each state is
+only concerned with the set of records in the state at a given time.
+
+  Now, say we want to prove that |st2|, as in \Cref{fig:concrete-diagram} enjoys 
+the main safety property, that is, commited records are in the same chain. 
+Given that |abstractRSS| is sound -- does not forget or insert any records --
+all we have to do is use the fact that the empty state |empty| enjoyed the main safety
+property and the fact that the |insert| function respects all the invariants.
+This means that |abstractRSS st2| respects all invariants. The whole proof, in
+pseudo-Agda, would look something like the following.
+
+\begin{myhs}
+\begin{code}
+
+committed : ConcreteRSS -> Block -> Set
+committed rss b = b `elem` rss TIMES (exists (rc) (CommitRule rc b))
+  where
+    open import Abstract.RecordChain rss abstractRSS dots
+
+st2 : ConcreteRSS
+st2 = insert r2 (insert r1 empty)
+
+st2IsSafe  : {b b' : Block}
+           -> committed st2 b
+           -> committed st2 b'
+           -> Either  HashBroke (Either (B b EXTTR B b') (B b' EXTTR B b)
+st2IsSafe (binst2 , (rcb , commb)) (b'inst2 , (rcb' , commb'))
+  = map (either inRC_to_EXTTR inRC_to_EXTTR) <$$> thm5 commb commb'
+ where
+   safe_st2 = insert_respects_safe r2 (insert_respects_safe r1 empty_safe)
+
+   open import Abstract.RecordChain.Properties st2 abstractRSS safe_st2
+\end{code}
+\end{myhs}
+
+  Implementing of the concrete layer will rely on,
+amongst other things, the implementation of the insertion
+function that manipulates the state. In fact, this is the only function
+that should yield an observable difference in abstract states.
+That is, |abstractRSS (insert r1 st) /= abstractRSS st|, whereas
+|abstractRSS (broadcast r1 st) == abstractRSS st|.
+
+  The concrete states, |ConcreteRSS|, will generally consist in
 a list of authorized authors for the current epoch and a mutable part,
 which will contain something like a hashmap for the records in store.
 For example, the records below could make the base for implementing
@@ -815,9 +924,15 @@ record ConcreteMutRSS (authors : Set) : Set where
     rssLastVote     : Vote authors  -- what's my last vote?
     rssBlocks       : HashMap BlocKHash  (Block  authors)
     rssQCs          : HashMap QCHash     (QC     authors)
-    ...
+    dots
 \end{code}
 \end{myhs}
+
+\victor{I'm here. The pieces below might change. In fact; the |abstractRSS| might change.
+As I was writing this I started realizing that we will have to find an equality
+notion for |isRecordStoreState a|. Otherwise, we can't prove that the |abstractRSS|
+function is sound. This equality will probably look like a bisimilarity, but I
+haven't thought too much about it yet. I will think about this for a while next week.}
 
   The abstract view of a concrete state is defined as a function
 that proces that any specific value |rss| or type |ConcreteRSS| satisfies
