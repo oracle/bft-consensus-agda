@@ -506,7 +506,7 @@ also be dependent. As expected, this is only true modulo hash collisions.
 
 \begin{myhs}
 \begin{code}
-lemmaS13  : ∀{r0 r1 r2} -> RecordChain r0 -> RecordChain r1
+lemmaS13  : forall {r0 r1 r2} -> RecordChain r0 -> RecordChain r1
           -> r0 EXTTR r2 -> r1 EXTTR r2
           -> round r0 < round r1
           -> Either HashBroke (r0 EXTTR r1)
@@ -529,13 +529,13 @@ module Abstract (RSS : Set)(isRSS : isRecordStoreState RSS) where
     : (k : Nat){r : Record} -> RecordChain r -> Set1 where
       zchain  : forall {r}{rc : RecordChain r} -> Kchain R 0 rc
       schain  : forall {k r}{rc : RecordChain r}{b : Block}{q : QC}
-              -> (rb    : r   ← B b)
+              -> (rb    : r   <- B b)
               -> {prfB  : IsInPool (B b)}
               -> (prf   : R r (B b))
-              -> (bq    : B b ← Q q)
+              -> (bq    : B b <- Q q)
               -> {prfQ  : IsInPool (Q q)}
               -> Kchain R k rc
-              -> Kchain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
+              -> Kchain R (suc k) (step (step rc rb {prfB}) bq {prfQ})
 \end{code}
 \end{myhs}
 
@@ -546,7 +546,7 @@ use the same datatype to talk about \emph{simple} and \emph{contiguous} $k$-chai
 \begin{myhs}
 \begin{code}
 Contig : Record -> Record -> Set
-Contig r r' = round r' ≡ suc (round r)
+Contig r r' = round r' == suc (round r)
 
 Simple : Record -> Record -> Set
 Simple _ _ = Unit
@@ -597,9 +597,9 @@ the |inRC| datatype. Its definition is similar to traditional list membership:
 
 \begin{myhs}
 \begin{code}
-data inRCD (r0 : Record) : ∀{r1} -> RecordChain r1 -> Set where
-  here   : ∀{rc : RecordChain r0} -> r0 inRC rc
-  there  : ∀{r1 r2}{rc : RecordChain r1}(p : r1 EXT r₂)(pv : Valid rc r2)
+data inRCD (r0 : Record) : forall {r1} -> RecordChain r1 -> Set where
+  here   : forall {rc : RecordChain r0} -> r0 inRC rc
+  there  : forall {r1 r2}{rc : RecordChain r1}(p : r1 EXT r2)(pv : Valid rc r2)
          -> r0 inRC rc
          -> {prf : IsInPool r2}
          -> r0 inRC (step rc p pv {prf})
@@ -709,7 +709,7 @@ module Abstract {a}(RSS : Set a)(isRSS : isRecordStoreState RSS) where
     = forall {Q}(alpha : Author ec) -> Honest alpha
     -> forall {q}{rc : RecordChain (Q q)}{n : Nat}(c2 : Kchain Q (2 + n) rc)
     -> (valpha : alpha inQC q) -- alpha knows of the 2-chain because it voted on the tail.
-    -> ∀{q'}(rc' : RecordChain (Q q'))
+    -> forall {q'}(rc' : RecordChain (Q q'))
     -> (valpha' : alpha inQC q')
     -> vOrder (inQCVote q valpha) < vOrder (inQCVote q' valpha')
     -> bRound (kchainBlock (suc zero) c2) <= prevRound rc'
