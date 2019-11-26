@@ -32,6 +32,14 @@ module LibraBFT.Concrete.RecordStoreState.InsertValidRecord
  
   -- Now we can prove invariants about the insertValidRecord function
 
+  -- MSM: To be able to prove this, we'll need more information than ValidRecord provides.  For
+  -- example, we'll need proof that the round of a new block is higher than that of the QC its
+  -- bPrevQCHash refers to.  That is checked in validateNetworkRecord, but that information does not
+  -- propagate to here.  Maybe ValidateRecord should additionally provide evidence checked in the
+  -- validation that is needed to prove this property?  Or perhaps it makes sense to conflate
+  -- validation here, which I think might be closer to your second suggestion above (we'll do
+  -- validation here to get the necessary information, and if if fails, return nothing (in which
+  -- case, we'd keep the previous RecordStoreState).
   insert-isValid : (rss : RecordStoreState)(r : ValidRecord rss)
                  → ValidRSS rss
                  → ValidRSS (insertValidRecord rss r)
