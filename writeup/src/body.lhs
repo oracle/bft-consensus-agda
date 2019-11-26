@@ -987,4 +987,21 @@ dots
 \end{myhs}
 
   
+\section{Discussion and Related Work}
 
+  It is often the case that authors of BFT algorithms
+provide paper proofs on the different aspects of their algorithms.
+Although better than omitting the proofs altogether, paper proofs
+have a much higher chance of being wrong. For example,
+the case of tangaroa (BFT raft) \cite{Copeland} and its fundamental
+flaw~\cite{Cachin2017}.
+
+  If we are to ever trust our systems, we must
+prove all claims made about it in a machine-checkable way.
+Verdi~\cite{Wilcox2015} is a coq framework for proving
+fault tolerance of distributed systems. The Verdi authors
+proved Raft correct w.r.t. its spec but did not address
+liveness. \victor{does Verdi handle BFT? I don't think so! need to check}
+Verdi, however, has a number of interesting semantics for
+the network layer. We should certainly look into it
+when implementing our network layer.
