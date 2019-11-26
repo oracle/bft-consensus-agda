@@ -29,7 +29,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
 
     open WithRSS curr
 
-    -- Correctness of a pool of records is modeled by bein able
+    -- Correctness of a pool of records is modeled by being able
     -- to trace any record in the chain back to the initial 
     -- record using only records in the pool.
     Correct : Set₁

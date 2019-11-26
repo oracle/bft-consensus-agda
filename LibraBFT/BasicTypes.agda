@@ -50,7 +50,7 @@ module LibraBFT.BasicTypes where
        bCommand    : Command
        bPrevQCHash : QCHash
        bRound      : Round
-   open BBlock public 
+   open BBlock public
 
    record BVote  : Set where
      constructor mkVote

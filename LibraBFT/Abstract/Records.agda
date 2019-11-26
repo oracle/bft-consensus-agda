@@ -13,7 +13,7 @@ open import LibraBFT.Abstract.EpochConfig
 --  2) Sender have been aute'ed against an epoch.
 --  3) Signatures have been verified
 -- 
--- This module does not brings in the hashing functionality
+-- This module does not bring in the hashing functionality
 -- because we'd like to keep dependencies separate. 
 -- The extends relation, _←_, is in LibraBFT.Abstract.Records.Extends
 --

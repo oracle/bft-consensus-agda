@@ -141,9 +141,10 @@ module LibraBFT.Concrete.RecordStoreState
   -- 
   -- Once its all said and done, this proof should be trivial for there
   -- are no records in the pool of the empty state.
+
   emptyRSS-is-valid : (eid : EpochId)(ecfg : EpochConfig) 
                     → ValidRSS (emptyRSS eid ecfg)
-  emptyRSS-is-valid eid ecfg {r} r∈pool = {!!} 
+  emptyRSS-is-valid eid ecfg {r} r∈pool = {! empty!}
 
 
   -- MSM: Maybe it should be "trivial", but I can't do it :-)
