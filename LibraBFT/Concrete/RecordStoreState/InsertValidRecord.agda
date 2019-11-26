@@ -27,6 +27,7 @@ module LibraBFT.Concrete.RecordStoreState.InsertValidRecord
   -- would be to have 'insertNetworkRecord : RecordStoreState → Concrete.Record → Maybe RecordStoreState'
   --  
   -- I'm unsure of which one I actually prefer. This is just a sketch for now anyway
+  -- MSM: Perhaps provide record, RecordChain that it extends, and needed proofs for establishing invariants hold in post-state
   insertValidRecord : (rss : RecordStoreState) → ValidRecord rss → RecordStoreState
   insertValidRecord = {!!}
  
@@ -47,6 +48,7 @@ module LibraBFT.Concrete.RecordStoreState.InsertValidRecord
 
 
   insert-incr-round-ok : (rss : RecordStoreState)(r : ValidRecord rss)
+                       → ValidRSS rss  -- Probably needed?
                        → NoIncreasingRoundBroke rss
                        → NoIncreasingRoundBroke (insertValidRecord rss r)
   insert-incr-round-ok = {!!}

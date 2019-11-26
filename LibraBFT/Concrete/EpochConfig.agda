@@ -13,7 +13,7 @@ module LibraBFT.Concrete.EpochConfig where
     field
       ecEpochId        : EpochId
       ecValidAuthors   : List NodeId
-      -- MSM: Don't we need to reqiure the authors to be distinct?
+      -- MSM: We will need to reqiure the authors to be distinct.
       -- We claim in LibraBFT.Abstract.Records that ordering Votes
       -- by Author index ensures they are different, which would not
       -- be true if Authors were duplicated in this list.
