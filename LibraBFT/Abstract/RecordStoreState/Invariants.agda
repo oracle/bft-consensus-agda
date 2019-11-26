@@ -3,37 +3,35 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
 module LibraBFT.Abstract.RecordStoreState.Invariants 
-    {f : ℕ} (ec : EpochConfig f) 
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+    (ec : EpochConfig) 
   where
 
   open import LibraBFT.Abstract.BFT              ec
   open import LibraBFT.Abstract.Records          ec 
-  open        WithCryptoHash                        hash hash-cr
-  open import LibraBFT.Abstract.Records.Extends  ec hash hash-cr
-  open import LibraBFT.Abstract.RecordChain      ec hash hash-cr
-  open import LibraBFT.Abstract.RecordStoreState ec hash hash-cr
+  open        WithCryptoHash                     hash hash-cr
+  open import LibraBFT.Abstract.Records.Extends  hash hash-cr ec
+  open import LibraBFT.Abstract.RecordChain      hash hash-cr ec
+  open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
 
   -- Now, we need to state the invariants over the system that we seek to:
   --
   --  1) Guarantee when implementing the algo
   --  2) Use on the proofs
   --
-  module _ {a}{RSS : Set a}(curr : isRecordStoreState RSS) where
+  module _ {a}{RSS : Set a}(st : CurrRecordStoreState RSS) where
 
-    open WithRSS curr
+    open WithRSS st
 
     -- Correctness of a pool of records is modeled by being able
     -- to trace any record in the chain back to the initial 
     -- record using only records in the pool.
     Correct : Set₁
-    Correct = (r : Record) → isInPool curr r → RecordChain r
+    Correct = (r : Record) → IsInPool r → RecordChain r
 
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of

@@ -2,7 +2,6 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
-open import LibraBFT.Abstract.EpochConfig
 
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
@@ -17,7 +16,7 @@ open import LibraBFT.Abstract.EpochConfig
 -- because we'd like to keep dependencies separate. 
 -- The extends relation, _←_, is in LibraBFT.Abstract.Records.Extends
 --
-module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
+module LibraBFT.Abstract.Records (ec : EpochConfig)  
  where
 
   Block : Set

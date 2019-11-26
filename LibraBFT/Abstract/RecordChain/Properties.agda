@@ -3,26 +3,26 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
-module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
+module LibraBFT.Abstract.RecordChain.Properties
   -- A Hash function maps a bytestring into a hash.
   (hash    : ByteString → Hash)
   -- And is colission resistant
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec : EpochConfig)
    where
 
  open import LibraBFT.Abstract.BFT                         ec 
  open import LibraBFT.Abstract.Records                     ec 
- open        WithCryptoHash                                   hash hash-cr
- open import LibraBFT.Abstract.Records.Extends             ec hash hash-cr
- open import LibraBFT.Abstract.RecordChain                 ec hash hash-cr
- open import LibraBFT.Abstract.RecordStoreState            ec hash hash-cr
- open import LibraBFT.Abstract.RecordStoreState.Invariants ec hash hash-cr
+ open        WithCryptoHash                                hash hash-cr
+ open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec
+ open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
+ open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+ open import LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
    as Invariants
 
- module ForRSS 
-   {s}{RSS : Set s} (curr : isRecordStoreState RSS) 
+ module ForRSS -- VCM: I can't call this WithRSS because I 'open'ed stuff above
+   {s}{RSS : Set s} 
+   (curr                  : CurrRecordStoreState RSS) 
    (correct               : Invariants.Correct             curr)
    (increasing-round-rule : Invariants.IncreasingRoundRule curr)
    (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
