@@ -24,11 +24,26 @@ module LibraBFT.Concrete.RecordStoreState.ValidateNetworkRecord
   ValidRecord : RecordStoreState → Set₁
   ValidRecord rss = Abstract.Record (ecAbstract (rssConfig rss))
 
+
+  postulate ForMark : ∀{a}{A : Set a} → A
+
   -- Here's the function that is supposed to validate network records
   -- for a given record store state.
-  validateNetworkRecord : (rss : RecordStoreState) → Record
+  validateNetworkRecord : (rss : RecordStoreState)
+                        → Record
                         → Maybe (ValidRecord rss)
-  validateNetworkRecord = ForMark 
-    where postulate ForMark : ∀{a}{A : Set a} → A
+  validateNetworkRecord rss (Q q) = ForMark
+  validateNetworkRecord rss (B (signed blk author sig)) =
+     -- Check if (author blk) is in (ecValidAuthors (rssConfig rss)), determine author index
+     -- Check if sig verifies (do we have anything modeled for this yet?)
+     -- But how do we know we did the verification?  What if I just make something up here,
+     -- for a record that doesn't verify?  What will go wrong?
+
+     -- For now, no verification is done at all.
+     just (Abstract.B (mkBlock {! author index determined above!}
+                               (bCommand    blk)
+                               (bPrevQCHash blk)
+                               (bRound      blk)))
+
   
 
