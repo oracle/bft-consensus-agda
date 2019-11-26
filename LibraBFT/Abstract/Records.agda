@@ -15,7 +15,7 @@ open import LibraBFT.Abstract.EpochConfig
 -- 
 -- This module does not brings in the hashing functionality
 -- because we'd like to keep dependencies separate. 
--- The rextends relaion, _←_, is in LibraBFT.Abstract.Records.Extends
+-- The extends relation, _←_, is in LibraBFT.Abstract.Records.Extends
 --
 module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
  where

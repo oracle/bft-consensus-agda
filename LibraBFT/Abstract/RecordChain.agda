@@ -86,16 +86,16 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   --
   -- Our datatype 𝕂-chain captures exactly that structure.
   --
-  data 𝕂-chain (P : Record → Record → Set) : (k : ℕ){r : Record} → RecordChain r → Set₁ where
-    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain P 0 rc
+  data 𝕂-chain (R : Record → Record → Set) : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+    0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain R 0 rc
     s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
             → (r←b : r   ← B b)
             → {prfB : IsInPool (B b)}
-            → (prf : P r (B b))
+            → (prf : R r (B b))
             → (b←q : B b ← Q q)
             → {prfQ : IsInPool (Q q)}
-            → 𝕂-chain P k rc
-            → 𝕂-chain P (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
+            → 𝕂-chain R k rc
+            → 𝕂-chain R (suc k) (step (step rc r←b {prfB}) b←q {prfQ})
 
   -- Returns the round of the block heading the k-chain.
   kchainHeadRound : ∀{k r P}{rc : RecordChain r} → 𝕂-chain P k rc → Round

@@ -100,6 +100,9 @@
 %format dots    = "\HS{\dots}"
 %format forall  = "\HS{\forall}"
 %format lambda  = "\HS{\lambda}"
+%format alpha   = "\HS{\alpha}"
+%format valpha  = "\HS{v\alpha}"
+%format valpha'
 %format dot     = "\HS{.}"
 %format ^=      = "\HS{\bumpeq}"
 %format :       = "\HS{\mathrel{:}}"
@@ -130,6 +133,8 @@
 %format r0        = "\HV{r_0}"
 %format r1        = "\HV{r_1}"
 %format r2        = "\HV{r_2}"
+
+%format Set1      = "\HV{Set_1}"
 
 %format Honest    = "\HSPostulate{Honest}"
 %format lemmaB1   = "\HSPostulate{\wdw{lemma}{B1}}"
@@ -177,6 +182,15 @@
 %format Block          = "\HT{\mathit{Block}}"
 %format EpochId        = "\HT{\mathit{EpochId}}"
 %format EpochConfig    = "\HT{\mathit{EpochConfig}}"
+
+%format SafeRSS        = "\HT{\mathit{SafeRSS}}"
+
+%format incrround      = "\HT{\wdw{incr}{round}}"
+%format votesonce      = "\HT{\wdw{votes}{once}}"
+%format lockedround    = "\HT{\wdw{locked}{round}}"
+%format kchaincontig   = "\HT{\wdw{Kchain}{contig}}"
+
+
 
 %format IEXTB          = "\HT{I\!\!\leftarrow\!\!B}"
 %format QEXTB          = "\HT{Q\!\!\leftarrow\!\!B}"
