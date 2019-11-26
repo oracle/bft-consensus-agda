@@ -33,7 +33,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- to trace any record in the chain back to the initial 
     -- record using only records in the pool.
     Correct : Set₁
-    Correct = {r : Record} → isInPool curr r → RecordChain r
+    Correct = (r : Record) → isInPool curr r → RecordChain r
 
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of

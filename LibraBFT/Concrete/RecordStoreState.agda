@@ -144,8 +144,12 @@ module LibraBFT.Concrete.RecordStoreState
 
   emptyRSS-is-valid : (eid : EpochId)(ecfg : EpochConfig) 
                     → ValidRSS (emptyRSS eid ecfg)
-  emptyRSS-is-valid eid ecfg {r} r∈pool = {! empty!}
-
+  emptyRSS-is-valid eid ecfg = λ {(I x) r∈pool → WithRSS.empty}  -- Ugly because we need the things imported in the where clause
+                                                                 -- to pattern match on Record.  We can't import before because
+                                                                 -- the import depends on ecfg, which is a parameter here.  Suggests
+                                                                 -- some surgery is in order.  Go Victor!
+    where open import LibraBFT.Abstract.Records (ecAbstract ecfg)
+          open import LibraBFT.Abstract.RecordChain (ecAbstract ecfg) hash hash-cr 
 
   -- MSM: Maybe it should be "trivial", but I can't do it :-)
   -- Challenges:
