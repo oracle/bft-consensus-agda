@@ -144,4 +144,16 @@ module LibraBFT.Concrete.RecordStoreState
   emptyRSS-is-valid : (eid : EpochId)(ecfg : EpochConfig) 
                     → ValidRSS (emptyRSS eid ecfg)
   emptyRSS-is-valid eid ecfg {r} r∈pool = {!!} 
-                                               
+
+
+  -- MSM: Maybe it should be "trivial", but I can't do it :-)
+  -- Challenges:
+  --
+  --  When I refine r, it gives me just one case:
+  --       emptyRSS-is-valid eid ecfg {LibraBFT.Abstract.Records.Record.I x} r∈pool = ?
+  --    But then fails to parse it.
+  --
+  --  When trying to construct some simple examples, I can't even figure out how to refer to things
+  --  in other modules when they are nested within other parameterized modules.
+  --
+  --  Maybe we could work on this together.
