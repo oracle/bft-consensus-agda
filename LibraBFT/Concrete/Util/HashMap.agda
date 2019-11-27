@@ -52,16 +52,17 @@ module LibraBFT.Concrete.Util.HashMap where
   _[_:=_,_] {ℓ₁} {ℓ₂} {A = A} {B = B} f a₁ b _≟xx_ = overrideFn {ℓ₁} {ℓ₂} {A} {B} f a₁ b _≟xx_
 
 
-  HashMap : Set → Set → Set
+  HashMap : ∀{ℓ₁ ℓ₂} → Set ℓ₁ → Set ℓ₂ → Set (ℓ₁ ℓ⊔ ℓ₂)
   HashMap K V = K → Maybe V
 
   emptyHM : ∀ {K V : Set} → HashMap K V
   emptyHM {K} {V} k = nothing
 
-  _∈HM_ : ∀ {K : Set} {V : Set} (k : K) → HashMap K V → Set
+  _∈HM_ : ∀ {ℓ₁ ℓ₂}{K : Set ℓ₁} {V : Set ℓ₂} (k : K) → HashMap K V → Set ℓ₂
   k ∈HM hm = ∃[ v ]( hm k ≡ just v )
 
-  ∈HM-irrelevant : ∀{K V}(k : K)(m : HashMap K V)(p₀ p₁ : k ∈HM m)
+  ∈HM-irrelevant : ∀{ℓ₁ ℓ₂}{K : Set ℓ₁}{V : Set ℓ₂}(k : K)
+                 → (m : HashMap K V)(p₀ p₁ : k ∈HM m)
                  → p₀ ≡ p₁
   ∈HM-irrelevant k m (e , prf) (e' , prf') 
     with m k

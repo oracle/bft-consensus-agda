@@ -16,17 +16,8 @@ module LibraBFT.Abstract.RecordStoreState
   -- A type 'RSS' is seen, by the abstract model, as a RecordStoreState
   -- if it contains a pool of unique records (hence the irrelevance cond.)
   record isRecordStoreState {a}(RSS : Set a) : Set (ℓ+1 a) where
-    constructor rss
     field
       isInPool            : Record → RSS → Set
       isInPool-irrelevant : ∀{r st}(p₀ p₁ : isInPool st r) → p₀ ≡ p₁
   open isRecordStoreState public
-
-  record CurrRecordStoreState {a}(RSS : Set a) : Set (ℓ+1 a) where
-    constructor one-rss
-    field
-      isRSS : isRecordStoreState RSS
-      curr  : RSS
-  open CurrRecordStoreState public
-      
-      
+ 

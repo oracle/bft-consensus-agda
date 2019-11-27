@@ -17,17 +17,17 @@ module LibraBFT.Abstract.RecordChain
  open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
 
  module WithRSS
-   {a}{RSS : Set a}
+   {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄
    -- The current record pool; abstracted by saying
    -- whether a record is in the pool or not.
-   (st : CurrRecordStoreState RSS)
+   (curr : RSS)
      where
 
   IsInPool : Record → Set
-  IsInPool r = isInPool (isRSS st) r (curr st)
+  IsInPool r = isInPool isRSS r curr
 
   IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁
-  IsInPool-irrelevant = isInPool-irrelevant (isRSS st)
+  IsInPool-irrelevant = isInPool-irrelevant isRSS
 
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
@@ -35,14 +35,12 @@ module LibraBFT.Abstract.RecordChain
 
   -- One way of looking at a 'RecordChain r' is to think of it as 
   -- one path from the epoch's initial record to r.
-  data RecordChain : Record → Set₁
-
-  data RecordChain where
+  data RecordChain : Record → Set where
     empty : ∀ {hᵢ} → RecordChain (I hᵢ)
     step  : ∀ {r r'}
           → (rc : RecordChain r) 
           → r ← r'
-          → {prf : IsInPool r'} 
+          → {prf : IsInPool r'} -- TODO: Make these into instance arguments too!
           → RecordChain r'
 
   prevBlock : ∀{q} → RecordChain (Q q) → Block
@@ -85,7 +83,8 @@ module LibraBFT.Abstract.RecordChain
   --
   -- Our datatype 𝕂-chain captures exactly that structure.
   --
-  data 𝕂-chain (R : Record → Record → Set) : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+  data 𝕂-chain (R : Record → Record → Set) 
+      : (k : ℕ){r : Record} → RecordChain r → Set where
     0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain R 0 rc
     s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
             → (r←b : r   ← B b)
@@ -152,7 +151,7 @@ module LibraBFT.Abstract.RecordChain
   Simple : Record → Record → Set
   Simple _ _ = Unit
 
-  𝕂-chain-contig : (k : ℕ){r : Record} → RecordChain r → Set₁
+  𝕂-chain-contig : (k : ℕ){r : Record} → RecordChain r → Set
   𝕂-chain-contig = 𝕂-chain Contig
 
   -- States that a given record belongs in a record chain.
@@ -205,7 +204,7 @@ module LibraBFT.Abstract.RecordChain
   -- A block (and everything preceeding it) is said to match the commit rule
   -- when the block is the head of a contiguious 3-chain. Here we define an auxiliary
   -- datatype to make definitions more bearable.
-  data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
+  data CommitRule : ∀{r} → RecordChain r → Block → Set where
     commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain Contig 3 rc) 
                 → b ≡ c3 b⟦ suc (suc zero) ⟧
                 → CommitRule rc b

@@ -37,7 +37,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig)
   -- We achive that by considering a sorted list of 'Vote's
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
-  record QC : Set₁ where
+  record QC : Set where
     field
       qBase          : BQC (Author ec)
       -- Here are the coherence conditions. Firstly, we expect
@@ -79,7 +79,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig)
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- A record is defined by being either of the types introduced above.
-  data Record : Set₁ where
+  data Record : Set where
     I : Initial   → Record
     B : Block     → Record
     Q : QC        → Record
