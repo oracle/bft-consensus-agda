@@ -3,29 +3,28 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
-module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
+module LibraBFT.Abstract.RecordChain 
   -- A Hash function maps a bytestring into a hash.
   (hash     : ByteString → Hash)
   -- And is colission resistant
   (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec : EpochConfig)
     where
 
  open import LibraBFT.Abstract.Records          ec 
- open        WithCryptoHash                        hash hash-cr
- open import LibraBFT.Abstract.Records.Extends  ec hash hash-cr
- open import LibraBFT.Abstract.RecordStoreState ec hash hash-cr
+ open        WithCryptoHash                     hash hash-cr
+ open import LibraBFT.Abstract.Records.Extends  hash hash-cr ec
+ open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
 
  module WithRSS
-   {a}{RSS : Set a}
+   {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄
    -- The current record pool; abstracted by saying
    -- whether a record is in the pool or not.
-   (isRSS : isRecordStoreState RSS)
+   (curr : RSS)
      where
 
   IsInPool : Record → Set
-  IsInPool r = isInPool isRSS r
+  IsInPool r = isInPool isRSS r curr
 
   IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁
   IsInPool-irrelevant = isInPool-irrelevant isRSS
@@ -36,14 +35,12 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
 
   -- One way of looking at a 'RecordChain r' is to think of it as 
   -- one path from the epoch's initial record to r.
-  data RecordChain : Record → Set₁
-
-  data RecordChain where
+  data RecordChain : Record → Set where
     empty : ∀ {hᵢ} → RecordChain (I hᵢ)
     step  : ∀ {r r'}
           → (rc : RecordChain r) 
           → r ← r'
-          → {prf : IsInPool r'} 
+          → {prf : IsInPool r'} -- TODO: Make these into instance arguments too!
           → RecordChain r'
 
   prevBlock : ∀{q} → RecordChain (Q q) → Block
@@ -86,7 +83,8 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   --
   -- Our datatype 𝕂-chain captures exactly that structure.
   --
-  data 𝕂-chain (R : Record → Record → Set) : (k : ℕ){r : Record} → RecordChain r → Set₁ where
+  data 𝕂-chain (R : Record → Record → Set) 
+      : (k : ℕ){r : Record} → RecordChain r → Set where
     0-chain : ∀{r}{rc : RecordChain r} → 𝕂-chain R 0 rc
     s-chain : ∀{k r}{rc : RecordChain r}{b : Block}{q : QC}
             → (r←b : r   ← B b)
@@ -153,7 +151,7 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   Simple : Record → Record → Set
   Simple _ _ = Unit
 
-  𝕂-chain-contig : (k : ℕ){r : Record} → RecordChain r → Set₁
+  𝕂-chain-contig : (k : ℕ){r : Record} → RecordChain r → Set
   𝕂-chain-contig = 𝕂-chain Contig
 
   -- States that a given record belongs in a record chain.
@@ -206,7 +204,7 @@ module LibraBFT.Abstract.RecordChain {f : ℕ} (ec : EpochConfig f)
   -- A block (and everything preceeding it) is said to match the commit rule
   -- when the block is the head of a contiguious 3-chain. Here we define an auxiliary
   -- datatype to make definitions more bearable.
-  data CommitRule : ∀{r} → RecordChain r → Block → Set₁ where
+  data CommitRule : ∀{r} → RecordChain r → Block → Set where
     commit-rule : ∀{r b}{rc : RecordChain r}(c3 : 𝕂-chain Contig 3 rc) 
                 → b ≡ c3 b⟦ suc (suc zero) ⟧
                 → CommitRule rc b

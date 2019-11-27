@@ -3,14 +3,12 @@ open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
 module LibraBFT.Abstract.Records.Extends
-  {f : ℕ}(ec : EpochConfig f) 
   -- A Hash function maps a bytestring into a hash.
   (hash     : ByteString → Hash)
   -- And is colission resistant
   (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec : EpochConfig) 
  where
   
   open        WithCryptoHash                        hash hash-cr

@@ -3,26 +3,26 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
-module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
+module LibraBFT.Abstract.RecordChain.Properties
   -- A Hash function maps a bytestring into a hash.
   (hash    : ByteString → Hash)
   -- And is colission resistant
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec : EpochConfig)
    where
 
  open import LibraBFT.Abstract.BFT                         ec 
  open import LibraBFT.Abstract.Records                     ec 
- open        WithCryptoHash                                   hash hash-cr
- open import LibraBFT.Abstract.Records.Extends             ec hash hash-cr
- open import LibraBFT.Abstract.RecordChain                 ec hash hash-cr
- open import LibraBFT.Abstract.RecordStoreState            ec hash hash-cr
- open import LibraBFT.Abstract.RecordStoreState.Invariants ec hash hash-cr
+ open        WithCryptoHash                                hash hash-cr
+ open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec
+ open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
+ open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+ open import LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
    as Invariants
 
- module ForRSS 
-   {s}{RSS : Set s} (curr : isRecordStoreState RSS) 
+ module ForRSS -- VCM: I can't call this WithRSS because I 'open'ed stuff above
+   {s}{RSS : Set s}⦃ isRSS : isRecordStoreState RSS ⦄
+   (curr                  : RSS) 
    (correct               : Invariants.Correct             curr)
    (increasing-round-rule : Invariants.IncreasingRoundRule curr)
    (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
@@ -45,11 +45,12 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
 
    lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
+           → IsInPool (Q q₀) → IsInPool (Q q₁)
            → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)
            → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
            → bRound b₀ ≡ bRound b₁
            → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
      with b₀ ≟Block b₁ -- (***)
    ...| yes done = inj₂ done
    ...| no  imp
@@ -57,19 +58,19 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    ...|  (a , (a∈q₀ , a∈q₁ , honest))
      with <-cmp (vOrder (∈QC-Vote q₀ a∈q₀)) (vOrder (∈QC-Vote q₁ a∈q₁))
    ...| tri< va<va' _ _
-     with increasing-round-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va<va'
+     with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
    ...| res = ⊥-elim (<⇒≢ res hyp)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
       | no imp
       |  (a , (a∈q₀ , a∈q₁ , honest))
       | tri> _ _ va'<va
-     with increasing-round-rule a honest {q₁} {q₀} a∈q₁ a∈q₀ va'<va
+     with increasing-round-rule a honest {q₁} {q₀} p1 p0 a∈q₁ a∈q₀ va'<va
    ...| res = ⊥-elim (<⇒≢ res (sym hyp))
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
       | no imp
       |  (a , (a∈q₀ , a∈q₁ , honest))
       | tri≈ _ va≡va' _
-     with votes-only-once-rule a honest {q₀} {q₁} a∈q₀ a∈q₁ va≡va'
+     with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
    ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
                     v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
                 in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
@@ -92,12 +93,12 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
      -- returns us a judgement about the order of the votes.
      with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂
-     with increasing-round-rule a honest {q'} {q₂} a∈q' a∈q₂ va'<va₂
+     with increasing-round-rule a honest {q'} {q₂} pq' pq a∈q' a∈q₂ va'<va₂
    ...| res = ⊥-elim (n≮n (qRound (qBase q')) (≤-trans res (≤-unstep hyp)))
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} P b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | tri≈ _ va₂≡va' _
-     with votes-only-once-rule a honest {q₂} {q'} a∈q₂ a∈q' va₂≡va'
+     with votes-only-once-rule a honest {q₂} {q'} pq pq' a∈q₂ a∈q' va₂≡va'
    ...| v₂≡v' = let v₂∈q₂ = ∈QC-Vote-correct q₂ a∈q₂
                     v'∈q' = ∈QC-Vote-correct q' a∈q'
                 in ⊥-elim (<⇒≢ hyp (vote≡⇒QRound≡ {q₂} {q'} v₂∈q₂ v'∈q' v₂≡v'))
@@ -144,16 +145,16 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    propS4-base-lemma-2
      : ∀{P k r}{rc : RecordChain r}
      → (c  : 𝕂-chain P k rc)
-     → {b' : Block}(q' : QC)
+     → {b' : Block}(q' : QC) → IsInPool (Q q')
      → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
      → (ix : Fin k)
      → bRound (kchainBlock ix c) ≡ bRound b'
      → HashBroke ⊎ (kchainBlock ix c ≡ b')
-   propS4-base-lemma-2 (s-chain {rc = rc} r←b {prfB} prf b←q {prfQ} c) q' certB ext zero hyp 
-     = lemmaS2 (step rc r←b {prfB}) b←q certB ext hyp 
+   propS4-base-lemma-2 (s-chain {rc = rc} r←b {prfB} prf b←q {prfQ} c) q' pq' certB ext zero hyp 
+     = lemmaS2 prfQ pq' (step rc r←b {prfB}) b←q certB ext hyp 
    propS4-base-lemma-2 (s-chain r←b prf b←q c) 
-                       q' certB ext (suc ix) hyp 
-     = propS4-base-lemma-2 c q' certB ext ix hyp
+                       q' pq' certB ext (suc ix) hyp 
+     = propS4-base-lemma-2 c q' pq' certB ext ix hyp
 
    _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
    f <$> (inj₁ hb) = inj₁ hb
@@ -169,7 +170,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
      with propS4-base-lemma-1 c3 (bRound b) hyp0 hyp1
    ...| here r 
-     with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) zero r
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) zero r
    ...| inj₁ hb  = inj₁ hb
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB
@@ -178,7 +179,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) 
        hyp0 hyp1 
       | there (here r) 
-     with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) (suc zero) r 
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc zero) r 
    ...| inj₁ hb  = inj₁ hb 
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB
@@ -186,7 +187,7 @@ module LibraBFT.Abstract.RecordChain.Properties {f : ℕ} (ec : EpochConfig f)
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
       | there (there (here r)) 
-     with propS4-base-lemma-2 c3 q' certB (B←Q refl x₀) (suc (suc zero)) r
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc (suc zero)) r
    ...| inj₁ hb  = inj₁ hb
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB

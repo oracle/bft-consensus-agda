@@ -2,7 +2,6 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
-open import LibraBFT.Abstract.EpochConfig
 
 -- Here we provide abstract definitions of
 -- verified records, that is, we assume that
@@ -17,7 +16,7 @@ open import LibraBFT.Abstract.EpochConfig
 -- because we'd like to keep dependencies separate. 
 -- The extends relation, _←_, is in LibraBFT.Abstract.Records.Extends
 --
-module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)  
+module LibraBFT.Abstract.Records (ec : EpochConfig)  
  where
 
   Block : Set
@@ -38,7 +37,7 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   -- We achive that by considering a sorted list of 'Vote's
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
-  record QC : Set₁ where
+  record QC : Set where
     field
       qBase          : BQC (Author ec)
       -- Here are the coherence conditions. Firstly, we expect
@@ -80,7 +79,7 @@ module LibraBFT.Abstract.Records {f : ℕ} (ec : EpochConfig f)
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- A record is defined by being either of the types introduced above.
-  data Record : Set₁ where
+  data Record : Set where
     I : Initial   → Record
     B : Block     → Record
     Q : QC        → Record

@@ -3,54 +3,54 @@ open import LibraBFT.Hash
 open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Abstract.EpochConfig
-
 module LibraBFT.Abstract.RecordStoreState.Invariants 
-    {f : ℕ} (ec : EpochConfig f) 
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+    (ec : EpochConfig) 
   where
 
   open import LibraBFT.Abstract.BFT              ec
   open import LibraBFT.Abstract.Records          ec 
-  open        WithCryptoHash                        hash hash-cr
-  open import LibraBFT.Abstract.Records.Extends  ec hash hash-cr
-  open import LibraBFT.Abstract.RecordChain      ec hash hash-cr
-  open import LibraBFT.Abstract.RecordStoreState ec hash hash-cr
+  open        WithCryptoHash                     hash hash-cr
+  open import LibraBFT.Abstract.Records.Extends  hash hash-cr ec
+  open import LibraBFT.Abstract.RecordChain      hash hash-cr ec
+  open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
 
   -- Now, we need to state the invariants over the system that we seek to:
   --
   --  1) Guarantee when implementing the algo
   --  2) Use on the proofs
   --
-  module _ {a}{RSS : Set a}(curr : isRecordStoreState RSS) where
+  module _ {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄(curr : RSS) where
 
     open WithRSS curr
 
     -- Correctness of a pool of records is modeled by being able
     -- to trace any record in the chain back to the initial 
     -- record using only records in the pool.
-    Correct : Set₁
-    Correct = (r : Record) → isInPool curr r → RecordChain r
+    Correct : Set
+    Correct = (r : Record) → IsInPool r → RecordChain r
 
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of
     -- votes respect the rounds
-    IncreasingRoundRule : Set₁
+    IncreasingRoundRule : Set
     IncreasingRoundRule 
        = (α : Author ec) → Honest α
-       → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
+       → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
+       → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
        → qRound (qBase q) < qRound (qBase q')
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
     -- that α's n-th vote is always the same.
-    VotesOnlyOnceRule : Set₁
+    VotesOnlyOnceRule : Set
     VotesOnlyOnceRule 
        = (α : Author ec) → Honest α
-       → ∀{q q'}(va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
+       → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
+       → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → vOrder (∈QC-Vote q va) ≡ vOrder (∈QC-Vote q' va')
        → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
@@ -59,6 +59,8 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     --            it is cumbersome to open rc' to expose the block that comes
     --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
     --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
+    -- This is in Set₁ because we universally quantify over (Record → Record → Set)
+    -- for the relation passed to c2.
     LockedRoundRule : Set₁
     LockedRoundRule
       = ∀{R}(α : Author ec) → Honest α

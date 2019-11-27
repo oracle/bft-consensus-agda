@@ -30,6 +30,38 @@ module LibraBFT.BasicTypes where
   State : Set
   State = Hash
 
+  -- An 'EpochConfig f' carries the information we need tot
+  -- survive at most 'f' byzantine failures. for now, this is
+  -- only a lower bound on the number of overal authors.
+  record EpochConfig : Set where
+    field
+      epochId  : EpochId
+      authorsN : ℕ
+      bizF     : ℕ
+
+      isBFT    : authorsN ≥ suc (3 * bizF)
+
+      seed     : ℕ
+
+      ecInitialState  : State
+    QuorumSize : ℕ
+    QuorumSize = authorsN ∸ bizF
+
+    Author     : Set
+    Author     = Fin authorsN
+
+    -- AuthorId : Author -> NodeId
+    -- AuthorDisj : ...
+  open EpochConfig public
+
+  record Signed (A : Set) : Set where
+    constructor signed
+    field
+      sContent    : A
+      sAuthor     : A → NodeId
+      sSignature  : Signature
+  open Signed public
+
   -- Records parameterized by a type of author execpt the initial
   -- record.
   --
@@ -58,10 +90,6 @@ module LibraBFT.BasicTypes where
        vAuthor    : author
        vBlockHash : BlockHash
        vRound     : Round
-       -- VCM: Should we keep vOrder here?
-       -- The 'vOrder' is a "metafield", it keeps track of which vote from 'vAuthor'
-       -- this is representing. This makes it much simpler to talk about thinks such as 
-       -- the increasing round rule. 
        vOrder     : ℕ 
        --vState     : State
    open BVote public

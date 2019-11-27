@@ -1,10 +1,8 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 
-open import LibraBFT.Concrete.EpochConfig
 open import LibraBFT.Concrete.Util.HashMap
 
 module LibraBFT.Concrete.RecordStoreState
@@ -12,153 +10,159 @@ module LibraBFT.Concrete.RecordStoreState
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+    (ec : EpochConfig)
  where
 
-  -- VCM: We'll be having the mutable bit of the record store state 
-  --      separate from the immutable one.
-  record RecordStoreStateMut (authors : Set) : Set where
-    constructor mkRecordStoreState
-    field
-      -- rssInitiaState       : State
-      rssBlocks               : HashMap BlockHash (BBlock authors)
-      rssQCs                  : HashMap QCHash    (BQC    authors)
-      rssRoundToQChash        : HashMap Round QCHash
-      rssCurrentProposedBlock : Maybe BlockHash
-      rssHighestQCRound       : Round
-      -- rssHighestTCRound    : Round
-      rssCurrentRound         : Round
-      -- rssHighest2ChainRound       : Round
-      -- rssHighestCommittedRound    : Round
-      -- rssHighestTimoutCertificate : Maybe (List Timeout)
-      -- rssCurrentTimeouts      : HashMap authors Timeout
-      rssCurrentVotes         : HashMap authors (BVote authors)
-      -- rssCurrentTimeoutWeight     : ℕ  -- LIBRA-DIFF: assume equal weights for now
-      -- rssCurrentElection          : ?
-  open RecordStoreStateMut
+  open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
+  open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
+  open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+  import      LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
+    as AbstractI
 
+  -- VCM: I'm simplifying this abruptly; we should only
+  --      add fields here as needed
   record RecordStoreState : Set where
     constructor mkRecordStoreState
     field
-      rssEpochId              : EpochId
-      rssConfig               : EpochConfig
-      -- VCM: think about initial later
-      -- rssInitial              : Initial  -- LIBRA-DIFF, we store the Initial structure;
-      --                                    -- Libra say QuorumCertificateHash, but it's not really one.
-      rssMutablePart          : RecordStoreStateMut (Author rssConfig)
-  open RecordStoreState public
+      -- rssInitiaState       : State
+      rssPool                 : HashMap Hash Record
+      rssCurrentRound         : Round
+      rssCurrentVotes         : HashMap (Author ec) Vote
+  open RecordStoreState
 
-  module _ (rss : RecordStoreState) where
+  _∈RSS_ : Record → RecordStoreState → Set
+  (I _) ∈RSS rs = ⊥ -- The initial record is not really *in* the record store,
+  (B x) ∈RSS rs = hash (encodeR (B x)) ∈HM (rssPool rs)
+  (Q x) ∈RSS rs = hash (encodeR (Q x)) ∈HM (rssPool rs)
 
-   import LibraBFT.Abstract.Records          (ecAbstract (rssConfig rss)) 
-     as AbstractR
-   import LibraBFT.Abstract.RecordStoreState (ecAbstract (rssConfig rss)) hash hash-cr 
-     as AbstractRSS
+  ∈RSS-correct : (rss : RecordStoreState)(r : Record)
+               → r ∈RSS rss → rssPool rss (hash (encodeR r)) ≡ just r
+  ∈RSS-correct rss (B x) (v , prf) = {!!} -- VCM: We'll have to do some magic with hashes here
+  ∈RSS-correct rss (Q x) (v , prf) = {!!}
 
-   _∈Mut_ : AbstractR.Record 
-          → RecordStoreStateMut (Author (rssConfig rss)) 
-          → Set
-   -- The initial record is not really *in* the record store,
-   -- but the record store knows of it, since it has
-   -- the epoch config. Hence, we'll just state that for the pusposes
-   -- of the _←_ relation, there is an initial in there.
-   --
-   -- Recall that the initial record is proof irrelevant.
-   (AbstractR.I _) ∈Mut rs 
-     = Unit
-   (AbstractR.B x) ∈Mut rs 
-     = hash (AbstractR.encodeR (AbstractR.B x)) ∈HM (rssBlocks rs)
-   (AbstractR.Q x) ∈Mut rs 
-     = hash (AbstractR.encodeR (AbstractR.Q x)) ∈HM (rssQCs rs)
+  ∈RSS-correct-⊥ : (rss : RecordStoreState)(r : Record)
+                 → r ∈RSS rss → rssPool rss (hash (encodeR r)) ≡ nothing → ⊥
+  ∈RSS-correct-⊥ = {!!}
 
-   ∈Mut-irrelevant : ∀{r}(p₀ p₁ : r ∈Mut (rssMutablePart rss)) → p₀ ≡ p₁
-   ∈Mut-irrelevant {AbstractR.I x} unit unit = refl
-   ∈Mut-irrelevant {AbstractR.B x} p0 p1     
-     = ∈HM-irrelevant (hash (AbstractR.encodeR (AbstractR.B x))) 
-                      (rssBlocks (rssMutablePart rss)) p0 p1
-   ∈Mut-irrelevant {AbstractR.Q x} p0 p1    
-     = ∈HM-irrelevant (hash (AbstractR.encodeR (AbstractR.Q x))) 
-                      (rssQCs (rssMutablePart rss)) p0 p1
- 
-   -- The abstract interface to RecordStoreState is
-   -- to look at it from a 'Pool of Records' point of view.
-   -- 
-   -- Calling 'AbstractRSS rss' gives us the abstract interpretation 
-   -- of a record store state and enables us to instantiate
-   -- the invariants.
-   abstractRSS : AbstractRSS.isRecordStoreState 
-                   (RecordStoreStateMut (Author (rssConfig rss)))
-   abstractRSS = AbstractRSS.rss (_∈Mut (rssMutablePart rss)) 
-                                  ∈Mut-irrelevant
-                
 
-  emptyRSS : EpochId → EpochConfig → RecordStoreState
-  emptyRSS eid ecfg = record {
-      rssEpochId              = eid
-    ; rssConfig               = ecfg
-    ; rssMutablePart = record {
+  ∈RSS-irrelevant : ∀{r rss}(p₀ p₁ : r ∈RSS rss) → p₀ ≡ p₁
+  ∈RSS-irrelevant {I x} ()
+  ∈RSS-irrelevant {B x} {st} p0 p1     
+    = ∈HM-irrelevant (hash (encodeR (B x))) (rssPool st) p0 p1
+  ∈RSS-irrelevant {Q x} {st} p0 p1    
+    = ∈HM-irrelevant (hash (encodeR (Q x))) (rssPool st) p0 p1
+
+  instance
+    abstractRSS : isRecordStoreState RecordStoreState
+    abstractRSS = record
+      { isInPool            = _∈RSS_ 
+      ; isInPool-irrelevant = ∈RSS-irrelevant
+      }
+
+  --------------------
+  -- The Invariants --
+  --------------------
+
+  Correct : RecordStoreState → Set
+  Correct st = AbstractI.Correct st
+
+  IncreasingRound : RecordStoreState → Set
+  IncreasingRound st = AbstractI.IncreasingRoundRule st
+
+  VotesOnlyOnce : RecordStoreState → Set
+  VotesOnlyOnce st = AbstractI.VotesOnlyOnceRule st
+
+  LockedRound : RecordStoreState → Set₁
+  LockedRound st = AbstractI.LockedRoundRule st
+
+  -- A Valid Record Store State is one where all
+  -- the invariants are respected.
+  record ValidRSS (rss : RecordStoreState) : Set₁ where
+    constructor valid-rss
+    field
+      correct           : Correct rss
+      incr-round-rule   : IncreasingRound rss
+      votes-once-rule   : VotesOnlyOnce rss
+      locked-round-rule : LockedRound rss
+
+  ---------------------
+  -- The Empty State --
+  ---------------------
+
+  emptyRSS : RecordStoreState
+  emptyRSS = record {
      -- ; rssInitial              = init
        -- rssInitiaState   : State
-       rssBlocks               = emptyHM
-     ; rssQCs                  = emptyHM
-     ; rssRoundToQChash        = proj₁ (emptyHM [ 0 := just (ecInitialState ecfg) , _≟ℕ_ ])
-     ; rssCurrentProposedBlock = nothing
-     ; rssHighestQCRound       = 0
-       -- rssHighestTCRound    = 0
+       rssPool                 = emptyHM
      ; rssCurrentRound         = 1
-       -- rssHighest2ChainRound   : Round
-       -- rssHighestCommittedRound : Round
-       -- rssHighestTimoutCertificate : Maybe (List Timeout)
-     -- ; rssCurrentTimeouts      = emptyHM
      ; rssCurrentVotes         = emptyHM
-       -- rssCurrentTimeoutWeight : ℕ  -- LIBRA-DIFF: assume equal weights for now
-       -- rssCurrentElection : ?
-    }}
+    }
 
-  module _ (rss : RecordStoreState) where
+  -- And now this is really trivial
+  emptyRSS-valid : ValidRSS emptyRSS 
+  emptyRSS-valid = 
+    valid-rss (λ { (I _) () })
+              (λ { α hα () q'∈P va va' x }) 
+              (λ { α hα () q'∈P va va' x })
+              (λ { α hα c2 vα (WithRSS.step rc' x {()}) vα' x₁ })
 
-    import LibraBFT.Abstract.Records          
-      (ecAbstract (rssConfig rss))              as AbstractR
+  --------------------------------
+  -- Syntatically Valid Records --
 
-    import LibraBFT.Abstract.RecordStoreState 
-      (ecAbstract (rssConfig rss)) hash hash-cr as AbstractRSS
+  data NetworkRecord : Set where
+    B : BBlock NodeId → NetworkRecord
+    Q : BQC    NodeId → NetworkRecord
+    --- ...
 
-    import LibraBFT.Abstract.RecordStoreState.Invariants
-      (ecAbstract (rssConfig rss)) hash hash-cr as AbstractI
+  -- Employ structural checks on the records when receiving
+  -- them on the wire.
+  check-signature-and-format : Signed NetworkRecord → Maybe Record
+  check-signature-and-format = {!!}
 
-    ValidRSS : Set₁
-    ValidRSS = AbstractI.Correct (abstractRSS rss)
+  --------------------------------
+  -- Semantically Valid Records --
 
-    NoIncreasingRoundBroke : Set₁
-    NoIncreasingRoundBroke = AbstractI.IncreasingRoundRule (abstractRSS rss)
+  -- A record extends some other in a state if there exists
+  -- a record chain in said state that ends on the record supposed
+  -- to be extended
+  data Extends (rss : RecordStoreState) : Record → Set where
+     -- VCM: We might carry more information on this constructor
+     extends : ∀{r r'} → WithRSS.RecordChain rss r 
+             → r ← r' → Extends rss r'
 
-    -- ... same for the others
-    
+  -- 'Extends' must be a decidable; We decide whether a record
+  -- exnteds the state by performing the necessary checks.
+  -- We might need to pass in an 'ValidRSS rss' argument here
+
+  -- VCM: Looks like we will need some sort of DSL to
+  -- be able to assemble this function in a reasonably readable way...
+  extends? : (rss : RecordStoreState)(r : Record) → Dec (Extends rss r)
+  extends? rss (I _) = no (λ { (extends _ ()) })
+  extends? rss (B b)
+    with bPrevQCHash b ≟Hash HashR (I mkInitial)
+  ...| yes prf = yes (extends (WithRSS.empty {hᵢ = mkInitial}) 
+                              (I←B {!!} (sym prf))) -- TODO: Check round?
+  ...| no not-init
+    with rssPool rss (bPrevQCHash b) | inspect (rssPool rss) (bPrevQCHash b)
+  ...| nothing | [ R ] 
+     = no (λ { (extends rc (I←B h r))                        → not-init (sym r) 
+             ; (extends (WithRSS.step {_} {q} _ _ {∈rss}) (Q←B h r)) 
+                  → ∈RSS-correct-⊥ rss q ∈rss (trans (cong (rssPool rss) r) R)
+             })
+  ...| just r | [ R ] = {!!}
+  extends? rss (Q q) = {!!}
 
 
-  -- Now we can prove things about the empty state; for example,
-  -- that is is valid. That is, for all records there exists a record chain
-  -- that ends with it.
-  -- 
-  -- Once its all said and done, this proof should be trivial for there
-  -- are no records in the pool of the empty state.
+  --------------------------
+  -- Insertion of Records --
 
-  emptyRSS-is-valid : (eid : EpochId)(ecfg : EpochConfig) 
-                    → ValidRSS (emptyRSS eid ecfg)
-  emptyRSS-is-valid eid ecfg = λ {(I x) r∈pool → WithRSS.empty}  -- Ugly because we need the things imported in the where clause
-                                                                 -- to pattern match on Record.  We can't import before because
-                                                                 -- the import depends on ecfg, which is a parameter here.  Suggests
-                                                                 -- some surgery is in order.  Go Victor!
-    where open import LibraBFT.Abstract.Records (ecAbstract ecfg)
-          open import LibraBFT.Abstract.RecordChain (ecAbstract ecfg) hash hash-cr 
+  insert : (rss : RecordStoreState)(r : Record) → Extends rss r
+         -- ValidRSS rss ?
+         → RecordStoreState
+  insert = {!!} 
 
-  -- MSM: Maybe it should be "trivial", but I can't do it :-)
-  -- Challenges:
-  --
-  --  When I refine r, it gives me just one case:
-  --       emptyRSS-is-valid eid ecfg {LibraBFT.Abstract.Records.Record.I x} r∈pool = ?
-  --    But then fails to parse it.
-  --
-  --  When trying to construct some simple examples, I can't even figure out how to refer to things
-  --  in other modules when they are nested within other parameterized modules.
-  --
-  --  Maybe we could work on this together.
+  insert-ok : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
+            → ValidRSS rss
+            → ValidRSS (insert rss r ext)
+  insert-ok = {!!}
