@@ -36,7 +36,7 @@ module LibraBFT.Abstract.RecordChain
   -- One way of looking at a 'RecordChain r' is to think of it as 
   -- one path from the epoch's initial record to r.
   data RecordChain : Record → Set where
-    empty : ∀ {hᵢ} → RecordChain (I hᵢ)
+    empty : RecordChain (I mkInitial)
     step  : ∀ {r r'}
           → (rc : RecordChain r) 
           → r ← r'
@@ -192,11 +192,11 @@ module LibraBFT.Abstract.RecordChain
 
   -- LemmaS1-1 states that a record that has been flagged as 'valid' (paper section 4.2)
   -- depends upon the initial record.
-  lemmaS1-1 : {i : Initial}{r : Record}
+  lemmaS1-1 : {r : Record}
             → RecordChain r
-            → (I i) ←⋆ r
-  lemmaS1-1 {i} {i₀} (empty {hᵢ}) rewrite InitialIrrel i hᵢ = ssRefl
-  lemmaS1-1 {i} {r} (step rc ext) = ssStep (lemmaS1-1 rc) ext
+            → (I mkInitial) ←⋆ r
+  lemmaS1-1 empty = ssRefl
+  lemmaS1-1 {r} (step rc ext) = ssStep (lemmaS1-1 rc) ext
 
   -----------------
   -- Commit Rule --

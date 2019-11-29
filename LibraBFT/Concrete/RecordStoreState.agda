@@ -141,7 +141,7 @@ module LibraBFT.Concrete.RecordStoreState
   extends? rss (I _) = no (λ { (extends _ ()) })
   extends? rss (B b)
     with bPrevQCHash b ≟Hash HashR (I mkInitial)
-  ...| yes prf = yes (extends (WithRSS.empty {hᵢ = mkInitial}) 
+  ...| yes prf = yes (extends WithRSS.empty
                               (I←B {!!} (sym prf))) -- TODO: Check round?
   ...| no not-init
     with rssPool rss (bPrevQCHash b) | inspect (rssPool rss) (bPrevQCHash b)
