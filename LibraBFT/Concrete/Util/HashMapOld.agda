@@ -75,6 +75,7 @@ module LibraBFT.Concrete.Util.HashMap where
     with prf | prf'
   ...| refl | refl = refl 
 
+{-
   onlyChangeOne : ∀ {ℓ₁ ℓ₂}{A : Set ℓ₁}{B : Set ℓ₂}
                     {a a′ : A}{b : B}{hm : HashMap A B}
                     {rel : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂))}
@@ -106,6 +107,7 @@ module LibraBFT.Concrete.Util.HashMap where
   ...| inj₁ xx with rel a′ a
   ...|           yes xxx =  sym xxx
   ...|           no  xxx = {! !}
+-}
 
   emptyIsEmpty : ∀ {K : Set} {V : Set} {k : K} → ¬ (k ∈HM emptyHM {K} {V})
   emptyIsEmpty {k = k} = λ ()

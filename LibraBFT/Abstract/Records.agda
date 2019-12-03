@@ -86,6 +86,9 @@ module LibraBFT.Abstract.Records (ec : EpochConfig)
     -- V : Vote      → Record
     -- T : Timeout   → Record
 
+  B≢Q : ∀{b q} → B b ≡ Q q → ⊥
+  B≢Q ()
+
   encRecord : Encoder Record
   encRecord = record 
     { encode     = enc1 

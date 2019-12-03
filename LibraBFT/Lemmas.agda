@@ -82,3 +82,9 @@ module LibraBFT.Lemmas where
  witness {x = x} {xs = []} ()
  witness {P = P } {x = x} {xh ∷ xt} (here px) all = subst P px (All-head all)
  witness {x = x} {xh ∷ xt} (there x∈xt) all = witness x∈xt (All-tail all)
+
+ maybe-⊥ : ∀{a}{A : Set a}{x : A}{y : Maybe A}
+         → y ≡ just x
+         → y ≡ nothing
+         → ⊥
+ maybe-⊥ () refl

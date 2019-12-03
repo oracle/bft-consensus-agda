@@ -1,9 +1,8 @@
 open import LibraBFT.Prelude
+  hiding (lookup)
 open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-
-open import LibraBFT.Concrete.Util.HashMap
 
 module LibraBFT.Concrete.RecordStoreState
     -- A Hash function maps a bytestring into a hash.
@@ -20,44 +19,56 @@ module LibraBFT.Concrete.RecordStoreState
   import      LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
     as AbstractI
 
+  hashRecord : Record → Hash
+  hashRecord = hash ∘ encodeR
+
+  open import LibraBFT.Concrete.Util.HashSet hashRecord
+
   -- VCM: I'm simplifying this abruptly; we should only
   --      add fields here as needed
   record RecordStoreState : Set where
     constructor mkRecordStoreState
     field
       -- rssInitiaState       : State
-      rssPool                 : HashMap Hash Record
+      rssPool                 : HashSet
       rssCurrentRound         : Round
-      rssCurrentVotes         : HashMap (Author ec) Vote
+      -- rssCurrentVotes         : HashMap (Author ec) Vote
   open RecordStoreState
 
   _∈RSS_ : Record → RecordStoreState → Set
-  (I _) ∈RSS rs = ⊥ -- The initial record is not really *in* the record store,
-  (B x) ∈RSS rs = hash (encodeR (B x)) ∈HM (rssPool rs)
-  (Q x) ∈RSS rs = hash (encodeR (Q x)) ∈HM (rssPool rs)
+  (I _) ∈RSS rs = Unit -- The initial record is not really *in* the record store,
+  (B x) ∈RSS rs = (B x) ∈HS (rssPool rs)
+  (Q x) ∈RSS rs = (Q x) ∈HS (rssPool rs)
 
+  _∈RSS?_ : (r : Record)(rss : RecordStoreState) → Dec (r ∈RSS rss)
+  (I _) ∈RSS? rss = yes unit
+  (B b) ∈RSS? rss = (B b) ∈HS? (rssPool rss)
+  (Q b) ∈RSS? rss = (Q b) ∈HS? (rssPool rss)
+
+{-
   ∈RSS-correct : (rss : RecordStoreState)(r : Record)
-               → r ∈RSS rss → rssPool rss (hash (encodeR r)) ≡ just r
-  ∈RSS-correct rss (B x) (v , prf) = {!!} -- VCM: We'll have to do some magic with hashes here
-  ∈RSS-correct rss (Q x) (v , prf) = {!!}
+               → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ just r
+  ∈RSS-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
+  ∈RSS-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
 
   ∈RSS-correct-⊥ : (rss : RecordStoreState)(r : Record)
-                 → r ∈RSS rss → rssPool rss (hash (encodeR r)) ≡ nothing → ⊥
+                 → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
   ∈RSS-correct-⊥ = {!!}
+-}
 
 
   ∈RSS-irrelevant : ∀{r rss}(p₀ p₁ : r ∈RSS rss) → p₀ ≡ p₁
-  ∈RSS-irrelevant {I x} ()
+  ∈RSS-irrelevant {I x} unit unit = refl
   ∈RSS-irrelevant {B x} {st} p0 p1     
-    = ∈HM-irrelevant (hash (encodeR (B x))) (rssPool st) p0 p1
+    = ∈HS-irrelevant (B x) (rssPool st) p0 p1
   ∈RSS-irrelevant {Q x} {st} p0 p1    
-    = ∈HM-irrelevant (hash (encodeR (Q x))) (rssPool st) p0 p1
+    = ∈HS-irrelevant (Q x) (rssPool st) p0 p1
 
   instance
     abstractRSS : isRecordStoreState RecordStoreState
     abstractRSS = record
-      { isInPool            = _∈RSS_ 
-      ; isInPool-irrelevant = ∈RSS-irrelevant
+      { isInPool            = λ r rss     → r ∈HS (rssPool rss)
+      ; isInPool-irrelevant = λ {rss} {r} → ∈HS-irrelevant r (rssPool rss)
       }
 
   --------------------
@@ -94,18 +105,21 @@ module LibraBFT.Concrete.RecordStoreState
   emptyRSS = record {
      -- ; rssInitial              = init
        -- rssInitiaState   : State
-       rssPool                 = emptyHM
+       rssPool                 = empty
      ; rssCurrentRound         = 1
-     ; rssCurrentVotes         = emptyHM
+     -- ; rssCurrentVotes         = empty
     }
 
   -- And now this is really trivial
   emptyRSS-valid : ValidRSS emptyRSS
   emptyRSS-valid =
-    valid-rss (λ { (I _) () })
-              (λ { _ _ () _ _ _ _ })
-              (λ { _ _ () _ _ _ _ })
-              (λ { _ _ _ _ (WithRSS.step _ _ {()}) _ _ })
+    valid-rss (λ { (I _) abs → ⊥-elim (∈HS-empty-⊥ abs)
+                 ; (B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
+                 ; (Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
+              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
+              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
+              (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
+                 → ⊥-elim (∈HS-empty-⊥ abs) })
 
   --------------------------------
   -- Syntatically Valid Records --
@@ -129,51 +143,98 @@ module LibraBFT.Concrete.RecordStoreState
   data Extends (rss : RecordStoreState) : Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
-             → (rInPool : isInPool abstractRSS r rss)
+             → (rInPool : r ∈RSS rss)
+             -- We will not allow insertion of a Record whose hash
+             -- collides with one already in the RecordStore.
+             -- Otherwise we'll have to carry HashBroke around on
+             -- most/all properties.
+             → (r'New   : ¬ (r' ∈RSS rss))
              → r ← r'
-             → ¬ isInPool abstractRSS r' rss  -- We will not allow insertion of a Record whose hash
-                                              -- collides with one already in the RecordStore.
-                                              -- Otherwise we'll have to carry HashBroke around on
-                                              -- most/all properties.
              → Extends rss r'
 
 {-
   -- MSM: Why is this needed?
+  -- VCM: This is the function that should do all the checks and
+  --      pass that through a proof object 'Extends'
+  --      
+  --
   -- 'Extends' must be a decidable; We decide whether a record
   -- exnteds the state by performing the necessary checks.
   -- We might need to pass in an 'ValidRSS rss' argument here
+-}
+
+  extends-Q? : (rss : RecordStoreState)(q : QC)
+             → ¬ ((Q q) ∈RSS rss)
+             → Dec (Extends rss (Q q)) 
+  extends-Q? rss q qNew = {!!}
+
+  extends-B? : (rss : RecordStoreState)(b : Block)
+             → ¬ ((B b) ∈RSS rss)
+             → Dec (Extends rss (B b)) 
+  extends-B? rss b bNew 
+  -- 1. Are we extending the initial record?
+    with bPrevQCHash b ≟Hash hashRecord (I mkInitial)
+  ...| yes refl  = yes (extends {r = I mkInitial} unit bNew 
+                                (I←B {!!} refl)) -- TODO: make the round check.
+  ...| no  ¬Init
+  -- 2. Ok, if not the initial, which one? We must look it up.
+    with lookup (rssPool rss) (bPrevQCHash b)
+       | inspect (lookup (rssPool rss)) (bPrevQCHash b)
+  -- 2.1 case nothing was found, it does not extend.
+  ...| nothing | [ R ] 
+     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
+             ; (extends a b (Q←B c refl)) → maybe-⊥ (lookup-correct _ _ a) R 
+             })
+  -- 2.2 case we found the initial contradicts the check at (1)
+  ...| just (I mkInitial) | [ R ] 
+     = ⊥-elim (¬Init (lookup-correct' (bPrevQCHash b) (rssPool rss) R))
+  -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
+  ...| just (B _) | [ R ]
+     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
+             ; (extends a b (Q←B c refl)) 
+               → B≢Q (just-injective (trans (sym R) (lookup-correct _ _ a)))
+             })
+  -- 2.4 case we found a QC, it might extend
+  ...| just (Q q) | [ R ] 
+  -- 2.4.1 Is block round strictly greater than the QC it extends?
+     with suc (qRound (qBase q)) ≤? bRound b
+  -- 2.4.1.1 No; the rounds are not ok.
+  ...| no round-nok 
+     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
+             ; (extends a b (Q←B c refl)) 
+                 → round-nok (≤-trans (≡⇒≤ {!lookup-correct' _ _ R!}) c) 
+                                          -- VCM: a-ha! I can prove that the hash of q
+                                          -- is the same as the hash of q₁, but
+                                          -- seems like the HashSet will need
+                                          -- to provide some guarantees
+             })
+  -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
+  --         VCM: Shouldn't we perform additional checks?
+  ...| yes round-ok = yes (extends (lookup-correct'' _ _ R) bNew 
+                             (Q←B {q} round-ok (sym (lookup-correct' _ _ R))))
 
   -- VCM: Looks like we will need some sort of DSL to
   -- be able to assemble this function in a reasonably readable way...
   extends? : (rss : RecordStoreState)(r : Record) → Dec (Extends rss r)
-  extends? rss (I _) = no (λ { (extends _ ()) })
-  extends? rss (B b)
-    with bPrevQCHash b ≟Hash HashR (I mkInitial)
-  ...| yes prf = yes (extends WithRSS.empty
-                              (I←B {!!} (sym prf))) -- TODO: Check round?
-  ...| no not-init
-    with rssPool rss (bPrevQCHash b) | inspect (rssPool rss) (bPrevQCHash b)
-  ...| nothing | [ R ] 
-     = no (λ { (extends rc (I←B h r))                        → not-init (sym r) 
-             ; (extends (WithRSS.step {_} {q} _ _ {∈rss}) (Q←B h r)) 
-                  → ∈RSS-correct-⊥ rss q ∈rss (trans (cong (rssPool rss) r) R)
-             })
-  ...| just r | [ R ] = {!!}
-  extends? rss (Q q) = {!!}
--}
+  extends? rss r with r ∈RSS? rss
+  ...| yes ¬rNew = no (λ { (extends _ rNew _) → rNew ¬rNew })
+  ...| no   rNew with r 
+  ...| I i = no (λ { (extends _ _ ()) })
+  ...| B b = extends-B? rss b rNew
+  ...| Q q = extends-Q? rss q rNew
 
   --------------------------
   -- Insertion of Records --
 
+{-
   insert : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
          → RecordStoreState
-  insert rss r′ _ = record rss { rssPool = proj₁ (rssPool rss [ HashR r′ := just r′ , _≟Hash_ ]) }
+  insert rss r′ _ = {!!} -- record rss { rssPool = proj₁ (rssPool rss [ HashR r′ := just r′ , _≟Hash_ ]) }
 
   insert-ok-correct : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
             → ValidRSS rss
             → Correct (insert rss r′ ext)
   insert-ok-correct rss r′ (extends {r} {r′} rInPool r←r′ r′NotInPool) vrss r₂ r₂∈post = {!!}
-
 {-
 
 If r₂ ∈RSS rss, then by (correct vrss), there is a RecordChain r₂, we need to prove the same
@@ -210,3 +271,4 @@ use rInPool to find a RecordChain r, and extend it with r←r′ to construct th
       (insert-ok-increasing-round rss r ext vrss)
       (insert-ok-votes-only-once  rss r ext vrss)
       (insert-ok-locked-round     rss r ext vrss)
+-}
