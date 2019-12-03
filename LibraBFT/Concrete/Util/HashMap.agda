@@ -75,6 +75,38 @@ module LibraBFT.Concrete.Util.HashMap where
     with prf | prf'
   ...| refl | refl = refl 
 
+  onlyChangeOne : ∀ {ℓ₁ ℓ₂}{A : Set ℓ₁}{B : Set ℓ₂}
+                    {a a′ : A}{b : B}{hm : HashMap A B}
+                    {rel : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂))}
+                    {prop}
+                → (after : HashMap A B)
+                → proj₁ (hm [ a := just b , rel ]) ≡ after
+                → proj₂ (hm [ a := just b , rel ]) ≡ prop
+                → a′ ≢ a
+                → after a′ ≡ hm a′
+  onlyChangeOne {a = a}{a′ = a′}{rel = rel}{prop = prop} after p₁ p₂ a′≢a with prop a′
+  ...| inj₂ xx = ⊥-elim (a′≢a (proj₁ xx))
+  ...| inj₁ xx with rel a′ a
+  ...|           yes xxx = {!!}
+  ...|           no  xxx = {!!}
+
+
+  onlyInsertOne : ∀ {ℓ₁ ℓ₂}{A : Set ℓ₁}{B : Set ℓ₂}
+                    {a a′ : A}{b : B}{hm : HashMap A B}
+                    {rel : (a₁ : A) → (a₂ : A) → (Dec (a₁ ≡ a₂))}
+                    {prop}
+                → (after : HashMap A B)
+                → proj₁ (hm [ a := just b , rel ]) ≡ after
+                → proj₂ (hm [ a := just b , rel ]) ≡ prop
+                → a′ ∈HM after
+                → ¬ a′ ∈HM hm
+                → a ≡ a′
+  onlyInsertOne {a = a}{a′ = a′}{rel = rel}{prop = prop} after afterCorrect afterProp inAfter notInBefore with prop a′
+  ...| inj₂ xx = sym (proj₁ xx)
+  ...| inj₁ xx with rel a′ a
+  ...|           yes xxx =  sym xxx
+  ...|           no  xxx = {! !}
+
   emptyIsEmpty : ∀ {K : Set} {V : Set} {k : K} → ¬ (k ∈HM emptyHM {K} {V})
   emptyIsEmpty {k = k} = λ ()
 

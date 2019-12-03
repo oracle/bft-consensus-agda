@@ -128,9 +128,17 @@ module LibraBFT.Concrete.RecordStoreState
   -- to be extended
   data Extends (rss : RecordStoreState) : Record → Set where
      -- VCM: We might carry more information on this constructor
-     extends : ∀{r r'} → WithRSS.RecordChain rss r 
-             → r ← r' → Extends rss r'
+     extends : ∀{r r'}
+             → (rInPool : isInPool abstractRSS r rss)
+             → r ← r'
+             → ¬ isInPool abstractRSS r' rss  -- We will not allow insertion of a Record whose hash
+                                              -- collides with one already in the RecordStore.
+                                              -- Otherwise we'll have to carry HashBroke around on
+                                              -- most/all properties.
+             → Extends rss r'
 
+{-
+  -- MSM: Why is this needed?
   -- 'Extends' must be a decidable; We decide whether a record
   -- exnteds the state by performing the necessary checks.
   -- We might need to pass in an 'ValidRSS rss' argument here
@@ -152,17 +160,53 @@ module LibraBFT.Concrete.RecordStoreState
              })
   ...| just r | [ R ] = {!!}
   extends? rss (Q q) = {!!}
-
+-}
 
   --------------------------
   -- Insertion of Records --
 
-  insert : (rss : RecordStoreState)(r : Record) → Extends rss r
-         -- ValidRSS rss ?
+  insert : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
          → RecordStoreState
-  insert = {!!} 
+  insert rss r′ _ = record rss { rssPool = proj₁ (rssPool rss [ HashR r′ := just r′ , _≟Hash_ ]) }
+
+  insert-ok-correct : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
+            → ValidRSS rss
+            → Correct (insert rss r′ ext)
+  insert-ok-correct rss r′ (extends {r} {r′} rInPool r←r′ r′NotInPool) vrss r₂ r₂∈post = {!!}
+
+{-
+
+If r₂ ∈RSS rss, then by (correct vrss), there is a RecordChain r₂, we need to prove the same
+RecordChain works also for (insert rss r′ ext).
+
+If ¬ (r₂ ∈RSS rss), then by r₂∈post and (something like) HashMap.onlyInsertOne, r₂ ≡ r′, so we can
+use rInPool to find a RecordChain r, and extend it with r←r′ to construct the needed RecordChain.
+
+-}
+
+  -- NOTE: the following are mindlessly copied from insert-ok-correct, may not be what we want
+
+  insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
+            → ValidRSS rss
+            → IncreasingRound (insert rss r ext)
+  insert-ok-increasing-round rss r ext vrss = {!!}
+
+  insert-ok-votes-only-once : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
+            → ValidRSS rss
+            → VotesOnlyOnce (insert rss r ext)
+  insert-ok-votes-only-once rss r ext vrss = {!!}
+
+  insert-ok-locked-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
+            → ValidRSS rss
+            → LockedRound (insert rss r ext)
+  insert-ok-locked-round rss r ext vrss = {!!}
 
   insert-ok : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
             → ValidRSS (insert rss r ext)
-  insert-ok = {!!}
+  insert-ok rss r ext vrss =
+    valid-rss
+      (insert-ok-correct          rss r ext vrss)
+      (insert-ok-increasing-round rss r ext vrss)
+      (insert-ok-votes-only-once  rss r ext vrss)
+      (insert-ok-locked-round     rss r ext vrss)
