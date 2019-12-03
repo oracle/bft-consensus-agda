@@ -100,12 +100,12 @@ module LibraBFT.Concrete.RecordStoreState
     }
 
   -- And now this is really trivial
-  emptyRSS-valid : ValidRSS emptyRSS 
-  emptyRSS-valid = 
+  emptyRSS-valid : ValidRSS emptyRSS
+  emptyRSS-valid =
     valid-rss (λ { (I _) () })
-              (λ { α hα () q'∈P va va' x }) 
-              (λ { α hα () q'∈P va va' x })
-              (λ { α hα c2 vα (WithRSS.step rc' x {()}) vα' x₁ })
+              (λ { _ _ () _ _ _ _ })
+              (λ { _ _ () _ _ _ _ })
+              (λ { _ _ _ _ (WithRSS.step _ _ {()}) _ _ })
 
   --------------------------------
   -- Syntatically Valid Records --
