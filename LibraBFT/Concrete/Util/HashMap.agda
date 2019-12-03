@@ -61,6 +61,11 @@ module LibraBFT.Concrete.Util.HashMap where
   _∈HM_ : ∀ {ℓ₁ ℓ₂}{K : Set ℓ₁} {V : Set ℓ₂} (k : K) → HashMap K V → Set ℓ₂
   k ∈HM hm = ∃[ v ]( hm k ≡ just v )
 
+  _∈HM?_ : ∀ {ℓ₁ ℓ₂}{K : Set ℓ₁} {V : Set ℓ₂} → (k : K) → (hm : HashMap K V) → Dec (k ∈HM hm)
+  k ∈HM? hm with hm k
+  ...| just x  = yes ((x , refl))
+  ...| nothing = no (λ ())
+
   ∈HM-irrelevant : ∀{ℓ₁ ℓ₂}{K : Set ℓ₁}{V : Set ℓ₂}(k : K)
                  → (m : HashMap K V)(p₀ p₁ : k ∈HM m)
                  → p₀ ≡ p₁
