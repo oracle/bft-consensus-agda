@@ -89,6 +89,9 @@ module LibraBFT.Abstract.Records (ec : EpochConfig)
   B≢Q : ∀{b q} → B b ≡ Q q → ⊥
   B≢Q ()
 
+  Q-injective : ∀{q q'} → Q q ≡ Q q' → q ≡ q'
+  Q-injective refl = refl
+
   encRecord : Encoder Record
   encRecord = record 
     { encode     = enc1 

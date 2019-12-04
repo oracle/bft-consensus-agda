@@ -212,24 +212,54 @@ module LibraBFT.Concrete.RecordStoreState
   --------------------------
   -- Insertion of Records --
 
-{-
-  insert : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
+  insert : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
          → RecordStoreState
-  insert rss r′ _ = {!!} -- record rss { rssPool = proj₁ (rssPool rss [ HashR r′ := just r′ , _≟Hash_ ]) }
+  insert rss r' _ = record rss 
+     {rssPool = hs-insert (rssPool rss) r'
+     }
 
-  insert-ok-correct : (rss : RecordStoreState)(r′ : Record)(ext : Extends rss r′)
+  RecordChain-grow
+    : {rss rss' : RecordStoreState}{s : Record} 
+    → (∀ {r} → r ∈RSS rss → r ∈RSS rss')
+    → WithRSS.RecordChain rss s → WithRSS.RecordChain rss' s
+  RecordChain-grow f WithRSS.empty           
+    = WithRSS.empty
+  RecordChain-grow f (WithRSS.step rc x {p}) 
+    = WithRSS.step (RecordChain-grow f rc) x {f p}
+
+  insert-stable : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
+                → {r : Record}
+                → r ∈RSS rss
+                → r ∈RSS (insert rss r' ext)
+  insert-stable ext {I x} hyp = unit
+  insert-stable ext {B x} hyp = hs-insert-stable hyp
+  insert-stable ext {Q x} hyp = hs-insert-stable hyp
+
+  insert-target : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
+                → {r : Record}
+                → ¬ (r ∈RSS rss)
+                → r ∈RSS (insert rss r' ext)
+                → r ≡ r'
+  insert-target ext {I x} neg hyp = ⊥-elim (neg hyp)
+  insert-target ext {B x} neg hyp = hs-insert-target neg hyp
+  insert-target ext {Q x} neg hyp = hs-insert-target neg hyp
+
+  insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
+              → r' ∈RSS insert rss r' ext
+  insert-∈RSS = {!!}
+
+  insert-ok-correct : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
             → ValidRSS rss
-            → Correct (insert rss r′ ext)
-  insert-ok-correct rss r′ (extends {r} {r′} rInPool r←r′ r′NotInPool) vrss r₂ r₂∈post = {!!}
-{-
-
-If r₂ ∈RSS rss, then by (correct vrss), there is a RecordChain r₂, we need to prove the same
-RecordChain works also for (insert rss r′ ext).
-
-If ¬ (r₂ ∈RSS rss), then by r₂∈post and (something like) HashMap.onlyInsertOne, r₂ ≡ r′, so we can
-use rInPool to find a RecordChain r, and extend it with r←r′ to construct the needed RecordChain.
-
--}
+            → Correct (insert rss r' ext)
+  insert-ok-correct rss r' ext vrss s s∈post 
+    with s ∈RSS? rss
+  ...| yes s∈rss = RecordChain-grow (insert-stable ext) (ValidRSS.correct vrss s s∈rss)
+  ...| no  s∉rss 
+    rewrite insert-target ext s∉rss s∈post 
+    with ext
+  ...| extends {r = r} a b r←r'
+     = WithRSS.step (RecordChain-grow (insert-stable ext) (ValidRSS.correct vrss r a)) 
+                    r←r' {insert-∈RSS ext}
 
   -- NOTE: the following are mindlessly copied from insert-ok-correct, may not be what we want
 
@@ -238,10 +268,35 @@ use rInPool to find a RecordChain r, and extend it with r←r′ to construct th
             → IncreasingRound (insert rss r ext)
   insert-ok-increasing-round rss r ext vrss = {!!}
 
+  -- If we have two proofs that α voted in QC q; these proofs
+  -- are the same. Here is where we need the IsSorted inside
+  -- the qc! :)
+  ∈QC-Vote-prop 
+    : {α : Author ec}(q : QC) → (vα vα' : α ∈QC q) → vα ≡ vα'
+  ∈QC-Vote-prop = {!!}
+
   insert-ok-votes-only-once : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
             → VotesOnlyOnce (insert rss r ext)
-  insert-ok-votes-only-once rss r ext vrss = {!!}
+  insert-ok-votes-only-once rss r ext vrss α hα {q} {q'} q∈rss q'∈rss vα vα' ord 
+  -- 1. Are these old QCs or did we just insert them?
+    with (Q q) ∈RSS? rss | (Q q') ∈RSS? rss
+  -- 1.1 Yes, they are old. Easy! Rely on the hypothesis that the previous
+  --     state was correct.
+  ...| yes qOld | yes q'Old 
+     = ValidRSS.votes-once-rule vrss α hα qOld q'Old vα vα' ord
+  -- 1.2 No! One is old but the other is newly inserted. This must be impossible.
+  --     We must add things to 'Extends' to be able to eliminate these two cases. 
+  ...| no  qNew | yes q'Old = {!!}
+  ...| yes qOld | no  q'New = {!!}
+  -- 1.3 Both QCs are new; hence must have been inserted
+  --     now. This means that they must be equal; we rewrite on that and continue.
+  ...| no  qNew | no  q'New 
+    with trans (insert-target ext {Q q'} q'New q'∈rss) 
+          (sym (insert-target ext {Q q} qNew q∈rss))
+  ...| q≡q' rewrite Q-injective q≡q' 
+                  | ∈QC-Vote-prop q vα vα' 
+                  = refl
 
   insert-ok-locked-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
@@ -257,4 +312,3 @@ use rInPool to find a RecordChain r, and extend it with r←r′ to construct th
       (insert-ok-increasing-round rss r ext vrss)
       (insert-ok-votes-only-once  rss r ext vrss)
       (insert-ok-locked-round     rss r ext vrss)
--}

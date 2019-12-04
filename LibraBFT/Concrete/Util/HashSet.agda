@@ -17,6 +17,7 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
     lookup         : HashSet → Hash → Maybe Key
     _∈HS?_         : (k : Key)(h : HashSet)
                    → Dec (k ∈HS h) 
+    hs-insert      : HashSet → Key → HashSet
 
     -- properties
     lookup-correct : (k : Key)(hs : HashSet)
@@ -31,7 +32,13 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
                      → lookup hs h ≡ just k
                      → k ∈HS hs
 
-
-
+    hs-insert-stable : ∀{k k' hs}
+                     → k' ∈HS hs
+                     → k' ∈HS (hs-insert hs k)
+                  
+    hs-insert-target : ∀{k k' hs}
+                     → ¬ (k' ∈HS hs)
+                     → k' ∈HS (hs-insert hs k)
+                     → k' ≡ k
 
     ∈HS-empty-⊥ : {k : Key} → k ∈HS empty → ⊥
