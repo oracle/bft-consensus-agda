@@ -13,6 +13,7 @@ module LibraBFT.Concrete.RecordStoreState
  where
 
   open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.BFT                                      ec 
   open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
   open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
   open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
@@ -281,6 +282,16 @@ module LibraBFT.Concrete.RecordStoreState
     : {α : Author ec}(q : QC) → (vα vα' : α ∈QC q) → vα ≡ vα'
   ∈QC-Vote-prop = {!!}
 
+  data Dishonest (α : Author ec) : Set where
+    same-order-diff-qcs 
+      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
+      → q ≢ q'
+      → vOrder (∈QC-Vote q vα) ≡ vOrder (∈QC-Vote q' vα')
+      → Dishonest α
+
+  postulate
+    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
+
   insert-ok-votes-only-once : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
             → VotesOnlyOnce (insert rss r ext)
@@ -293,7 +304,14 @@ module LibraBFT.Concrete.RecordStoreState
      = ValidRSS.votes-once-rule vrss α hα qOld q'Old vα vα' ord
   -- 1.2 No! One is old but the other is newly inserted. This must be impossible.
   --     We must add things to 'Extends' to be able to eliminate these two cases. 
-  ...| no  qNew | yes q'Old = {!!}
+  ...| no  qNew | yes q'Old 
+     -- But wait. If q has been inserted but not q'; but at
+     -- the same time we have a proof that q extends the state, 
+     -- the rounds of the QC's must be different, which render
+     -- the QC's different altogether. Hence, α is Dishonest and
+     -- we have proof!
+     = ⊥-elim (ACCOUNTABILITY-OPP hα 
+                (same-order-diff-qcs {α} {q} {q'} vα vα' {!!} ord)) 
   ...| yes qOld | no  q'New = {!!}
   -- 1.3 Both QCs are new; hence must have been inserted
   --     now. This means that they must be equal; we rewrite on that and continue.
