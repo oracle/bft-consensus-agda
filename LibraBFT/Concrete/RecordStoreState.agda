@@ -218,6 +218,12 @@ module LibraBFT.Concrete.RecordStoreState
      {rssPool = hs-insert (rssPool rss) r'
      }
 
+  ---------------------
+  -- IS CORRECT RULE --
+
+  -- We can always inject a record chain from a recordstorestate
+  -- into another by proving the later contains at least all the
+  -- records of the former.
   RecordChain-grow
     : {rss rss' : RecordStoreState}{s : Record} 
     → (∀ {r} → r ∈RSS rss → r ∈RSS rss')
@@ -227,6 +233,7 @@ module LibraBFT.Concrete.RecordStoreState
   RecordChain-grow f (WithRSS.step rc x {p}) 
     = WithRSS.step (RecordChain-grow f rc) x {f p}
 
+  -- Inserting does not loose any records.
   insert-stable : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
                 → {r : Record}
                 → r ∈RSS rss
@@ -235,6 +242,8 @@ module LibraBFT.Concrete.RecordStoreState
   insert-stable ext {B x} hyp = hs-insert-stable hyp
   insert-stable ext {Q x} hyp = hs-insert-stable hyp
 
+  -- If a record is not in store before insertion, but it is after
+  -- the insertion, this record must have been the inserted one.
   insert-target : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
                 → {r : Record}
                 → ¬ (r ∈RSS rss)
@@ -244,6 +253,7 @@ module LibraBFT.Concrete.RecordStoreState
   insert-target ext {B x} neg hyp = hs-insert-target neg hyp
   insert-target ext {Q x} neg hyp = hs-insert-target neg hyp
 
+  -- Inserting a record is provably correct.
   insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
               → r' ∈RSS insert rss r' ext
   insert-∈RSS = {!!}
@@ -261,12 +271,8 @@ module LibraBFT.Concrete.RecordStoreState
      = WithRSS.step (RecordChain-grow (insert-stable ext) (ValidRSS.correct vrss r a)) 
                     r←r' {insert-∈RSS ext}
 
-  -- NOTE: the following are mindlessly copied from insert-ok-correct, may not be what we want
-
-  insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
-            → ValidRSS rss
-            → IncreasingRound (insert rss r ext)
-  insert-ok-increasing-round rss r ext vrss = {!!}
+  ---------------------
+  -- VOTES ONCE RULE --
 
   -- If we have two proofs that α voted in QC q; these proofs
   -- are the same. Here is where we need the IsSorted inside
@@ -297,6 +303,11 @@ module LibraBFT.Concrete.RecordStoreState
   ...| q≡q' rewrite Q-injective q≡q' 
                   | ∈QC-Vote-prop q vα vα' 
                   = refl
+
+  insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
+            → ValidRSS rss
+            → IncreasingRound (insert rss r ext)
+  insert-ok-increasing-round rss r ext vrss = {!!}
 
   insert-ok-locked-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
