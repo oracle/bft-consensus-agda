@@ -166,61 +166,46 @@ module LibraBFT.Concrete.RecordStoreState
 
   extends-Q? : (rss : RecordStoreState)(q : QC)
              → ¬ ((Q q) ∈RSS rss)
-             → Dec (Extends rss (Q q)) 
+             → Maybe (Extends rss (Q q)) 
   extends-Q? rss q qNew = {!!}
 
   extends-B? : (rss : RecordStoreState)(b : Block)
              → ¬ ((B b) ∈RSS rss)
-             → Dec (Extends rss (B b)) 
+             → Maybe (Extends rss (B b)) 
   extends-B? rss b bNew 
   -- 1. Are we extending the initial record?
     with bPrevQCHash b ≟Hash hashRecord (I mkInitial)
-  ...| yes refl  = yes (extends {r = I mkInitial} unit bNew 
+  ...| yes refl  = just (extends {r = I mkInitial} unit bNew 
                                 (I←B {!!} refl)) -- TODO: make the round check.
   ...| no  ¬Init
   -- 2. Ok, if not the initial, which one? We must look it up.
     with lookup (rssPool rss) (bPrevQCHash b)
        | inspect (lookup (rssPool rss)) (bPrevQCHash b)
   -- 2.1 case nothing was found, it does not extend.
-  ...| nothing | [ R ] 
-     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
-             ; (extends a b (Q←B c refl)) → maybe-⊥ (lookup-correct _ _ a) R 
-             })
+  ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
   ...| just (I mkInitial) | [ R ] 
      = ⊥-elim (¬Init (lookup-correct' (bPrevQCHash b) (rssPool rss) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
-  ...| just (B _) | [ R ]
-     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
-             ; (extends a b (Q←B c refl)) 
-               → B≢Q (just-injective (trans (sym R) (lookup-correct _ _ a)))
-             })
+  ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
   ...| just (Q q) | [ R ] 
   -- 2.4.1 Is block round strictly greater than the QC it extends?
      with suc (qRound (qBase q)) ≤? bRound b
   -- 2.4.1.1 No; the rounds are not ok.
-  ...| no round-nok 
-     = no (λ { (extends a b (I←B c d))    → ¬Init (sym d) 
-             ; (extends a b (Q←B c refl)) 
-                 → round-nok (≤-trans (≡⇒≤ {!lookup-correct' _ _ R!}) c) 
-                                          -- VCM: a-ha! I can prove that the hash of q
-                                          -- is the same as the hash of q₁, but
-                                          -- seems like the HashSet will need
-                                          -- to provide some guarantees
-             })
+  ...| no round-nok = nothing
   -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
   --         VCM: Shouldn't we perform additional checks?
-  ...| yes round-ok = yes (extends (lookup-correct'' _ _ R) bNew 
+  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) bNew 
                              (Q←B {q} round-ok (sym (lookup-correct' _ _ R))))
 
   -- VCM: Looks like we will need some sort of DSL to
   -- be able to assemble this function in a reasonably readable way...
-  extends? : (rss : RecordStoreState)(r : Record) → Dec (Extends rss r)
+  extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
   extends? rss r with r ∈RSS? rss
-  ...| yes ¬rNew = no (λ { (extends _ rNew _) → rNew ¬rNew })
+  ...| yes ¬rNew = nothing -- no (λ { (extends _ rNew _) → rNew ¬rNew })
   ...| no   rNew with r 
-  ...| I i = no (λ { (extends _ _ ()) })
+  ...| I i = nothing -- no (λ { (extends _ _ ()) })
   ...| B b = extends-B? rss b rNew
   ...| Q q = extends-Q? rss q rNew
 
