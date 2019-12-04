@@ -67,8 +67,8 @@ module LibraBFT.Concrete.RecordStoreState
   instance
     abstractRSS : isRecordStoreState RecordStoreState
     abstractRSS = record
-      { isInPool            = λ r rss     → r ∈HS (rssPool rss)
-      ; isInPool-irrelevant = λ {rss} {r} → ∈HS-irrelevant r (rssPool rss)
+      { isInPool            = _∈RSS_
+      ; isInPool-irrelevant = ∈RSS-irrelevant
       }
 
   --------------------
@@ -113,7 +113,7 @@ module LibraBFT.Concrete.RecordStoreState
   -- And now this is really trivial
   emptyRSS-valid : ValidRSS emptyRSS
   emptyRSS-valid =
-    valid-rss (λ { (I _) abs → ⊥-elim (∈HS-empty-⊥ abs)
+    valid-rss (λ { (I mkInitial) _  → WithRSS.empty
                  ; (B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
                  ; (Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
@@ -151,6 +151,7 @@ module LibraBFT.Concrete.RecordStoreState
              → (r'New   : ¬ (r' ∈RSS rss))
              → r ← r'
              → Extends rss r'
+
 
 {-
   -- MSM: Why is this needed?
