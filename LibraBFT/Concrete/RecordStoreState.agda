@@ -254,6 +254,19 @@ module LibraBFT.Concrete.RecordStoreState
   insert-target ext {B x} neg hyp = hs-insert-target neg hyp
   insert-target ext {Q x} neg hyp = hs-insert-target neg hyp
 
+  -- MSM: I don't think this property holds assuming all the postulates in HashSet hold.
+
+  -- If there is an r : r ≢ r', r ∈RSS rss, and hashRecord r ≡ hashRecord r', then by
+  -- HashSet.insert-stable {k' = r}, r ∈RSS insert rss r' ext must hold.  By HashSet.lookup-correct,
+  -- that implies lookup (insert rss r' ext) (hashRecord r) ≡ just r.
+  --
+  -- Similarly, r' ∈RSS insert rss r' ext implies lookup (insert rss r' ext) (hashRecord r') ≡
+  -- lookup (insert rss r' ext) (hashRecord r) ≡ just r', which contradicts the conclusion above.
+
+  -- This convinces me that we need to make insert require proof that there is no record with the
+  -- same hash already in the RecordStore, not just that the to-be-added record is not in it.  I am
+  -- going to experiment with that next.
+
   -- Inserting a record is provably correct.
   insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
               → r' ∈RSS insert rss r' ext

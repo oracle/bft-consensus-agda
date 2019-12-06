@@ -32,6 +32,14 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
                      → lookup hs h ≡ just k
                      → k ∈HS hs
 
+    -- MSM: This property (together with lookup-correct) implies that if k is inserted and k' ≢ k
+    -- such that hashK k' ≡ hashK k is already in the hash set, then k must not be inserted.  But
+    -- that leads to counterintuitive results as it currently stands because we can perform an
+    -- insert that does not take effect.  We should have a property hs-insert-works that says if we
+    -- insert something then it's in afterwards, and require insert to take evidence that we can
+    -- perform the requested insert.
+
+
     hs-insert-stable : ∀{k k' hs}
                      → k' ∈HS hs
                      → k' ∈HS (hs-insert hs k)
