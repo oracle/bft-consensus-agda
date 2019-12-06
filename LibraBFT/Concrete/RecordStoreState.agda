@@ -153,28 +153,26 @@ module LibraBFT.Concrete.RecordStoreState
              → r ← r'
              → Extends rss r'
 
-
-{-
-  -- MSM: Why is this needed?
-  -- VCM: This is the function that should do all the checks and
-  --      pass that through a proof object 'Extends'
-  --      
-  --
-  -- 'Extends' must be a decidable; We decide whether a record
-  -- exnteds the state by performing the necessary checks.
-  -- We might need to pass in an 'ValidRSS rss' argument here
--}
-
-
   extends-Q? : (rss : RecordStoreState)(q : QC)
              → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
-             → Maybe (Extends rss (Q q)) 
-  extends-Q? rss q ok = {!!}
+             → Maybe (Extends rss (Q q))
+  extends-Q? rss q ok
+    -- Structure is similar to extends-B? below, which is commented in detail.
+    with lookup (rssPool rss) (qBlockHash (qBase q))
+       | inspect (lookup (rssPool rss)) (qBlockHash (qBase q))
+  ...| nothing    | [ _ ] = nothing
+  ...| just (I _) | [ _ ] = nothing
+  ...| just (Q _) | [ _ ] = nothing
+  ...| just (B b) | [ R ]
+     with qRound (qBase q) ≟ bRound b
+  ...| no _ = nothing
+  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) ok
+                             (B←Q {b} round-ok (sym (lookup-correct' _ _ R))))
 
   extends-B? : (rss : RecordStoreState)(b : Block)
              → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
-             → Maybe (Extends rss (B b)) 
-  extends-B? rss b ok 
+             → Maybe (Extends rss (B b))
+  extends-B? rss b ok
   -- 1. Are we extending the initial record?
     with bPrevQCHash b ≟Hash hashRecord (I mkInitial)
   ...| yes refl with 1 ≤? (bRound b)
@@ -204,9 +202,11 @@ module LibraBFT.Concrete.RecordStoreState
   ...| yes round-ok = just (extends (lookup-correct'' _ _ R) ok
                              (Q←B {q} round-ok (sym (lookup-correct' _ _ R))))
 
-  -- VCM: Looks like we will need some sort of DSL to
-  -- be able to assemble this function in a reasonably readable way...
-  extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
+  -- This shows how we can construct an Extends record, as the concrete model will need to do.
+  -- However, it only produces a Maybe Extends, wnich could be satisfied by alway returning nothing.
+  -- We could level-up by making this a Dec (Extends rss r), showing that we can construct an
+  -- Extends rss r or there isn't one, thus eliminating this "triviality" concern.
+    extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
   extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
   ...| nothing | [ ok ] with r 
