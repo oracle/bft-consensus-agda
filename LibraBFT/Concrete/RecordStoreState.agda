@@ -149,7 +149,7 @@ module LibraBFT.Concrete.RecordStoreState
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → (r'New   : ¬ (r' ∈RSS rss))
+             → lookup (rssPool rss) (hashRecord r') ≡ nothing
              → r ← r'
              → Extends rss r'
 
@@ -164,6 +164,12 @@ module LibraBFT.Concrete.RecordStoreState
   -- exnteds the state by performing the necessary checks.
   -- We might need to pass in an 'ValidRSS rss' argument here
 -}
+
+
+{-
+
+  MSM: Commenting this out again as I broke it and don't have time to fix it right now and still not
+  convinced it's needed.
 
   extends-Q? : (rss : RecordStoreState)(q : QC)
              → ¬ ((Q q) ∈RSS rss)
@@ -209,14 +215,14 @@ module LibraBFT.Concrete.RecordStoreState
   ...| I i = nothing -- no (λ { (extends _ _ ()) })
   ...| B b = extends-B? rss b rNew
   ...| Q q = extends-Q? rss q rNew
-
+-}
   --------------------------
   -- Insertion of Records --
 
   insert : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
          → RecordStoreState
-  insert rss r' _ = record rss 
-     {rssPool = hs-insert (rssPool rss) r'
+  insert rss r' (extends _ nc _) = record rss 
+     {rssPool = hs-insert (rssPool rss) r' nc
      }
 
   ---------------------
@@ -240,8 +246,8 @@ module LibraBFT.Concrete.RecordStoreState
                 → r ∈RSS rss
                 → r ∈RSS (insert rss r' ext)
   insert-stable ext {I x} hyp = unit
-  insert-stable ext {B x} hyp = hs-insert-stable hyp
-  insert-stable ext {Q x} hyp = hs-insert-stable hyp
+  insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable {prf = nc} hyp
+  insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable {prf = nc} hyp
 
   -- If a record is not in store before insertion, but it is after
   -- the insertion, this record must have been the inserted one.
@@ -251,26 +257,15 @@ module LibraBFT.Concrete.RecordStoreState
                 → r ∈RSS (insert rss r' ext)
                 → r ≡ r'
   insert-target ext {I x} neg hyp = ⊥-elim (neg hyp)
-  insert-target ext {B x} neg hyp = hs-insert-target neg hyp
-  insert-target ext {Q x} neg hyp = hs-insert-target neg hyp
-
-  -- MSM: I don't think this property holds assuming all the postulates in HashSet hold.
-
-  -- If there is an r : r ≢ r', r ∈RSS rss, and hashRecord r ≡ hashRecord r', then by
-  -- HashSet.insert-stable {k' = r}, r ∈RSS insert rss r' ext must hold.  By HashSet.lookup-correct,
-  -- that implies lookup (insert rss r' ext) (hashRecord r) ≡ just r.
-  --
-  -- Similarly, r' ∈RSS insert rss r' ext implies lookup (insert rss r' ext) (hashRecord r') ≡
-  -- lookup (insert rss r' ext) (hashRecord r) ≡ just r', which contradicts the conclusion above.
-
-  -- This convinces me that we need to make insert require proof that there is no record with the
-  -- same hash already in the RecordStore, not just that the to-be-added record is not in it.  I am
-  -- going to experiment with that next.
+  insert-target (extends _ nc _) {B x} neg hyp = hs-insert-target {prf = nc} neg hyp
+  insert-target (extends _ nc _) {Q x} neg hyp = hs-insert-target {prf = nc} neg hyp
 
   -- Inserting a record is provably correct.
   insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
               → r' ∈RSS insert rss r' ext
-  insert-∈RSS = {!!}
+  insert-∈RSS {rss}{I _}(extends _ nc _) = unit
+  insert-∈RSS {rss}{B x}(extends _ nc _) = hs-insert-works (B x) (rssPool rss) nc
+  insert-∈RSS {rss}{Q x}(extends _ nc _) = hs-insert-works (Q x) (rssPool rss) nc
 
   insert-ok-correct : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
             → ValidRSS rss
@@ -282,8 +277,8 @@ module LibraBFT.Concrete.RecordStoreState
     rewrite insert-target ext s∉rss s∈post 
     with ext
   ...| extends {r = r} a b r←r'
-     = WithRSS.step (RecordChain-grow (insert-stable ext) (ValidRSS.correct vrss r a)) 
-                    r←r' {insert-∈RSS ext}
+     = WithRSS.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) (ValidRSS.correct vrss r a))
+                    r←r' {insert-∈RSS (extends a b r←r')}
 
   ---------------------
   -- VOTES ONCE RULE --
