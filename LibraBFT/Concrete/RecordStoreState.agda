@@ -166,56 +166,54 @@ module LibraBFT.Concrete.RecordStoreState
 -}
 
 
-{-
-
-  MSM: Commenting this out again as I broke it and don't have time to fix it right now and still not
-  convinced it's needed.
-
   extends-Q? : (rss : RecordStoreState)(q : QC)
-             → ¬ ((Q q) ∈RSS rss)
+             → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
              → Maybe (Extends rss (Q q)) 
-  extends-Q? rss q qNew = {!!}
+  extends-Q? rss q ok = {!!}
 
   extends-B? : (rss : RecordStoreState)(b : Block)
-             → ¬ ((B b) ∈RSS rss)
+             → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
              → Maybe (Extends rss (B b)) 
-  extends-B? rss b bNew 
+  extends-B? rss b ok 
   -- 1. Are we extending the initial record?
     with bPrevQCHash b ≟Hash hashRecord (I mkInitial)
-  ...| yes refl  = just (extends {r = I mkInitial} unit bNew 
-                                (I←B {!!} refl)) -- TODO: make the round check.
-  ...| no  ¬Init
+  ...| yes refl with 1 ≤? (bRound b)
+  ...| yes xx = just (extends {r = I mkInitial} unit ok
+                                (I←B xx refl))
+  ...| no _   = nothing
+  extends-B? rss b ok
+     | no  ¬Init
   -- 2. Ok, if not the initial, which one? We must look it up.
     with lookup (rssPool rss) (bPrevQCHash b)
        | inspect (lookup (rssPool rss)) (bPrevQCHash b)
   -- 2.1 case nothing was found, it does not extend.
   ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
-  ...| just (I mkInitial) | [ R ] 
+  ...| just (I mkInitial) | [ R ]
      = ⊥-elim (¬Init (lookup-correct' (bPrevQCHash b) (rssPool rss) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
   ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
-  ...| just (Q q) | [ R ] 
+  ...| just (Q q) | [ R ]
   -- 2.4.1 Is block round strictly greater than the QC it extends?
      with suc (qRound (qBase q)) ≤? bRound b
   -- 2.4.1.1 No; the rounds are not ok.
   ...| no round-nok = nothing
   -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
   --         VCM: Shouldn't we perform additional checks?
-  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) bNew 
+  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) ok
                              (Q←B {q} round-ok (sym (lookup-correct' _ _ R))))
 
   -- VCM: Looks like we will need some sort of DSL to
   -- be able to assemble this function in a reasonably readable way...
   extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
-  extends? rss r with r ∈RSS? rss
-  ...| yes ¬rNew = nothing -- no (λ { (extends _ rNew _) → rNew ¬rNew })
-  ...| no   rNew with r 
-  ...| I i = nothing -- no (λ { (extends _ _ ()) })
-  ...| B b = extends-B? rss b rNew
-  ...| Q q = extends-Q? rss q rNew
--}
+  extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
+  ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
+  ...| nothing | [ ok ] with r 
+  ...| I _ = nothing
+  ...| B b = extends-B? rss b ok
+  ...| Q q = extends-Q? rss q ok
+
   --------------------------
   -- Insertion of Records --
 
