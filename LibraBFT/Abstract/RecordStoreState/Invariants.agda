@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
-open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordStoreState.Invariants 
     -- A Hash function maps a bytestring into a hash.
@@ -41,8 +41,8 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        = (α : Author ec) → Honest α
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
-       → vOrder (∈QC-Vote q va) < vOrder (∈QC-Vote q' va')
-       → qRound (qBase q) < qRound (qBase q')
+       → voteOrder (∈QC-Vote q va) < voteOrder (∈QC-Vote q' va')
+       → qcRound q < qcRound q'
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
     -- that α's n-th vote is always the same.
@@ -51,7 +51,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        = (α : Author ec) → Honest α
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
-       → vOrder (∈QC-Vote q va) ≡ vOrder (∈QC-Vote q' va')
+       → voteOrder (∈QC-Vote q va) ≡ voteOrder (∈QC-Vote q' va')
        → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
     -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
@@ -68,5 +68,5 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
-      → vOrder (∈QC-Vote q vα) < vOrder (∈QC-Vote q' vα')
-      → bRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
+      → voteOrder (∈QC-Vote q vα) < voteOrder (∈QC-Vote q' vα')
+      → blockRound (kchainBlock (suc zero) c2) ≤ prevRound rc'

@@ -1,9 +1,10 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
+open import LibraBFT.Base.PKCS
 
 -- Exposition of the ground types that we build our abstract reasoning
 -- over. 
-module LibraBFT.BasicTypes where
+module LibraBFT.Base.Types where
 
   EpochId : Set
   EpochId = ℕ
@@ -23,9 +24,6 @@ module LibraBFT.BasicTypes where
 
   BlockHash : Set
   BlockHash = Hash
-
-  Signature : Set
-  Signature = Hash
 
   State : Set
   State = Hash
@@ -53,14 +51,6 @@ module LibraBFT.BasicTypes where
     -- AuthorId : Author -> NodeId
     -- AuthorDisj : ...
   open EpochConfig public
-
-  record Signed (A : Set) : Set where
-    constructor signed
-    field
-      sContent    : A
-      sAuthor     : A → NodeId
-      sSignature  : Signature
-  open Signed public
 
   -- Records parameterized by a type of author execpt the initial
   -- record.
@@ -94,12 +84,12 @@ module LibraBFT.BasicTypes where
        --vState     : State
    open BVote public
 
-   record BQC : Set where
+   record BQC (votes : Set) : Set where
     field
       qAuthor        : author
       qBlockHash     : BlockHash
       qRound         : Round
-      qVotes         : List BVote
+      qVotes         : List votes
       --qState         : State
    open BQC public
 
@@ -109,10 +99,3 @@ module LibraBFT.BasicTypes where
        toAuthor  : author
        toRound   : Round
    open BTimeout public
-
-   postulate
-     -- Later on, we'll also need an 'Encoder author'...
-     encBBlock   : Encoder BBlock 
-     encBQC      : Encoder BQC
-     encBVote    : Encoder BVote
-     encBTimeout : Encoder BTimeout

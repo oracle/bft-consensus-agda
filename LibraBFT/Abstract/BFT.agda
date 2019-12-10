@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
-open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.BFT (ec : EpochConfig) where
 

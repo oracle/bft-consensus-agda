@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
-open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordChain.Properties
   -- A Hash function maps a bytestring into a hash.
@@ -48,7 +48,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → IsInPool (Q q₀) → IsInPool (Q q₁)
            → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)
            → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
-           → bRound b₀ ≡ bRound b₁
+           → blockRound b₀ ≡ blockRound b₁
            → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
    lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
      with b₀ ≟Block b₁ -- (***)
@@ -56,7 +56,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| no  imp
      with lemmaB1 q₀ q₁
    ...|  (a , (a∈q₀ , a∈q₁ , honest))
-     with <-cmp (vOrder (∈QC-Vote q₀ a∈q₀)) (vOrder (∈QC-Vote q₁ a∈q₁))
+     with <-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
    ...| tri< va<va' _ _
      with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
    ...| res = ⊥-elim (<⇒≢ res hyp)
@@ -83,18 +83,18 @@ module LibraBFT.Abstract.RecordChain.Properties
            → (c3 : 𝕂-chain P 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
            → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
-           → round r₂ < qRound (qBase q')
-           → bRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
+           → round r₂ < qcRound q'
+           → blockRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} _ b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
      with lemmaB1 q₂ q'
    ...| (a , (a∈q₂ , a∈q' , honest))
      -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
      -- and error prone. We should factor out a predicate that analyzes the rounds of QC's and
      -- returns us a judgement about the order of the votes.
-     with <-cmp (vOrder (∈QC-Vote q₂ a∈q₂)) (vOrder (∈QC-Vote q' a∈q'))
+     with <-cmp (voteOrder (∈QC-Vote q₂ a∈q₂)) (voteOrder (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂
      with increasing-round-rule a honest {q'} {q₂} pq' pq a∈q' a∈q₂ va'<va₂
-   ...| res = ⊥-elim (n≮n (qRound (qBase q')) (≤-trans res (≤-unstep hyp)))
+   ...| res = ⊥-elim (n≮n (qcRound q') (≤-trans res (≤-unstep hyp)))
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} P b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | tri≈ _ va₂≡va' _
@@ -130,11 +130,11 @@ module LibraBFT.Abstract.RecordChain.Properties
      : ∀{q}{rc : RecordChain (Q q)}
      → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
      → (r : ℕ)
-     → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ r
-     → r ≤ bRound (c3 b⟦ zero ⟧) 
-     → r ∈ ( bRound (c3 b⟦ zero ⟧)
-           ∷ bRound (c3 b⟦ (suc zero) ⟧)
-           ∷ bRound (c3 b⟦ (suc (suc zero)) ⟧)
+     → blockRound (c3 b⟦ suc (suc zero) ⟧) ≤ r
+     → r ≤ blockRound (c3 b⟦ zero ⟧) 
+     → r ∈ ( blockRound (c3 b⟦ zero ⟧)
+           ∷ blockRound (c3 b⟦ (suc zero) ⟧)
+           ∷ blockRound (c3 b⟦ (suc (suc zero)) ⟧)
            ∷ [])
    propS4-base-lemma-1 (s-chain {b = b0} r←b0 p0 (B←Q refl b←q0) 
                        (s-chain {b = b1} r←b1 p1 (B←Q refl b←q1) 
@@ -148,7 +148,7 @@ module LibraBFT.Abstract.RecordChain.Properties
      → {b' : Block}(q' : QC) → IsInPool (Q q')
      → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
      → (ix : Fin k)
-     → bRound (kchainBlock ix c) ≡ bRound b'
+     → blockRound (kchainBlock ix c) ≡ blockRound b'
      → HashBroke ⊎ (kchainBlock ix c ≡ b')
    propS4-base-lemma-2 (s-chain {rc = rc} r←b {prfB} prf b←q {prfQ} c) q' pq' certB ext zero hyp 
      = lemmaS2 prfQ pq' (step rc r←b {prfB}) b←q certB ext hyp 
@@ -164,11 +164,11 @@ module LibraBFT.Abstract.RecordChain.Properties
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → {q' : QC}
                → (certB : RecordChain (Q q'))
-               → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ qRound (qBase q')
-               → qRound (qBase q') ≤ bRound (c3 b⟦ zero ⟧) 
+               → blockRound (c3 b⟦ suc (suc zero) ⟧) ≤ qcRound q'
+               → qcRound q' ≤ blockRound (c3 b⟦ zero ⟧) 
                → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
-     with propS4-base-lemma-1 c3 (bRound b) hyp0 hyp1
+     with propS4-base-lemma-1 c3 (blockRound b) hyp0 hyp1
    ...| here r 
      with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) zero r
    ...| inj₁ hb  = inj₁ hb
@@ -199,18 +199,18 @@ module LibraBFT.Abstract.RecordChain.Properties
           → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q' : QC}
           → (certB : RecordChain (Q q'))
-          → bRound (c3 b⟦ suc (suc zero) ⟧) ≤ qRound (qBase q')
+          → blockRound (c3 b⟦ suc (suc zero) ⟧) ≤ qcRound q'
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
           → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4 {rc = rc} c3 {q} (step certB b←q {pq}) hyp
-     with qRound (qBase q) ≤?ℕ bRound (c3 b⟦ zero ⟧) 
+     with qcRound q ≤?ℕ blockRound (c3 b⟦ zero ⟧) 
    ...| yes rq≤rb₂ = propS4-base c3 {q} (step certB b←q {pq}) hyp rq≤rb₂
    propS4 {q} c3 {q'} (step certB b←q {pq}) hyp
       | no  rb₂<rq 
      with lemmaS3 c3 (step certB b←q {pq}) 
-                     (subst (_< qRound (qBase q')) 
+                     (subst (_< qcRound q') 
                             (kchainBlockRoundZero-lemma c3) 
                             (≰⇒> rb₂<rq))
    ...| ls3 
@@ -234,7 +234,7 @@ module LibraBFT.Abstract.RecordChain.Properties
          → CommitRule rc' b'
          → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
-     with <-cmp (bRound (c3 b⟦ suc (suc zero) ⟧)) (bRound (c3' b⟦ suc (suc zero) ⟧)) 
+     with <-cmp (blockRound (c3 b⟦ suc (suc zero) ⟧)) (blockRound (c3' b⟦ suc (suc zero) ⟧)) 
    ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri< r<r' _ _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≤-unstep r<r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri> _ _ r'<r = inj₂ <$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3 (suc (suc zero))))) 

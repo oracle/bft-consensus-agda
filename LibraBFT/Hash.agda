@@ -1,5 +1,6 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Encode
 
 module LibraBFT.Hash where
 
@@ -11,19 +12,6 @@ module LibraBFT.Hash where
  -- resistant. We might be able to carry the full proof in agda,
  -- but that can take place on another module.
 
-
- -- We define a ByteString as a list of bits
- ByteString : Set
- ByteString = List Bool
-
- -- An encoder for values of type A is
- -- an injective mapping of 'A's into 'ByteString's
- record Encoder {a}(A : Set a) : Set a where
-   field
-     encode     : A → ByteString
-     encode-inj : ∀{a₁ a₂} → encode a₁ ≡ encode a₂ → a₁ ≡ a₂
- open Encoder public
- 
  dummyByteString : ByteString
  dummyByteString = replicate 32 false
 
@@ -49,13 +37,13 @@ module LibraBFT.Hash where
 
  postulate
    -- Encoding and decoding
-   encℕ : Encoder ℕ
+   instance encℕ : Encoder ℕ
 
    -- Encodings have always the same size! (these could be any constant, really)
-   encodeℕ-len : ∀{n} → length (encode encℕ n) ≡ 8
+   encodeℕ-len : {n : ℕ} → length (encode n) ≡ 8
 
  -- Naturally, if the size of the encoding is fixed by the type, it is always the same!
- encodeℕ-len-lemma : ∀ i j → length (encode encℕ i) ≡ length (encode encℕ j)
+ encodeℕ-len-lemma : ∀ i j → length (encode i) ≡ length (encode j)
  encodeℕ-len-lemma i j = trans (encodeℕ-len {i}) (sym (encodeℕ-len {j}))
 
  encodeH-len-lemma : ∀ i j → length (encodeH i) ≡ length (encodeH j)

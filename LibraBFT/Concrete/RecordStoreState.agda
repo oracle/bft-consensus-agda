@@ -132,8 +132,25 @@ module LibraBFT.Concrete.RecordStoreState
 
   -- Employ structural checks on the records when receiving
   -- them on the wire.
-  check-signature-and-format : Signed NetworkRecord → Maybe Record
+  check-signature-and-format : NetworkRecord → Maybe Record
   check-signature-and-format = {!!}
+
+  ---------------------------------------
+  -- Honesty and Dishonesty of Authors --
+
+  data Dishonest (α : Author ec) : Set where
+    same-order-diff-qcs 
+      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
+      → q ≢ q'
+      → vOrder (∈QC-Vote q vα) ≡ vOrder (∈QC-Vote q' vα')
+      → Dishonest α
+
+  DishonestM : Maybe (Author ec) → Set
+  DishonestM nothing  = ⊥
+  DishonestM (just α) = Dishonest α
+
+  postulate
+    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
 
   --------------------------------
   -- Semantically Valid Records --
@@ -274,7 +291,7 @@ module LibraBFT.Concrete.RecordStoreState
   ...| no  s∉rss 
     rewrite insert-target ext s∉rss s∈post 
     with ext
-  ...| extends {r = r} a b r←r'
+  ...| extends {r = r} a b r←r' 
      = WithRSS.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) (ValidRSS.correct vrss r a))
                     r←r' {insert-∈RSS (extends a b r←r')}
 
@@ -282,26 +299,20 @@ module LibraBFT.Concrete.RecordStoreState
   -- VOTES ONCE RULE --
 
   -- If we have two proofs that α voted in QC q; these proofs
-  -- are the same. Here is where we need the IsSorted inside
+  -- are the same. Here is where we will need the IsSorted inside
   -- the qc! :)
   ∈QC-Vote-prop 
     : {α : Author ec}(q : QC) → (vα vα' : α ∈QC q) → vα ≡ vα'
   ∈QC-Vote-prop = {!!}
 
-  data Dishonest (α : Author ec) : Set where
-    same-order-diff-qcs 
-      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
-      → q ≢ q'
-      → vOrder (∈QC-Vote q vα) ≡ vOrder (∈QC-Vote q' vα')
-      → Dishonest α
-
-  postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
-
   insert-ok-votes-only-once : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
             → VotesOnlyOnce (insert rss r ext)
   insert-ok-votes-only-once rss r ext vrss α hα {q} {q'} q∈rss q'∈rss vα vα' ord 
+  -- 0. Are the QCs equal?
+    with q ≟QC q'
+  ...| yes refl rewrite ∈QC-Vote-prop q vα vα' = refl
+  ...| no  q≢q' 
   -- 1. Are these old QCs or did we just insert them?
     with (Q q) ∈RSS? rss | (Q q') ∈RSS? rss
   -- 1.1 Yes, they are old. Easy! Rely on the hypothesis that the previous
@@ -309,24 +320,22 @@ module LibraBFT.Concrete.RecordStoreState
   ...| yes qOld | yes q'Old 
      = ValidRSS.votes-once-rule vrss α hα qOld q'Old vα vα' ord
   -- 1.2 No! One is old but the other is newly inserted. This must be impossible.
-  --     We must add things to 'Extends' to be able to eliminate these two cases. 
   ...| no  qNew | yes q'Old 
      -- But wait. If q has been inserted but not q'; but at
      -- the same time we have a proof that q extends the state, 
      -- the rounds of the QC's must be different, which render
      -- the QC's different altogether. Hence, α is Dishonest and
      -- we have proof!
-     = ⊥-elim (ACCOUNTABILITY-OPP hα 
-                (same-order-diff-qcs {α} {q} {q'} vα vα' {!!} ord)) 
-  ...| yes qOld | no  q'New = {!!}
+     = ⊥-elim (ACCOUNTABILITY-OPP hα (same-order-diff-qcs {α} {q} {q'} vα vα' q≢q' ord)) 
+  ...| yes qOld | no  q'New 
+     = ⊥-elim (ACCOUNTABILITY-OPP hα (same-order-diff-qcs {α} {q} {q'} vα vα' q≢q' ord))
   -- 1.3 Both QCs are new; hence must have been inserted
-  --     now. This means that they must be equal; we rewrite on that and continue.
+  --     now. This means that they must be equal; Yet, we have
+  --     just compared them before and found out they are not equal.
   ...| no  qNew | no  q'New 
     with trans (insert-target ext {Q q'} q'New q'∈rss) 
           (sym (insert-target ext {Q q} qNew q∈rss))
-  ...| q≡q' rewrite Q-injective q≡q' 
-                  | ∈QC-Vote-prop q vα vα' 
-                  = refl
+  ...| q≡q' = ⊥-elim (q≢q' (sym (Q-injective q≡q')))
 
   insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss

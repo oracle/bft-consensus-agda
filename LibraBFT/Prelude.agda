@@ -103,3 +103,8 @@ module LibraBFT.Prelude where
   open import Relation.Nullary.Negation
     using (contradiction)
     public
+
+  -- We define a ByteString as a list of bits
+  ByteString : Set
+  ByteString = List Bool
+

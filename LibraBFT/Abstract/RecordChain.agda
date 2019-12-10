@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
-open import LibraBFT.BasicTypes
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordChain 
   -- A Hash function maps a bytestring into a hash.
@@ -126,11 +126,11 @@ module LibraBFT.Abstract.RecordChain
 
   kchainBlockRoundZero-lemma
     : ∀{k q P}{rc : RecordChain (Q q)}(c : 𝕂-chain P (suc k) rc)
-    → bRound (kchainBlock zero c) ≡ qRound (qBase q)
+    → blockRound (kchainBlock zero c) ≡ qcRound q
   kchainBlockRoundZero-lemma (s-chain r←b prf (B←Q r h) c) = sym r
 
   kchainBlockRound≤ : ∀{k r P}{rc : RecordChain r}(x y : Fin k)(kc : 𝕂-chain P k rc)
-                    → x ≤Fin y → bRound (kchainBlock y kc) ≤ bRound (kchainBlock x kc)
+                    → x ≤Fin y → blockRound (kchainBlock y kc) ≤ blockRound (kchainBlock x kc)
   kchainBlockRound≤ zero zero (s-chain r←b prf b←q kc) hyp = ≤-refl
   kchainBlockRound≤ zero (suc y) (s-chain (Q←B r r←b) prf b←q (s-chain r←b₁ prf₁ (B←Q refl b←q₁) kc)) hyp 
     = ≤-trans (kchainBlockRound≤ zero y (s-chain r←b₁ prf₁ (B←Q refl b←q₁) kc) z≤n) (<⇒≤ r)
@@ -142,7 +142,7 @@ module LibraBFT.Abstract.RecordChain
 
   kchain-round-≤-lemma'
     : ∀{k q}{rc : RecordChain (Q q)}(c3 : 𝕂-chain Contig k rc)(ix : Fin k)
-    → bRound (c3 b⟦ ix ⟧) ≤ qRound (qBase q)
+    → blockRound (c3 b⟦ ix ⟧) ≤ qcRound q
   kchain-round-≤-lemma' (s-chain r←b x (B←Q refl b←q) c3) zero = ≤-refl
   kchain-round-≤-lemma' (s-chain (I←B prf imp) refl (B←Q refl _) 0-chain) (suc ()) 
   kchain-round-≤-lemma' (s-chain (Q←B prf imp) x (B←Q refl _) c2) (suc ix) 
@@ -210,23 +210,23 @@ module LibraBFT.Abstract.RecordChain
                 → CommitRule rc b
 
   vote≡⇒QPrevHash≡ : {q q' : QC} {v v' : Vote} 
-                   → v  ∈ qVotes (qBase q) 
-                   → v' ∈ qVotes (qBase q') 
+                   → v  ∈ qcVotes q
+                   → v' ∈ qcVotes q'
                    → v ≡ v' 
-                   →  qBlockHash (qBase q) ≡ qBlockHash (qBase q')
+                   → qcBlockHash q ≡ qcBlockHash q'
   vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
   ... | refl | refl = refl
 
   vote≡⇒QRound≡ : {q q' : QC} {v v' : Vote} 
-                → v  ∈ qVotes (qBase q) 
-                → v' ∈ qVotes (qBase q') 
+                → v  ∈ qcVotes q
+                → v' ∈ qcVotes q'
                 → v ≡ v' 
-                →  qRound (qBase q) ≡ qRound (qBase q')
+                → qcRound q ≡ qcRound q'
   vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
   ... | refl | refl = refl
 
-  ¬bRound≡0 : ∀ {b} → RecordChain (B b) → ¬ (bRound b ≡ 0)
+  ¬bRound≡0 : ∀ {b} → RecordChain (B b) → ¬ (blockRound b ≡ 0)
   ¬bRound≡0 (step s (I←B () h)) refl
   ¬bRound≡0 (step s (Q←B () h)) refl

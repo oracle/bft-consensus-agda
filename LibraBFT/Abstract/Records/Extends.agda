@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
-open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.Records.Extends
   -- A Hash function maps a bytestring into a hash.
@@ -23,16 +23,16 @@ module LibraBFT.Abstract.Records.Extends
   -- warn of possible changes needed in the future?!
   data _←_ : Record → Record → Set where
     I←B : {i : Initial} {b : Block}
-        → 1 ≤ bRound b
-        → HashR (I i) ≡  bPrevQCHash b
+        → 1 ≤ blockRound b
+        → HashR (I i) ≡ blockPrev b
         → I i ← B b
     Q←B : {q : QC} {b : Block}
-        → qRound (qBase q) < bRound b
-        → HashR (Q q) ≡  bPrevQCHash b
+        → qcRound q < blockRound b
+        → HashR (Q q) ≡ blockPrev b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
-        → qRound (qBase q) ≡ bRound b
-        → HashR (B b) ≡ qBlockHash (qBase q)
+        → qcRound q ≡ blockRound b
+        → HashR (B b) ≡ qcBlockHash q
         → B b ← Q q
     -- B←V : {b : Block} {v : Vote}
     --       → HashR (B b) ≡ vBlockHash v
