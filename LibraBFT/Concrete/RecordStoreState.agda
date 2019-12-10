@@ -149,12 +149,12 @@ module LibraBFT.Concrete.RecordStoreState
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → lookup (rssPool rss) (hashRecord r') ≡ nothing
+             → (r'New : ¬ r' ∈HS (rssPool rss))
              → r ← r'
              → Extends rss r'
 
   extends-Q? : (rss : RecordStoreState)(q : QC)
-             → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
+             → ¬ (Q q) ∈RSS rss
              → Maybe (Extends rss (Q q))
   extends-Q? rss q ok
     -- Structure is similar to extends-B? below, which is commented in detail.
@@ -166,11 +166,11 @@ module LibraBFT.Concrete.RecordStoreState
   ...| just (B b) | [ R ]
      with qRound (qBase q) ≟ bRound b
   ...| no _ = nothing
-  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) ok
-                             (B←Q {b} round-ok (sym (lookup-correct' _ _ R))))
+  ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
+                             (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
   extends-B? : (rss : RecordStoreState)(b : Block)
-             → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
+             → ¬ (B b) ∈RSS rss
              → Maybe (Extends rss (B b))
   extends-B? rss b ok
   -- 1. Are we extending the initial record?
@@ -188,7 +188,7 @@ module LibraBFT.Concrete.RecordStoreState
   ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
   ...| just (I mkInitial) | [ R ]
-     = ⊥-elim (¬Init (lookup-correct' (bPrevQCHash b) (rssPool rss) R))
+     = ⊥-elim (¬Init (lookup-correct (bPrevQCHash b) (rssPool rss) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
   ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
@@ -199,20 +199,20 @@ module LibraBFT.Concrete.RecordStoreState
   ...| no round-nok = nothing
   -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
   --         VCM: Shouldn't we perform additional checks?
-  ...| yes round-ok = just (extends (lookup-correct'' _ _ R) ok
-                             (Q←B {q} round-ok (sym (lookup-correct' _ _ R))))
+  ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
+                             (Q←B {q} round-ok (sym (lookup-correct _ _ R))))
 
   -- This shows how we can construct an Extends record, as the concrete model will need to do.
   -- However, it only produces a Maybe Extends, wnich could be satisfied by alway returning nothing.
   -- We could level-up by making this a Dec (Extends rss r), showing that we can construct an
   -- Extends rss r or there isn't one, thus eliminating this "triviality" concern.
-    extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
+  extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
   extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
   ...| nothing | [ ok ] with r 
   ...| I _ = nothing
-  ...| B b = extends-B? rss b ok
-  ...| Q q = extends-Q? rss q ok
+  ...| B b = extends-B? rss b (λ x → maybe-⊥ (∈HS-correct (B b) (rssPool rss) x) ok)
+  ...| Q q = extends-Q? rss q (λ x → maybe-⊥ (∈HS-correct (Q q) (rssPool rss) x) ok)
 
   --------------------------
   -- Insertion of Records --
@@ -220,7 +220,7 @@ module LibraBFT.Concrete.RecordStoreState
   insert : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
          → RecordStoreState
   insert rss r' (extends _ nc _) = record rss 
-     {rssPool = hs-insert (rssPool rss) r' nc
+     {rssPool = hs-insert  r' (rssPool rss) nc
      }
 
   ---------------------
@@ -244,8 +244,8 @@ module LibraBFT.Concrete.RecordStoreState
                 → r ∈RSS rss
                 → r ∈RSS (insert rss r' ext)
   insert-stable ext {I x} hyp = unit
-  insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable {prf = nc} hyp
-  insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable {prf = nc} hyp
+  insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable nc hyp
+  insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable nc hyp
 
   -- If a record is not in store before insertion, but it is after
   -- the insertion, this record must have been the inserted one.
@@ -255,15 +255,15 @@ module LibraBFT.Concrete.RecordStoreState
                 → r ∈RSS (insert rss r' ext)
                 → r ≡ r'
   insert-target ext {I x} neg hyp = ⊥-elim (neg hyp)
-  insert-target (extends _ nc _) {B x} neg hyp = hs-insert-target {prf = nc} neg hyp
-  insert-target (extends _ nc _) {Q x} neg hyp = hs-insert-target {prf = nc} neg hyp
+  insert-target (extends _ nc _) {B x} neg hyp = hs-insert-target nc neg hyp
+  insert-target (extends _ nc _) {Q x} neg hyp = hs-insert-target nc neg hyp
 
   -- Inserting a record is provably correct.
   insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
               → r' ∈RSS insert rss r' ext
   insert-∈RSS {rss}{I _}(extends _ nc _) = unit
-  insert-∈RSS {rss}{B x}(extends _ nc _) = hs-insert-works (B x) (rssPool rss) nc
-  insert-∈RSS {rss}{Q x}(extends _ nc _) = hs-insert-works (Q x) (rssPool rss) nc
+  insert-∈RSS {rss}{B x}(extends _ nc _) = hs-insert-∈HS (B x) (rssPool rss) nc
+  insert-∈RSS {rss}{Q x}(extends _ nc _) = hs-insert-∈HS (Q x) (rssPool rss) nc
 
   insert-ok-correct : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
             → ValidRSS rss

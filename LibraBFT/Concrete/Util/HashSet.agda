@@ -17,34 +17,40 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
     lookup         : HashSet → Hash → Maybe Key
     _∈HS?_         : (k : Key)(h : HashSet)
                    → Dec (k ∈HS h)
-    hs-insert      : (hs : HashSet)(k : Key)
-                   → lookup hs (hashK k) ≡ nothing
+    hs-insert      : (k : Key)(hs : HashSet)
+                   → ¬ (k ∈HS hs)
                    → HashSet
 
     -- properties
-    lookup-correct : (k : Key)(hs : HashSet)
-                   → k ∈HS hs
-                   → lookup hs (hashK k) ≡ just k
+    ∈HS-correct : (k : Key)(hs : HashSet)
+                → k ∈HS hs
+                → lookup hs (hashK k) ≡ just k
 
-    lookup-correct' : {k : Key}(h : Hash)(hs : HashSet)
-                    → lookup hs h ≡ just k
-                    → h ≡ hashK k  
+    ∉HS-correct : (k : Key)(hs : HashSet)
+                → ¬ k ∈HS hs
+                → lookup hs (hashK k) ≡ nothing
 
-    lookup-correct'' : {k : Key}(h : Hash)(hs : HashSet)
-                     → lookup hs h ≡ just k
-                     → k ∈HS hs
+    lookup-correct : {k : Key}(h : Hash)(hs : HashSet)
+                   → lookup hs h ≡ just k
+                   → h ≡ hashK k  
 
-    hs-insert-works : (k : Key)(hs : HashSet)
-                      (prf : lookup hs (hashK k) ≡ nothing)
-                    → k ∈HS hs-insert hs k prf
+    lookup-∈HS : {k : Key}(h : Hash)(hs : HashSet)
+               → lookup hs h ≡ just k
+               → k ∈HS hs
 
-    hs-insert-stable : ∀{k k' hs}{prf}
+    hs-insert-∈HS : (k : Key)(hs : HashSet)
+                  → (prf : ¬ k ∈HS hs)
+                  → k ∈HS hs-insert k hs prf
+
+    hs-insert-stable : ∀{k k' hs}
+                     → (prf : ¬ k ∈HS hs)
                      → k' ∈HS hs
-                     → k' ∈HS (hs-insert hs k prf)
+                     → k' ∈HS (hs-insert k hs prf)
 
-    hs-insert-target : ∀{k k' hs}{prf}
+    hs-insert-target : ∀{k k' hs}
+                     → (prf : ¬ k ∈HS hs)
                      → ¬ (k' ∈HS hs)
-                     → k' ∈HS (hs-insert hs k prf)
+                     → k' ∈HS (hs-insert k hs prf)
                      → k' ≡ k
 
     ∈HS-empty-⊥ : {k : Key} → k ∈HS empty → ⊥
