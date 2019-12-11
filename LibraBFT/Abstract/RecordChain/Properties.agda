@@ -20,6 +20,11 @@ module LibraBFT.Abstract.RecordChain.Properties
  open import LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
    as Invariants
 
+ -- VCM: Only in this module we allow ourselves to compare VoteOrder's
+ --      This ensures we can't inspect, nor use it anywhere else.
+ private
+   postulate <VO-cmp : Trichotomous _≡_ _<VO_
+
  module ForRSS -- VCM: I can't call this WithRSS because I 'open'ed stuff above
    {s}{RSS : Set s}⦃ isRSS : isRecordStoreState RSS ⦄
    (curr                  : RSS) 
@@ -56,7 +61,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| no  imp
      with lemmaB1 q₀ q₁
    ...|  (a , (a∈q₀ , a∈q₁ , honest))
-     with <-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
+     with <VO-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
    ...| tri< va<va' _ _
      with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
    ...| res = ⊥-elim (<⇒≢ res hyp)
@@ -91,7 +96,7 @@ module LibraBFT.Abstract.RecordChain.Properties
      -- TODO: We have done a similar reasoning on the order of votes on lemmaS2; This is cumbersome
      -- and error prone. We should factor out a predicate that analyzes the rounds of QC's and
      -- returns us a judgement about the order of the votes.
-     with <-cmp (voteOrder (∈QC-Vote q₂ a∈q₂)) (voteOrder (∈QC-Vote q' a∈q'))
+     with <VO-cmp (voteOrder (∈QC-Vote q₂ a∈q₂)) (voteOrder (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂
      with increasing-round-rule a honest {q'} {q₂} pq' pq a∈q' a∈q₂ va'<va₂
    ...| res = ⊥-elim (n≮n (getRound q') (≤-trans res (≤-unstep hyp)))

@@ -28,6 +28,13 @@ module LibraBFT.Base.Types where
   State : Set
   State = Hash
 
+  -- VCM: After our discussion about vote order; I propose
+  -- we make it into a postulate. Naturally, as the name suggests,
+  -- it must have some sort of order raltion; also inacessible.
+  postulate
+    VoteOrder : Set
+    _<VO_     : VoteOrder → VoteOrder → Set
+
   -- An 'EpochConfig f' carries the information we need tot
   -- survive at most 'f' byzantine failures. for now, this is
   -- only a lower bound on the number of overal authors.
@@ -80,7 +87,7 @@ module LibraBFT.Base.Types where
        vAuthor    : author
        vBlockHash : BlockHash
        vRound     : Round
-       vOrder     : ℕ 
+       vOrder     : VoteOrder 
        --vState     : State
    open BVote public
 

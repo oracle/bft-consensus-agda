@@ -51,10 +51,14 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   postulate
     _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
 
+  -- VCM: We now have the hability to define vOrder
+  -- only here and remove it from BVote; this would mean
+  -- that the concrete interface doesn't see it; and we just 
+  -- postulate the hability to create a vOrder.
   Vote : Set
   Vote = VerSigned (BVote (Author ec))
 
-  voteOrder : Vote → ℕ
+  voteOrder : Vote → VoteOrder
   voteOrder = vOrder ∘ content
     
   instance
