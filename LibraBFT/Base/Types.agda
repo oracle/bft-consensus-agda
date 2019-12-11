@@ -56,6 +56,10 @@ module LibraBFT.Base.Types where
     Author     : Set
     Author     = Fin authorsN
 
+    field
+      isAuthor : NodeId -> Maybe Author
+      pkAuthor : Author -> PK
+
     -- AuthorId : Author -> NodeId
     -- AuthorDisj : ...
   open EpochConfig public

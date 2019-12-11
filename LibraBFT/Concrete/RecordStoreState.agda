@@ -1,8 +1,10 @@
 open import LibraBFT.Prelude
   hiding (lookup)
-open import LibraBFT.BasicTypes
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.Types
+open import LibraBFT.Base.Encode
+open import LibraBFT.Base.PKCS
 
 module LibraBFT.Concrete.RecordStoreState
     -- A Hash function maps a bytestring into a hash.
@@ -126,14 +128,28 @@ module LibraBFT.Concrete.RecordStoreState
   -- Syntatically Valid Records --
 
   data NetworkRecord : Set where
-    B : BBlock NodeId → NetworkRecord
-    Q : BQC    NodeId → NetworkRecord
-    --- ...
+    B : Signed (BBlock NodeId)                      → NetworkRecord
+    V : Signed (BVote NodeId)                       → NetworkRecord
+    Q : Signed (BQC NodeId (Signed (BVote NodeId))) → NetworkRecord
+    --- ... TOFINISH
 
-  -- Employ structural checks on the records when receiving
-  -- them on the wire.
-  check-signature-and-format : NetworkRecord → Maybe Record
-  check-signature-and-format = {!!}
+  data VerNetworkRecord : Set where
+    B : VerSigned (BBlock (Author ec)) → VerNetworkRecord
+    V : VerSigned (BVote  (Author ec)) → VerNetworkRecord
+    -- ... TOFINISH
+
+  -- Employ structural checks on the records when receiving them on the wire.
+  check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
+  check-signature-and-format (V nv) 
+  -- Is the author of the vote an actual author?
+    with isAuthor ec (vAuthor (content nv)) 
+  -- 1; No! Reject!
+  ...| nothing = nothing
+  -- 2; Yes! Now we must check whether the signature matches
+  ...| just α  = Maybe-map V (checkSignature (pkAuthor ec α) 
+                               (Signed-map (BVote-map (λ _ → α)) nv))
+  check-signature-and-format (B nb) = {!!}
+  check-signature-and-format (Q nq) = {!!}
 
   ---------------------------------------
   -- Honesty and Dishonesty of Authors --

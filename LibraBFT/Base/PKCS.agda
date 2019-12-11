@@ -29,6 +29,10 @@ module LibraBFT.Base.PKCS where
      signature : Signature
  open Signed public
 
+ Signed-map : ∀{A B} ⦃ encA : Encoder A ⦄ ⦃ encB : Encoder B ⦄
+            → (A → B) → Signed A → Signed B
+ Signed-map f s = signed (f (content s)) (signature s)
+
  record VerSigned (A : Set) ⦃ encA : Encoder A ⦄ : Set where
    constructor ver-signed
    field
@@ -36,6 +40,14 @@ module LibraBFT.Base.PKCS where
      signature : Signature 
      verified  : ∃[ pk ] (verify (encode content) signature pk ≡ true)
  open VerSigned public
+
+ checkSignature : ∀{A} ⦃ encA : Encoder A ⦄ 
+                → PK → Signed A → Maybe (VerSigned A)
+ checkSignature pk obj 
+   with verify (encode (content obj)) (signature obj) pk
+      | inspect (verify (encode (content obj)) (signature obj)) pk 
+ ...| false | _     = nothing 
+ ...| true  | [ R ] = just (ver-signed (content obj) (signature obj) (pk , R))
 
  instance 
   encSigned : {A : Set} → ⦃ encA : Encoder A ⦄ → Encoder (Signed A)
