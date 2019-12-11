@@ -129,6 +129,10 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
     I : Initial   → Record
     B : Block     → Record
     Q : QC        → Record
+    -- VCM: I think these should never be made records!
+    --      Records are meant to be put on the RecordStore (a.k.a block store)
+    --      tiemouts and votes are 'messages'; that is, they are transfered
+    --      from partciant to participand but don't go into the store.
     -- V : Vote      → Record
     -- T : Timeout   → Record
 
@@ -138,6 +142,16 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   Q-injective : ∀{q q'} → Q q ≡ Q q' → q ≡ q'
   Q-injective refl = refl
 
+  -- VCM: LibraBFT.Abstract.Record.Extends.HashR, which hashes
+  --      a record, is defined in terms of this encoder.
+  --      This is why we explicitely REMOVE the signature from
+  --      this bytestring or define HashR differently.
+  --      The end of Section 4.1 (libra v1 paper) indicates 
+  --      signatures are /not/ part of the hash of records.
+  --
+  --      Nevertheless, Record's are not supposed to be sent
+  --      over the wire; LibraBFT.Concrete.RecordStoreState.VerNetworkRecords
+  --      serve that purpose.      
   instance
    encRecord : Encoder Record
    encRecord = record 
