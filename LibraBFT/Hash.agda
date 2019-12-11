@@ -36,9 +36,6 @@ module LibraBFT.Hash where
  encodeH-len { bs , p } = p
 
  postulate
-   -- Encoding and decoding
-   instance encℕ : Encoder ℕ
-
    -- Encodings have always the same size! (these could be any constant, really)
    encodeℕ-len : {n : ℕ} → length (encode n) ≡ 8
 

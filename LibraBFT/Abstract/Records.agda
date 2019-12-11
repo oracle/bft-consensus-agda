@@ -33,12 +33,11 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
       getPrevHash : A → Hash
   open IsLibraBFTRecord {{...}} public
 
-
-  postulate 
-   instance
-    encBBlock : Encoder (BBlock (Author ec))
-    encBVote  : Encoder (BVote  (Author ec))
-    encBQC    : ∀{V}⦃ encV : Encoder V ⦄ → Encoder (BQC (Author ec) V)
+  -- I'm postulating this instance here instead of
+  -- at Base.Types because here this is for a specific ec;
+  -- If we postulate it there, we'll run into multiple unsolvd metas.
+  postulate
+   instance encAuthors : Encoder (Author ec)
 
   Block : Set
   Block = VerSigned (BBlock (Author ec))
@@ -147,8 +146,8 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
      } where
        enc1 : Record → ByteString
        enc1 (I _) = false ∷ false ∷ [] ++ encode (seed ec) ++ encode (epochId ec)
-       enc1 (B x) = true  ∷ false ∷ encode x 
-       enc1 (Q x) = false ∷ true  ∷ encode (qBase x)
+       enc1 (B x) = true  ∷ false ∷ encode (content x)
+       enc1 (Q x) = false ∷ true  ∷ encode (content (qBase x))
 
        postulate magic : ∀{a}{A : Set a} → A
 

@@ -1,6 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.Encode
 
 -- Exposition of the ground types that we build our abstract reasoning
 -- over. 
@@ -106,3 +107,18 @@ module LibraBFT.Base.Types where
        toAuthor  : author
        toRound   : Round
    open BTimeout public
+
+  BVote-map : ∀{A B} → (A → B) → BVote A → BVote B
+  BVote-map f bv = record 
+   { vAuthor    = f (vAuthor bv) 
+   ; vBlockHash = vBlockHash bv  
+   ; vRound     = vRound bv
+   ; vOrder     = vOrder bv
+   }
+
+  postulate
+   instance
+     encBBlock  : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BBlock A)
+     encBVote   : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BVote  A)
+     encBQC     : ∀{A V}⦃ encA : Encoder A ⦄ ⦃ encV : Encoder V ⦄ 
+                → Encoder (BQC A V)

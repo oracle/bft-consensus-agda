@@ -142,7 +142,7 @@ module LibraBFT.Concrete.RecordStoreState
     same-order-diff-qcs 
       : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
       → q ≢ q'
-      → vOrder (∈QC-Vote q vα) ≡ vOrder (∈QC-Vote q' vα')
+      → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
       → Dishonest α
 
   DishonestM : Maybe (Author ec) → Set
@@ -175,13 +175,13 @@ module LibraBFT.Concrete.RecordStoreState
              → Maybe (Extends rss (Q q))
   extends-Q? rss q ok
     -- Structure is similar to extends-B? below, which is commented in detail.
-    with lookup (rssPool rss) (qBlockHash (qBase q))
-       | inspect (lookup (rssPool rss)) (qBlockHash (qBase q))
+    with lookup (rssPool rss) (getPrevHash q)
+       | inspect (lookup (rssPool rss)) (getPrevHash q)
   ...| nothing    | [ _ ] = nothing
   ...| just (I _) | [ _ ] = nothing
   ...| just (Q _) | [ _ ] = nothing
   ...| just (B b) | [ R ]
-     with qRound (qBase q) ≟ bRound b
+     with getRound q ≟ getRound b
   ...| no _ = nothing
   ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
                              (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
@@ -191,27 +191,27 @@ module LibraBFT.Concrete.RecordStoreState
              → Maybe (Extends rss (B b))
   extends-B? rss b ok
   -- 1. Are we extending the initial record?
-    with bPrevQCHash b ≟Hash hashRecord (I mkInitial)
-  ...| yes refl with 1 ≤? (bRound b)
+    with getPrevHash b ≟Hash hashRecord (I mkInitial)
+  ...| yes refl with 1 ≤? getRound b
   ...| yes xx = just (extends {r = I mkInitial} unit ok
                                 (I←B xx refl))
   ...| no _   = nothing
   extends-B? rss b ok
      | no  ¬Init
   -- 2. Ok, if not the initial, which one? We must look it up.
-    with lookup (rssPool rss) (bPrevQCHash b)
-       | inspect (lookup (rssPool rss)) (bPrevQCHash b)
+    with lookup (rssPool rss) (getPrevHash b)
+       | inspect (lookup (rssPool rss)) (getPrevHash b)
   -- 2.1 case nothing was found, it does not extend.
   ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
   ...| just (I mkInitial) | [ R ]
-     = ⊥-elim (¬Init (lookup-correct (bPrevQCHash b) (rssPool rss) R))
+     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (rssPool rss) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
   ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
   ...| just (Q q) | [ R ]
   -- 2.4.1 Is block round strictly greater than the QC it extends?
-     with suc (qRound (qBase q)) ≤? bRound b
+     with suc (getRound q) ≤? getRound b
   -- 2.4.1.1 No; the rounds are not ok.
   ...| no round-nok = nothing
   -- 2.4.1.2 Yes, rounds are fine; So far, it extends.

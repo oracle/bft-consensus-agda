@@ -9,6 +9,7 @@ module LibraBFT.Base.Encode where
      encode     : A → ByteString
      encode-inj : ∀{a₁ a₂} → encode a₁ ≡ encode a₂ → a₁ ≡ a₂
  open Encoder {{...}} public
- 
- postulate instance
-   
+
+ postulate
+  instance
+    encℕ : Encoder ℕ
