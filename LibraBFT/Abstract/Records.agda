@@ -21,6 +21,19 @@ open import LibraBFT.Base.Encode
 --
 module LibraBFT.Abstract.Records (ec : EpochConfig) where
 
+  -- Accessing the fields start to be a nuissance; yet, Blocks,
+  -- votes and QC's all have three important common fields: author, round and prevHash.
+  -- I'll make the same trick as Harold and declare a type-class that gives
+  -- the getters for the stuff we need all the time.
+  record IsLibraBFTRecord (A : Set) : Set where
+    constructor is-librabft-record
+    field
+      getAuthor   : A → Author ec
+      getRound    : A → Round
+      getPrevHash : A → Hash
+  open IsLibraBFTRecord {{...}} public
+
+
   postulate 
    instance
     encBBlock : Encoder (BBlock (Author ec))
@@ -30,12 +43,10 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   Block : Set
   Block = VerSigned (BBlock (Author ec))
 
-  blockRound : Block → Round
-  blockRound = bRound ∘ content
+  instance
+    block-is-record : IsLibraBFTRecord Block
+    block-is-record = is-librabft-record (bAuthor ∘ content) (bRound ∘ content) (bPrevQCHash ∘ content) 
 
-  blockPrev  : Block → QCHash
-  blockPrev  = bPrevQCHash ∘ content
-  
   -- TODO: Implement
   postulate
     _≟Block_ : (b₀ b₁ : Block) → Dec (b₀ ≡ b₁)
@@ -43,18 +54,14 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   Vote : Set
   Vote = VerSigned (BVote (Author ec))
 
-  voteAuthor : Vote → Author ec
-  voteAuthor = vAuthor ∘ content
-
-  voteBlockHash : Vote → BlockHash
-  voteBlockHash = vBlockHash ∘ content
-
-  voteRound : Vote → Round
-  voteRound = vRound ∘ content
-
   voteOrder : Vote → ℕ
   voteOrder = vOrder ∘ content
- 
+    
+  instance
+    vote-is-record : IsLibraBFTRecord Vote
+    vote-is-record = is-librabft-record (vAuthor ∘ content) (vRound ∘ content) (vBlockHash ∘ content)
+
+
   -- * Quorum Certificates
   --
   -- These are intersting. A Valid quorum certificate contains
@@ -68,29 +75,26 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
       qBase          : VerSigned (BQC (Author ec) Vote)
       -- Here are the coherence conditions. Firstly, we expect
       -- 'qVotes' to be sorted, which guarnatees distinct authors.
-      qVotes-C1      : IsSorted (λ v₀ v₁ → voteAuthor v₀ <Fin voteAuthor v₁) 
+      qVotes-C1      : IsSorted (λ v₀ v₁ → getAuthor v₀ <Fin getAuthor v₁) 
                                 (qVotes (content qBase)) 
       -- Secondly, we expect it to have at least 'QuorumSize' number of
       -- votes, for the particular epoch in question.
       qVotes-C2      : QuorumSize ec ≤ length (qVotes (content qBase))
       -- All the votes must vote for the qBlockHash in here;
-      qVotes-C3      : All (λ v → voteBlockHash v ≡ qBlockHash (content qBase)) 
+      qVotes-C3      : All (λ v → getPrevHash v ≡ qBlockHash (content qBase)) 
                            (qVotes (content qBase))
       -- Likewise for rounds
-      qVotes-C4      : All (λ v → voteRound v ≡ qRound (content qBase)) (qVotes (content qBase))
+      qVotes-C4      : All (λ v → getRound v ≡ qRound (content qBase)) (qVotes (content qBase))
   open QC public
 
-  qcRound : QC → Round
-  qcRound = qRound ∘ content ∘ qBase
-
-  qcAuthor : QC → Author ec
-  qcAuthor = qAuthor ∘ content ∘ qBase
+  -- Accessors
 
   qcVotes : QC → List Vote
   qcVotes = qVotes ∘ content ∘ qBase
 
-  qcBlockHash : QC → BlockHash
-  qcBlockHash = qBlockHash ∘ content ∘ qBase
+  instance 
+    qc-is-record : IsLibraBFTRecord QC
+    qc-is-record = is-librabft-record (qAuthor ∘ content ∘ qBase) (qRound ∘ content ∘ qBase) (qBlockHash ∘ content ∘ qBase)
 
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
@@ -106,7 +110,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   -- It's pretty easy to state whether an author has voted in
   -- a given QC.
   _∈QC_  : Author ec → QC → Set
-  a ∈QC qc = Any (λ v → voteAuthor v ≡ a) (qcVotes qc)
+  a ∈QC qc = Any (λ v → getAuthor v ≡ a) (qcVotes qc)
 
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
   ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
@@ -175,7 +179,8 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   -- Each record has a round
   round : Record → Round
   round (I i) = 0
-  round (B b) = blockRound b
-  round (Q q) = qcRound q
+  round (B b) = getRound b
+  round (Q q) = getRound q
   -- round (V v) = vRound v 
   -- round (T t) = toRound t
+

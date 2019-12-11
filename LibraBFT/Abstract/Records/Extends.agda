@@ -23,16 +23,16 @@ module LibraBFT.Abstract.Records.Extends
   -- warn of possible changes needed in the future?!
   data _←_ : Record → Record → Set where
     I←B : {i : Initial} {b : Block}
-        → 1 ≤ blockRound b
-        → HashR (I i) ≡ blockPrev b
+        → 1 ≤ getRound b
+        → HashR (I i) ≡ getPrevHash b
         → I i ← B b
     Q←B : {q : QC} {b : Block}
-        → qcRound q < blockRound b
-        → HashR (Q q) ≡ blockPrev b
+        → getRound q < getRound b
+        → HashR (Q q) ≡ getPrevHash b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
-        → qcRound q ≡ blockRound b
-        → HashR (B b) ≡ qcBlockHash q
+        → getRound q ≡ getRound b
+        → HashR (B b) ≡ getPrevHash q
         → B b ← Q q
     -- B←V : {b : Block} {v : Vote}
     --       → HashR (B b) ≡ vBlockHash v

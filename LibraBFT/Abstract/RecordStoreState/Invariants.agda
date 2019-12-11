@@ -42,7 +42,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → voteOrder (∈QC-Vote q va) < voteOrder (∈QC-Vote q' va')
-       → qcRound q < qcRound q'
+       → getRound q < getRound q'
 
     -- Another important predicate of a "valid" RecordStoreState is the fact
     -- that α's n-th vote is always the same.
@@ -69,4 +69,4 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
       → voteOrder (∈QC-Vote q vα) < voteOrder (∈QC-Vote q' vα')
-      → blockRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
+      → getRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
