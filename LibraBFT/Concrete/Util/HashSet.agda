@@ -28,7 +28,7 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
 
     ∉HS-correct : (k : Key)(hs : HashSet)
                 → ¬ k ∈HS hs
-                → lookup hs (hashK k) ≡ nothing
+                → lookup hs (hashK k) ≢ just k
 
     lookup-correct : {k : Key}(h : Hash)(hs : HashSet)
                    → lookup hs h ≡ just k
