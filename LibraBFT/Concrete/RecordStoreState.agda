@@ -182,12 +182,12 @@ module LibraBFT.Concrete.RecordStoreState
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → (r'New : ¬ r' ∈HS (rssPool rss))
+             → (r'New : lookup (rssPool rss) (hashRecord r') ≡ nothing)
              → r ← r'
              → Extends rss r'
 
   extends-Q? : (rss : RecordStoreState)(q : QC)
-             → ¬ (Q q) ∈RSS rss
+             → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
              → Maybe (Extends rss (Q q))
   extends-Q? rss q ok
     -- Structure is similar to extends-B? below, which is commented in detail.
@@ -203,7 +203,7 @@ module LibraBFT.Concrete.RecordStoreState
                              (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
   extends-B? : (rss : RecordStoreState)(b : Block)
-             → ¬ (B b) ∈RSS rss
+             → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
              → Maybe (Extends rss (B b))
   extends-B? rss b ok
   -- 1. Are we extending the initial record?
@@ -244,8 +244,8 @@ module LibraBFT.Concrete.RecordStoreState
   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
   ...| nothing | [ ok ] with r 
   ...| I _ = nothing
-  ...| B b = extends-B? rss b (λ x → maybe-⊥ (∈HS-correct (B b) (rssPool rss) x) ok)
-  ...| Q q = extends-Q? rss q (λ x → maybe-⊥ (∈HS-correct (Q q) (rssPool rss) x) ok)
+  ...| B b = extends-B? rss b ok
+  ...| Q q = extends-Q? rss q ok
 
   --------------------------
   -- Insertion of Records --
