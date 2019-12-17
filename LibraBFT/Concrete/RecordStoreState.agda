@@ -134,9 +134,20 @@ module LibraBFT.Concrete.RecordStoreState
     --- ... TOFINISH
 
   data VerNetworkRecord : Set where
-    B : VerSigned (BBlock (Author ec)) → VerNetworkRecord
-    V : VerSigned (BVote  (Author ec)) → VerNetworkRecord
+    B : (vs : VerSigned (BBlock (Author ec)))
+      → VerSigned.pk vs ≡ pkAuthor ec (getAuthor vs)
+      → VerNetworkRecord
+    V : (α : Author ec)
+      → (vs : VerSigned (BVote (Author ec)))
+      → getAuthor vs ≡ α
+      → VerSigned.pk vs ≡ pkAuthor ec α
+      → VerNetworkRecord
     -- ... TOFINISH
+
+  aux : ∀ (α : Fin (authorsN ec))
+          (nv : Signed (BVote NodeId))
+      → vAuthor (content (Signed-map (BVote-map (λ _ → α)) nv)) ≡ α
+  aux α nv = refl
 
   -- Employ structural checks on the records when receiving them on the wire.
   check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
@@ -146,8 +157,9 @@ module LibraBFT.Concrete.RecordStoreState
   -- 1; No! Reject!
   ...| nothing = nothing
   -- 2; Yes! Now we must check whether the signature matches
-  ...| just α  = Maybe-map V (checkSignature (pkAuthor ec α) 
-                               (Signed-map (BVote-map (λ _ → α)) nv))
+  ...| just α  = Maybe-map (λ xx → V α (proj₁ xx) ((cong vAuthor (proj₂ (proj₂ xx)))) (proj₁ (proj₂ xx)))
+                           (checkSignature (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv))
+
   check-signature-and-format (B nb) = {!!}
   check-signature-and-format (Q nq) = {!!}
 

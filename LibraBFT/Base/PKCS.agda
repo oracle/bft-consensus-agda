@@ -57,16 +57,17 @@ module LibraBFT.Base.PKCS where
      -- message using its own key but constructing the message to look like it came from a different
      -- author?  Why not preclude this at the type level too?  More generally, this is not used
      -- anywhere yet AFAICT, so it's difficult to discern its intended purpose.
-     verified  : ∃[ pk ] (verify (encode content) signature pk ≡ true )
+     pk        : PK
+     verified  : verify (encode content) signature pk ≡ true
  open VerSigned public
 
  checkSignature : ∀{A} ⦃ encA : Encoder A ⦄ 
-                → PK → Signed A → Maybe (VerSigned A)
+                → (pk : PK) → (sa : Signed A) → Maybe (Σ (VerSigned A) (λ vs → VerSigned.pk vs ≡ pk × VerSigned.content vs ≡ Signed.content sa))
  checkSignature pk obj 
    with verify (encode (content obj)) (signature obj) pk
       | inspect (verify (encode (content obj)) (signature obj)) pk 
  ...| false | _     = nothing 
- ...| true  | [ R ] = just (ver-signed (content obj) (signature obj) (pk , R))
+ ...| true  | [ R ] = just (ver-signed (content obj) (signature obj) pk R , (refl , refl))
 
  instance 
   encSigned : {A : Set} → ⦃ encA : Encoder A ⦄ → Encoder (Signed A)
