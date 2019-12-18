@@ -52,17 +52,14 @@ module LibraBFT.Base.PKCS where
    field
      content   : A
      signature : Signature
-     -- MSM: This only guarantees that there is a public key and nothing relates the key to the
-     -- purported author of the record.  So, couldn't a dishonest author get away with signing a
-     -- message using its own key but constructing the message to look like it came from a different
-     -- author?  Why not preclude this at the type level too?  More generally, this is not used
-     -- anywhere yet AFAICT, so it's difficult to discern its intended purpose.
      pk        : PK
      verified  : verify (encode content) signature pk ≡ true
  open VerSigned public
 
  checkSignature : ∀{A} ⦃ encA : Encoder A ⦄ 
-                → (pk : PK) → (sa : Signed A) → Maybe (Σ (VerSigned A) (λ vs → VerSigned.pk vs ≡ pk × VerSigned.content vs ≡ Signed.content sa))
+                → (pk : PK) → (sa : Signed A)
+                → Maybe (Σ (VerSigned A) (λ vs → VerSigned.pk vs ≡ pk
+                                               × VerSigned.content vs ≡ Signed.content sa))
  checkSignature pk obj 
    with verify (encode (content obj)) (signature obj) pk
       | inspect (verify (encode (content obj)) (signature obj)) pk 
