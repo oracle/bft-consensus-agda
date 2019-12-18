@@ -51,6 +51,8 @@ module LibraBFT.Abstract.RecordChain.Properties
 
    lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
            → IsInPool (Q q₀) → IsInPool (Q q₁)
+             -- MSM rc₀ and rc₁ are not used.  Are they expected to be needed when we add state?
+             -- Also, any reason not to separate rc₀ and p₀ with → ?
            → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)
            → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
            → getRound b₀ ≡ getRound b₁
