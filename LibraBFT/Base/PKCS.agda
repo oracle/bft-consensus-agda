@@ -52,19 +52,39 @@ module LibraBFT.Base.PKCS where
    field
      content   : A
      signature : Signature
-     pk        : PK
-     verified  : verify (encode content) signature pk ≡ true
+     verWithPK : PK
+     verified  : verify (encode content) signature verWithPK ≡ true
  open VerSigned public
 
  checkSignature : ∀{A} ⦃ encA : Encoder A ⦄ 
-                → (pk : PK) → (sa : Signed A)
-                → Maybe (Σ (VerSigned A) (λ vs → VerSigned.pk vs ≡ pk
-                                               × VerSigned.content vs ≡ Signed.content sa))
+                → PK → Signed A → Maybe (VerSigned A)
  checkSignature pk obj 
    with verify (encode (content obj)) (signature obj) pk
       | inspect (verify (encode (content obj)) (signature obj)) pk 
  ...| false | _     = nothing 
- ...| true  | [ R ] = just (ver-signed (content obj) (signature obj) pk R , (refl , refl))
+ ...| true  | [ R ] = just (ver-signed (content obj) (signature obj) pk R) 
+
+ checkSignature-correct 
+   : ∀{A} ⦃ encA : Encoder A ⦄ 
+   → (pk : PK)(sa : Signed A)(va : VerSigned A)
+   → checkSignature pk sa ≡ just va
+   → verWithPK va ≡ pk × VerSigned.content va ≡ content sa
+ checkSignature-correct pk sa va hyp 
+   with verify (encode (content sa)) (signature sa) pk
+      | inspect (verify (encode (content sa)) (signature sa)) pk 
+ checkSignature-correct pk sa va ()   | false | _
+ checkSignature-correct pk sa va refl | true  | [ R ] = refl , refl
+
+ -- A version of check signature containing the correctness proof.
+ checkSignature-prf 
+   : ∀{A} ⦃ encA : Encoder A ⦄ 
+   → (pk : PK)(sa : Signed A)
+   → Maybe (Σ (VerSigned A) (λ va → verWithPK va ≡ pk 
+                                  × content va ≡ content sa))
+ checkSignature-prf pk sa 
+   with checkSignature pk sa | inspect (checkSignature pk) sa 
+ ...| nothing | _     = nothing
+ ...| just va | [ R ] = just (va , checkSignature-correct pk sa va R)
 
  instance 
   encSigned : {A : Set} → ⦃ encA : Encoder A ⦄ → Encoder (Signed A)

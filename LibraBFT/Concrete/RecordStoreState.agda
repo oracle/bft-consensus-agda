@@ -150,8 +150,10 @@ module LibraBFT.Concrete.RecordStoreState
   -- 1; No! Reject!
   ...| nothing = nothing
   -- 2; Yes! Now we must check whether the signature matches
-  ...| just α  = Maybe-map (λ xx → V α (proj₁ xx) ((cong vAuthor (proj₂ (proj₂ xx)))) (proj₁ (proj₂ xx)))
-                           (checkSignature (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv))
+  ...| just α  
+    with checkSignature-prf (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv)
+  ...| nothing = nothing
+  ...| just (va , prf1 , refl) = just (V va prf1)
 
   check-signature-and-format (B nb) = {!!}
   check-signature-and-format (Q nq) = {!!}
