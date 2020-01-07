@@ -364,7 +364,24 @@ module LibraBFT.Concrete.RecordStoreState
   insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
             → IncreasingRound (insert rss r ext)
-  insert-ok-increasing-round rss r ext vrss = {!!}
+  insert-ok-increasing-round rss r ext vrss α hα {q} {q'} q∈rss q'∈rss va va' ord 
+  -- 0. Are the QCs equal? Well, no, the orders are different
+    with q ≟QC q'
+  ...| yes refl = {!!} -- impossible!
+  ...| no  q≢q' 
+  -- 1. Are these old QCs or did we just insert them?
+    with (Q q) ∈RSS? rss | (Q q') ∈RSS? rss
+  -- 1.1. Both are old; simple. Use hypothesis
+  ...| yes qOld | yes q'Old 
+     = ValidRSS.incr-round-rule vrss α hα qOld q'Old va va' ord
+  -- 1.2. Both are new, impossible; we just saw they must be different.
+  ...| no  qNew | no  q'New 
+     = ⊥-elim (q≢q' (sym (Q-injective 
+          (trans (insert-target ext {Q q'} q'New q'∈rss) 
+          (sym (insert-target ext {Q q} qNew q∈rss))))))
+  ...| yes qOld | no  q'New = {!!}
+  ...| no  qNew | yes q'Old = {!!}
+
 
   insert-ok-locked-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
             → ValidRSS rss
