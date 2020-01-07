@@ -87,7 +87,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    -- Lemma S3
 
    lemmaS3 : ∀{P r₂}{rc : RecordChain r₂}
-           → (c3 : 𝕂-chain P 3 rc)          -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
+           → (c3 : 𝕂-chain P 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
            → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
            → round r₂ < getRound q'

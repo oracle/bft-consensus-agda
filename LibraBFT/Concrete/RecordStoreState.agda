@@ -135,19 +135,12 @@ module LibraBFT.Concrete.RecordStoreState
 
   data VerNetworkRecord : Set where
     B : (vs : VerSigned (BBlock (Author ec)))
-      → VerSigned.pk vs ≡ pkAuthor ec (getAuthor vs)
+      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
       → VerNetworkRecord
-    V : (α : Author ec)
-      → (vs : VerSigned (BVote (Author ec)))
-      → getAuthor vs ≡ α
-      → VerSigned.pk vs ≡ pkAuthor ec α
+    V : (vs : VerSigned (BVote (Author ec)))
+      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
       → VerNetworkRecord
     -- ... TOFINISH
-
-  aux : ∀ (α : Fin (authorsN ec))
-          (nv : Signed (BVote NodeId))
-      → vAuthor (content (Signed-map (BVote-map (λ _ → α)) nv)) ≡ α
-  aux α nv = refl
 
   -- Employ structural checks on the records when receiving them on the wire.
   check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
@@ -320,7 +313,8 @@ module LibraBFT.Concrete.RecordStoreState
     rewrite insert-target ext s∉rss s∈post 
     with ext
   ...| extends {r = r} a b r←r' 
-     = WithRSS.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) (ValidRSS.correct vrss r a))
+     = WithRSS.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) 
+                                      (ValidRSS.correct vrss r a))
                     r←r' {insert-∈RSS (extends a b r←r')}
 
   ---------------------
