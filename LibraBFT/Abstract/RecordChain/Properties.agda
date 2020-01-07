@@ -53,6 +53,10 @@ module LibraBFT.Abstract.RecordChain.Properties
            → IsInPool (Q q₀) → IsInPool (Q q₁)
              -- MSM rc₀ and rc₁ are not used.  Are they expected to be needed when we add state?
              -- Also, any reason not to separate rc₀ and p₀ with → ?
+             -- VCM: Not really; older versons of the lemma did not require the 'IsInPool (Q q₀)',
+             --      I suspect that the record chains were left in there as they were being used
+             --      to extract the fact that all involved records were in the pool.
+             --      Correctness of the pool and lemmaS1-2 allows us to get b₀ and b₁.
            → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)
            → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
            → getRound b₀ ≡ getRound b₁
