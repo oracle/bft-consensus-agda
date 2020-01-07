@@ -31,6 +31,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
       getAuthor   : A → Author ec
       getRound    : A → Round
       getPrevHash : A → Hash
+      getEpochId  : A → EpochId
   open IsLibraBFTRecord {{...}} public
 
   -- I'm postulating this instance here instead of
@@ -44,7 +45,11 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
 
   instance
     block-is-record : IsLibraBFTRecord Block
-    block-is-record = is-librabft-record (bAuthor ∘ content) (bRound ∘ content) (bPrevQCHash ∘ content) 
+    block-is-record = is-librabft-record 
+      (bAuthor ∘ content) 
+      (bRound ∘ content) 
+      (bPrevQCHash ∘ content) 
+      (bEpochId ∘ content)
 
   -- TODO: Implement
   postulate
@@ -62,7 +67,11 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
     
   instance
     vote-is-record : IsLibraBFTRecord Vote
-    vote-is-record = is-librabft-record (vAuthor ∘ content) (vRound ∘ content) (vBlockHash ∘ content)
+    vote-is-record = is-librabft-record 
+      (vAuthor ∘ content) 
+      (vRound ∘ content) 
+      (vBlockHash ∘ content)
+      (vEpochId ∘ content)
 
 
   -- * Quorum Certificates
@@ -97,7 +106,11 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
 
   instance 
     qc-is-record : IsLibraBFTRecord QC
-    qc-is-record = is-librabft-record (qAuthor ∘ content ∘ qBase) (qRound ∘ content ∘ qBase) (qBlockHash ∘ content ∘ qBase)
+    qc-is-record = is-librabft-record 
+      (qAuthor ∘ content ∘ qBase) 
+      (qRound ∘ content ∘ qBase) 
+      (qBlockHash ∘ content ∘ qBase)
+      (qEpochId ∘ content ∘ qBase)
 
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.

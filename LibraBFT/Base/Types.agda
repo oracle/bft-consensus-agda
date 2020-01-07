@@ -80,6 +80,7 @@ module LibraBFT.Base.Types where
    record BBlock  : Set where
      constructor mkBlock
      field
+       bEpochId    : EpochId
        bAuthor     : author
        bCommand    : Command
        bPrevQCHash : QCHash
@@ -89,6 +90,7 @@ module LibraBFT.Base.Types where
    record BVote  : Set where
      constructor mkVote
      field
+       vEpochId   : EpochId
        vAuthor    : author
        vBlockHash : BlockHash
        vRound     : Round
@@ -98,6 +100,7 @@ module LibraBFT.Base.Types where
 
    record BQC (votes : Set) : Set where
     field
+      qEpochId       : EpochId
       qAuthor        : author
       qBlockHash     : BlockHash
       qRound         : Round
@@ -114,7 +117,8 @@ module LibraBFT.Base.Types where
 
   BVote-map : ∀{A B} → (A → B) → BVote A → BVote B
   BVote-map f bv = record 
-   { vAuthor    = f (vAuthor bv) 
+   { vEpochId   = vEpochId bv 
+   ; vAuthor    = f (vAuthor bv) 
    ; vBlockHash = vBlockHash bv  
    ; vRound     = vRound bv
    ; vOrder     = vOrder bv
