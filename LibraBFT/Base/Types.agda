@@ -50,6 +50,7 @@ module LibraBFT.Base.Types where
       seed     : ℕ
 
       ecInitialState  : State
+
     QuorumSize : ℕ
     QuorumSize = authorsN ∸ bizF
 
@@ -59,6 +60,11 @@ module LibraBFT.Base.Types where
     field
       isAuthor : NodeId -> Maybe Author
       pkAuthor : Author -> PK
+      pkInj    : ∀ (a₁ a₂ : Author)  -- Authors must have distinct public keys, otherwise a
+                                     -- dishonest author can potentially impersonate an honest
+                                     -- author.
+               → pkAuthor a₁ ≡ pkAuthor a₂
+               → a₁ ≡ a₂
 
     -- AuthorId : Author -> NodeId
     -- AuthorDisj : ...
