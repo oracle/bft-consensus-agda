@@ -13,11 +13,13 @@ open import LibraBFT.Abstract.Records
 
 open import Level
 
-module LibraBFT.Concrete.Model
+module LibraBFT.Concrete.ModelDraft
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
 
+ -- VCM: Why not List NetworkRecord? Plus, we will need 
+ -- destination and assumptions on the network layer still.
  data SentMessages : Set where
    empty : SentMessages
    send  : SentMessages → NetworkRecord → SentMessages
@@ -30,6 +32,9 @@ module LibraBFT.Concrete.Model
      currentEpoch   : EpochConfig
      lastVotedRound : Round
      rss            : RecordStoreState hash hash-cr currentEpoch
+
+ fakeEC : ℕ → EpochConfig
+ fakeEC n = {!!}
 
  initNodeState : NodeState
  initNodeState = nodeState (fakeEC 0) 0 (emptyRSS hash hash-cr (fakeEC 0))
@@ -49,6 +54,9 @@ module LibraBFT.Concrete.Model
  --       create an event where any node that is not an honest author for an epoch can send an arbitrary vote for that epoch
  --       dishonest one knows it's dishonest, so it could prov
 
+ -- VCM: I don't understand why these are "events". Do they transition
+ -- the state of the system? I should read the paper where this formalism is
+ -- introduced before deepening my confusion.
  data Event : EpochId → NodeId → Set where
    goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → Event eId nId
    notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                → Event eId nId
@@ -70,7 +78,7 @@ module LibraBFT.Concrete.Model
  -- can send votes that break the rules but honest ones can't.
  -- MSM: why don't I get a "missing cases" warning here, as there is no recvMessage case.
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) =
-   let vote  = mkVote eId nId dummyHash 0 0
+   let vote  = mkVote eId nId dummyHash 0 {!!}
        sVote = signed vote (sign (encode vote) (proj₁ (fakeKeyPair (pkAuthor (fakeEC eId) aId))))
    in record ps { sentMessages = send (sentMessages ps) (V sVote) }
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (recvMessage nm nm∈SM) = ps
