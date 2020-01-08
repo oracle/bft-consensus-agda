@@ -149,6 +149,12 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   ∈QC-Vote-correct q a∈q = Any-lookup-correct a∈q
 
   -- A record is defined by being either of the types introduced above.
+  --
+  -- VCM: TODO: Shouldn't we take the new BlockStore
+  -- approach and couple blocks and QCs on the same datatype?
+  -- Yes, its a major effort, but I believe it will pay off
+  -- in helping to distinguish network records from records supposed
+  -- to be stored in the block store.
   data Record : Set where
     I : Initial   → Record
     B : Block     → Record
