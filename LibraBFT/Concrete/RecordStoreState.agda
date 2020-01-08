@@ -18,6 +18,7 @@ module LibraBFT.Concrete.RecordStoreState
  where
 
   open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.Rules                                    ec
   open import LibraBFT.Abstract.BFT                                      ec 
   open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
   open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
@@ -158,23 +159,6 @@ module LibraBFT.Concrete.RecordStoreState
   check-signature-and-format (B nb) = {!!}
   check-signature-and-format (Q nq) = {!!}
   check-signature-and-format (C nc) = {!!}
-
-  ---------------------------------------
-  -- Honesty and Dishonesty of Authors --
-
-  data Dishonest (α : Author ec) : Set where
-    same-order-diff-qcs 
-      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
-      → q ≢ q'
-      → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
-      → Dishonest α
-
-  DishonestM : Maybe (Author ec) → Set
-  DishonestM nothing  = ⊥
-  DishonestM (just α) = Dishonest α
-
-  postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
 
   --------------------------------
   -- Semantically Valid Records --
