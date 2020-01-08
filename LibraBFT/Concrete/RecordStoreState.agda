@@ -330,14 +330,11 @@ module LibraBFT.Concrete.RecordStoreState
      = ValidRSS.votes-once-rule vrss α hα qOld q'Old vα vα' ord
   -- 1.2 No! One is old but the other is newly inserted. This must be impossible.
   ...| no  qNew | yes q'Old 
-     -- But wait. If q has been inserted but not q'; but at
-     -- the same time we have a proof that q extends the state, 
-     -- the rounds of the QC's must be different, which render
-     -- the QC's different altogether. Hence, α is Dishonest and
-     -- we have proof!
-     = ⊥-elim (ACCOUNTABILITY-OPP hα (same-order-diff-qcs {α} {q} {q'} vα vα' q≢q' ord)) 
+     = {!!}  -- TODO: Previous proof for this case and the next used same-order-diff-qcs to "prove" that
+             --       an author whose vote is included in two different QCs is dishonest, but this is not
+             --       correct; it is the author of (at least) one of the QCs that is dishonest.
   ...| yes qOld | no  q'New 
-     = ⊥-elim (ACCOUNTABILITY-OPP hα (same-order-diff-qcs {α} {q} {q'} vα vα' q≢q' ord))
+     = {!!}
   -- 1.3 Both QCs are new; hence must have been inserted
   --     now. This means that they must be equal; Yet, we have
   --     just compared them before and found out they are not equal.
