@@ -32,9 +32,17 @@ module LibraBFT.Base.Types where
   -- VCM: After our discussion about vote order; I propose
   -- we make it into a postulate. Naturally, as the name suggests,
   -- it must have some sort of order raltion; also inacessible.
-  postulate
-    VoteOrder : Set
-    _<VO_     : VoteOrder → VoteOrder → Set
+  -- MSM: But then how can we create values of this type in the concrete model?
+  --      I am making it ℕ for now.  Of course, this makes it accessible to those
+  --      that shouldn't access it, but I think that should be addressed by convention,
+  --      e.g. naming fields of this type with an AUX suffix, enabling searching and
+  --      careful examination of each use to ensure it's not accessed where it shouldn't be.
+  -- postulate
+  VoteOrder : Set
+  VoteOrder = ℕ
+
+  _<VO_     : VoteOrder → VoteOrder → Set
+  _<VO_ = _<_
 
   -- An 'EpochConfig f' carries the information we need tot
   -- survive at most 'f' byzantine failures. for now, this is
