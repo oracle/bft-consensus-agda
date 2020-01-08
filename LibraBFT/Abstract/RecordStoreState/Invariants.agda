@@ -44,6 +44,25 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        → voteOrder (∈QC-Vote q va) <VO voteOrder (∈QC-Vote q' va')
        → getRound q < getRound q'
 
+    -- An honest participant does not vote for two different blocks in the same round.  This is
+    -- "implied" by the informal Increasing Round Rule in the paper: "An honest node that voted once
+    -- for B in the past may only vote for B' if round(B) < round(B′)", but it is not implied by
+    -- our vOrder-based formalization thereof (above).  We therefore capture this requirement via an
+    -- additional formal requirement VotesOnlyOnceRule (below).
+
+    -- TODO: the rest of this comment really belongs somewhere else that doesn't exist yet, perhaps
+    -- in the Rules module I intend to introduce soon.
+    -- For the abstract model, we need this property only between pairs of votes that are in the
+    -- pool.  However, for the concrete model to provide proof that the rule is followed to the
+    -- abstract model, we will need to state the rule more generally.  We need the property to hold
+    -- for all pairs of votes that are signed and sent by an author.  It is tempting to drop the
+    -- "and sent" constraint, which rules out the possibility that an honest author could sign *but
+    -- not send* contradictory votes for the same round.  This might seem unimportant, but it places
+    -- an unncessary constraint on implementations.  For example, one might attempt to optimize an
+    -- implementation by initiating signing in one thread while validating conditions in another.
+    -- In this case, an honest author might sign a Vote, then decide not to send it, and later sign
+    -- a different vote that conflicts with it.
+
     -- Another important predicate of a "valid" RecordStoreState is the fact
     -- that α's n-th vote is always the same.
     VotesOnlyOnceRule : Set
