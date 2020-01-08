@@ -131,6 +131,7 @@ module LibraBFT.Concrete.RecordStoreState
     B : Signed (BBlock NodeId)                      → NetworkRecord
     V : Signed (BVote NodeId)                       → NetworkRecord
     Q : Signed (BQC NodeId (Signed (BVote NodeId))) → NetworkRecord
+    C : Signed (BC NodeId)                          → NetworkRecord
     --- ... TOFINISH
 
   data VerNetworkRecord : Set where
@@ -138,6 +139,9 @@ module LibraBFT.Concrete.RecordStoreState
       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
       → VerNetworkRecord
     V : (vs : VerSigned (BVote (Author ec)))
+      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
+      → VerNetworkRecord
+    C : (vs : VerSigned (BC (Author ec)))
       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
       → VerNetworkRecord
     -- ... TOFINISH
@@ -157,6 +161,7 @@ module LibraBFT.Concrete.RecordStoreState
 
   check-signature-and-format (B nb) = {!!}
   check-signature-and-format (Q nq) = {!!}
+  check-signature-and-format (C nc) = {!!}
 
   ---------------------------------------
   -- Honesty and Dishonesty of Authors --
