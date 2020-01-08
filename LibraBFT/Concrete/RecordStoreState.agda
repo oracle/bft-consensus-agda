@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Prelude
   hiding (lookup)
 open import LibraBFT.Hash
@@ -5,6 +7,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.NetworkRecords
 
 module LibraBFT.Concrete.RecordStoreState
     -- A Hash function maps a bytestring into a hash.
@@ -126,13 +129,6 @@ module LibraBFT.Concrete.RecordStoreState
 
   --------------------------------
   -- Syntatically Valid Records --
-
-  data NetworkRecord : Set where
-    B : Signed (BBlock NodeId)                      → NetworkRecord
-    V : Signed (BVote NodeId)                       → NetworkRecord
-    Q : Signed (BQC NodeId (Signed (BVote NodeId))) → NetworkRecord
-    C : Signed (BC NodeId)                          → NetworkRecord
-    --- ... TOFINISH
 
   data VerNetworkRecord : Set where
     B : (vs : VerSigned (BBlock (Author ec)))
