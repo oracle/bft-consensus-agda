@@ -7,7 +7,6 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Concrete.NetworkRecords
 
 module LibraBFT.Concrete.RecordStoreState
     -- A Hash function maps a bytestring into a hash.
@@ -126,38 +125,6 @@ module LibraBFT.Concrete.RecordStoreState
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
               (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
                  → ⊥-elim (∈HS-empty-⊥ abs) })
-
-  --------------------------------
-  -- Syntatically Valid Records --
-
-  data VerNetworkRecord : Set where
-    B : (vs : VerSigned (BBlock (Author ec)))
-      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-      → VerNetworkRecord
-    V : (vs : VerSigned (BVote (Author ec)))
-      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-      → VerNetworkRecord
-    C : (vs : VerSigned (BC (Author ec)))
-      → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-      → VerNetworkRecord
-    -- ... TOFINISH
-
-  -- Employ structural checks on the records when receiving them on the wire.
-  check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
-  check-signature-and-format (V nv) 
-  -- Is the author of the vote an actual author?
-    with isAuthor ec (vAuthor (content nv)) 
-  -- 1; No! Reject!
-  ...| nothing = nothing
-  -- 2; Yes! Now we must check whether the signature matches
-  ...| just α  
-    with checkSignature-prf (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv)
-  ...| nothing = nothing
-  ...| just (va , prf1 , refl) = just (V va prf1)
-
-  check-signature-and-format (B nb) = {!!}
-  check-signature-and-format (Q nq) = {!!}
-  check-signature-and-format (C nc) = {!!}
 
   ---------------------------------------
   -- Honesty and Dishonesty of Authors --
