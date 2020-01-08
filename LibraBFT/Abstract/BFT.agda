@@ -20,10 +20,14 @@ module LibraBFT.Abstract.BFT (ec : EpochConfig) where
  postulate
    Honest : Author ec → Set
 
-
  -- A classical result tells us that in any two quorums,
  -- there exists an honest author. In Agda, we use said result
  -- as the only way of constructing an honest node.
+
+ -- MSM: TODO This should really be about sets of authors, not about QCs.  (Classical results don't
+ -- know or say anything about QCs.)  We should postulate a more general property and then prove
+ -- this from it.
+
  postulate
    lemmaB1 : (q₁ : QC)(q₂ : QC) 
            → ∃[ a ] (a ∈QC q₁ × a ∈QC q₂ × Honest a)
