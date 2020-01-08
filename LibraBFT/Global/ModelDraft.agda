@@ -2,7 +2,7 @@
 
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
-open import LibraBFT.Concrete.NetworkRecords
+open import LibraBFT.Concrete.Network
 open import LibraBFT.Concrete.RecordStoreState using (RecordStoreState ; VerNetworkRecord ; check-signature-and-format ; emptyRSS)
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
@@ -13,10 +13,36 @@ open import LibraBFT.Abstract.Records
 
 open import Level
 
-module LibraBFT.Concrete.ModelDraft
+module LibraBFT.Global.ModelDraft
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
+{-
+VCM:
+
+ I think the global state should be something like:
+
+ > record SystemState : Set where
+ >   constructor sysState
+ >   field
+ >     msgQueue   : List (Σ NetworkMsg SentByBlaBlaBla)
+ >     nodeStates : NodeId → NodeState
+
+ and the events should be something like:
+
+ a. step node, which pops a message addressed to node x
+ and calls the handle function; take the post state to be
+ the result of the handle function and append the necessary outgoing
+ messages.
+
+ b. drop message, which forgets a message
+
+ ...
+
+ It seems like network layer assumptions do really only show up here,
+ which is good.
+
+-}
 
  -- VCM: Why not List NetworkRecord? Plus, we will need 
  -- destination and assumptions on the network layer still.
@@ -39,12 +65,12 @@ module LibraBFT.Concrete.ModelDraft
  initNodeState : NodeState
  initNodeState = nodeState (fakeEC 0) 0 (emptyRSS hash hash-cr (fakeEC 0))
 
+
  record SystemState : Set where
    constructor sysState
    field
      sentMessages : SentMessages
      nodeStates   : NodeId → NodeState
-
  open SystemState
 
  initState : SystemState
