@@ -6,7 +6,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Abstract.Records
 
-module LibraBFT.Global.NetworkMessages where
+module LibraBFT.Concrete.NetworkMessages where
 
   --------------------------------
   -- Syntatically Valid Records --

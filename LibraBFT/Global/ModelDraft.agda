@@ -3,13 +3,13 @@
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
 open import LibraBFT.Concrete.RecordStoreState using (RecordStoreState ; emptyRSS)
+open import LibraBFT.Concrete.NetworkMessages
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
-open import LibraBFT.Global.NetworkMessages
 open import LibraBFT.Global.Network
 open        WithMsgType NetworkMsg
 
