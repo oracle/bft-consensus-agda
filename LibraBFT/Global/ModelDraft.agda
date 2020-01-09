@@ -45,9 +45,6 @@ module LibraBFT.Global.ModelDraft
  --       create an event where any node that is not an honest author for an epoch can send an arbitrary vote for that epoch
  --       dishonest one knows it's dishonest, so it could prov
 
- -- VCM: I don't understand why these are "events". Do they transition
- -- the state of the system? I should read the paper where this formalism is
- -- introduced before deepening my confusion.
  data EventInitiator : EpochId → NodeId → Set where
    goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → EventInitiator eId nId
    notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                → EventInitiator eId nId
