@@ -107,6 +107,15 @@ VCM:
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps
 
+ data ReachableSystemState : SystemState → Set where
+   init : ReachableSystemState initState
+   step : ∀ {preState postState} {eId} {nId}
+        → ReachableSystemState preState
+        → {e : Event eId nId}
+        → {en : Enabled preState e}
+        → Step {preState} {eId} {nId} e en ≡ postState
+        → ReachableSystemState postState
+
 
  -- If two commit messages are sent by two honest authors of the same epoch at the same round, then
  -- their contents (which will probably change) are the same.
@@ -120,6 +129,7 @@ VCM:
   -- commit the same thing (commit certificate).
 
   Correctness : ∀ {α₁ α₂} {ss : SystemState} {aId₁} {aId₂}
+              → ReachableSystemState ss
               → isAuthor ec α₁ ≡ just aId₁ → Honest ec aId₁
               → isAuthor ec α₂ ≡ just aId₂ → Honest ec aId₂
               → {c₁ : NetworkRecord}
