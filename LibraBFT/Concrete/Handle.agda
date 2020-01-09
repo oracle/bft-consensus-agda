@@ -6,7 +6,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Concrete.Network
+open import LibraBFT.Global.Network
 
 module LibraBFT.Concrete.Handle
   (hash    : ByteString → Hash)
