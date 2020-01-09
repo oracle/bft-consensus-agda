@@ -79,14 +79,14 @@ VCM:
  -- VCM: I don't understand why these are "events". Do they transition
  -- the state of the system? I should read the paper where this formalism is
  -- introduced before deepening my confusion.
- data Event : EpochId → NodeId → Set where
-   goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → Event eId nId
-   notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                → Event eId nId
-   badAuthor  : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId → ¬ (Honest (fakeEC eId) aId) → Event eId nId
+ data EventInitiator : EpochId → NodeId → Set where
+   goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → EventInitiator eId nId
+   notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                → EventInitiator eId nId
+   badAuthor  : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId → ¬ (Honest (fakeEC eId) aId) → EventInitiator eId nId
 
- data Enabled : ∀ {eId} {nId} → SystemState → Event eId nId → Set where
-   spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : Event eId nId)                                              → Enabled ps e
-   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : Event eId nId} → (n : NetworkRecord) → n ∈SM (sentMessages ps) → Enabled ps e
+ data Enabled : ∀ {eId} {nId} → SystemState → EventInitiator eId nId → Set where
+   spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId)                                              → Enabled ps e
+   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NetworkRecord) → n ∈SM (sentMessages ps) → Enabled ps e
    -- TODO: TIMEOUT (maybe model as special NetworkRecord?)
 
  -- MSM: the following is bogus and cannot exist in reality, it's just for making progress before
@@ -94,16 +94,15 @@ VCM:
  postulate
    fakeKeyPair : (pk : PK) → ∃[ sk ](IsKeyPair pk sk)
 
- Step : ∀ {ps : SystemState}{eId}{nId} → (e : Event eId nId) → Enabled ps e → SystemState
+ Step : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState
  -- A fake action that spontaneously "sends" a vote message.
  -- Currently it sends the same vote every time, so no problem.  Later I want to make it so dishonest authors
  -- can send votes that break the rules but honest ones can't.
- -- MSM: why don't I get a "missing cases" warning here, as there is no recvMessage case.
+ -- MSM: why don't I get a "missing cases" warning here, if there is no recvMessage case?
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) =
    let vote  = mkVote eId nId dummyHash 0 0
        sVote = signed vote (sign (encode vote) (proj₁ (fakeKeyPair (pkAuthor (fakeEC eId) aId))))
    in record ps { sentMessages = send (sentMessages ps) (V sVote) }
- Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (recvMessage nm nm∈SM) = ps
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps
 
@@ -111,7 +110,7 @@ VCM:
    init : ReachableSystemState initState
    step : ∀ {preState postState} {eId} {nId}
         → ReachableSystemState preState
-        → {e : Event eId nId}
+        → {e : EventInitiator eId nId}
         → {en : Enabled preState e}
         → Step {preState} {eId} {nId} e en ≡ postState
         → ReachableSystemState postState
