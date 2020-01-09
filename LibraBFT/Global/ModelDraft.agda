@@ -9,6 +9,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Network
 
 open import Level
 
@@ -43,14 +44,6 @@ VCM:
 
 -}
 
- -- VCM: Why not List NetworkRecord? Plus, we will need 
- -- destination and assumptions on the network layer still.
- data SentMessages : Set where
-   empty : SentMessages
-   send  : SentMessages → NetworkRecord → SentMessages
-
- data _∈SM_ : NetworkRecord → SentMessages → Set where
-
  record NodeState : Set where
    constructor nodeState
    field
@@ -70,7 +63,7 @@ VCM:
  open SystemState
 
  initState : SystemState
- initState = sysState empty (λ _ → initNodeState)
+ initState = sysState noMessages (λ _ → initNodeState)
 
  -- TODO: create an event where any NodeID can send a vote in its current epoch with a higher round than last voted round
  --       create an event where any node that is not an honest author for an epoch can send an arbitrary vote for that epoch
@@ -86,7 +79,7 @@ VCM:
 
  data Enabled : ∀ {eId} {nId} → SystemState → EventInitiator eId nId → Set where
    spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId)                                              → Enabled ps e
-   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NetworkRecord) → n ∈SM (sentMessages ps) → Enabled ps e
+   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NetworkMsg) → n ∈SM (sentMessages ps) → Enabled ps e
    -- TODO: TIMEOUT (maybe model as special NetworkRecord?)
 
  -- MSM: the following is bogus and cannot exist in reality, it's just for making progress before
@@ -95,14 +88,14 @@ VCM:
    fakeKeyPair : (pk : PK) → ∃[ sk ](IsKeyPair pk sk)
 
  Step : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState
- -- A fake action that spontaneously "sends" a vote message.
- -- Currently it sends the same vote every time, so no problem.  Later I want to make it so dishonest authors
+ -- A fake action that spontaneously "broadcasts" a vote message.
+ -- Currently it broadcasts the same vote every time, so no problem.  Later I want to make it so dishonest authors
  -- can send votes that break the rules but honest ones can't.
- -- MSM: why don't I get a "missing cases" warning here, if there is no recvMessage case?
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) =
    let vote  = mkVote eId nId dummyHash 0 0
        sVote = signed vote (sign (encode vote) (proj₁ (fakeKeyPair (pkAuthor (fakeEC eId) aId))))
-   in record ps { sentMessages = send (sentMessages ps) (V sVote) }
+   in record ps { sentMessages = sendMsg (sentMessages ps) (wire Broadcast (V sVote)) }
+ Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (recvMessage _ _) = ps
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps
 
@@ -134,8 +127,8 @@ VCM:
               → Honest ec (getAuthor vs₂)
               → {pk₁ : verWithPK vs₁ ≡ (pkAuthor ec (getAuthor vs₁))}
               → {pk₂ : verWithPK vs₂ ≡ (pkAuthor ec (getAuthor vs₂))}
-              → check-signature-and-format ec c₁ ≡ just (C vs₁ pk₁)
-              → check-signature-and-format ec c₂ ≡ just (C vs₂ pk₂)
+              → check-signature-and-format ec (content c₁) ≡ just (C vs₁ pk₁)
+              → check-signature-and-format ec (content c₂) ≡ just (C vs₂ pk₂)
               → getRound vs₁ ≡ getRound vs₂
               → cCert (content vs₁) ≡ cCert (content vs₂)
   Correctness = {!!}

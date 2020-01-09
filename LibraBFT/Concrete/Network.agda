@@ -38,7 +38,33 @@ module LibraBFT.Concrete.Network where
   
   sender : NetworkMsg → NodeId
   sender m = netrecAuthor (content m)
-  
+
+  -- Here we model the network as a predicate over NetworkRecords.  The only functionality is to
+  -- produce and empty network with no messages, and to send a message.  We assume that messages may
+  -- be dropped, duplicated and/or reordered.  Therefore, there is no reason to maintain an order,
+  -- nor to explicitly drop messages.  We can process any message that has been sent at any time.
+  -- Dropping a message is modeled simply by never processing it.  Similar to HashSet, for now we
+  -- postulate something for this; we can fill out an implementation and prove the required
+  -- properies later.
+
+  postulate
+    SentMessages : Set
+
+    -- Predicates
+    _∈SM_ : NetworkMsg → SentMessages → Set
+
+    -- Functionality
+    noMessages : SentMessages
+    sendMsg    : SentMessages → NetworkMsg → SentMessages
+
+    -- Properties
+    ∈SM-noMessages-⊥ : {m : NetworkMsg} → m ∈SM noMessages → ⊥
+    SM-send-correct  : {sm : SentMessages} {m : NetworkMsg}
+                     → m ∈SM (sendMsg sm m)
+    ∈SM-stable       : {sm : SentMessages} {m m' : NetworkMsg}
+                     → m ∈SM sm
+                     → m ∈SM (sendMsg sm m')
+
   ------------------------------------------------
   -- Syntatically Valid Records Depend on Epoch --
 
