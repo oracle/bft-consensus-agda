@@ -29,3 +29,7 @@ module LibraBFT.Global.Network where
       ∈SM-stable       : {sm : SentMessages} {m m' : A}
                        → m ∈SM sm
                        → m ∈SM (sendMsg sm m')
+      SM-insert-target : {m m' : A} {sm : SentMessages}
+                       → ¬ (m ∈SM sm)
+                       → m ∈SM (sendMsg sm m')
+                       → m ≡ m'
