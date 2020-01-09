@@ -9,7 +9,6 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
-open import LibraBFT.Abstract.Records
 
 open import Level
 
@@ -111,20 +110,28 @@ VCM:
 
  -- If two commit messages are sent by two honest authors of the same epoch at the same round, then
  -- their contents (which will probably change) are the same.
- Correctness : ∀ {α₁ α₂} {ss : SystemState} {eId} {ec} {aId₁} {aId₂}
-             → ec ≡ fakeEC eId
-             → isAuthor ec α₁ ≡ just aId₁ → Honest ec aId₁
-             → isAuthor ec α₂ ≡ just aId₂ → Honest ec aId₂
-             → {c₁ : NetworkRecord}
-             → {c₂ : NetworkRecord}
-             → c₁ ∈SM (sentMessages ss)
-             → c₂ ∈SM (sentMessages ss)
-             → {vs₁ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ec ⦄ ⦄ }
-             → {vs₂ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ec ⦄ ⦄ }
--- TODO: these need to be updated to be consistent with Victor's changes but I don't have time now.
---             → {xx₁ : verWithPK vs₁ ≡ (pkAuthor ec (getAuthor vs₁))}
---             → check-signature-and-format hash hash-cr ec c₁ ≡ just (C vs₁ xx₁)
---             → check-signature-and-format hash hash-cr ec c₂ ≡ just v₂
---             → getRound (content vs₁) ≡ getRound (content vs₂)
-             → cCert (content vs₁) ≡ cCert (content vs₂)
- Correctness = {!!}
+
+ module _ (ec : EpochConfig) where
+
+  open import LibraBFT.Abstract.Records ec
+
+  -- In any reachable state, for a given epoch, if there are two verifibly signed commit messages
+  -- from two honest authors of that epoch, and both are for the same round, then they both say to
+  -- commit the same thing (commit certificate).
+
+  Correctness : ∀ {α₁ α₂} {ss : SystemState} {aId₁} {aId₂}
+              → isAuthor ec α₁ ≡ just aId₁ → Honest ec aId₁
+              → isAuthor ec α₂ ≡ just aId₂ → Honest ec aId₂
+              → {c₁ : NetworkRecord}
+              → {c₂ : NetworkRecord}
+              → c₁ ∈SM (sentMessages ss)
+              → c₂ ∈SM (sentMessages ss)
+              → {vs₁ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
+              → {vs₂ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
+              → {pk₁ : verWithPK vs₁ ≡ (pkAuthor ec (getAuthor vs₁))}
+              → {pk₂ : verWithPK vs₂ ≡ (pkAuthor ec (getAuthor vs₂))}
+              → check-signature-and-format ec c₁ ≡ just (C vs₁ pk₁)
+              → check-signature-and-format ec c₂ ≡ just (C vs₂ pk₂)
+              → getRound vs₁ ≡ getRound vs₂
+              → cCert (content vs₁) ≡ cCert (content vs₂)
+  Correctness = {!!}
