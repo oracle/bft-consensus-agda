@@ -9,7 +9,10 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
+open import LibraBFT.Global.NetworkMessages
 open import LibraBFT.Global.Network
+open        WithMsgType NetworkMsg
+
 
 open import Level
 
@@ -53,7 +56,6 @@ VCM:
 
  initNodeState : NodeState
  initNodeState = nodeState (fakeEC 0) 0 (emptyRSS hash hash-cr (fakeEC 0))
-
 
  record SystemState : Set where
    constructor sysState
