@@ -20,32 +20,6 @@ module LibraBFT.Global.ModelDraft
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
-{-
-VCM:
-
- I think the global state should be something like:
-
- > record SystemState : Set where
- >   constructor sysState
- >   field
- >     msgQueue   : List (Σ NetworkMsg SentByBlaBlaBla)
- >     nodeStates : NodeId → NodeState
-
- and the events should be something like:
-
- a. step node, which pops a message addressed to node x
- and calls the handle function; take the post state to be
- the result of the handle function and append the necessary outgoing
- messages.
-
- b. drop message, which forgets a message
-
- ...
-
- It seems like network layer assumptions do really only show up here,
- which is good.
-
--}
 
  record NodeState : Set where
    constructor nodeState
