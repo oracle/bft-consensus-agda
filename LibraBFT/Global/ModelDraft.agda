@@ -96,12 +96,12 @@ module LibraBFT.Global.ModelDraft
               → c₂ ∈SM (sentMessages ss)
               → {vs₁ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
               → {vs₂ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
-              → Honest ec (getAuthor vs₁)
-              → Honest ec (getAuthor vs₂)
               → {pk₁ : verWithPK vs₁ ≡ (pkAuthor ec (getAuthor vs₁))}
               → {pk₂ : verWithPK vs₂ ≡ (pkAuthor ec (getAuthor vs₂))}
               → check-signature-and-format ec (content c₁) ≡ just (C vs₁ pk₁)
               → check-signature-and-format ec (content c₂) ≡ just (C vs₂ pk₂)
+              → Honest ec (getAuthor vs₁)
+              → Honest ec (getAuthor vs₂)
               → getRound vs₁ ≡ getRound vs₂
               → cCert (content vs₁) ≡ cCert (content vs₂)
   Correctness = {!!}
