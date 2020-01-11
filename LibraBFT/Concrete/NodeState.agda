@@ -16,20 +16,22 @@ module LibraBFT.Concrete.NodeState
  record NodeState : Set where
    constructor nodeState
    field
-     currentEpoch   : EpochConfig
+     myPK           : PK
      lastVotedRound : Round
-     rss            : RecordStoreState currentEpoch
  open NodeState public
+
+ postulate
+   abstractEpochConfig : NodeState → EpochConfig  -- TODO: EpochConfig is an Abstract concept, we will need to
+                                                  -- construct it from the concrete NodeState
+
+ record NodeStateWithProps : Set where
+   field
+     state  : NodeState
+     auxRSS : RecordStoreState (abstractEpochConfig state)
+
 
  leader? : NodeState → Bool
  leader? = {!!}
-
-
- ec : NodeState → EpochConfig
- ec = NodeState.currentEpoch
-
- me : (st : NodeState) → Author (ec st)
- me = {!!}
 
  -- VCM: PROPOSAL TO HANDLE PRIV KEYS
  --
@@ -49,7 +51,7 @@ module LibraBFT.Concrete.NodeState
      → (st : NodeState)(x : A)
      → verify (encode x) 
               (signature (mkSigned st x)) 
-              (pkAuthor (ec st) (me st)) 
+              (myPK st)
        ≡ true
 
    mkSigned-correct-2
@@ -59,4 +61,4 @@ module LibraBFT.Concrete.NodeState
               (signature (mkSigned st x)) 
               pk
         ≡ true
-     → pk ≡ pkAuthor (ec st) (me st)
+     → pk ≡ (myPK st)

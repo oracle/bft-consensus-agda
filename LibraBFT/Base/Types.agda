@@ -67,12 +67,6 @@ module LibraBFT.Base.Types where
 
     field
       isAuthor : NodeId -> Maybe Author
-      pkAuthor : Author -> PK
-      pkInj    : ∀ (a₁ a₂ : Author)  -- Authors must have distinct public keys, otherwise a
-                                     -- dishonest author can potentially impersonate an honest
-                                     -- author.
-               → pkAuthor a₁ ≡ pkAuthor a₂
-               → a₁ ≡ a₂
 
     -- AuthorId : Author -> NodeId
     -- AuthorDisj : ...
@@ -102,8 +96,6 @@ module LibraBFT.Base.Types where
                ; seed           = 0
                ; ecInitialState = dummyHash
                ; isAuthor       = fakeAuthors
-               ; pkAuthor       = fakePKs
-               ; pkInj          = fakePKsInj
                }
 
   -- Records parameterized by a type of author execpt the initial
@@ -157,16 +149,6 @@ module LibraBFT.Base.Types where
        toRound   : Round
    open BTimeout public
 
-   -- This is a notification of a commit.  It will probably have something different in it.
-   record BC : Set where
-     constructor mkCommitMsg
-     field
-       cEpochId : EpochId
-       cAuthor  : author
-       cRound   : Round
-       cCert    : QCHash
-   open BC public
-
   BVote-map : ∀{A B} → (A → B) → BVote A → BVote B
   BVote-map f bv = record 
    { vEpochId   = vEpochId bv 
@@ -182,5 +164,4 @@ module LibraBFT.Base.Types where
      encBVote   : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BVote  A)
      encBQC     : ∀{A V}⦃ encA : Encoder A ⦄ ⦃ encV : Encoder V ⦄ 
                 → Encoder (BQC A V)
-     encBC      : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BC A)
 

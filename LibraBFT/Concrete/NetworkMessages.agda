@@ -11,18 +11,54 @@ module LibraBFT.Concrete.NetworkMessages where
   --------------------------------
   -- Syntatically Valid Records --
 
+
+  -- This is a notification of a commit.  It is a toy to enable developing the "big picture" linking
+  -- the concrete model to the correctness condition.  It should eventually be made to reflect
+  -- messages used to inform clients of commits in the real implementation.
+  record Commit : Set where
+    constructor mkCommitMsg
+    field
+      cEpochId : EpochId
+      cAuthor  : NodeId
+      cRound   : Round
+      cCert    : QCHash
+  open Commit public
+
+  postulate
+    instance
+      encC      : Encoder Commit
+
+  record IsLibraBFTMsg (A : Set) : Set where
+    constructor is-librabft-msg
+    field
+      getAuthor   : A → NodeId
+      getRound    : A → Round
+      getPrevHash : A → QCHash
+      getEpochId  : A → EpochId
+  open IsLibraBFTMsg {{...}} public
+
+  instance
+    commit-is-record : IsLibraBFTMsg Commit
+    commit-is-record = is-librabft-msg
+      cAuthor
+      cRound
+      cCert
+      cEpochId
+
+  VSCommit : Set
+  VSCommit = VerSigned Commit
+
   data NetworkRecord : Set where
-    B : Signed (BBlock NodeId)                      → NetworkRecord
-    V : Signed (BVote NodeId)                       → NetworkRecord
-    Q : Signed (BQC NodeId (Signed (BVote NodeId))) → NetworkRecord
-    C : Signed (BC NodeId)                          → NetworkRecord
+    C : Signed Commit → NetworkRecord
     --- ... TOFINISH
 
-  netrecAuthor : NetworkRecord → NodeId
-  netrecAuthor (B b) = bAuthor (content b)
-  netrecAuthor (V b) = vAuthor (content b)
-  netrecAuthor (Q b) = qAuthor (content b)
-  netrecAuthor (C b) = cAuthor (content b)
+  instance
+    vsCommit-is-record : IsLibraBFTMsg VSCommit
+    vsCommit-is-record = is-librabft-msg
+      (cAuthor  ∘ content)
+      (cRound   ∘ content)
+      (cCert    ∘ content)
+      (cEpochId ∘ content)
 
   data NetworkAddr : Set where
     Broadcast : NetworkAddr
@@ -35,45 +71,30 @@ module LibraBFT.Concrete.NetworkMessages where
       dest    : NetworkAddr
       content : NetworkRecord 
   open NetworkMsg public
-  
-  sender : NetworkMsg → NodeId
-  sender m = netrecAuthor (content m)
 
-  ------------------------------------------------
-  -- Syntatically Valid Records Depend on Epoch --
+  postulate -- TODO: model properly
+    pubKeyForNode : NodeId → PK
 
-  module _ (ec : EpochConfig) where
-   
-   -- We need Encoder instances from here; 
-   -- VCM: why doesn't "open import" work? weird!
-   --   TODO: look into instance resolution docs
-   import LibraBFT.Abstract.Records ec as R
+  data VerNetworkRecord : Set where
+    C : (vs : VerSigned Commit)
+      → verWithPK vs ≡ pubKeyForNode (cAuthor (content vs))
+      → VerNetworkRecord
+    -- ... TOFINISH
 
-   data VerNetworkRecord : Set where
-     B : (vs : VerSigned (BBlock (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     V : (vs : VerSigned (BVote (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     C : (vs : VerSigned (BC (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     -- ... TOFINISH
+  -- Employ structural checks on the records when receiving them on the wire.
+  check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
+  check-signature-and-format (C nc)
+    with (fakeEC (cEpochId (content nc))) -- TODO: model properly
+  ...| ec
+    with pubKeyForNode (cAuthor (content nc))
+  ...| senderPK
+  -- Is the author of the commit an actual author?
+    with isAuthor ec (cAuthor (content nc))
+  -- 1; No! Reject!
+  ...| nothing = nothing
+  -- 2; Yes! Now we must check whether the signature matches
+  ...| just _
+    with checkSignature-prf (pubKeyForNode (cAuthor (content nc))) nc
+  ...| nothing = nothing
+  ...| just (va , prf1 , prf2) rewrite (sym prf2) = just (C va prf1)
 
-   -- Employ structural checks on the records when receiving them on the wire.
-   check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
-   check-signature-and-format (V nv) 
-   -- Is the author of the vote an actual author?
-     with isAuthor ec (vAuthor (content nv)) 
-   -- 1; No! Reject!
-   ...| nothing = nothing
-   -- 2; Yes! Now we must check whether the signature matches
-   ...| just α  
-     with checkSignature-prf (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv)
-   ...| nothing = nothing
-   ...| just (va , prf1 , refl) = just (V va prf1)
-
-   check-signature-and-format (B nb) = {!!}
-   check-signature-and-format (Q nq) = {!!}
-   check-signature-and-format (C nc) = {!!}

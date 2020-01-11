@@ -61,13 +61,13 @@ module LibraBFT.Global.ModelDraft
    fakeKeyPair : (pk : PK) → ∃[ sk ](IsKeyPair pk sk)
 
  Step : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState
- -- A fake action that spontaneously "broadcasts" a vote message.
- -- Currently it broadcasts the same vote every time, so no problem.  Later I want to make it so dishonest authors
- -- can send votes that break the rules but honest ones can't.
+ -- A fake action that spontaneously "broadcasts" a commit message.
+ -- Currently it broadcasts the same commit every time, so no problem.  Later I want to make it so dishonest authors
+ -- can send commits that break the rules but honest ones can't.
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) =
-   let vote  = mkVote eId nId dummyHash 0 0
-       sVote = signed vote (sign (encode vote) (proj₁ (fakeKeyPair (pkAuthor (fakeEC eId) aId))))
-   in record ps { sentMessages = sendMsg (sentMessages ps) (wire Broadcast (V sVote)) }
+   let cm  = mkCommitMsg eId nId 0 dummyHash
+       scm = signed cm (sign (encode cm) (proj₁ (fakeKeyPair (pubKeyForNode nId))))
+   in record ps { sentMessages = sendMsg (sentMessages ps) (wire Broadcast (C scm)) }
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (recvMessage _ _) = ps
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps
@@ -83,25 +83,27 @@ module LibraBFT.Global.ModelDraft
 
  module _ (ec : EpochConfig) where
 
-  open import LibraBFT.Abstract.Records ec
-
   -- For a given epoch, in any reachable state, if there are two verifibly signed commit messages
   -- from two honest authors of that epoch, each message is verified against the appropriate public
   -- key, and both are for the same round, then they both say to commit the same thing (commit
   -- certificate).
 
-  Correctness : ∀ {ss : SystemState} {c₁} {c₂}
+  Correctness : ∀ {ss : SystemState} {c₁} {c₂} {eId : EpochId} {α₁} {α₂}
               → ReachableSystemState ss
               → c₁ ∈SM (sentMessages ss)
               → c₂ ∈SM (sentMessages ss)
-              → {vs₁ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
-              → {vs₂ : VerSigned (BC (Author ec)) ⦃ encA = encBC ⦃ encA = encAuthors ⦄ ⦄ }
-              → {pk₁ : verWithPK vs₁ ≡ (pkAuthor ec (getAuthor vs₁))}
-              → {pk₂ : verWithPK vs₂ ≡ (pkAuthor ec (getAuthor vs₂))}
-              → check-signature-and-format ec (content c₁) ≡ just (C vs₁ pk₁)
-              → check-signature-and-format ec (content c₂) ≡ just (C vs₂ pk₂)
-              → Honest ec (getAuthor vs₁)
-              → Honest ec (getAuthor vs₂)
+              → {vs₁ : VerSigned Commit}
+              → {vs₂ : VerSigned Commit}
+              → {pk₁ : verWithPK vs₁ ≡ pubKeyForNode (getAuthor vs₁)}
+              → {pk₂ : verWithPK vs₂ ≡ pubKeyForNode (getAuthor vs₂)}
+              → check-signature-and-format (content c₁) ≡ just (C vs₁ pk₁)
+              → check-signature-and-format (content c₂) ≡ just (C vs₂ pk₂)
+              → getEpochId vs₁ ≡ eId
+              → getEpochId vs₂ ≡ eId
+              → isAuthor (fakeEC eId) (getAuthor vs₁) ≡ just α₁
+              → isAuthor (fakeEC eId) (getAuthor vs₂) ≡ just α₂
+              → Honest (fakeEC (getEpochId vs₁)) α₁
+              → Honest (fakeEC (getEpochId vs₂)) α₂
               → getRound vs₁ ≡ getRound vs₂
-              → cCert (content vs₁) ≡ cCert (content vs₂)
+              → getPrevHash vs₁ ≡ getPrevHash vs₂
   Correctness = {!!}

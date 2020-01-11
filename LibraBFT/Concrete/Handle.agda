@@ -20,12 +20,13 @@ module LibraBFT.Concrete.Handle
 
  module _ (pre : NodeState) where
 
-  open import LibraBFT.Abstract.Records (ec pre)
-
-  handle-ver : VerNetworkRecord (ec pre)
+  handle-ver : VerNetworkRecord
              -- Output is a list of messages we want to send
              -- and a new state.
              → List NetworkMsg × NodeState
+  handle-ver (C vc prf) = {!!}
+
+{--
   handle-ver (B vb prf)
   -- We still need to look this block up and decide
   -- what to do if we already have this block
@@ -35,11 +36,12 @@ module LibraBFT.Concrete.Handle
      -- If it does extend, though, we insert it.
      = ([] , record pre { rss = insert (ec pre) (rss pre) (B vb) ext })
   handle-ver _ = {!!} -- TODO: finish
+--}
 
   handle : NetworkMsg -- msg addressed for 'us'
          → List NetworkMsg × NodeState
   handle msg
-    with check-signature-and-format (ec pre) (content msg)
+    with check-signature-and-format (content msg)
   ...| nothing  = ([] , pre) 
   ...| just ver = handle-ver ver
 

@@ -112,17 +112,6 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
       (qBlockHash ∘ content ∘ qBase)
       (qEpochId ∘ content ∘ qBase)
 
-  Commit : Set
-  Commit = VerSigned (BC (Author ec))
-
-  instance
-    commit-is-record : IsLibraBFTRecord Commit
-    commit-is-record = is-librabft-record
-      (cAuthor ∘ content)
-      (cRound ∘ content)
-      (cCert ∘ content)
-      (cEpochId ∘ content)
-
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
   -- I agree. We can define our own equivalence relation comparing the size of the list, the author,
