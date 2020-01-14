@@ -4,14 +4,11 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordStoreState 
-    -- A Hash function maps a bytestring into a hash.
-    (hash    : ByteString → Hash)
-    -- And is colission resistant
-    (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-    (ec : EpochConfig)
+    (ec  : EpochConfig)
+    (UID : Set)
  where
 
-  open import LibraBFT.Abstract.Records ec 
+  open import LibraBFT.Abstract.Records ec UID
 
   -- A type 'RSS' is seen, by the abstract model, as a RecordStoreState
   -- if it contains a pool of unique records (hence the irrelevance cond.)

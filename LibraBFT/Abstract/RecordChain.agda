@@ -4,17 +4,13 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordChain 
-  -- A Hash function maps a bytestring into a hash.
-  (hash     : ByteString → Hash)
-  -- And is colission resistant
-  (hash-cr  : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  (ec : EpochConfig)
+  (ec  : EpochConfig)
+  (UID : Set)
     where
 
- open import LibraBFT.Abstract.Records          ec 
- open        WithCryptoHash                     hash hash-cr
- open import LibraBFT.Abstract.Records.Extends  hash hash-cr ec
- open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
+ open import LibraBFT.Abstract.Records          ec UID
+ open import LibraBFT.Abstract.Records.Extends  ec UID
+ open import LibraBFT.Abstract.RecordStoreState ec UID
 
  module WithRSS
    {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄
@@ -36,7 +32,7 @@ module LibraBFT.Abstract.RecordChain
   -- One way of looking at a 'RecordChain r' is to think of it as 
   -- one path from the epoch's initial record to r.
   data RecordChain : Record → Set where
-    empty : RecordChain (I mkInitial)
+    empty : RecordChain I
     step  : ∀ {r r'}
           → (rc : RecordChain r) 
           → r ← r'
@@ -64,12 +60,14 @@ module LibraBFT.Abstract.RecordChain
   -- i.e., unless the hash was broken, there is always only
   --       one record chain up to a given record.
   RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) 
-                         → HashBroke ⊎ rc₀ ≡ rc₁
+                         → NonInjective uid ⊎ rc₀ ≡ rc₁
   RecordChain-irrelevant empty empty = inj₂ refl
-  RecordChain-irrelevant (step rc0 rc0←r {p0}) (step rc1 rc1←r {p1}) 
+  RecordChain-irrelevant (step {s0} rc0 rc0←r {p0}) (step {s1} rc1 rc1←r {p1}) 
     with lemmaS1-2 rc0←r rc1←r 
-  ...| inj₁ hb   = inj₁ hb
-  ...| inj₂ refl 
+  ...| idsEq 
+    with s0 ≟Record s1
+  ...| no  imp  = inj₁ ((s0 , s1) , (imp , idsEq))
+  ...| yes refl 
     with RecordChain-irrelevant rc0 rc1
   ...| inj₁ hb   = inj₁ hb
   ...| inj₂ refl rewrite ←-irrelevant rc1←r rc0←r 
@@ -176,7 +174,7 @@ module LibraBFT.Abstract.RecordChain
               → x ≤Fin y
               → {b : Block}(prf : kchainBlock x c ≡ b)
               → (rc₁ : RecordChain (B b))
-              → HashBroke ⊎ (B (kchainBlock y c) ∈RC rc₁)
+              → NonInjective uid ⊎ (B (kchainBlock y c) ∈RC rc₁)
   𝕂-chain-∈RC (s-chain r←b {inP} prf b←q c) zero y z≤n refl rc1 
     with RecordChain-irrelevant (step (kchainForget c) r←b {inP}) rc1
   ...| inj₁ hb   = inj₁ hb
@@ -187,9 +185,7 @@ module LibraBFT.Abstract.RecordChain
   ------------------------
   -- Lemma 1
 
-  InitialIrrel : (i j : Initial) → i ≡ j
-  InitialIrrel mkInitial mkInitial = refl
-
+{-
   -- LemmaS1-1 states that a record that has been flagged as 'valid' (paper section 4.2)
   -- depends upon the initial record.
   lemmaS1-1 : {r : Record}
@@ -197,6 +193,7 @@ module LibraBFT.Abstract.RecordChain
             → (I mkInitial) ←⋆ r
   lemmaS1-1 empty = ssRefl
   lemmaS1-1 {r} (step rc ext) = ssStep (lemmaS1-1 rc) ext
+-}
 
   -----------------
   -- Commit Rule --
@@ -213,7 +210,7 @@ module LibraBFT.Abstract.RecordChain
                    → v  ∈ qcVotes q
                    → v' ∈ qcVotes q'
                    → v ≡ v' 
-                   → getPrevHash q ≡ getPrevHash q'
+                   → qPrev q ≡ qPrev q'
   vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
   ... | refl | refl = refl

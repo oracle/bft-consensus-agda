@@ -4,20 +4,16 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordChain.Properties
-  -- A Hash function maps a bytestring into a hash.
-  (hash    : ByteString → Hash)
-  -- And is colission resistant
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  (ec : EpochConfig)
+  (ec  : EpochConfig)
+  (UID : Set)
    where
 
- open import LibraBFT.Abstract.BFT                         ec 
- open import LibraBFT.Abstract.Records                     ec 
- open        WithCryptoHash                                hash hash-cr
- open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec
- open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
- open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
- open import LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
+ open import LibraBFT.Abstract.BFT                         ec UID
+ open import LibraBFT.Abstract.Records                     ec UID
+ open import LibraBFT.Abstract.Records.Extends             ec UID
+ open import LibraBFT.Abstract.RecordChain                 ec UID
+ open import LibraBFT.Abstract.RecordStoreState            ec UID
+ open import LibraBFT.Abstract.RecordStoreState.Invariants ec UID
    as Invariants
 
  -- VCM: Only in this module we allow ourselves to compare VoteOrder's
@@ -29,6 +25,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    {s}{RSS : Set s}⦃ isRSS : isRecordStoreState RSS ⦄
    (curr                  : RSS) 
    (correct               : Invariants.Correct             curr)
+   (injective-uid         : Invariants.InjectiveUID        curr)
    (increasing-round-rule : Invariants.IncreasingRoundRule curr)
    (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
    (locked-round-rule     : Invariants.LockedRoundRule     curr)
@@ -38,6 +35,75 @@ module LibraBFT.Abstract.RecordChain.Properties
 
    ----------------------
    -- Lemma 2
+
+   lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
+           → IsInPool (Q q₀) → IsInPool (Q q₁)
+           → (p₀ : B b₀ ← Q q₀)
+           → (p₁ : B b₁ ← Q q₁)
+           → getRound b₀ ≡ getRound b₁
+           → NonInjective bId ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+     with b₀ ≟Block b₁ -- (***)
+   ...| yes done = inj₂ done
+   ...| no  imp
+     with lemmaB1 q₀ q₁
+   ...|  (a , (a∈q₀ , a∈q₁ , honest))
+     with <VO-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
+   ...| tri< va<va' _ _
+     with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
+   ...| res = ⊥-elim (<⇒≢ res hyp)
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest))
+      | tri> _ _ va'<va
+     with increasing-round-rule a honest {q₁} {q₀} p1 p0 a∈q₁ a∈q₀ va'<va
+   ...| res = ⊥-elim (<⇒≢ res (sym hyp))
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest))
+      | tri≈ _ va≡va' _
+     with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
+   ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
+                    v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
+                    ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
+                                            (sym h₁))
+                in inj₁ ((b₀ , b₁) , (imp , ppp))
+
+{-
+
+   lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
+           → IsInPool (Q q₀) → IsInPool (Q q₁)
+           → (p₀ : B b₀ ← Q q₀)
+           → (p₁ : B b₁ ← Q q₁)
+           → getRound b₀ ≡ getRound b₁
+           → b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+     with b₀ ≟Block b₁ -- (***)
+   ...| yes done = done
+   ...| no  imp
+     with lemmaB1 q₀ q₁
+   ...|  (a , (a∈q₀ , a∈q₁ , honest))
+     with <VO-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
+   ...| tri< va<va' _ _
+     with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
+   ...| res = ⊥-elim (<⇒≢ res hyp)
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest))
+      | tri> _ _ va'<va
+     with increasing-round-rule a honest {q₁} {q₀} p1 p0 a∈q₁ a∈q₀ va'<va
+   ...| res = ⊥-elim (<⇒≢ res (sym hyp))
+   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
+      | no imp
+      |  (a , (a∈q₀ , a∈q₁ , honest))
+      | tri≈ _ va≡va' _
+     with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
+   ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
+                    v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
+                    ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
+                                            (sym h₁))
+                in ⊥-elim (imp (B-inj (injective-uid (B b₀) (B b₁) {!!} {!!} (cong just ppp))))
+-}
 
 
    -- TODO: When we bring in the state everywhere; this will remain very similar.
@@ -49,6 +115,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    --         2) when it returns no, and the blocks are different, no problem.
    --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
 
+{-
    lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
            → IsInPool (Q q₀) → IsInPool (Q q₁)
              -- MSM rc₀ and rc₁ are not used.  Are they expected to be needed when we add state?
@@ -61,6 +128,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
            → getRound b₀ ≡ getRound b₁
            → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
+
    lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
      with b₀ ≟Block b₁ -- (***)
    ...| yes done = inj₂ done
@@ -86,6 +154,8 @@ module LibraBFT.Abstract.RecordChain.Properties
                     v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
                 in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
                         , trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
+
+-}
 
    ----------------
    -- Lemma S3
@@ -160,16 +230,19 @@ module LibraBFT.Abstract.RecordChain.Properties
      → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
      → (ix : Fin k)
      → getRound (kchainBlock ix c) ≡ getRound b'
-     → HashBroke ⊎ (kchainBlock ix c ≡ b')
+     → NonInjective bId ⊎ (kchainBlock ix c ≡ b')
    propS4-base-lemma-2 (s-chain {rc = rc} r←b {prfB} prf b←q {prfQ} c) q' pq' certB ext zero hyp 
-     = lemmaS2 prfQ pq' (step rc r←b {prfB}) b←q certB ext hyp 
+     = lemmaS2 prfQ pq' b←q ext hyp 
    propS4-base-lemma-2 (s-chain r←b prf b←q c) 
                        q' pq' certB ext (suc ix) hyp 
      = propS4-base-lemma-2 c q' pq' certB ext ix hyp
 
-   _<$>_ : ∀{a b}{A : Set a}{B : Set b} → (A → B) → HashBroke ⊎ A → HashBroke ⊎ B
+   _<$>_ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c} → (A → B) → C ⊎ A → C ⊎ B
    f <$> (inj₁ hb) = inj₁ hb
    f <$> (inj₂ x)  = inj₂ (f x)
+
+   lemma-NI : NonInjective bId → NonInjective uid
+   lemma-NI ((b0 , b1) , a , b)  = ((B b0 , B b1) , (a ∘ B-inj) , (cong just b))
 
    propS4-base : ∀{q}{rc : RecordChain (Q q)}
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
@@ -177,12 +250,12 @@ module LibraBFT.Abstract.RecordChain.Properties
                → (certB : RecordChain (Q q'))
                → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
                → getRound q' ≤ getRound (c3 b⟦ zero ⟧) 
-               → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
+               → NonInjective uid ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
    ...| here r 
      with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) zero r
-   ...| inj₁ hb  = inj₁ hb
+   ...| inj₁ hb = inj₁ (lemma-NI hb)
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB
    ...| inj₁ hb   = inj₁ hb
@@ -191,7 +264,7 @@ module LibraBFT.Abstract.RecordChain.Properties
        hyp0 hyp1 
       | there (here r) 
      with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc zero) r 
-   ...| inj₁ hb  = inj₁ hb 
+   ...| inj₁ hb = inj₁ (lemma-NI hb)
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB
    ...| inj₁ hb   = inj₁ hb
@@ -199,7 +272,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
       | there (there (here r)) 
      with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc (suc zero)) r
-   ...| inj₁ hb  = inj₁ hb
+   ...| inj₁ hb = inj₁ (lemma-NI hb)
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB
    ...| inj₁ hb   = inj₁ hb
@@ -214,7 +287,7 @@ module LibraBFT.Abstract.RecordChain.Properties
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
-          → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
+          → NonInjective uid ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4 {rc = rc} c3 {q} (step certB b←q {pq}) hyp
      with getRound q ≤?ℕ getRound (c3 b⟦ zero ⟧) 
    ...| yes rq≤rb₂ = propS4-base c3 {q} (step certB b←q {pq}) hyp rq≤rb₂
@@ -243,7 +316,7 @@ module LibraBFT.Abstract.RecordChain.Properties
          → {b b' : Block}
          → CommitRule rc  b
          → CommitRule rc' b'
-         → HashBroke ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
+         → NonInjective uid ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
      with <-cmp (getRound (c3 b⟦ suc (suc zero) ⟧)) (getRound (c3' b⟦ suc (suc zero) ⟧)) 
    ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 

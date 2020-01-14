@@ -4,19 +4,15 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 
 module LibraBFT.Abstract.RecordStoreState.Invariants 
-    -- A Hash function maps a bytestring into a hash.
-    (hash    : ByteString → Hash)
-    -- And is colission resistant
-    (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-    (ec : EpochConfig) 
+    (ec  : EpochConfig) 
+    (UID : Set) 
   where
 
-  open import LibraBFT.Abstract.BFT              ec
-  open import LibraBFT.Abstract.Records          ec 
-  open        WithCryptoHash                     hash hash-cr
-  open import LibraBFT.Abstract.Records.Extends  hash hash-cr ec
-  open import LibraBFT.Abstract.RecordChain      hash hash-cr ec
-  open import LibraBFT.Abstract.RecordStoreState hash hash-cr ec
+  open import LibraBFT.Abstract.BFT              ec UID
+  open import LibraBFT.Abstract.Records          ec UID
+  open import LibraBFT.Abstract.Records.Extends  ec UID
+  open import LibraBFT.Abstract.RecordChain      ec UID
+  open import LibraBFT.Abstract.RecordStoreState ec UID
 
   -- Now, we need to state the invariants over the system that we seek to:
   --
@@ -32,6 +28,12 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- record using only records in the pool.
     Correct : Set
     Correct = (r : Record) → IsInPool r → RecordChain r
+
+    InjectiveUID : Set
+    InjectiveUID = (r₀ r₁ : Record) 
+                 → IsInPool r₀ → IsInPool r₁
+                 → uid r₀ ≡ uid r₁
+                 → r₀ ≡ r₁
 
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of
