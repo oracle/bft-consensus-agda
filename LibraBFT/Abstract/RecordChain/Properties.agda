@@ -36,6 +36,15 @@ module LibraBFT.Abstract.RecordChain.Properties
    ----------------------
    -- Lemma 2
 
+
+   -- TODO: When we bring in the state everywhere; this will remain very similar.
+   --       We will add another check for st₀ ≟State st₁ after checking the block
+   --       equality in (***); Naturally, if blocks are equal so is the state.
+   --       We will need some command-application-injective lemma.
+   --
+   --         1) when st₀ ≟State st₁ returns yes, we done.
+   --         2) when it returns no, and the blocks are different, no problem.
+   --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
    lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
            → IsInPool (Q q₀) → IsInPool (Q q₁)
            → (p₀ : B b₀ ← Q q₀)
@@ -68,94 +77,6 @@ module LibraBFT.Abstract.RecordChain.Properties
                     ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
                                             (sym h₁))
                 in inj₁ ((b₀ , b₁) , (imp , ppp))
-
-{-
-
-   lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
-           → IsInPool (Q q₀) → IsInPool (Q q₁)
-           → (p₀ : B b₀ ← Q q₀)
-           → (p₁ : B b₁ ← Q q₁)
-           → getRound b₀ ≡ getRound b₁
-           → b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
-     with b₀ ≟Block b₁ -- (***)
-   ...| yes done = done
-   ...| no  imp
-     with lemmaB1 q₀ q₁
-   ...|  (a , (a∈q₀ , a∈q₁ , honest))
-     with <VO-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
-   ...| tri< va<va' _ _
-     with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
-   ...| res = ⊥-elim (<⇒≢ res hyp)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
-      | no imp
-      |  (a , (a∈q₀ , a∈q₁ , honest))
-      | tri> _ _ va'<va
-     with increasing-round-rule a honest {q₁} {q₀} p1 p0 a∈q₁ a∈q₀ va'<va
-   ...| res = ⊥-elim (<⇒≢ res (sym hyp))
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 (B←Q refl h₀) (B←Q refl h₁) hyp
-      | no imp
-      |  (a , (a∈q₀ , a∈q₁ , honest))
-      | tri≈ _ va≡va' _
-     with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
-   ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
-                    v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
-                    ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
-                                            (sym h₁))
-                in ⊥-elim (imp (B-inj (injective-uid (B b₀) (B b₁) {!!} {!!} (cong just ppp))))
--}
-
-
-   -- TODO: When we bring in the state everywhere; this will remain very similar.
-   --       We will add another check for st₀ ≟State st₁ after checking the block
-   --       equality in (***); Naturally, if blocks are equal so is the state.
-   --       We will need some command-application-injective lemma.
-   --
-   --         1) when st₀ ≟State st₁ returns yes, we done.
-   --         2) when it returns no, and the blocks are different, no problem.
-   --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
-
-{-
-   lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
-           → IsInPool (Q q₀) → IsInPool (Q q₁)
-             -- MSM rc₀ and rc₁ are not used.  Are they expected to be needed when we add state?
-             -- Also, any reason not to separate rc₀ and p₀ with → ?
-             -- VCM: Not really; older versons of the lemma did not require the 'IsInPool (Q q₀)',
-             --      I suspect that the record chains were left in there as they were being used
-             --      to extract the fact that all involved records were in the pool.
-             --      Correctness of the pool and lemmaS1-2 allows us to get b₀ and b₁.
-           → (rc₀ : RecordChain (B b₀))(p₀ : B b₀ ← Q q₀)
-           → (rc₁ : RecordChain (B b₁))(p₁ : B b₁ ← Q q₁)
-           → getRound b₀ ≡ getRound b₁
-           → HashBroke ⊎ b₀ ≡ b₁ -- × qState q₀ ≡ qState q₁
-
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
-     with b₀ ≟Block b₁ -- (***)
-   ...| yes done = inj₂ done
-   ...| no  imp
-     with lemmaB1 q₀ q₁
-   ...|  (a , (a∈q₀ , a∈q₁ , honest))
-     with <VO-cmp (voteOrder (∈QC-Vote q₀ a∈q₀)) (voteOrder (∈QC-Vote q₁ a∈q₁))
-   ...| tri< va<va' _ _
-     with increasing-round-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va<va'
-   ...| res = ⊥-elim (<⇒≢ res hyp)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
-      | no imp
-      |  (a , (a∈q₀ , a∈q₁ , honest))
-      | tri> _ _ va'<va
-     with increasing-round-rule a honest {q₁} {q₀} p1 p0 a∈q₁ a∈q₀ va'<va
-   ...| res = ⊥-elim (<⇒≢ res (sym hyp))
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} p0 p1 rc₀ (B←Q refl h₀) rc₁ (B←Q refl h₁) hyp
-      | no imp
-      |  (a , (a∈q₀ , a∈q₁ , honest))
-      | tri≈ _ va≡va' _
-     with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
-   ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
-                    v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
-                in inj₁ ((encodeR (B b₀) , encodeR (B b₁)) , (imp ∘ B-inj ∘ encodeR-inj)
-                        , trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) (sym h₁)))
-
--}
 
    ----------------
    -- Lemma S3

@@ -8,26 +8,25 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+open import LibraBFT.Concrete.Records
+
 module LibraBFT.Concrete.RecordStoreState
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-    (ec : EpochConfig)
+ 
+    -- We also need authorship and PKI information
+    (ec  : EpochConfig)
+    (pki : PKI ec)
  where
 
-  open import LibraBFT.Abstract.Records                                  ec 
-  open import LibraBFT.Abstract.BFT                                      ec 
-  open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
-  open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
-  open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
-  import      LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
-    as AbstractI
+  open VerifiedRecords ec pki
 
-  hashRecord : Record → Hash
-  hashRecord = hash ∘ encodeR
+  hashR : Record → Hash
+  hashR = hash ∘ encodeRecord
 
-  open import LibraBFT.Concrete.Util.HashSet hashRecord
+  open import LibraBFT.Concrete.Util.HashSet hashR
 
   -- VCM: I'm simplifying this abruptly; we should only
   --      add fields here as needed
@@ -40,34 +39,31 @@ module LibraBFT.Concrete.RecordStoreState
       -- rssCurrentVotes         : HashMap (Author ec) Vote
   open RecordStoreState
 
-  _∈RSS_ : Record → RecordStoreState → Set
-  (I _) ∈RSS rs = Unit -- The initial record is not really *in* the record store,
-  (B x) ∈RSS rs = (B x) ∈HS (rssPool rs)
-  (Q x) ∈RSS rs = (Q x) ∈HS (rssPool rs)
+  -- VCM: Act 
+  import      LibraBFT.Abstract.Records          ec Hash as Abs
+  open import LibraBFT.Abstract.Records.Extends  ec Hash 
+  open import LibraBFT.Abstract.RecordStoreState ec Hash 
+  open import LibraBFT.Abstract.RecordChain      ec Hash
+  import      LibraBFT.Abstract.RecordStoreState.Invariants ec Hash
+    as AbstractI
 
-  _∈RSS?_ : (r : Record)(rss : RecordStoreState) → Dec (r ∈RSS rss)
-  (I _) ∈RSS? rss = yes unit
-  (B b) ∈RSS? rss = (B b) ∈HS? (rssPool rss)
-  (Q b) ∈RSS? rss = (Q b) ∈HS? (rssPool rss)
 
-{-
-  ∈RSS-correct : (rss : RecordStoreState)(r : Record)
-               → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ just r
-  ∈RSS-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
-  ∈RSS-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
+  _∈RSS_ : Abs.Record → RecordStoreState → Set
+  Abs.I     ∈RSS rs = Unit -- The initial record is not really *in* the record store,
+  (Abs.B x) ∈RSS rs = Abs.bId x ∈HS (rssPool rs)
+  (Abs.Q x) ∈RSS rs = Abs.qId x ∈HS (rssPool rs)
 
-  ∈RSS-correct-⊥ : (rss : RecordStoreState)(r : Record)
-                 → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
-  ∈RSS-correct-⊥ = {!!}
--}
-
+  _∈RSS?_ : (r : Abs.Record)(rss : RecordStoreState) → Dec (r ∈RSS rss)
+  Abs.I     ∈RSS? rss = yes unit
+  (Abs.B b) ∈RSS? rss = Abs.bId b ∈HS? (rssPool rss)
+  (Abs.Q b) ∈RSS? rss = Abs.qId b ∈HS? (rssPool rss)
 
   ∈RSS-irrelevant : ∀{r rss}(p₀ p₁ : r ∈RSS rss) → p₀ ≡ p₁
-  ∈RSS-irrelevant {I x} unit unit = refl
-  ∈RSS-irrelevant {B x} {st} p0 p1     
-    = ∈HS-irrelevant (B x) (rssPool st) p0 p1
-  ∈RSS-irrelevant {Q x} {st} p0 p1    
-    = ∈HS-irrelevant (Q x) (rssPool st) p0 p1
+  ∈RSS-irrelevant {Abs.I} unit unit = refl
+  ∈RSS-irrelevant {Abs.B x} {st} p0 p1     
+    = ∈HS-irrelevant (Abs.bId x) (rssPool st) p0 p1
+  ∈RSS-irrelevant {Abs.Q x} {st} p0 p1    
+    = ∈HS-irrelevant (Abs.qId x) (rssPool st) p0 p1
 
   instance
     abstractRSS : isRecordStoreState RecordStoreState
@@ -118,38 +114,30 @@ module LibraBFT.Concrete.RecordStoreState
   -- And now this is really trivial
   emptyRSS-valid : ValidRSS emptyRSS
   emptyRSS-valid =
-    valid-rss (λ { (I mkInitial) _  → WithRSS.empty
-                 ; (B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
-                 ; (Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
+    valid-rss (λ { Abs.I _  → WithRSS.empty
+                 ; (Abs.B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
+                 ; (Abs.Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
               (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
                  → ⊥-elim (∈HS-empty-⊥ abs) })
 
-  ---------------------------------------
-  -- Honesty and Dishonesty of Authors --
-
-  data Dishonest (α : Author ec) : Set where
-    same-order-diff-qcs 
-      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
-      → q ≢ q'
-      → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
-      → Dishonest α
-
-  DishonestM : Maybe (Author ec) → Set
-  DishonestM nothing  = ⊥
-  DishonestM (just α) = Dishonest α
-
-  postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
 
   --------------------------------
   -- Semantically Valid Records --
 
+  abstractRecord : Record → Maybe Abs.Record
+  abstractRecord (B {α} b p1 p2) 
+    with initialAgreedHash ec ≟Hash getPrev b
+  ...| yes _ = just (Abs.B (Abs.mkBlock (hash (encode (content b))) α nothing (getRound b)))
+  ...| no  _ = just (Abs.B (Abs.mkBlock (hash (encode (content b))) α (just (getPrev b)) (getRound b)))
+  abstractRecord (Q b p1 p2) = {!!}
+  abstractRecord _ = nothing
+
   -- A record extends some other in a state if there exists
   -- a record chain in said state that ends on the record supposed
   -- to be extended
-  data Extends (rss : RecordStoreState) : Record → Set where
+  data Extends (rss : RecordStoreState) : Abs.Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
              → (rInPool : r ∈RSS rss)
@@ -157,10 +145,11 @@ module LibraBFT.Concrete.RecordStoreState
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → (r'New : lookup (rssPool rss) (hashRecord r') ≡ nothing)
+             -- → (r'New : lookup (rssPool rss) (hashR r') ≡ nothing)
+             → (r'New : ¬ (r' ∈RSS rss))
              → r ← r'
              → Extends rss r'
-
+{-
   extends-Q? : (rss : RecordStoreState)(q : QC)
              → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
              → Maybe (Extends rss (Q q))
@@ -221,6 +210,45 @@ module LibraBFT.Concrete.RecordStoreState
   ...| I _ = nothing
   ...| B b = extends-B? rss b ok
   ...| Q q = extends-Q? rss q ok
+-}
+
+{-
+  open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.BFT                                      ec 
+  open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
+  open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
+  open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+
+  hashRecord : Record → Hash
+  hashRecord = hash ∘ encodeR
+
+{-
+  ∈RSS-correct : (rss : RecordStoreState)(r : Record)
+               → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ just r
+  ∈RSS-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
+  ∈RSS-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
+
+  ∈RSS-correct-⊥ : (rss : RecordStoreState)(r : Record)
+                 → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
+  ∈RSS-correct-⊥ = {!!}
+-}
+
+  ---------------------------------------
+  -- Honesty and Dishonesty of Authors --
+
+  data Dishonest (α : Author ec) : Set where
+    same-order-diff-qcs 
+      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
+      → q ≢ q'
+      → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
+      → Dishonest α
+
+  DishonestM : Maybe (Author ec) → Set
+  DishonestM nothing  = ⊥
+  DishonestM (just α) = Dishonest α
+
+  postulate
+    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
 
   --------------------------
   -- Insertion of Records --
@@ -365,3 +393,4 @@ module LibraBFT.Concrete.RecordStoreState
       (insert-ok-increasing-round rss r ext vrss)
       (insert-ok-votes-only-once  rss r ext vrss)
       (insert-ok-locked-round     rss r ext vrss)
+-}

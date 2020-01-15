@@ -124,17 +124,6 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   Q-injective : ∀{q q'} → Q q ≡ Q q' → q ≡ q'
   Q-injective refl = refl
 
-  -- VCM: LibraBFT.Abstract.Record.Extends.HashR, which hashes
-  --      a record, is defined in terms of this encoder.
-  --      This is why we explicitely REMOVE the signature from
-  --      this bytestring or define HashR differently.
-  --      The end of Section 4.1 (libra v1 paper) indicates 
-  --      signatures are /not/ part of the hash of records.
-  --
-  --      Nevertheless, Record's are not supposed to be sent
-  --      over the wire; LibraBFT.Concrete.RecordStoreState.VerNetworkRecords
-  --      serve that purpose.      
-
   B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
   B-inj refl = refl
 

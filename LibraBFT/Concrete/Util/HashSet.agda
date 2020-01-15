@@ -8,19 +8,22 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
     HashSet : Set 
 
     -- Predicates
-    _∈HS_          : (k : Key) → HashSet → Set
-    ∈HS-irrelevant : (k : Key)(hs : HashSet)
-                   → (p₀ p₁ : k ∈HS hs) → p₀ ≡ p₁
+    _∈HS_          : Hash → HashSet → Set
+    ∈HS-irrelevant : (h : Hash)(hs : HashSet)
+                   → (p₀ p₁ : h ∈HS hs) → p₀ ≡ p₁
 
     -- functionality
     empty          : HashSet
     lookup         : HashSet → Hash → Maybe Key
-    _∈HS?_         : (k : Key)(h : HashSet)
-                   → Dec (k ∈HS h)
+    _∈HS?_         : (h : Hash)(hs : HashSet)
+                   → Dec (h ∈HS hs)
     hs-insert      : (k : Key)(hs : HashSet)
                    → lookup hs (hashK k) ≡ nothing
                    → HashSet
 
+    -- properties
+    ∈HS-empty-⊥ : ∀ {h} → h ∈HS empty → ⊥
+{-
     -- properties
     ∈HS-correct : (k : Key)(hs : HashSet)
                 → k ∈HS hs
@@ -53,4 +56,4 @@ module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
                      → k' ∈HS (hs-insert k hs prf)
                      → k' ≡ k
 
-    ∈HS-empty-⊥ : {k : Key} → k ∈HS empty → ⊥
+-}

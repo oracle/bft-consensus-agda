@@ -4,7 +4,8 @@ open import LibraBFT.Prelude
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Abstract.Records
+
+open import LibraBFT.Concrete.Records
 
 module LibraBFT.Concrete.Network where
 
@@ -12,17 +13,19 @@ module LibraBFT.Concrete.Network where
   -- Syntatically Valid Records --
 
   data NetworkRecord : Set where
-    B : Signed (BBlock NodeId)                      → NetworkRecord
-    V : Signed (BVote NodeId)                       → NetworkRecord
-    Q : Signed (BQC NodeId (Signed (BVote NodeId))) → NetworkRecord
-    C : Signed (BC NodeId)                          → NetworkRecord
-    --- ... TOFINISH
+    B : Signed Block              → NetworkRecord
+    V : Signed Vote               → NetworkRecord
+    Q : Signed (QC (Signed Vote)) → NetworkRecord
+    T : Signed Timeout            → NetworkRecord
+    C : Signed CN                 → NetworkRecord
+
 
   netrecAuthor : NetworkRecord → NodeId
   netrecAuthor (B b) = bAuthor (content b)
   netrecAuthor (V b) = vAuthor (content b)
   netrecAuthor (Q b) = qAuthor (content b)
   netrecAuthor (C b) = cAuthor (content b)
+  netrecAuthor (T b) = toAuthor (content b)
 
   data NetworkAddr : Set where
     Broadcast : NetworkAddr
@@ -42,38 +45,37 @@ module LibraBFT.Concrete.Network where
   ------------------------------------------------
   -- Syntatically Valid Records Depend on Epoch --
 
-  module _ (ec : EpochConfig) where
-   
-   -- We need Encoder instances from here; 
-   -- VCM: why doesn't "open import" work? weird!
-   --   TODO: look into instance resolution docs
-   import LibraBFT.Abstract.Records ec as R
+  module _ {Author : Set}
+           (isAuthor : NodeId → Maybe Author) 
+           (pkAuthor : Author → PK) 
+     where
 
-   data VerNetworkRecord : Set where
-     B : (vs : VerSigned (BBlock (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     V : (vs : VerSigned (BVote (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     C : (vs : VerSigned (BC (Author ec)))
-       → verWithPK vs ≡ pkAuthor ec (getAuthor vs)
-       → VerNetworkRecord
-     -- ... TOFINISH
+   -- VCM: I apparently lost the connection between valid the verification
+   --      of the signature being with the public key of the right author.
+   --      Yet, here, it seems like this is implied by parametricity. 
+   --      The only way of producing a PK is through pkAuthor, which
+   --      depends on an abstract Author type; which in turn, can only be
+   --      inhabited by isAuthor.
+
+   data ValidAuthor (nid : NodeId) : Set where
+     va : ∀{α} 
+        → isAuthor nid ≡ just α
+        → ValidAuthor nid
 
    -- Employ structural checks on the records when receiving them on the wire.
-   check-signature-and-format : NetworkRecord → Maybe VerNetworkRecord
+   check-signature-and-format : NetworkRecord → Maybe (ValidRecord ValidAuthor)
    check-signature-and-format (V nv) 
    -- Is the author of the vote an actual author?
-     with isAuthor ec (vAuthor (content nv)) 
+     with isAuthor (getAuthor nv) | inspect isAuthor (getAuthor nv)
    -- 1; No! Reject!
-   ...| nothing = nothing
+   ...| nothing | _ = nothing
    -- 2; Yes! Now we must check whether the signature matches
-   ...| just α  
-     with checkSignature-prf (pkAuthor ec α) (Signed-map (BVote-map (λ _ → α)) nv)
+   ...| just α  | [ Valid ]
+     with checkSignature-prf (pkAuthor α) nv
    ...| nothing = nothing
-   ...| just (va , prf1 , refl) = just (V va prf1)
+   ...| just (res , prf1 , refl) = just (V res (va Valid))
 
    check-signature-and-format (B nb) = {!!}
    check-signature-and-format (Q nq) = {!!}
    check-signature-and-format (C nc) = {!!}
+   check-signature-and-format (T nc) = {!!}
