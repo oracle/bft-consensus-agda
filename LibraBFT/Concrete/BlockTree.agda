@@ -8,7 +8,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
-module LibraBFT.Concrete.RecordStoreState
+module LibraBFT.Concrete.BlockTree
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
@@ -32,94 +32,87 @@ module LibraBFT.Concrete.RecordStoreState
 
   -- VCM: I'm simplifying this abruptly; we should only
   --      add fields here as needed
-  record RecordStoreState : Set where
-    constructor mkRecordStoreState
+  record BlockTree : Set where
+    constructor mkBlockTree
     field
-      -- rssInitiaState       : State
-      rssPool                 : HashSet
-      rssCurrentRound         : Round
-      -- rssCurrentVotes         : HashMap (Author ec) Vote
-  open RecordStoreState
+      btPool                 : HashSet
+  open BlockTree
 
-  _∈RSS_ : Record → RecordStoreState → Set
-  (I _) ∈RSS rs = Unit -- The initial record is not really *in* the record store,
-  (B x) ∈RSS rs = (B x) ∈HS (rssPool rs)
-  (Q x) ∈RSS rs = (Q x) ∈HS (rssPool rs)
+  _∈BT_ : Record → BlockTree → Set
+  (I _) ∈BT rs = Unit -- The initial record is not really *in* the record store,
+  (B x) ∈BT rs = (B x) ∈HS (btPool rs)
+  (Q x) ∈BT rs = (Q x) ∈HS (btPool rs)
 
-  _∈RSS?_ : (r : Record)(rss : RecordStoreState) → Dec (r ∈RSS rss)
-  (I _) ∈RSS? rss = yes unit
-  (B b) ∈RSS? rss = (B b) ∈HS? (rssPool rss)
-  (Q b) ∈RSS? rss = (Q b) ∈HS? (rssPool rss)
+  _∈BT?_ : (r : Record)(bt : BlockTree) → Dec (r ∈BT bt)
+  (I _) ∈BT? bt = yes unit
+  (B b) ∈BT? bt = (B b) ∈HS? (btPool bt)
+  (Q b) ∈BT? bt = (Q b) ∈HS? (btPool bt)
 
 {-
-  ∈RSS-correct : (rss : RecordStoreState)(r : Record)
-               → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ just r
-  ∈RSS-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
-  ∈RSS-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
+  ∈BT-correct : (bt : BlockTree)(r : Record)
+               → r ∈BT bt → lookup (btPool bt) (hashRecord r) ≡ just r
+  ∈BT-correct bt (B x) prf = lookup-correct (B x) (btPool bt) prf
+  ∈BT-correct bt (Q x) prf = lookup-correct (Q x) (btPool bt) prf
 
-  ∈RSS-correct-⊥ : (rss : RecordStoreState)(r : Record)
-                 → r ∈RSS rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
-  ∈RSS-correct-⊥ = {!!}
+  ∈BT-correct-⊥ : (bt : BlockTree)(r : Record)
+                 → r ∈BT bt → lookup (btPool bt) (hashRecord r) ≡ nothing → ⊥
+  ∈BT-correct-⊥ = {!!}
 -}
 
 
-  ∈RSS-irrelevant : ∀{r rss}(p₀ p₁ : r ∈RSS rss) → p₀ ≡ p₁
-  ∈RSS-irrelevant {I x} unit unit = refl
-  ∈RSS-irrelevant {B x} {st} p0 p1     
-    = ∈HS-irrelevant (B x) (rssPool st) p0 p1
-  ∈RSS-irrelevant {Q x} {st} p0 p1    
-    = ∈HS-irrelevant (Q x) (rssPool st) p0 p1
+  ∈BT-irrelevant : ∀{r bt}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
+  ∈BT-irrelevant {I x} unit unit = refl
+  ∈BT-irrelevant {B x} {st} p0 p1     
+    = ∈HS-irrelevant (B x) (btPool st) p0 p1
+  ∈BT-irrelevant {Q x} {st} p0 p1    
+    = ∈HS-irrelevant (Q x) (btPool st) p0 p1
 
   instance
-    abstractRSS : isRecordStoreState RecordStoreState
+    abstractRSS : isRecordStoreState BlockTree
     abstractRSS = record
-      { isInPool            = _∈RSS_
-      ; isInPool-irrelevant = ∈RSS-irrelevant
+      { isInPool            = _∈BT_
+      ; isInPool-irrelevant = ∈BT-irrelevant
       }
 
   --------------------
   -- The Invariants --
   --------------------
 
-  Correct : RecordStoreState → Set
+  Correct : BlockTree → Set
   Correct st = AbstractI.Correct st
 
-  IncreasingRound : RecordStoreState → Set
+  IncreasingRound : BlockTree → Set
   IncreasingRound st = AbstractI.IncreasingRoundRule st
 
-  VotesOnlyOnce : RecordStoreState → Set
+  VotesOnlyOnce : BlockTree → Set
   VotesOnlyOnce st = AbstractI.VotesOnlyOnceRule st
 
-  LockedRound : RecordStoreState → Set₁
+  LockedRound : BlockTree → Set₁
   LockedRound st = AbstractI.LockedRoundRule st
 
   -- A Valid Record Store State is one where all
   -- the invariants are respected.
-  record ValidRSS (rss : RecordStoreState) : Set₁ where
-    constructor valid-rss
+  record ValidBT (bt : BlockTree) : Set₁ where
+    constructor valid-bt
     field
-      correct           : Correct rss
-      incr-round-rule   : IncreasingRound rss
-      votes-once-rule   : VotesOnlyOnce rss
-      locked-round-rule : LockedRound rss
+      correct           : Correct bt
+      incr-round-rule   : IncreasingRound bt
+      votes-once-rule   : VotesOnlyOnce bt
+      locked-round-rule : LockedRound bt
 
   ---------------------
   -- The Empty State --
   ---------------------
 
-  emptyRSS : RecordStoreState
-  emptyRSS = record {
-     -- ; rssInitial              = init
-       -- rssInitiaState   : State
-       rssPool                 = empty
-     ; rssCurrentRound         = 1
-     -- ; rssCurrentVotes         = empty
+  emptyBT : BlockTree
+  emptyBT = record {
+       btPool                 = empty
     }
 
   -- And now this is really trivial
-  emptyRSS-valid : ValidRSS emptyRSS
-  emptyRSS-valid =
-    valid-rss (λ { (I mkInitial) _  → WithRSS.empty
+  emptyBT-valid : ValidBT emptyBT
+  emptyBT-valid =
+    valid-bt (λ { (I mkInitial) _  → WithRSS.empty
                  ; (B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
                  ; (Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
@@ -133,25 +126,25 @@ module LibraBFT.Concrete.RecordStoreState
   -- A record extends some other in a state if there exists
   -- a record chain in said state that ends on the record supposed
   -- to be extended
-  data Extends (rss : RecordStoreState) : Record → Set where
+  data Extends (bt : BlockTree) : Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
-             → (rInPool : r ∈RSS rss)
+             → (rInPool : r ∈BT bt)
              -- We will not allow insertion of a Record whose hash
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → (r'New : lookup (rssPool rss) (hashRecord r') ≡ nothing)
+             → (r'New : lookup (btPool bt) (hashRecord r') ≡ nothing)
              → r ← r'
-             → Extends rss r'
+             → Extends bt r'
 
-  extends-Q? : (rss : RecordStoreState)(q : QC)
-             → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
-             → Maybe (Extends rss (Q q))
-  extends-Q? rss q ok
+  extends-Q? : (bt : BlockTree)(q : QC)
+             → lookup (btPool bt) (hashRecord (Q q)) ≡ nothing
+             → Maybe (Extends bt (Q q))
+  extends-Q? bt q ok
     -- Structure is similar to extends-B? below, which is commented in detail.
-    with lookup (rssPool rss) (getPrevHash q)
-       | inspect (lookup (rssPool rss)) (getPrevHash q)
+    with lookup (btPool bt) (getPrevHash q)
+       | inspect (lookup (btPool bt)) (getPrevHash q)
   ...| nothing    | [ _ ] = nothing
   ...| just (I _) | [ _ ] = nothing
   ...| just (Q _) | [ _ ] = nothing
@@ -161,26 +154,26 @@ module LibraBFT.Concrete.RecordStoreState
   ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
                              (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
-  extends-B? : (rss : RecordStoreState)(b : Block)
-             → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
-             → Maybe (Extends rss (B b))
-  extends-B? rss b ok
+  extends-B? : (bt : BlockTree)(b : Block)
+             → lookup (btPool bt) (hashRecord (B b)) ≡ nothing
+             → Maybe (Extends bt (B b))
+  extends-B? bt b ok
   -- 1. Are we extending the initial record?
     with getPrevHash b ≟Hash hashRecord (I mkInitial)
   ...| yes refl with 1 ≤? getRound b
   ...| yes xx = just (extends {r = I mkInitial} unit ok
                                 (I←B xx refl))
   ...| no _   = nothing
-  extends-B? rss b ok
+  extends-B? bt b ok
      | no  ¬Init
   -- 2. Ok, if not the initial, which one? We must look it up.
-    with lookup (rssPool rss) (getPrevHash b)
-       | inspect (lookup (rssPool rss)) (getPrevHash b)
+    with lookup (btPool bt) (getPrevHash b)
+       | inspect (lookup (btPool bt)) (getPrevHash b)
   -- 2.1 case nothing was found, it does not extend.
   ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
   ...| just (I mkInitial) | [ R ]
-     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (rssPool rss) R))
+     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (btPool bt) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
   ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
@@ -196,23 +189,23 @@ module LibraBFT.Concrete.RecordStoreState
 
   -- This shows how we can construct an Extends record, as the concrete model will need to do.
   -- However, it only produces a Maybe Extends, wnich could be satisfied by alway returning nothing.
-  -- We could level-up by making this a Dec (Extends rss r), showing that we can construct an
-  -- Extends rss r or there isn't one, thus eliminating this "triviality" concern.
-  extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
-  extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
+  -- We could level-up by making this a Dec (Extends bt r), showing that we can construct an
+  -- Extends bt r or there isn't one, thus eliminating this "triviality" concern.
+  extends? : (bt : BlockTree)(r : Record) → Maybe (Extends bt r)
+  extends? bt r with (lookup (btPool bt)) (hashRecord r) | inspect (lookup (btPool bt)) (hashRecord r)
   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
   ...| nothing | [ ok ] with r 
   ...| I _ = nothing
-  ...| B b = extends-B? rss b ok
-  ...| Q q = extends-Q? rss q ok
+  ...| B b = extends-B? bt b ok
+  ...| Q q = extends-Q? bt q ok
 
   --------------------------
   -- Insertion of Records --
 
-  insert : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
-         → RecordStoreState
-  insert rss r' (extends _ nc _) = record rss 
-     {rssPool = hs-insert  r' (rssPool rss) nc
+  insert : (bt : BlockTree)(r' : Record)(ext : Extends bt r')
+         → BlockTree
+  insert bt r' (extends _ nc _) = record bt 
+     {btPool = hs-insert  r' (btPool bt) nc
      }
 
   ---------------------
@@ -222,54 +215,54 @@ module LibraBFT.Concrete.RecordStoreState
   -- into another by proving the later contains at least all the
   -- records of the former.
   RecordChain-grow
-    : {rss rss' : RecordStoreState}{s : Record} 
-    → (∀ {r} → r ∈RSS rss → r ∈RSS rss')
-    → WithRSS.RecordChain rss s → WithRSS.RecordChain rss' s
+    : {bt bt' : BlockTree}{s : Record} 
+    → (∀ {r} → r ∈BT bt → r ∈BT bt')
+    → WithRSS.RecordChain bt s → WithRSS.RecordChain bt' s
   RecordChain-grow f WithRSS.empty           
     = WithRSS.empty
   RecordChain-grow f (WithRSS.step rc x {p}) 
     = WithRSS.step (RecordChain-grow f rc) x {f p}
 
   -- Inserting does not loose any records.
-  insert-stable : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
+  insert-stable : {bt : BlockTree}{r' : Record}(ext : Extends bt r')
                 → {r : Record}
-                → r ∈RSS rss
-                → r ∈RSS (insert rss r' ext)
+                → r ∈BT bt
+                → r ∈BT (insert bt r' ext)
   insert-stable ext {I x} hyp = unit
   insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable nc hyp
   insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable nc hyp
 
   -- If a record is not in store before insertion, but it is after
   -- the insertion, this record must have been the inserted one.
-  insert-target : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
+  insert-target : {bt : BlockTree}{r' : Record}(ext : Extends bt r')
                 → {r : Record}
-                → ¬ (r ∈RSS rss)
-                → r ∈RSS (insert rss r' ext)
+                → ¬ (r ∈BT bt)
+                → r ∈BT (insert bt r' ext)
                 → r ≡ r'
   insert-target ext {I x} neg hyp = ⊥-elim (neg hyp)
   insert-target (extends _ nc _) {B x} neg hyp = hs-insert-target nc neg hyp
   insert-target (extends _ nc _) {Q x} neg hyp = hs-insert-target nc neg hyp
 
   -- Inserting a record is provably correct.
-  insert-∈RSS : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
-              → r' ∈RSS insert rss r' ext
-  insert-∈RSS {rss}{I _}(extends _ nc _) = unit
-  insert-∈RSS {rss}{B x}(extends _ nc _) = hs-insert-∈HS (B x) (rssPool rss) nc
-  insert-∈RSS {rss}{Q x}(extends _ nc _) = hs-insert-∈HS (Q x) (rssPool rss) nc
+  insert-∈BT : {bt : BlockTree}{r' : Record}(ext : Extends bt r')
+              → r' ∈BT insert bt r' ext
+  insert-∈BT {bt}{I _}(extends _ nc _) = unit
+  insert-∈BT {bt}{B x}(extends _ nc _) = hs-insert-∈HS (B x) (btPool bt) nc
+  insert-∈BT {bt}{Q x}(extends _ nc _) = hs-insert-∈HS (Q x) (btPool bt) nc
 
-  insert-ok-correct : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
-            → ValidRSS rss
-            → Correct (insert rss r' ext)
-  insert-ok-correct rss r' ext vrss s s∈post 
-    with s ∈RSS? rss
-  ...| yes s∈rss = RecordChain-grow (insert-stable ext) (ValidRSS.correct vrss s s∈rss)
-  ...| no  s∉rss 
-    rewrite insert-target ext s∉rss s∈post 
+  insert-ok-correct : (bt : BlockTree)(r' : Record)(ext : Extends bt r')
+            → ValidBT bt
+            → Correct (insert bt r' ext)
+  insert-ok-correct bt r' ext vbt s s∈post 
+    with s ∈BT? bt
+  ...| yes s∈bt = RecordChain-grow (insert-stable ext) (ValidBT.correct vbt s s∈bt)
+  ...| no  s∉bt 
+    rewrite insert-target ext s∉bt s∈post 
     with ext
   ...| extends {r = r} a b r←r' 
-     = WithRSS.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) 
-                                      (ValidRSS.correct vrss r a))
-                    r←r' {insert-∈RSS (extends a b r←r')}
+     = WithRSS.step (RecordChain-grow (insert-stable {bt} (extends a b r←r')) 
+                                      (ValidBT.correct vbt r a))
+                    r←r' {insert-∈BT (extends a b r←r')}
 
   ---------------------
   -- VOTES ONCE RULE --
@@ -281,20 +274,20 @@ module LibraBFT.Concrete.RecordStoreState
     : {α : Author ec}(q : QC) → (vα vα' : α ∈QC q) → vα ≡ vα'
   ∈QC-Vote-prop = {!!}
 
-  insert-ok-votes-only-once : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
-            → ValidRSS rss
-            → VotesOnlyOnce (insert rss r ext)
-  insert-ok-votes-only-once rss r ext vrss α hα {q} {q'} q∈rss q'∈rss vα vα' ord 
+  insert-ok-votes-only-once : (bt : BlockTree)(r : Record)(ext : Extends bt r)
+            → ValidBT bt
+            → VotesOnlyOnce (insert bt r ext)
+  insert-ok-votes-only-once bt r ext vbt α hα {q} {q'} q∈bt q'∈bt vα vα' ord 
   -- 0. Are the QCs equal?
     with q ≟QC q'
   ...| yes refl rewrite ∈QC-Vote-prop q vα vα' = refl
   ...| no  q≢q' 
   -- 1. Are these old QCs or did we just insert them?
-    with (Q q) ∈RSS? rss | (Q q') ∈RSS? rss
+    with (Q q) ∈BT? bt | (Q q') ∈BT? bt
   -- 1.1 Yes, they are old. Easy! Rely on the hypothesis that the previous
   --     state was correct.
   ...| yes qOld | yes q'Old 
-     = ValidRSS.votes-once-rule vrss α hα qOld q'Old vα vα' ord
+     = ValidBT.votes-once-rule vbt α hα qOld q'Old vα vα' ord
   -- 1.2 No! One is old but the other is newly inserted. This must be impossible.
   ...| no  qNew | yes q'Old 
      = {!!}  -- TODO: Previous proof for this case and the next used same-order-diff-qcs to "prove" that
@@ -306,43 +299,43 @@ module LibraBFT.Concrete.RecordStoreState
   --     now. This means that they must be equal; Yet, we have
   --     just compared them before and found out they are not equal.
   ...| no  qNew | no  q'New 
-    with trans (insert-target ext {Q q'} q'New q'∈rss) 
-          (sym (insert-target ext {Q q} qNew q∈rss))
+    with trans (insert-target ext {Q q'} q'New q'∈bt) 
+          (sym (insert-target ext {Q q} qNew q∈bt))
   ...| q≡q' = ⊥-elim (q≢q' (sym (Q-injective q≡q')))
 
-  insert-ok-increasing-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
-            → ValidRSS rss
-            → IncreasingRound (insert rss r ext)
-  insert-ok-increasing-round rss r ext vrss α hα {q} {q'} q∈rss q'∈rss va va' ord 
+  insert-ok-increasing-round : (bt : BlockTree)(r : Record)(ext : Extends bt r)
+            → ValidBT bt
+            → IncreasingRound (insert bt r ext)
+  insert-ok-increasing-round bt r ext vbt α hα {q} {q'} q∈bt q'∈bt va va' ord 
   -- 0. Are the QCs equal? Well, no, the orders are different
     with q ≟QC q'
   ...| yes refl = {!!} -- impossible!
   ...| no  q≢q' 
   -- 1. Are these old QCs or did we just insert them?
-    with (Q q) ∈RSS? rss | (Q q') ∈RSS? rss
+    with (Q q) ∈BT? bt | (Q q') ∈BT? bt
   -- 1.1. Both are old; simple. Use hypothesis
   ...| yes qOld | yes q'Old 
-     = ValidRSS.incr-round-rule vrss α hα qOld q'Old va va' ord
+     = ValidBT.incr-round-rule vbt α hα qOld q'Old va va' ord
   -- 1.2. Both are new, impossible; we just saw they must be different.
   ...| no  qNew | no  q'New 
      = ⊥-elim (q≢q' (sym (Q-injective 
-          (trans (insert-target ext {Q q'} q'New q'∈rss) 
-          (sym (insert-target ext {Q q} qNew q∈rss))))))
+          (trans (insert-target ext {Q q'} q'New q'∈bt) 
+          (sym (insert-target ext {Q q} qNew q∈bt))))))
   ...| yes qOld | no  q'New = {!!}
   ...| no  qNew | yes q'Old = {!!}
 
 
-  insert-ok-locked-round : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
-            → ValidRSS rss
-            → LockedRound (insert rss r ext)
-  insert-ok-locked-round rss r ext vrss = {!!}
+  insert-ok-locked-round : (bt : BlockTree)(r : Record)(ext : Extends bt r)
+            → ValidBT bt
+            → LockedRound (insert bt r ext)
+  insert-ok-locked-round bt r ext vbt = {!!}
 
-  insert-ok : (rss : RecordStoreState)(r : Record)(ext : Extends rss r)
-            → ValidRSS rss
-            → ValidRSS (insert rss r ext)
-  insert-ok rss r ext vrss =
-    valid-rss
-      (insert-ok-correct          rss r ext vrss)
-      (insert-ok-increasing-round rss r ext vrss)
-      (insert-ok-votes-only-once  rss r ext vrss)
-      (insert-ok-locked-round     rss r ext vrss)
+  insert-ok : (bt : BlockTree)(r : Record)(ext : Extends bt r)
+            → ValidBT bt
+            → ValidBT (insert bt r ext)
+  insert-ok bt r ext vbt =
+    valid-bt
+      (insert-ok-correct          bt r ext vbt)
+      (insert-ok-increasing-round bt r ext vbt)
+      (insert-ok-votes-only-once  bt r ext vbt)
+      (insert-ok-locked-round     bt r ext vbt)
