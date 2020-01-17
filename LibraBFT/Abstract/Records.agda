@@ -72,6 +72,12 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
       vRound
       vBlockHash
       vEpochId
+    signed-vote-is-record : IsLibraBFTRecord (VerSigned Vote)
+    signed-vote-is-record = is-librabft-record 
+      (vAuthor ∘ content)
+      (vRound ∘ content)
+      (vBlockHash ∘ content)
+      (vEpochId ∘ content)
 
 
   -- * Quorum Certificates

@@ -1,56 +1,32 @@
 open import LibraBFT.Prelude 
   hiding (lookup)
-open import LibraBFT.Hash
 
-module LibraBFT.Concrete.Util.HashSet {Key : Set}(hashK : Key → Hash) where
+module LibraBFT.Concrete.Util.KVMap {Key : Set}{Val : Set} where
 
   postulate
-    HashSet : Set 
-
-    -- Predicates
-    _∈HS_          : (k : Key) → HashSet → Set
-    ∈HS-irrelevant : (k : Key)(hs : HashSet)
-                   → (p₀ p₁ : k ∈HS hs) → p₀ ≡ p₁
+    KVMap : Set 
 
     -- functionality
-    empty          : HashSet
-    lookup         : HashSet → Hash → Maybe Key
-    _∈HS?_         : (k : Key)(h : HashSet)
-                   → Dec (k ∈HS h)
-    hs-insert      : (k : Key)(hs : HashSet)
-                   → lookup hs (hashK k) ≡ nothing
-                   → HashSet
+    empty          : KVMap
+    lookup         : KVMap → Key → Maybe Val
+    kvm-insert     : (k : Key)(v : Val)(kvm : KVMap)
+                   → lookup kvm k ≡ nothing
+                   → KVMap
 
     -- properties
-    ∈HS-correct : (k : Key)(hs : HashSet)
-                → k ∈HS hs
-                → lookup hs (hashK k) ≡ just k
+    lookup-correct : {k : Key}{v : Val}{kvm : KVMap}
+                   → (prf : lookup kvm k ≡ nothing)
+                   → lookup (kvm-insert k v kvm prf) k ≡ just v
 
-    ∉HS-correct : (k : Key)(hs : HashSet)
-                → ¬ k ∈HS hs
-                → lookup hs (hashK k) ≢ just k
+    lookup-stable  : {k k' : Key}{v : Val}{kvm : KVMap}
+                   → (prf : lookup kvm k ≡ nothing)
+                   → lookup (kvm-insert k v kvm prf) k' ≡ just v
+                   → lookup (kvm-insert k v kvm prf) k' ≡ just v
 
-    lookup-correct : {k : Key}(h : Hash)(hs : HashSet)
-                   → lookup hs h ≡ just k
-                   → h ≡ hashK k  
+    insert-target  : ∀{k k' kvm v v'}
+                   → (prf : lookup kvm k ≡ nothing)
+                   → lookup kvm k' ≢ just v
+                   → lookup (kvm-insert k v' kvm prf) k' ≡ just v
+                   → k' ≡ k × v ≡ v'
 
-    lookup-∈HS : {k : Key}(h : Hash)(hs : HashSet)
-               → lookup hs h ≡ just k
-               → k ∈HS hs
-
-    hs-insert-∈HS : (k : Key)(hs : HashSet)
-                  → (prf : lookup hs (hashK k) ≡ nothing)
-                  → k ∈HS hs-insert k hs prf
-
-    hs-insert-stable : ∀{k k' hs}
-                     → (prf : lookup hs (hashK k) ≡ nothing)
-                     → k' ∈HS hs
-                     → k' ∈HS (hs-insert k hs prf)
-
-    hs-insert-target : ∀{k k' hs}
-                     → (prf : lookup hs (hashK k) ≡ nothing)
-                     → ¬ (k' ∈HS hs)
-                     → k' ∈HS (hs-insert k hs prf)
-                     → k' ≡ k
-
-    ∈HS-empty-⊥ : {k : Key} → k ∈HS empty → ⊥
+    kvm-empty-⊥    : {k : Key} {v : Val} → lookup empty k ≡ just v → ⊥

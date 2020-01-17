@@ -115,6 +115,7 @@ module LibraBFT.Base.Types where
    record BBlock  : Set where
      constructor mkBlock
      field
+       bId         : Hash
        bEpochId    : EpochId
        bAuthor     : author
        bCommand    : Command
@@ -135,6 +136,7 @@ module LibraBFT.Base.Types where
 
    record BQC (votes : Set) : Set where
     field
+      qId         : Hash
       qEpochId       : EpochId
       qAuthor        : author
       qBlockHash     : BlockHash
