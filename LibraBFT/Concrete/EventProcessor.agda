@@ -6,32 +6,21 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.PKCS
 
-module LibraBFT.Concrete.NodeState
+module LibraBFT.Concrete.EventProcessor
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec      : EpochConfig)
    where
 
- open import LibraBFT.Concrete.RecordStoreState hash hash-cr
+ open import LibraBFT.Concrete.BlockTree hash hash-cr
 
- record NodeState : Set where
+ record EventProcessor : Set where
    constructor nodeState
    field
-     myPK           : PK
-     lastVotedRound : Round
- open NodeState public
-
- postulate
-   abstractEpochConfig : NodeState → EpochConfig  -- TODO: EpochConfig is an Abstract concept, we will need to
-                                                  -- construct it from the concrete NodeState
-
- record NodeStateWithProps : Set where
-   field
-     state  : NodeState
-     auxRSS : RecordStoreState (abstractEpochConfig state)
-
-
- leader? : NodeState → Bool
- leader? = {!!}
+     myPK           : PK -- TODO: this is temporary until we have a better model
+     -- TODO: for now, we omit the levels of indirection between BlockStore and BlockTree
+     epBlockStore   : BlockTree ec
+ open EventProcessor public
 
  -- VCM: PROPOSAL TO HANDLE PRIV KEYS
  --
@@ -44,11 +33,11 @@ module LibraBFT.Concrete.NodeState
  -- its time we come to need these.
  postulate 
    mkSigned : {A : Set} ⦃ encA : Encoder A ⦄ 
-            → NodeState → A → Signed A
+            → EventProcessor → A → Signed A
 
    mkSigned-correct-1 
      : ∀{A}⦃ encA : Encoder A ⦄
-     → (st : NodeState)(x : A)
+     → (st : EventProcessor)(x : A)
      → verify (encode x) 
               (signature (mkSigned st x)) 
               (myPK st)
@@ -56,7 +45,7 @@ module LibraBFT.Concrete.NodeState
 
    mkSigned-correct-2
      : ∀{A}⦃ encA : Encoder A ⦄
-     → (st : NodeState)(x : A)(pk : PK)
+     → (st : EventProcessor)(x : A)(pk : PK)
      → verify (encode x) 
               (signature (mkSigned st x)) 
               pk
