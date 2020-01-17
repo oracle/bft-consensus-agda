@@ -84,8 +84,9 @@ module LibraBFT.Base.Types where
   ...| no  _  = nothing
 
   postulate
-    fakePKs    : Fin fakeAuthorsN → PK
-    fakePKsInj : (x x₁ : Fin 4) (x₂ : fakePKs x ≡ fakePKs x₁) → x ≡ x₁
+    fakeNodeIdPK : NodeId → PK
+    fakePKs      : Fin fakeAuthorsN → PK
+    fakePKsInj   : (x x₁ : Fin 4) (x₂ : fakePKs x ≡ fakePKs x₁) → x ≡ x₁
 
   fakeEC : EpochId → EpochConfig
   fakeEC eid = record {

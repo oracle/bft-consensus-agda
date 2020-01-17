@@ -9,18 +9,21 @@ open import LibraBFT.Base.PKCS
 module LibraBFT.Concrete.EventProcessor
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  (ec      : EpochConfig)
    where
 
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 
  record EventProcessor : Set where
-   constructor nodeState
+   constructor eventProcessor
    field
-     myPK           : PK -- TODO: this is temporary until we have a better model
+     myPK           : PK           -- TODO: this is temporary until we have a better model
+     ec             : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
      -- TODO: for now, we omit the levels of indirection between BlockStore and BlockTree
      epBlockStore   : BlockTree ec
  open EventProcessor public
+
+ initEventProcessor : PK → EventProcessor
+ initEventProcessor pk = eventProcessor pk (fakeEC 0) (emptyBT (fakeEC 0))
 
  -- VCM: PROPOSAL TO HANDLE PRIV KEYS
  --

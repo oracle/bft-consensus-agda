@@ -2,7 +2,7 @@
 
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
-open import LibraBFT.Concrete.RecordStoreState using (RecordStoreState ; emptyRSS)
+open import LibraBFT.Concrete.BlockTree using (BlockTree ; emptyBT)
 open import LibraBFT.Concrete.NetworkMessages
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
@@ -21,25 +21,17 @@ module LibraBFT.Global.ModelDraft
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
 
- record NodeState : Set where
-   constructor nodeState
-   field
-     currentEpoch   : EpochConfig
-     lastVotedRound : Round
-     rss            : RecordStoreState hash hash-cr currentEpoch
-
- initNodeState : NodeState
- initNodeState = nodeState (fakeEC 0) 0 (emptyRSS hash hash-cr (fakeEC 0))
+ open import LibraBFT.Concrete.EventProcessor hash hash-cr
 
  record SystemState : Set where
    constructor sysState
    field
-     sentMessages : SentMessages
-     nodeStates   : NodeId → NodeState
+     sentMessages    : SentMessages
+     eventProcessors : NodeId → EventProcessor
  open SystemState
 
  initState : SystemState
- initState = sysState noMessages (λ _ → initNodeState)
+ initState = sysState noMessages (λ nid → initEventProcessor (fakeNodeIdPK nid))
 
  -- TODO: create an event where any NodeID can send a vote in its current epoch with a higher round than last voted round
  --       create an event where any node that is not an honest author for an epoch can send an arbitrary vote for that epoch

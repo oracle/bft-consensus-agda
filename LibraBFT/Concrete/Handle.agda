@@ -11,19 +11,20 @@ open import LibraBFT.Concrete.NetworkMessages
 module LibraBFT.Concrete.Handle
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  (ec      : EpochConfig)
    where
 
- open import LibraBFT.Concrete.NodeState hash hash-cr
- open import LibraBFT.Concrete.RecordStoreState hash hash-cr
+ open import LibraBFT.Concrete.EventProcessor hash hash-cr ec
+ open import LibraBFT.Concrete.BlockTree hash hash-cr ec
 
  -- TODO: we should check if the block came from the right leader
 
- module _ (pre : NodeState) where
+ module _ (pre : EventProcessor) where
 
   handle-ver : VerNetworkRecord
              -- Output is a list of messages we want to send
              -- and a new state.
-             → List NetworkMsg × NodeState
+             → List NetworkMsg × EventProcessor
   handle-ver (C vc prf) = {!!}
 
 {--
@@ -39,7 +40,7 @@ module LibraBFT.Concrete.Handle
 --}
 
   handle : NetworkMsg -- msg addressed for 'us'
-         → List NetworkMsg × NodeState
+         → List NetworkMsg × EventProcessor
   handle msg
     with check-signature-and-format (content msg)
   ...| nothing  = ([] , pre) 
