@@ -41,15 +41,15 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
    instance encAuthors : Encoder (Author ec)
 
   Block : Set
-  Block = VerSigned (BBlock (Author ec))
+  Block = BBlock (Author ec)
 
   instance
     block-is-record : IsLibraBFTRecord Block
     block-is-record = is-librabft-record 
-      (bAuthor ∘ content) 
-      (bRound ∘ content) 
-      (bPrevQCHash ∘ content) 
-      (bEpochId ∘ content)
+      bAuthor
+      bRound
+      bPrevQCHash
+      bEpochId
 
   -- TODO: Implement
   postulate
@@ -60,18 +60,18 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   -- that the concrete interface doesn't see it; and we just 
   -- postulate the hability to create a vOrder.
   Vote : Set
-  Vote = VerSigned (BVote (Author ec))
+  Vote = BVote (Author ec)
 
   voteOrder : Vote → VoteOrder
-  voteOrder = vOrder ∘ content
+  voteOrder = vOrder
     
   instance
     vote-is-record : IsLibraBFTRecord Vote
     vote-is-record = is-librabft-record 
-      (vAuthor ∘ content) 
-      (vRound ∘ content) 
-      (vBlockHash ∘ content)
-      (vEpochId ∘ content)
+      vAuthor
+      vRound
+      vBlockHash
+      vEpochId
 
 
   -- * Quorum Certificates
@@ -84,33 +84,33 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   -- the authors are different. 
   record QC : Set where
     field
-      qBase          : VerSigned (BQC (Author ec) Vote)
+      qBase          : BQC (Author ec) Vote
       -- Here are the coherence conditions. Firstly, we expect
       -- 'qVotes' to be sorted, which guarnatees distinct authors.
       qVotes-C1      : IsSorted (λ v₀ v₁ → getAuthor v₀ <Fin getAuthor v₁) 
-                                (qVotes (content qBase)) 
+                                (qVotes qBase) 
       -- Secondly, we expect it to have at least 'QuorumSize' number of
       -- votes, for the particular epoch in question.
-      qVotes-C2      : QuorumSize ec ≤ length (qVotes (content qBase))
+      qVotes-C2      : QuorumSize ec ≤ length (qVotes qBase)
       -- All the votes must vote for the qBlockHash in here;
-      qVotes-C3      : All (λ v → getPrevHash v ≡ qBlockHash (content qBase)) 
-                           (qVotes (content qBase))
+      qVotes-C3      : All (λ v → getPrevHash v ≡ qBlockHash qBase) 
+                           (qVotes qBase)
       -- Likewise for rounds
-      qVotes-C4      : All (λ v → getRound v ≡ qRound (content qBase)) (qVotes (content qBase))
+      qVotes-C4      : All (λ v → getRound v ≡ qRound qBase) (qVotes qBase)
   open QC public
 
   -- Accessors
 
   qcVotes : QC → List Vote
-  qcVotes = qVotes ∘ content ∘ qBase
+  qcVotes = qVotes ∘ qBase
 
   instance 
     qc-is-record : IsLibraBFTRecord QC
     qc-is-record = is-librabft-record 
-      (qAuthor ∘ content ∘ qBase) 
-      (qRound ∘ content ∘ qBase) 
-      (qBlockHash ∘ content ∘ qBase)
-      (qEpochId ∘ content ∘ qBase)
+      (qAuthor ∘ qBase) 
+      (qRound ∘ qBase) 
+      (qBlockHash ∘ qBase)
+      (qEpochId ∘ qBase)
 
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
@@ -179,8 +179,8 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
      } where
        enc1 : Record → ByteString
        enc1 (I _) = false ∷ false ∷ [] ++ encode (seed ec) ++ encode (epochId ec)
-       enc1 (B x) = true  ∷ false ∷ encode (content x)
-       enc1 (Q x) = false ∷ true  ∷ encode (content (qBase x))
+       enc1 (B x) = true  ∷ false ∷ encode x
+       enc1 (Q x) = false ∷ true  ∷ encode (qBase x)
 
        postulate magic : ∀{a}{A : Set a} → A
 
