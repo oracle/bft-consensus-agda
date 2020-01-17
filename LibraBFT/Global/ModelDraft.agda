@@ -2,7 +2,6 @@
 
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
-open import LibraBFT.Concrete.BlockTree using (BlockTree ; emptyBT)
 open import LibraBFT.Concrete.NetworkMessages
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
