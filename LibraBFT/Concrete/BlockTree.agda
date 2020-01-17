@@ -30,32 +30,31 @@ module LibraBFT.Concrete.BlockTree
 
   open import LibraBFT.Concrete.Util.HashSet hashRecord
 
-  -- VCM: I'm simplifying this abruptly; we should only
-  --      add fields here as needed
   record BlockTree : Set where
     constructor mkBlockTree
     field
-      btPool                 : HashSet
+      btIdToBlock                 : HashSet
+      -- btIdToQuorumCert         : HashSet
   open BlockTree
 
   _∈BT_ : Record → BlockTree → Set
   (I _) ∈BT rs = Unit -- The initial record is not really *in* the record store,
-  (B x) ∈BT rs = (B x) ∈HS (btPool rs)
-  (Q x) ∈BT rs = (Q x) ∈HS (btPool rs)
+  (B x) ∈BT rs = (B x) ∈HS (btIdToBlock rs)
+  (Q x) ∈BT rs = (Q x) ∈HS (btIdToBlock rs)
 
   _∈BT?_ : (r : Record)(bt : BlockTree) → Dec (r ∈BT bt)
   (I _) ∈BT? bt = yes unit
-  (B b) ∈BT? bt = (B b) ∈HS? (btPool bt)
-  (Q b) ∈BT? bt = (Q b) ∈HS? (btPool bt)
+  (B b) ∈BT? bt = (B b) ∈HS? (btIdToBlock bt)
+  (Q b) ∈BT? bt = (Q b) ∈HS? (btIdToBlock bt)
 
 {-
   ∈BT-correct : (bt : BlockTree)(r : Record)
-               → r ∈BT bt → lookup (btPool bt) (hashRecord r) ≡ just r
-  ∈BT-correct bt (B x) prf = lookup-correct (B x) (btPool bt) prf
-  ∈BT-correct bt (Q x) prf = lookup-correct (Q x) (btPool bt) prf
+               → r ∈BT bt → lookup (btIdToBlock bt) (hashRecord r) ≡ just r
+  ∈BT-correct bt (B x) prf = lookup-correct (B x) (btIdToBlock bt) prf
+  ∈BT-correct bt (Q x) prf = lookup-correct (Q x) (btIdToBlock bt) prf
 
   ∈BT-correct-⊥ : (bt : BlockTree)(r : Record)
-                 → r ∈BT bt → lookup (btPool bt) (hashRecord r) ≡ nothing → ⊥
+                 → r ∈BT bt → lookup (btIdToBlock bt) (hashRecord r) ≡ nothing → ⊥
   ∈BT-correct-⊥ = {!!}
 -}
 
@@ -63,9 +62,9 @@ module LibraBFT.Concrete.BlockTree
   ∈BT-irrelevant : ∀{r bt}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
   ∈BT-irrelevant {I x} unit unit = refl
   ∈BT-irrelevant {B x} {st} p0 p1     
-    = ∈HS-irrelevant (B x) (btPool st) p0 p1
+    = ∈HS-irrelevant (B x) (btIdToBlock st) p0 p1
   ∈BT-irrelevant {Q x} {st} p0 p1    
-    = ∈HS-irrelevant (Q x) (btPool st) p0 p1
+    = ∈HS-irrelevant (Q x) (btIdToBlock st) p0 p1
 
   instance
     abstractRSS : isRecordStoreState BlockTree
@@ -106,7 +105,7 @@ module LibraBFT.Concrete.BlockTree
 
   emptyBT : BlockTree
   emptyBT = record {
-       btPool                 = empty
+       btIdToBlock                 = empty
     }
 
   -- And now this is really trivial
@@ -134,17 +133,17 @@ module LibraBFT.Concrete.BlockTree
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
              -- most/all properties.
-             → (r'New : lookup (btPool bt) (hashRecord r') ≡ nothing)
+             → (r'New : lookup (btIdToBlock bt) (hashRecord r') ≡ nothing)
              → r ← r'
              → Extends bt r'
 
   extends-Q? : (bt : BlockTree)(q : QC)
-             → lookup (btPool bt) (hashRecord (Q q)) ≡ nothing
+             → lookup (btIdToBlock bt) (hashRecord (Q q)) ≡ nothing
              → Maybe (Extends bt (Q q))
   extends-Q? bt q ok
     -- Structure is similar to extends-B? below, which is commented in detail.
-    with lookup (btPool bt) (getPrevHash q)
-       | inspect (lookup (btPool bt)) (getPrevHash q)
+    with lookup (btIdToBlock bt) (getPrevHash q)
+       | inspect (lookup (btIdToBlock bt)) (getPrevHash q)
   ...| nothing    | [ _ ] = nothing
   ...| just (I _) | [ _ ] = nothing
   ...| just (Q _) | [ _ ] = nothing
@@ -155,7 +154,7 @@ module LibraBFT.Concrete.BlockTree
                              (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
   extends-B? : (bt : BlockTree)(b : Block)
-             → lookup (btPool bt) (hashRecord (B b)) ≡ nothing
+             → lookup (btIdToBlock bt) (hashRecord (B b)) ≡ nothing
              → Maybe (Extends bt (B b))
   extends-B? bt b ok
   -- 1. Are we extending the initial record?
@@ -167,13 +166,13 @@ module LibraBFT.Concrete.BlockTree
   extends-B? bt b ok
      | no  ¬Init
   -- 2. Ok, if not the initial, which one? We must look it up.
-    with lookup (btPool bt) (getPrevHash b)
-       | inspect (lookup (btPool bt)) (getPrevHash b)
+    with lookup (btIdToBlock bt) (getPrevHash b)
+       | inspect (lookup (btIdToBlock bt)) (getPrevHash b)
   -- 2.1 case nothing was found, it does not extend.
   ...| nothing | [ R ] = nothing
   -- 2.2 case we found the initial contradicts the check at (1)
   ...| just (I mkInitial) | [ R ]
-     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (btPool bt) R))
+     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (btIdToBlock bt) R))
   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
   ...| just (B _) | [ R ] = nothing
   -- 2.4 case we found a QC, it might extend
@@ -192,7 +191,7 @@ module LibraBFT.Concrete.BlockTree
   -- We could level-up by making this a Dec (Extends bt r), showing that we can construct an
   -- Extends bt r or there isn't one, thus eliminating this "triviality" concern.
   extends? : (bt : BlockTree)(r : Record) → Maybe (Extends bt r)
-  extends? bt r with (lookup (btPool bt)) (hashRecord r) | inspect (lookup (btPool bt)) (hashRecord r)
+  extends? bt r with (lookup (btIdToBlock bt)) (hashRecord r) | inspect (lookup (btIdToBlock bt)) (hashRecord r)
   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
   ...| nothing | [ ok ] with r 
   ...| I _ = nothing
@@ -205,7 +204,7 @@ module LibraBFT.Concrete.BlockTree
   insert : (bt : BlockTree)(r' : Record)(ext : Extends bt r')
          → BlockTree
   insert bt r' (extends _ nc _) = record bt 
-     {btPool = hs-insert  r' (btPool bt) nc
+     {btIdToBlock = hs-insert  r' (btIdToBlock bt) nc
      }
 
   ---------------------
@@ -247,8 +246,8 @@ module LibraBFT.Concrete.BlockTree
   insert-∈BT : {bt : BlockTree}{r' : Record}(ext : Extends bt r')
               → r' ∈BT insert bt r' ext
   insert-∈BT {bt}{I _}(extends _ nc _) = unit
-  insert-∈BT {bt}{B x}(extends _ nc _) = hs-insert-∈HS (B x) (btPool bt) nc
-  insert-∈BT {bt}{Q x}(extends _ nc _) = hs-insert-∈HS (Q x) (btPool bt) nc
+  insert-∈BT {bt}{B x}(extends _ nc _) = hs-insert-∈HS (B x) (btIdToBlock bt) nc
+  insert-∈BT {bt}{Q x}(extends _ nc _) = hs-insert-∈HS (Q x) (btIdToBlock bt) nc
 
   insert-ok-correct : (bt : BlockTree)(r' : Record)(ext : Extends bt r')
             → ValidBT bt
