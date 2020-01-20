@@ -1,9 +1,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.BasicTypes
+open import LibraBFT.Base.Types
 
 
-module LibraBFT.Concrete.Util.HashMap where
+module LibraBFT.Concrete.Util.HashMapOld where
 
   -- Update a function of type A → B on one input, given a decidability instance for A's
   -- The syntax is slightly ugly, but I couldn't do better in reasonable time
