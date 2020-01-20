@@ -1,0 +1,1 @@
+agda --compile Everything.agda
