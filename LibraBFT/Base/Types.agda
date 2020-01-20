@@ -113,9 +113,9 @@ module LibraBFT.Base.Types where
   -- 'Basic' records.
   module _ (author : Set) where
    record BBlock  : Set where
-     constructor mkBlock
+     constructor mkBBlock
      field
-       bId         : Hash
+       bId         : BlockHash
        bEpochId    : EpochId
        bAuthor     : author
        bCommand    : Command
@@ -124,7 +124,7 @@ module LibraBFT.Base.Types where
    open BBlock public
 
    record BVote  : Set where
-     constructor mkVote
+     constructor mkBVote
      field
        vEpochId   : EpochId
        vAuthor    : author
@@ -135,10 +135,9 @@ module LibraBFT.Base.Types where
    open BVote public
 
    record BQC (votes : Set) : Set where
+    constructor mkBQC
     field
-      qId         : Hash
       qEpochId       : EpochId
-      qAuthor        : author
       qBlockHash     : BlockHash
       qRound         : Round
       qVotes         : List votes
@@ -146,7 +145,7 @@ module LibraBFT.Base.Types where
    open BQC public
 
    record BTimeout : Set where
-     constructor mkTimeout
+     constructor mkBTimeout
      field
        toAuthor  : author
        toRound   : Round
