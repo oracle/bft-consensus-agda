@@ -8,6 +8,9 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+open import Data.Maybe
+open import Data.Maybe.Properties using (just-injective)
+
 module LibraBFT.Concrete.BlockTree
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
@@ -16,7 +19,7 @@ module LibraBFT.Concrete.BlockTree
     (ec : EpochConfig)
  where
 
-  open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.Records                                  ec as Abs
   open import LibraBFT.Abstract.Rules                                    ec
   open import LibraBFT.Abstract.BFT                                      ec 
   open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
@@ -24,28 +27,70 @@ module LibraBFT.Concrete.BlockTree
   open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
   import      LibraBFT.Abstract.RecordStoreState.Invariants hash hash-cr ec
     as AbstractI
+  open import LibraBFT.Concrete.Types as Conc
 
-  hashBlock : ∀ ⦃ encA : Encoder Block ⦄ → Block → Hash
+  hashBlock : ∀ {ℓ}{a : Set ℓ} → ⦃ encA : Encoder (Conc.Block {ℓ} a) ⦄ → (Conc.Block {ℓ} a) → Hash
   hashBlock = hash ∘ encode
 
-  open import LibraBFT.Concrete.Util.HashSet   {Block} hashBlock
+  hashQC : ⦃ encA : Encoder (Conc.QuorumCert) ⦄ → Conc.QuorumCert → Hash
+  hashQC = hash ∘ encode
 
-  record BlockTree (a : Set) : Set where
+  open import LibraBFT.Concrete.Util.KVMap
+
+  record BlockTree {ℓ}(a : Set ℓ) : Set ℓ where
     constructor mkBlockTree
     field
-      btIdToBlock                 : HashSet
-      -- btIdToQuorumCert         : HashSet
+      btIdToBlock                 : KVMap {ℓ} {Hash} {Conc.Block a}
+      -- btIdToQuorumCert         : KVMap {ℓ} {Hash} {QC}
   open BlockTree
 
-  _∈BT_ : ∀ {a} → Record → BlockTree a → Set
-  (I _) ∈BT rs = Unit -- The initial record is not really *in* the record store,
-  (B x) ∈BT rs = ∃[ b ](lookup (btIdToBlock rs) (bId x)         ≡ just b × {!!})  -- TODO: and the abstract version of b is x
-  (Q x) ∈BT rs = ∃[ b ](lookup (btIdToBlock rs) (qId (qBase x)) ≡ just b × {!!})  -- TODO: need to figure out IDs for QCs that live in Blocks; just use Block hash but with tag to say get quorum from it?
+  -- Not sure how else to get the implicit argument in context of an infix operator
+  lvlFromBT : ∀ {ℓ}{a} → BlockTree {ℓ} a → Level
+  lvlFromBT {ℓ} _ = ℓ
 
-  _∈BT?_ : ∀ {a} → (r : Record)(bt : BlockTree a) → Dec (r ∈BT bt)
+  abstractBlock : ∀ {ℓ}{a : Set ℓ} → Maybe (Conc.Block {ℓ} a) → Maybe Abs.Block
+  abstractBlock nothing = nothing
+  abstractBlock (just b@(block blkid blkdata blksig)) with isAuthor ec (getBlockAuthor b)
+  ...| nothing = nothing
+  ...| just α  = just (mkBlock (hashBlock b)
+                               (getBlockEpochId b)
+                               α
+                               42 -- getBlockCommand b   -- TODO: paramterize Command in abstract records
+                               (hashQC (getBlockQC b))
+                               (getBlockRound b))
+
+  abstractQC : ∀ {ℓ}{a : Set ℓ} → Maybe (Conc.Block {ℓ} a) → Maybe Abs.QC
+  abstractQC nothing  = nothing
+  abstractQC (just cb) = {!!}
+
+  -- Functions that determine if a given concrete block is represented by a given abstract one
+  -- TODO: either merge these into ∈BT-correct below, or use them to prove it
+  -- TODO: is it possible to write this in a way that ensures we say something about every field?
+  isAbstract : ∀ {ℓ}{a : Set ℓ} → Conc.Block {ℓ} a → Abs.Block → Set
+  isAbstract cb ab = getEpochId ab ≡ getBlockEpochId cb
+                   × getRound   ab ≡ getBlockRound   cb
+                   × just (getAuthor ab) ≡ isAuthor ec (getBlockAuthor cb)
+                   × bId ab        ≡ hashBlock cb
+
+  abstractBlockCorrect : ∀ {ℓ}{a : Set ℓ}{ab}
+                       → (cb : Conc.Block {ℓ} a)
+                       → abstractBlock (just cb) ≡ just ab
+                       → isAbstract cb ab
+  abstractBlockCorrect {ab = ab} cb abprf = {!!} , ({!!} , {!!})
+
+  _∈BT_ : ∀ {ℓ}{a : Set ℓ} → Record → BlockTree a → Set
+  (I _) ∈BT bt = Unit  -- The initial record is not really *in* the record store,
+  (B x) ∈BT bt = abstractBlock (lookup (btIdToBlock bt) (bId x)) ≡ just x
+  -- (Q x) ∈BT bt = abstractQC
+
+  _∈BT?_ : ∀ {ℓ} {a : Set ℓ} → (r : Record)(bt : BlockTree {ℓ} a) → Dec (r ∈BT bt)
   (I _) ∈BT? bt = yes unit
-  (B b) ∈BT? bt = (B b) ∈HS? (btIdToBlock bt)
-  (Q b) ∈BT? bt = (Q b) ∈HS? (btIdToBlock bt)
+  (B ab) ∈BT? bt with abstractBlock (lookup (btIdToBlock bt) (bId ab))
+  ...| nothing = no λ x → maybe-⊥ x refl
+  ...| just ab' with ab' ≟BBlock ab
+  ...| yes xx = yes (cong just xx)
+  ...| no  xx = no λ x → xx (just-injective x)
+  (Q b) ∈BT? bt = {!!}
 
 {-
   ∈BT-correct : (bt : BlockTree)(r : Record)
@@ -58,16 +103,15 @@ module LibraBFT.Concrete.BlockTree
   ∈BT-correct-⊥ = {!!}
 -}
 
-
-  ∈BT-irrelevant : ∀{r bt}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
+  ∈BT-irrelevant : ∀{r ℓ a}{bt : BlockTree {ℓ} a}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
   ∈BT-irrelevant {I x} unit unit = refl
-  ∈BT-irrelevant {B x} {st} p0 p1     
-    = ∈HS-irrelevant (B x) (btIdToBlock st) p0 p1
-  ∈BT-irrelevant {Q x} {st} p0 p1    
-    = ∈HS-irrelevant (Q x) (btIdToBlock st) p0 p1
+  ∈BT-irrelevant {B x} {st} p0 p1
+    = {!!}
+  ∈BT-irrelevant {Q x} {st} p0 p1
+    = {!!}
 
   instance
-    abstractRSS : isRecordStoreState BlockTree
+    abstractRSS : ∀ {ℓ} {a : Set ℓ} → isRecordStoreState (BlockTree a)
     abstractRSS = record
       { isInPool            = _∈BT_
       ; isInPool-irrelevant = ∈BT-irrelevant
@@ -77,21 +121,21 @@ module LibraBFT.Concrete.BlockTree
   -- The Invariants --
   --------------------
 
-  Correct : BlockTree → Set
+  Correct : ∀ {ℓ} {a : Set ℓ} → BlockTree {ℓ} a → Set
   Correct st = AbstractI.Correct st
 
-  IncreasingRound : BlockTree → Set
+  IncreasingRound : ∀ {ℓ} {a : Set ℓ} → BlockTree {ℓ} a → Set
   IncreasingRound st = AbstractI.IncreasingRoundRule st
 
-  VotesOnlyOnce : BlockTree → Set
+  VotesOnlyOnce : ∀ {ℓ} {a : Set ℓ} → BlockTree {ℓ} a → Set
   VotesOnlyOnce st = AbstractI.VotesOnlyOnceRule st
 
-  LockedRound : BlockTree → Set₁
+  LockedRound : ∀ {ℓ} {a : Set ℓ} → BlockTree {ℓ} a → Set₁
   LockedRound st = AbstractI.LockedRoundRule st
 
   -- A Valid Record Store State is one where all
   -- the invariants are respected.
-  record ValidBT (bt : BlockTree) : Set₁ where
+  record ValidBT {ℓ} {a : Set ℓ} (bt : BlockTree a) : Set (ℓ+1 0ℓ ℓ⊔ ℓ) where
     constructor valid-bt
     field
       correct           : Correct bt
@@ -103,21 +147,29 @@ module LibraBFT.Concrete.BlockTree
   -- The Empty State --
   ---------------------
 
-  emptyBT : BlockTree
+  emptyBT : ∀ {ℓ}{a : Set ℓ} → BlockTree a
   emptyBT = record {
        btIdToBlock                 = empty
     }
 
+  block∉emptyBT : ∀ {ℓ}{a : Set ℓ}{b} → (B b) ∈BT (emptyBT {ℓ}{a}) → ⊥
+  block∉emptyBT {ℓ}{a}{x} abs = (maybe-⊥ abs (subst ((_≡ nothing) ∘ abstractBlock)
+                                                       (sym (kvm-empty {k = bId x}))
+                                                       (refl)))
+  postulate  -- TODO when ∈BT defined for QCs
+    qc∉emptyBT    : ∀ {ℓ}{a : Set ℓ}{q} → (Q q) ∈BT (emptyBT {ℓ}{a}) → ⊥
+
+
   -- And now this is really trivial
-  emptyBT-valid : ValidBT emptyBT
-  emptyBT-valid =
+  emptyBT-valid : ∀ {ℓ}{a : Set ℓ} → ValidBT (emptyBT {a = a})
+  emptyBT-valid {ℓ}{a} =
     valid-bt (λ { (I mkInitial) _  → WithRSS.empty
-                 ; (B _) abs → ⊥-elim (∈HS-empty-⊥ abs) 
-                 ; (Q _) abs → ⊥-elim (∈HS-empty-⊥ abs)})
-              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
-              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈HS-empty-⊥ abs) })
-              (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
-                 → ⊥-elim (∈HS-empty-⊥ abs) })
+                 ; (B x) abs → ⊥-elim (block∉emptyBT abs)
+                 ; (Q x) abs → ⊥-elim (qc∉emptyBT abs)})
+              (λ { _ _ {x} abs _ _ _ _ → ⊥-elim (qc∉emptyBT abs)})
+              (λ { _ _ {x} abs _ _ _ _ → ⊥-elim (qc∉emptyBT abs)})
+              (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _
+                 → ⊥-elim (qc∉emptyBT abs)})
 
   -- --------------------------------
   -- -- Semantically Valid Records --

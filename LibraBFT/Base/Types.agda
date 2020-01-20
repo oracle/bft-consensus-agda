@@ -162,6 +162,34 @@ module LibraBFT.Base.Types where
    }
 
   postulate
+
+   -- TODO: make proper Dec instance; incomplete attempt below, which depends on
+   -- an assumed ≟author for the A type
+   _≟BBlock_ : ∀ {A : Set} → (b0 : BBlock A) → (b1 : BBlock A) → Dec (b0 ≡ b1)
+
+   {-
+   -- TODO: there must be a better way, or at least a way to finish this.  See
+   -- https://stackoverflow.com/questions/34646920/equality-of-records-in-agda
+   ≟BBlock b0 b1
+      with bId b0 ≟Hash bId b1
+   ...| no  xx = no λ x → xx (cong bId x)
+   ...| yes xx
+      with bEpochId b0 ≟ bEpochId b1
+   ...| no  xx1 = no λ x → xx1 (cong bEpochId x)
+   ...| yes xx1
+      with bAuthor b0 ≟author bAuthor b1
+   ...| no  xx2 = no λ x → xx2 (cong bAuthor x)
+   ...| yes xx2
+      with bCommand b0 ≟ bCommand b1
+   ...| no  xx3 = no λ x → xx3 (cong bCommand x)
+   ...| yes xx3
+      with bPrevQCHash b0 ≟Hash bPrevQCHash b1
+   ...| no  xx4 = no λ x → xx4 (cong bPrevQCHash x)
+   ...| yes xx4
+      with bRound b0 ≟ bRound b1
+   ...| no  xx5 = no λ x → xx5 (cong bRound x)
+   ...| yes xx5 = yes {!  !}
+   -}
    instance
      encBBlock  : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BBlock A)
      encBVote   : ∀{A}⦃ encA : Encoder A ⦄ → Encoder (BVote  A)
