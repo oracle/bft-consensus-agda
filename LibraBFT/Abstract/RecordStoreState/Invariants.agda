@@ -42,7 +42,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → voteOrder (∈QC-Vote q va) <VO voteOrder (∈QC-Vote q' va')
-       → getRound q < getRound q'
+       → getQCRound q < getQCRound q'
 
     -- An honest participant does not vote for two different blocks in the same round.  This is
     -- "implied" by the informal Increasing Round Rule in the paper: "An honest node that voted once

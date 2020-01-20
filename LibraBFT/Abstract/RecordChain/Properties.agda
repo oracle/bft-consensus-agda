@@ -94,7 +94,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → (c3 : 𝕂-chain P 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
            → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
-           → round r₂ < getRound q'
+           → round r₂ < getQCRound q'
            → getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} _ b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
      with lemmaB1 q₂ q'
@@ -105,7 +105,7 @@ module LibraBFT.Abstract.RecordChain.Properties
      with <VO-cmp (voteOrder (∈QC-Vote q₂ a∈q₂)) (voteOrder (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂
      with increasing-round-rule a honest {q'} {q₂} pq' pq a∈q' a∈q₂ va'<va₂
-   ...| res = ⊥-elim (n≮n (getRound q') (≤-trans res (≤-unstep hyp)))
+   ...| res = ⊥-elim (n≮n (getQCRound q') (≤-trans res (≤-unstep hyp)))
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} P b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | tri≈ _ va₂≡va' _
@@ -175,8 +175,8 @@ module LibraBFT.Abstract.RecordChain.Properties
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → {q' : QC}
                → (certB : RecordChain (Q q'))
-               → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
-               → getRound q' ≤ getRound (c3 b⟦ zero ⟧) 
+               → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getQCRound q'
+               → getQCRound q' ≤ getRound (c3 b⟦ zero ⟧)
                → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
@@ -210,18 +210,18 @@ module LibraBFT.Abstract.RecordChain.Properties
           → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q' : QC}
           → (certB : RecordChain (Q q'))
-          → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
+          → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getQCRound q'
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
           → HashBroke ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
    propS4 {rc = rc} c3 {q} (step certB b←q {pq}) hyp
-     with getRound q ≤?ℕ getRound (c3 b⟦ zero ⟧) 
+     with getQCRound q ≤?ℕ getRound (c3 b⟦ zero ⟧)
    ...| yes rq≤rb₂ = propS4-base c3 {q} (step certB b←q {pq}) hyp rq≤rb₂
    propS4 {q} c3 {q'} (step certB b←q {pq}) hyp
       | no  rb₂<rq 
      with lemmaS3 c3 (step certB b←q {pq}) 
-                     (subst (_< getRound q') 
+                     (subst (_< getQCRound q')
                             (kchainBlockRoundZero-lemma c3) 
                             (≰⇒> rb₂<rq))
    ...| ls3 

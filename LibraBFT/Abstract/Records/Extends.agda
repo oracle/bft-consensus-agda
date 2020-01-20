@@ -27,12 +27,12 @@ module LibraBFT.Abstract.Records.Extends
         → HashR (I i) ≡ getPrevHash b
         → I i ← B b
     Q←B : {q : QC} {b : Block}
-        → getRound q < getRound b
+        → getQCRound q < getRound b
         → HashR (Q q) ≡ getPrevHash b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
-        → getRound q ≡ getRound b
-        → HashR (B b) ≡ getPrevHash q
+        → getQCRound q ≡ getRound b
+        → HashR (B b) ≡ getQCPrevHash q
         → B b ← Q q
     -- B←V : {b : Block} {v : Vote}
     --       → HashR (B b) ≡ vBlockHash v

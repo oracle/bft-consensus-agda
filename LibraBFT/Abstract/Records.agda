@@ -110,13 +110,24 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   qcVotes : QC → List Vote
   qcVotes = qVotes ∘ qBase
 
+  -- MSM: In v3, QCs don't have authors, and I think we don't need them in abstract QCs either, so
+  -- I'm removing them, which means we can't have this instance.  (Alternatively we could just
+  -- populate the author with the author of the first vote in the QC, but I prefer not having it as
+  -- it is not necessary.)
+{-
   instance 
-    qc-is-record : IsLibraBFTRecord QC
+    qc-is-record : ∀ {qcIDs : Set} → IsLibraBFTRecord (QC qcIDs)
     qc-is-record = is-librabft-record 
       (qAuthor ∘ qBase) 
       (qRound ∘ qBase) 
       (qBlockHash ∘ qBase)
       (qEpochId ∘ qBase)
+-}
+  getQCRound : QC → Round
+  getQCRound = qRound ∘ qBase
+
+  getQCPrevHash : QC → BlockHash
+  getQCPrevHash = qBlockHash ∘ qBase
 
   -- TODO:
   -- VCM: Lisandra notes that we might not need propositional equality on quorum certificates.
@@ -222,7 +233,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) where
   round : Record → Round
   round (I i) = 0
   round (B b) = getRound b
-  round (Q q) = getRound q
+  round (Q q) = getQCRound q
   -- round (V v) = vRound v 
   -- round (T t) = toRound t
 
