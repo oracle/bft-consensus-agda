@@ -5,12 +5,14 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+
+-- These types should eventually mirror Libra/Consensus/Types.hs
 module LibraBFT.Concrete.Records where
 
   -- All the other records will draw their authors from
   -- a given Set. They are named with a 'B' prefix standing for
   -- 'Basic' records.
-  record Block  : Set where
+  record BlockProposal  : Set where
     constructor mkBlock
     field
       bEpochId    : EpochId
@@ -18,7 +20,7 @@ module LibraBFT.Concrete.Records where
       bCommand    : Command
       bPrevQCHash : QCHash
       bRound      : Round
-  open Block public
+  open BlockProposal public
 
   record Vote  : Set where
     constructor mkVote
@@ -59,7 +61,7 @@ module LibraBFT.Concrete.Records where
 
   postulate
    instance
-     encBlock  : Encoder Block 
+     encBlock  : Encoder BlockProposal
      encVote   : Encoder Vote
      encQC     : ∀{V}⦃ encV : Encoder V ⦄ → Encoder (QC V)
      encCN     : Encoder CN
@@ -78,7 +80,7 @@ module LibraBFT.Concrete.Records where
   open IsLibraBFTRecord {{...}} public
 
   instance
-    ibrBlock : IsLibraBFTRecord Block
+    ibrBlock : IsLibraBFTRecord BlockProposal
     ibrBlock = is-librabft-record bAuthor bRound bPrevQCHash bEpochId
 
     ibrQC : ∀{V} → IsLibraBFTRecord (QC V)
@@ -106,7 +108,7 @@ module LibraBFT.Concrete.Records where
   module VerifiedRecords (ec : EpochConfig)(pki : PKI ec) where
 
    data Record : Set where
-     B : ∀{α} (r : VerSigned Block)
+     B : ∀{α} (r : VerSigned BlockProposal)
        → isAuthor pki (getAuthor r) ≡ just α
        → verWithPK r ≡ pkAuthor pki α
        → Record
@@ -114,6 +116,9 @@ module LibraBFT.Concrete.Records where
        → isAuthor pki (getAuthor r) ≡ just α
        → verWithPK r ≡ pkAuthor pki α
        → Record
+     -- QUESTION: Wait... the abstract QC has no author, but the concrete one
+     -- does right? otherwise, who signs it? Or are we never going to
+     -- transmit them?
      Q : ∀{α} (r : VerSigned (QC (VerSigned Vote))) 
        → isAuthor pki (getAuthor r) ≡ just α
        → verWithPK r ≡ pkAuthor pki α
@@ -146,33 +151,3 @@ module LibraBFT.Concrete.Records where
    vrAuthor (Q {α} _ _ _) = α
    vrAuthor (C {α} _ _ _) = α
    vrAuthor (T {α} _ _ _) = α
-
-
-{-
-  ------------------------------------------------------------
-  -- Abstraction of Storeable Records into Abstract Records --
-
-
-  -- BlockRecords are what we will be storing in block storage;
-  data BlockRecord : Set where
-    B : Block            → BlockRecord
-    Q : QC (Signed Vote) → BlockRecord
-
-  postulate
-    instance
-      encR : Encoder BlockRecord  
-
-  module Abstraction 
-     (hash    : ByteString → Hash)
-     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-     (ec      : EpochConfig)
-    where
-
-   import LibraBFT.Abstract.Records ec Hash as Abs
- 
-   hashBR : BlockRecord → Hash
-   hashBR = hash ∘ encode
-
-   abs : BlockRecord → Abs.Record
-   abs br = {!!}
--}

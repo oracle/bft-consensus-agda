@@ -1,34 +1,51 @@
 open import LibraBFT.Prelude
   hiding (lookup)
 
-module LibraBFT.Concrete.Util.KVMap  {ℓ} {Key : Set} {Val : Set ℓ} where
+module LibraBFT.Concrete.Util.KVMap  where
 
-    postulate
-      KVMap : Set ℓ
+ variable
+   Key : Set 
+   Val : Set
 
-      -- functionality
-      empty          : KVMap
-      lookup         : KVMap → Key → Maybe Val
-      kvm-insert     : (k : Key)(v : Val)(kvm : KVMap)
-                     → lookup kvm k ≡ nothing
-                     → KVMap
+   k k' : Key
+   v v' : Val
+   
 
-      -- properties
-      lookup-correct : {k : Key}{v : Val}{kvm : KVMap}
-                     → (prf : lookup kvm k ≡ nothing)
-                     → lookup (kvm-insert k v kvm prf) k ≡ just v
+ postulate
+   KVMap : Set → Set → Set 
 
-      lookup-stable  : {k k' : Key}{v : Val}{kvm : KVMap}
-                     → (prf : lookup kvm k ≡ nothing)
-                     → lookup (kvm-insert k v kvm prf) k' ≡ just v
-                     → lookup (kvm-insert k v kvm prf) k' ≡ just v
+   _∈KV_          : Key → KVMap Key Val → Set
+   _∈KV?_         : (k : Key) (kvm : KVMap Key Val) → Dec (k ∈KV kvm)
+   ∈KV-irrelevant : (k : Key) (kvm : KVMap Key Val)
+                  → (r s : k ∈KV kvm)
+                  → r ≡ s 
 
-      insert-target  : ∀{k k' kvm v v'}
-                     → (prf : lookup kvm k ≡ nothing)
-                     → lookup kvm k' ≢ just v
-                     → lookup (kvm-insert k v' kvm prf) k' ≡ just v
-                     → k' ≡ k × v ≡ v'
+   -- functionality
+   empty          : KVMap Key Val
 
-      kvm-empty      : {k : Key} → lookup empty k ≡ nothing
+   ∈KV-empty-⊥    : k ∈KV (empty {Val = Val}) → ⊥
 
-      kvm-empty-⊥    : {k : Key} {v : Val} → lookup empty k ≡ just v → ⊥
+   lookup         : KVMap Key Val → Key → Maybe Val
+   kvm-insert     : (k : Key)(v : Val)(kvm : KVMap Key Val)
+                  → lookup kvm k ≡ nothing
+                  → KVMap Key Val
+
+   -- properties
+   lookup-correct : {kvm : KVMap Key Val}
+                  → (prf : lookup kvm k ≡ nothing)
+                  → lookup (kvm-insert k v kvm prf) k ≡ just v
+
+   lookup-stable  : {kvm : KVMap Key Val}
+                  → (prf : lookup kvm k ≡ nothing)
+                  → lookup (kvm-insert k v kvm prf) k' ≡ just v
+                  → lookup (kvm-insert k v kvm prf) k' ≡ just v
+
+   insert-target  : {kvm : KVMap Key Val}
+                  → (prf : lookup kvm k ≡ nothing)
+                  → lookup kvm k' ≢ just v
+                  → lookup (kvm-insert k v' kvm prf) k' ≡ just v
+                  → k' ≡ k × v ≡ v'
+
+   kvm-empty      : lookup {Val = Val} empty k ≡ nothing
+
+   kvm-empty-⊥    : {k : Key} {v : Val} → lookup empty k ≡ just v → ⊥

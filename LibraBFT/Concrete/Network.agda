@@ -9,16 +9,16 @@ open import LibraBFT.Concrete.Records
 
 module LibraBFT.Concrete.Network where
 
-  --------------------------------
-  -- Syntatically Valid Records --
+  ----------------------
+  -- Network Messages --
+  ----------------------
 
   data NetworkRecord : Set where
-    B : Signed Block              → NetworkRecord
+    B : Signed BlockProposal      → NetworkRecord
     V : Signed Vote               → NetworkRecord
     Q : Signed (QC (Signed Vote)) → NetworkRecord
     T : Signed Timeout            → NetworkRecord
     C : Signed CN                 → NetworkRecord
-
 
   netrecAuthor : NetworkRecord → NodeId
   netrecAuthor (B b) = bAuthor (content b)
@@ -42,38 +42,28 @@ module LibraBFT.Concrete.Network where
   sender : NetworkMsg → NodeId
   sender m = netrecAuthor (content m)
   
-  ------------------------------------------------
-  -- Syntatically Valid Records Depend on Epoch --
+  -----------------------------------
+  -- Valid Records Depend on Epoch --
 
-  module _ {Author : Set}
-           (isAuthor : NodeId → Maybe Author) 
-           (pkAuthor : Author → PK) 
-     where
-
-   -- VCM: I apparently lost the connection between valid the verification
-   --      of the signature being with the public key of the right author.
-   --      Yet, here, it seems like this is implied by parametricity. 
-   --      The only way of producing a PK is through pkAuthor, which
-   --      depends on an abstract Author type; which in turn, can only be
-   --      inhabited by isAuthor.
-
-   data ValidAuthor (nid : NodeId) : Set where
-     va : ∀{α} 
-        → isAuthor nid ≡ just α
-        → ValidAuthor nid
+  -- The 'check-signature-and-format functio is responsible for
+  -- employing the necessary structural checks on the messages
+  -- we received from the network. 
+  module _ (ec : EpochConfig)(pki : PKI ec) where
+   
+   open VerifiedRecords ec pki
 
    -- Employ structural checks on the records when receiving them on the wire.
-   check-signature-and-format : NetworkRecord → Maybe (ValidRecord ValidAuthor)
+   check-signature-and-format : NetworkRecord → Maybe Record
    check-signature-and-format (V nv) 
    -- Is the author of the vote an actual author?
-     with isAuthor (getAuthor nv) | inspect isAuthor (getAuthor nv)
+     with isAuthor pki (getAuthor nv) | inspect (isAuthor pki) (getAuthor nv)
    -- 1; No! Reject!
    ...| nothing | _ = nothing
    -- 2; Yes! Now we must check whether the signature matches
    ...| just α  | [ Valid ]
-     with checkSignature-prf (pkAuthor α) nv
+     with checkSignature-prf (pkAuthor pki α) nv
    ...| nothing = nothing
-   ...| just (res , prf1 , refl) = just (V res (va Valid))
+   ...| just (res , prf1 , refl) = just (V res Valid prf1)
 
    check-signature-and-format (B nb) = {!!}
    check-signature-and-format (Q nq) = {!!}

@@ -34,7 +34,6 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   record QC : Set where
    field
      qId            : UID
-     qAuthor        : Author ec
      qPrev          : UID -- previous block identifier
      qRound         : Round
      qVotes         : List Vote
@@ -55,22 +54,21 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   -- votes and QC's all have three important common fields: author, round and prevHash.
   -- I'll make the same trick as Harold and declare a type-class that gives
   -- the getters for the stuff we need all the time.
-  record IsLibraBFTRecord (A : Set) : Set where
+  record HasRound (A : Set) : Set where
     constructor is-librabft-record
     field
-      getAuthor : A → Author ec -- TODO: REMOVE!
       getRound  : A → Round
-  open IsLibraBFTRecord {{...}} public
+  open HasRound {{...}} public
 
   instance
-    block-is-record : IsLibraBFTRecord Block
-    block-is-record = is-librabft-record bAuthor bRound 
+    block-is-record : HasRound Block
+    block-is-record = is-librabft-record bRound 
 
-    vote-is-record : IsLibraBFTRecord Vote
-    vote-is-record = is-librabft-record vAuthor vRound 
+    vote-is-record : HasRound Vote
+    vote-is-record = is-librabft-record vRound 
 
-    qc-is-record : IsLibraBFTRecord QC
-    qc-is-record = is-librabft-record qAuthor qRound 
+    qc-is-record : HasRound QC
+    qc-is-record = is-librabft-record qRound 
 
   -- TODO: Implement
   postulate
@@ -93,7 +91,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   -- It's pretty easy to state whether an author has voted in
   -- a given QC.
   _∈QC_  : Author ec → QC → Set
-  a ∈QC qc = Any (λ v → getAuthor v ≡ a) (qcVotes qc)
+  a ∈QC qc = Any (λ v → vAuthor v ≡ a) (qcVotes qc)
 
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
   ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
