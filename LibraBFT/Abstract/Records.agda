@@ -9,7 +9,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
     field
       bId      : UID
       bAuthor  : Author ec
-      bPrev    : Maybe UID -- nothing indicates it extends the initial
+      bPrev    : Maybe UID -- nothing indicates it extends the genesis block.
       bRound   : Round
   open Block public
 
@@ -32,6 +32,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   -- with the _<_ relation from Data.Fin, which also guarantees
   -- the authors are different. 
   record QC : Set where
+   constructor mkQC
    field
      qId            : UID
      qPrev          : UID -- previous block identifier
@@ -125,10 +126,19 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
   B-inj refl = refl
 
-  uid : Record → Maybe UID
-  uid I     = nothing
-  uid (B b) = just (bId b)
-  uid (Q q) = just (qId q)
+  -- Record unique ids carry whether the abstract id was assigned
+  -- to a QC or a Block; in fact, we only care about injectivity
+  -- modulo the same type. No two blocks with the same UID nor
+  -- two QCs with the same UID; 
+  data TypedUID : Set where
+    id-I : TypedUID
+    id-Q : UID -> TypedUID
+    id-B : UID -> TypedUID
+
+  uid : Record → TypedUID
+  uid I     = id-I
+  uid (B b) = id-B (bId b)
+  uid (Q q) = id-Q (qId q)
 
   -- Each record has a round
   round : Record → Round

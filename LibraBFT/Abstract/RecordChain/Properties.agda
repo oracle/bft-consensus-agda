@@ -162,7 +162,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    f <$> (inj₂ x)  = inj₂ (f x)
 
    lemma-NI : NonInjective bId → NonInjective uid
-   lemma-NI ((b0 , b1) , a , b)  = ((B b0 , B b1) , (a ∘ B-inj) , (cong just b))
+   lemma-NI ((b0 , b1) , a , b)  = ((B b0 , B b1) , (a ∘ B-inj) , (cong id-B b))
 
    propS4-base : ∀{q}{rc : RecordChain (Q q)}
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4

@@ -10,7 +10,7 @@ open import LibraBFT.Base.PKCS
 
 open import LibraBFT.Concrete.Records
 
-module LibraBFT.Concrete.RecordStoreState
+module LibraBFT.Concrete.BlockTree
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
@@ -62,20 +62,35 @@ module LibraBFT.Concrete.RecordStoreState
 
   _∈BT_ : Abs.Record → BlockTree → Set
   Abs.I     ∈BT rs = Unit -- The initial record is not really *in* the record store,
-  (Abs.B x) ∈BT rs = Abs.bId   x ∈KV (btBlockMap rs)
-  (Abs.Q x) ∈BT rs = Abs.qPrev x ∈KV (btBlockMap rs)
+  (Abs.B x) ∈BT rs = Abs.bId x ∈KV (btBlockMap rs)
+  (Abs.Q x) ∈BT rs = {!!} {- VCM: I thing this will look something like:
+     Σ (Abs.qId x ∈KV (btQCMap rs))
+       (\prf → case lkup (Abs.qId x) (btQCMap rs) of
+                 Just (StandAloneQC _) -> Unit
+                 Just (InBlock bid)    -> 
+                    case lkup bid (btBlockMap rs) of
+                      Just (StorageUnit (Just qc) _ _) -> Unit
+                      _                                -> ⊥
+
+    That's a nasty type and seems unecessaily complicated.
+    What is the problem of having two separate maps and keep the
+    QCs and Blocks separate?
+
+    The implementation of V3 seems to prune away the blocktree upon commit,
+    and underspecifies how to store the commited entries.
+   -}
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? rss = yes unit
-  (Abs.B b) ∈BT? rss = Abs.bId   b ∈KV? (btBlockMap rss)
-  (Abs.Q q) ∈BT? rss = Abs.qPrev q ∈KV? (btBlockMap rss)
+  (Abs.B b) ∈BT? rss = Abs.bId b ∈KV? (btBlockMap rss)
+  (Abs.Q q) ∈BT? rss = ?
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit = refl
   ∈BT-irrelevant {Abs.B x} {st} p0 p1     
     = ∈KV-irrelevant (Abs.bId x) (btBlockMap st) p0 p1
   ∈BT-irrelevant {Abs.Q x} {st} p0 p1    
-    = ∈KV-irrelevant (Abs.qPrev x) (btBlockMap st) p0 p1
+    = ?
 
   instance
     abstractBT : isRecordStoreState BlockTree
@@ -86,24 +101,51 @@ module LibraBFT.Concrete.RecordStoreState
 
   ------------------------------
   -- Abstracting StorageUnits --
-  -------------------------
-
-  -- 
+  ------------------------------
 
   open VerifiedRecords ec pki
 
+  -- VCM: HACK: NEEDS (a lot of) REVIEW
+  --
+  -- I came to the (pottentially wrong) realization that we only care
+  -- aboud injectivity of unique identifiers for the same type of
+  -- objects in the abstract model. In short, this means we can
+  -- have an Abstract.QC and an Abstract.Block with the same UID, no problem.
+  --
+  -- This DOES mean we have trouble storing QC's wihtout a followup
+  -- proposal. From what I got from the V3 paper, they keep a 'high_qc'
+  -- for that purpose.
+  --
+  -- The more I think about this, actually, it seems like the
+  -- best idea is to keep block proposals and QCs separate
+  -- in the internals of th block tree.
+  -- It does seem like it is the case in the implementaton
+  -- https://github.com/libra/libra/blob/master/consensus/src/chained_bft/block_storage/block_tree.rs
   hashBlockProp : StorageUnit → Hash
   hashBlockProp = hash ∘ encode ∘ suBlockProposal
 
-  hashParentQC : StorageUnit → Maybe Hash
-  hashParentQC = Maybe-map (hash ∘ encode) ∘ suParentQC
-
   absBlockProp : StorageUnit → Abs.Block
-  absBlockProp su
-    = Abs.mkBlock (hashBlockProp su) 
-                  {!!} -- todo: validate author should be done by now
-                  {!!} -- 
-                  (bRound (suBlockProposal su))
+  absBlockProp su = record
+    { bId     = hashBlockProp su
+    ; bAuthor = {!!}
+    ; bPrev   = {!!}
+    ; bRound  = (bRound (suBlockProposal su))
+    }
+
+  absParentQC : StorageUnit → Maybe Abs.QC
+  absParentQC su with suParentQC su
+  ...| nothing = nothing
+  ...| just qc = just (record 
+               { qId       = hashBlockProp su
+               ; qPrev     = qBlockHash qc -- this will be the id of the block
+                                           -- we are extending with this qc.
+               ; qRound    = qRound qc
+               ; qVotes    = {!!}
+               ; qVotes-C1 = {!!}
+               ; qVotes-C2 = {!!}
+               ; qVotes-C3 = {!!}
+               ; qVotes-C4 = {!!}
+               })
 
   --------------------
   -- The Invariants --
