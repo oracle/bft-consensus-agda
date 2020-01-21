@@ -34,7 +34,20 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   record QC : Set where
    constructor mkQC
    field
-     qId            : UID
+     -- Can a block have many QCs? yes; but that seems to hardly
+     -- influence anything. We could identify a qc directly 
+     -- by the id of the block it certifies. The blockstore
+     -- then becomes just like the implementation:
+     --  >  pub struct BlockTree<T> {
+     --  >     /// All the blocks known to this replica (with parent links)
+     --  >     id_to_block: HashMap<HashValue, LinkableBlock<T>>,
+     --  >     ...
+     --  >     /// Map of block id to its completed quorum certificate (2f + 1 votes)
+     --  >     id_to_quorum_cert: HashMap<HashValue, Arc<QuorumCert>>,
+     --  >     ...
+     --  >  }
+     --
+     -- qId            : UID
      qPrev          : UID -- previous block identifier
      qRound         : Round
      qVotes         : List Vote
@@ -137,8 +150,8 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
 
   uid : Record → TypedUID
   uid I     = id-I
-  uid (B b) = id-B (bId b)
-  uid (Q q) = id-Q (qId q)
+  uid (B b) = id-B (bId   b)
+  uid (Q q) = id-Q (qPrev q)
 
   -- Each record has a round
   round : Record → Round

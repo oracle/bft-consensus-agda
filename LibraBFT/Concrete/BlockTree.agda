@@ -23,7 +23,8 @@ module LibraBFT.Concrete.BlockTree
 
   open import LibraBFT.Concrete.Util.KVMap
   
-  -- Was Conc.Block
+  -- Was Conc.Block; to be eliminated since qcs and
+  -- block ids are stored together; but on separate maps.
   record StorageUnit : Set where
     field
       -- it might extend the initial block
@@ -38,7 +39,8 @@ module LibraBFT.Concrete.BlockTree
   record BlockTree : Set where
     constructor mkBlockTree
     field
-      btBlockMap                 : KVMap Hash StorageUnit
+      btBlockMap  : KVMap Hash BlockProposal
+      btQCMap     : KVMap Hash (QC (VerSigned Vote))
   open BlockTree public
 
   -----------------------------------
@@ -62,8 +64,11 @@ module LibraBFT.Concrete.BlockTree
 
   _∈BT_ : Abs.Record → BlockTree → Set
   Abs.I     ∈BT rs = Unit -- The initial record is not really *in* the record store,
-  (Abs.B x) ∈BT rs = Abs.bId x ∈KV (btBlockMap rs)
-  (Abs.Q x) ∈BT rs = {!!} {- VCM: I thing this will look something like:
+  (Abs.B x) ∈BT rs = Abs.bId   x ∈KV (btBlockMap rs)
+  (Abs.Q x) ∈BT rs = Abs.qPrev x ∈KV (btQCMap rs) 
+  {- VCM: I thing this clause above will look something like the following if
+          we decide to allow QCs to be either standalone or inside bloks, implicitly.
+
      Σ (Abs.qId x ∈KV (btQCMap rs))
        (\prf → case lkup (Abs.qId x) (btQCMap rs) of
                  Just (StandAloneQC _) -> Unit
@@ -82,15 +87,15 @@ module LibraBFT.Concrete.BlockTree
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? rss = yes unit
-  (Abs.B b) ∈BT? rss = Abs.bId b ∈KV? (btBlockMap rss)
-  (Abs.Q q) ∈BT? rss = ?
+  (Abs.B b) ∈BT? rss = Abs.bId   b ∈KV? (btBlockMap rss)
+  (Abs.Q q) ∈BT? rss = Abs.qPrev q ∈KV? (btQCMap    rss)
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit = refl
   ∈BT-irrelevant {Abs.B x} {st} p0 p1     
     = ∈KV-irrelevant (Abs.bId x) (btBlockMap st) p0 p1
   ∈BT-irrelevant {Abs.Q x} {st} p0 p1    
-    = ?
+    = ∈KV-irrelevant (Abs.qPrev x) (btQCMap st) p0 p1
 
   instance
     abstractBT : isRecordStoreState BlockTree
@@ -105,22 +110,20 @@ module LibraBFT.Concrete.BlockTree
 
   open VerifiedRecords ec pki
 
-  -- VCM: HACK: NEEDS (a lot of) REVIEW
+  -- VCM: HACK: NEEDS (rigorous!) REVIEW
   --
   -- I came to the (pottentially wrong) realization that we only care
   -- aboud injectivity of unique identifiers for the same type of
   -- objects in the abstract model. In short, this means we can
   -- have an Abstract.QC and an Abstract.Block with the same UID, no problem.
   --
-  -- This DOES mean we have trouble storing QC's wihtout a followup
-  -- proposal. From what I got from the V3 paper, they keep a 'high_qc'
-  -- for that purpose.
-  --
   -- The more I think about this, actually, it seems like the
   -- best idea is to keep block proposals and QCs separate
   -- in the internals of th block tree.
   -- It does seem like it is the case in the implementaton
   -- https://github.com/libra/libra/blob/master/consensus/src/chained_bft/block_storage/block_tree.rs
+  -- I'm currently going with this suggestion and mimicking the implementation;
+  -- lets discuss tonight
   hashBlockProp : StorageUnit → Hash
   hashBlockProp = hash ∘ encode ∘ suBlockProposal
 
@@ -136,8 +139,7 @@ module LibraBFT.Concrete.BlockTree
   absParentQC su with suParentQC su
   ...| nothing = nothing
   ...| just qc = just (record 
-               { qId       = hashBlockProp su
-               ; qPrev     = qBlockHash qc -- this will be the id of the block
+               { qPrev     = qBlockHash qc -- this will be the id of the block
                                            -- we are extending with this qc.
                ; qRound    = qRound qc
                ; qVotes    = {!!}
