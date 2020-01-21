@@ -63,7 +63,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Fin
-    using (Fin; suc; zero)
+    using (Fin; suc; zero; fromℕ≤)
     renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
     public
   

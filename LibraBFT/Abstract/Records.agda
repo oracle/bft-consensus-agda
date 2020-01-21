@@ -58,7 +58,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   record IsLibraBFTRecord (A : Set) : Set where
     constructor is-librabft-record
     field
-      getAuthor : A → Author ec
+      getAuthor : A → Author ec -- TODO: REMOVE!
       getRound  : A → Round
   open IsLibraBFTRecord {{...}} public
 

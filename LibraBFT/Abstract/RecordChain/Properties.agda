@@ -25,7 +25,6 @@ module LibraBFT.Abstract.RecordChain.Properties
    {s}{RSS : Set s}⦃ isRSS : isRecordStoreState RSS ⦄
    (curr                  : RSS) 
    (correct               : Invariants.Correct             curr)
-   (injective-uid         : Invariants.InjectiveUID        curr)
    (increasing-round-rule : Invariants.IncreasingRoundRule curr)
    (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
    (locked-round-rule     : Invariants.LockedRoundRule     curr)
@@ -240,6 +239,6 @@ module LibraBFT.Abstract.RecordChain.Properties
          → NonInjective uid ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
      with <-cmp (getRound (c3 b⟦ suc (suc zero) ⟧)) (getRound (c3' b⟦ suc (suc zero) ⟧)) 
-   ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
+   ...| tri≈ _ r≡r' _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r')      (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri< r<r' _ _ = inj₁ <$> (propS4 c3 rc' (≤-trans (≤-unstep r<r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
-   ...| tri> _ _ r'<r = inj₂ <$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3 (suc (suc zero))))) 
+   ...| tri> _ _ r'<r = inj₂ <$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3  (suc (suc zero))))) 

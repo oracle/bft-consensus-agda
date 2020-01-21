@@ -6,30 +6,24 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.PKCS
 
-module LibraBFT.Concrete.NodeState
+module LibraBFT.Concrete.EventProcessor
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
 
- open import LibraBFT.Concrete.RecordStoreState hash hash-cr
+ open import LibraBFT.Concrete.BlockTree hash hash-cr
 
- record NodeState : Set where
-   constructor nodeState
+ record EventProcessor : Set where
+   constructor eventProcessor
    field
-     currentEpoch   : EpochConfig
-     lastVotedRound : Round
-     rss            : RecordStoreState currentEpoch
- open NodeState public
+     myPK           : PK           -- TODO: this is temporary until we have a better model
+     ec             : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
+     -- TODO: for now, we omit the levels of indirection between BlockStore and BlockTree
+     epBlockStore   : BlockTree ec
+ open EventProcessor public
 
- leader? : NodeState → Bool
- leader? = {!!}
-
-
- ec : NodeState → EpochConfig
- ec = NodeState.currentEpoch
-
- me : (st : NodeState) → Author (ec st)
- me = {!!}
+ initEventProcessor : PK → EventProcessor
+ initEventProcessor pk = eventProcessor pk (fakeEC 0) (emptyBT (fakeEC 0))
 
  -- VCM: PROPOSAL TO HANDLE PRIV KEYS
  --
@@ -42,21 +36,21 @@ module LibraBFT.Concrete.NodeState
  -- its time we come to need these.
  postulate 
    mkSigned : {A : Set} ⦃ encA : Encoder A ⦄ 
-            → NodeState → A → Signed A
+            → EventProcessor → A → Signed A
 
    mkSigned-correct-1 
      : ∀{A}⦃ encA : Encoder A ⦄
-     → (st : NodeState)(x : A)
+     → (st : EventProcessor)(x : A)
      → verify (encode x) 
               (signature (mkSigned st x)) 
-              (pkAuthor (ec st) (me st)) 
+              (myPK st)
        ≡ true
 
    mkSigned-correct-2
      : ∀{A}⦃ encA : Encoder A ⦄
-     → (st : NodeState)(x : A)(pk : PK)
+     → (st : EventProcessor)(x : A)(pk : PK)
      → verify (encode x) 
               (signature (mkSigned st x)) 
               pk
         ≡ true
-     → pk ≡ pkAuthor (ec st) (me st)
+     → pk ≡ (myPK st)
