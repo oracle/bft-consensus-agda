@@ -9,7 +9,7 @@ open import LibraBFT.Base.PKCS
 module LibraBFT.Concrete.Records where
 
   Author : Set
-  Author = NodeId
+  Author = NodeId -- Not to be confused with EpochId.Author
 
   HashValue : Set
   HashValue = Hash
@@ -57,7 +57,9 @@ module LibraBFT.Concrete.Records where
       vVoteData         : VoteData
       vAuthor           : Author
       vLedgerInfo       : LedgerInfo
-      -- VCM: Similar concern about signatures
+      -- VCM-QUESTION: If we are handling signatures explicitely; what's the use
+      --      of LibraBFT.Base.PKCS? Are we just gonna drop a general
+      --       signature verification and write a different one per record type?
       vSignature        : Signature
       vTimeoutSignature : Maybe Signature
 
@@ -81,18 +83,22 @@ module LibraBFT.Concrete.Records where
     field
       bdEpoch      : EpochId
       bdRound      : Round
+      -- VCM-QUESTION: How do we represent the block that extends
+      -- the genesis block? that block doesn't come with a QC.
+      -- I'm guessing we just send one with a QC containing an empty map.
       bdQuorumCert : QuorumCert
       bdBlockType  : BlockType A
-      -- bdTimeStamp : Instant -- VCM: I don't think we need this here...
+      -- VCM-QUESTION: I don't think we need this here...
+      -- bdTimeStamp : Instant 
 
   record Block (A : Set) : Set where
     constructor mkBlock
     field
       bId        : HashValue
       bBlockData : BlockData A
-      -- VCM: If we are handling signatures explicitely; what's the use
-      --      of LibraBFT.Base.PKCS? Are we just gonna drop a general
-      --       signature verification and write a different one per record type?
+      -- VCM-QUESTION: Similar concern about signatures 
+      -- VCM-QUESTION: Why is this a maybe? in which situation
+      -- are we not signing blocks?
       bSignature : Maybe Signature
 
   ----------------------
@@ -104,12 +110,15 @@ module LibraBFT.Concrete.Records where
     field
       siHighestQuorumCert  : QuorumCert
       siHighestCommitCert  : QuorumCert
-      -- siHighestTimeoutCert : Mabe TimeoutCert
+      -- siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define 
 
   record ProposalMsg (A : Set) : Set where
     constructor mkProposalMsg
     field
       pmProposal : Block A
+      -- VCM-QUESTION: Are we sending SyncInfos in Agda too?
+      -- Maybe we should since these seem to trigger some
+      -- actions on the state, such as changinghigh_qc.
       pmSyncInfo : SyncInfo
 
   record VoteMsg : Set where

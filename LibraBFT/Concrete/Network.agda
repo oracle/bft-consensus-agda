@@ -9,6 +9,14 @@ open import LibraBFT.Concrete.Records
 
 module LibraBFT.Concrete.Network where
 
+-- VCM-QUESTION: This whole module goes byebye with the
+-- mirror of our Haskell proto. The Haskell proto
+-- sends two messages; a VoteMsg and a ProposalMsg, it seems
+-- like the check-format-and-verify will return a 
+-- a proof that these messages have been correctly signed
+-- by a valid author, etc, etc...
+
+{-
   ----------------------
   -- Network Messages --
   ----------------------
@@ -69,3 +77,4 @@ module LibraBFT.Concrete.Network where
    check-signature-and-format (Q nq) = {!!}
    check-signature-and-format (C nc) = {!!}
    check-signature-and-format (T nc) = {!!}
+-}
