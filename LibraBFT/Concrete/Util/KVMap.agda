@@ -25,27 +25,30 @@ module LibraBFT.Concrete.Util.KVMap  where
 
    ∈KV-empty-⊥    : k ∈KV (empty {Val = Val}) → ⊥
 
-   lookup         : KVMap Key Val → Key → Maybe Val
+   lookup         : Key → KVMap Key Val → Maybe Val
    kvm-insert     : (k : Key)(v : Val)(kvm : KVMap Key Val)
-                  → lookup kvm k ≡ nothing
+                  → lookup k kvm ≡ nothing
                   → KVMap Key Val
 
    -- properties
    lookup-correct : {kvm : KVMap Key Val}
-                  → (prf : lookup kvm k ≡ nothing)
-                  → lookup (kvm-insert k v kvm prf) k ≡ just v
+                  → (prf : lookup k kvm ≡ nothing)
+                  → lookup k (kvm-insert k v kvm prf) ≡ just v
 
+{-
+   VCM: I don't get this property; I think there is one k' too much
    lookup-stable  : {kvm : KVMap Key Val}
                   → (prf : lookup kvm k ≡ nothing)
                   → lookup (kvm-insert k v kvm prf) k' ≡ just v
                   → lookup (kvm-insert k v kvm prf) k' ≡ just v
+-}
 
    insert-target  : {kvm : KVMap Key Val}
-                  → (prf : lookup kvm k ≡ nothing)
-                  → lookup kvm k' ≢ just v
-                  → lookup (kvm-insert k v' kvm prf) k' ≡ just v
+                  → (prf : lookup k kvm ≡ nothing)
+                  → lookup k' kvm ≢ just v
+                  → lookup k' (kvm-insert k v' kvm prf) ≡ just v
                   → k' ≡ k × v ≡ v'
 
-   kvm-empty      : lookup {Val = Val} empty k ≡ nothing
+   kvm-empty      : lookup {Val = Val} k empty ≡ nothing
 
-   kvm-empty-⊥    : {k : Key} {v : Val} → lookup empty k ≡ just v → ⊥
+   kvm-empty-⊥    : {k : Key} {v : Val} → lookup k empty ≡ just v → ⊥
