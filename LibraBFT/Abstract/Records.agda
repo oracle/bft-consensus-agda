@@ -11,6 +11,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
       bAuthor  : Author ec
       bPrev    : Maybe UID -- nothing indicates it extends the genesis block.
       bRound   : Round
+      -- bResult : StateHash
   open Block public
 
   record Vote  : Set where
