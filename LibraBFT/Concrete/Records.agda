@@ -1,10 +1,127 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Types
+open import LibraBFT.Base.Types hiding (Author)
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+-- This is our clone of Libra/Consensus/Types.hs
+module LibraBFT.Concrete.Records where
+
+  Author : Set
+  Author = NodeId
+
+  HashValue : Set
+  HashValue = Hash
+
+  postulate
+    Map : Set → Set → Set
+
+  -----------------
+  -- Information --
+  -----------------
+
+  record BlockInfo : Set where
+    constructor mkBlockInfo
+    field
+      biEpoch : EpochId
+      biRound : Round
+      biId    : HashValue
+      -- VCM: this has more fields...
+
+  record LedgerInfo : Set where
+    constructor mkLedgerInfo
+    field
+      liCommitInfo        : BlockInfo
+      liConsensusDataHash : HashValue
+
+  record LedgerInfoWithSignatures : Set where
+    constructor mkLedgerInfoWithSignatures
+    field
+      liwsLedgerInfo : LedgerInfo
+      liwsSignatures : Map Author Signature
+
+  -------------------
+  -- Votes and QCs --
+  -------------------
+
+  record VoteData : Set where
+    constructor mkVoteData
+    field
+      vdProposed : BlockInfo
+      vdParent   : BlockInfo
+
+  record Vote : Set where
+    constructor mkVote
+    field
+      vVoteData         : VoteData
+      vAuthor           : Author
+      vLedgerInfo       : LedgerInfo
+      -- VCM: Similar concern about signatures
+      vSignature        : Signature
+      vTimeoutSignature : Maybe Signature
+
+  record QuorumCert : Set where
+    constructor mkQuorumCert
+    field
+      qcVoteData         : VoteData
+      qcSignedLedgerInfo : LedgerInfoWithSignatures
+
+  ------------
+  -- Blocks --
+  ------------
+
+  data BlockType (A : Set) : Set where
+    Proposal : A → Author → BlockType A
+    NilBlock : BlockType A
+    Genesis  : BlockType A
+
+  record BlockData (A : Set) : Set where
+    constructor mkBlockData
+    field
+      bdEpoch      : EpochId
+      bdRound      : Round
+      bdQuorumCert : QuorumCert
+      bdBlockType  : BlockType A
+      -- bdTimeStamp : Instant -- VCM: I don't think we need this here...
+
+  record Block (A : Set) : Set where
+    constructor mkBlock
+    field
+      bId        : HashValue
+      bBlockData : BlockData A
+      -- VCM: If we are handling signatures explicitely; what's the use
+      --      of LibraBFT.Base.PKCS? Are we just gonna drop a general
+      --       signature verification and write a different one per record type?
+      bSignature : Maybe Signature
+
+  ----------------------
+  -- Network Messages --
+  ----------------------
+
+  record SyncInfo : Set where
+    constructor mkSyncInfo
+    field
+      siHighestQuorumCert  : QuorumCert
+      siHighestCommitCert  : QuorumCert
+      -- siHighestTimeoutCert : Mabe TimeoutCert
+
+  record ProposalMsg (A : Set) : Set where
+    constructor mkProposalMsg
+    field
+      pmProposal : Block A
+      pmSyncInfo : SyncInfo
+
+  record VoteMsg : Set where
+    constructor  mkVoteMsg
+    field
+      vmVote     : Vote
+      mmSyncInfo : SyncInfo
+
+
+{---
+
+VCM: OLD COLD CODE
 
 -- These types should eventually mirror Libra/Consensus/Types.hs
 module LibraBFT.Concrete.Records where
@@ -151,3 +268,5 @@ module LibraBFT.Concrete.Records where
    vrAuthor (Q {α} _ _ _) = α
    vrAuthor (C {α} _ _ _) = α
    vrAuthor (T {α} _ _ _) = α
+
+-}
