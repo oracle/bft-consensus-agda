@@ -19,29 +19,49 @@ module LibraBFT.Concrete.BlockTree
     -- We also need authorship and PKI information
     (ec  : EpochConfig)
     (pki : PKI ec)
+    (CMD : Set) -- VCM: To be substituted by the command type
+                -- of an abstract state machine.
  where
 
   open import LibraBFT.Concrete.Util.KVMap
+  open import LibraBFT.Concrete.Records
   
-  -- Was Conc.Block; to be eliminated since qcs and
-  -- block ids are stored together; but on separate maps.
-  record StorageUnit : Set where
-    field
-      -- it might extend the initial block
-      suParentQC      : Maybe (QC (VerSigned Vote))
-      suBlockProposal : BlockProposal
-      -- we might want properties like, for example,
-      -- ensuring we are assembling the right pieces together.
-      suOk            : bPrevQCHash suBlockProposal 
-                      ≡ maybe {! hashQC-todo!} (initialAgreedHash ec) suParentQC 
-  open StorageUnit public
-
   record BlockTree : Set where
     constructor mkBlockTree
     field
-      btBlockMap  : KVMap Hash BlockProposal
-      btQCMap     : KVMap Hash (QC (VerSigned Vote))
+      btIdToBlock      : KVMap Hash (Block CMD)
+      -- VCM-QUESTION: The easiest solution seems to be conservatively 
+      -- inserting all QCs that arrives to us in btIdToQuorumCert;
+      -- If the QC comes in a standalone fashion, we add it.
+      -- Id the QC comes in a block, we also add it.
+      -- This means the _∈BT_ stays simple.
+      btIdToQuorumCert : KVMap Hash QuorumCert
   open BlockTree public
+
+  --------------------------------
+  -- Abstracting Blocks and QCs --
+  --------------------------------
+
+  import      LibraBFT.Abstract.Records          ec Hash as Abs
+
+  -- VCM-QUESTION: we must carry some additional information
+  -- that we have validated QCs and Blocks; and hence we acn produce
+  -- the proofs required by the abstract model.
+  --
+  -- Why don't we do:
+  --
+  --   btIdToQuorumCert : KVMap Hash (Σ QuorumCert IsValidQC)
+  --
+  -- for some type IsValidQC. I know this is not /exactly/ like the
+  -- Haskell impl, but we will inevitably need more type information
+  -- than the Haskell impl.
+
+  α-Block : Block CMD → Abs.Block
+  α-Block b = {!!}
+
+  α-QC : QuorumCert → Abs.QC
+  α-QC qc = {!!}
+
 
   -----------------------------------
   -- Interfacing with the Abstract --
@@ -50,52 +70,46 @@ module LibraBFT.Concrete.BlockTree
   -- VCM: The abstract model doesn't care too much for 
   -- how we decide to represent our concrete data. All we
   -- need is a way of proving some abstract piece of data belongs
-  -- in the concrete storage.
-  -- We will use the UID parameter of the abstract model for that;
-  -- in fact, we will be using the hash of the concrete QC or BlockProposal
-  -- as the unique identifier. 
+  -- in the concrete storage. We will be using block hashes for that.
+  -- A block is identified by its own block hash, a QC is
+  -- identified by the hash of the block it verifies.
 
-  import      LibraBFT.Abstract.Records          ec Hash as Abs
   open import LibraBFT.Abstract.Records.Extends  ec Hash 
   open import LibraBFT.Abstract.RecordStoreState ec Hash 
   open import LibraBFT.Abstract.RecordChain      ec Hash
   import      LibraBFT.Abstract.RecordStoreState.Invariants ec Hash
     as AbstractI
+ 
+  _<M$>_ : ∀{a b}{A : Set a}{B : Set b}
+         → (f : A → B)
+         → Maybe A → Maybe B
+  _<M$>_ = Maybe-map
+
+
+  -- VCM: We really need to invoke the abstraction function here; otherwise
+  -- we have no guarantee that the rest of the fields of the abstract block
+  -- are correct. This is what ensures the abstract model will not conjure blocks
+  -- out of nowhere.
 
   _∈BT_ : Abs.Record → BlockTree → Set
-  Abs.I     ∈BT rs = Unit -- The initial record is not really *in* the record store,
-  (Abs.B x) ∈BT rs = Abs.bId   x ∈KV (btBlockMap rs)
-  (Abs.Q x) ∈BT rs = Abs.qPrev x ∈KV (btQCMap rs) 
-  {- VCM: I thing this clause above will look something like the following if
-          we decide to allow QCs to be either standalone or inside bloks, implicitly.
-
-     Σ (Abs.qId x ∈KV (btQCMap rs))
-       (\prf → case lkup (Abs.qId x) (btQCMap rs) of
-                 Just (StandAloneQC _) -> Unit
-                 Just (InBlock bid)    -> 
-                    case lkup bid (btBlockMap rs) of
-                      Just (StorageUnit (Just qc) _ _) -> Unit
-                      _                                -> ⊥
-
-    That's a nasty type and seems unecessaily complicated.
-    What is the problem of having two separate maps and keep the
-    QCs and Blocks separate?
-
-    The implementation of V3 seems to prune away the blocktree upon commit,
-    and underspecifies how to store the commited entries.
-   -}
+  Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
+  (Abs.B b) ∈BT bt 
+    = α-Block <M$> (lookup (Abs.bId b) (btIdToBlock bt)) ≡ just b
+  (Abs.Q q) ∈BT bt 
+    = α-QC    <M$> (lookup (Abs.qPrev q) (btIdToQuorumCert bt)) ≡ just q
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
-  Abs.I     ∈BT? rss = yes unit
-  (Abs.B b) ∈BT? rss = Abs.bId   b ∈KV? (btBlockMap rss)
-  (Abs.Q q) ∈BT? rss = Abs.qPrev q ∈KV? (btQCMap    rss)
+  Abs.I     ∈BT? bt = yes unit
+  (Abs.B b) ∈BT? bt 
+    with lookup (Abs.bId b) (btIdToBlock bt)
+  ...| nothing = no (λ x → maybe-⊥ refl (sym x))
+  ...| just r  = {!!} -- VCM: ere we will need to check b ≡ α-Block r
+  (Abs.Q q) ∈BT? bt = {!!}
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
-  ∈BT-irrelevant {Abs.I} unit unit = refl
-  ∈BT-irrelevant {Abs.B x} {st} p0 p1     
-    = ∈KV-irrelevant (Abs.bId x) (btBlockMap st) p0 p1
-  ∈BT-irrelevant {Abs.Q x} {st} p0 p1    
-    = ∈KV-irrelevant (Abs.qPrev x) (btQCMap st) p0 p1
+  ∈BT-irrelevant {Abs.I} unit unit    = refl
+  ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
+  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1   
 
   instance
     abstractBT : isRecordStoreState BlockTree
@@ -103,51 +117,6 @@ module LibraBFT.Concrete.BlockTree
       { isInPool            = _∈BT_
       ; isInPool-irrelevant = ∈BT-irrelevant 
       }
-
-  ------------------------------
-  -- Abstracting StorageUnits --
-  ------------------------------
-
-  open VerifiedRecords ec pki
-
-  -- VCM: HACK: NEEDS (rigorous!) REVIEW
-  --
-  -- I came to the (pottentially wrong) realization that we only care
-  -- aboud injectivity of unique identifiers for the same type of
-  -- objects in the abstract model. In short, this means we can
-  -- have an Abstract.QC and an Abstract.Block with the same UID, no problem.
-  --
-  -- The more I think about this, actually, it seems like the
-  -- best idea is to keep block proposals and QCs separate
-  -- in the internals of th block tree.
-  -- It does seem like it is the case in the implementaton
-  -- https://github.com/libra/libra/blob/master/consensus/src/chained_bft/block_storage/block_tree.rs
-  -- I'm currently going with this suggestion and mimicking the implementation;
-  -- lets discuss tonight
-  hashBlockProp : StorageUnit → Hash
-  hashBlockProp = hash ∘ encode ∘ suBlockProposal
-
-  absBlockProp : StorageUnit → Abs.Block
-  absBlockProp su = record
-    { bId     = hashBlockProp su
-    ; bAuthor = {!!}
-    ; bPrev   = {!!}
-    ; bRound  = (bRound (suBlockProposal su))
-    }
-
-  absParentQC : StorageUnit → Maybe Abs.QC
-  absParentQC su with suParentQC su
-  ...| nothing = nothing
-  ...| just qc = just (record 
-               { qPrev     = qBlockHash qc -- this will be the id of the block
-                                           -- we are extending with this qc.
-               ; qRound    = qRound qc
-               ; qVotes    = {!!}
-               ; qVotes-C1 = {!!}
-               ; qVotes-C2 = {!!}
-               ; qVotes-C3 = {!!}
-               ; qVotes-C4 = {!!}
-               })
 
   --------------------
   -- The Invariants --
@@ -182,8 +151,10 @@ module LibraBFT.Concrete.BlockTree
 
   emptyBT : BlockTree
   emptyBT = record 
-    { btBlockMap = empty
+    { btIdToBlock      = empty
+    ; btIdToQuorumCert = empty
     }
+{-
 
   -- And now this is really trivial
   emptyBT-valid : ValidBT emptyBT
@@ -195,6 +166,7 @@ module LibraBFT.Concrete.BlockTree
               (λ { _ _ abs _ _ _ _ → ⊥-elim (∈KV-empty-⊥ abs) })
               (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
                  → ⊥-elim (∈KV-empty-⊥ abs) })
+-}
 
 {-
 
