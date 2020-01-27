@@ -152,6 +152,23 @@ module LibraBFT.Concrete.Records where
       vmVote     : Vote
       mmSyncInfo : SyncInfo
 
+  -- This is a notification of a commit.  I don't think it's explicitly included in the Haskell/Rust
+  -- code, but we need something to be able to express correctness conditions with.  It will
+  -- probably have something different in it, but will serve the purpose for now.
+  record CommitMsg : Set where
+    constructor mkCommitMsg
+    field
+      cEpochId : EpochId
+      cAuthor  : NodeId
+      cRound   : Round
+      cCert    : QCHash
+  open CommitMsg public
+
+  data NetworkMsg (A : Set) : Set where
+    P : ProposalMsg A → NetworkMsg A
+    V : VoteMsg       → NetworkMsg A
+    C : CommitMsg     → NetworkMsg A
+
 
 {---
 
@@ -199,16 +216,6 @@ module LibraBFT.Concrete.Records where
       toAuthor  : NodeId
       toRound   : Round
   open Timeout public
-
-  -- This is a notification of a commit.  It will probably have something different in it.
-  record CN : Set where
-    constructor mkCommitMsg
-    field
-      cEpochId : EpochId
-      cAuthor  : NodeId
-      cRound   : Round
-      cCert    : QCHash
-  open CN public
 
   postulate
    instance
