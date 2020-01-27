@@ -60,6 +60,14 @@ module LibraBFT.Concrete.Records where
       -- VCM-QUESTION: If we are handling signatures explicitely; what's the use
       --      of LibraBFT.Base.PKCS? Are we just gonna drop a general
       --       signature verification and write a different one per record type?
+
+      -- MSM: Yes, I think so.  We'll need to write an Encoder instance for each message that's
+      --      signed, which makes explicit which fields are encoded and concatenated before hashing.
+      --      Note v3's non-uniform treatment of records and signatures (e.g., some have Maybe
+      --      Signature, some---such as Vote, see below---potentially have multiple Signatures).
+      --      This, along with the small number of record types, suggests that the full generality
+      --      we'd prefer will be more trouble than it's worth.  That said, think some uniform
+      --      structure will still be possible and helpful.
       vSignature        : Signature
       vTimeoutSignature : Maybe Signature
 
