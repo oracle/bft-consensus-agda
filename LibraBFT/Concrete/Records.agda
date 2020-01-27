@@ -99,6 +99,14 @@ module LibraBFT.Concrete.Records where
       -- VCM-QUESTION: Similar concern about signatures 
       -- VCM-QUESTION: Why is this a maybe? in which situation
       -- are we not signing blocks?
+
+      -- MSM: They use 'nothing' when constructing a block to sign later.  This can be seen in the
+      -- Haskell code at EventProcessor.hs:95-100 (commit f497bf9).  I think they also use "nothing"
+      -- for the genesis block; this is based on what I see in genesis-block-store.txt, line 81
+      -- (same commit).  Finally, "nil" blocks are not signed because they are produced
+      -- independently by different validators.  IIRC, this is to enable committing after an
+      -- epoch-changing command is processed: we cannot add more commands, but we need to add some
+      -- quorum certificates in order to commit the epoch-changing command.
       bSignature : Maybe Signature
 
   ----------------------
