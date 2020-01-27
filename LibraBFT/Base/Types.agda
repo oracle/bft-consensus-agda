@@ -85,6 +85,10 @@ module LibraBFT.Base.Types where
     Author     = Fin authorsN
   open EpochConfig public
 
+  -- TODO: eventually we will want to associate PKs with all participants, not just those of the
+  -- current epoch.  This is so we can verify signatures on fraudulent messages pretending to be
+  -- authors of an epoch for accountability reasons, and also because that's what libra does.
+
   -- Public Key Infrastructure for a given epoch.
   record PKI (ec : EpochConfig) : Set where
     field
