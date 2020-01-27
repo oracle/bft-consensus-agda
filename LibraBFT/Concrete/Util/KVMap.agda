@@ -35,13 +35,10 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k (kvm-insert k v kvm prf) ≡ just v
 
-{-
-   VCM: I don't get this property; I think there is one k' too much
-   lookup-stable  : {kvm : KVMap Key Val}
-                  → (prf : lookup kvm k ≡ nothing)
-                  → lookup (kvm-insert k v kvm prf) k' ≡ just v
-                  → lookup (kvm-insert k v kvm prf) k' ≡ just v
--}
+   lookup-stable  : {kvm : KVMap Key Val}{k k' : Key}
+                  → (prf : lookup k kvm ≡ nothing)
+                  → lookup k' kvm ≡ just v
+                  → lookup k' (kvm-insert k v kvm prf) ≡ just v
 
    insert-target  : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≡ nothing)
