@@ -91,6 +91,13 @@ module LibraBFT.Concrete.Records where
       -- VCM-QUESTION: I don't think we need this here...
       -- bdTimeStamp : Instant 
 
+
+  -- MSM: Note that this and other types here are redundant with things in Concrete.Types.  I had
+  -- started adding types there as needed (so far) with the idea that that file would mirror the
+  -- Haskell types in Libra.Consensus.Types, just for making it easier to review the Haskell and
+  -- Agda and confirm we have a good model.  I think we should stick with that, but can imagine
+  -- there could be arguments against it.  In any case, we should not have duplication of these
+  -- types!
   record Block (A : Set) : Set where
     constructor mkBlock
     field
@@ -127,6 +134,8 @@ module LibraBFT.Concrete.Records where
       -- VCM-QUESTION: Are we sending SyncInfos in Agda too?
       -- Maybe we should since these seem to trigger some
       -- actions on the state, such as changinghigh_qc.
+      -- MSM: I do not understand the question.  But, I know the
+      -- answer :-).  Follow the Haskell/Rust code we aim to verify.
       pmSyncInfo : SyncInfo
 
   record VoteMsg : Set where
