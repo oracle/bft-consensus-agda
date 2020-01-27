@@ -2,7 +2,8 @@
 
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
-open import LibraBFT.Concrete.NetworkMessages
+open import LibraBFT.Concrete.Network as NM
+open import LibraBFT.Concrete.Records
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
@@ -10,7 +11,6 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.Types
 open import LibraBFT.Global.Network
-open        WithMsgType NetworkMsg
 
 
 open import Level
@@ -20,7 +20,13 @@ module LibraBFT.Global.ModelDraft
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
 
- open import LibraBFT.Concrete.EventProcessor hash hash-cr
+ postulate
+   commandType : Set -- TODO: more temporary scaffolding
+
+ open import LibraBFT.Concrete.EventProcessor hash hash-cr commandType
+
+
+ open        LibraBFT.Global.Network.WithMsgType 
 
  record SystemState : Set where
    constructor sysState
@@ -55,10 +61,11 @@ module LibraBFT.Global.ModelDraft
  -- A fake action that spontaneously "broadcasts" a commit message.
  -- Currently it broadcasts the same commit every time, so no problem.  Later I want to make it so dishonest authors
  -- can send commits that break the rules but honest ones can't.
- Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) =
-   let cm  = mkCommitMsg eId nId 0 dummyHash
+ Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) = ?
+{-   let cm  = mkCommitMsg eId nId 0 dummyHash
        scm = signed cm (sign (encode cm) (proj₁ (fakeKeyPair (pubKeyForNode nId))))
    in record ps { sentMessages = sendMsg (sentMessages ps) (wire Broadcast (C scm)) }
+-}
  Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (recvMessage _ _) = ps
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps

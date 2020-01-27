@@ -56,6 +56,10 @@ module LibraBFT.Concrete.BlockTree
   -- Haskell impl, but we will inevitably need more type information
   -- than the Haskell impl.
 
+  -- MSM: I think this is reasonable as long as IsValidQC is spelled AUXIsValidQC or whatever
+  -- convention we agree, so that we can reliably check that no such variable is referenced by the
+  -- algorithm.
+
   α-Block : Block CMD → Abs.Block
   α-Block b = {!!}
 

@@ -2,8 +2,8 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Global.Network where
 
--- Here we model the network as a predicate over NetworkRecords.  The only functionality is to
-  -- produce and empty network with no messages, and to send a message.  We assume that messages may
+  -- Here we model the network as a predicate over NetworkRecords.  The only functionality is to
+  -- produce an empty network with no messages, and to send a message.  We assume that messages may
   -- be dropped, duplicated and/or reordered.  Therefore, there is no reason to maintain an order,
   -- nor to explicitly drop messages.  We can process any message that has been sent at any time.
   -- Dropping a message is modeled simply by never processing it.  Similar to HashSet, for now we
@@ -33,3 +33,5 @@ module LibraBFT.Global.Network where
                        → ¬ (m ∈SM sm)
                        → m ∈SM (sendMsg sm m')
                        → m ≡ m'
+
+  open WithMsgType

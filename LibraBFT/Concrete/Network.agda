@@ -16,6 +16,8 @@ module LibraBFT.Concrete.Network where
 -- a proof that these messages have been correctly signed
 -- by a valid author, etc, etc...
 
+-- MSM: Not quite.  You are talking 
+
 {-
   ----------------------
   -- Network Messages --
