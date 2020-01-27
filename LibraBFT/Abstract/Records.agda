@@ -37,8 +37,25 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
    field
      -- Can a block have many QCs? yes; but that seems to hardly
      -- influence anything. We could identify a qc directly 
-     -- by the id of the block it certifies. The blockstore
-     -- then becomes just like the implementation:
+     -- by the id of the block it certifies.
+     --
+     -- MSM: I am not convinced.  It is quite possible that we will have two different QCs in our
+     -- BlockTree that certify the same block (e.g., we add one, then fail to reach consensus on it,
+     -- we time out and another leader produces another proposal including a different QC that
+     -- certifies the same block.  The concrete model cannot eliminate the possibility of a
+     -- NonInjective for these different QCs and therefore gets nothing from the abstract
+     -- properties.  AFAICT, the only issue is that we might get a NonInjective from
+     -- RecordChain-irrelevant (all other NonInjectives stem from injectivity failures on blocks,
+     -- not QCs, I think).  Therefore, we need to either eliminate the need for
+     -- RecordChain-irrelevant in our abstract proof, or make sure that the UIDs for the (abstract)
+     -- QCs associated with concrete QCs that certify the same block are different.
+     --
+     --
+     -- MSM: I don't follow this part.  This is how the blockstore is, and therefore
+     -- what we should model.  The question is how we come up with IDs based on this,
+     -- not the other way around.
+     --
+     -- The blockstore then becomes just like the implementation:
      --  >  pub struct BlockTree<T> {
      --  >     /// All the blocks known to this replica (with parent links)
      --  >     id_to_block: HashMap<HashValue, LinkableBlock<T>>,
