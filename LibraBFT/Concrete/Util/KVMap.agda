@@ -30,6 +30,11 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k kvm ≡ nothing
                   → KVMap Key Val
 
+   kvm-size       : KVMap Key Val → ℕ
+   kvm-toList     : KVMap Key Val → List (Key × Val)
+   kvm-toList-length : (kvm : KVMap Key Val)
+                     → length (kvm-toList kvm) ≡ kvm-size kvm
+
    -- properties
    lookup-correct : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≡ nothing)

@@ -30,16 +30,30 @@ module LibraBFT.Prelude where
     using (∷-injective)
     public
 
-  open import Data.List.Any
+  open import Data.List.Relation.Unary.Any
     using (Any; here; there)
     renaming (lookup to Any-lookup; map to Any-map)
     public
 
-  open import Data.List.All
+  open import Data.List.Relation.Unary.All
     using (All; []; _∷_)
-    renaming (head to All-head; tail to All-tail)
+    renaming (head to All-head; tail to All-tail; 
+              lookup to All-lookup; tabulate to All-tabulate;
+              reduce to All-reduce)
     public
-  
+
+  open import Data.List.Relation.Unary.All.Properties
+    renaming ( tabulate⁻ to All-tabulate⁻
+             ; tabulate⁺ to All-tabulate⁺
+             ; map⁺      to All-map⁺
+             ; map⁻      to All-map⁻
+             )
+    public
+
+  open import Data.List.Membership.Propositional
+    using (_∈_)
+    public 
+
   open import Data.Vec
     using (Vec; []; _∷_)
     public

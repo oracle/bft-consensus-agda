@@ -5,6 +5,8 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+open import LibraBFT.Concrete.Util.KVMap
+
 -- This is our clone of Libra/Consensus/Types.hs
 module LibraBFT.Concrete.Records where
 
@@ -13,9 +15,6 @@ module LibraBFT.Concrete.Records where
 
   HashValue : Set
   HashValue = Hash
-
-  postulate
-    Map : Set → Set → Set
 
   -----------------
   -- Information --
@@ -28,6 +27,7 @@ module LibraBFT.Concrete.Records where
       biRound : Round
       biId    : HashValue
       -- VCM: this has more fields...
+  open BlockInfo public
 
   record LedgerInfo : Set where
     constructor mkLedgerInfo
@@ -39,7 +39,8 @@ module LibraBFT.Concrete.Records where
     constructor mkLedgerInfoWithSignatures
     field
       liwsLedgerInfo : LedgerInfo
-      liwsSignatures : Map Author Signature
+      liwsSignatures : KVMap Author Signature
+  open LedgerInfoWithSignatures public
 
   -------------------
   -- Votes and QCs --
@@ -48,8 +49,9 @@ module LibraBFT.Concrete.Records where
   record VoteData : Set where
     constructor mkVoteData
     field
-      vdProposed : BlockInfo
+      vdProposed : BlockInfo -- VCM-QUESTION: what's the difference?
       vdParent   : BlockInfo
+  open VoteData public
 
   record Vote : Set where
     constructor mkVote
@@ -76,6 +78,13 @@ module LibraBFT.Concrete.Records where
     field
       qcVoteData         : VoteData
       qcSignedLedgerInfo : LedgerInfoWithSignatures
+  open QuorumCert public
+
+  qcVotesKV : QuorumCert → KVMap Author Signature
+  qcVotesKV qc = liwsSignatures (qcSignedLedgerInfo qc)
+
+  qcVotes : QuorumCert → List (Author × Signature)
+  qcVotes qc = kvm-toList (qcVotesKV qc)
 
   ------------
   -- Blocks --

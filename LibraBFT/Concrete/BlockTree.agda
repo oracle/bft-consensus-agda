@@ -1,5 +1,4 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Prelude
   hiding (lookup)
 open import LibraBFT.Hash
@@ -25,6 +24,8 @@ module LibraBFT.Concrete.BlockTree
 
   open import LibraBFT.Concrete.Util.KVMap
   open import LibraBFT.Concrete.Records
+  import LibraBFT.Concrete.Records.Valid ec pki as Meta
+
   
   record BlockTree : Set where
     constructor mkBlockTree
@@ -35,14 +36,17 @@ module LibraBFT.Concrete.BlockTree
       -- If the QC comes in a standalone fashion, we add it.
       -- Id the QC comes in a block, we also add it.
       -- This means the _∈BT_ stays simple.
-      btIdToQuorumCert : KVMap Hash QuorumCert
+      btIdToQuorumCert : KVMap Hash (Σ QuorumCert Meta.IsValidQC)
   open BlockTree public
 
   --------------------------------
   -- Abstracting Blocks and QCs --
   --------------------------------
 
-  import      LibraBFT.Abstract.Records          ec Hash as Abs
+  UID : B∨QC → Set
+  UID _ = Hash
+
+  import      LibraBFT.Abstract.Records          ec UID as Abs
 
   -- VCM-QUESTION: we must carry some additional information
   -- that we have validated QCs and Blocks; and hence we acn produce
@@ -63,9 +67,28 @@ module LibraBFT.Concrete.BlockTree
   α-Block : Block CMD → Abs.Block
   α-Block b = {!!}
 
-  α-QC : QuorumCert → Abs.QC
-  α-QC qc = {!!}
+  α-Vote : (qc : QuorumCert)(valid : Meta.IsValidQC qc) 
+         → ∀ {as}
+         → as ∈ qcVotes qc
+         → Abs.Vote
+  α-Vote qc v {author , sig} as∈QC = record
+    { vAuthor   = Meta.ivaIdx (All-lookup (Meta.ivqcValidAuthors v) as∈QC)
+    ; vBlockUID = biId (vdProposed (qcVoteData qc))
+    ; vRound    = biRound (vdProposed (qcVoteData qc))
+    ; vOrder    = {!!} -- VCM: here's the cliff hanger!
+    }
 
+  α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC
+  α-QC (qc , valid) = record
+    { qId       = biId (vdProposed (qcVoteData qc))
+    ; qPrev     = biId (vdProposed (qcVoteData qc)) 
+    ; qRound    = biRound (vdProposed (qcVoteData qc))
+    ; qVotes    = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
+    ; qVotes-C1 = {!!} -- this proofs will come from the KV-store module
+    ; qVotes-C2 = subst (_ ≤_) {!!} (Meta.ivqcSizeOk valid)
+    ; qVotes-C3 = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
+    ; qVotes-C4 = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
+    }
 
   -----------------------------------
   -- Interfacing with the Abstract --
@@ -78,10 +101,10 @@ module LibraBFT.Concrete.BlockTree
   -- A block is identified by its own block hash, a QC is
   -- identified by the hash of the block it verifies.
 
-  open import LibraBFT.Abstract.Records.Extends  ec Hash 
-  open import LibraBFT.Abstract.RecordStoreState ec Hash 
-  open import LibraBFT.Abstract.RecordChain      ec Hash
-  import      LibraBFT.Abstract.RecordStoreState.Invariants ec Hash
+  open import LibraBFT.Abstract.Records.Extends  ec UID 
+  open import LibraBFT.Abstract.RecordStoreState ec UID 
+  open import LibraBFT.Abstract.RecordChain      ec UID
+  import      LibraBFT.Abstract.RecordStoreState.Invariants ec UID
     as AbstractI
  
   _<M$>_ : ∀{a b}{A : Set a}{B : Set b}

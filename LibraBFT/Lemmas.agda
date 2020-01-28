@@ -35,13 +35,23 @@ module LibraBFT.Lemmas where
  ≡⇒≤ : ∀{m n} → m ≡ n → m ≤ n
  ≡⇒≤ refl = ≤-refl
 
- _∈_ : ∀ {a} {A : Set a} → A → List A → Set a
- x ∈ l = Any (_≡ x) l
-
  ∈-cong : ∀{a b}{A : Set a}{B : Set b}{x : A}{l : List A}
         → (f : A → B) → x ∈ l → f x ∈ List-map f l
  ∈-cong f (here px) = here (cong f px)
  ∈-cong f (there hyp) = there (∈-cong f hyp)
+
+ All-self : ∀{a}{A : Set a}{xs : List A} → All (_∈ xs) xs
+ All-self = All-tabulate (λ x → x)
+
+ All-reduce⁺
+   : ∀{a b}{A : Set a}{B : Set b}{Q : A → Set}{P : B → Set}
+   → { xs : List A }
+   → (f : ∀{x} → Q x → B) 
+   → (∀{x} → (prf : Q x) → P (f prf))
+   → (all : All Q xs)
+   → All P (All-reduce f all)
+ All-reduce⁺ f hyp []         = []
+ All-reduce⁺ f hyp (ax ∷ axs) = (hyp ax) ∷ All-reduce⁺ f hyp axs 
 
  {-Any-lookup-correct : ∀ {a} {A : Set a} {x : A} {l : List A} → (p : x ∈ l) → Any-lookup p ∈ l
  Any-lookup-correct (here refl) = here refl
@@ -79,9 +89,7 @@ module LibraBFT.Lemmas where
 
  witness : {A : Set}{P : A → Set}{x : A}{xs : List A}
          → x ∈ xs → All P xs → P x
- witness {x = x} {xs = []} ()
- witness {P = P } {x = x} {xh ∷ xt} (here px) all = subst P px (All-head all)
- witness {x = x} {xh ∷ xt} (there x∈xt) all = witness x∈xt (All-tail all)
+ witness x y = All-lookup y x
 
  maybe-⊥ : ∀{a}{A : Set a}{x : A}{y : Maybe A}
          → y ≡ just x
