@@ -5,7 +5,7 @@ open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.RecordChain.Properties
   (ec  : EpochConfig)
-  (UID : Set)
+  (UID : B∨QC → Set)
    where
 
  open import LibraBFT.Abstract.BFT                         ec UID

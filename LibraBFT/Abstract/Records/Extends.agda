@@ -4,7 +4,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.Records.Extends
-  (ec : EpochConfig) (UID : Set)
+  (ec : EpochConfig) (UID : B∨QC → Set)
  where
   
   open import LibraBFT.Abstract.Records ec UID
@@ -20,7 +20,7 @@ module LibraBFT.Abstract.Records.Extends
         → I ← B b
     Q←B : {q : QC} {b : Block}
         → getRound q < getRound b
-        → just (qPrev q) ≡ bPrev b
+        → just (qId q) ≡ bPrev b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
         → getRound q ≡ getRound b

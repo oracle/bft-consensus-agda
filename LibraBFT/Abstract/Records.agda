@@ -2,14 +2,14 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
+module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
 
   record Block  : Set where
     constructor mkBlock
     field
-      bId      : UID
+      bId      : UID tB
       bAuthor  : Author ec
-      bPrev    : Maybe UID -- 'nothing' indicates it extends the genesis block.
+      bPrev    : Maybe (UID tQC) -- 'nothing' indicates it extends the genesis block.
       bRound   : Round
       -- bResult : StateHash
   open Block public
@@ -18,7 +18,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
     constructor mkVote
     field
       vAuthor    : Author ec
-      vBlockUID  : UID
+      vBlockUID  : UID tB
       vRound     : Round
       vOrder     : VoteOrder 
       --vState     : State
@@ -65,8 +65,8 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
      --  >     ...
      --  >  }
      --
-     -- qId            : UID
-     qPrev          : UID -- previous block identifier
+     qId            : UID tQC
+     qPrev          : UID tB
      qRound         : Round
      qVotes         : List Vote
      --qState         : State
@@ -163,13 +163,13 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
   -- two QCs with the same UID; 
   data TypedUID : Set where
     id-I : TypedUID
-    id-Q : UID -> TypedUID
-    id-B : UID -> TypedUID
+    id-Q : UID tQC -> TypedUID
+    id-B : UID tB  -> TypedUID
 
   uid : Record → TypedUID
   uid I     = id-I
-  uid (B b) = id-B (bId   b)
-  uid (Q q) = id-Q (qPrev q)
+  uid (B b) = id-B (bId b)
+  uid (Q q) = id-Q (qId q)
 
   -- Each record has a round
   round : Record → Round

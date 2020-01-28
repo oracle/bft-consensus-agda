@@ -9,6 +9,9 @@ module LibraBFT.Abstract.Types where
   
   open import LibraBFT.Base.Types public
 
+  data B∨QC : Set where
+    tB tQC : B∨QC
+
   -- VCM: After our discussion about vote order; I propose
   -- we make it into a postulate. Naturally, as the name suggests,
   -- it must have some sort of order raltion; also inacessible.

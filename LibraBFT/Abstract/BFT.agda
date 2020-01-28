@@ -3,7 +3,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.BFT (ec : EpochConfig) (UID : Set) where
+module LibraBFT.Abstract.BFT (ec : EpochConfig) (UID : B∨QC → Set) where
 
  open import LibraBFT.Abstract.Records ec UID
  
