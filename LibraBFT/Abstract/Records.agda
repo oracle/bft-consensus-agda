@@ -9,7 +9,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
     field
       bId      : UID
       bAuthor  : Author ec
-      bPrev    : Maybe UID -- nothing indicates it extends the genesis block.
+      bPrev    : Maybe UID -- 'nothing' indicates it extends the genesis block.
       bRound   : Round
       -- bResult : StateHash
   open Block public
