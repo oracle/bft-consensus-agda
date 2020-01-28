@@ -30,6 +30,11 @@ module LibraBFT.Base.PKCS where
               → ¬ IsKeyPair pk sk
               → verify bs (sign bs sk) pk ≡ false
 
+{- VCM: All of this is going away; signatures will be verified
+non-uniformly for each record type in the concrete model. May the force be with us!
+I will leave the code commented below for future reference until all of that is ready, though.
+
+
  record Signed (A : Set) ⦃ encA : Encoder A ⦄ : Set where
    constructor signed
    field
@@ -99,3 +104,4 @@ module LibraBFT.Base.PKCS where
     ; encode-inj = todo
     } where postulate todo : ∀{a}{A : Set a} → A
 
+-}

@@ -18,13 +18,16 @@ module LibraBFT.Concrete.EventProcessor
    constructor eventProcessor
    field
      myPK           : PK           -- TODO: this is temporary until we have a better model
-     ec             : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
+     epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
      -- TODO: for now, we omit the levels of indirection between BlockStore and BlockTree
-     epBlockStore   : BlockTree ec (fakePKI ec) cmd
+     epBlockStore   : BlockTree epEpochConfig (fakePKI epEpochConfig) cmd
  open EventProcessor public
 
  initEventProcessor : PK → EventProcessor
  initEventProcessor pk = eventProcessor pk (fakeEC 0) (emptyBT (fakeEC 0) (fakePKI (fakeEC 0)) cmd)
+
+{- VCM: this proposal is obsolte in the lights of
+        droppin the signed/versigned types
 
  -- VCM: PROPOSAL TO HANDLE PRIV KEYS
  --
@@ -55,3 +58,4 @@ module LibraBFT.Concrete.EventProcessor
               pk
         ≡ true
      → pk ≡ (myPK st)
+-}
