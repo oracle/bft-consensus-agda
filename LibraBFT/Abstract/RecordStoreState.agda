@@ -15,6 +15,6 @@ module LibraBFT.Abstract.RecordStoreState
   record isRecordStoreState {a}(RSS : Set a) : Set (ℓ+1 a) where
     field
       isInPool            : Record → RSS → Set
-      isInPool-irrelevant : ∀{r st}(p₀ p₁ : isInPool st r) → p₀ ≡ p₁
+      isInPool-irrelevant : ∀{r st}(p₀ p₁ : isInPool r st) → p₀ ≡ p₁
   open isRecordStoreState public
  
