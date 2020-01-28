@@ -9,7 +9,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Types
 open import LibraBFT.Global.Network
 
 

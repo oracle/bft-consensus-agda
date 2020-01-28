@@ -1,7 +1,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types
 
+-- VCM : I think this module is also obsolete, for the time being.
+--       if not; there's a lot of fixing needed here
 module LibraBFT.Abstract.Rules (ec : EpochConfig) where
 
   open import LibraBFT.Abstract.BFT     ec
@@ -20,9 +22,10 @@ module LibraBFT.Abstract.Rules (ec : EpochConfig) where
   -- opportunities exist.  A couple of examples are included but there will be more.
 
   data ProvablyDishonest (α : Author ec) : Set where
+{-
      same-round-different-votes
-       : (sv₀ : VerSigned (BVote (Author ec)))
-       → (sv₁ : VerSigned (BVote (Author ec)))
+       : (sv₀ : {! VerSigned (BVote (Author ec)) !})
+       → (sv₁ : {! VerSigned (BVote (Author ec)) !})
        → getEpochId  sv₀ ≡ epochId ec
        → getEpochId  sv₁ ≡ epochId ec
        → getAuthor sv₀ ≡ α
@@ -30,8 +33,10 @@ module LibraBFT.Abstract.Rules (ec : EpochConfig) where
        → getRound  sv₀ ≡ getRound sv₁
        → content   sv₀ ≢ content sv₁
        → ProvablyDishonest α
+-}
 
   data BrokeRule (α : Author ec) : Set where
+{-
      -- MSM: DANGER!  I don't think this scenario indicates that α is dishonest.  The two votes could
      -- be the same votes, included in different QCs (possibly constructed by someone *else*
      -- dishonest).  This shows that we'd better be pretty careful with this approach, as it's an
@@ -55,6 +60,7 @@ module LibraBFT.Abstract.Rules (ec : EpochConfig) where
        → getRound  sv₀ ≥ getRound sv₁   -- TODO: check
        → BrokeRule α
 
+-}
 {-- Some other scenarios for which we can construct accountability opportunities or broke-rule
     proofs are:
 
@@ -69,6 +75,6 @@ module LibraBFT.Abstract.Rules (ec : EpochConfig) where
 --}
 
   postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest α → ProvablyDishonest α → ⊥
-    BROKE-RULE         : ∀{α} → Honest α → BrokeRule α         → ⊥
+    ACCOUNTABILITY-OPP : ∀{α} → Honest {!!} {!!} → ProvablyDishonest α → ⊥
+    BROKE-RULE         : ∀{α} → Honest {!!} {!!} → BrokeRule α         → ⊥
 

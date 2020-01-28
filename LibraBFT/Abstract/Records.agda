@@ -1,6 +1,6 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : Set) where
 

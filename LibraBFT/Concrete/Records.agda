@@ -1,7 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Types hiding (Author)
+open import LibraBFT.Base.Types 
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
@@ -161,7 +161,7 @@ module LibraBFT.Concrete.Records where
       cEpochId : EpochId
       cAuthor  : NodeId
       cRound   : Round
-      cCert    : QCHash
+      cCert    : Hash
   open CommitMsg public
 
   data NetworkMsg (A : Set) : Set where

@@ -3,10 +3,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Concrete.NetworkMessages
 
 module LibraBFT.Concrete.Handle
   (hash    : ByteString → Hash)
@@ -14,9 +13,10 @@ module LibraBFT.Concrete.Handle
   (ec      : EpochConfig)
    where
 
- open import LibraBFT.Concrete.EventProcessor hash hash-cr ec
+ open import LibraBFT.Concrete.EventProcessor hash hash-cr 
  open import LibraBFT.Concrete.BlockTree hash hash-cr ec
 
+{-
  -- TODO: we should check if the block came from the right leader
 
  module _ (pre : EventProcessor) where
@@ -46,3 +46,4 @@ module LibraBFT.Concrete.Handle
   ...| nothing  = ([] , pre) 
   ...| just ver = handle-ver ver
 
+-}

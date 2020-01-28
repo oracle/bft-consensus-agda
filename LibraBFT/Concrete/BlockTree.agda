@@ -4,7 +4,7 @@ open import LibraBFT.Prelude
   hiding (lookup)
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
