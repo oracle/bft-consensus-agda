@@ -53,6 +53,12 @@ module LibraBFT.Concrete.Records where
       vdParent   : BlockInfo
   open VoteData public
 
+  -- VCM: Think about this; wy not make /Meta/ into something like
+  -- the IO monad? No comming out of it!
+  postulate
+    Meta : Set → Set
+    onMeta : {A B : Set} → (A → B) → Meta A → Meta B
+    
   record Vote : Set where
     constructor mkVote
     field
@@ -72,6 +78,9 @@ module LibraBFT.Concrete.Records where
       --      structure will still be possible and helpful.
       vSignature        : Signature
       vTimeoutSignature : Maybe Signature
+
+      -- The algo should never /read/ metadata. 
+      vOrderMeta        : Meta ℕ
 
   record QuorumCert : Set where
     constructor mkQuorumCert

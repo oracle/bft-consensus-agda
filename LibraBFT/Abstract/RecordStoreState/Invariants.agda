@@ -29,18 +29,6 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     Correct : Set
     Correct = (r : Record) → IsInPool r → RecordChain r
 
-    -- MSM: it seems that it's intended that the concrete model provide a proof that this property
-    -- holds.  I don't think that should be required.  Different implementations will either
-    -- guarantee this or not.  If they dont' then they can deal with an NonInjective whenever an
-    -- abstract property (e.g., thmS5) provides one.  If they do, they can use that property to
-    -- eliminate the alleged NonInjective; the abstract model does not care whether the concrete
-    -- model knows that there is no such NonInjective.
-    InjectiveUID : Set
-    InjectiveUID = (r₀ r₁ : Record) 
-                 → IsInPool r₀ → IsInPool r₁
-                 → uid r₀ ≡ uid r₁
-                 → r₀ ≡ r₁
-
     -- The increasing round rule says that a current RecordStoreState
     -- that contains two votes from α is guaranteed to have the order of
     -- votes respect the rounds

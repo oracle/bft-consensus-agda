@@ -90,6 +90,23 @@ module LibraBFT.Concrete.BlockTree
     ; qVotes-C4 = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
     }
 
+  -- QC Facts
+  --
+  -- 1) Can a QC be in btIdToBlock but not in btIdToQuorumCert?
+  -- NO! :)
+  --
+  -- 2) i) Say a leader sends (Proposal "transaction 1" (QC for parent: [v0, v1, v2])); timeouts.
+  --   ii) Next leader sends (Proposal "transaction x" (QC for parent: [v1 ,v2 ,v3]));
+
+  -- QC route:
+  --
+  -- leader rcv votes; create QC; put it in their own btIdToQC; send in the
+  -- next block proposal; but also sends as SyncInfo!
+  --
+  -- when nodes rcv proposal; they first verify sync info. If it does verify
+  -- populate btIdToQC then goes on to process the block.
+  -- 
+
   -----------------------------------
   -- Interfacing with the Abstract --
   -----------------------------------

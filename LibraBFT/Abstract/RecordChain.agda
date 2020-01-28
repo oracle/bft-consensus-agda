@@ -57,6 +57,20 @@ module LibraBFT.Abstract.RecordChain
   ----------------------
   -- RecordChain Irrelevance
   --
+
+  {- VCM: Make this happen: We don't care about QC votes;
+
+  NonInjectiveFancy : (_≈_ : Rel A)
+                    → (A → B)
+                    → Set
+  NonInjectiveFancy _≈_ f = Σ (A × A) (λ { (x , y) → ¬ (x ≈ y) × f x ≡ f y })
+
+  data _≈Rec_ : Record → Record → Set where
+    Qc-eq : samoBlockHash ∧ sameRound → (QC q₀) ≈Rec (QC q₁)
+    B-eq  : {b0 b1} → b0 ≡ b1 → (B b0) ≈Rec (B b1)
+ 
+  -}
+
   -- i.e., unless the hash was broken, there is always only
   --       one record chain up to a given record.
   RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) 
