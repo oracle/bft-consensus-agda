@@ -174,16 +174,16 @@ module LibraBFT.Abstract.RecordChain.Properties
    propS4-base c3 {q'} (step {B b} certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
    ...| here r 
-     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) zero r
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) zero (sym r)
    ...| inj₁ hb = inj₁ (lemma-NI hb)
-   ...| inj₂ res 
+   ...| inj₂ res
      with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) 
        hyp0 hyp1 
       | there (here r) 
-     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc zero) r 
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc zero) (sym r)
    ...| inj₁ hb = inj₁ (lemma-NI hb)
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB
@@ -191,7 +191,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base c3 {q'} (step certB (B←Q refl x₀) {pq₀}) hyp0 hyp1 
       | there (there (here r)) 
-     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc (suc zero)) r
+     with propS4-base-lemma-2 c3 q' pq₀ certB (B←Q refl x₀) (suc (suc zero)) (sym r)
    ...| inj₁ hb = inj₁ (lemma-NI hb)
    ...| inj₂ res 
      with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB
