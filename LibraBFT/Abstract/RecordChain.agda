@@ -59,7 +59,18 @@ module LibraBFT.Abstract.RecordChain
   -- RecordChain Irrelevance
   --
 
-  -- Pointwise relation over record chains
+  -- Distributing a record relation pointwise
+  -- over record chains. Let rc₀ and rc₁ be as illustrated
+  -- below; a value of type ≈RC-pw, named prf is shown
+  -- in between them.
+  -- 
+  --  rc₀    : B₀ ← C₀  ← B₁ ← C₁ ← ⋯ ← Bₖ  ← Cₖ
+  --
+  --  prf      ≈    ≈     ≈    ≈        ≈     ≈
+  --
+  --  rc₁    : 𝓑₀ ← 𝓒₀ ← 𝓑₁ ← 𝓒₁ ← ⋯ ← 𝓑ₖ ← 𝓒ₖ
+  --
+  --
   data ≈RC-pw {ℓ}(_≈_ : Rel Record ℓ) 
       : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set ℓ where
     eq-empty : I ≈ I → ≈RC-pw _≈_ empty empty
@@ -75,17 +86,33 @@ module LibraBFT.Abstract.RecordChain
              → ≈RC-pw _≈_ (step rc₀ ext₀ {p₀}) (step rc₁ ext₁ {p₁})
 
   -- RecordChain equivalence is then defined in terms of
-  -- record equivalence (i.e., we don't care about the set of votes in a QC)
+  -- record equivalence (i.e., we don't care about the set of
+  -- votes for the QCs in the chain); borrowing the illustration
+  -- above, we now have:
+  --
+  --  rc₀    : B₀ ← C₀  ← B₁ ← C₁ ← ⋯ ← Bₖ  ← Cₖ
+  --
+  --  prf      ≡    ≈QC   ≡    ≈QC      ≡     ≈QC
+  --
+  --  rc₁    : 𝓑₀ ← 𝓒₀ ← 𝓑₁ ← 𝓒₁ ← ⋯ ← 𝓑ₖ ← 𝓒ₖ
+  --
+  -- It is easy to see that if rc₀ ≈RC rc₁, then they contain
+  -- the same blocks (propositionally!) but potentially 
+  -- different /sets of votes/ certifying said blocks.
   _≈RC_ : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set
   _≈RC_ = ≈RC-pw _≈Rec_
 
+  -- Heterogeneous irrelevance of _≈RC_ happens only modulo
+  -- propositional non-injectivity of block ids; which is
+  -- awesome!
   ≈RC-refl : ∀{r₀ r₁}(rc₀ : RecordChain r₀)(rc₁ : RecordChain r₁)
            → r₀ ≈Rec r₁
-           → rc₀ ≈RC rc₁
+           → NonInjective _≡_ bId ⊎ (rc₀ ≈RC rc₁)
   ≈RC-refl empty empty hyp 
-     = eq-empty hyp
+     = inj₂ (eq-empty hyp)
   ≈RC-refl (step r0 x) (step r1 x₁) hyp 
-     = eq-step r0 r1 hyp x x₁ {!!}
+     = (←-≈Rec x x₁ hyp ⊎⟫= ≈RC-refl r0 r1)
+        ⊎⟫= (inj₂ ∘ eq-step r0 r1 hyp x x₁)
   ≈RC-refl empty (step r1 (I←B x x₁)) () 
   ≈RC-refl empty (step r1 (Q←B x x₁)) () 
   ≈RC-refl empty (step r1 (B←Q x x₁)) () 
@@ -94,26 +121,11 @@ module LibraBFT.Abstract.RecordChain
   ≈RC-refl (step r0 (B←Q x x₁)) empty () 
 
 
-  -- i.e., unless the hash was broken, there is always only
-  --       one record chain up to a given record.
+  -- Homogeneous irrelevance is easy to conjure:
   RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) 
-                         → NonInjective _≈Rec_ uid ⊎ rc₀ ≡ rc₁
-  RecordChain-irrelevant empty empty = inj₂ refl
-  RecordChain-irrelevant (step {s0} rc0 rc0←r {p0}) (step {s1} rc1 rc1←r {p1}) 
-    with lemmaS1-2 rc0←r rc1←r 
-  ...| idsEq 
-    with s0 ≈Rec? s1
-  ...| no  imp  = inj₁ ((s0 , s1) , (imp , idsEq))
-  ...| yes s0≈s1 = {!!}
-{-
-    with RecordChain-irrelevant rc0 rc1
-  ...| inj₁ hb   = inj₁ hb
-  ...| inj₂ refl rewrite ←-irrelevant rc1←r rc0←r 
-     = inj₂ (cong (λ Q → step rc0 rc0←r {Q}) 
-                  (IsInPool-irrelevant p0 p1))
--}
+                         → NonInjective _≡_ bId ⊎ rc₀ ≈RC rc₁
+  RecordChain-irrelevant rc0 rc1 = ≈RC-refl rc0 rc1 ≈Rec-refl
 
-{-
   -- A k-chain (paper Section 5.2) is a sequence of
   -- blocks and quorum certificates for said blocks:
   --
@@ -199,28 +211,53 @@ module LibraBFT.Abstract.RecordChain
            → r₀ ∈RC rc
            → {prf : IsInPool r₂}
            → r₀ ∈RC (step rc p {prf})
+    -- This is a very important rule! It is the equivalent of a
+    -- /congruence/ on record chains and enables us to prove
+    -- the 𝕂-chain-∈RC property, which is crucial, since we
+    -- lost the ability to rewrite record chains
+    transp : ∀{r}{rc₀ rc₁ : RecordChain r}
+           → r₀ ∈RC rc₀
+           → rc₀ ≈RC rc₁
+           → r₀ ∈RC rc₁
 
   kchainBlock-correct
     : ∀{P k q b}{rc : RecordChain (B b)}{b←q : B b ← Q q}{ipq : IsInPool (Q q)}
     → (kc : 𝕂-chain P k (step rc b←q {ipq}))
     → (x : Fin k) → (B (kc b⟦ x ⟧)) ∈RC rc
-  kchainBlock-correct (s-chain r←b prf b←q kc) zero = here
+  kchainBlock-correct (s-chain r←b prf b←q kc) zero = here 
   kchainBlock-correct (s-chain r←b prf b←q (s-chain r←b₁ prf₁ b←q₁ kc)) (suc x) 
     = there r←b (there b←q₁ (kchainBlock-correct (s-chain r←b₁ prf₁ b←q₁ kc) x))
 
+  -- This is an extended form of RecordChain-irrelevance.
+  -- Let rc be:
+  --
+  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₙ ← Cₙ
+  -- 
+  -- The (c : 𝕂-chain P k rc) is a predicate on the shape
+  -- of rc, estabilishing it must be of the following shape:
+  -- (where consecutive blocks satisfy P!)
+  --
+  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₙ₋ₖ ← Cₙ₋ₖ ⋯ ← Bₙ₋₁ ← Cₙ₋₁ ← Bₙ ← Cₙ
+  --                           /\             /\            /
+  --                     ⋯ P ₋⌟  ⌞₋₋₋₋ P ₋₋₋₋⌟  ⌞₋₋₋₋ P ₋₋₋⌟
+  --
+  -- This property states that for any other record chain
+  -- that contains one block b of the kchain above, it also contains
+  -- the prefix of the kchain leading to b.
+  -- 
   𝕂-chain-∈RC : ∀{r k P}{rc : RecordChain r}
               → (c : 𝕂-chain P k rc)
               → (x y : Fin k)
               → x ≤Fin y
               → {b : Block}(prf : kchainBlock x c ≡ b)
               → (rc₁ : RecordChain (B b))
-              → NonInjective uid ⊎ (B (kchainBlock y c) ∈RC rc₁)
+              → NonInjective _≡_ bId ⊎ (B (kchainBlock y c) ∈RC rc₁)
   𝕂-chain-∈RC (s-chain r←b {inP} prf b←q c) zero y z≤n refl rc1 
     with RecordChain-irrelevant (step (kchainForget c) r←b {inP}) rc1
   ...| inj₁ hb   = inj₁ hb
-  ...| inj₂ refl = inj₂ (kchainBlock-correct (s-chain r←b {inP} prf b←q c) y)
+  ...| inj₂ res  = inj₂ (transp (kchainBlock-correct (s-chain r←b {inP} prf b←q c) y) res)
   𝕂-chain-∈RC (s-chain r←b prf b←q c) (suc x) (suc y) (s≤s x≤y) hyp rc1 
-   = 𝕂-chain-∈RC c x y x≤y hyp rc1
+    = 𝕂-chain-∈RC c x y x≤y hyp rc1
 
   ------------------------
   -- Lemma 1
@@ -268,4 +305,3 @@ module LibraBFT.Abstract.RecordChain
   ¬bRound≡0 (step s (I←B () h)) refl
   ¬bRound≡0 (step s (Q←B () h)) refl
 
--}

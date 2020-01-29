@@ -59,18 +59,21 @@ module LibraBFT.Abstract.Records
   -- QC's make a setoid --
   ------------------------
    
+  -- Two QC's are said to be equivalent if they have the same ID;
+  -- that is, they certify the same block. It is worthwhile to note
+  -- that since we are talking about /abstract/ QCs, we have proofs that
+  -- both have at least QuorumSize votes for /the same block/!
   _≈QC_ : QC → QC → Set
-  q₀ ≈QC q₁ = qId q₀   ≡ qId q₁
-            × qPrev q₀ ≡ qPrev q₁
+  q₀ ≈QC q₁ = qPrev q₀ ≡ qPrev q₁
 
   ≈QC-refl : Reflexive _≈QC_
-  ≈QC-refl = (refl , refl)
+  ≈QC-refl = refl
 
   ≈QC-sym : Symmetric _≈QC_
-  ≈QC-sym (refl , refl) = (refl , refl)
+  ≈QC-sym refl = refl 
 
   ≈QC-trans : Transitive _≈QC_
-  ≈QC-trans (refl , refl) x = x
+  ≈QC-trans refl x = x
 
   QC-setoid : Setoid ℓ0 ℓ0
   QC-setoid = record 
@@ -82,34 +85,6 @@ module LibraBFT.Abstract.Records
         ; trans = λ {q} {u} {l} → ≈QC-trans {q} {u} {l} 
         } 
     }
- 
-{-
-  _≈QC_ : QC → QC → Set
-  q₀ ≈QC q₁ = qId q₀    ≡ qId q₁
-            × qPrev q₀  ≡ qPrev q₁
-            × qRound q₀ ≡ qRound q₁
-
-  ≈QC-refl : Reflexive _≈QC_
-  ≈QC-refl = (refl , refl , refl)
-
-  ≈QC-sym : Symmetric _≈QC_
-  ≈QC-sym (refl , refl , refl) = (refl , refl , refl)
-
-  ≈QC-trans : Transitive _≈QC_
-  ≈QC-trans (refl , refl , refl) x = x
-
-  QC-setoid : Setoid ℓ0 ℓ0
-  QC-setoid = record 
-    { Carrier       = QC 
-    ; _≈_           = _≈QC_ 
-    ; isEquivalence = record 
-        { refl  = λ {q}         → ≈QC-refl {q}
-        ; sym   = λ {q} {u}     → ≈QC-sym {q} {u}
-        ; trans = λ {q} {u} {l} → ≈QC-trans {q} {u} {l} 
-        } 
-    }
--}
-  
 
   -- Accessing the fields start to be a nuissance; yet, Blocks,
   -- votes and QC's all have three important common fields: author, round and prevHash.
@@ -175,6 +150,9 @@ module LibraBFT.Abstract.Records
     B : Block     → Record
     Q : QC        → Record
 
+  -- Records then, are said to be equivalent if and only if
+  -- they are either not QCs and propositionally equal or they
+  -- are equivalent qcs.
   data _≈Rec_ : Record → Record → Set where
     eq-I :                        I    ≈Rec I
     eq-Q : ∀{q₀ q₁} → q₀ ≈QC q₁ → Q q₀ ≈Rec Q q₁
@@ -206,9 +184,6 @@ module LibraBFT.Abstract.Records
         } 
     }
   
-  postulate _≈Rec?_   : (r s : Record) → Dec (r ≈Rec s)
-  -- postulate _≟Record_ : (r s : Record) → Dec (r ≡ s)
-
 {-
   B≢Q : ∀{b q} → B b ≡ Q q → ⊥
   B≢Q ()
@@ -226,13 +201,13 @@ module LibraBFT.Abstract.Records
   -- two QCs with the same UID; 
   data TypedUID : Set where
     id-I : TypedUID
-    id-Q : UID tQC -> TypedUID
-    id-B : UID tB  -> TypedUID
+    id-Q : UID -> TypedUID
+    id-B : UID -> TypedUID
 
   uid : Record → TypedUID
   uid I     = id-I
-  uid (B b) = id-B (bId b)
-  uid (Q q) = id-Q (qId q)
+  uid (B b) = id-B (bId   b)
+  uid (Q q) = id-Q (qPrev q)
 
   -- Each record has a round
   round : Record → Round

@@ -92,8 +92,7 @@ module LibraBFT.Concrete.BlockTree
 
   α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC
   α-QC (qc , valid) = record
-    { qId       = biId (vdProposed (qcVoteData qc))
-    ; qPrev     = biId (vdProposed (qcVoteData qc)) 
+    { qPrev     = biId (vdProposed (qcVoteData qc)) 
     ; qRound    = biRound (vdProposed (qcVoteData qc))
     ; qVotes    = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
     ; qVotes-C1 = {!!} -- this proofs will come from the KV-store module
@@ -146,20 +145,27 @@ module LibraBFT.Concrete.BlockTree
   (Abs.B b) ∈BT bt 
     = α-Block <M$> (lookup (Abs.bId b) (btIdToBlock bt)) ≡ just b
   (Abs.Q q) ∈BT bt 
-    = α-QC    <M$> (lookup (Abs.qPrev q) (btIdToQuorumCert bt)) ≡ just q
+    -- A qc is said to be in the abstract state iff there exists
+    -- a qc that certifies the same block (i.e., with the same id).
+    -- We don't particularly care for the list of votes or who authored it
+    = (qcCertifies ∘ proj₁) <M$> (lookup (Abs.qPrev q) (btIdToQuorumCert bt)) 
+      ≡ just (Abs.qPrev q)
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
   (Abs.B b) ∈BT? bt 
     with lookup (Abs.bId b) (btIdToBlock bt)
   ...| nothing = no (λ x → maybe-⊥ refl (sym x))
-  ...| just r  = {!!} -- VCM: ere we will need to check b ≡ α-Block r
+  ...| just r  
+    with α-Block r Abs.≟Block b
+  ...| yes refl = yes refl
+  ...| no  ok   = no (ok ∘ just-injective)
   (Abs.Q q) ∈BT? bt = {!!}
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit    = refl
   ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
-  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1   
+  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1
 
   instance
     abstractBT : isRecordStoreState BlockTree

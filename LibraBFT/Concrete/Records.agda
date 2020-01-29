@@ -95,6 +95,9 @@ module LibraBFT.Concrete.Records where
   qcVotes : QuorumCert → List (Author × Signature)
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
+  qcCertifies : QuorumCert → Hash
+  qcCertifies qc = biId (vdParent (qcVoteData qc))
+
   ------------
   -- Blocks --
   ------------
@@ -116,6 +119,7 @@ module LibraBFT.Concrete.Records where
       bdBlockType  : BlockType A
       -- VCM-QUESTION: I don't think we need this here...
       -- bdTimeStamp : Instant 
+  open BlockData public
 
 
   -- MSM: Note that this and other types here are redundant with things in Concrete.Types.  I had
@@ -141,6 +145,7 @@ module LibraBFT.Concrete.Records where
       -- epoch-changing command is processed: we cannot add more commands, but we need to add some
       -- quorum certificates in order to commit the epoch-changing command.
       bSignature : Maybe Signature
+  open Block public
 
   ----------------------
   -- Network Messages --
