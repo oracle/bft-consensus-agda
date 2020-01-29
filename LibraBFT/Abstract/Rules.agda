@@ -4,10 +4,14 @@ open import LibraBFT.Abstract.Types
 
 -- VCM : I think this module is also obsolete, for the time being.
 --       if not; there's a lot of fixing needed here
-module LibraBFT.Abstract.Rules (ec : EpochConfig) where
+module LibraBFT.Abstract.Rules
+  (ec : EpochConfig)
+  (UID : Set) 
+  (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
+  where
 
-  open import LibraBFT.Abstract.BFT     ec
-  open import LibraBFT.Abstract.Records ec
+  open import LibraBFT.Abstract.BFT     ec UID _≟UID_
+  open import LibraBFT.Abstract.Records ec UID _≟UID_
 
   ---------------------------------------
   -- Honesty and Dishonesty of Authors --
@@ -75,6 +79,6 @@ module LibraBFT.Abstract.Rules (ec : EpochConfig) where
 --}
 
   postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest {!!} {!!} → ProvablyDishonest α → ⊥
-    BROKE-RULE         : ∀{α} → Honest {!!} {!!} → BrokeRule α         → ⊥
+    ACCOUNTABILITY-OPP : ∀{α} → Honest α → ProvablyDishonest α → ⊥
+    BROKE-RULE         : ∀{α} → Honest α → BrokeRule α         → ⊥
 
