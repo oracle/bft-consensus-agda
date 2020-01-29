@@ -118,19 +118,29 @@ module LibraBFT.Prelude where
     using (contradiction)
     public
 
+  open import Relation.Binary
+    using (Setoid)
+    public
+
   -- We define a ByteString as a list of bits
   ByteString : Set
   ByteString = List Bool
 
   -- Evidence that a function is not injective
-  NonInjective : ∀{a b}{A : Set a}{B : Set b}
-               → (A → B) → Set (a ℓ⊔ b)
-  NonInjective {A = A} f = Σ (A × A) (λ { (x₁ , x₂) → x₁ ≢ x₂ × f x₁ ≡ f x₂ })
+  NonInjective : ∀{a b c}{A : Set a}{B : Set b}
+               → (_≈_ : Rel A c)
+               → (A → B) → Set (a ℓ⊔ b ℓ⊔ c)
+  NonInjective {A = A} _≈_ f 
+    = Σ (A × A) (λ { (x₁ , x₂) → ¬ (x₁ ≈ x₂) × f x₁ ≡ f x₂ })
+
+  NonInjective-≡ : ∀{a b}{A : Set a}{B : Set b}
+                 → (A → B) → Set (a ℓ⊔ b)
+  NonInjective-≡ = NonInjective _≡_
 
   NonInjective-∘ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c}
                  → {f : A → B}(g : B → C)
-                 → NonInjective f
-                 → NonInjective (g ∘ f)
+                 → NonInjective-≡  f
+                 → NonInjective-≡ (g ∘ f)
   NonInjective-∘ g ((x0 , x1) , (x0≢x1 , fx0≡fx1)) 
     = ((x0 , x1) , x0≢x1 , (cong g fx0≡fx1))
 

@@ -52,6 +52,62 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
      qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
   open QC public
 
+  ------------------------
+  -- QC's make a setoid --
+  ------------------------
+   
+  _≈QC_ : QC → QC → Set
+  q₀ ≈QC q₁ = qId q₀   ≡ qId q₁
+            × qPrev q₀ ≡ qPrev q₁
+
+  ≈QC-refl : Reflexive _≈QC_
+  ≈QC-refl = (refl , refl)
+
+  ≈QC-sym : Symmetric _≈QC_
+  ≈QC-sym (refl , refl) = (refl , refl)
+
+  ≈QC-trans : Transitive _≈QC_
+  ≈QC-trans (refl , refl) x = x
+
+  QC-setoid : Setoid ℓ0 ℓ0
+  QC-setoid = record 
+    { Carrier       = QC 
+    ; _≈_           = _≈QC_ 
+    ; isEquivalence = record 
+        { refl  = λ {q}         → ≈QC-refl {q}
+        ; sym   = λ {q} {u}     → ≈QC-sym {q} {u}
+        ; trans = λ {q} {u} {l} → ≈QC-trans {q} {u} {l} 
+        } 
+    }
+ 
+{-
+  _≈QC_ : QC → QC → Set
+  q₀ ≈QC q₁ = qId q₀    ≡ qId q₁
+            × qPrev q₀  ≡ qPrev q₁
+            × qRound q₀ ≡ qRound q₁
+
+  ≈QC-refl : Reflexive _≈QC_
+  ≈QC-refl = (refl , refl , refl)
+
+  ≈QC-sym : Symmetric _≈QC_
+  ≈QC-sym (refl , refl , refl) = (refl , refl , refl)
+
+  ≈QC-trans : Transitive _≈QC_
+  ≈QC-trans (refl , refl , refl) x = x
+
+  QC-setoid : Setoid ℓ0 ℓ0
+  QC-setoid = record 
+    { Carrier       = QC 
+    ; _≈_           = _≈QC_ 
+    ; isEquivalence = record 
+        { refl  = λ {q}         → ≈QC-refl {q}
+        ; sym   = λ {q} {u}     → ≈QC-sym {q} {u}
+        ; trans = λ {q} {u} {l} → ≈QC-trans {q} {u} {l} 
+        } 
+    }
+-}
+  
+
   -- Accessing the fields start to be a nuissance; yet, Blocks,
   -- votes and QC's all have three important common fields: author, round and prevHash.
   -- I'll make the same trick as Harold and declare a type-class that gives
@@ -116,8 +172,41 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
     B : Block     → Record
     Q : QC        → Record
 
-  postulate _≟Record_ : (r s : Record) → Dec (r ≡ s)
+  data _≈Rec_ : Record → Record → Set where
+    eq-I :                        I    ≈Rec I
+    eq-Q : ∀{q₀ q₁} → q₀ ≈QC q₁ → Q q₀ ≈Rec Q q₁
+    eq-B : ∀{b₀ b₁} → b₀  ≡  b₁ → B b₀ ≈Rec B b₁
 
+  ≈Rec-refl : Reflexive _≈Rec_
+  ≈Rec-refl {I} = eq-I
+  ≈Rec-refl {B x} = eq-B refl
+  ≈Rec-refl {Q x} = eq-Q (≈QC-refl {x})
+
+  ≈Rec-sym : Symmetric _≈Rec_
+  ≈Rec-sym {I}         eq-I       = eq-I
+  ≈Rec-sym {B x}       (eq-B prf) = eq-B (sym prf)
+  ≈Rec-sym {Q x} {Q y} (eq-Q prf) = eq-Q (≈QC-sym {x} {y} prf)
+
+  ≈Rec-trans : Transitive _≈Rec_
+  ≈Rec-trans {I}               eq-I      eq-I      = eq-I
+  ≈Rec-trans {B x}             (eq-B p₀) (eq-B p₁) = eq-B (trans p₀ p₁)
+  ≈Rec-trans {Q x} {Q y} {Q z} (eq-Q p₀) (eq-Q p₁) = eq-Q (≈QC-trans {x} {y} {z} p₀ p₁)
+
+  Rec-setoid : Setoid ℓ0 ℓ0
+  Rec-setoid = record 
+    { Carrier       = Record
+    ; _≈_           = _≈Rec_ 
+    ; isEquivalence = record 
+        { refl  = λ {q}         → ≈Rec-refl {q}
+        ; sym   = λ {q} {u}     → ≈Rec-sym {q} {u}
+        ; trans = λ {q} {u} {l} → ≈Rec-trans {q} {u} {l} 
+        } 
+    }
+  
+  postulate _≈Rec?_   : (r s : Record) → Dec (r ≈Rec s)
+  -- postulate _≟Record_ : (r s : Record) → Dec (r ≡ s)
+
+{-
   B≢Q : ∀{b q} → B b ≡ Q q → ⊥
   B≢Q ()
 
@@ -126,6 +215,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
 
   B-inj : ∀{b₀ b₁} → B b₀ ≡ B b₁ → b₀ ≡ b₁
   B-inj refl = refl
+-}
 
   -- Record unique ids carry whether the abstract id was assigned
   -- to a QC or a Block; in fact, we only care about injectivity

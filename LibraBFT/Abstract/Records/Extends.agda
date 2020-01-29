@@ -27,6 +27,23 @@ module LibraBFT.Abstract.Records.Extends
         → bId b ≡ qPrev q
         → B b ← Q q
 
+  ←-≈Rec : ∀{r₀ r₁ s₀ s₁} → s₀ ← r₀ → s₁ ← r₁
+           → r₀ ≈Rec r₁
+           → NonInjective _≈Rec_ uid ⊎ (s₀ ≈Rec s₁)
+  ←-≈Rec (I←B x x₁) (I←B x₂ x₃) hyp = inj₂ eq-I
+  ←-≈Rec (I←B x x₁) (Q←B x₂ x₃) (eq-B refl) 
+    = ⊥-elim (maybe-⊥ (sym x₃) x₁)
+  ←-≈Rec (Q←B x x₁) (I←B x₂ x₃) (eq-B refl) 
+    = ⊥-elim (maybe-⊥ (sym x₁) x₃)
+  ←-≈Rec (Q←B {q₀} x refl) (Q←B {q₁} x₂ refl) (eq-B refl) 
+    with qPrev q₀ ≟Hash qPrev q₁
+  ...| no  hb = ?
+  ...| yes prf = inj₂ (eq-Q ({!!} , {!!}))
+  ←-≈Rec (B←Q {b₀} x y) (B←Q {b₁} w z) (eq-Q (refl , refl))
+    with b₀ ≟Block b₁
+  ...| no  hb  = inj₁ ((B b₀ , B b₁) , {!!} , {!!})
+  ...| yes prf = {!!}
+
   ←-irrelevant : Irrelevant _←_
   ←-irrelevant (I←B r₁ h₁) (I←B r₂ h₂) 
     = cong₂ I←B (≤-irrelevant r₁ r₂) (≡-irrelevant h₁ h₂) 

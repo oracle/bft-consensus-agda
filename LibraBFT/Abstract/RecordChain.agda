@@ -58,36 +58,61 @@ module LibraBFT.Abstract.RecordChain
   -- RecordChain Irrelevance
   --
 
-  {- VCM: Make this happen: We don't care about QC votes;
+  -- Pointwise relation over record chains
+  data ≈RC-pw {ℓ}(_≈_ : Rel Record ℓ) 
+      : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set ℓ where
+    eq-empty : I ≈ I → ≈RC-pw _≈_ empty empty
+    eq-step  : ∀{r₀ r₁ s₀ s₁}
+             → (rc₀ : RecordChain s₀)
+             → (rc₁ : RecordChain s₁)
+             → r₀ ≈ r₁
+             → (ext₀ : s₀ ← r₀)
+             → (ext₁ : s₁ ← r₁)
+             → {p₀ : IsInPool r₀}
+             → {p₁ : IsInPool r₁}
+             → ≈RC-pw _≈_ rc₀ rc₁
+             → ≈RC-pw _≈_ (step rc₀ ext₀ {p₀}) (step rc₁ ext₁ {p₁})
 
-  NonInjectiveFancy : (_≈_ : Rel A)
-                    → (A → B)
-                    → Set
-  NonInjectiveFancy _≈_ f = Σ (A × A) (λ { (x , y) → ¬ (x ≈ y) × f x ≡ f y })
+  -- RecordChain equivalence is then defined in terms of
+  -- record equivalence (i.e., we don't care about the set of votes in a QC)
+  _≈RC_ : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set
+  _≈RC_ = ≈RC-pw _≈Rec_
 
-  data _≈Rec_ : Record → Record → Set where
-    Qc-eq : samoBlockHash ∧ sameRound → (QC q₀) ≈Rec (QC q₁)
-    B-eq  : {b0 b1} → b0 ≡ b1 → (B b0) ≈Rec (B b1)
- 
-  -}
+  ≈RC-refl : ∀{r₀ r₁}(rc₀ : RecordChain r₀)(rc₁ : RecordChain r₁)
+           → r₀ ≈Rec r₁
+           → rc₀ ≈RC rc₁
+  ≈RC-refl empty empty hyp 
+     = eq-empty hyp
+  ≈RC-refl (step r0 x) (step r1 x₁) hyp 
+     = eq-step r0 r1 hyp x x₁ {!!}
+  ≈RC-refl empty (step r1 (I←B x x₁)) () 
+  ≈RC-refl empty (step r1 (Q←B x x₁)) () 
+  ≈RC-refl empty (step r1 (B←Q x x₁)) () 
+  ≈RC-refl (step r0 (I←B x x₁)) empty () 
+  ≈RC-refl (step r0 (Q←B x x₁)) empty () 
+  ≈RC-refl (step r0 (B←Q x x₁)) empty () 
+
 
   -- i.e., unless the hash was broken, there is always only
   --       one record chain up to a given record.
   RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) 
-                         → NonInjective uid ⊎ rc₀ ≡ rc₁
+                         → NonInjective _≈Rec_ uid ⊎ rc₀ ≡ rc₁
   RecordChain-irrelevant empty empty = inj₂ refl
   RecordChain-irrelevant (step {s0} rc0 rc0←r {p0}) (step {s1} rc1 rc1←r {p1}) 
     with lemmaS1-2 rc0←r rc1←r 
   ...| idsEq 
-    with s0 ≟Record s1
+    with s0 ≈Rec? s1
   ...| no  imp  = inj₁ ((s0 , s1) , (imp , idsEq))
-  ...| yes refl 
+  ...| yes s0≈s1 = {!!}
+{-
     with RecordChain-irrelevant rc0 rc1
   ...| inj₁ hb   = inj₁ hb
   ...| inj₂ refl rewrite ←-irrelevant rc1←r rc0←r 
      = inj₂ (cong (λ Q → step rc0 rc0←r {Q}) 
                   (IsInPool-irrelevant p0 p1))
+-}
 
+{-
   -- A k-chain (paper Section 5.2) is a sequence of
   -- blocks and quorum certificates for said blocks:
   --
@@ -241,3 +266,5 @@ module LibraBFT.Abstract.RecordChain
   ¬bRound≡0 : ∀ {b} → RecordChain (B b) → ¬ (getRound b ≡ 0)
   ¬bRound≡0 (step s (I←B () h)) refl
   ¬bRound≡0 (step s (Q←B () h)) refl
+
+-}
