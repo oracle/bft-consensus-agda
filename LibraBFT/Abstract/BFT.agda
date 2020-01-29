@@ -3,9 +3,13 @@ open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.BFT (ec : EpochConfig) (UID : B∨QC → Set) where
+module LibraBFT.Abstract.BFT 
+   (ec : EpochConfig) 
+   (UID : Set) 
+   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
+  where
 
- open import LibraBFT.Abstract.Records ec UID
+ open import LibraBFT.Abstract.Records ec UID _≟UID_
  
  -- TODO: Prove the BFT assumption. Feels like its just arithmetic,
  -- but these are famous last words after the skiplog stuff, huh? :)

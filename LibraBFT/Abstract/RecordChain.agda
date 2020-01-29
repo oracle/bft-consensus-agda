@@ -5,12 +5,13 @@ open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.RecordChain 
   (ec  : EpochConfig)
-  (UID : B∨QC → Set)
+  (UID : Set)
+  (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
     where
 
- open import LibraBFT.Abstract.Records          ec UID
- open import LibraBFT.Abstract.Records.Extends  ec UID
- open import LibraBFT.Abstract.RecordStoreState ec UID
+ open import LibraBFT.Abstract.Records          ec UID _≟UID_
+ open import LibraBFT.Abstract.Records.Extends  ec UID _≟UID_
+ open import LibraBFT.Abstract.RecordStoreState ec UID _≟UID_
 
  module WithRSS
    {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄

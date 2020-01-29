@@ -43,29 +43,41 @@ module LibraBFT.Concrete.BlockTree
   -- Abstracting Blocks and QCs --
   --------------------------------
 
-  UID : B∨QC → Set
-  UID _ = Hash
-
-  import      LibraBFT.Abstract.Records          ec UID as Abs
-
-  -- VCM-QUESTION: we must carry some additional information
-  -- that we have validated QCs and Blocks; and hence we acn produce
-  -- the proofs required by the abstract model.
+  -- Blocks and QCs are identified by hashes. In particular;
+  -- Blocks are identified by their hash and QCs are identified
+  -- by the hash of the block they certify.
   --
-  -- Why don't we do:
-  --
-  --   btIdToQuorumCert : KVMap Hash (Σ QuorumCert IsValidQC)
-  --
-  -- for some type IsValidQC. I know this is not /exactly/ like the
-  -- Haskell impl, but we will inevitably need more type information
-  -- than the Haskell impl.
+  -- This really means that two QCs that certify the same block
+  -- are (by definition!!) the same. We capture this in the
+  -- abstract model by using the _≈Rec_ relation.
+  UID :  Set
+  UID = Hash
 
-  -- MSM: I think this is reasonable as long as IsValidQC is spelled AUXIsValidQC or whatever
-  -- convention we agree, so that we can reliably check that no such variable is referenced by the
-  -- algorithm.
+  _≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁)
+  _≟UID_ = _≟Hash_
+
+  import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
   α-Block : Block CMD → Abs.Block
-  α-Block b = {!!}
+  α-Block b with bdBlockType (bBlockData b)
+  ...| NilBlock = record
+       { bId     = bId b 
+       ; bAuthor = {!!} -- VCM: who's the author? the QC author?
+       ; bPrev   = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
+       ; bRound  = bdRound (bBlockData b)
+       }
+  ...| Genesis = record
+       { bId     = bId b 
+       ; bAuthor = {!!}
+       ; bPrev   = nothing
+       ; bRound  = bdRound (bBlockData b)
+       }
+  ...| Proposal cmd α = record
+       { bId     = bId b 
+       ; bAuthor = {!!} -- VCM: will need meta info to state α is a valid author!
+       ; bPrev   = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
+       ; bRound  = bdRound (bBlockData b)
+       }
 
   α-Vote : (qc : QuorumCert)(valid : Meta.IsValidQC qc) 
          → ∀ {as}
@@ -118,18 +130,12 @@ module LibraBFT.Concrete.BlockTree
   -- A block is identified by its own block hash, a QC is
   -- identified by the hash of the block it verifies.
 
-  open import LibraBFT.Abstract.Records.Extends  ec UID 
-  open import LibraBFT.Abstract.RecordStoreState ec UID 
-  open import LibraBFT.Abstract.RecordChain      ec UID
-  import      LibraBFT.Abstract.RecordStoreState.Invariants ec UID
+  open import LibraBFT.Abstract.Records.Extends        ec UID _≟UID_ 
+  open import LibraBFT.Abstract.RecordStoreState       ec UID _≟UID_ 
+  open import LibraBFT.Abstract.RecordChain            ec UID _≟UID_
+  import LibraBFT.Abstract.RecordStoreState.Invariants ec UID _≟UID_
     as AbstractI
  
-  _<M$>_ : ∀{a b}{A : Set a}{B : Set b}
-         → (f : A → B)
-         → Maybe A → Maybe B
-  _<M$>_ = Maybe-map
-
-
   -- VCM: We really need to invoke the abstraction function here; otherwise
   -- we have no guarantee that the rest of the fields of the abstract block
   -- are correct. This is what ensures the abstract model will not conjure blocks

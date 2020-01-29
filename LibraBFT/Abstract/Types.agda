@@ -9,16 +9,6 @@ module LibraBFT.Abstract.Types where
   
   open import LibraBFT.Base.Types public
 
-  -- The abstract model handles abstract views of blocks
-  -- and QCs only; which are identified by a UID; Different implementations
-  -- might opt to identify these elements differently; hence, the UID has
-  -- type B∨QC → Set, so we can be precise about which kind og UID we are
-  -- talking about. If the implementer decides they want to use
-  -- the same identifier for both blocks and QCs; just pass a 'const X'
-  -- as the UID.
-  data B∨QC : Set where
-    tB tQC : B∨QC
-
   -- VCM: After our discussion about vote order; I propose
   -- we make it into a postulate. Naturally, as the name suggests,
   -- it must have some sort of order raltion; also inacessible.

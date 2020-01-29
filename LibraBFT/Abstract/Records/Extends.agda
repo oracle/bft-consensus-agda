@@ -4,10 +4,12 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.Records.Extends
-  (ec : EpochConfig) (UID : B∨QC → Set)
+  (ec : EpochConfig) 
+  (UID : Set)
+  (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
  where
   
-  open import LibraBFT.Abstract.Records ec UID
+  open import LibraBFT.Abstract.Records ec UID _≟UID_
 
   -- Most of the conditions in section 4.2 are ...
   -- Only round numbers and hashes are actually critical to
@@ -20,7 +22,7 @@ module LibraBFT.Abstract.Records.Extends
         → I ← B b
     Q←B : {q : QC} {b : Block}
         → getRound q < getRound b
-        → just (qId q) ≡ bPrev b
+        → just (qPrev q) ≡ bPrev b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
         → getRound q ≡ getRound b
@@ -29,20 +31,18 @@ module LibraBFT.Abstract.Records.Extends
 
   ←-≈Rec : ∀{r₀ r₁ s₀ s₁} → s₀ ← r₀ → s₁ ← r₁
            → r₀ ≈Rec r₁
-           → NonInjective _≈Rec_ uid ⊎ (s₀ ≈Rec s₁)
+           → NonInjective-≡ bId ⊎ (s₀ ≈Rec s₁)
   ←-≈Rec (I←B x x₁) (I←B x₂ x₃) hyp = inj₂ eq-I
   ←-≈Rec (I←B x x₁) (Q←B x₂ x₃) (eq-B refl) 
     = ⊥-elim (maybe-⊥ (sym x₃) x₁)
   ←-≈Rec (Q←B x x₁) (I←B x₂ x₃) (eq-B refl) 
     = ⊥-elim (maybe-⊥ (sym x₁) x₃)
   ←-≈Rec (Q←B {q₀} x refl) (Q←B {q₁} x₂ refl) (eq-B refl) 
-    with qPrev q₀ ≟Hash qPrev q₁
-  ...| no  hb = ?
-  ...| yes prf = inj₂ (eq-Q ({!!} , {!!}))
-  ←-≈Rec (B←Q {b₀} x y) (B←Q {b₁} w z) (eq-Q (refl , refl))
+    = inj₂ (eq-Q refl)
+  ←-≈Rec (B←Q {b₀} x refl) (B←Q {b₁} w refl) (eq-Q refl)
     with b₀ ≟Block b₁
-  ...| no  hb  = inj₁ ((B b₀ , B b₁) , {!!} , {!!})
-  ...| yes prf = {!!}
+  ...| no  hb  = inj₁ ((b₀ , b₁) , (λ x → hb x) , refl)
+  ...| yes prf = inj₂ (eq-B prf)
 
   ←-irrelevant : Irrelevant _←_
   ←-irrelevant (I←B r₁ h₁) (I←B r₂ h₂) 

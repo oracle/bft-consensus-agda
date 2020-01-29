@@ -2,14 +2,18 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
+module LibraBFT.Abstract.Records 
+    (ec : EpochConfig) 
+    (UID : Set) 
+    (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
+ where
 
   record Block  : Set where
     constructor mkBlock
     field
-      bId      : UID tB
+      bId      : UID 
       bAuthor  : Author ec
-      bPrev    : Maybe (UID tQC) -- 'nothing' indicates it extends the genesis block.
+      bPrev    : Maybe UID -- 'nothing' indicates it extends the genesis block.
       bRound   : Round
       -- bResult : StateHash
   open Block public
@@ -18,7 +22,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
     constructor mkVote
     field
       vAuthor    : Author ec
-      vBlockUID  : UID tB
+      vBlockUID  : UID
       vRound     : Round
       vOrder     : VoteOrder 
       --vState     : State
@@ -35,8 +39,7 @@ module LibraBFT.Abstract.Records (ec : EpochConfig) (UID : B∨QC → Set) where
   record QC : Set where
    constructor mkQC
    field
-     qId            : UID tQC -- this is the id for this QC
-     qPrev          : UID tB  -- this is the id for the block it certifies.
+     qPrev          : UID -- this is the id for the block it certifies.
      qRound         : Round
      qVotes         : List Vote
      --qState         : State

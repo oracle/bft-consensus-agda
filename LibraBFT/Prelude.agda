@@ -143,4 +143,21 @@ module LibraBFT.Prelude where
                  → NonInjective-≡ (g ∘ f)
   NonInjective-∘ g ((x0 , x1) , (x0≢x1 , fx0≡fx1)) 
     = ((x0 , x1) , x0≢x1 , (cong g fx0≡fx1))
+ 
+  --------------------------------------------
+  -- Handy fmap and bind for specific types --
 
+  _<M$>_ : ∀{a b}{A : Set a}{B : Set b}
+         → (f : A → B)
+         → Maybe A → Maybe B
+  _<M$>_ = Maybe-map
+
+  _<⊎$>_ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c} 
+         → (A → B) → C ⊎ A → C ⊎ B
+  f <⊎$> (inj₁ hb) = inj₁ hb
+  f <⊎$> (inj₂ x)  = inj₂ (f x)
+
+  _⊎⟫=_ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c}  
+        → C ⊎ A → (A → C ⊎ B) → C ⊎ B
+  (inj₁ x) ⊎⟫= _ = inj₁ x
+  (inj₂ a) ⊎⟫= f = f a

@@ -5,10 +5,11 @@ open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.RecordStoreState 
     (ec  : EpochConfig)
-    (UID : B∨QC → Set)
+    (UID : Set)
+    (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
  where
 
-  open import LibraBFT.Abstract.Records ec UID
+  open import LibraBFT.Abstract.Records ec UID _≟UID_
 
   -- A type 'RSS' is seen, by the abstract model, as a RecordStoreState
   -- if it contains a pool of unique records (hence the irrelevance cond.)
