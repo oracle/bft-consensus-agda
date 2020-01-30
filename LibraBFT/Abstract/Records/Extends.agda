@@ -18,15 +18,15 @@ module LibraBFT.Abstract.Records.Extends
   data _←_ : Record → Record → Set where
     I←B : {b : Block}
         → 1 ≤ getRound b
-        → bPrev b ≡ nothing
+        → bPrevQC b ≡ nothing
         → I ← B b
     Q←B : {q : QC} {b : Block}
         → getRound q < getRound b
-        → just (qPrev q) ≡ bPrev b
+        → just (qCertBlockId q) ≡ bPrevQC b
         → Q q ← B b
     B←Q : {b : Block} {q : QC}
         → getRound q ≡ getRound b
-        → bId b ≡ qPrev q
+        → bId b ≡ qCertBlockId q
         → B b ← Q q
 
   ←-≈Rec : ∀{r₀ r₁ s₀ s₁} → s₀ ← r₀ → s₁ ← r₁

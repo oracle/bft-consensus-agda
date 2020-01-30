@@ -14,7 +14,7 @@ module LibraBFT.Abstract.Records
     field
       bId      : UID 
       bAuthor  : Author ec
-      bPrev    : Maybe UID -- 'nothing' indicates it extends the genesis block.
+      bPrevQC  : Maybe UID -- 'nothing' indicates it extends the genesis block.
       bRound   : Round
       -- bResult : StateHash
   open Block public
@@ -40,7 +40,7 @@ module LibraBFT.Abstract.Records
   record QC : Set where
    constructor mkQC
    field
-     qPrev          : UID -- this is the id for the block it certifies.
+     qCertBlockId   : UID -- this is the id for the block it certifies.
      qRound         : Round
      qVotes         : List Vote
      --qState         : State
@@ -51,7 +51,7 @@ module LibraBFT.Abstract.Records
      -- votes, for the particular epoch in question.
      qVotes-C2      : QuorumSize ec ≤ length qVotes
      -- All the votes must vote for the qBlockHash in here;
-     qVotes-C3      : All (λ v → vBlockUID v ≡ qPrev) qVotes
+     qVotes-C3      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
      -- Likewise for rounds
      qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
   open QC public
@@ -65,7 +65,7 @@ module LibraBFT.Abstract.Records
   -- that since we are talking about /abstract/ QCs, we have proofs that
   -- both have at least QuorumSize votes for /the same block/!
   _≈QC_ : QC → QC → Set
-  q₀ ≈QC q₁ = qPrev q₀ ≡ qPrev q₁
+  q₀ ≈QC q₁ = qCertBlockId q₀ ≡ qCertBlockId q₁
 
   ≈QC-refl : Reflexive _≈QC_
   ≈QC-refl = refl
@@ -208,7 +208,7 @@ module LibraBFT.Abstract.Records
   uid : Record → TypedUID
   uid I     = id-I
   uid (B b) = id-B (bId   b)
-  uid (Q q) = id-Q (qPrev q)
+  uid (Q q) = id-Q (qCertBlockId q)
 
   -- Each record has a round
   round : Record → Round

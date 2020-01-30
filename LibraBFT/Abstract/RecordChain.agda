@@ -287,7 +287,7 @@ module LibraBFT.Abstract.RecordChain
                    → v  ∈ qcVotes q
                    → v' ∈ qcVotes q'
                    → v ≡ v' 
-                   → qPrev q ≡ qPrev q'
+                   → qCertBlockId q ≡ qCertBlockId q'
   vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
       with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
   ... | refl | refl = refl

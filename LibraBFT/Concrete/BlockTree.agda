@@ -63,19 +63,19 @@ module LibraBFT.Concrete.BlockTree
   ...| NilBlock = record
        { bId     = bId b 
        ; bAuthor = {!!} -- VCM: who's the author? the QC author?
-       ; bPrev   = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
+       ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
        ; bRound  = bdRound (bBlockData b)
        }
   ...| Genesis = record
        { bId     = bId b 
        ; bAuthor = {!!}
-       ; bPrev   = nothing
+       ; bPrevQC = nothing
        ; bRound  = bdRound (bBlockData b)
        }
   ...| Proposal cmd α = record
        { bId     = bId b 
        ; bAuthor = {!!} -- VCM: will need meta info to state α is a valid author!
-       ; bPrev   = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
+       ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
        ; bRound  = bdRound (bBlockData b)
        }
 
@@ -92,13 +92,13 @@ module LibraBFT.Concrete.BlockTree
 
   α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC
   α-QC (qc , valid) = record
-    { qPrev     = biId (vdProposed (qcVoteData qc)) 
-    ; qRound    = biRound (vdProposed (qcVoteData qc))
-    ; qVotes    = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
-    ; qVotes-C1 = {!!} -- this proofs will come from the KV-store module
-    ; qVotes-C2 = subst (_ ≤_) {!!} (Meta.ivqcSizeOk valid)
-    ; qVotes-C3 = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
-    ; qVotes-C4 = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
+    { qCertBlockId = biId (vdProposed (qcVoteData qc)) 
+    ; qRound       = biRound (vdProposed (qcVoteData qc))
+    ; qVotes       = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
+    ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
+    ; qVotes-C2    = subst (_ ≤_) {!!} (Meta.ivqcSizeOk valid)
+    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
+    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
     }
 
   -- QC Facts
@@ -148,8 +148,8 @@ module LibraBFT.Concrete.BlockTree
     -- A qc is said to be in the abstract state iff there exists
     -- a qc that certifies the same block (i.e., with the same id).
     -- We don't particularly care for the list of votes or who authored it
-    = (qcCertifies ∘ proj₁) <M$> (lookup (Abs.qPrev q) (btIdToQuorumCert bt)) 
-      ≡ just (Abs.qPrev q)
+    = (qcCertifies ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (btIdToQuorumCert bt)) 
+      ≡ just (Abs.qCertBlockId q)
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
