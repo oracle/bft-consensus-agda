@@ -4,7 +4,8 @@ open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.Records 
     (ec : EpochConfig) 
-    (UID : Set) 
+    (UID : Set)
+    -- MSM: _≟UID_ and it us not used anywhere, are we expecting to use it?
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
  where
 
