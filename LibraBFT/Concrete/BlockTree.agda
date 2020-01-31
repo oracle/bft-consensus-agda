@@ -62,19 +62,16 @@ module LibraBFT.Concrete.BlockTree
   α-Block b with bdBlockType (bBlockData b)
   ...| NilBlock = record
        { bId     = bId b 
-       ; bAuthor = {!!} -- VCM: who's the author? the QC author?
        ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
        ; bRound  = bdRound (bBlockData b)
        }
   ...| Genesis = record
        { bId     = bId b 
-       ; bAuthor = {!!}
        ; bPrevQC = nothing
        ; bRound  = bdRound (bBlockData b)
        }
   ...| Proposal cmd α = record
        { bId     = bId b 
-       ; bAuthor = {!!} -- VCM: will need meta info to state α is a valid author!
        ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
        ; bRound  = bdRound (bBlockData b)
        }

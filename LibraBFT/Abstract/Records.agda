@@ -13,7 +13,6 @@ module LibraBFT.Abstract.Records
     constructor mkBlock
     field
       bId      : UID 
-      bAuthor  : Author ec
       bPrevQC  : Maybe UID -- 'nothing' indicates it extends the genesis block.
       bRound   : Round
       -- bResult : StateHash
