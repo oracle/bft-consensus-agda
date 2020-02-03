@@ -207,7 +207,11 @@ module LibraBFT.Concrete.BlockTree
     { btIdToBlock      = empty
     ; btIdToQuorumCert = empty
     }
+
 {-
+
+  -- This works for the B case of Correctness below, but need to simplify/generalize
+  -- ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ (α-Block <M$>_)) (sym (kvm-empty {k = Abs.bId b})) (<M$>-nothing {a = 0ℓ}{f = α-Block})))
 
   -- And now this is really trivial
   emptyBT-valid : ValidBT emptyBT
