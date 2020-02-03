@@ -3,15 +3,12 @@
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
 open import LibraBFT.Concrete.Network as NM
-open import LibraBFT.Concrete.Records
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Types
-open import LibraBFT.Global.Network
-
 
 open import Level
 
@@ -22,9 +19,10 @@ module LibraBFT.Global.ModelDraft
 
  postulate
    commandType : Set -- TODO: more temporary scaffolding
+   pki         : PKI
 
- open import LibraBFT.Concrete.EventProcessor hash hash-cr commandType
-
+ open import LibraBFT.Concrete.EventProcessor hash hash-cr pki commandType
+ open import LibraBFT.Concrete.Records pki
 
  open        LibraBFT.Global.Network.WithMsgType 
 
@@ -32,15 +30,19 @@ module LibraBFT.Global.ModelDraft
    constructor sysState
    field
      sentMessages    : SentMessages
-     eventProcessors : NodeId → EventProcessor
+     eventProcessors : PK → EventProcessor
  open SystemState
 
  initState : SystemState
- initState = sysState noMessages (λ nid → initEventProcessor (fakeNodeIdPK nid))
+ initState = sysState noMessages initEventProcessor
 
  -- TODO: create an event where any NodeID can send a vote in its current epoch with a higher round than last voted round
  --       create an event where any node that is not an honest author for an epoch can send an arbitrary vote for that epoch
  --       dishonest one knows it's dishonest, so it could prov
+
+ postulate
+   fakeUID : Set   -- This is ugly, necessitated by overly specific definition of lemmab1
+   _≟fakeUID_ : (u₀ u₁ : fakeUID) → Dec (u₀ ≡ u₁)
 
  data EventInitiator : EpochId → NodeId → Set where
    goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → EventInitiator eId nId

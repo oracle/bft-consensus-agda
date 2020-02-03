@@ -5,10 +5,13 @@ open import LibraBFT.Base.Encode
 
 module LibraBFT.Concrete.Types where
 
-  open import LibraBFT.Abstract.Types public
+  open import LibraBFT.Abstract.Types public hiding (Author)
 
   -- Create an EpochConfig for each epoch.  This is just for testing and facilitating progress on
   -- other stuff.
+
+  Author : Set
+  Author = NodeId
 
   fakeAuthorsN : ℕ
   fakeAuthorsN = 4
@@ -18,10 +21,16 @@ module LibraBFT.Concrete.Types where
   ...| yes xx = just (fromℕ≤ xx)
   ...| no  _  = nothing
 
-  postulate
-    fakeNodeIdPK : NodeId → PK
-    fakePKs      : Fin fakeAuthorsN → PK
-    fakePKsInj   : (x x₁ : Fin 4) (x₂ : fakePKs x ≡ fakePKs x₁) → x ≡ x₁
+  -- We want to associate PKs with all participants (not just those of the current epoch).  This is
+  -- so we can verify signatures on fraudulent messages pretending to be authors of an epoch for
+  -- accountability reasons, and also because that's what libra does.
+  record PKI : Set where
+    field
+      pkAuthor : NodeId → PK
+      pkInj    : ∀ (n₁ n₂ : NodeId)          -- Authors must have distinct public keys, otherwise a
+               → pkAuthor n₁ ≡ pkAuthor n₂   -- dishonest author can potentially impersonate an honest
+               → n₁ ≡ n₂                     -- author.
+  open PKI public
 
   fakeEC : EpochId → EpochConfig
   fakeEC eid = record {
@@ -32,9 +41,7 @@ module LibraBFT.Concrete.Types where
                ; seed              = 0
                ; ecInitialState    = dummyHash
                ; initialAgreedHash = dummyHash
+               ; isAuthor          = fakeAuthors
 
                }
-
-  postulate
-    fakePKI : (ec : EpochConfig) → PKI ec
 

@@ -51,21 +51,8 @@ module LibraBFT.Abstract.Types where
 
     Author     : Set
     Author     = Fin authorsN
-  open EpochConfig public
 
-  -- TODO: eventually we will want to associate PKs with all participants, not just those of the
-  -- current epoch.  This is so we can verify signatures on fraudulent messages pretending to be
-  -- authors of an epoch for accountability reasons, and also because that's what libra does.
-
-  -- Public Key Infrastructure for a given epoch.
-  record PKI (ec : EpochConfig) : Set where
     field
-      isAuthor : NodeId -> Maybe (Author ec)
-      pkAuthor : Author ec -> PK
-      pkInj    : ∀ (a₁ a₂ : Author ec)  -- Authors must have distinct public keys, otherwise a
-                                        -- dishonest author can potentially impersonate an honest
-                                        -- author.
-               → pkAuthor a₁ ≡ pkAuthor a₂
-               → a₁ ≡ a₂
-  open PKI public
+      isAuthor   : NodeId → Maybe Author   -- TODO: Arguably NodeId should be abstracted out here
 
+  open EpochConfig public

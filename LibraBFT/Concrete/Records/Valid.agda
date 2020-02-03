@@ -6,15 +6,17 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
 open import LibraBFT.Concrete.Util.KVMap
-open import LibraBFT.Concrete.Records
+open import LibraBFT.Concrete.Types
 
 import LibraBFT.Abstract.Types as Abs
 
 -- Proofs for validity of concrete records
 module LibraBFT.Concrete.Records.Valid 
     (ec  : Abs.EpochConfig)
-    (pki : Abs.PKI ec)
+    (pki : PKI)
   where
+
+ open import LibraBFT.Concrete.Records pki
 
  record IsValidQCAuthor (_ : Author × Signature) : Set where
    field

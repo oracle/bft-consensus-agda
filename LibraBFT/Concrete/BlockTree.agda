@@ -4,10 +4,9 @@ open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Concrete.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Concrete.Records
 
 module LibraBFT.Concrete.BlockTree
     -- A Hash function maps a bytestring into a hash.
@@ -17,13 +16,13 @@ module LibraBFT.Concrete.BlockTree
  
     -- We also need authorship and PKI information
     (ec  : EpochConfig)
-    (pki : PKI ec)
+    (pki : PKI)
     (CMD : Set) -- VCM: To be substituted by the command type
                 -- of an abstract state machine.
  where
 
   open import LibraBFT.Concrete.Util.KVMap
-  open import LibraBFT.Concrete.Records
+  open import LibraBFT.Concrete.Records pki
   import LibraBFT.Concrete.Records.Valid ec pki as Meta
 
   
