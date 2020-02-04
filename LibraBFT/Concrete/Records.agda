@@ -193,6 +193,7 @@ module LibraBFT.Concrete.Records (pki : PKI) where
    sig-Block : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (Block A)
    sig-Block = record
       { Signed         = Is-just ∘ bSignature 
+      ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (bSignature b)
       ; signature      = λ { _ prf → to-witness prf }
       ; signableFields = λ b → concat (encodeH (bId b) ∷ encode (bBlockData b) ∷ []) 
       }
@@ -202,6 +203,7 @@ module LibraBFT.Concrete.Records (pki : PKI) where
    sig-ProposalMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (ProposalMsg A)
    sig-ProposalMsg = record
       { Signed         = Signed         ∘ pmProposal 
+      ; isSigned?      = isSigned?      ∘ pmProposal
       ; signature      = signature      ∘ pmProposal 
       ; signableFields = signableFields ∘ pmProposal 
       }
@@ -213,6 +215,7 @@ module LibraBFT.Concrete.Records (pki : PKI) where
    sig-Vote : WithSig Vote
    sig-Vote = record 
       { Signed         = λ _ → Unit 
+      ; isSigned?      = λ _ → yes unit
       ; signature      = λ v _ → vSignature v 
       ; signableFields = λ v → concat {!!} 
       }
@@ -220,20 +223,22 @@ module LibraBFT.Concrete.Records (pki : PKI) where
    sig-VoteMsg : WithSig VoteMsg
    sig-VoteMsg = record
       { Signed         = Signed         ∘ vmVote
+      ; isSigned?      = isSigned?      ∘ vmVote
       ; signature      = signature      ∘ vmVote
       ; signableFields = signableFields ∘ vmVote
       }
 
    sig-commit : WithSig CommitMsg
    sig-commit = record
-     { Signed         = Is-just ∘ cSigMB 
-     ; signature      = λ { _ prf → to-witness prf }
-     ; signableFields = λ c → concat ( encode  (cEpochId c) 
-                                     ∷ encode  (cAuthor c) 
-                                     ∷ encode  (cRound c) 
-                                     ∷ encodeH (cCert c) 
-                                     ∷ []) 
-     }
+      { Signed         = Is-just ∘ cSigMB 
+      ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (cSigMB c)
+      ; signature      = λ { _ prf → to-witness prf }
+      ; signableFields = λ c → concat ( encode  (cEpochId c) 
+                                      ∷ encode  (cAuthor c) 
+                                      ∷ encode  (cRound c) 
+                                      ∷ encodeH (cCert c) 
+                                      ∷ []) 
+      }
 
   ---------------------------------------------------------
   -- Network Records whose signatures have been verified --

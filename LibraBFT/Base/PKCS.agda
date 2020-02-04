@@ -35,9 +35,9 @@ module LibraBFT.Base.PKCS where
  record WithSig (C : Set) : Set₁ where
    field
      -- A decidable predicate indicates whether values have
-     -- been signed (VCM: we might not need the decidable bit)
+     -- been signed 
      Signed         : C → Set
-     -- isSigned?      : (c : C) → Dec (Signed c)
+     isSigned?      : (c : C) → Dec (Signed c)
    
      -- Signed values must have a signature
      signature      : (c : C)(hasSig : Signed c) → Signature
@@ -61,3 +61,12 @@ module LibraBFT.Base.PKCS where
      verified  : verify (signableFields c) (signature c isSigned) verWithPK
                ≡ true
  
+ check-signature : {C : Set} ⦃ ws : WithSig C ⦄ → PK → (c : C) → Maybe (WithVerSig c)
+ check-signature pk c with isSigned? c
+ ...| no  _  = nothing
+ ...| yes sc with verify (signableFields c) (signature c sc) pk
+                | inspect (verify (signableFields c) (signature c sc)) pk
+ ...| false |   _   = nothing
+ ...| true  | [ R ] = just (record { isSigned  = sc 
+                                   ; verWithPK = pk 
+                                   ; verified  = R })

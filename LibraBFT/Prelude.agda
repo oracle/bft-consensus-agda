@@ -6,6 +6,9 @@ module LibraBFT.Prelude where
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
     public
   
+  open import Agda.Builtin.Unit
+    public
+
   open import Data.Unit.NonEta 
     public
 
@@ -73,7 +76,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Maybe.Relation.Unary.Any
-    renaming (Any to Maybe-Any)
+    renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
     hiding (map; zip; zipWith; unzip ; unzipWith)
     public
 
@@ -160,6 +163,7 @@ module LibraBFT.Prelude where
   <M$>-nothing : ∀ {a b}{A : Set a}{B : Set b}{f : A → B}
                → f <M$> nothing ≡ nothing
   <M$>-nothing = refl
+
   _<⊎$>_ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c} 
          → (A → B) → C ⊎ A → C ⊎ B
   f <⊎$> (inj₁ hb) = inj₁ hb
