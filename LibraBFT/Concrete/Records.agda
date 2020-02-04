@@ -12,6 +12,13 @@ open import LibraBFT.Concrete.Util.KVMap
 -- This is our clone of Libra/Consensus/Types.hs
 module LibraBFT.Concrete.Records (pki : PKI) where
 
+  -- TODO:
+  -- VCM: Think about this; wy not make /Meta/ into something like
+  -- the IO monad? No comming out of it!
+  postulate
+    Meta : Set → Set
+    onMeta : {A B : Set} → (A → B) → Meta A → Meta B
+
   HashValue : Set
   HashValue = Hash
 
@@ -27,12 +34,15 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       biId    : HashValue
       -- VCM: this has more fields...
   open BlockInfo public
+  postulate instance enc-BlockInfo : Encoder BlockInfo
 
   record LedgerInfo : Set where
     constructor mkLedgerInfo
     field
       liCommitInfo        : BlockInfo
       liConsensusDataHash : HashValue
+  postulate instance enc-LedgerInfo : Encoder LedgerInfo
+
 
   record LedgerInfoWithSignatures : Set where
     constructor mkLedgerInfoWithSignatures
@@ -40,6 +50,8 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       liwsLedgerInfo : LedgerInfo
       liwsSignatures : KVMap Author Signature
   open LedgerInfoWithSignatures public
+  postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
+
 
   -------------------
   -- Votes and QCs --
@@ -51,35 +63,21 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       vdProposed : BlockInfo -- VCM-QUESTION: what's the difference?
       vdParent   : BlockInfo
   open VoteData public
+  postulate instance enc-VoteData : Encoder VoteData
 
-  -- VCM: Think about this; wy not make /Meta/ into something like
-  -- the IO monad? No comming out of it!
-  postulate
-    Meta : Set → Set
-    onMeta : {A B : Set} → (A → B) → Meta A → Meta B
-    
   record Vote : Set where
     constructor mkVote
     field
       vVoteData         : VoteData
       vAuthor           : Author
       vLedgerInfo       : LedgerInfo
-      -- VCM-QUESTION: If we are handling signatures explicitely; what's the use
-      --      of LibraBFT.Base.PKCS? Are we just gonna drop a general
-      --       signature verification and write a different one per record type?
-
-      -- MSM: Yes, I think so.  We'll need to write an Encoder instance for each message that's
-      --      signed, which makes explicit which fields are encoded and concatenated before hashing.
-      --      Note v3's non-uniform treatment of records and signatures (e.g., some have Maybe
-      --      Signature, some---such as Vote, see below---potentially have multiple Signatures).
-      --      This, along with the small number of record types, suggests that the full generality
-      --      we'd prefer will be more trouble than it's worth.  That said, think some uniform
-      --      structure will still be possible and helpful.
       vSignature        : Signature
       vTimeoutSignature : Maybe Signature
 
       -- The algo should never /read/ metadata. 
       vOrderMeta        : Meta ℕ
+  open Vote public
+  postulate instance enc-Vote : Encoder Vote
 
   record QuorumCert : Set where
     constructor mkQuorumCert
@@ -87,6 +85,7 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       qcVoteData         : VoteData
       qcSignedLedgerInfo : LedgerInfoWithSignatures
   open QuorumCert public
+  postulate instance enc-QuorumCert : Encoder QuorumCert
 
   qcVotesKV : QuorumCert → KVMap Author Signature
   qcVotesKV qc = liwsSignatures (qcSignedLedgerInfo qc)
@@ -105,6 +104,7 @@ module LibraBFT.Concrete.Records (pki : PKI) where
     Proposal : A → Author → BlockType A
     NilBlock : BlockType A
     Genesis  : BlockType A
+  postulate instance enc-BlockType : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (BlockType A)
 
   record BlockData (A : Set) : Set where
     constructor mkBlockData
@@ -119,32 +119,23 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       -- VCM-QUESTION: I don't think we need this here...
       -- bdTimeStamp : Instant 
   open BlockData public
+  postulate instance enc-BlockData : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (BlockData A)
 
-
-  -- MSM: Note that this and other types here are redundant with things in Concrete.Types.  I had
-  -- started adding types there as needed (so far) with the idea that that file would mirror the
-  -- Haskell types in Libra.Consensus.Types, just for making it easier to review the Haskell and
-  -- Agda and confirm we have a good model.  I think we should stick with that, but can imagine
-  -- there could be arguments against it.  In any case, we should not have duplication of these
-  -- types!
+  -- MSM: They use 'nothing' as the 'bSignature' when constructing a block to sign later.  This can be seen in the
+  -- Haskell code at EventProcessor.hs:95-100 (commit f497bf9).  I think they also use "nothing"
+  -- for the genesis block; this is based on what I see in genesis-block-store.txt, line 81
+  -- (same commit).  Finally, "nil" blocks are not signed because they are produced
+  -- independently by different validators.  IIRC, this is to enable committing after an
+  -- epoch-changing command is processed: we cannot add more commands, but we need to add some
+  -- quorum certificates in order to commit the epoch-changing command.
   record Block (A : Set) : Set where
     constructor mkBlock
     field
       bId        : HashValue
       bBlockData : BlockData A
-      -- VCM-QUESTION: Similar concern about signatures 
-      -- VCM-QUESTION: Why is this a maybe? in which situation
-      -- are we not signing blocks?
-
-      -- MSM: They use 'nothing' when constructing a block to sign later.  This can be seen in the
-      -- Haskell code at EventProcessor.hs:95-100 (commit f497bf9).  I think they also use "nothing"
-      -- for the genesis block; this is based on what I see in genesis-block-store.txt, line 81
-      -- (same commit).  Finally, "nil" blocks are not signed because they are produced
-      -- independently by different validators.  IIRC, this is to enable committing after an
-      -- epoch-changing command is processed: we cannot add more commands, but we need to add some
-      -- quorum certificates in order to commit the epoch-changing command.
       bSignature : Maybe Signature
   open Block public
+  postulate instance enc-Block : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (Block A)
 
   ----------------------
   -- Network Messages --
@@ -156,23 +147,23 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       siHighestQuorumCert  : QuorumCert
       siHighestCommitCert  : QuorumCert
       -- siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define 
+  postulate instance enc-SyncInfo : Encoder SyncInfo
 
   record ProposalMsg (A : Set) : Set where
     constructor mkProposalMsg
     field
       pmProposal : Block A
-      -- VCM-QUESTION: Are we sending SyncInfos in Agda too?
-      -- Maybe we should since these seem to trigger some
-      -- actions on the state, such as changinghigh_qc.
-      -- MSM: I do not understand the question.  But, I know the
-      -- answer :-).  Follow the Haskell/Rust code we aim to verify.
       pmSyncInfo : SyncInfo
+  open ProposalMsg public
+  postulate instance enc-ProposalMsg : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (ProposalMsg A)
 
   record VoteMsg : Set where
     constructor  mkVoteMsg
     field
       vmVote     : Vote
-      mmSyncInfo : SyncInfo
+      vmSyncInfo : SyncInfo
+  open VoteMsg public
+  postulate instance enc-VoteMsg : Encoder VoteMsg
 
   -- This is a notification of a commit.  I don't think it's explicitly included in the Haskell/Rust
   -- code, but we need something to be able to express correctness conditions with.  It will
@@ -184,152 +175,73 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       cAuthor  : NodeId
       cRound   : Round
       cCert    : Hash
+      cSigMB   : Maybe Signature
   open CommitMsg public
+  postulate instance enc-CommitMsg : Encoder CommitMsg
 
   data NetworkMsg (A : Set) : Set where
     P : ProposalMsg A → NetworkMsg A
     V : VoteMsg       → NetworkMsg A
     C : CommitMsg     → NetworkMsg A
 
+  -----------------------------------------------------------------------
+  -- Proof that network records are signable and may carry a signature --
+  -----------------------------------------------------------------------
 
-{---
-
-VCM: OLD COLD CODE
-
--- These types should eventually mirror Libra/Consensus/Types.hs
-module LibraBFT.Concrete.Records where
-
-  -- All the other records will draw their authors from
-  -- a given Set. They are named with a 'B' prefix standing for
-  -- 'Basic' records.
-  record BlockProposal  : Set where
-    constructor mkBlock
-    field
-      bEpochId    : EpochId
-      bAuthor     : NodeId
-      bCommand    : Command
-      bPrevQCHash : QCHash
-      bRound      : Round
-  open BlockProposal public
-
-  record Vote  : Set where
-    constructor mkVote
-    field
-      vEpochId   : EpochId
-      vAuthor    : NodeId
-      vBlockHash : BlockHash
-      vRound     : Round
-      --vState     : State
-  open Vote public
-
-  record QC (votes : Set) : Set where
-   field
-     qEpochId       : EpochId
-     qAuthor        : NodeId
-     qBlockHash     : BlockHash
-     qRound         : Round
-     qVotes         : List votes
-     --qState         : State
-  open QC public
-
-  record Timeout : Set where
-    constructor mkTimeout
-    field
-      toAuthor  : NodeId
-      toRound   : Round
-  open Timeout public
-
-  postulate
-   instance
-     encBlock  : Encoder BlockProposal
-     encVote   : Encoder Vote
-     encQC     : ∀{V}⦃ encV : Encoder V ⦄ → Encoder (QC V)
-     encCN     : Encoder CN
-     encTO     : Encoder Timeout
-
-  --------------------------
-  -- Easy Field Accessors --
-
-  record IsLibraBFTRecord (A : Set) : Set where
-    constructor is-librabft-record
-    field
-      getAuthor : A → NodeId
-      getRound  : A → Round
-      getPrev   : A → Hash
-      getEpoch  : A → EpochId
-  open IsLibraBFTRecord {{...}} public
-
-  instance
-    ibrBlock : IsLibraBFTRecord BlockProposal
-    ibrBlock = is-librabft-record bAuthor bRound bPrevQCHash bEpochId
-
-    ibrQC : ∀{V} → IsLibraBFTRecord (QC V)
-    ibrQC = is-librabft-record qAuthor qRound qBlockHash qEpochId
-
-    ibrCN : IsLibraBFTRecord CN
-    ibrCN = is-librabft-record cAuthor cRound cCert cEpochId
-
-    ibrVote : IsLibraBFTRecord Vote
-    ibrVote = is-librabft-record vAuthor vRound vBlockHash vEpochId
-
-    ibrSigned : ∀{X}⦃ ibr : IsLibraBFTRecord X ⦄ ⦃ encX : Encoder X ⦄ → IsLibraBFTRecord (Signed X)
-    ibrSigned ⦃ is-librabft-record a b c d ⦄
-      = is-librabft-record (a ∘ content) (b ∘ content) (c ∘ content) (d ∘ content)
-
-    ibrVSigned : ∀{X}⦃ ibr : IsLibraBFTRecord X ⦄ ⦃ encX : Encoder X ⦄ → IsLibraBFTRecord (VerSigned X)
-    ibrVSigned ⦃ is-librabft-record a b c d ⦄
-      = is-librabft-record (a ∘ content) (b ∘ content) (c ∘ content) (d ∘ content)
-
-  ----------------------
-  -- Verified Records --
+  instance 
+   -- A Block might carry a signature
+   sig-Block : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (Block A)
+   sig-Block = record
+      { Signed         = Is-just ∘ bSignature 
+      ; signature      = λ { _ prf → to-witness prf }
+      ; signableFields = λ b → concat (encodeH (bId b) ∷ encode (bBlockData b) ∷ []) 
+      }
   
-  -- Note that besides verification of signatures, we also
-  -- prove that the author belongs in a set of valid authors
-  module VerifiedRecords (ec : EpochConfig)(pki : PKI ec) where
+   -- A proposal message might carry a signature inside the block it
+   -- is proposing.
+   sig-ProposalMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (ProposalMsg A)
+   sig-ProposalMsg = record
+      { Signed         = Signed         ∘ pmProposal 
+      ; signature      = signature      ∘ pmProposal 
+      ; signableFields = signableFields ∘ pmProposal 
+      }
 
-   data Record : Set where
-     B : ∀{α} (r : VerSigned BlockProposal)
-       → isAuthor pki (getAuthor r) ≡ just α
-       → verWithPK r ≡ pkAuthor pki α
-       → Record
-     V : ∀{α} (r : VerSigned Vote)                 
-       → isAuthor pki (getAuthor r) ≡ just α
-       → verWithPK r ≡ pkAuthor pki α
-       → Record
-     -- QUESTION: Wait... the abstract QC has no author, but the concrete one
-     -- does right? otherwise, who signs it? Or are we never going to
-     -- transmit them?
-     Q : ∀{α} (r : VerSigned (QC (VerSigned Vote))) 
-       → isAuthor pki (getAuthor r) ≡ just α
-       → verWithPK r ≡ pkAuthor pki α
-       → Record
-     C : ∀{α} (r : VerSigned CN)                    
-       → isAuthor pki (getAuthor r) ≡ just α
-       → verWithPK r ≡ pkAuthor pki α
-       → Record
-     T : ∀{α} (r : VerSigned Timeout)               
-       → isAuthor pki (toAuthor (content r)) ≡ just α
-       → verWithPK r ≡ pkAuthor pki α
-       → Record
+   -- A vote is always signed; as seen by the 'Unit'
+   -- on the definition of Signed.
+   -- VCM-QUESTION: What are the signable fields? What do we
+   -- do with timeoutSignature?
+   sig-Vote : WithSig Vote
+   sig-Vote = record 
+      { Signed         = λ _ → Unit 
+      ; signature      = λ v _ → vSignature v 
+      ; signableFields = λ v → concat {!!} 
+      }
 
-   -- VCM: LibraBFT.Concrete.RecordStoreState.HashR, which hashes
-   --      a record, is defined in terms of this encoder.
-   --      This is why we explicitely REMOVE the signature from
-   --      this bytestring or define HashR differently.
-   --      The end of Section 4.1 (libra v1 paper) indicates 
-   --      signatures are /not/ part of the hash of records.
-   encodeRecord : Record → ByteString
-   encodeRecord (B r _ _) = encode (content r)
-   encodeRecord (V r _ _) = encode (content r)
-   encodeRecord (Q r _ _) = encode (content r)
-   encodeRecord (C r _ _) = encode (content r)
-   encodeRecord (T r _ _) = encode (content r)
+   sig-VoteMsg : WithSig VoteMsg
+   sig-VoteMsg = record
+      { Signed         = Signed         ∘ vmVote
+      ; signature      = signature      ∘ vmVote
+      ; signableFields = signableFields ∘ vmVote
+      }
 
-   vrAuthor : Record → Author ec
-   vrAuthor (B {α} _ _ _) = α
-   vrAuthor (V {α} _ _ _) = α
-   vrAuthor (Q {α} _ _ _) = α
-   vrAuthor (C {α} _ _ _) = α
-   vrAuthor (T {α} _ _ _) = α
+   sig-commit : WithSig CommitMsg
+   sig-commit = record
+     { Signed         = Is-just ∘ cSigMB 
+     ; signature      = λ { _ prf → to-witness prf }
+     ; signableFields = λ c → concat ( encode  (cEpochId c) 
+                                     ∷ encode  (cAuthor c) 
+                                     ∷ encode  (cRound c) 
+                                     ∷ encodeH (cCert c) 
+                                     ∷ []) 
+     }
 
--}
+  ---------------------------------------------------------
+  -- Network Records whose signatures have been verified --
+  ---------------------------------------------------------
+
+  data VerNetworkMsg (A : Set) ⦃ encA : Encoder A ⦄ : Set where
+    P : (p : ProposalMsg A) → WithVerSig p → VerNetworkMsg A
+    V : (v : VoteMsg)       → WithVerSig v → VerNetworkMsg A
+    C : (c : CommitMsg)     → WithVerSig c → VerNetworkMsg A
+
+

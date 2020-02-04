@@ -72,6 +72,11 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  open import Data.Maybe.Relation.Unary.Any
+    renaming (Any to Maybe-Any)
+    hiding (map; zip; zipWith; unzip ; unzipWith)
+    public
+
   open import Data.Maybe.Properties
     using (just-injective)
     public
