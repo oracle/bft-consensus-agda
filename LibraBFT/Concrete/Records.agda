@@ -244,6 +244,8 @@ module LibraBFT.Concrete.Records (pki : PKI) where
   -- Network Records whose signatures have been verified --
   ---------------------------------------------------------
 
+  -- VCM: TODO: need to make sure messages were verified
+  --            with the proper public key, no?
   data VerNetworkMsg (A : Set) ⦃ encA : Encoder A ⦄ : Set where
     P : (p : ProposalMsg A) → WithVerSig p → VerNetworkMsg A
     V : (v : VoteMsg)       → WithVerSig v → VerNetworkMsg A
