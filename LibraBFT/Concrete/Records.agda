@@ -239,25 +239,54 @@ module LibraBFT.Concrete.Records (pki : PKI) where
                                       ∷ []) 
       }
 
-   postulate
-     sig-networkMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (NetworkMsg A)
-
-{-
-   -- MSM: I postulated the above because I could not think of an elegant way to
-   -- use the instances for individual message types to create one for NetworkMsg.  Victor?
-
-   sig-networkMsg = record
-                       { Signed         = λ { (P p) → {!!} ; (V v) → {!!} ; (C c) → {!!} }
-                       ; isSigned?      = {!!}
-                       ; signature      = {!!}
-                       ; signableFields = {!!}
-                       }
--}
-
   ---------------------------------------------------------
   -- Network Records whose signatures have been verified --
   ---------------------------------------------------------
 
+  -- First we have to have some boilerplate to pattern match
+  -- on the type of message to access the 'WithSig' instance
+  -- on the fields... a bit ugly, but there's no other way, really...
+  private
+    SignedNM : {A : Set} ⦃ encA : Encoder A ⦄ → NetworkMsg A → Set
+    SignedNM (P x) = Signed x
+    SignedNM (V x) = Signed x
+    SignedNM (C x) = Signed x
+
+    isSignedNM? : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+                → Dec (SignedNM nm)
+    isSignedNM? (P x) = isSigned? x
+    isSignedNM? (V x) = isSigned? x
+    isSignedNM? (C x) = isSigned? x
+
+    signatureNM  : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+                 → SignedNM nm → Signature
+    signatureNM (P x) prf = signature x prf
+    signatureNM (V x) prf = signature x prf
+    signatureNM (C x) prf = signature x prf
+
+    signableFieldsNM : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+                     → ByteString
+    signableFieldsNM (P x) = signableFields x
+    signableFieldsNM (V x) = signableFields x
+    signableFieldsNM (C x) = signableFields x
+
+  -- Finally, we hide those ugly auxiliar functions away in a 'private' block
+  -- in favor of a neat instance:
+  instance
+    sig-NetworkMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (NetworkMsg A)
+    sig-NetworkMsg = record
+      { Signed         = SignedNM
+      ; isSigned?      = isSignedNM?
+      ; signature      = signatureNM
+      ; signableFields = signableFieldsNM
+      }
+
+  -- Now, we can have a more concise type of verified messages; 
+  -- I think I prefer the old version, though... not sure
+  VerNetworkMsg : (A : Set) ⦃ encA : Encoder A ⦄ → Set
+  VerNetworkMsg A = Σ (NetworkMsg A) WithVerSig
+
+{-
   -- VCM: TODO: need to make sure messages were verified
   --            with the proper public key, no?
   -- MSM: Yes, but it's not clear to me if it should be done here.
@@ -271,5 +300,6 @@ module LibraBFT.Concrete.Records (pki : PKI) where
     P : (p : ProposalMsg A) → WithVerSig p → VerNetworkMsg A
     V : (v : VoteMsg)       → WithVerSig v → VerNetworkMsg A
     C : (c : CommitMsg)     → WithVerSig c → VerNetworkMsg A
+-}
 
-
+  
