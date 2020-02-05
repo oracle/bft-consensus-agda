@@ -106,8 +106,8 @@ module LibraBFT.Global.ModelDraft
               → (C c₂) ∈SM (sentMessages ss)
               → is-just (check-signature (pkAuthor pki (cAuthor c₁)) c₁) ≡ true
               → is-just (check-signature (pkAuthor pki (cAuthor c₂)) c₂) ≡ true
-              → isAuthor (fakeEC eId) (cAuthor c₁) ≡ just α₁
-              → isAuthor (fakeEC eId) (cAuthor c₂) ≡ just α₂
+              → isAuthor (fakeEC (cEpochId c₁)) (cAuthor c₁) ≡ just α₁
+              → isAuthor (fakeEC (cEpochId c₂)) (cAuthor c₂) ≡ just α₂
               → Honest (fakeEC (cEpochId c₁)) fakeUID _≟fakeUID_ α₁
               → Honest (fakeEC (cEpochId c₂)) fakeUID _≟fakeUID_ α₂
               → cEpochId c₁ ≡ cEpochId c₂
