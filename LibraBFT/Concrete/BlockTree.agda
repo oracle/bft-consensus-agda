@@ -79,11 +79,12 @@ module LibraBFT.Concrete.BlockTree
          → ∀ {as}
          → as ∈ qcVotes qc
          → Abs.Vote
-  α-Vote qc v {author , sig} as∈QC = record
+  α-Vote qc v {author , sig , ord} as∈QC = record
     { vAuthor   = Meta.ivaIdx (All-lookup (Meta.ivqcValidAuthors v) as∈QC)
     ; vBlockUID = biId (vdProposed (qcVoteData qc))
     ; vRound    = biRound (vdProposed (qcVoteData qc))
-    ; vOrder    = {!!} -- VCM: here's the cliff hanger!
+    ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
+                                     --      ord in here Agda will reject.
     }
 
   α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC

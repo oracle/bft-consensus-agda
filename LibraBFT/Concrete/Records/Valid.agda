@@ -18,7 +18,7 @@ module LibraBFT.Concrete.Records.Valid
 
  open import LibraBFT.Concrete.Records pki
 
- record IsValidQCAuthor (_ : Author × Signature) : Set where
+ record IsValidQCAuthor (_ : Author) : Set where
    field
      ivaIdx : Abs.Author ec
  open IsValidQCAuthor public
@@ -26,7 +26,7 @@ module LibraBFT.Concrete.Records.Valid
  record IsValidQC (qc : QuorumCert) : Set where
    field
      ivqcSizeOk       : Abs.QuorumSize ec ≤ length (qcVotes qc)
-     ivqcValidAuthors : All IsValidQCAuthor (qcVotes qc)
+     ivqcValidAuthors : All (IsValidQCAuthor ∘ proj₁) (qcVotes qc)
  open IsValidQC public
    
      -- TODO: Add fields as we need them

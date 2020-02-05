@@ -9,21 +9,37 @@ module LibraBFT.Abstract.Types where
   
   open import LibraBFT.Base.Types public
 
-  -- VCM: After our discussion about vote order; I propose
-  -- we make it into a postulate. Naturally, as the name suggests,
-  -- it must have some sort of order raltion; also inacessible.
+  -- The abstract model might need access to meta information that
+  -- comes from the concrete model; To ensure we do not /read/
+  -- metainformation without thinking about it, we will put it in
+  -- a monad just like Haskell's IO; we call it Meta.
+  --
+  -- Abstract blocks are used to define constructs that we do /not/
+  -- want to reduce outside their block. Their purpose is
+  -- to speed typechecking or separate concerns. Outside of the
+  -- abstract block, all definitions are treated as postulates;
+  -- think of them as typechecked postulates.
+  abstract
+    Meta : Set → Set
+    Meta x = x
 
-  -- MSM: But then how can we create values of this type in the concrete model?
-  --      I am making it ℕ for now.  Of course, this makes it accessible to those
-  --      that shouldn't access it, but I think that should be addressed by convention,
-  --      e.g. naming fields of this type with an AUX suffix, enabling searching and
-  --      careful examination of each use to ensure it's not accessed where it shouldn't be.
+    unsafeReadMeta : {X : Set} → Meta X → X
+    unsafeReadMeta x = x
 
-  {- 
-  postulate
-    VoteOrder : Set
-    _<VO_     : VoteOrder → VoteOrder → Set
-   -}
+    meta : {X : Set} → X → Meta X
+    meta x = x
+
+    Meta-map : {X Y : Set} → (X → Y) → Meta X → Meta Y
+    Meta-map f x = f x
+
+    Meta-bind : {X Y : Set} → Meta X → (X → Meta Y) → Meta Y
+    Meta-bind x f = f x
+
+  -- VoteOrder is a natural number, but the concrete model
+  -- treats it as a 'Meta' concept. We don't want to put it
+  -- inside the Meta-monad on the abstract model since we constantly 
+  -- use it in abstract-land; if we encapsulated if in Meta we'd
+  -- have to use 'unsafeReadMeta' everywhere. 
   VoteOrder : Set
   VoteOrder = ℕ
 

@@ -14,13 +14,6 @@ open import LibraBFT.Concrete.Util.KVMap
 -- This is our clone of Libra/Consensus/Types.hs
 module LibraBFT.Concrete.Records (pki : PKI) where
 
-  -- TODO:
-  -- VCM: Think about this; wy not make /Meta/ into something like
-  -- the IO monad? No comming out of it!
-  postulate
-    Meta : Set → Set
-    onMeta : {A B : Set} → (A → B) → Meta A → Meta B
-
   HashValue : Set
   HashValue = Hash
 
@@ -50,7 +43,10 @@ module LibraBFT.Concrete.Records (pki : PKI) where
     constructor mkLedgerInfoWithSignatures
     field
       liwsLedgerInfo : LedgerInfo
-      liwsSignatures : KVMap Author Signature
+      -- VCM: We also need vote orders in here, given that
+      -- when a QC is sent, it contains agregated 'VoteData's, but
+      -- not 'Vote'
+      liwsSignatures : KVMap Author (Signature × Meta VoteOrder)
   open LedgerInfoWithSignatures public
   postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
 
@@ -76,8 +72,9 @@ module LibraBFT.Concrete.Records (pki : PKI) where
       vSignature        : Signature
       vTimeoutSignature : Maybe Signature
 
-      -- The algo should never /read/ metadata. 
-      vOrderMeta        : Meta ℕ
+      -- The algo should never /read/ vote order, so we place it
+      -- in the Meta monad. 
+      vOrder            : Meta VoteOrder
   open Vote public
   postulate instance enc-Vote : Encoder Vote
 
@@ -89,10 +86,10 @@ module LibraBFT.Concrete.Records (pki : PKI) where
   open QuorumCert public
   postulate instance enc-QuorumCert : Encoder QuorumCert
 
-  qcVotesKV : QuorumCert → KVMap Author Signature
+  qcVotesKV : QuorumCert → KVMap Author (Signature × Meta VoteOrder)
   qcVotesKV qc = liwsSignatures (qcSignedLedgerInfo qc)
 
-  qcVotes : QuorumCert → List (Author × Signature)
+  qcVotes : QuorumCert → List (Author × Signature × Meta VoteOrder)
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
   qcCertifies : QuorumCert → Hash
