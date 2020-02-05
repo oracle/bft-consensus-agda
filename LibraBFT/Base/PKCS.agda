@@ -60,6 +60,7 @@ module LibraBFT.Base.PKCS where
      verWithPK : PK
      verified  : verify (signableFields c) (signature c isSigned) verWithPK
                ≡ true
+ open WithVerSig public
  
  check-signature : {C : Set} ⦃ ws : WithSig C ⦄ → PK → (c : C) → Maybe (WithVerSig c)
  check-signature pk c with isSigned? c

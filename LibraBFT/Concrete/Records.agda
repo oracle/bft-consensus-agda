@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
@@ -240,12 +242,34 @@ module LibraBFT.Concrete.Records (pki : PKI) where
                                       ∷ []) 
       }
 
+   postulate
+     sig-networkMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (NetworkMsg A)
+
+{-
+   -- MSM: I postulated the above because I could not think of an elegant way to
+   -- use the instances for individual message types to create one for NetworkMsg.  Victor?
+
+   sig-networkMsg = record
+                       { Signed         = λ { (P p) → {!!} ; (V v) → {!!} ; (C c) → {!!} }
+                       ; isSigned?      = {!!}
+                       ; signature      = {!!}
+                       ; signableFields = {!!}
+                       }
+-}
+
   ---------------------------------------------------------
   -- Network Records whose signatures have been verified --
   ---------------------------------------------------------
 
   -- VCM: TODO: need to make sure messages were verified
   --            with the proper public key, no?
+  -- MSM: Yes, but it's not clear to me if it should be done here.
+  --      See the example use in ModelDraft.agda, where this check
+  --      is done externally to VerNetworkMsg.  I think it probably
+  --      makes sense to keep VerNetworkMsg independent of where
+  --      public keys come from, but I don't feel strongly
+  --      about it, so you can factor it in here if you think that's best.
+
   data VerNetworkMsg (A : Set) ⦃ encA : Encoder A ⦄ : Set where
     P : (p : ProposalMsg A) → WithVerSig p → VerNetworkMsg A
     V : (v : VoteMsg)       → WithVerSig v → VerNetworkMsg A

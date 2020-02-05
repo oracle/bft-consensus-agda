@@ -17,14 +17,20 @@ module LibraBFT.Global.ModelDraft
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
 
+ -- TODO: more temporary scaffolding
  postulate
-   commandType : Set -- TODO: more temporary scaffolding
+   commandType : Set
    pki         : PKI
+   instance
+     encCmd : Encoder commandType
 
  open import LibraBFT.Concrete.EventProcessor hash hash-cr pki commandType
  open import LibraBFT.Concrete.Records pki
 
- open        LibraBFT.Global.Network.WithMsgType 
+ NtwkMsg : Set
+ NtwkMsg = NetworkMsg commandType
+
+ open        LibraBFT.Global.Network.WithMsgType NtwkMsg
 
  record SystemState : Set where
    constructor sysState
@@ -45,13 +51,14 @@ module LibraBFT.Global.ModelDraft
    _≟fakeUID_ : (u₀ u₁ : fakeUID) → Dec (u₀ ≡ u₁)
 
  data EventInitiator : EpochId → NodeId → Set where
-   goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                               → EventInitiator eId nId
-   notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                → EventInitiator eId nId
-   badAuthor  : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId → ¬ (Honest (fakeEC eId) aId) → EventInitiator eId nId
+   goodAuthor : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId                                                  → EventInitiator eId nId
+   notAuthor  : ∀       (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ nothing                                                   → EventInitiator eId nId
+   badAuthor  : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId → ¬ (Honest (fakeEC eId) fakeUID _≟fakeUID_ aId) → EventInitiator eId nId
+
 
  data Enabled : ∀ {eId} {nId} → SystemState → EventInitiator eId nId → Set where
-   spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId)                                              → Enabled ps e
-   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NetworkMsg) → n ∈SM (sentMessages ps) → Enabled ps e
+   spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId)                                        → Enabled ps e
+   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NtwkMsg) → n ∈SM (sentMessages ps) → Enabled ps e
    -- TODO: TIMEOUT (maybe model as special NetworkRecord?)
 
  -- MSM: the following is bogus and cannot exist in reality, it's just for making progress before
@@ -63,7 +70,7 @@ module LibraBFT.Global.ModelDraft
  -- A fake action that spontaneously "broadcasts" a commit message.
  -- Currently it broadcasts the same commit every time, so no problem.  Later I want to make it so dishonest authors
  -- can send commits that break the rules but honest ones can't.
- Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) = ?
+ Step {ps}{eId} {nId} (goodAuthor {aId} eId nId isAuth) (spontaneous e) = {!!}
 {-   let cm  = mkCommitMsg eId nId 0 dummyHash
        scm = signed cm (sign (encode cm) (proj₁ (fakeKeyPair (pubKeyForNode nId))))
    in record ps { sentMessages = sendMsg (sentMessages ps) (wire Broadcast (C scm)) }
@@ -88,22 +95,23 @@ module LibraBFT.Global.ModelDraft
   -- key, and both are for the same round, then they both say to commit the same thing (commit
   -- certificate).
 
-  Correctness : ∀ {ss : SystemState} {c₁} {c₂} {eId : EpochId} {α₁} {α₂}
+  -- MSM: Note that we assume messages can be reordered and/or duplicated and/or dropped.  If we
+  -- apply this also to CommitMsgs, then a client cannot rely on them being received in order, even
+  -- if they are sent in order. Therefore the correctness condition says only that CommitMsgs
+  -- sent by honest participants are consistent with each other.
+
+  Correctness : ∀ {ss : SystemState} {c₁ c₂ : CommitMsg} {α₁ α₂}
               → ReachableSystemState ss
-              → c₁ ∈SM (sentMessages ss)
-              → c₂ ∈SM (sentMessages ss)
-              → {vs₁ : VerSigned Commit}
-              → {vs₂ : VerSigned Commit}
-              → {pk₁ : verWithPK vs₁ ≡ pubKeyForNode (getAuthor vs₁)}
-              → {pk₂ : verWithPK vs₂ ≡ pubKeyForNode (getAuthor vs₂)}
-              → check-signature-and-format (content c₁) ≡ just (C vs₁ pk₁)
-              → check-signature-and-format (content c₂) ≡ just (C vs₂ pk₂)
-              → getEpochId vs₁ ≡ eId
-              → getEpochId vs₂ ≡ eId
-              → isAuthor (fakeEC eId) (getAuthor vs₁) ≡ just α₁
-              → isAuthor (fakeEC eId) (getAuthor vs₂) ≡ just α₂
-              → Honest (fakeEC (getEpochId vs₁)) α₁
-              → Honest (fakeEC (getEpochId vs₂)) α₂
-              → getRound vs₁ ≡ getRound vs₂
-              → getPrevHash vs₁ ≡ getPrevHash vs₂
+              → (C c₁) ∈SM (sentMessages ss)
+              → (C c₂) ∈SM (sentMessages ss)
+              → is-just (check-signature (pkAuthor pki (cAuthor c₁)) c₁) ≡ true
+              → is-just (check-signature (pkAuthor pki (cAuthor c₂)) c₂) ≡ true
+              → isAuthor (fakeEC eId) (cAuthor c₁) ≡ just α₁
+              → isAuthor (fakeEC eId) (cAuthor c₂) ≡ just α₂
+              → Honest (fakeEC (cEpochId c₁)) fakeUID _≟fakeUID_ α₁
+              → Honest (fakeEC (cEpochId c₂)) fakeUID _≟fakeUID_ α₂
+              → cEpochId c₁ ≡ cEpochId c₂
+              → cRound   c₁ ≡ cRound   c₂
+                ---------------------
+              → cCert  c₁ ≡ cCert  c₂
   Correctness = {!!}
