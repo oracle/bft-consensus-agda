@@ -160,9 +160,9 @@ module LibraBFT.Prelude where
          → Maybe A → Maybe B
   _<M$>_ = Maybe-map
 
-  <M$>-nothing : ∀ {a b}{A : Set a}{B : Set b}{f : A → B}
+  <M$>-nothing : ∀ {a b}{A : Set a}{B : Set b}(f : A → B)
                → f <M$> nothing ≡ nothing
-  <M$>-nothing = refl
+  <M$>-nothing _ = refl
 
   _<⊎$>_ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c} 
          → (A → B) → C ⊎ A → C ⊎ B

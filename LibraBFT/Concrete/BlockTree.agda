@@ -202,27 +202,49 @@ module LibraBFT.Concrete.BlockTree
 
 
   emptyBT : BlockTree
-  emptyBT = record 
+  emptyBT = record
     { btIdToBlock      = empty
     ; btIdToQuorumCert = empty
     }
 
-{-
+  empty-Correct : Correct emptyBT
+  empty-Correct Abs.I     _    = WithRSS.empty
+  empty-Correct (Abs.B b) imp
+    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ (α-Block <M$>_))
+                                 (sym (kvm-empty {k = Abs.bId b}))
+                                 refl))
+  empty-Correct (Abs.Q q) imp
+    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
 
-  -- This works for the B case of Correctness below, but need to simplify/generalize
-  -- ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ (α-Block <M$>_)) (sym (kvm-empty {k = Abs.bId b})) (<M$>-nothing {a = 0ℓ}{f = α-Block})))
+  empty-IncreasingRound : IncreasingRound emptyBT
+  empty-IncreasingRound α x {q = q} x₁ x₂ va va' x₃
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
+
+  empty-VotesOnlyOnce : VotesOnlyOnce emptyBT
+  empty-VotesOnlyOnce α x {q = q} x₁ x₂ va va' x₃
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
+
+
+  empty-LockedRound : LockedRound emptyBT
+  empty-LockedRound _ _ _ _ (WithRSS.step {r' = Abs.Q q'} _ _ {abs}) _ _
+    = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q'}))
+                                 refl))
+
 
   -- And now this is really trivial
   emptyBT-valid : ValidBT emptyBT
   emptyBT-valid =
-    valid-bt (λ { Abs.I _  → WithRSS.empty
-                 ; (Abs.B _) abs → ⊥-elim (∈KV-empty-⊥ abs) 
-                 ; (Abs.Q _) abs → ⊥-elim (∈KV-empty-⊥ abs)})
-              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈KV-empty-⊥ abs) })
-              (λ { _ _ abs _ _ _ _ → ⊥-elim (∈KV-empty-⊥ abs) })
-              (λ { _ _ _ _ (WithRSS.step _ _ {abs}) _ _ 
-                 → ⊥-elim (∈KV-empty-⊥ abs) })
--}
+    valid-bt empty-Correct
+             empty-IncreasingRound
+             empty-VotesOnlyOnce
+             empty-LockedRound
 
 {-
 
