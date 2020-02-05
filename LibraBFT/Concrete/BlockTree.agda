@@ -114,6 +114,90 @@ module LibraBFT.Concrete.BlockTree
   -- populate btIdToQC then goes on to process the block.
   -- 
 
+
+  {- MSM: I remain unconvinced that a) the invariant implied above currently holds, and b) that even if it
+     does, it's a good idea to bake in the assumption that it will continue to hold.  Despite the
+     commentary above, there is a path in which a block gets added to btIdToBlock even though the QC
+     it contains is not added to btIdToQuorumCert (on that path), as follows (line numbers are
+     relative to commit 4db7f78 in hospital repo):
+
+     * A new proposal is received, and passed to processProposalMsgM (EventProcessor.hs, line 129)
+     * It is passed to preProcessProposalM (line 137)
+     * All checks in preProcessProposalM pass, and we call syncUpM (line 159)
+     * The conditions at lines 317-319 all pass, so syncUpM returns True.
+     * This means that syncUpM does *not* call SyncManager.syncToM (line 326) and therefore does not
+       call insertSingleQuorumCertM (SyncManager.hs, line 25), which is the only way the QC will be
+       inserted into btIdToQuorumCert.
+     * because syncUpM returned True, we call ProposerElection.processProposalM (EventProcessor.hs,
+       line 160) to confirm the proposer is the correct one for the round, in which case processProposalM
+       returns a just Block (ProposerElection.hs, line 25), and therefore so does preProcessProposalM
+     * Therefore processProposedBlockM is called (EventProcessor.hs, line 137), the checks at lines
+       183-186 pass, so executeAndVoteM is called (line 188), which calls
+       BlockStore.executeAndInsertBlockM (line 226), and the block is inserted (BlockStore.hs, line 65)
+
+     IF the alleged invariant holds, it is because the conditions at lines 317-319 mentioned above
+     ensure that the QC embedded in the to-be-added block is *already* in btIdToQuorumCert.  This is
+     far from clear to me.
+
+     Questions/comments:
+
+     - Maybe it is OK that we don't consider the QC embedded in the inserted block to be ∈BT the
+       blockstore in this case, so the definition of _∈BT_ can remain the same even though the
+       invariant doesn't hold.  This would be OK if we would never use that QC in attempting to
+       commit.  We'd have to prove that, and there is some cognitive overhead for having ∈BT differ
+       from intuition.
+
+     - As discussed before, we can have a definition of ∈BT that allows a QC to be either in
+       btIdToQuorumCert or in a block in btIdToBlock (we keep proof irrelevance by preferring on and
+       using the other only if the QC is not in the preferred one).  Yes, it complicates the
+       definition a bit, but it avoids the issues mentioned above, so I think we should keep it in
+       mind.
+
+     - Finally, we need to understand where QCs come from that are used for committing, because
+       those are the ones that we need to be ∈BT in order to invoke properties of the abstract model
+       to establish Correctness.  It's not necessarily as simple as being in one or other of these
+       two maps.  We need to understand in detail what verification is done by both leaders and
+       followers when committing.  Here are some (incomplete, not well organized) notes...
+
+       - SafetyRules.constructLedgerInfoM determines whether the proposed block establishes a new
+         3-chain, and if so includes commit information in the LedgerInfo, which is included in the
+         vote constructed for the proposed block (see EventProcessor.hs, lines 188 and 231, and
+         SafetyRules.hs, lines 51 and 69-81).
+
+       - pathFromRootM gets blocks to commit (both for leader and followers), only from btIdToBlock,
+         so these are all ∈BT.  It uses the QC embedded in one block to determine the id of the
+         previous block.  This does *not* imply that the QC is ∈BT with our current definition, but
+         it trivially would if we used the more inclusive (and slightly more complicated) definition
+         of ∈BT for QCs, which would consider a QC embedded in a block in the btIdToBlock map to be
+         ∈BT.
+
+       - Leaders and followers both commit via processCertificatesM, followers via
+         preProcessProposalM and syncUpM, leaders via newQcAggregatedM after adding a vote that
+         forms a new QC.
+
+       - Generating new proposals:
+         - generateProposalM (ProposalGenerator.hs)
+         - QC included is from bsHighestQuorumCert (lines 42-49)
+         - which is set only in BlockTree.hs, insertQuorumCertM line 97 (note that
+           bsHighestquorumcert is just a "lens" to btHighestQuorumCert)
+         - which of course also ensures that the QC is ∈BT (line 99)
+         - however, it seems that the proposer does *not* put the proposed block in its btIdToBlock map
+         - our current prototype broadcasts the proposal to all (presumably including self, so it
+           gets into the leader's block store that way)
+         - thus the only way blocks are added to the block store is as described above
+         - in the case of a leader adding its own proposal, the QC it contains is already in btIdToQuorumCert
+           before it broadcasts the proposal 
+         - thus the only threat to the invariant posited above is the case above (involving lines 317-319)
+           for a follower
+         - having dug a little further, now I understand that the condition on line 319 says that we have
+           already committed up to/past the round number of the *previous block* (i.e., the one that the
+           embedded QC certifies); I have to dig further to understand how this impacts this discussion.
+           Does it mean that there is already *some* QC that certifies the previous block in btIdToQuorumCert,
+           so our alleged invariant holds?  Or maybe it doesn't matter in this case, and we could weaken
+           the invariant?
+
+  -}
+
   -----------------------------------
   -- Interfacing with the Abstract --
   -----------------------------------
