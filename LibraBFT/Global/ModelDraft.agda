@@ -8,7 +8,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
-open import LibraBFT.Concrete.Types
+open import LibraBFT.Concrete.Consensus.Types
 
 open import Level
 
@@ -25,21 +25,21 @@ module LibraBFT.Global.ModelDraft
      encCmd : Encoder commandType
 
  open import LibraBFT.Concrete.EventProcessor hash hash-cr pki commandType
- open import LibraBFT.Concrete.Records pki
+ open import LibraBFT.Concrete.Records
 
  NtwkMsg : Set
  NtwkMsg = NetworkMsg commandType
 
  open        LibraBFT.Global.Network.WithMsgType NtwkMsg
 
- record SystemState : Set where
+ record SystemState (a : Set) : Set where
    constructor sysState
    field
      sentMessages    : SentMessages
-     eventProcessors : PK → EventProcessor
+     eventProcessors : PK → EventProcessor a
  open SystemState
 
- initState : SystemState
+ initState : SystemState commandType
  initState = sysState noMessages initEventProcessor
 
  -- TODO: create an event where any NodeID can send a vote in its current epoch with a higher round than last voted round
@@ -56,9 +56,9 @@ module LibraBFT.Global.ModelDraft
    badAuthor  : ∀ {aId} (eId : EpochId) → (nId : NodeId) → isAuthor (fakeEC eId) nId ≡ just aId → ¬ (Honest (fakeEC eId) fakeUID _≟fakeUID_ aId) → EventInitiator eId nId
 
 
- data Enabled : ∀ {eId} {nId} → SystemState → EventInitiator eId nId → Set where
-   spontaneous : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId)                                        → Enabled ps e
-   recvMessage : ∀ {ps : SystemState}{eId}{nId}{e : EventInitiator eId nId} → (n : NtwkMsg) → n ∈SM (sentMessages ps) → Enabled ps e
+ data Enabled : ∀ {eId} {nId} → SystemState commandType → EventInitiator eId nId → Set where
+   spontaneous : ∀ {ps : SystemState commandType}{eId}{nId} → (e : EventInitiator eId nId)                                        → Enabled ps e
+   recvMessage : ∀ {ps : SystemState commandType}{eId}{nId}{e : EventInitiator eId nId} → (n : NtwkMsg) → n ∈SM (sentMessages ps) → Enabled ps e
    -- TODO: TIMEOUT (maybe model as special NetworkRecord?)
 
  -- MSM: the following is bogus and cannot exist in reality, it's just for making progress before
@@ -66,7 +66,7 @@ module LibraBFT.Global.ModelDraft
  postulate
    fakeKeyPair : (pk : PK) → ∃[ sk ](IsKeyPair pk sk)
 
- Step : ∀ {ps : SystemState}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState
+ Step : ∀ {ps : SystemState commandType}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState commandType
  -- A fake action that spontaneously "broadcasts" a commit message.
  -- Currently it broadcasts the same commit every time, so no problem.  Later I want to make it so dishonest authors
  -- can send commits that break the rules but honest ones can't.
@@ -79,7 +79,7 @@ module LibraBFT.Global.ModelDraft
  Step {ps} (notAuthor  eId nId notAuth)           enab = ps
  Step {ps} (badAuthor  eId nId isAuth notHonest)  enab = ps
 
- data ReachableSystemState : SystemState → Set where
+ data ReachableSystemState : SystemState commandType → Set where
    init : ReachableSystemState initState
    step : ∀ {preState postState} {eId} {nId}
         → ReachableSystemState preState
@@ -100,7 +100,7 @@ module LibraBFT.Global.ModelDraft
   -- if they are sent in order. Therefore the correctness condition says only that CommitMsgs
   -- sent by honest participants are consistent with each other.
 
-  Correctness : ∀ {ss : SystemState} {c₁ c₂ : CommitMsg} {α₁ α₂}
+  Correctness : ∀ {ss : SystemState commandType} {c₁ c₂ : CommitMsg} {α₁ α₂}
               → ReachableSystemState ss
               → (C c₁) ∈SM (sentMessages ss)
               → (C c₂) ∈SM (sentMessages ss)

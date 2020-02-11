@@ -6,7 +6,7 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
 open import LibraBFT.Concrete.Util.KVMap
-open import LibraBFT.Concrete.Types
+open import LibraBFT.Concrete.Consensus.Types
 
 import LibraBFT.Abstract.Types as Abs
 
@@ -16,7 +16,7 @@ module LibraBFT.Concrete.Records.Valid
     (pki : PKI)
   where
 
- open import LibraBFT.Concrete.Records pki
+ open import LibraBFT.Concrete.Records
 
  record IsValidQCAuthor (_ : Author) : Set where
    field
