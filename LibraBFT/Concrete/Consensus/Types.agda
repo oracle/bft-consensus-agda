@@ -467,7 +467,7 @@ module LibraBFT.Concrete.Consensus.Types where
   open WithAction (Action TX) public
 
   -- This is an attempt to make our code look more like the Haskell code, even though we are faking
-  -- the LBFT monad
+  -- the LBFT monad.  TODO: put it somewhere more appropriate.
   use : ∀ {t rt : Set} → (t → rt) → ∀ {x : t} → rt
   use f {x} = f x
 
