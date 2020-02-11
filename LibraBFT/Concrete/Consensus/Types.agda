@@ -164,8 +164,8 @@ module LibraBFT.Concrete.Consensus.Types where
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
   qcCertifies : QuorumCert → Hash
-  qcCertifies qc = biId (vdParent (qcVoteData qc))
-
+  -- qcCertifies qc = biId (vdParent (qcVoteData qc))  -- MSM: Victor please confirm this change
+  qcCertifies qc = biId (vdProposed (qcVoteData qc))
   ------------
   -- Blocks --
   ------------
