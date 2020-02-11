@@ -458,7 +458,7 @@ module LibraBFT.Concrete.Consensus.Types where
   module WithState (State : Set) where
     module WithAction (Action : Set) where
      LBFT : (ReturnType : Set) → Set
-     LBFT ReturnType = ∀ {prestate : State} → ReturnType × State × List Action
+     LBFT ReturnType = ∀ {state₀ : State} → {acts₀ : List Action} → ReturnType × State × List Action
 
   open WithState (EventProcessor TX) 
   open WithAction (Action TX) public

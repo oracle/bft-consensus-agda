@@ -23,9 +23,6 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
  -}
 
   processCommitM : {a : Set} → LedgerInfoWithSignatures → LBFT (List (ExecutedBlock a))
-  processCommitM finalityProof {state₀}
-     with BlockStore.commitM finalityProof {state₀}
+  processCommitM finalityProof {state₀} {acts₀}
+     with BlockStore.commitM finalityProof {state₀} {acts₀}
   ...| blocksToCommit = {!!}
-
-  -- TODO: logging - do it like state, pass in cummulative logs and cummulative actions
-  --       actions - send a commit message (Haskell code doesn't do it; to discuss)

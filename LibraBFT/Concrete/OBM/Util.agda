@@ -13,9 +13,7 @@ module LibraBFT.Concrete.OBM.Util where
   -- wrote the Agda correctly
 
   maybeMP : {a b : Set} → LBFT (Maybe a) → b → (a → LBFT b) → LBFT b
-  maybeMP x b f {state₀}
-     with x {state₀}
+  maybeMP x b f {state₀} {acts₀}
+     with x {state₀} {acts₀}
   ...| nothing , state₁ , acts₁ = b , state₁ , acts₁
-  ...| just jx , state₁ , acts₁
-     with f jx {state₁}
-  ...| b₁ , state₂ , acts₂ = b₁ , state₂ , acts₁ ++ acts₂
+  ...| just jx , state₁ , acts₁ = f jx {state₁} {acts₁}

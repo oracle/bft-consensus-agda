@@ -29,21 +29,21 @@ pathFromRootM blockId = do
 
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List (ExecutedBlock TX)))
-  pathFromRootM blockId {state₀}
+  pathFromRootM blockId {state₀} {acts₀}
     with use lBlockTree {state₀}
-  ...| bt = maybeMP (loop bt blockId [] {state₀}) nothing (continue bt) {state₀}
+  ...| bt = maybeMP (loop bt blockId [] {state₀} {acts₀}) nothing (continue bt) {state₀} {acts₀}
        where
          loop : BlockTree TX → HashValue → List (ExecutedBlock TX) → LBFT (Maybe (HashValue × List (ExecutedBlock TX)))
-         loop bt curBlockId res {state₀}
+         loop bt curBlockId res {state₀} {acts₀}
             with btGetBlock curBlockId bt
-         ...| nothing = nothing , state₀ , []
+         ...| nothing = nothing , state₀ , acts₀
          ...| just block
             with ebRound block ≤? (ebRound ∘ btRoot) bt
-         ...| yes xx = just (curBlockId , res) , state₀ , []
-         ...| no  xx = loop bt (ebParentId block) (block ∷ res) {state₀}
+         ...| yes xx = just (curBlockId , res) , state₀ , acts₀
+         ...| no  xx = loop bt (ebParentId block) (block ∷ res) {state₀} {acts₀}
 
          continue : {a : Set} → BlockTree a → HashValue × List (ExecutedBlock TX) → LBFT (Maybe (List (ExecutedBlock TX)))
-         continue bt (curBlockId , res) {state₀}
+         continue bt (curBlockId , res) {state₀} {acts₀}
            with curBlockId ≟Hash btRootId bt
-         ...| no _  = nothing            , state₀ , []
-         ...| yes _ = just (reverse res) , state₀ , []
+         ...| no _  = nothing            , state₀ , acts₀
+         ...| yes _ = just (reverse res) , state₀ , acts₀

@@ -46,7 +46,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
     -- BlockTree.processPrunedBlocksM
 
   commitM : LedgerInfoWithSignatures → LBFT (List (ExecutedBlock TX))
-  commitM finalityProof {state₀}
+  commitM finalityProof {state₀} {acts₀}
     with use lBlockStore {state₀}
   ...| bs
     with (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
@@ -55,10 +55,10 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
   ...| nothing = [] , state₀ , []
   ...| just blockToCommit
     with ebRound blockToCommit ≤? ebRound (bsRoot bs)
-  ...| yes _ = [] , state₀ , (LogErr "commit block round lower than root") ∷ []
+  ...| yes _ = [] , state₀ , (LogErr "commit block round lower than root") ∷ acts₀
   ...| no  _
-    with pathFromRootM blockIdToCommit {state₀}
+    with pathFromRootM blockIdToCommit {state₀} {acts₀}
   ...| nothing , state₁ , acts₁ = [] , state₁ , acts₁
   ...| just blocksToCommit , state₁ , acts₁
-    with pruneTreeM (ebId blockToCommit) {state₁}
+    with pruneTreeM (ebId blockToCommit) {state₁} {acts₁}
   ...|  _ , state₂ , acts₂ = blocksToCommit , state₂ , acts₂
