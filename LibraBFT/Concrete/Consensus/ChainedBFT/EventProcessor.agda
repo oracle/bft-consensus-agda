@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore as BlockStore
 open import LibraBFT.Concrete.Consensus.Types
@@ -7,6 +9,21 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
 
  -- processCertificatesM
  -- processCommitM
+
+ {-
+  processProposalMsgM
+    :: ( Monad m, Eq a, Show a, S.Serialize a, RWValidatorVerifier s
+       , RWEventProcessor s a, RWPacemaker s, RWBlockStore s a, RWBlockTree s a, RWSafetyRules s
+       , RWProposerElection s, RWProposalGenerator s a, RWValidatorSigner s, RWPersistentStorage s )
+    => Instant -> ProposalMsg a
+    -> LBFT m e s a ()
+  processProposalMsgM now m =
+    logEE ["EventProcessor", "processProposalMsgM", lsPM m] $
+    maybeMP (preProcessProposalM now m) () processProposedBlockM
+ -}
+
+  processProposalMsg : {a : Set} → Instant → ProposalMsg a → LBFT Unit
+  processProposalMsg inst pm {state₀} {acts₀} = unit , state₀ , acts₀    -- TODO: just a placeholder for connecting handler
 
  {-
 

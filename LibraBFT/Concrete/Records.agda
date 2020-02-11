@@ -120,6 +120,10 @@ module LibraBFT.Concrete.Records where
   VerNetworkMsg : (A : Set) ⦃ encA : Encoder A ⦄ → Set
   VerNetworkMsg A = Σ (NetworkMsg A) WithVerSig
 
+
+  postulate  -- TODO implement
+    check-signature-and-format : {a : Set} → ⦃ encA : Encoder a ⦄ → NetworkMsg a → Maybe (VerNetworkMsg a)
+
 {-
   -- VCM: TODO: need to make sure messages were verified
   --            with the proper public key, no?
@@ -130,10 +134,6 @@ module LibraBFT.Concrete.Records where
   --      public keys come from, but I don't feel strongly
   --      about it, so you can factor it in here if you think that's best.
 
-  data VerNetworkMsg (A : Set) ⦃ encA : Encoder A ⦄ : Set where
-    P : (p : ProposalMsg A) → WithVerSig p → VerNetworkMsg A
-    V : (v : VoteMsg)       → WithVerSig v → VerNetworkMsg A
-    C : (c : CommitMsg)     → WithVerSig c → VerNetworkMsg A
 -}
 
   

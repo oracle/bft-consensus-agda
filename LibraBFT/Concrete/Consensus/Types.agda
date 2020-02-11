@@ -52,6 +52,9 @@ module LibraBFT.Concrete.Consensus.Types where
   TX : Set
   TX = ByteString
 
+  Instant : Set
+  Instant = ℕ   -- TODO: should be a time stamp
+
   --------------------------------------------------------------------------------------
   -- Below here is incremental progress towards something that will eventually mirror --
   -- LBFT.Consensus.Types in the Haskell repo.  Some types need to be migrated from   --

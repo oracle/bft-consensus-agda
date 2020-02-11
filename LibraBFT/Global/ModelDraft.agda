@@ -66,6 +66,8 @@ module LibraBFT.Global.ModelDraft
  postulate
    fakeKeyPair : (pk : PK) → ∃[ sk ](IsKeyPair pk sk)
 
+ -- TODO: update this fake stuff to integrate handlers (see LibraBFT.Concrete.Handle)
+
  Step : ∀ {ps : SystemState commandType}{eId}{nId} → (e : EventInitiator eId nId) → Enabled ps e → SystemState commandType
  -- A fake action that spontaneously "broadcasts" a commit message.
  -- Currently it broadcasts the same commit every time, so no problem.  Later I want to make it so dishonest authors
