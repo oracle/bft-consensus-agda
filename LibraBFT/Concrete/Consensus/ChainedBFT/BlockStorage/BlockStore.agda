@@ -3,6 +3,9 @@ open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Records
 import      LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree as BlockTree
 
+
+open import LibraBFT.Concrete.OBM.Util
+
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
   getBlock : {a : Set} → HashValue -> BlockStore a -> Maybe (ExecutedBlock a)
@@ -37,15 +40,33 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
     here t = "BlockStore":"commitM":t
   -}
 
+  open RWST-do
+
   pathFromRootM : HashValue → LBFT (Maybe (List (ExecutedBlock TX)))
   pathFromRootM = BlockTree.pathFromRootM
 
   pruneTreeM : HashValue -> LBFT Unit
-  pruneTreeM _ {state₀} = unit , state₀ , []
+  pruneTreeM _ = return unit
     -- TODO prune
     -- BlockTree.processPrunedBlocksM
 
   commitM : LedgerInfoWithSignatures → LBFT (List (ExecutedBlock TX))
+  commitM finalityProof = do
+    bs ← gets lBlockStore
+    let blockIdToCommit = (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
+    case getBlock blockIdToCommit bs of
+      λ { nothing              → return [] 
+        ; (just blockToCommit) → 
+            if-dec (ebRound blockToCommit ≤? ebRound (bsRoot bs))
+            then tell1 (LogErr "commit block round lower than root") >> return []
+            else do 
+             blocksToCommit ← maybe id [] <$> pathFromRootM blockIdToCommit 
+             pruneTreeM (ebId blockToCommit)
+             return blocksToCommit
+        }
+{-
+OLD:
+
   commitM finalityProof {state₀} {acts₀}
     with use lBlockStore {state₀}
   ...| bs
@@ -62,3 +83,4 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
   ...| just blocksToCommit , state₁ , acts₁
     with pruneTreeM (ebId blockToCommit) {state₁} {acts₁}
   ...|  _ , state₂ , acts₂ = blocksToCommit , state₂ , acts₂
+-}

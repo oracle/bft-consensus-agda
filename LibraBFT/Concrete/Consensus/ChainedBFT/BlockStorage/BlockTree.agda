@@ -27,8 +27,53 @@ pathFromRootM blockId = do
 
 --}
 
+  -- Bring in our RWST do notation into scope module wise;
+  -- instead of over a single function as shown in LibraBFT.Concrete.OBM.RWST
+  open RWST-do
+
+  -- VCM: This pathFromRootM function is exactly what our 'Extends' predicate
+  -- will be doing as the boundary of concrete and abstract; The terminating
+  -- can only be justified through that!
+  --
+  -- Ideally; 
+  -- define: (extends? : ⋯ → Dec Extends) 
+  -- then define: (getBlocks : Extends → List (ExecutedBlock TX))
+  -- then define: (agda-pathFromRootM = getBlocks ∘ extends?)
+  -- finally; prove (∀ h → pathFromRootM h ≡ agda-pathFromRootM h);
+  -- This should justify the terminating prama (which can't be eliminated;
+  -- loop might in fact never terminate).
+
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List (ExecutedBlock TX)))
+  pathFromRootM blockId = do
+    bt ← gets lBlockTree
+    maybeMP (loop bt blockId []) nothing (continue bt)
+   where
+    -- VCM: Both loop and continue are pure functions; why are
+    -- they inside the LBFT monad? this will be more difficult
+    -- to prove isomorphic to agda-pathFromRootM as described
+    -- in my comment above.
+
+    loop : BlockTree TX → HashValue → List (ExecutedBlock TX) 
+         → LBFT (Maybe (HashValue × List (ExecutedBlock TX)))
+    loop bt curBlockId res = 
+      case btGetBlock curBlockId bt of
+        λ { nothing      → return nothing
+          ; (just block) → if-dec (ebRound block ≤? (ebRound ∘ btRoot) bt) 
+                            then return (just (curBlockId , res)) 
+                            else loop bt (ebParentId block) (block ∷ res)
+          }
+
+    continue : {a : Set} → BlockTree a → HashValue × List (ExecutedBlock TX) 
+             → LBFT (Maybe (List (ExecutedBlock TX)))
+    continue bt (curBlockId , res) =
+      if-dec (curBlockId ≟Hash btRootId bt)
+       then return (just (reverse res))
+       else return nothing
+    
+{-
+  OLD FUNCTION:
+  
   pathFromRootM blockId {state₀} {acts₀}
     with use lBlockTree {state₀}
   ...| bt = maybeMP (loop bt blockId [] {state₀} {acts₀}) nothing (continue bt) {state₀} {acts₀}
@@ -47,3 +92,4 @@ pathFromRootM blockId = do
            with curBlockId ≟Hash btRootId bt
          ...| no _  = nothing            , state₀ , acts₀
          ...| yes _ = just (reverse res) , state₀ , acts₀
+-}

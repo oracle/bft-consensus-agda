@@ -456,18 +456,3 @@ module LibraBFT.Concrete.Consensus.Types where
 --   | InfoL                             ![Text]
 --   deriving (Eq, Show)
 
-
-  -- Strange mixture of parameterization and not as I'm undecided which way to go.
-  module WithState (State : Set) where
-    module WithAction (Action : Set) where
-     LBFT : (ReturnType : Set) → Set
-     LBFT ReturnType = ∀ {state₀ : State} → {acts₀ : List Action} → ReturnType × State × List Action
-
-  open WithState (EventProcessor TX) 
-  open WithAction (Action TX) public
-
-  -- This is an attempt to make our code look more like the Haskell code, even though we are faking
-  -- the LBFT monad.  TODO: put it somewhere more appropriate.
-  use : ∀ {t rt : Set} → (t → rt) → ∀ {x : t} → rt
-  use f {x} = f x
-

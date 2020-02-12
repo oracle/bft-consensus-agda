@@ -72,7 +72,7 @@ module LibraBFT.Prelude where
 
   open import Data.Maybe 
     renaming (map to Maybe-map; zip to Maybe-zip)
-    hiding (align; alignWith; zipWith)
+    hiding (align; alignWith; zipWith; _>>=_)
     public
 
   open import Data.Maybe.Relation.Unary.Any
@@ -103,7 +103,7 @@ module LibraBFT.Prelude where
     public
   
   open import Function
-    using (_∘_)
+    using (_∘_; id; case_of_; _on_; typeOf; flip; const)
     public
 
   open import Data.Product
@@ -121,6 +121,15 @@ module LibraBFT.Prelude where
   open import Relation.Nullary
     hiding (Irrelevant)
     public
+
+  infix 0 if-yes_then_else_
+  infix 0 if-dec_then_else_
+  if-yes_then_else_ : {A B : Set} → Dec A → (A → B) → (¬ A → B) → B
+  if-yes (yes prf) then f else _ = f prf
+  if-yes (no  prf) then _ else g = g prf
+
+  if-dec_then_else_ : {A B : Set} → Dec A → B → B → B
+  if-dec x then f else g = if-yes x then const f else const g
 
   open import Relation.Nullary.Negation
     using (contradiction)
