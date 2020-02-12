@@ -3,6 +3,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore as BlockStore
 open import LibraBFT.Concrete.Consensus.Types
+open import LibraBFT.Concrete.OBM.Util
+
+open RWST-do
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
 
@@ -23,7 +26,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
  -}
 
   processProposalMsg : {a : Set} → Instant → ProposalMsg a → LBFT Unit
-  processProposalMsg inst pm {state₀} {acts₀} = unit , state₀ , acts₀    -- TODO: just a placeholder for connecting handler
+  processProposalMsg inst pm = return unit    -- TODO: just a placeholder for connecting handler
 
  {-
 
@@ -40,6 +43,6 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
  -}
 
   processCommitM : {a : Set} → LedgerInfoWithSignatures → LBFT (List (ExecutedBlock a))
-  processCommitM finalityProof {state₀} {acts₀}
-     with BlockStore.commitM finalityProof {state₀} {acts₀}
+  processCommitM finalityProof
+     with BlockStore.commitM finalityProof
   ...| blocksToCommit = {!!}
