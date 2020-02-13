@@ -17,6 +17,11 @@ module LibraBFT.Concrete.Records where
     V : VoteMsg     → NetworkMsg
     C : CommitMsg   → NetworkMsg
 
+  getEpoch : NetworkMsg → EpochId
+  getEpoch (P p) = bdEpoch (bBlockData (pmProposal p))         -- TODO: use lenses
+  getEpoch (V v) = biEpoch (vdProposed (vVoteData (vmVote v)))
+  getEpoch (C c) = cEpochId c
+
   -----------------------------------------------------------------------
   -- Proof that network records are signable and may carry a signature --
   -----------------------------------------------------------------------

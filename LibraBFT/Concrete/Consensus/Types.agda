@@ -400,9 +400,9 @@ module LibraBFT.Concrete.Consensus.Types where
   record EventProcessor : Set where
     constructor eventProcessor
     field
-      myPK           : PK           -- TODO: this is temporary until we have a better model
       epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
       epBlockStore   : BlockStore
+      epValidators   : List Author  -- TODO: ValidatorVerifier details
       
   open EventProcessor public
 
