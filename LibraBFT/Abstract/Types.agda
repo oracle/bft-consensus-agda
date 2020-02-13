@@ -48,6 +48,7 @@ module LibraBFT.Abstract.Types where
 
   -- An 'EpochConfig' carries the information we need to
   -- survive at most 'bizF' byzantine failures.
+  -- TODO: Generalize for different voting power, same as Rust and (future) Haskell code
   record EpochConfig : Set where
     field
       epochId  : EpochId
