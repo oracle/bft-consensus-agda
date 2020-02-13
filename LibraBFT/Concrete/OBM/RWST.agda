@@ -76,6 +76,9 @@ module LibraBFT.Concrete.OBM.RWST where
     return : A → RWST Ev Wr St A
     return = RWST-return
 
+    pure : A → RWST Ev Wr St A
+    pure = return
+
     infixr 4 _<$>_
     _<$>_ : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
     _<$>_ = RWST-map

@@ -55,14 +55,14 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
     bs ← gets lBlockStore
     let blockIdToCommit = (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
     case getBlock blockIdToCommit bs of
-      λ { nothing              → return [] 
+      λ { nothing              → pure [] 
         ; (just blockToCommit) → 
             if-dec (ebRound blockToCommit ≤? ebRound (bsRoot bs))
-            then tell1 (LogErr "commit block round lower than root") >> return []
+            then tell1 (LogErr "commit block round lower than root") >> pure []
             else do 
              blocksToCommit ← maybe id [] <$> pathFromRootM blockIdToCommit 
              pruneTreeM (ebId blockToCommit)
-             return blocksToCommit
+             pure blocksToCommit
         }
 {-
 OLD:
