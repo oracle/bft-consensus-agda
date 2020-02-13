@@ -35,7 +35,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- votes respect the rounds
     IncreasingRoundRule : Set
     IncreasingRoundRule 
-       = (α : Author ec) → Honest α
+       = (α : Author ec) → Honest ec α
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → voteOrder (∈QC-Vote q va) <VO voteOrder (∈QC-Vote q' va')
@@ -64,7 +64,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- that α's n-th vote is always the same.
     VotesOnlyOnceRule : Set
     VotesOnlyOnceRule 
-       = (α : Author ec) → Honest α
+       = (α : Author ec) → Honest ec α
        → ∀{q q'} → IsInPool (Q q) → IsInPool (Q q') 
        → (va  : α ∈QC q)(va' : α ∈QC q') -- α has voted for q and q'
        → voteOrder (∈QC-Vote q va) ≡ voteOrder (∈QC-Vote q' va')
@@ -79,7 +79,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     -- for the relation passed to c2.
     LockedRoundRule : Set₁
     LockedRoundRule
-      = ∀{R}(α : Author ec) → Honest α
+      = ∀{R}(α : Author ec) → Honest ec α
       → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain R (2 + n) rc)
       → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
       → ∀{q'}(rc' : RecordChain (Q q'))

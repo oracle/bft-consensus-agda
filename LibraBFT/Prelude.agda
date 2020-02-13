@@ -24,7 +24,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List 
-    renaming (map to List-map)
+    renaming (map to List-map ; filter to List-filter)
     hiding (fromMaybe; [_])
     public
 
@@ -88,7 +88,10 @@ module LibraBFT.Prelude where
     using (Fin; suc; zero; fromℕ≤)
     renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
     public
-  
+
+  postulate -- TODO
+    fins : (n : ℕ) → List (Fin n)
+
   open import Relation.Binary.PropositionalEquality
     hiding (decSetoid)
     public

@@ -71,4 +71,22 @@ module LibraBFT.Abstract.Types where
     field
       isAuthor   : NodeId → Maybe Author   -- TODO: Arguably NodeId should be abstracted out here
 
+    -- We must not inspect who is honest and who is not
+    -- We will use a postulate and produce values of said type using
+    -- other postulates that must be carefully checked by hand.
+    --
+    -- However, the way I have expressed here that the number of Byzantine participants is correct
+    -- depends on a Dec (Honest α), which must not be accessed by the algorithm.  Therefore we instead
+    -- use Meta (Dec (Honest α)) so that it cannot be accidentally used in the algorithm.
+    -- 
+    -- Note, bizF is an upper bound on the number of dishonest ones, but we can just require the
+    -- number to be equal to bizF: if there are fewer than bizF dishonest ones, the additional
+    -- "dishonest" ones can emulate honest ones, so we don't need to model the exact number of
+    -- dishonest ones.
+
+    postulate
+      Honest : Author → Set
+      ?Honest : (α : Author) → Dec (Meta (Honest α))
+      EnoughHonest : length (List-filter ?Honest (fins authorsN)) ≡ bizF
+
   open EpochConfig public

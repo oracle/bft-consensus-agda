@@ -79,6 +79,6 @@ module LibraBFT.Abstract.Rules
 --}
 
   postulate
-    ACCOUNTABILITY-OPP : ∀{α} → Honest α → ProvablyDishonest α → ⊥
-    BROKE-RULE         : ∀{α} → Honest α → BrokeRule α         → ⊥
+    ACCOUNTABILITY-OPP : ∀{α} → Honest ec α → ProvablyDishonest α → ⊥
+    BROKE-RULE         : ∀{α} → Honest ec α → BrokeRule α         → ⊥
 
