@@ -170,13 +170,13 @@ module LibraBFT.Concrete.Consensus.Types where
   -- Blocks --
   ------------
 
-  data BlockType (A : Set) : Set where
-    Proposal : A → Author → BlockType A
-    NilBlock : BlockType A
-    Genesis  : BlockType A
-  postulate instance enc-BlockType : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (BlockType A)
+  data BlockType : Set where
+    Proposal : TX → Author → BlockType
+    NilBlock : BlockType
+    Genesis  : BlockType
+  postulate instance enc-BlockType : Encoder BlockType
 
-  record BlockData (A : Set) : Set where
+  record BlockData : Set where
     constructor mkBlockData
     field
       bdEpoch      : EpochId
@@ -185,11 +185,11 @@ module LibraBFT.Concrete.Consensus.Types where
       -- the genesis block? that block doesn't come with a QC.
       -- I'm guessing we just send one with a QC containing an empty map.
       bdQuorumCert : QuorumCert
-      bdBlockType  : BlockType A
+      bdBlockType  : BlockType
       -- VCM-QUESTION: I don't think we need this here...
       -- bdTimeStamp : Instant 
   open BlockData public
-  postulate instance enc-BlockData : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (BlockData A)
+  postulate instance enc-BlockData : Encoder BlockData
 
   -- MSM: They use 'nothing' as the 'bSignature' when constructing a block to sign later.  This can be seen in the
   -- Haskell code at EventProcessor.hs:95-100 (commit f497bf9).  I think they also use "nothing"
@@ -198,14 +198,14 @@ module LibraBFT.Concrete.Consensus.Types where
   -- independently by different validators.  IIRC, this is to enable committing after an
   -- epoch-changing command is processed: we cannot add more commands, but we need to add some
   -- quorum certificates in order to commit the epoch-changing command.
-  record Block (A : Set) : Set where
+  record Block : Set where
     constructor mkBlock
     field
       bId        : HashValue
-      bBlockData : BlockData A
+      bBlockData : BlockData
       bSignature : Maybe Signature
   open Block public
-  postulate instance enc-Block : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (Block A)
+  postulate instance enc : Encoder Block
 
   -- bAuthor :: GetterNoFunctor (Block a) (Maybe Author)
   -- bAuthor  = to (^.bBlockData.bdAuthor)
@@ -222,7 +222,7 @@ module LibraBFT.Concrete.Consensus.Types where
   -- bQuorumCert :: GetterNoFunctor (Block a) QuorumCert
   -- bQuorumCert  = to (^.bBlockData.bdQuorumCert)
 
-  bRound : {a : Set} → (Block a) → Round
+  bRound : Block → Round
   bRound  = bdRound ∘ bBlockData
 
   -- bTimestamp :: GetterNoFunctor (Block a) Instant
@@ -240,13 +240,13 @@ module LibraBFT.Concrete.Consensus.Types where
   -- Network Messages --
   ----------------------
 
-  record ProposalMsg (A : Set) : Set where
+  record ProposalMsg : Set where
     constructor mkProposalMsg
     field
-      pmProposal : Block A
+      pmProposal : Block
       pmSyncInfo : SyncInfo
   open ProposalMsg public
-  postulate instance enc-ProposalMsg : {A : Set} ⦃ encA : Encoder A ⦄ → Encoder (ProposalMsg A)
+  postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
   record VoteMsg : Set where
     constructor  mkVoteMsg
@@ -287,35 +287,35 @@ module LibraBFT.Concrete.Consensus.Types where
   data ProcessedVMOutput : Set where        -- TODO: this is a placeholder
     processedVMOutput : ProcessedVMOutput
 
-  record ExecutedBlock (a : Set) : Set where
+  record ExecutedBlock : Set where
     constructor ExecutedBlock_new
     field
-      ebBlock  : Block a
+      ebBlock  : Block
       ebOutput : ProcessedVMOutput
   open ExecutedBlock public
 
 -- ebEpoch :: GetterNoFunctor (ExecutedBlock a) Epoch
 -- ebEpoch  = to (^.ebBlock.bEpoch)
 
-  ebId : {a : Set} → ExecutedBlock a → HashValue
+  ebId : ExecutedBlock → HashValue
   ebId = bId ∘ ebBlock
 
 -- ebId :: GetterNoFunctor (ExecutedBlock a) HashValue
 -- ebId  = to (^.ebBlock.bId)
 
-  ebQuorumCert : {a : Set} → ExecutedBlock a → QuorumCert
+  ebQuorumCert : ExecutedBlock → QuorumCert
   ebQuorumCert = bdQuorumCert ∘ bBlockData ∘ ebBlock
 
 -- ebQuorumCert : GetterNoFunctor (ExecutedBlock a) QuorumCert
 -- ebQuorumCert  = to (^.ebBlock.bQuorumCert)
 
-  ebParentId : {a : Set} → ExecutedBlock a → HashValue
+  ebParentId : ExecutedBlock → HashValue
   ebParentId = biId ∘ qcCertifiedBlock ∘ ebQuorumCert
 
 -- ebParentId :: GetterNoFunctor (ExecutedBlock a) HashValue
 -- ebParentId  = to (^.ebQuorumCert.qcCertifiedBlock.biId)
 
-  ebRound : {a : Set} → ExecutedBlock a → Round
+  ebRound : ExecutedBlock → Round
   ebRound = bRound ∘ ebBlock
 
 -- ebRound :: GetterNoFunctor (ExecutedBlock a) Round
@@ -323,14 +323,14 @@ module LibraBFT.Concrete.Consensus.Types where
 
 -- ------------------------------------------------------------------------------
 
-  record LinkableBlock (a : Set) : Set where
+  record LinkableBlock : Set where
     constructor LinkableBlock_new
     field
-      lbExecutedBlock : ExecutedBlock a
+      lbExecutedBlock : ExecutedBlock
       -- lbChildren      : Set HashValue
   open LinkableBlock public
 
-  lbId : {a : Set} → LinkableBlock a → HashValue
+  lbId : LinkableBlock → HashValue
   lbId = ebId ∘ lbExecutedBlock
 
 -- lbId :: GetterNoFunctor (LinkableBlock a) HashValue
@@ -342,10 +342,10 @@ module LibraBFT.Concrete.Consensus.Types where
 -- lbRound :: GetterNoFunctor (LinkableBlock a) Round
 -- lbRound  = to (^.lbExecutedBlock.ebRound)
 
-  record BlockTree (a : Set) : Set where
+  record BlockTree : Set where
     constructor mkBlockTree
     field
-      btIdToBlock               : KVMap HashValue (LinkableBlock a)
+      btIdToBlock               : KVMap HashValue LinkableBlock
       btRootId                  : HashValue
       btHighestCertifiedBlockId : HashValue
       btHighestQuorumCert       : QuorumCert
@@ -359,31 +359,30 @@ module LibraBFT.Concrete.Consensus.Types where
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
   -- This should not be used outside BlockTree.hs.
-  btGetLinkableBlock : {a : Set} → HashValue -> BlockTree a -> Maybe (LinkableBlock a)
+  btGetLinkableBlock : HashValue -> BlockTree -> Maybe LinkableBlock
   btGetLinkableBlock hv bt = KVMap.lookup hv (btIdToBlock bt)
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
-  btGetBlock : {a : Set} → HashValue -> BlockTree a -> Maybe (ExecutedBlock a)
+  btGetBlock : HashValue -> BlockTree -> Maybe ExecutedBlock
   btGetBlock hv bt = Maybe-map lbExecutedBlock (btGetLinkableBlock hv bt)
 
-  btRoot : {a : Set}
-         → (bt : BlockTree a)
-         → ExecutedBlock a
-  btRoot {a} bt with (btGetBlock (btRootId bt)) bt | inspect (btGetBlock (btRootId bt)) bt
+  btRoot : (bt : BlockTree)
+         → ExecutedBlock
+  btRoot bt with (btGetBlock (btRootId bt)) bt | inspect (btGetBlock (btRootId bt)) bt
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
    where postulate
-           assumedValid : (bt : BlockTree a) → btGetBlock (btRootId bt) bt ≡ nothing → ⊥
+           assumedValid : (bt : BlockTree) → btGetBlock (btRootId bt) bt ≡ nothing → ⊥
 
-  record BlockStore (a : Set) : Set where
+  record BlockStore : Set where
     constructor mkBlockStore
     field
-      bsInner         : BlockTree a
-      -- bsStateComputer : StateComputer a
-      -- bsStorage       : CBPersistentStorage a
+      bsInner         : BlockTree
+      -- bsStateComputer : StateComputer
+      -- bsStorage       : CBPersistentStorage
   open BlockStore public
 
-  bsRoot : {a : Set} → BlockStore a → ExecutedBlock a
+  bsRoot : BlockStore → ExecutedBlock
   bsRoot  = btRoot ∘ bsInner
 
   -- bsHighestCertifiedBlock :: GetterNoFunctor (BlockStore a) (ExecutedBlock a)
@@ -398,19 +397,19 @@ module LibraBFT.Concrete.Consensus.Types where
   -- bsHighestTimeoutCert :: GetterNoFunctor (BlockStore a) (Maybe TimeoutCertificate)
   -- bsHighestTimeoutCert  = to (^.bsInner.btHighestTimeoutCert)
 
-  record EventProcessor (a : Set) : Set where
+  record EventProcessor : Set where
     constructor eventProcessor
     field
       myPK           : PK           -- TODO: this is temporary until we have a better model
       epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
-      -- TODO: for now, we omit the levels of indirection between BlockStore and BlockTree
-      epBlockStore   : BlockStore a
+      epBlockStore   : BlockStore
+      
   open EventProcessor public
 
-  lBlockStore : {a : Set} → EventProcessor a → BlockStore a
+  lBlockStore : EventProcessor → BlockStore
   lBlockStore = epBlockStore
 
-  lBlockTree : {a : Set} → EventProcessor a → BlockTree a
+  lBlockTree : EventProcessor → BlockTree
   lBlockTree = bsInner ∘ lBlockStore
 
 -- ------------------------------------------------------------------------------
@@ -419,11 +418,11 @@ module LibraBFT.Concrete.Consensus.Types where
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
-  data Action (a : Set) : Set where
-    BroadcastProposal : ProposalMsg a → Action a
-    LogErr            : String        → Action a
-    -- LogInfo           : InfoLog a     → Action a
-    SendVote          : VoteMsg → List Author → Action a
+  data Action : Set where
+    BroadcastProposal : ProposalMsg           → Action
+    LogErr            : String                → Action
+    -- LogInfo           : InfoLog a          → Action
+    SendVote          : VoteMsg → List Author → Action
   open Action public
 
 -- data ErrLog a

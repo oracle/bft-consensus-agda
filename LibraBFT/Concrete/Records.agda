@@ -12,10 +12,10 @@ open import LibraBFT.Concrete.Consensus.Types
 
 module LibraBFT.Concrete.Records where
 
-  data NetworkMsg (A : Set) : Set where
-    P : ProposalMsg A → NetworkMsg A
-    V : VoteMsg       → NetworkMsg A
-    C : CommitMsg     → NetworkMsg A
+  data NetworkMsg : Set where
+    P : ProposalMsg → NetworkMsg
+    V : VoteMsg     → NetworkMsg
+    C : CommitMsg   → NetworkMsg
 
   -----------------------------------------------------------------------
   -- Proof that network records are signable and may carry a signature --
@@ -23,7 +23,7 @@ module LibraBFT.Concrete.Records where
 
   instance 
    -- A Block might carry a signature
-   sig-Block : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (Block A)
+   sig-Block : WithSig Block
    sig-Block = record
       { Signed         = Is-just ∘ bSignature 
       ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (bSignature b)
@@ -33,7 +33,7 @@ module LibraBFT.Concrete.Records where
   
    -- A proposal message might carry a signature inside the block it
    -- is proposing.
-   sig-ProposalMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (ProposalMsg A)
+   sig-ProposalMsg : WithSig ProposalMsg
    sig-ProposalMsg = record
       { Signed         = Signed         ∘ pmProposal 
       ; isSigned?      = isSigned?      ∘ pmProposal
@@ -81,24 +81,24 @@ module LibraBFT.Concrete.Records where
   -- on the type of message to access the 'WithSig' instance
   -- on the fields... a bit ugly, but there's no other way, really...
   private
-    SignedNM : {A : Set} ⦃ encA : Encoder A ⦄ → NetworkMsg A → Set
+    SignedNM : NetworkMsg → Set
     SignedNM (P x) = Signed x
     SignedNM (V x) = Signed x
     SignedNM (C x) = Signed x
 
-    isSignedNM? : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+    isSignedNM? : (nm : NetworkMsg)
                 → Dec (SignedNM nm)
     isSignedNM? (P x) = isSigned? x
     isSignedNM? (V x) = isSigned? x
     isSignedNM? (C x) = isSigned? x
 
-    signatureNM  : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+    signatureNM  : (nm : NetworkMsg)
                  → SignedNM nm → Signature
     signatureNM (P x) prf = signature x prf
     signatureNM (V x) prf = signature x prf
     signatureNM (C x) prf = signature x prf
 
-    signableFieldsNM : {A : Set} ⦃ encA : Encoder A ⦄ → (nm : NetworkMsg A)
+    signableFieldsNM : NetworkMsg
                      → ByteString
     signableFieldsNM (P x) = signableFields x
     signableFieldsNM (V x) = signableFields x
@@ -107,7 +107,7 @@ module LibraBFT.Concrete.Records where
   -- Finally, we hide those ugly auxiliar functions away in a 'private' block
   -- in favor of a neat instance:
   instance
-    sig-NetworkMsg : {A : Set} ⦃ encA : Encoder A ⦄ → WithSig (NetworkMsg A)
+    sig-NetworkMsg : WithSig NetworkMsg
     sig-NetworkMsg = record
       { Signed         = SignedNM
       ; isSigned?      = isSignedNM?
@@ -118,11 +118,11 @@ module LibraBFT.Concrete.Records where
   -- Now, we can have a more concise type of verified messages; 
   -- I think I prefer the old version, though... not sure
   VerNetworkMsg : (A : Set) ⦃ encA : Encoder A ⦄ → Set
-  VerNetworkMsg A = Σ (NetworkMsg A) WithVerSig
+  VerNetworkMsg A = Σ NetworkMsg WithVerSig
 
 
   postulate  -- TODO implement
-    check-signature-and-format : {a : Set} → ⦃ encA : Encoder a ⦄ → NetworkMsg a → Maybe (VerNetworkMsg a)
+    check-signature-and-format : {a : Set} → ⦃ encA : Encoder a ⦄ → NetworkMsg → Maybe (VerNetworkMsg a)
 
 {-
   -- VCM: TODO: need to make sure messages were verified

@@ -25,7 +25,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
     maybeMP (preProcessProposalM now m) () processProposedBlockM
  -}
 
-  processProposalMsg : {a : Set} → Instant → ProposalMsg a → LBFT Unit
+  processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = return unit    -- TODO: just a placeholder for connecting handler
 
  {-
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
 
  -}
 
-  processCommitM : {a : Set} → LedgerInfoWithSignatures → LBFT (List (ExecutedBlock a))
+  processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   processCommitM finalityProof
      with BlockStore.commitM finalityProof
   ...| blocksToCommit = {!!}

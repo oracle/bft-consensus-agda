@@ -9,9 +9,7 @@ open import LibraBFT.Base.PKCS
 module LibraBFT.Concrete.EventProcessor
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  (pki     : PKI)
-  (cmd     : Set) -- VCM: review this
    where
 
  postulate
-   initEventProcessor : {a : Set} → PK → EventProcessor a
+   initEventProcessor : PK → EventProcessor

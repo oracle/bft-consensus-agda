@@ -10,4 +10,4 @@ module LibraBFT.Concrete.OBM.Util where
   ----------------
  
   LBFT : Set → Set
-  LBFT = RWST Unit (Action TX) (EventProcessor TX)
+  LBFT = RWST Unit Action EventProcessor

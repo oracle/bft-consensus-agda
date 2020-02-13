@@ -12,4 +12,5 @@ module LibraBFT.Base.Encode where
 
  postulate
   instance
-    encℕ : Encoder ℕ
+    encℕ  : Encoder ℕ
+    encBS : Encoder ByteString

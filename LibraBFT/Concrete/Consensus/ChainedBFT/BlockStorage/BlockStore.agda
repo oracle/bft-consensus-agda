@@ -8,7 +8,7 @@ open import LibraBFT.Concrete.OBM.Util
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
-  getBlock : {a : Set} → HashValue -> BlockStore a -> Maybe (ExecutedBlock a)
+  getBlock : HashValue -> BlockStore -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bsInner bs)
 
   {-
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
   open RWST-do
 
-  pathFromRootM : HashValue → LBFT (Maybe (List (ExecutedBlock TX)))
+  pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
   pathFromRootM = BlockTree.pathFromRootM
 
   pruneTreeM : HashValue -> LBFT Unit
@@ -50,7 +50,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
     -- TODO prune
     -- BlockTree.processPrunedBlocksM
 
-  commitM : LedgerInfoWithSignatures → LBFT (List (ExecutedBlock TX))
+  commitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   commitM finalityProof = do
     bs ← gets lBlockStore
     let blockIdToCommit = (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
@@ -72,7 +72,7 @@ OLD:
   ...| bs
     with (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
   ...| blockIdToCommit
-    with getBlock {TX} blockIdToCommit bs
+    with getBlock blockIdToCommit bs
   ...| nothing = [] , state₀ , []
   ...| just blockToCommit
     with ebRound blockToCommit ≤? ebRound (bsRoot bs)

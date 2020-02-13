@@ -37,14 +37,14 @@ pathFromRootM blockId = do
   --
   -- Ideally; 
   -- define: (extends? : ⋯ → Dec Extends) 
-  -- then define: (getBlocks : Extends → List (ExecutedBlock TX))
+  -- then define: (getBlocks : Extends → List ExecutedBlock)
   -- then define: (agda-pathFromRootM = getBlocks ∘ extends?)
   -- finally; prove (∀ h → pathFromRootM h ≡ agda-pathFromRootM h);
   -- This should justify the terminating prama (which can't be eliminated;
   -- loop might in fact never terminate).
 
   {-# TERMINATING #-}  -- TODO: justify or eliminate
-  pathFromRootM : HashValue → LBFT (Maybe (List (ExecutedBlock TX)))
+  pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
   pathFromRootM blockId = do
     bt ← gets lBlockTree
     maybeMP (loop bt blockId []) nothing (continue bt)
@@ -54,8 +54,8 @@ pathFromRootM blockId = do
     -- to prove isomorphic to agda-pathFromRootM as described
     -- in my comment above.
 
-    loop : BlockTree TX → HashValue → List (ExecutedBlock TX) 
-         → LBFT (Maybe (HashValue × List (ExecutedBlock TX)))
+    loop : BlockTree → HashValue → List ExecutedBlock
+         → LBFT (Maybe (HashValue × List ExecutedBlock))
     loop bt curBlockId res = 
       case btGetBlock curBlockId bt of
         λ { nothing      → return nothing
@@ -64,8 +64,8 @@ pathFromRootM blockId = do
                             else loop bt (ebParentId block) (block ∷ res)
           }
 
-    continue : {a : Set} → BlockTree a → HashValue × List (ExecutedBlock TX) 
-             → LBFT (Maybe (List (ExecutedBlock TX)))
+    continue : BlockTree → HashValue × List ExecutedBlock
+             → LBFT (Maybe (List ExecutedBlock))
     continue bt (curBlockId , res) =
       if-dec (curBlockId ≟Hash btRootId bt)
        then return (just (reverse res))
@@ -78,7 +78,7 @@ pathFromRootM blockId = do
     with use lBlockTree {state₀}
   ...| bt = maybeMP (loop bt blockId [] {state₀} {acts₀}) nothing (continue bt) {state₀} {acts₀}
        where
-         loop : BlockTree TX → HashValue → List (ExecutedBlock TX) → LBFT (Maybe (HashValue × List (ExecutedBlock TX)))
+         loop : BlockTree → HashValue → List ExecutedBlock → LBFT (Maybe (HashValue × List ExecutedBlock))
          loop bt curBlockId res {state₀} {acts₀}
             with btGetBlock curBlockId bt
          ...| nothing = nothing , state₀ , acts₀
@@ -87,7 +87,7 @@ pathFromRootM blockId = do
          ...| yes xx = just (curBlockId , res) , state₀ , acts₀
          ...| no  xx = loop bt (ebParentId block) (block ∷ res) {state₀} {acts₀}
 
-         continue : {a : Set} → BlockTree a → HashValue × List (ExecutedBlock TX) → LBFT (Maybe (List (ExecutedBlock TX)))
+         continue : BlockTree → HashValue × List ExecutedBlock → LBFT (Maybe (List ExecutedBlock))
          continue bt (curBlockId , res) {state₀} {acts₀}
            with curBlockId ≟Hash btRootId bt
          ...| no _  = nothing            , state₀ , acts₀

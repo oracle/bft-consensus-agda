@@ -13,7 +13,6 @@ import LibraBFT.Abstract.Types as Abs
 -- Proofs for validity of concrete records
 module LibraBFT.Concrete.Records.Valid 
     (ec  : Abs.EpochConfig)
-    (pki : PKI)
   where
 
  open import LibraBFT.Concrete.Records

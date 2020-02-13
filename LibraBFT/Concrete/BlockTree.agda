@@ -15,16 +15,12 @@ module LibraBFT.Concrete.BlockTree
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
  
-    -- We also need authorship and PKI information
     (ec  : EpochConfig)
-    (pki : PKI)
-    (CMD : Set) -- VCM: To be substituted by the command type
-                -- of an abstract state machine.
  where
 
   open import LibraBFT.Concrete.Util.KVMap
   open import LibraBFT.Concrete.Records
-  import LibraBFT.Concrete.Records.Valid ec pki as Meta
+  import LibraBFT.Concrete.Records.Valid ec as Meta
 
   --------------------------------
   -- Abstracting Blocks and QCs --
@@ -45,7 +41,7 @@ module LibraBFT.Concrete.BlockTree
 
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
-  α-Block : LinkableBlock CMD → Abs.Block
+  α-Block : LinkableBlock → Abs.Block
   α-Block b' with (ebBlock ∘ lbExecutedBlock) b'
   ...| b with bdBlockType (bBlockData b)
   ...| NilBlock = record
@@ -277,9 +273,9 @@ module LibraBFT.Concrete.BlockTree
 --   -- The Empty State --
 --   ---------------------
 
-
-  emptyBT : {a : Set} → BlockTree a
-  emptyBT {a} = record
+  -- TODO: fill out other fields
+  emptyBT : BlockTree
+  emptyBT = record
     { btIdToBlock      = empty
     ; btIdToQuorumCert = empty
     }
