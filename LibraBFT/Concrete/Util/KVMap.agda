@@ -30,6 +30,11 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k kvm ≡ nothing
                   → KVMap Key Val
 
+   -- TODO: update properties to reflect kvm-update, consider combining insert/update
+   kvm-update     : (k : Key)(v : Val)(kvm : KVMap Key Val)
+                  → lookup k kvm ≢ nothing
+                  → KVMap Key Val
+
    kvm-size       : KVMap Key Val → ℕ
    kvm-toList     : KVMap Key Val → List (Key × Val)
    kvm-toList-length : (kvm : KVMap Key Val)
