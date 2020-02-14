@@ -8,6 +8,8 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+open import Optics.All
+
 open import LibraBFT.Concrete.Consensus.Types
 
 module LibraBFT.Concrete.Records where
@@ -18,32 +20,32 @@ module LibraBFT.Concrete.Records where
     C : CommitMsg   → NetworkMsg
 
   getEpoch : NetworkMsg → EpochId
-  getEpoch (P p) = bdEpoch (bBlockData (pmProposal p))         -- TODO: use lenses
-  getEpoch (V v) = biEpoch (vdProposed (vVoteData (vmVote v)))
-  getEpoch (C c) = cEpochId c
+  getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
+  getEpoch (V v) = v ^∙ vmVote ∙ vVoteData ∙ vdProposed ∙ biEpoch
+  getEpoch (C c) = c ^∙ cEpochId
 
   -----------------------------------------------------------------------
   -- Proof that network records are signable and may carry a signature --
   -----------------------------------------------------------------------
 
-  instance 
+  instance
    -- A Block might carry a signature
    sig-Block : WithSig Block
    sig-Block = record
-      { Signed         = Is-just ∘ bSignature 
-      ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (bSignature b)
+      { Signed         = Is-just ∘ bSignature ⇣
+      ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (b ^∙ bSignature)
       ; signature      = λ { _ prf → to-witness prf }
-      ; signableFields = λ b → concat (encodeH (bId b) ∷ encode (bBlockData b) ∷ []) 
+      ; signableFields = λ b → concat (encodeH ((bId ⇣) b) ∷ encode (b ^∙ bBlockData) ∷ [])
       }
-  
+
    -- A proposal message might carry a signature inside the block it
    -- is proposing.
    sig-ProposalMsg : WithSig ProposalMsg
    sig-ProposalMsg = record
-      { Signed         = Signed         ∘ pmProposal 
-      ; isSigned?      = isSigned?      ∘ pmProposal
-      ; signature      = signature      ∘ pmProposal 
-      ; signableFields = signableFields ∘ pmProposal 
+      { Signed         = Signed         ∘ pmProposal ⇣
+      ; isSigned?      = isSigned?      ∘ pmProposal ⇣
+      ; signature      = signature      ∘ pmProposal ⇣
+      ; signableFields = signableFields ∘ pmProposal ⇣
       }
 
    -- A vote is always signed; as seen by the 'Unit'
@@ -51,31 +53,31 @@ module LibraBFT.Concrete.Records where
    -- VCM-QUESTION: What are the signable fields? What do we
    -- do with timeoutSignature?
    sig-Vote : WithSig Vote
-   sig-Vote = record 
-      { Signed         = λ _ → Unit 
+   sig-Vote = record
+      { Signed         = λ _ → Unit
       ; isSigned?      = λ _ → yes unit
-      ; signature      = λ v _ → vSignature v 
-      ; signableFields = λ v → concat {!!} 
+      ; signature      = λ v _ → (vSignature ⇣) v
+      ; signableFields = λ v → concat {!!}
       }
 
    sig-VoteMsg : WithSig VoteMsg
    sig-VoteMsg = record
-      { Signed         = Signed         ∘ vmVote
-      ; isSigned?      = isSigned?      ∘ vmVote
-      ; signature      = signature      ∘ vmVote
-      ; signableFields = signableFields ∘ vmVote
+      { Signed         = Signed         ∘ vmVote ⇣
+      ; isSigned?      = isSigned?      ∘ vmVote ⇣
+      ; signature      = signature      ∘ vmVote ⇣
+      ; signableFields = signableFields ∘ vmVote ⇣
       }
 
    sig-commit : WithSig CommitMsg
    sig-commit = record
-      { Signed         = Is-just ∘ cSigMB 
-      ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (cSigMB c)
+      { Signed         = Is-just ∘ cSigMB ⇣
+      ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (c ^∙ cSigMB)
       ; signature      = λ { _ prf → to-witness prf }
-      ; signableFields = λ c → concat ( encode  (cEpochId c) 
-                                      ∷ encode  (cAuthor c) 
-                                      ∷ encode  (cRound c) 
-                                      ∷ encodeH (cCert c) 
-                                      ∷ []) 
+      ; signableFields = λ c → concat ( encode  (c ^∙ cEpochId)
+                                      ∷ encode  (c ^∙ cAuthor)
+                                      ∷ encode  (c ^∙ cRound)
+                                      ∷ encodeH (c ^∙ cCert)
+                                      ∷ [])
       }
 
   ---------------------------------------------------------

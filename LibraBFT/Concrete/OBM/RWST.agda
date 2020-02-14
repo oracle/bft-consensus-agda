@@ -1,5 +1,7 @@
 open import LibraBFT.Prelude
 
+open import Optics.All
+
 module LibraBFT.Concrete.OBM.RWST where
 
   ----------------
@@ -47,6 +49,9 @@ module LibraBFT.Concrete.OBM.RWST where
 
   gets : (St → A) → RWST Ev Wr St A
   gets f = RWST-bind get (RWST-return ∘ f)
+
+  use : Lens St A → RWST Ev Wr St A
+  use f = RWST-bind get (RWST-return ∘ (f ⇣))
 
   modify : (St → St) → RWST Ev Wr St Unit
   modify f = rwst (λ _ st → unit , f st , [])

@@ -4,6 +4,10 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Util.KVMap as KVMap
 
+open import Optics.All
+
+open import Data.String using (String)
+
 module LibraBFT.Concrete.Consensus.Types where
 
   open import LibraBFT.Abstract.Types public hiding (Author)
@@ -76,7 +80,8 @@ module LibraBFT.Concrete.Consensus.Types where
       biRound : Round
       biId    : HashValue
       -- VCM: this has more fields...
-  open BlockInfo public
+  unquoteDecl biEpoch   biRound   biId = mkLens (quote BlockInfo)
+             (biEpoch ∷ biRound ∷ biId ∷ [])
   postulate instance enc-BlockInfo : Encoder BlockInfo
 
   record LedgerInfo : Set where
@@ -84,11 +89,9 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       liCommitInfo        : BlockInfo
       liConsensusDataHash : HashValue
-  open LedgerInfo public
+  unquoteDecl liCommitInfo   liConsensusBlockId = mkLens (quote LedgerInfo)
+             (liCommitInfo ∷ liConsensusBlockId ∷ [])
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
-
-  liConsensusBlockId : LedgerInfo → HashValue
-  liConsensusBlockId  = biId ∘ liCommitInfo
 
   record LedgerInfoWithSignatures : Set where
     constructor mkLedgerInfoWithSignatures
@@ -98,7 +101,8 @@ module LibraBFT.Concrete.Consensus.Types where
       -- when a QC is sent, it contains agregated 'VoteData's, but
       -- not 'Vote'
       liwsSignatures : KVMap Author (Signature × Meta VoteOrder)
-  open LedgerInfoWithSignatures public
+  unquoteDecl liwsLedgerInfo   liwsSignatures = mkLens (quote LedgerInfoWithSignatures)
+             (liwsLedgerInfo ∷ liwsSignatures ∷ [])
   postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
 
   -------------------
@@ -108,9 +112,10 @@ module LibraBFT.Concrete.Consensus.Types where
   record VoteData : Set where
     constructor mkVoteData
     field
-      vdProposed : BlockInfo -- VCM-QUESTION: what's the difference?
+      vdProposed : BlockInfo
       vdParent   : BlockInfo
-  open VoteData public
+  unquoteDecl vdProposed   vdParent = mkLens (quote VoteData)
+             (vdProposed ∷ vdParent ∷ [])
   postulate instance enc-VoteData : Encoder VoteData
 
   record Vote : Set where
@@ -125,7 +130,8 @@ module LibraBFT.Concrete.Consensus.Types where
       -- The algo should never /read/ vote order, so we place it
       -- in the Meta monad. 
       vOrder            : Meta VoteOrder
-  open Vote public
+  unquoteDecl vVoteData   vAuthor   vLedgerInfo   vSignature   vTimeoutSignature = mkLens (quote Vote)
+             (vVoteData ∷ vAuthor ∷ vLedgerInfo ∷ vSignature ∷ vTimeoutSignature ∷ [])
   postulate instance enc-Vote : Encoder Vote
 
   record QuorumCert : Set where
@@ -133,11 +139,12 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       qcVoteData         : VoteData
       qcSignedLedgerInfo : LedgerInfoWithSignatures
-  open QuorumCert public
+  unquoteDecl qcVoteData   qcSignedLedgerInfo = mkLens (quote QuorumCert)
+             (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
   postulate instance enc-QuorumCert : Encoder QuorumCert
 
-  qcCertifiedBlock : QuorumCert → BlockInfo
-  qcCertifiedBlock  = vdProposed ∘ qcVoteData
+  qcCertifiedBlock : Lens QuorumCert BlockInfo
+  qcCertifiedBlock = qcVoteData ∙ vdProposed
 
   -- qcCertifiedBlock :: GetterNoFunctor QuorumCert BlockInfo
   -- qcCertifiedBlock  = to (^.qcVoteData.vdProposed)
@@ -158,14 +165,14 @@ module LibraBFT.Concrete.Consensus.Types where
   -- qcEndsEpoch  = to $ \qc -> isJust (qc^.qcSignedLedgerInfo.liwsLedgerInfo.liNextValidatorSet)
 
   qcVotesKV : QuorumCert → KVMap Author (Signature × Meta VoteOrder)
-  qcVotesKV qc = liwsSignatures (qcSignedLedgerInfo qc)
+  qcVotesKV qc = qc ^∙ qcSignedLedgerInfo ∙ liwsSignatures 
 
   qcVotes : QuorumCert → List (Author × Signature × Meta VoteOrder)
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
-  qcCertifies : QuorumCert → Hash
-  -- qcCertifies qc = biId (vdParent (qcVoteData qc))  -- MSM: Victor please confirm this change
-  qcCertifies qc = biId (vdProposed (qcVoteData qc))
+  qcCertifies : Lens QuorumCert  Hash
+  qcCertifies = qcVoteData ∙ vdProposed ∙ biId
+  
   ------------
   -- Blocks --
   ------------
@@ -187,8 +194,9 @@ module LibraBFT.Concrete.Consensus.Types where
       bdQuorumCert : QuorumCert
       bdBlockType  : BlockType
       -- VCM-QUESTION: I don't think we need this here...
-      -- bdTimeStamp : Instant 
-  open BlockData public
+      -- bdTimeStamp : Instant
+  unquoteDecl bdEpoch   bdRound   bdQuorumCert   bdBlockType = mkLens (quote BlockData)
+             (bdEpoch ∷ bdRound ∷ bdQuorumCert ∷ bdBlockType ∷ [])
   postulate instance enc-BlockData : Encoder BlockData
 
   -- MSM: They use 'nothing' as the 'bSignature' when constructing a block to sign later.  This can be seen in the
@@ -204,7 +212,8 @@ module LibraBFT.Concrete.Consensus.Types where
       bId        : HashValue
       bBlockData : BlockData
       bSignature : Maybe Signature
-  open Block public
+  unquoteDecl bId   bBlockData   bSignature = mkLens (quote Block)
+             (bId ∷ bBlockData ∷ bSignature ∷ [])
   postulate instance enc : Encoder Block
 
   -- bAuthor :: GetterNoFunctor (Block a) (Maybe Author)
@@ -219,11 +228,14 @@ module LibraBFT.Concrete.Consensus.Types where
   -- bPayload :: GetterNoFunctor (Block a) (Maybe a)
   -- bPayload  = to (^.bBlockData.bdPayload)
 
+  bQuorumCert : Lens Block QuorumCert
+  bQuorumCert  = bBlockData ∙ bdQuorumCert
+
   -- bQuorumCert :: GetterNoFunctor (Block a) QuorumCert
   -- bQuorumCert  = to (^.bBlockData.bdQuorumCert)
 
-  bRound : Block → Round
-  bRound  = bdRound ∘ bBlockData
+  bRound : Lens Block Round
+  bRound =  bBlockData ∙ bdRound
 
   -- bTimestamp :: GetterNoFunctor (Block a) Instant
   -- bTimestamp  = to (^.bBlockData.bdTimestamp)
@@ -233,7 +245,9 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       siHighestQuorumCert  : QuorumCert
       siHighestCommitCert  : QuorumCert
-      -- siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define 
+      -- siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define
+  unquoteDecl siHighestQuorumCert   siHighestCommitCert = mkLens (quote SyncInfo)
+             (siHighestQuorumCert ∷ siHighestCommitCert ∷ [])
   postulate instance enc-SyncInfo : Encoder SyncInfo
 
   ----------------------
@@ -245,7 +259,8 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       pmProposal : Block
       pmSyncInfo : SyncInfo
-  open ProposalMsg public
+  unquoteDecl pmProposal   pmSyncInfo = mkLens (quote ProposalMsg)
+             (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
   record VoteMsg : Set where
@@ -253,7 +268,8 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       vmVote     : Vote
       vmSyncInfo : SyncInfo
-  open VoteMsg public
+  unquoteDecl vmVote   vmSyncInfo = mkLens (quote VoteMsg)
+             (vmVote ∷ vmSyncInfo ∷ [])
   postulate instance enc-VoteMsg : Encoder VoteMsg
 
   -- This is a notification of a commit.  I don't think it's explicitly included in the Haskell/Rust
@@ -267,7 +283,8 @@ module LibraBFT.Concrete.Consensus.Types where
       cRound   : Round
       cCert    : Hash
       cSigMB   : Maybe Signature
-  open CommitMsg public
+  unquoteDecl cEpochId   cAuthor   cRound   cCert   cSigMB = mkLens (quote CommitMsg)
+             (cEpochId ∷ cAuthor ∷ cRound ∷ cCert ∷ cSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
   record LastVoteInfo : Set where
@@ -292,31 +309,31 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       ebBlock  : Block
       ebOutput : ProcessedVMOutput
-  open ExecutedBlock public
-
+  unquoteDecl ebBlock   ebOutput = mkLens (quote ExecutedBlock)
+             (ebBlock ∷ ebOutput ∷ []) 
 -- ebEpoch :: GetterNoFunctor (ExecutedBlock a) Epoch
 -- ebEpoch  = to (^.ebBlock.bEpoch)
 
-  ebId : ExecutedBlock → HashValue
-  ebId = bId ∘ ebBlock
+  ebId : Lens ExecutedBlock HashValue
+  ebId = ebBlock ∙ bId
 
 -- ebId :: GetterNoFunctor (ExecutedBlock a) HashValue
 -- ebId  = to (^.ebBlock.bId)
 
-  ebQuorumCert : ExecutedBlock → QuorumCert
-  ebQuorumCert = bdQuorumCert ∘ bBlockData ∘ ebBlock
+  ebQuorumCert : Lens ExecutedBlock QuorumCert
+  ebQuorumCert = ebBlock ∙ bQuorumCert
 
 -- ebQuorumCert : GetterNoFunctor (ExecutedBlock a) QuorumCert
 -- ebQuorumCert  = to (^.ebBlock.bQuorumCert)
 
-  ebParentId : ExecutedBlock → HashValue
-  ebParentId = biId ∘ qcCertifiedBlock ∘ ebQuorumCert
+  ebParentId : Lens ExecutedBlock HashValue
+  ebParentId = ebQuorumCert ∙ qcCertifiedBlock ∙ biId
 
 -- ebParentId :: GetterNoFunctor (ExecutedBlock a) HashValue
 -- ebParentId  = to (^.ebQuorumCert.qcCertifiedBlock.biId)
 
-  ebRound : ExecutedBlock → Round
-  ebRound = bRound ∘ ebBlock
+  ebRound : Lens ExecutedBlock Round
+  ebRound = ebBlock ∙ bRound
 
 -- ebRound :: GetterNoFunctor (ExecutedBlock a) Round
 -- ebRound  = to (^.ebBlock.bRound)
@@ -328,10 +345,11 @@ module LibraBFT.Concrete.Consensus.Types where
     field
       lbExecutedBlock : ExecutedBlock
       -- lbChildren      : Set HashValue
-  open LinkableBlock public
+  unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
+             (lbExecutedBlock ∷ [])
 
-  lbId : LinkableBlock → HashValue
-  lbId = ebId ∘ lbExecutedBlock
+  lbId : Lens LinkableBlock HashValue
+  lbId = lbExecutedBlock ∙ ebId
 
 -- lbId :: GetterNoFunctor (LinkableBlock a) HashValue
 -- lbId  = to (^.lbExecutedBlock.ebId)
@@ -364,10 +382,9 @@ module LibraBFT.Concrete.Consensus.Types where
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
   btGetBlock : HashValue -> BlockTree -> Maybe ExecutedBlock
-  btGetBlock hv bt = Maybe-map lbExecutedBlock (btGetLinkableBlock hv bt)
+  btGetBlock hv bt = Maybe-map (lbExecutedBlock ⇣) (btGetLinkableBlock hv bt)
 
-  btRoot : (bt : BlockTree)
-         → ExecutedBlock
+  btRoot : BlockTree → ExecutedBlock
   btRoot bt with (btGetBlock (btRootId bt)) bt | inspect (btGetBlock (btRootId bt)) bt
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
@@ -380,10 +397,11 @@ module LibraBFT.Concrete.Consensus.Types where
       bsInner         : BlockTree
       -- bsStateComputer : StateComputer
       -- bsStorage       : CBPersistentStorage
-  open BlockStore public
+  unquoteDecl bsInner = mkLens (quote BlockStore)
+             (bsInner ∷ [])
 
   bsRoot : BlockStore → ExecutedBlock
-  bsRoot  = btRoot ∘ bsInner
+  bsRoot = btRoot ∘ (bsInner ⇣)
 
   -- bsHighestCertifiedBlock :: GetterNoFunctor (BlockStore a) (ExecutedBlock a)
   -- bsHighestCertifiedBlock  = to (^.bsInner.btHighestCertifiedBlock)
@@ -403,20 +421,16 @@ module LibraBFT.Concrete.Consensus.Types where
       epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
       epBlockStore   : BlockStore
       epValidators   : List Author  -- TODO: ValidatorVerifier details
-      
-  open EventProcessor public
+  unquoteDecl epEpochConfig   epBlockStore epValidators = mkLens (quote EventProcessor)
+             (epEpochConfig ∷ epBlockStore ∷ epValidators ∷ [])
 
-  lBlockStore : EventProcessor → BlockStore
+  lBlockStore : Lens EventProcessor BlockStore
   lBlockStore = epBlockStore
 
-  lBlockTree : EventProcessor → BlockTree
-  lBlockTree = bsInner ∘ lBlockStore
+  lBlockTree : Lens EventProcessor BlockTree
+  lBlockTree = lBlockStore ∙ bsInner
 
 -- ------------------------------------------------------------------------------
-
-
-  postulate String : Set
-  {-# BUILTIN STRING String #-}
 
   data Action : Set where
     BroadcastProposal : ProposalMsg           → Action

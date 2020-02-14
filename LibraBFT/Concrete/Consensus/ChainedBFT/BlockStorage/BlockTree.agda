@@ -4,6 +4,8 @@ open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.OBM.Util
 open import LibraBFT.Hash
 
+open import Optics.All
+
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree where
 
 {--
@@ -46,7 +48,7 @@ pathFromRootM blockId = do
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
   pathFromRootM blockId = do
-    bt ← gets lBlockTree
+    bt ← use lBlockTree
     maybeMP (loop bt blockId []) nothing (continue bt)
    where
     -- VCM: Both loop and continue are pure functions; why are
@@ -56,12 +58,12 @@ pathFromRootM blockId = do
 
     loop : BlockTree → HashValue → List ExecutedBlock
          → LBFT (Maybe (HashValue × List ExecutedBlock))
-    loop bt curBlockId res = 
+    loop bt curBlockId res =
       case btGetBlock curBlockId bt of
         λ { nothing      → return nothing
-          ; (just block) → if-dec (ebRound block ≤? (ebRound ∘ btRoot) bt) 
-                            then return (just (curBlockId , res)) 
-                            else loop bt (ebParentId block) (block ∷ res)
+          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot bt) ^∙ ebRound)
+                            then return (just (curBlockId , res))
+                            else loop bt (block ^∙ ebParentId) (block ∷ res)
           }
 
     continue : BlockTree → HashValue × List ExecutedBlock

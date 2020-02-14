@@ -3,13 +3,14 @@ open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Records
 import      LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree as BlockTree
 
+open import Optics.All
 
 open import LibraBFT.Concrete.OBM.Util
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
   getBlock : HashValue -> BlockStore -> Maybe ExecutedBlock
-  getBlock hv bs = btGetBlock hv (bsInner bs)
+  getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
   {-
   commitM
@@ -52,16 +53,16 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
   commitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   commitM finalityProof = do
-    bs ← gets lBlockStore
-    let blockIdToCommit = (liConsensusBlockId ∘ liwsLedgerInfo) finalityProof
+    bs ← use lBlockStore
+    let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of
       λ { nothing              → pure [] 
         ; (just blockToCommit) → 
-            if-dec (ebRound blockToCommit ≤? ebRound (bsRoot bs))
+            if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot bs) ^∙ ebRound)
             then tell1 (LogErr "commit block round lower than root") >> pure []
             else do 
              blocksToCommit ← maybe id [] <$> pathFromRootM blockIdToCommit 
-             pruneTreeM (ebId blockToCommit)
+             pruneTreeM (blockToCommit ^∙ ebId)
              pure blocksToCommit
         }
 {-

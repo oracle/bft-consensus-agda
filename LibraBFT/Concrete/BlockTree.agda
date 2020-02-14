@@ -9,6 +9,8 @@ open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
+open import Optics.All
+
 module LibraBFT.Concrete.BlockTree
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
@@ -42,22 +44,22 @@ module LibraBFT.Concrete.BlockTree
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
   α-Block : LinkableBlock → Abs.Block
-  α-Block b' with (ebBlock ∘ lbExecutedBlock) b'
-  ...| b with bdBlockType (bBlockData b)
+  α-Block b' with b' ^∙ lbExecutedBlock ∙ ebBlock
+  ...| b with b ^∙ bBlockData ∙ bdBlockType
   ...| NilBlock = record
-       { bId     = bId b
-       ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
-       ; bRound  = bdRound (bBlockData b)
+       { bId     = (bId ⇣) b
+       ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
+       ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
   ...| Genesis = record
-       { bId     = bId b
+       { bId     = b ^∙ bId
        ; bPrevQC = nothing
-       ; bRound  = bdRound (bBlockData b)
+       ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
   ...| Proposal cmd α = record
-       { bId     = bId b
-       ; bPrevQC = just (biId (vdParent (qcVoteData (bdQuorumCert (bBlockData b)))))
-       ; bRound  = bdRound (bBlockData b)
+       { bId     = b ^∙ bId
+       ; bPrevQC = just (b ^∙ bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙ vdParent ∙ biId)
+       ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
 
   α-Vote : (qc : QuorumCert)(valid : Meta.IsValidQC qc) 
@@ -66,16 +68,16 @@ module LibraBFT.Concrete.BlockTree
          → Abs.Vote
   α-Vote qc v {author , sig , ord} as∈QC = record
     { vAuthor   = Meta.ivaIdx (All-lookup (Meta.ivqcValidAuthors v) as∈QC)
-    ; vBlockUID = biId (vdProposed (qcVoteData qc))
-    ; vRound    = biRound (vdProposed (qcVoteData qc))
+    ; vBlockUID = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
+    ; vRound    = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
                                      --      ord in here Agda will reject.
     }
 
   α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC
   α-QC (qc , valid) = record
-    { qCertBlockId = biId (vdProposed (qcVoteData qc)) 
-    ; qRound       = biRound (vdProposed (qcVoteData qc))
+    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
+    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; qVotes       = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
     ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
     ; qVotes-C2    = subst (_ ≤_) {!!} (Meta.ivqcSizeOk valid)

@@ -10,6 +10,8 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Consensus.Types
 
+open import Optics.All
+
 open import Level
 
 module LibraBFT.Global.ModelDraft
@@ -30,7 +32,7 @@ module LibraBFT.Global.ModelDraft
  initialEventProcessorAndMessages = const (eventProcessor (fakeEC 0) (mkBlockStore (emptyBT (fakeEC 0))) [] , [])  -- TODO: real list of authors, other details
 
  actionsToSends : EventProcessor → Action → List (Author × NetworkMsg)
- actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (epValidators ep)
+ actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (ep ^∙ epValidators)
  actionsToSends _  (LogErr x)            = []
  actionsToSends _  (SendVote v to)       = List-map (_, (V v)) to
 
