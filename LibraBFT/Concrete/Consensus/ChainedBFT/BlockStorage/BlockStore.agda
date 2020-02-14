@@ -57,7 +57,9 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of
       λ { nothing              → pure [] 
-        ; (just blockToCommit) → 
+        ; (just blockToCommit) →
+            -- MSM: Any chance of some more syntactic sugar so we can be closer
+            -- to the guards syntax used in Haskell (see above)?
             if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot bs) ^∙ ebRound)
             then tell1 (LogErr "commit block round lower than root") >> pure []
             else do 
