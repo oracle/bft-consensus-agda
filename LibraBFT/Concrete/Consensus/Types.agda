@@ -373,23 +373,28 @@ module LibraBFT.Concrete.Consensus.Types where
       btIdToQuorumCert          : KVMap HashValue QuorumCert
       btPrunedBlockIds          : List HashValue
       btMaxPrunedBlocksInMem    : ℕ
-  open BlockTree public
+  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestCommitCert   btPendingVotes   btIdToQuorumCert   btPrunedBlockIds
+              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
+             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestCommitCert ∷ btPendingVotes ∷ btIdToQuorumCert ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ [])
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
   -- This should not be used outside BlockTree.hs.
   btGetLinkableBlock : HashValue -> BlockTree -> Maybe LinkableBlock
-  btGetLinkableBlock hv bt = KVMap.lookup hv (btIdToBlock bt)
+  btGetLinkableBlock hv bt = KVMap.lookup hv (bt ^∙ btIdToBlock)
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
   btGetBlock : HashValue -> BlockTree -> Maybe ExecutedBlock
   btGetBlock hv bt = Maybe-map (lbExecutedBlock ⇣) (btGetLinkableBlock hv bt)
 
   btRoot : BlockTree → ExecutedBlock
-  btRoot bt with (btGetBlock (btRootId bt)) bt | inspect (btGetBlock (btRootId bt)) bt
+  btRoot bt with (btGetBlock (bt ^∙ btRootId)) bt | inspect (btGetBlock (bt ^∙ btRootId)) bt
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
    where postulate
-           assumedValid : (bt : BlockTree) → btGetBlock (btRootId bt) bt ≡ nothing → ⊥
+           assumedValid : (bt : BlockTree) → btGetBlock (bt ^∙ btRootId) bt ≡ nothing → ⊥
 
   record BlockStore : Set where
     constructor mkBlockStore
