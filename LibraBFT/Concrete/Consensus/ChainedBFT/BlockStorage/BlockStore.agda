@@ -12,6 +12,16 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
   getBlock : HashValue -> BlockStore -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
+  open RWST-do
+
+  pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
+  pathFromRootM = BlockTree.pathFromRootM
+
+  pruneTreeM : HashValue -> LBFT Unit
+  pruneTreeM _ = return unit
+    -- TODO prune
+    -- BlockTree.processPrunedBlocksM
+
   {-
   commitM
     :: (Monad m, RWBlockStore s a, RWBlockTree s a)
@@ -40,16 +50,6 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
    where
     here t = "BlockStore":"commitM":t
   -}
-
-  open RWST-do
-
-  pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
-  pathFromRootM = BlockTree.pathFromRootM
-
-  pruneTreeM : HashValue -> LBFT Unit
-  pruneTreeM _ = return unit
-    -- TODO prune
-    -- BlockTree.processPrunedBlocksM
 
   commitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   commitM finalityProof = do
