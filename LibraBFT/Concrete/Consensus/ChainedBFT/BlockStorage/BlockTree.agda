@@ -69,7 +69,7 @@ pathFromRootM blockId = do
     continue : BlockTree → HashValue × List ExecutedBlock
              → LBFT (Maybe (List ExecutedBlock))
     continue bt (curBlockId , res) =
-      if-dec (curBlockId ≟Hash btRootId bt)
+      if-dec (curBlockId ≟Hash (bt ^∙ btRootId))
        then return (just (reverse res))
        else return nothing
     
