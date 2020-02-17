@@ -126,7 +126,18 @@ module LibraBFT.Concrete.BlockTree
     with α-Block r Abs.≟Block b
   ...| yes refl = yes refl
   ...| no  ok   = no (ok ∘ just-injective)
-  (Abs.Q q) ∈BT? bt = {!!}
+  (Abs.Q q) ∈BT? bt
+    with lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt)
+  ...| nothing = no λ x → maybe-⊥ refl (sym x)
+  ...| just (qq , val)
+  -- TODO: Can't quite finish this because we don't know that unsafeReadmeta (btEpochconfig bt) ≡ ec
+  -- If that's not the case, then we shouldn't consider ∈BT to hold, so we should require a proof
+  -- that it does hold in the definition of ∈BT.  This seems to lead us to wanting decidable
+  -- equality for EpochConfigs, which seems painful.  Any better ideas?  Can we make this module work
+  -- over BlockTrees that explicitly have the right EpochConfig?
+    with  α-QC (qq , subst (λ x → IsValidQC x qq) {!!} val) Abs.≟≈QC q
+  ...| yes willBeRefl = yes {!!} -- refl
+  ...| no  ok         = no (ok ∘ just-injective)
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit    = refl

@@ -66,6 +66,11 @@ module LibraBFT.Abstract.Records
   _≈QC_ : QC → QC → Set
   q₀ ≈QC q₁ = qCertBlockId q₀ ≡ qCertBlockId q₁
 
+  _≟≈QC_ : (q₀ q₁ : QC) → Dec (q₀ ≈QC q₁)
+  q₀ ≟≈QC q₁ with qCertBlockId q₀ ≟UID qCertBlockId q₁
+  ...| yes refl = yes refl
+  ...| no  neq  = no λ x → neq x
+
   ≈QC-refl : Reflexive _≈QC_
   ≈QC-refl = refl
 
