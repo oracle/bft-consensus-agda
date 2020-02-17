@@ -17,22 +17,7 @@ module LibraBFT.Concrete.Records.Valid
 
  open import LibraBFT.Concrete.Records
 
- record IsValidQCAuthor (_ : Author) : Set where
-   field
-     ivaIdx : Abs.Author ec
- open IsValidQCAuthor public
-
- record IsValidQC (qc : QuorumCert) : Set where
-   field
-     ivqcSizeOk       : Abs.QuorumSize ec ≤ length (qcVotes qc)
-     ivqcValidAuthors : All (IsValidQCAuthor ∘ proj₁) (qcVotes qc)
- open IsValidQC public
-   
-     -- TODO: Add fields as we need them
-
- validateQC : (qc : QuorumCert) → Maybe (IsValidQC qc)
+ -- This will really be in the actual algorithm (model)
+ validateQC : (qc : QuorumCert) → Maybe (IsValidQC ec qc)
  validateQC = {!!}
-            
-
-  
 

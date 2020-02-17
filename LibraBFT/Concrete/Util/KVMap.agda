@@ -35,6 +35,7 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k kvm ≢ nothing
                   → KVMap Key Val
 
+   -- TODO: need properties relating kvm-toList to empty, kvm-insert and kvm-update
    kvm-size       : KVMap Key Val → ℕ
    kvm-toList     : KVMap Key Val → List (Key × Val)
    kvm-toList-length : (kvm : KVMap Key Val)

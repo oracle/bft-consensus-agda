@@ -165,14 +165,27 @@ module LibraBFT.Concrete.Consensus.Types where
   -- qcEndsEpoch  = to $ \qc -> isJust (qc^.qcSignedLedgerInfo.liwsLedgerInfo.liNextValidatorSet)
 
   qcVotesKV : QuorumCert → KVMap Author (Signature × Meta VoteOrder)
-  qcVotesKV qc = qc ^∙ qcSignedLedgerInfo ∙ liwsSignatures 
+  qcVotesKV = (liwsSignatures ⇣) ∘ (qcSignedLedgerInfo ⇣)
 
   qcVotes : QuorumCert → List (Author × Signature × Meta VoteOrder)
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
   qcCertifies : Lens QuorumCert  Hash
   qcCertifies = qcVoteData ∙ vdProposed ∙ biId
-  
+
+  module WithEC (ec : EpochConfig) where
+
+    record IsValidQCAuthor (_ : Author) : Set where
+      field
+        ivaIdx : EpochConfig.Author ec
+    open IsValidQCAuthor public
+
+    record IsValidQC (qc : QuorumCert) : Set where
+      field
+        ivqcSizeOk       : QuorumSize ec ≤ length (qcVotes qc)
+        ivqcValidAuthors : All ((IsValidQCAuthor ∘ proj₁) ) (qcVotes qc)
+  open WithEC public
+
   ------------
   -- Blocks --
   ------------
@@ -370,14 +383,18 @@ module LibraBFT.Concrete.Consensus.Types where
       -- btHighestTimeoutCert      : Maybe TimeoutCertificate
       btHighestCommitCert       : QuorumCert
       btPendingVotes            : PendingVotes
-      btIdToQuorumCert          : KVMap HashValue QuorumCert
       btPrunedBlockIds          : List HashValue
       btMaxPrunedBlocksInMem    : ℕ
+      -- These two are kept at the end as we don't want to define lenses for them because they are
+      -- not simple types, and it seems the lenses defined below must be for a prefix of the fields
+      -- in the record.
+      btEpochConfig             : Meta EpochConfig
+      btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert (WithEC.IsValidQC (unsafeReadMeta btEpochConfig)))
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestCommitCert   btPendingVotes   btIdToQuorumCert   btPrunedBlockIds
+              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
               btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
              (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btIdToQuorumCert ∷ btPrunedBlockIds ∷
+              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
               btMaxPrunedBlocksInMem ∷ [])
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
