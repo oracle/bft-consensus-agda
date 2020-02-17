@@ -22,7 +22,6 @@ module LibraBFT.Concrete.BlockTree
 
   open import LibraBFT.Concrete.Util.KVMap
   open import LibraBFT.Concrete.Records
-  import LibraBFT.Concrete.Records.Valid ec as Meta
 
   --------------------------------
   -- Abstracting Blocks and QCs --
@@ -44,8 +43,8 @@ module LibraBFT.Concrete.BlockTree
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
   α-Block : LinkableBlock → Abs.Block
-  α-Block b' with b' ^∙ lbExecutedBlock ∙ ebBlock
-  ...| b with b ^∙ bBlockData ∙ bdBlockType
+  α-Block b' with (ebBlock ⇣) ((lbExecutedBlock ⇣) b')
+  ...| b with (bdBlockType ⇣) ((bBlockData ⇣) b)
   ...| NilBlock = record
        { bId     = (bId ⇣) b
        ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
@@ -62,25 +61,25 @@ module LibraBFT.Concrete.BlockTree
        ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
 
-  α-Vote : (qc : QuorumCert)(valid : Meta.IsValidQC qc) 
+  α-Vote : (qc : QuorumCert)(valid : IsValidQC ec qc)
          → ∀ {as}
          → as ∈ qcVotes qc
          → Abs.Vote
   α-Vote qc v {author , sig , ord} as∈QC = record
-    { vAuthor   = Meta.ivaIdx (All-lookup (Meta.ivqcValidAuthors v) as∈QC)
+    { vAuthor   = (ivaIdx (All-lookup (IsValidQC.ivqcValidAuthors v) as∈QC))
     ; vBlockUID = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; vRound    = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
                                      --      ord in here Agda will reject.
     }
 
-  α-QC : Σ QuorumCert Meta.IsValidQC → Abs.QC
+  α-QC : Σ QuorumCert (IsValidQC ec) → Abs.QC
   α-QC (qc , valid) = record
     { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; qVotes       = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
     ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
-    ; qVotes-C2    = subst (_ ≤_) {!!} (Meta.ivqcSizeOk valid)
+    ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC.ivqcSizeOk valid)
     ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
     ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
     }
