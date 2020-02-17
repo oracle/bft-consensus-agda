@@ -281,44 +281,43 @@ module LibraBFT.Concrete.BlockTree
     ; btIdToQuorumCert = empty
     }
 
---   empty-Correct : Correct emptyBT
---   empty-Correct Abs.I     _    = WithRSS.empty
---   empty-Correct (Abs.B b) imp
---     = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ (α-Block <M$>_))
---                                  (sym (kvm-empty {k = Abs.bId b}))
---                                  refl))
---   empty-Correct (Abs.Q q) imp
---     = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
---                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
---                                  refl))
+  empty-Correct : Correct emptyBT
+  empty-Correct Abs.I     _    = WithRSS.empty
+  empty-Correct (Abs.B b) imp
+    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ (α-Block <M$>_))
+                                 (sym (kvm-empty {k = Abs.bId b}))
+                                 refl))
+  empty-Correct (Abs.Q q) imp
+    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
 
---   empty-IncreasingRound : IncreasingRound emptyBT
---   empty-IncreasingRound α x {q = q} x₁ x₂ va va' x₃
---     = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
---                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
---                                  refl))
+  empty-IncreasingRound : IncreasingRound emptyBT
+  empty-IncreasingRound α x {q = q} x₁ x₂ va va' x₃
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
 
---   empty-VotesOnlyOnce : VotesOnlyOnce emptyBT
---   empty-VotesOnlyOnce α x {q = q} x₁ x₂ va va' x₃
---     = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
---                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
---                                  refl))
-
-
---   empty-LockedRound : LockedRound emptyBT
---   empty-LockedRound _ _ _ _ (WithRSS.step {r' = Abs.Q q'} _ _ {abs}) _ _
---     = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ ((qcCertifies ∘ proj₁) <M$>_))
---                                  (sym (kvm-empty {k = Abs.qCertBlockId q'}))
---                                  refl))
+  empty-VotesOnlyOnce : VotesOnlyOnce emptyBT
+  empty-VotesOnlyOnce α x {q = q} x₁ x₂ va va' x₃
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
+                                 refl))
 
 
---   -- And now this is really trivial
---   emptyBT-valid : ValidBT emptyBT
---   emptyBT-valid =
---     valid-bt empty-Correct
---              empty-IncreasingRound
---              empty-VotesOnlyOnce
---              empty-LockedRound
+  empty-LockedRound : LockedRound emptyBT
+  empty-LockedRound _ _ _ _ (WithRSS.step {r' = Abs.Q q'} _ _ {abs}) _ _
+    = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+                                 (sym (kvm-empty {k = Abs.qCertBlockId q'}))
+                                 refl))
+
+  -- And now this is really trivial
+  emptyBT-valid : ValidBT emptyBT
+  emptyBT-valid =
+    valid-bt empty-Correct
+             empty-IncreasingRound
+             empty-VotesOnlyOnce
+             empty-LockedRound
 
 -- {-
 
