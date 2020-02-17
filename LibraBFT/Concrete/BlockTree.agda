@@ -319,143 +319,174 @@ module LibraBFT.Concrete.BlockTree
              empty-VotesOnlyOnce
              empty-LockedRound
 
--- {-
+  --------------------------------
+  -- Semantically Valid Records --
 
---   --------------------------------
---   -- Semantically Valid Records --
+  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : ec ≡ unsafeReadMeta (BlockTree.btEpochConfig bt)) : (r' : Abs.Record) → Set where
+    B : {cb : LinkableBlock}
+      → {ab : Abs.Block}
+      → ab ≡ α-Block cb
+      → lookup (Abs.bId ab) ((btIdToBlock ⇣) bt) ≡ nothing
+      → canInsert bt ec≡ (Abs.B ab)
+    Q : {aq : Abs.QC}
+      → (cq : Σ QuorumCert (IsValidQC ec))
+      → lookup (Abs.qCertBlockId aq) (BlockTree.btIdToQuorumCert bt) ≡ nothing
+      → canInsert bt ec≡ (Abs.Q aq)
 
---   abstractRecord : Record → Maybe Abs.Record
---   abstractRecord (B {α} b p1 p2) 
---     with initialAgreedHash ec ≟Hash getPrev b
---   ...| yes _ = just (Abs.B (Abs.mkBlock (hash (encode (content b))) α nothing (getRound b)))
---   ...| no  _ = just (Abs.B (Abs.mkBlock (hash (encode (content b))) α (just (getPrev b)) (getRound b)))
---   abstractRecord (Q b p1 p2) = {!!}
---   abstractRecord _ = nothing
+  -- A record extends some other in a state if there exists
+  -- a record chain in said state that ends on the record supposed
+  -- to be extended
+  data Extends (bt : BlockTree) : Abs.Record → Set where
+     -- VCM: We might carry more information on this constructor
+     extends : ∀{r r'}
+             → (ec≡ : ec ≡ unsafeReadMeta (BlockTree.btEpochConfig bt))
+             → (rInPool : r ∈BT bt)
+             -- We will not allow insertion of a Record whose hash
+             -- collides with one already in the RecordStore.
+             -- Otherwise we'll have to carry HashBroke around on
+             -- most/all properties.
+             → (r'New : canInsert bt ec≡ r')
+             → r ← r'
+             → Extends bt r'
 
---   -- A record extends some other in a state if there exists
---   -- a record chain in said state that ends on the record supposed
---   -- to be extended
---   data Extends (rss : RecordStoreState) : Abs.Record → Set where
---      -- VCM: We might carry more information on this constructor
---      extends : ∀{r r'}
---              → (rInPool : r ∈BT rss)
---              -- We will not allow insertion of a Record whose hash
---              -- collides with one already in the RecordStore.
---              -- Otherwise we'll have to carry HashBroke around on
---              -- most/all properties.
---              -- → (r'New : lookup (rssPool rss) (hashR r') ≡ nothing)
---              → (r'New : ¬ (r' ∈BT rss))
---              → r ← r'
---              → Extends rss r'
--- {-
---   extends-Q? : (rss : RecordStoreState)(q : QC)
---              → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
---              → Maybe (Extends rss (Q q))
---   extends-Q? rss q ok
---     -- Structure is similar to extends-B? below, which is commented in detail.
---     with lookup (rssPool rss) (getPrevHash q)
---        | inspect (lookup (rssPool rss)) (getPrevHash q)
---   ...| nothing    | [ _ ] = nothing
---   ...| just (I _) | [ _ ] = nothing
---   ...| just (Q _) | [ _ ] = nothing
---   ...| just (B b) | [ R ]
---      with getRound q ≟ getRound b
---   ...| no _ = nothing
---   ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
---                              (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
---   extends-B? : (rss : RecordStoreState)(b : Block)
---              → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
---              → Maybe (Extends rss (B b))
---   extends-B? rss b ok
---   -- 1. Are we extending the initial record?
---     with getPrevHash b ≟Hash hashRecord (I mkInitial)
---   ...| yes refl with 1 ≤? getRound b
---   ...| yes xx = just (extends {r = I mkInitial} unit ok
---                                 (I←B xx refl))
---   ...| no _   = nothing
---   extends-B? rss b ok
---      | no  ¬Init
---   -- 2. Ok, if not the initial, which one? We must look it up.
---     with lookup (rssPool rss) (getPrevHash b)
---        | inspect (lookup (rssPool rss)) (getPrevHash b)
---   -- 2.1 case nothing was found, it does not extend.
---   ...| nothing | [ R ] = nothing
---   -- 2.2 case we found the initial contradicts the check at (1)
---   ...| just (I mkInitial) | [ R ]
---      = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (rssPool rss) R))
---   -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
---   ...| just (B _) | [ R ] = nothing
---   -- 2.4 case we found a QC, it might extend
---   ...| just (Q q) | [ R ]
---   -- 2.4.1 Is block round strictly greater than the QC it extends?
---      with suc (getRound q) ≤? getRound b
---   -- 2.4.1.1 No; the rounds are not ok.
---   ...| no round-nok = nothing
---   -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
---   --         VCM: Shouldn't we perform additional checks?
---   ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
---                              (Q←B {q} round-ok (sym (lookup-correct _ _ R))))
+{-
+  extends-Q? : (rss : RecordStoreState)(q : QC)
+             → lookup (rssPool rss) (hashRecord (Q q)) ≡ nothing
+             → Maybe (Extends rss (Q q))
+  extends-Q? rss q ok
+    -- Structure is similar to extends-B? below, which is commented in detail.
+    with lookup (rssPool rss) (getPrevHash q)
+       | inspect (lookup (rssPool rss)) (getPrevHash q)
+  ...| nothing    | [ _ ] = nothing
+  ...| just (I _) | [ _ ] = nothing
+  ...| just (Q _) | [ _ ] = nothing
+  ...| just (B b) | [ R ]
+     with getRound q ≟ getRound b
+  ...| no _ = nothing
+  ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
+                             (B←Q {b} round-ok (sym (lookup-correct _ _ R))))
 
---   -- This shows how we can construct an Extends record, as the concrete model will need to do.
---   -- However, it only produces a Maybe Extends, wnich could be satisfied by alway returning nothing.
---   -- We could level-up by making this a Dec (Extends rss r), showing that we can construct an
---   -- Extends rss r or there isn't one, thus eliminating this "triviality" concern.
---   extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
---   extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
---   ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
---   ...| nothing | [ ok ] with r 
---   ...| I _ = nothing
---   ...| B b = extends-B? rss b ok
---   ...| Q q = extends-Q? rss q ok
--- -}
+  extends-B? : (rss : RecordStoreState)(b : Block)
+             → lookup (rssPool rss) (hashRecord (B b)) ≡ nothing
+             → Maybe (Extends rss (B b))
+  extends-B? rss b ok
+  -- 1. Are we extending the initial record?
+    with getPrevHash b ≟Hash hashRecord (I mkInitial)
+  ...| yes refl with 1 ≤? getRound b
+  ...| yes xx = just (extends {r = I mkInitial} unit ok
+                                (I←B xx refl))
+  ...| no _   = nothing
+  extends-B? rss b ok
+     | no  ¬Init
+  -- 2. Ok, if not the initial, which one? We must look it up.
+    with lookup (rssPool rss) (getPrevHash b)
+       | inspect (lookup (rssPool rss)) (getPrevHash b)
+  -- 2.1 case nothing was found, it does not extend.
+  ...| nothing | [ R ] = nothing
+  -- 2.2 case we found the initial contradicts the check at (1)
+  ...| just (I mkInitial) | [ R ]
+     = ⊥-elim (¬Init (lookup-correct (getPrevHash b) (rssPool rss) R))
+  -- 2.3 case we found a block, it does not extend. Blocks only extend QC's
+  ...| just (B _) | [ R ] = nothing
+  -- 2.4 case we found a QC, it might extend
+  ...| just (Q q) | [ R ]
+  -- 2.4.1 Is block round strictly greater than the QC it extends?
+     with suc (getRound q) ≤? getRound b
+  -- 2.4.1.1 No; the rounds are not ok.
+  ...| no round-nok = nothing
+  -- 2.4.1.2 Yes, rounds are fine; So far, it extends.
+  --         VCM: Shouldn't we perform additional checks?
+  ...| yes round-ok = just (extends (lookup-∈HS _ _ R) ok
+                             (Q←B {q} round-ok (sym (lookup-correct _ _ R))))
 
--- {-
---   open import LibraBFT.Abstract.Records                                  ec 
---   open import LibraBFT.Abstract.BFT                                      ec 
---   open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
---   open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
---   open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+  -- This shows how we can construct an Extends record, as the concrete model will need to do.
+  -- However, it only produces a Maybe Extends, wnich could be satisfied by alway returning nothing.
+  -- We could level-up by making this a Dec (Extends rss r), showing that we can construct an
+  -- Extends rss r or there isn't one, thus eliminating this "triviality" concern.
+  extends? : (rss : RecordStoreState)(r : Record) → Maybe (Extends rss r)
+  extends? rss r with (lookup (rssPool rss)) (hashRecord r) | inspect (lookup (rssPool rss)) (hashRecord r)
+  ...| just _  | [ _ ] = nothing -- Cannot insert this record (either it is already in or there is a hash conflict)
+  ...| nothing | [ ok ] with r 
+  ...| I _ = nothing
+  ...| B b = extends-B? rss b ok
+  ...| Q q = extends-Q? rss q ok
+-}
 
---   hashRecord : Record → Hash
---   hashRecord = hash ∘ encodeR
+{-
+  open import LibraBFT.Abstract.Records                                  ec 
+  open import LibraBFT.Abstract.BFT                                      ec 
+  open import LibraBFT.Abstract.Records.Extends             hash hash-cr ec 
+  open import LibraBFT.Abstract.RecordChain                 hash hash-cr ec
+  open import LibraBFT.Abstract.RecordStoreState            hash hash-cr ec
+-}
 
--- {-
---   ∈BT-correct : (rss : RecordStoreState)(r : Record)
---                → r ∈BT rss → lookup (rssPool rss) (hashRecord r) ≡ just r
---   ∈BT-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
---   ∈BT-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
 
---   ∈BT-correct-⊥ : (rss : RecordStoreState)(r : Record)
---                  → r ∈BT rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
---   ∈BT-correct-⊥ = {!!}
--- -}
+{-
+  hashRecord : Abs.Record → Hash
+  hashRecord = hash ∘ encodeR
 
---   ---------------------------------------
---   -- Honesty and Dishonesty of Authors --
+  ∈BT-correct : (rss : RecordStoreState)(r : Record)
+               → r ∈BT rss → lookup (rssPool rss) (hashRecord r) ≡ just r
+  ∈BT-correct rss (B x) prf = lookup-correct (B x) (rssPool rss) prf
+  ∈BT-correct rss (Q x) prf = lookup-correct (Q x) (rssPool rss) prf
 
---   data Dishonest (α : Author ec) : Set where
---     same-order-diff-qcs 
---       : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
---       → q ≢ q'
---       → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
---       → Dishonest α
+  ∈BT-correct-⊥ : (rss : RecordStoreState)(r : Record)
+                 → r ∈BT rss → lookup (rssPool rss) (hashRecord r) ≡ nothing → ⊥
+  ∈BT-correct-⊥ = {!!}
+-}
+{-
+  ---------------------------------------
+  -- Honesty and Dishonesty of Authors --
 
---   DishonestM : Maybe (Author ec) → Set
---   DishonestM nothing  = ⊥
---   DishonestM (just α) = Dishonest α
+  data Dishonest (α : Author ec) : Set where
+    same-order-diff-qcs
+      : {q q' : QC}(vα : α ∈QC q)(vα' : α ∈QC q')
+      → q ≢ q'
+      → voteOrder (∈QC-Vote q vα) ≡ voteOrder (∈QC-Vote q' vα')
+      → Dishonest α
 
---   postulate
---     ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
+  DishonestM : Maybe (Author ec) → Set
+  DishonestM nothing  = ⊥
+  DishonestM (just α) = Dishonest α
 
---   --------------------------
---   -- Insertion of Records --
+  postulate
+    ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
+-}
 
---   insert : (rss : RecordStoreState)(r' : Record)(ext : Extends rss r')
---          → RecordStoreState
---   insert rss r' (extends _ nc _) = record rss 
---      {rssPool = hs-insert  r' (rssPool rss) nc
---      }
+  --------------------------
+  -- Insertion of Records --
+
+  insert-block : ∀ (bt : BlockTree)(ab : Abs.Block)
+               → (ext : Extends bt (Abs.B ab))
+               → BlockTree
+  insert-block bt ab (extends ec≡ rInPool (B {b} abdGood idAvail) x) =
+                 record bt {btIdToBlock = kvm-insert
+                                            (Abs.bId ab)
+                                            b
+                                            ((btIdToBlock ⇣) bt)
+                                            idAvail}
+
+  insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
+               → (ext : Extends bt (Abs.Q aq))
+               → BlockTree
+  insert-qc bt aq (extends ec≡ rInPool (Q (cq1 , val) idAvail) x) =
+                 record bt {btIdToQuorumCert = kvm-insert
+                                                (Abs.qCertBlockId aq)
+                                                (cq1 , subst (λ ec → IsValidQC ec cq1) ec≡ val)
+                                                (BlockTree.btIdToQuorumCert bt)
+                                            idAvail}
+
+  insert-init  : ∀ (bt : BlockTree)(ext : Extends bt Abs.I)
+               → BlockTree
+  insert-init  bt (extends _ _ () _)
+
+
+  insert : ∀ (bt : BlockTree)(r' : Abs.Record)(ext : Extends bt r')
+         → BlockTree
+  insert bt  Abs.I    ext = insert-init bt ext
+  insert bt (Abs.B b) ext = insert-block bt b ext
+  insert bt (Abs.Q q) ext = insert-qc bt q ext
 
 --   ---------------------
 --   -- IS CORRECT RULE --
@@ -591,5 +622,4 @@ module LibraBFT.Concrete.BlockTree
 --       (insert-ok-increasing-round rss r ext vrss)
 --       (insert-ok-votes-only-once  rss r ext vrss)
 --       (insert-ok-locked-round     rss r ext vrss)
--- -}
 -- -}
