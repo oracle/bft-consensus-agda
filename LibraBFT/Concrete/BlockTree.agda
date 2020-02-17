@@ -210,21 +210,21 @@ module LibraBFT.Concrete.BlockTree
 
 -- TODO: Update this for new refined structure that matches the Haskell types
 
---   _∈BT_ : {a : Set} → Abs.Record → BlockTree a → Set
+--   _∈BT_ : Abs.Record → BlockTree → Set
 --   Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
 --   (Abs.B b) ∈BT bt 
---     = α-Block <M$> (lookup (Abs.bId b) (btIdToBlock bt)) ≡ just b
+--     = α-Block <M$> (lookup (Abs.bId b) ((btIdToBlock ⇣) bt)) ≡ just b
 --   (Abs.Q q) ∈BT bt 
 --     -- A qc is said to be in the abstract state iff there exists
 --     -- a qc that certifies the same block (i.e., with the same id).
 --     -- We don't particularly care for the list of votes or who authored it
---     = (qcCertifies ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (btIdToQuorumCert bt)) 
+--     = (qcCertifies ⇣ ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt))
 --       ≡ just (Abs.qCertBlockId q)
 
 --   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
 --   Abs.I     ∈BT? bt = yes unit
 --   (Abs.B b) ∈BT? bt 
---     with lookup (Abs.bId b) (btIdToBlock bt)
+--     with lookup (Abs.bId b) (bt ^∙ btIdToBlock)
 --   ...| nothing = no (λ x → maybe-⊥ refl (sym x))
 --   ...| just r  
 --     with α-Block r Abs.≟Block b
