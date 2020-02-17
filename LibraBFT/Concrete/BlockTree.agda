@@ -210,69 +210,69 @@ module LibraBFT.Concrete.BlockTree
 
 -- TODO: Update this for new refined structure that matches the Haskell types
 
---   _∈BT_ : Abs.Record → BlockTree → Set
---   Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
---   (Abs.B b) ∈BT bt 
---     = α-Block <M$> (lookup (Abs.bId b) ((btIdToBlock ⇣) bt)) ≡ just b
---   (Abs.Q q) ∈BT bt 
---     -- A qc is said to be in the abstract state iff there exists
---     -- a qc that certifies the same block (i.e., with the same id).
---     -- We don't particularly care for the list of votes or who authored it
---     = (qcCertifies ⇣ ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt))
---       ≡ just (Abs.qCertBlockId q)
+  _∈BT_ : Abs.Record → BlockTree → Set
+  Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
+  (Abs.B b) ∈BT bt 
+    = α-Block <M$> (lookup (Abs.bId b) ((btIdToBlock ⇣) bt)) ≡ just b
+  (Abs.Q q) ∈BT bt 
+    -- A qc is said to be in the abstract state iff there exists
+    -- a qc that certifies the same block (i.e., with the same id).
+    -- We don't particularly care for the list of votes or who authored it
+    = (qcCertifies ⇣ ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt))
+      ≡ just (Abs.qCertBlockId q)
 
---   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
---   Abs.I     ∈BT? bt = yes unit
---   (Abs.B b) ∈BT? bt 
---     with lookup (Abs.bId b) (bt ^∙ btIdToBlock)
---   ...| nothing = no (λ x → maybe-⊥ refl (sym x))
---   ...| just r  
---     with α-Block r Abs.≟Block b
---   ...| yes refl = yes refl
---   ...| no  ok   = no (ok ∘ just-injective)
---   (Abs.Q q) ∈BT? bt = {!!}
+  _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
+  Abs.I     ∈BT? bt = yes unit
+  (Abs.B b) ∈BT? bt 
+    with lookup (Abs.bId b) (bt ^∙ btIdToBlock)
+  ...| nothing = no (λ x → maybe-⊥ refl (sym x))
+  ...| just r  
+    with α-Block r Abs.≟Block b
+  ...| yes refl = yes refl
+  ...| no  ok   = no (ok ∘ just-injective)
+  (Abs.Q q) ∈BT? bt = {!!}
 
---   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
---   ∈BT-irrelevant {Abs.I} unit unit    = refl
---   ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
---   ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1
+  ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
+  ∈BT-irrelevant {Abs.I} unit unit    = refl
+  ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
+  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1
 
---   instance
---     abstractBT : isRecordStoreState BlockTree
---     abstractBT = record
---       { isInPool            = _∈BT_
---       ; isInPool-irrelevant = ∈BT-irrelevant 
---       }
+  instance
+    abstractBT : isRecordStoreState BlockTree
+    abstractBT = record
+      { isInPool            = _∈BT_
+      ; isInPool-irrelevant = ∈BT-irrelevant 
+      }
 
---   --------------------
---   -- The Invariants --
---   --------------------
+  --------------------
+  -- The Invariants --
+  --------------------
 
---   Correct : BlockTree → Set
---   Correct st = AbstractI.Correct st
+  Correct : BlockTree → Set
+  Correct st = AbstractI.Correct st
 
---   IncreasingRound : BlockTree → Set
---   IncreasingRound st = AbstractI.IncreasingRoundRule st
+  IncreasingRound : BlockTree → Set
+  IncreasingRound st = AbstractI.IncreasingRoundRule st
 
---   VotesOnlyOnce : BlockTree → Set
---   VotesOnlyOnce st = AbstractI.VotesOnlyOnceRule st
+  VotesOnlyOnce : BlockTree → Set
+  VotesOnlyOnce st = AbstractI.VotesOnlyOnceRule st
 
---   LockedRound : BlockTree → Set₁
---   LockedRound st = AbstractI.LockedRoundRule st
+  LockedRound : BlockTree → Set₁
+  LockedRound st = AbstractI.LockedRoundRule st
 
---   -- A Valid Record Store State is one where all
---   -- the invariants are respected.
---   record ValidBT (bt : BlockTree) : Set₁ where
---     constructor valid-bt
---     field
---       correct           : Correct bt
---       incr-round-rule   : IncreasingRound bt
---       votes-once-rule   : VotesOnlyOnce bt
---       locked-round-rule : LockedRound bt
+  -- A Valid Record Store State is one where all
+  -- the invariants are respected.
+  record ValidBT (bt : BlockTree) : Set₁ where
+    constructor valid-bt
+    field
+      correct           : Correct bt
+      incr-round-rule   : IncreasingRound bt
+      votes-once-rule   : VotesOnlyOnce bt
+      locked-round-rule : LockedRound bt
 
---   ---------------------
---   -- The Empty State --
---   ---------------------
+  ---------------------
+  -- The Empty State --
+  ---------------------
 
   -- TODO: fill out other fields
   emptyBT : BlockTree
