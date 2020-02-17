@@ -129,15 +129,9 @@ module LibraBFT.Concrete.BlockTree
   (Abs.Q q) ∈BT? bt
     with lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt)
   ...| nothing = no λ x → maybe-⊥ refl (sym x)
-  ...| just (qq , val)
-  -- TODO: Can't quite finish this because we don't know that unsafeReadmeta (btEpochconfig bt) ≡ ec
-  -- If that's not the case, then we shouldn't consider ∈BT to hold, so we should require a proof
-  -- that it does hold in the definition of ∈BT.  This seems to lead us to wanting decidable
-  -- equality for EpochConfigs, which seems painful.  Any better ideas?  Can we make this module work
-  -- over BlockTrees that explicitly have the right EpochConfig?
-    with  α-QC (qq , subst (λ x → IsValidQC x qq) {!!} val) Abs.≟≈QC q
-  ...| yes willBeRefl = yes {!!} -- refl
-  ...| no  ok         = no (ok ∘ just-injective)
+  ...| just (qq , _) with (BlockInfo.biId (VoteData.vdProposed (QuorumCert.qcVoteData qq))) ≟UID Abs.qCertBlockId q
+  ...| yes refl = yes refl
+  ...| no xx    = no  (xx ∘ just-injective)
 
   ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit    = refl
@@ -186,6 +180,7 @@ module LibraBFT.Concrete.BlockTree
   emptyBT = record
     { btIdToBlock      = empty
     ; btIdToQuorumCert = empty
+    ; btEpochConfig    = meta ec
     }
 
   empty-Correct : Correct emptyBT
@@ -229,14 +224,14 @@ module LibraBFT.Concrete.BlockTree
   --------------------------------
   -- Semantically Valid Records --
 
-  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : ec ≡ unsafeReadMeta (BlockTree.btEpochConfig bt)) : (r' : Abs.Record) → Set where
+  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : unsafeReadMeta (BlockTree.btEpochConfig bt) ≡ ec) : (r' : Abs.Record) → Set where
     B : {cb : LinkableBlock}
       → {ab : Abs.Block}
       → ab ≡ α-Block cb
       → lookup (Abs.bId ab) ((btIdToBlock ⇣) bt) ≡ nothing
       → canInsert bt ec≡ (Abs.B ab)
     Q : {aq : Abs.QC}
-      → (cq : Σ QuorumCert (IsValidQC ec))
+      → (cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ BlockTree.btEpochConfig) bt)))
       → lookup (Abs.qCertBlockId aq) (BlockTree.btIdToQuorumCert bt) ≡ nothing
       → canInsert bt ec≡ (Abs.Q aq)
 
@@ -246,7 +241,7 @@ module LibraBFT.Concrete.BlockTree
   data Extends (bt : BlockTree) : Abs.Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
-             → (ec≡ : ec ≡ unsafeReadMeta (BlockTree.btEpochConfig bt))
+             → (ec≡ : unsafeReadMeta (BlockTree.btEpochConfig bt) ≡ ec)
              → (rInPool : r ∈BT bt)
              -- We will not allow insertion of a Record whose hash
              -- collides with one already in the RecordStore.
@@ -377,10 +372,10 @@ module LibraBFT.Concrete.BlockTree
   insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
                → (ext : Extends bt (Abs.Q aq))
                → BlockTree
-  insert-qc bt aq (extends ec≡ rInPool (Q (cq1 , val) idAvail) x) =
+  insert-qc bt aq (extends ec≡ rInPool (Q cqm idAvail) x) =
                  record bt {btIdToQuorumCert = kvm-insert
                                                 (Abs.qCertBlockId aq)
-                                                (cq1 , subst (λ ec → IsValidQC ec cq1) ec≡ val)
+                                                cqm
                                                 (BlockTree.btIdToQuorumCert bt)
                                             idAvail}
 
