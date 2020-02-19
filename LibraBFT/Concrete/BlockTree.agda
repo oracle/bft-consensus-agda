@@ -390,14 +390,6 @@ module LibraBFT.Concrete.BlockTree
   insert bt (Abs.B b) ext = insert-block bt b ext
   insert bt (Abs.Q q) ext = insert-qc bt q ext
 
---   -- Inserting does not loose any records.
---   insert-stable : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
---                 → {r : Record}
---                 → r ∈BT rss
---                 → r ∈BT (insert rss r' ext)
---   insert-stable ext {I x} hyp = unit
---   insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable nc hyp
---   insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable nc hyp
   ---------------------
   -- IS CORRECT RULE --
 
@@ -413,6 +405,21 @@ module LibraBFT.Concrete.BlockTree
   RecordChain-grow f (WithRSS.step rc x {p})
     = WithRSS.step (RecordChain-grow f rc) x {f p}
 
+  -- Inserting does not lose any records.
+  insert-stable : {bt : BlockTree}{r' : Abs.Record}(ext : Extends bt r')
+                → {r : Abs.Record}
+                → r ∈BT bt
+                → r ∈BT (insert bt r' ext)
+  insert-stable ext {Abs.I} b = unit
+  insert-stable {bt} (extends _ rInPool (B {cb} {ab₁} xxx idAvail) _) {Abs.B ab} hyp
+    with (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt) | inspect (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt)
+  ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
+  ...| just lb | [ xx ] rewrite (sym xx) =
+        subst ((_≡ just ab) ∘ (α-Block <M$>_))
+              (sym (lookup-stable-1 idAvail xx))
+              (trans (cong (α-Block <M$>_) xx) hyp)
+
+  insert-stable (extends _ _ nc _) {Abs.Q x} hyp = {!!}
 
 --   -- If a record is not in store before insertion, but it is after
 --   -- the insertion, this record must have been the inserted one.
