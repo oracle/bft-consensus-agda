@@ -225,13 +225,14 @@ module LibraBFT.Concrete.BlockTree
   -- Semantically Valid Records --
 
   data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : unsafeReadMeta (BlockTree.btEpochConfig bt) ≡ ec) : (r' : Abs.Record) → Set where
-    B : {cb : LinkableBlock}
-      → {ab : Abs.Block}
+    B : {ab : Abs.Block}
+      → {cb : LinkableBlock}
       → ab ≡ α-Block cb
       → lookup (Abs.bId ab) ((btIdToBlock ⇣) bt) ≡ nothing
       → canInsert bt ec≡ (Abs.B ab)
     Q : {aq : Abs.QC}
-      → (cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ BlockTree.btEpochConfig) bt)))
+      → {cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ BlockTree.btEpochConfig) bt))}
+      → Abs.qCertBlockId aq ≡ (qcCertifies ⇣) (proj₁ cq)
       → lookup (Abs.qCertBlockId aq) (BlockTree.btIdToQuorumCert bt) ≡ nothing
       → canInsert bt ec≡ (Abs.Q aq)
 
@@ -362,7 +363,7 @@ module LibraBFT.Concrete.BlockTree
   insert-block : ∀ (bt : BlockTree)(ab : Abs.Block)
                → (ext : Extends bt (Abs.B ab))
                → BlockTree
-  insert-block bt ab (extends ec≡ rInPool (B {b} abdGood idAvail) x) =
+  insert-block bt ab (extends ec≡ rInPool (B {_} {b} abdGood idAvail) x) =
                  record bt {btIdToBlock = kvm-insert
                                             (Abs.bId ab)
                                             b
@@ -372,7 +373,7 @@ module LibraBFT.Concrete.BlockTree
   insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
                → (ext : Extends bt (Abs.Q aq))
                → BlockTree
-  insert-qc bt aq (extends ec≡ rInPool (Q cqm idAvail) x) =
+  insert-qc bt aq (extends ec≡ rInPool (Q {_} {cqm} _ idAvail) x) =
                  record bt {btIdToQuorumCert = kvm-insert
                                                 (Abs.qCertBlockId aq)
                                                 cqm
