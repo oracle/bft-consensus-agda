@@ -25,17 +25,7 @@ module Optics.Functorial where
   _^∙_ : ∀{S A} → S → Lens S A → A
   _^∙_ {_} {A} s (lens p) = p (const A) cf id s
 
-  -- This provides a (somewhat) nice syntax to convert a lens back into the accessor function for
-  -- contexts where we can't use a lens (or the Haskell code we're modeling uses the underlying
-  -- accessor instead of a lens).  Is there a better way?  E.g., could we create the field acessors
-  -- with _ prefixes and have the lenses called without the _ prefix, similar to the default in
-  -- Haskell?  In the meantime, I have also defined "use" in terms of the _⇣ operator (see
-  -- LibraBFT.Concrete.OBM.RWST).  Examples can be seen in LibraBFT.Concrete.Records, line 35 and
-  -- LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore, line 56, respectively.
-  _⇣ : ∀{S A} → Lens S A → S → A
-  _⇣ = flip _^∙_
-
-  -- Setter:
+   -- Setter:
 
   set : ∀{S A} → S → Lens S A → A → S
   set s (lens p) a = p id if (const a) s

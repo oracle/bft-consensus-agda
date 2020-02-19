@@ -51,7 +51,7 @@ module LibraBFT.Concrete.OBM.RWST where
   gets f = RWST-bind get (RWST-return ∘ f)
 
   use : Lens St A → RWST Ev Wr St A
-  use f = RWST-bind get (RWST-return ∘ (f ⇣))
+  use f = RWST-bind get (RWST-return ∘ (_^∙ f))
 
   modify : (St → St) → RWST Ev Wr St Unit
   modify f = rwst (λ _ st → unit , f st , [])

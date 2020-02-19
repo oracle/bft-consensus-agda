@@ -43,10 +43,10 @@ module LibraBFT.Concrete.BlockTree
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
   α-Block : LinkableBlock → Abs.Block
-  α-Block b' with (ebBlock ⇣) ((lbExecutedBlock ⇣) b')
-  ...| b with (bdBlockType ⇣) ((bBlockData ⇣) b)
+  α-Block b' with _ebBlock (_lbExecutedBlock b')
+  ...| b with _bdBlockType (_bBlockData b)
   ...| NilBlock = record
-       { bId     = (bId ⇣) b
+       { bId     = _bId b
        ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
        ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
@@ -66,7 +66,7 @@ module LibraBFT.Concrete.BlockTree
          → as ∈ qcVotes qc
          → Abs.Vote
   α-Vote qc v {author , sig , ord} as∈QC = record
-    { vAuthor   = (ivaIdx (All-lookup (IsValidQC.ivqcValidAuthors v) as∈QC))
+    { vAuthor   = (_ivaIdx (All-lookup (IsValidQC._ivqcValidAuthors v) as∈QC))
     ; vBlockUID = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; vRound    = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
@@ -79,7 +79,7 @@ module LibraBFT.Concrete.BlockTree
     ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; qVotes       = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
     ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
-    ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC.ivqcSizeOk valid)
+    ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC._ivqcSizeOk valid)
     ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
     ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
     }
@@ -109,12 +109,12 @@ module LibraBFT.Concrete.BlockTree
   _∈BT_ : Abs.Record → BlockTree → Set
   Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
   (Abs.B b) ∈BT bt 
-    = α-Block <M$> (lookup (Abs.bId b) ((btIdToBlock ⇣) bt)) ≡ just b
+    = α-Block <M$> (lookup (Abs.bId b) (_btIdToBlock bt)) ≡ just b
   (Abs.Q q) ∈BT bt 
     -- A qc is said to be in the abstract state iff there exists
     -- a qc that certifies the same block (i.e., with the same id).
     -- We don't particularly care for the list of votes or who authored it
-    = (qcCertifies ⇣ ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt))
+    = (_qcCertifies ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt))
       ≡ just (Abs.qCertBlockId q)
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
@@ -127,9 +127,9 @@ module LibraBFT.Concrete.BlockTree
   ...| yes refl = yes refl
   ...| no  ok   = no (ok ∘ just-injective)
   (Abs.Q q) ∈BT? bt
-    with lookup (Abs.qCertBlockId q) (BlockTree.btIdToQuorumCert bt)
+    with lookup (Abs.qCertBlockId q) (BlockTree._btIdToQuorumCert bt)
   ...| nothing = no λ x → maybe-⊥ refl (sym x)
-  ...| just (qq , _) with (BlockInfo.biId (VoteData.vdProposed (QuorumCert.qcVoteData qq))) ≟UID Abs.qCertBlockId q
+  ...| just (qq , _) with (_biId (_vdProposed (_qcVoteData qq))) ≟UID Abs.qCertBlockId q
   ...| yes refl = yes refl
   ...| no xx    = no  (xx ∘ just-injective)
 
@@ -178,9 +178,9 @@ module LibraBFT.Concrete.BlockTree
   -- TODO: fill out other fields
   emptyBT : BlockTree
   emptyBT = record
-    { btIdToBlock      = empty
-    ; btIdToQuorumCert = empty
-    ; btEpochConfig    = meta ec
+    { _btIdToBlock      = empty
+    ; _btIdToQuorumCert = empty
+    ; _btEpochConfig    = meta ec
     }
 
   empty-Correct : Correct emptyBT
@@ -190,26 +190,26 @@ module LibraBFT.Concrete.BlockTree
                                  (sym (kvm-empty {k = Abs.bId b}))
                                  refl))
   empty-Correct (Abs.Q q) imp
-    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
                                  refl))
 
   empty-IncreasingRound : IncreasingRound emptyBT
   empty-IncreasingRound α x {q = q} x₁ x₂ va va' x₃
-    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
                                  refl))
 
   empty-VotesOnlyOnce : VotesOnlyOnce emptyBT
   empty-VotesOnlyOnce α x {q = q} x₁ x₂ va va' x₃
-    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
                                  (sym (kvm-empty {k = Abs.qCertBlockId q}))
                                  refl))
 
 
   empty-LockedRound : LockedRound emptyBT
   empty-LockedRound _ _ _ _ (WithRSS.step {r' = Abs.Q q'} _ _ {abs}) _ _
-    = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+    = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
                                  (sym (kvm-empty {k = Abs.qCertBlockId q'}))
                                  refl))
 
@@ -224,16 +224,16 @@ module LibraBFT.Concrete.BlockTree
   --------------------------------
   -- Semantically Valid Records --
 
-  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : unsafeReadMeta (BlockTree.btEpochConfig bt) ≡ ec) : (r' : Abs.Record) → Set where
+  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : unsafeReadMeta (_btEpochConfig bt) ≡ ec) : (r' : Abs.Record) → Set where
     B : {ab : Abs.Block}
       → {cb : LinkableBlock}
       → ab ≡ α-Block cb
-      → lookup (Abs.bId ab) ((btIdToBlock ⇣) bt) ≡ nothing
+      → lookup (Abs.bId ab) (_btIdToBlock bt) ≡ nothing
       → canInsert bt ec≡ (Abs.B ab)
     Q : {aq : Abs.QC}
-      → {cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ BlockTree.btEpochConfig) bt))}
-      → Abs.qCertBlockId aq ≡ (qcCertifies ⇣) (proj₁ cq)
-      → lookup (Abs.qCertBlockId aq) (BlockTree.btIdToQuorumCert bt) ≡ nothing
+      → {cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ _btEpochConfig) bt))}
+      → Abs.qCertBlockId aq ≡ _qcCertifies (proj₁ cq)
+      → lookup (Abs.qCertBlockId aq) (_btIdToQuorumCert bt) ≡ nothing
       → canInsert bt ec≡ (Abs.Q aq)
 
   -- A record extends some other in a state if there exists
@@ -242,7 +242,7 @@ module LibraBFT.Concrete.BlockTree
   data Extends (bt : BlockTree) : Abs.Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
-             → (ec≡ : unsafeReadMeta (BlockTree.btEpochConfig bt) ≡ ec)
+             → (ec≡ : unsafeReadMeta (_btEpochConfig bt) ≡ ec)
              → (rInPool : r ∈BT bt)
              -- We will not allow insertion of a Record whose hash
              -- collides with one already in the RecordStore.
@@ -363,21 +363,24 @@ module LibraBFT.Concrete.BlockTree
   insert-block : ∀ (bt : BlockTree)(ab : Abs.Block)
                → (ext : Extends bt (Abs.B ab))
                → BlockTree
-  insert-block bt ab (extends ec≡ rInPool (B {_} {b} abdGood idAvail) x) =
-                 record bt {btIdToBlock = kvm-insert
+  insert-block bt ab (extends ec≡ rInPool (B {_} {b} abdGood idAvail) x)
+    = bt [ btIdToBlock := kvm-insert (Abs.bId ab) b (_btIdToBlock bt) idAvail ]
+{-
+                 record bt { _btIdToBlock = kvm-insert
                                             (Abs.bId ab)
                                             b
-                                            ((btIdToBlock ⇣) bt)
+                                            (_btIdToBlock bt)
                                             idAvail}
+-}
 
   insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
                → (ext : Extends bt (Abs.Q aq))
                → BlockTree
   insert-qc bt aq (extends ec≡ rInPool (Q {_} {cqm} _ idAvail) x) =
-                 record bt {btIdToQuorumCert = kvm-insert
+                 record bt { _btIdToQuorumCert = kvm-insert
                                                 (Abs.qCertBlockId aq)
                                                 cqm
-                                                (BlockTree.btIdToQuorumCert bt)
+                                                (_btIdToQuorumCert bt)
                                             idAvail}
 
   insert-init  : ∀ (bt : BlockTree)(ext : Extends bt Abs.I)
@@ -420,8 +423,8 @@ module LibraBFT.Concrete.BlockTree
 
   -- MSM: can't help feeling I overcomplicated these proofs
   insert-stable {bt} (extends _ _ (B _ idAvail) _) {Abs.B ab} hyp
-    with         (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt) |
-         inspect (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt)
+    with         (lookup (Abs.bId ab)) (_btIdToBlock bt) |
+         inspect (lookup (Abs.bId ab)) (_btIdToBlock bt)
   ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
   ...| just lb | [ xx ] =
          subst ((_≡ just ab) ∘ (α-Block <M$>_))
@@ -429,13 +432,13 @@ module LibraBFT.Concrete.BlockTree
                (trans (cong (α-Block <M$>_) xx) hyp)
 
   insert-stable {bt} (extends _ _ (Q _ idAvail) _) {Abs.Q aq} hyp
-    with         (lookup (Abs.qCertBlockId aq)) (BlockTree.btIdToQuorumCert bt) |
-         inspect (lookup (Abs.qCertBlockId aq)) (BlockTree.btIdToQuorumCert bt)
+    with         (lookup (Abs.qCertBlockId aq)) (_btIdToQuorumCert bt) |
+         inspect (lookup (Abs.qCertBlockId aq)) (_btIdToQuorumCert bt)
   ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
   ...| just qcp | [ xx ] =
-         subst ((_≡ just (Abs.qCertBlockId aq)) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+         subst ((_≡ just (Abs.qCertBlockId aq)) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
                (sym (lookup-stable-1 idAvail xx))
-               (trans (cong ((((qcCertifies ⇣) ∘ proj₁) <M$>_)) xx) hyp)
+               (trans (cong (((_qcCertifies ∘ proj₁) <M$>_)) xx) hyp)
 
 --   -- If a record is not in store before insertion, but it is after
 --   -- the insertion, this record must have been the inserted one.
