@@ -176,11 +176,29 @@ module LibraBFT.Concrete.BlockTree
   ---------------------
 
   -- TODO: fill out other fields
+  -- VCM: What are these other fields even supposed to be?
   emptyBT : BlockTree
   emptyBT = record
-    { _btIdToBlock      = empty
-    ; _btIdToQuorumCert = empty
-    ; _btEpochConfig    = meta ec
+    { _btIdToBlock               = empty
+    ; _btRootId                  = initialAgreedHash ec -- ?? really
+    ; _btHighestCertifiedBlockId = initialAgreedHash ec
+    ; _btHighestQuorumCert       = {!!} -- ??
+    ; _btHighestCommitCert       = {!!} -- ??
+    ; _btPendingVotes            = mkPendingVotes empty empty
+    ; _btPrunedBlockIds          = []
+    ; _btMaxPrunedBlocksInMem    = 0 
+    -- VCM: Please, look at my proposal for threading the epoch
+    -- config through. This will be nasty to handle. Often times
+    -- we will be asked to prove that, for instance, initialAgreedHash ec
+    -- is the same as unsafeReadMeta (fmap initialAgreedHash _btEpochConfig).
+    --
+    -- I really think epoch config are not meta, they are data that really exists
+    -- and is somewhere in the state of the node. It should be a parameter to
+    -- the block tree, not a field. Updating the blocktree should /not/ change
+    -- the epoch config. Or, if it should, we have a bigger problem in our hands,
+    -- because this will break the abstract!
+    ; _btEpochConfig             = meta ec
+    ; _btIdToQuorumCert          = empty
     }
 
   empty-Correct : Correct emptyBT
@@ -242,6 +260,12 @@ module LibraBFT.Concrete.BlockTree
   data Extends (bt : BlockTree) : Abs.Record → Set where
      -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
+             -- VCM: Ha! this is exactly what I refered to in my comment 
+             -- at line 190 above. The epoch configmust be a parameter, 
+             -- not a field. Carrying this stuff around will be pointless
+             -- and painful. I see that 'canInsert' also receives this proof
+             -- but doesn't use it. I will stop this and try to make progress on
+             -- the branch were I fixed this already.
              → (ec≡ : unsafeReadMeta (_btEpochConfig bt) ≡ ec)
              → (rInPool : r ∈BT bt)
              -- We will not allow insertion of a Record whose hash
@@ -418,8 +442,12 @@ module LibraBFT.Concrete.BlockTree
 
   -- TODO: eliminate warnings -- unsolved meta.  Key is that Blocks don't extend Blocks
   --       and QCs don't extend QCs.
-  insert-stable {bt} (extends _ _ (B _ _) _) {Abs.Q ()}
-  insert-stable {bt} (extends _ _ (Q _ _) _) {Abs.B ()}
+  -- VCM: These are not absurd patterns! 
+  --  we have a proof that abstract QC r belongs in bt; what we need to
+  --  prove is that it also belongs in the bt that results from inserting
+  -- something else; nowhere we said anything about r extending the last block.
+  insert-stable {bt} (extends _ _ (B _ _) _) {Abs.Q r} = {!!}
+  insert-stable {bt} (extends _ _ (Q _ _) _) {Abs.B r} = {!!}
 
   -- MSM: can't help feeling I overcomplicated these proofs
   insert-stable {bt} (extends _ _ (B _ idAvail) _) {Abs.B ab} hyp
@@ -550,4 +578,5 @@ module LibraBFT.Concrete.BlockTree
 --       (insert-ok-increasing-round rss r ext vrss)
 --       (insert-ok-votes-only-once  rss r ext vrss)
 --       (insert-ok-locked-round     rss r ext vrss)
--- -}
+-- 
+

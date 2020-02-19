@@ -20,19 +20,19 @@ module LibraBFT.Abstract.Types where
   -- abstract block, all definitions are treated as postulates;
   -- think of them as typechecked postulates.
   abstract
-    Meta : Set → Set
+    Meta : ∀{ℓ} → Set ℓ → Set ℓ
     Meta x = x
 
-    unsafeReadMeta : {X : Set} → Meta X → X
+    unsafeReadMeta : ∀{x}{X : Set x} → Meta X → X
     unsafeReadMeta x = x
 
-    meta : {X : Set} → X → Meta X
+    meta : ∀{x}{X : Set x} → X → Meta X
     meta x = x
 
-    Meta-map : {X Y : Set} → (X → Y) → Meta X → Meta Y
+    Meta-map : ∀{x y}{X : Set x}{Y : Set y} → (X → Y) → Meta X → Meta Y
     Meta-map f x = f x
 
-    Meta-bind : {X Y : Set} → Meta X → (X → Meta Y) → Meta Y
+    Meta-bind : ∀{x y}{X : Set x}{Y : Set y} → Meta X → (X → Meta Y) → Meta Y
     Meta-bind x f = f x
 
   -- VoteOrder is a natural number, but the concrete model
