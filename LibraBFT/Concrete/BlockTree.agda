@@ -5,7 +5,6 @@ open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
-open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
 
@@ -22,6 +21,10 @@ module LibraBFT.Concrete.BlockTree
 
   open import LibraBFT.Concrete.Util.KVMap
   open import LibraBFT.Concrete.Records
+
+
+  open import LibraBFT.Concrete.Consensus.Types
+  open import LibraBFT.Concrete.Consensus.Types.EpochDep ec
 
   --------------------------------
   -- Abstracting Blocks and QCs --
@@ -61,7 +64,7 @@ module LibraBFT.Concrete.BlockTree
        ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
 
-  α-Vote : (qc : QuorumCert)(valid : IsValidQC ec qc)
+  α-Vote : (qc : QuorumCert)(valid : IsValidQC qc)
          → ∀ {as}
          → as ∈ qcVotes qc
          → Abs.Vote
@@ -73,7 +76,7 @@ module LibraBFT.Concrete.BlockTree
                                      --      ord in here Agda will reject.
     }
 
-  α-QC : Σ QuorumCert (IsValidQC ec) → Abs.QC
+  α-QC : Σ QuorumCert IsValidQC → Abs.QC
   α-QC (qc , valid) = record
     { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
@@ -120,7 +123,7 @@ module LibraBFT.Concrete.BlockTree
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
   (Abs.B b) ∈BT? bt 
-    with lookup (Abs.bId b) (bt ^∙ btIdToBlock)
+    with lookup (Abs.bId b) (_btIdToBlock bt)
   ...| nothing = no (λ x → maybe-⊥ refl (sym x))
   ...| just r  
     with α-Block r Abs.≟Block b
@@ -178,9 +181,15 @@ module LibraBFT.Concrete.BlockTree
   -- TODO: fill out other fields
   emptyBT : BlockTree
   emptyBT = record
-    { _btIdToBlock      = empty
-    ; _btIdToQuorumCert = empty
-    ; _btEpochConfig    = meta ec
+    { _btIdToBlock               = empty
+    ; _btRootId                  = initialAgreedHash ec -- ?? really
+    ; _btHighestCertifiedBlockId = initialAgreedHash ec
+    ; _btHighestQuorumCert       = {!!} -- ??
+    ; _btHighestCommitCert       = {!!} -- ??
+    ; _btPendingVotes            = mkPendingVotes empty empty
+    ; _btPrunedBlockIds          = []
+    ; _btMaxPrunedBlocksInMem    = 0 
+    ; _btIdToQuorumCert          = empty
     }
 
   empty-Correct : Correct emptyBT
@@ -224,31 +233,39 @@ module LibraBFT.Concrete.BlockTree
   --------------------------------
   -- Semantically Valid Records --
 
-  data canInsert {ec : EpochConfig} (bt : BlockTree) (ec≡ : unsafeReadMeta (_btEpochConfig bt) ≡ ec) : (r' : Abs.Record) → Set where
-    B : {ab : Abs.Block}
-      → {cb : LinkableBlock}
-      → ab ≡ α-Block cb
-      → lookup (Abs.bId ab) (_btIdToBlock bt) ≡ nothing
-      → canInsert bt ec≡ (Abs.B ab)
-    Q : {aq : Abs.QC}
-      → {cq : Σ QuorumCert (IsValidQC ((unsafeReadMeta ∘ _btEpochConfig) bt))}
-      → Abs.qCertBlockId aq ≡ _qcCertifies (proj₁ cq)
-      → lookup (Abs.qCertBlockId aq) (_btIdToQuorumCert bt) ≡ nothing
-      → canInsert bt ec≡ (Abs.Q aq)
+  -- We can always inject a record chain from a recordstorestate
+  -- into another by proving the later contains at least all the
+  -- records of the former.
+  RecordChain-grow
+    : {bt bt' : BlockTree}{s : Abs.Record}
+    → (∀ {r} → r ∈BT bt → r ∈BT bt')
+    → WithRSS.RecordChain bt s → WithRSS.RecordChain bt' s
+  RecordChain-grow f WithRSS.empty
+    = WithRSS.empty
+  RecordChain-grow f (WithRSS.step rc x {p})
+    = WithRSS.step (RecordChain-grow f rc) x {f p}
 
-  -- A record extends some other in a state if there exists
-  -- a record chain in said state that ends on the record supposed
-  -- to be extended
+  -- 'canInsert bt r' is just an inspectable synonym for '¬ (r ∈BT bt)'; actually,
+  -- makes me thing why not using the later...
+  data canInsert (bt : BlockTree) : (r' : Abs.Record) → Set where
+    B : (cb : Abs.Block)
+      → lookup (Abs.bId cb) (_btIdToBlock bt) ≡ nothing
+      → canInsert bt (Abs.B cb)
+    Q : (qc : Abs.QC)
+      → lookup (Abs.qCertBlockId qc) (_btIdToQuorumCert bt) ≡ nothing
+      → canInsert bt (Abs.Q qc)
+
+  -- An abstract record |r'| is said to extend the block tree if there exists
+  -- a record chain |rc| in the block tree such that |r'| can be appended to.
   data Extends (bt : BlockTree) : Abs.Record → Set where
-     -- VCM: We might carry more information on this constructor
      extends : ∀{r r'}
-             → (ec≡ : unsafeReadMeta (_btEpochConfig bt) ≡ ec)
              → (rInPool : r ∈BT bt)
              -- We will not allow insertion of a Record whose hash
              -- collides with one already in the RecordStore.
              -- Otherwise we'll have to carry HashBroke around on
-             -- most/all properties.
-             → (r'New : canInsert bt ec≡ r')
+             -- most/all properties; this will be enforced by the
+             -- 'canInsert' type.
+             → (r'New : canInsert bt r')
              → r ← r'
              → Extends bt r'
 
@@ -360,69 +377,86 @@ module LibraBFT.Concrete.BlockTree
   --------------------------
   -- Insertion of Records --
 
-  insert-block : ∀ (bt : BlockTree)(ab : Abs.Block)
-               → (ext : Extends bt (Abs.B ab))
+  -- We will handle insertions of blocks and qcs separately,
+  -- as these manipulate two different fields of our BlockTree.
+
+  insert-block : (bt : BlockTree)(cb : LinkableBlock) 
+               → (ext : Extends bt (Abs.B (α-Block cb)))
                → BlockTree
-  insert-block bt ab (extends ec≡ rInPool (B {_} {b} abdGood idAvail) x)
-    = bt [ btIdToBlock := kvm-insert (Abs.bId ab) b (_btIdToBlock bt) idAvail ]
-{-
-                 record bt { _btIdToBlock = kvm-insert
-                                            (Abs.bId ab)
-                                            b
-                                            (_btIdToBlock bt)
-                                            idAvail}
--}
+  insert-block bt cb (extends rInPool canI x) 
+    with α-Block cb | canI
+  ...| absCB | B .absCB prf 
+     = record bt { _btIdToBlock = kvm-insert (Abs.bId absCB) cb 
+                                         (_btIdToBlock bt) prf }
 
-  insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
-               → (ext : Extends bt (Abs.Q aq))
-               → BlockTree
-  insert-qc bt aq (extends ec≡ rInPool (Q {_} {cqm} _ idAvail) x) =
-                 record bt { _btIdToQuorumCert = kvm-insert
-                                                (Abs.qCertBlockId aq)
-                                                cqm
-                                                (_btIdToQuorumCert bt)
-                                            idAvail}
-
-  insert-init  : ∀ (bt : BlockTree)(ext : Extends bt Abs.I)
-               → BlockTree
-  insert-init  bt (extends _ _ () _)
-
-
-  insert : ∀ (bt : BlockTree)(r' : Abs.Record)(ext : Extends bt r')
-         → BlockTree
-  insert bt  Abs.I    ext = insert-init bt ext
-  insert bt (Abs.B b) ext = insert-block bt b ext
-  insert bt (Abs.Q q) ext = insert-qc bt q ext
+  insert-qc : (bt : BlockTree)(qc : Σ QuorumCert IsValidQC)
+            → (ext : Extends bt (Abs.Q (α-QC qc)))
+            → BlockTree
+  insert-qc bt qc (extends rInPool canI x) 
+    with α-QC qc | canI
+  ...| absQC | Q .absQC prf 
+     = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
+                                              (_btIdToQuorumCert bt) prf }
 
   ---------------------
   -- IS CORRECT RULE --
 
-  -- We can always inject a record chain from a recordstorestate
-  -- into another by proving the later contains at least all the
-  -- records of the former.
-  RecordChain-grow
-    : {bt bt' : BlockTree}{s : Abs.Record}
-    → (∀ {r} → r ∈BT bt → r ∈BT bt')
-    → WithRSS.RecordChain bt s → WithRSS.RecordChain bt' s
-  RecordChain-grow f WithRSS.empty
-    = WithRSS.empty
-  RecordChain-grow f (WithRSS.step rc x {p})
-    = WithRSS.step (RecordChain-grow f rc) x {f p}
-
   -- Inserting does not lose any records.
-  insert-stable : {bt : BlockTree}{r' : Abs.Record}(ext : Extends bt r')
-                → {r : Abs.Record}
-                → r ∈BT bt
-                → r ∈BT (insert bt r' ext)
+  insert-block-stable : (bt : BlockTree)(cb : LinkableBlock)
+                      → (ext : Extends bt (Abs.B (α-Block cb)))
+                      → {r : Abs.Record}
+                      → r ∈BT bt
+                      → r ∈BT (insert-block bt cb ext)
+  insert-block-stable bt cb ext {Abs.I}   r∈bt = unit
+  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.B x} r∈bt 
+    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
+  ...| (x' , h , p) 
+    with α-Block cb
+  ...| absCB = {!  !}
+{-
+    with lookup (Abs.bId x) (_btIdToBlock bt)
+  ...| nothing  = {!!}
+  ...| just x'  = {!!}
+-}
+  insert-block-stable bt cb ext {Abs.Q x} r∈bt = {!!}
+
+  
+
+{-
+  insert-block bt ab (extends rInPool (B b abdGood idAvail) x)
+    = record bt { _btIdToBlock = kvm-insert (Abs.bId ab) b 
+                                        (_btIdToBlock bt) idAvail}
+
+  insert-qc : ∀ (bt : BlockTree)(aq : Abs.QC)
+               → (ext : Extends bt (Abs.Q aq))
+               → BlockTree
+  insert-qc bt aq (extends rInPool (Q {_} {cqm} _ idAvail) x)
+    = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId aq) cqm 
+                                             (_btIdToQuorumCert bt) idAvail}
+
+  insert-init  : ∀ (bt : BlockTree)(ext : Extends bt Abs.I)
+               → BlockTree
+  insert-init  bt (extends _ () _)
+-}
+
+  insert : ∀ (bt : BlockTree)(r' : Abs.Record)(ext : Extends bt r')
+         → BlockTree
+{-
+  insert bt  Abs.I    ext = insert-init bt ext
+  insert bt (Abs.B b) ext = insert-block bt b ext
+  insert bt (Abs.Q q) ext = insert-qc bt q ext
+-}
+
+{-
   insert-stable ext {Abs.I} b = unit
 
   -- TODO: eliminate warnings -- unsolved meta.  Key is that Blocks don't extend Blocks
   --       and QCs don't extend QCs.
-  insert-stable {bt} (extends _ _ (B _ _) _) {Abs.Q ()}
-  insert-stable {bt} (extends _ _ (Q _ _) _) {Abs.B ()}
+  insert-stable {bt} (extends _ (B _ _) _) {Abs.Q ()}
+  insert-stable {bt} (extends _ (Q _ _) _) {Abs.B ()}
 
   -- MSM: can't help feeling I overcomplicated these proofs
-  insert-stable {bt} (extends _ _ (B _ idAvail) _) {Abs.B ab} hyp
+  insert-stable {bt} (extends _ (B _ idAvail) _) {Abs.B ab} hyp
     with         (lookup (Abs.bId ab)) (_btIdToBlock bt) |
          inspect (lookup (Abs.bId ab)) (_btIdToBlock bt)
   ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
@@ -431,7 +465,7 @@ module LibraBFT.Concrete.BlockTree
                (sym (lookup-stable-1 idAvail xx))
                (trans (cong (α-Block <M$>_) xx) hyp)
 
-  insert-stable {bt} (extends _ _ (Q _ idAvail) _) {Abs.Q aq} hyp
+  insert-stable {bt} (extends _ (Q _ idAvail) _) {Abs.Q aq} hyp
     with         (lookup (Abs.qCertBlockId aq)) (_btIdToQuorumCert bt) |
          inspect (lookup (Abs.qCertBlockId aq)) (_btIdToQuorumCert bt)
   ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
@@ -440,6 +474,7 @@ module LibraBFT.Concrete.BlockTree
                (sym (lookup-stable-1 idAvail xx))
                (trans (cong (((_qcCertifies ∘ proj₁) <M$>_)) xx) hyp)
 
+-}
 --   -- If a record is not in store before insertion, but it is after
 --   -- the insertion, this record must have been the inserted one.
 --   insert-target : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
