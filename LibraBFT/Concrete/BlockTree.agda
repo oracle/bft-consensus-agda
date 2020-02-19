@@ -418,6 +418,7 @@ module LibraBFT.Concrete.BlockTree
   insert-stable {bt} (extends _ _ (B _ _) _) {Abs.Q ()}
   insert-stable {bt} (extends _ _ (Q _ _) _) {Abs.B ()}
 
+  -- MSM: can't help feeling I overcomplicated these proofs
   insert-stable {bt} (extends _ _ (B _ idAvail) _) {Abs.B ab} hyp
     with         (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt) |
          inspect (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt)
