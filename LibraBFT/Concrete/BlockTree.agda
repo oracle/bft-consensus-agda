@@ -269,6 +269,115 @@ module LibraBFT.Concrete.BlockTree
              → r ← r'
              → Extends bt r'
 
+  ExtendsB : BlockTree → LinkableBlock → Set
+  ExtendsB bt = Extends bt ∘ Abs.B ∘ α-Block
+
+  ExtendsQC : BlockTree → Σ QuorumCert IsValidQC → Set
+  ExtendsQC bt = Extends bt ∘ Abs.Q ∘ α-QC
+
+
+  --------------------------
+  -- Insertion of Records --
+
+  -- We will handle insertions of blocks and qcs separately,
+  -- as these manipulate two different fields of our BlockTree.
+
+  insert-block : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
+               → BlockTree
+  insert-block bt cb (extends rInPool canI x) 
+    with α-Block cb | canI
+  ...| absCB | B .absCB prf 
+     = record bt { _btIdToBlock = kvm-insert (Abs.bId absCB) cb 
+                                         (_btIdToBlock bt) prf }
+
+  insert-qc : (bt : BlockTree)(qc : Σ QuorumCert IsValidQC)(ext : ExtendsQC bt qc)
+            → BlockTree
+  insert-qc bt qc (extends rInPool canI x) 
+    with α-QC qc | canI
+  ...| absQC | Q .absQC prf 
+     = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
+                                              (_btIdToQuorumCert bt) prf }
+
+  -- Inserting does not lose any records; be it for blocks or QCs
+
+  insert-block-stable : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
+                      → {r : Abs.Record}
+                      → r ∈BT bt
+                      → r ∈BT (insert-block bt cb ext)
+  insert-block-stable bt cb ext {Abs.I}   r∈bt                     = unit
+  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
+  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.B x} r∈bt 
+    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
+  ...| (lkupRes , isJust , αres)
+    rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
+          = cong just αres
+
+  insert-block-no-interf : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
+                         → _btIdToQuorumCert (insert-block bt cb ext)
+                         ≡ _btIdToQuorumCert bt
+  insert-block-no-interf {cb = cb} (extends _ (B _ _) _) = refl
+
+  insert-qc-stable : (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC)(ext : ExtendsQC bt vqc)
+                   → {r : Abs.Record}
+                   → r ∈BT bt
+                   → r ∈BT (insert-qc bt vqc ext)
+  insert-qc-stable bt qc ext {Abs.I}   r∈bt                     = unit
+  insert-qc-stable bt qc (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
+  insert-qc-stable bt qc (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
+    with <M$>-univ (_qcCertifies ∘ proj₁) 
+                   (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)) r∈bt
+  ...| (lkupRes , isJust , αres) 
+    rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = qc} prf isJust
+          = cong just αres
+
+  insert-block-target : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
+                      → {r : Abs.Record}
+                      → ¬ (r ∈BT bt)
+                      → r ∈BT (insert-block bt cb ext)
+                      → r ≡ Abs.B (α-Block cb)
+  insert-block-target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
+  insert-block-target {bt} {cb} ext {Abs.Q x} neg hyp 
+    rewrite insert-block-no-interf {bt} {cb} ext = ⊥-elim (neg hyp) 
+  insert-block-target {bt} {cb} ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
+    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock (insert-block bt cb ext))) hyp 
+  ...| (lkupRes , isJust , refl) 
+    with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
+  ...| _ , refl  = refl
+
+  insert-block-∈BT : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
+                   → Abs.B (α-Block cb) ∈BT insert-block bt cb ext
+  insert-block-∈BT ext = {!!}
+
+  insert-block-correct : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
+                       → ValidBT bt
+                       → Correct (insert-block bt cb ext)
+  insert-block-correct bt cb ext vbt s s∈post 
+    with s ∈BT? bt 
+  ...| yes s∈bt = RecordChain-grow (insert-block-stable bt cb ext) 
+                                   (ValidBT.correct vbt s s∈bt)
+  ...| no  s∉bt 
+    rewrite insert-block-target {bt} {cb} ext s∉bt s∈post 
+    with ext
+  ...| extends {r = r} a canI r←r' 
+     = WithRSS.step (RecordChain-grow (insert-block-stable bt cb (extends a canI r←r')) 
+                                      (ValidBT.correct vbt r a)) 
+                    r←r' {insert-block-∈BT {bt} {cb} (extends a canI r←r')}
+
+--   
+--   insert-ok-correct rss r' ext vrss s s∈post 
+--     with s ∈BT? rss
+--   ...| yes s∈rss = RecordChain-grow (insert-stable ext) (ValidBT.correct vrss s s∈rss)
+--   ...| no  s∉rss 
+--     rewrite insert-target ext s∉rss s∈post 
+--     with ext
+--   ...| extends {r = r} a b r←r' 
+--      = WithBT.step (RecordChain-grow (insert-stable {rss} (extends a b r←r')) 
+--                                       (ValidBT.correct vrss r a))
+--                     r←r' {insert-∈BT (extends a b r←r')}
+
+    
+  ---------------------
+  -- IS CORRECT RULE --
 
 {-
   extends-Q? : (rss : RecordStoreState)(q : QC)
@@ -374,52 +483,23 @@ module LibraBFT.Concrete.BlockTree
     ACCOUNTABILITY-OPP : ∀{α} → Honest α → Dishonest α → ⊥
 -}
 
-  --------------------------
-  -- Insertion of Records --
 
-  -- We will handle insertions of blocks and qcs separately,
-  -- as these manipulate two different fields of our BlockTree.
-
-  insert-block : (bt : BlockTree)(cb : LinkableBlock) 
-               → (ext : Extends bt (Abs.B (α-Block cb)))
-               → BlockTree
-  insert-block bt cb (extends rInPool canI x) 
-    with α-Block cb | canI
-  ...| absCB | B .absCB prf 
-     = record bt { _btIdToBlock = kvm-insert (Abs.bId absCB) cb 
-                                         (_btIdToBlock bt) prf }
-
-  insert-qc : (bt : BlockTree)(qc : Σ QuorumCert IsValidQC)
-            → (ext : Extends bt (Abs.Q (α-QC qc)))
-            → BlockTree
-  insert-qc bt qc (extends rInPool canI x) 
-    with α-QC qc | canI
-  ...| absQC | Q .absQC prf 
-     = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
-                                              (_btIdToQuorumCert bt) prf }
-
-  ---------------------
-  -- IS CORRECT RULE --
-
-  -- Inserting does not lose any records.
-  insert-block-stable : (bt : BlockTree)(cb : LinkableBlock)
-                      → (ext : Extends bt (Abs.B (α-Block cb)))
-                      → {r : Abs.Record}
-                      → r ∈BT bt
-                      → r ∈BT (insert-block bt cb ext)
-  insert-block-stable bt cb ext {Abs.I}   r∈bt = unit
-  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.B x} r∈bt 
-    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
-  ...| (x' , h , p) 
-    with α-Block cb
-  ...| absCB = {!  !}
 {-
-    with lookup (Abs.bId x) (_btIdToBlock bt)
-  ...| nothing  = {!!}
-  ...| just x'  = {!!}
--}
-  insert-block-stable bt cb ext {Abs.Q x} r∈bt = {!!}
 
+    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
+  ...| (lkupRes , isJust , αres)
+    rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
+          = cong just αres
+    = r∈bt
+-}
+
+{-
+    with <M$>-univ (_qcCertifies ∘ proj₁) 
+                   (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)) r∈bt
+  ...| (lkupRes , isJust , αres)
+    rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = cb} prf {!isJust!}
+          = {!!}
+-}
   
 
 {-
@@ -437,11 +517,9 @@ module LibraBFT.Concrete.BlockTree
   insert-init  : ∀ (bt : BlockTree)(ext : Extends bt Abs.I)
                → BlockTree
   insert-init  bt (extends _ () _)
--}
 
   insert : ∀ (bt : BlockTree)(r' : Abs.Record)(ext : Extends bt r')
          → BlockTree
-{-
   insert bt  Abs.I    ext = insert-init bt ext
   insert bt (Abs.B b) ext = insert-block bt b ext
   insert bt (Abs.Q q) ext = insert-qc bt q ext
