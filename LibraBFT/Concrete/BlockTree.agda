@@ -412,15 +412,29 @@ module LibraBFT.Concrete.BlockTree
                 → r ∈BT bt
                 → r ∈BT (insert bt r' ext)
   insert-stable ext {Abs.I} b = unit
-  insert-stable {bt} (extends _ rInPool (B {cb} {ab₁} xxx idAvail) _) {Abs.B ab} hyp
-    with (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt) | inspect (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt)
-  ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
-  ...| just lb | [ xx ] rewrite (sym xx) =
-        subst ((_≡ just ab) ∘ (α-Block <M$>_))
-              (sym (lookup-stable-1 idAvail xx))
-              (trans (cong (α-Block <M$>_) xx) hyp)
 
-  insert-stable (extends _ _ nc _) {Abs.Q x} hyp = {!!}
+  -- TODO: eliminate warnings -- unsolved meta.  Key is that Blocks don't extend Blocks
+  --       and QCs don't extend QCs.
+  insert-stable {bt} (extends _ _ (B _ _) _) {Abs.Q ()}
+  insert-stable {bt} (extends _ _ (Q _ _) _) {Abs.B ()}
+
+  insert-stable {bt} (extends _ _ (B _ idAvail) _) {Abs.B ab} hyp
+    with         (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt) |
+         inspect (lookup (Abs.bId ab)) ((btIdToBlock ⇣) bt)
+  ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
+  ...| just lb | [ xx ] =
+         subst ((_≡ just ab) ∘ (α-Block <M$>_))
+               (sym (lookup-stable-1 idAvail xx))
+               (trans (cong (α-Block <M$>_) xx) hyp)
+
+  insert-stable {bt} (extends _ _ (Q _ idAvail) _) {Abs.Q aq} hyp
+    with         (lookup (Abs.qCertBlockId aq)) (BlockTree.btIdToQuorumCert bt) |
+         inspect (lookup (Abs.qCertBlockId aq)) (BlockTree.btIdToQuorumCert bt)
+  ...| nothing | _ = ⊥-elim (maybe-⊥ hyp refl)
+  ...| just qcp | [ xx ] =
+         subst ((_≡ just (Abs.qCertBlockId aq)) ∘ (((qcCertifies ⇣) ∘ proj₁) <M$>_))
+               (sym (lookup-stable-1 idAvail xx))
+               (trans (cong ((((qcCertifies ⇣) ∘ proj₁) <M$>_)) xx) hyp)
 
 --   -- If a record is not in store before insertion, but it is after
 --   -- the insertion, this record must have been the inserted one.
