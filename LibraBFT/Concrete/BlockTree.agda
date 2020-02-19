@@ -390,21 +390,6 @@ module LibraBFT.Concrete.BlockTree
   insert bt (Abs.B b) ext = insert-block bt b ext
   insert bt (Abs.Q q) ext = insert-qc bt q ext
 
---   ---------------------
---   -- IS CORRECT RULE --
-
---   -- We can always inject a record chain from a recordstorestate
---   -- into another by proving the later contains at least all the
---   -- records of the former.
---   RecordChain-grow
---     : {rss rss' : RecordStoreState}{s : Record} 
---     → (∀ {r} → r ∈BT rss → r ∈BT rss')
---     → WithBT.RecordChain rss s → WithBT.RecordChain rss' s
---   RecordChain-grow f WithBT.empty           
---     = WithBT.empty
---   RecordChain-grow f (WithBT.step rc x {p}) 
---     = WithBT.step (RecordChain-grow f rc) x {f p}
-
 --   -- Inserting does not loose any records.
 --   insert-stable : {rss : RecordStoreState}{r' : Record}(ext : Extends rss r')
 --                 → {r : Record}
@@ -413,6 +398,21 @@ module LibraBFT.Concrete.BlockTree
 --   insert-stable ext {I x} hyp = unit
 --   insert-stable (extends _ nc _) {B x} hyp = hs-insert-stable nc hyp
 --   insert-stable (extends _ nc _) {Q x} hyp = hs-insert-stable nc hyp
+  ---------------------
+  -- IS CORRECT RULE --
+
+  -- We can always inject a record chain from a recordstorestate
+  -- into another by proving the later contains at least all the
+  -- records of the former.
+  RecordChain-grow
+    : {bt bt' : BlockTree}{s : Abs.Record}
+    → (∀ {r} → r ∈BT bt → r ∈BT bt')
+    → WithRSS.RecordChain bt s → WithRSS.RecordChain bt' s
+  RecordChain-grow f WithRSS.empty
+    = WithRSS.empty
+  RecordChain-grow f (WithRSS.step rc x {p})
+    = WithRSS.step (RecordChain-grow f rc) x {f p}
+
 
 --   -- If a record is not in store before insertion, but it is after
 --   -- the insertion, this record must have been the inserted one.
