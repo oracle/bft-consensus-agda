@@ -12,6 +12,9 @@ module LibraBFT.Concrete.Consensus.Types where
 
   open import LibraBFT.Abstract.Types public hiding (Author)
 
+  -- VCM: This fakeAuthors and fakeEC stuff should really move somewhere
+  -- else eventually, no?
+
   -- Create an EpochConfig for each epoch.  This is just for testing and facilitating progress on
   -- other stuff.
 
@@ -181,19 +184,6 @@ module LibraBFT.Concrete.Consensus.Types where
 
   _qcCertifies : QuorumCert → Hash
   _qcCertifies q = q ^∙ qcCertifies 
-
-  module WithEC (ec : EpochConfig) where
-
-    record IsValidQCAuthor (_ : Author) : Set where
-      field
-        _ivaIdx : EpochConfig.Author ec
-    open IsValidQCAuthor public
-
-    record IsValidQC (qc : QuorumCert) : Set where
-      field
-        _ivqcSizeOk       : QuorumSize ec ≤ length (qcVotes qc)
-        _ivqcValidAuthors : All ((IsValidQCAuthor ∘ proj₁) ) (qcVotes qc)
-  open WithEC public
 
   ------------
   -- Blocks --
@@ -392,95 +382,11 @@ module LibraBFT.Concrete.Consensus.Types where
 -- lbRound :: GetterNoFunctor (LinkableBlock a) Round
 -- lbRound  = to (^.lbExecutedBlock.ebRound)
 
-  record BlockTree : Set where
-    constructor mkBlockTree
-    field
-      _btIdToBlock               : KVMap HashValue LinkableBlock
-      _btRootId                  : HashValue
-      _btHighestCertifiedBlockId : HashValue
-      _btHighestQuorumCert       : QuorumCert
-      -- btHighestTimeoutCert      : Maybe TimeoutCertificate
-      _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
-      -- These two are kept at the end as we don't want to define lenses for them because they are
-      -- not simple types, and it seems the lenses defined below must be for a prefix of the fields
-      -- in the record.
-      _btEpochConfig             : Meta EpochConfig
-      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert (WithEC.IsValidQC (unsafeReadMeta _btEpochConfig)))
-  open BlockTree public
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
-             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ [])
-
-  -- This should live in BlockTree.hs.  Here to avoid circular import.
-  -- This should not be used outside BlockTree.hs.
-  btGetLinkableBlock : HashValue -> BlockTree -> Maybe LinkableBlock
-  btGetLinkableBlock hv bt = KVMap.lookup hv (bt ^∙ btIdToBlock)
-
-  -- This should live in BlockTree.hs.  Here to avoid circular import.
-  btGetBlock : HashValue -> BlockTree -> Maybe ExecutedBlock
-  btGetBlock hv bt = Maybe-map _lbExecutedBlock (btGetLinkableBlock hv bt)
-
-  btRoot : BlockTree → ExecutedBlock
-  btRoot bt with (btGetBlock (bt ^∙ btRootId)) bt | inspect (btGetBlock (bt ^∙ btRootId)) bt
-  ...| just x  | _ = x
-  ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
-   where postulate
-           -- VCM: Isn't this a very dangerous postulate here?
-           -- I think our btRoot should return a Maybe or should receive
-           -- this postulate as a parameter... 
-           assumedValid : (bt : BlockTree) → btGetBlock (bt ^∙ btRootId) bt ≡ nothing → ⊥
-
-  record BlockStore : Set where
-    constructor mkBlockStore
-    field
-      _bsInner         : BlockTree
-      -- bsStateComputer : StateComputer
-      -- bsStorage       : CBPersistentStorage
-  open BlockStore public
-  unquoteDecl bsInner = mkLens (quote BlockStore)
-             (bsInner ∷ [])
-
-  bsRoot : BlockStore → ExecutedBlock
-  bsRoot = btRoot ∘ _bsInner
-
-  -- bsHighestCertifiedBlock :: GetterNoFunctor (BlockStore a) (ExecutedBlock a)
-  -- bsHighestCertifiedBlock  = to (^.bsInner.btHighestCertifiedBlock)
-
-  -- bsHighestQuorumCert :: GetterNoFunctor (BlockStore a) QuorumCert
-  -- bsHighestQuorumCert  = to (^.bsInner.btHighestQuorumCert)
-
-  -- bsHighestCommitCert :: GetterNoFunctor (BlockStore a) QuorumCert
-  -- bsHighestCommitCert  = to (^.bsInner.btHighestCommitCert)
-
-  -- bsHighestTimeoutCert :: GetterNoFunctor (BlockStore a) (Maybe TimeoutCertificate)
-  -- bsHighestTimeoutCert  = to (^.bsInner.btHighestTimeoutCert)
-
-  record EventProcessor : Set where
-    constructor eventProcessor
-    field
-      _epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
-      _epBlockStore   : BlockStore
-      _epValidators   : List Author  -- TODO: ValidatorVerifier details
-  open EventProcessor public
-  unquoteDecl epEpochConfig   epBlockStore epValidators = mkLens (quote EventProcessor)
-             (epEpochConfig ∷ epBlockStore ∷ epValidators ∷ [])
-
-  lBlockStore : Lens EventProcessor BlockStore
-  lBlockStore = epBlockStore
-
-  lBlockTree : Lens EventProcessor BlockTree
-  lBlockTree = lBlockStore ∙ bsInner
-
 -- ------------------------------------------------------------------------------
 
   data Action : Set where
     BroadcastProposal : ProposalMsg           → Action
+    -- VCM: why are we bothering with logging in Agda?
     LogErr            : String                → Action
     -- LogInfo           : InfoLog a          → Action
     SendVote          : VoteMsg → List Author → Action
