@@ -8,13 +8,28 @@ open import Optics.All
 -- to the blockstore.
 module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
-  record EventProcessor : Set where
+  record EventProcessor (ec : EpochConfig) : Set where
     constructor eventProcessor
     field
-      _epEpochConfig  : EpochConfig  -- TODO: this should be a function of the "real" parts of EventProcessor
-      _epBlockStore   : BlockStore _epEpochConfig
+      _epBlockStore   : BlockStore ec
       _epValidators   : List Author  -- TODO: ValidatorVerifier details
   open EventProcessor public
+
+  -- This looks a bit weird because we need to parameterize EventProcessor by _some_ EpochConfig
+  -- before we can compute the right EpochConfig from it.  Not sure if there's a better way, but I
+  -- think this would work OK because the mythical function will of course not refer to the
+  -- EpochConfig passed to the module, as it will only reference "real" parts of the EventProcessor.
+  -- A side benefit is that we won't have to reason that the EpochConfig doesn't change whenever we
+  -- modify something else in the EventProcessor that doesn't actually change epochs.
+  postulate
+    mythicalAbstractionFunction : ∀ {ec : EpochConfig} → EventProcessor ec → EpochConfig
+
+  record EventProcessorWrapper : Set where
+    field
+      _epwEpochConfig    : EpochConfig
+      _epwEventProcessor : EventProcessor _epwEpochConfig
+      _epwECCorrect      : _epwEpochConfig ≡ mythicalAbstractionFunction _epwEventProcessor
+
 {-
  
   unquoteDecl epEpochConfig   epBlockStore epValidators = mkLens (quote EventProcessor)
