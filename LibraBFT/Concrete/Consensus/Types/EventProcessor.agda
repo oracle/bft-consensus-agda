@@ -8,7 +8,7 @@ open import Optics.All
 -- to the blockstore.
 module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
-  record EventProcessor (ec : EpochConfig) : Set where
+  record EventProcessor (ec : Meta EpochConfig) : Set where
     constructor eventProcessor
     field
       _epBlockStore   : BlockStore ec
@@ -22,13 +22,13 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
   -- A side benefit is that we won't have to reason that the EpochConfig doesn't change whenever we
   -- modify something else in the EventProcessor that doesn't actually change epochs.
   postulate
-    mythicalAbstractionFunction : ∀ {ec : EpochConfig} → EventProcessor ec → EpochConfig
+    mythicalAbstractionFunction : ∀ {ec : Meta EpochConfig} → EventProcessor ec → Meta EpochConfig
 
   record EventProcessorWrapper : Set where
     field
-      _epwEpochConfig    : EpochConfig
+      _epwEpochConfig    : Meta EpochConfig
       _epwEventProcessor : EventProcessor _epwEpochConfig
-      _epwECCorrect      : _epwEpochConfig ≡ mythicalAbstractionFunction _epwEventProcessor
+      _epwECCorrect      : Meta (_epwEpochConfig ≡ mythicalAbstractionFunction _epwEventProcessor)
 
 {-
  

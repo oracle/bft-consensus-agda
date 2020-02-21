@@ -4,7 +4,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.RecordChain 
-  (ec  : EpochConfig)
+  (ec  : Meta EpochConfig)
   (UID : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
     where

@@ -4,13 +4,17 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.BFT 
-   (ec : EpochConfig) 
+   (mec : Meta EpochConfig) 
    (UID : Set) 
    (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   where
 
- open import LibraBFT.Abstract.Records ec UID _≟UID_
- 
+ open import LibraBFT.Abstract.Records mec UID _≟UID_
+
+ private
+   ec : EpochConfig
+   ec = unsafeReadMeta mec
+
  -- TODO: Prove the BFT assumption. Feels like its just arithmetic,
  -- but these are famous last words after the skiplog stuff, huh? :)
 
