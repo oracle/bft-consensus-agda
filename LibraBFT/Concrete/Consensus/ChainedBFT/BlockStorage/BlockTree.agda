@@ -1,5 +1,6 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
+open import LibraBFT.Concrete.Consensus.Types.EpochDep
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.OBM.Util
 open import LibraBFT.Hash
@@ -49,14 +50,16 @@ pathFromRootM blockId = do
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
   pathFromRootM blockId = do
     bt ← use lBlockTree
-    maybeMP (loop bt blockId []) nothing (continue bt)
+    epw ← get
+    let ec = _epwEpochConfig epw
+    maybeMP (loop ec bt blockId []) nothing (continue ec bt)
    where
     -- VCM: Both loop and continue are pure functions; why are
     -- they inside the LBFT monad? this will be more difficult
     -- to prove isomorphic to agda-pathFromRootM as described
     -- in my comment above.
 
-    loop : BlockTree → HashValue → List ExecutedBlock
+    loop : (ec : EpochConfig) → BlockTree ec → HashValue → List ExecutedBlock
          → LBFT (Maybe (HashValue × List ExecutedBlock))
     loop bt curBlockId res =
       case btGetBlock curBlockId bt of
@@ -66,7 +69,7 @@ pathFromRootM blockId = do
                             else loop bt (block ^∙ ebParentId) (block ∷ res)
           }
 
-    continue : BlockTree → HashValue × List ExecutedBlock
+    continue : (ec : EpochConfig) → BlockTree ec → HashValue × List ExecutedBlock
              → LBFT (Maybe (List ExecutedBlock))
     continue bt (curBlockId , res) =
       if-dec (curBlockId ≟Hash (bt ^∙ btRootId))

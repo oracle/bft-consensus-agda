@@ -49,7 +49,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : EpochConfig) where
     constructor mkBlockTree
     field
       _btIdToBlock               : KVMap HashValue LinkableBlock
-      _btRootId                  : HashValue
+      :btRootId                  : HashValue
       _btHighestCertifiedBlockId : HashValue
       _btHighestQuorumCert       : QuorumCert
       -- btHighestTimeoutCert      : Maybe TimeoutCertificate
@@ -59,6 +59,15 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : EpochConfig) where
       _btMaxPrunedBlocksInMem    : ℕ
       _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)
   open BlockTree public
+
+  -- Here, we manually construct a lens for accessing the btRoodId field.  However, we cannot use
+  -- the Haskell conventional _ prefix for the field name, as Agda thinks this is a postfix operator
+  -- definition.  Using : for now; just for this field while experimenting with ideas.  TODO: decide
+  -- what to do and do it consistently.
+
+  btRootId : Lens BlockTree HashValue
+  btRootId = mkLens' :btRootId (λ bt fv → record bt {:btRootId = fv})
+
 {-
   -- VCM: Lenses are not working for records with module parameterss... :(
   -- if we really want it, I can try to fix it; but given there will only be two
@@ -82,14 +91,14 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : EpochConfig) where
   btGetBlock hv bt = Maybe-map _lbExecutedBlock (btGetLinkableBlock hv bt)
 
   btRoot : BlockTree → ExecutedBlock
-  btRoot bt with (btGetBlock (_btRootId bt)) bt | inspect (btGetBlock (_btRootId bt)) bt
+  btRoot bt with (btGetBlock (:btRootId bt)) bt | inspect (btGetBlock (:btRootId bt)) bt
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
    where postulate
            -- VCM: Isn't this a very dangerous postulate here?
            -- I think our btRoot should return a Maybe or should receive
            -- this postulate as a parameter... 
-           assumedValid : (bt : BlockTree) → btGetBlock (_btRootId bt) bt ≡ nothing → ⊥
+           assumedValid : (bt : BlockTree) → btGetBlock (:btRootId bt) bt ≡ nothing → ⊥
 
   record BlockStore : Set where
     constructor mkBlockStore

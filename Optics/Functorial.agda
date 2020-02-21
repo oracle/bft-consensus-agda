@@ -19,6 +19,20 @@ module Optics.Functorial where
     if : RawFunctor {Level.zero} id
     if = record { _<$>_ = λ x x₁ → x x₁ }
 
+  -- We can make lenses relatively painlessly without requiring reflection
+  -- by providing getter and setter functions
+  mkLens' : ∀ {A B : Set}
+          → (B → A)
+          → (B → A → B)
+          → Lens B A
+  mkLens' {A} {B} get set =
+    lens (λ F rf f b → Category.Functor.RawFunctor._<$>_
+                         {F = F} rf
+                         {A = A}
+                         {B = B}
+                         (set b)
+                         (f (get b)))
+
   -- Getter:
 
   -- this is typed as ^\. 

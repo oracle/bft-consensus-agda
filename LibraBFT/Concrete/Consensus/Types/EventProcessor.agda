@@ -54,9 +54,12 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
   -- But now we lost the informatino about the projection being over
   -- the "right" ec.
   -- 
+
+
+-}
+
   lBlockStore : Lens EventProcessor BlockStore
   lBlockStore = epBlockStore
 
   lBlockTree : Lens EventProcessor BlockTree
   lBlockTree = ? -- lBlockStore ∙ bsInner
--}
