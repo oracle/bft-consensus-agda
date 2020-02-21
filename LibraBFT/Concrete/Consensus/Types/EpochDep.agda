@@ -103,7 +103,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : EpochConfig) where
   record BlockStore : Set where
     constructor mkBlockStore
     field
-      _bsInner         : BlockTree
+      :bsInner         : BlockTree
       -- bsStateComputer : StateComputer
       -- bsStorage       : CBPersistentStorage
   open BlockStore public
@@ -112,8 +112,12 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : EpochConfig) where
              (bsInner ∷ [])
 -}
 
+  bsInner : Lens BlockStore BlockTree
+  bsInner = mkLens' :bsInner
+                    λ bs bt → record bs {:bsInner = bt} 
+
   bsRoot : BlockStore → ExecutedBlock
-  bsRoot = btRoot ∘ _bsInner
+  bsRoot = btRoot ∘ :bsInner
 
   -- bsHighestCertifiedBlock :: GetterNoFunctor (BlockStore a) (ExecutedBlock a)
   -- bsHighestCertifiedBlock  = to (^.bsInner.btHighestCertifiedBlock)

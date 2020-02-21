@@ -29,6 +29,7 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
       _epwEpochConfig    : EpochConfig
       _epwEventProcessor : EventProcessor _epwEpochConfig
       _epwECCorrect      : _epwEpochConfig ≡ mythicalAbstractionFunction _epwEventProcessor
+  open EventProcessorWrapper public
 
 {-
  
@@ -58,8 +59,8 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
 -}
 
-  lBlockStore : Lens EventProcessor BlockStore
-  lBlockStore = epBlockStore
+  lBlockStore : ∀ (ec : EpochConfig) → Lens (EventProcessor ec) (BlockStore ec)
+  lBlockStore ec = mkLens' _epBlockStore λ ep bs → record ep { _epBlockStore = bs}
 
-  lBlockTree : Lens EventProcessor BlockTree
-  lBlockTree = ? -- lBlockStore ∙ bsInner
+  lBlockTree : ∀ (ec : EpochConfig) → Lens (EventProcessor ec) (BlockTree ec)
+  lBlockTree ec = (lBlockStore ec) ∙ (bsInner ec)

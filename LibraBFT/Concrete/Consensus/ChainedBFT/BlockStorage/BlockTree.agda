@@ -1,6 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Consensus.Types.EpochDep
+open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.OBM.Util
 open import LibraBFT.Hash
@@ -49,9 +50,9 @@ pathFromRootM blockId = do
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
   pathFromRootM blockId = do
-    bt ← use lBlockTree
     epw ← get
     let ec = _epwEpochConfig epw
+        bt = (_epwEventProcessor epw) ^∙ (lBlockTree ec)
     maybeMP (loop ec bt blockId []) nothing (continue ec bt)
    where
     -- VCM: Both loop and continue are pure functions; why are
@@ -61,18 +62,18 @@ pathFromRootM blockId = do
 
     loop : (ec : EpochConfig) → BlockTree ec → HashValue → List ExecutedBlock
          → LBFT (Maybe (HashValue × List ExecutedBlock))
-    loop bt curBlockId res =
-      case btGetBlock curBlockId bt of
+    loop ec bt curBlockId res =
+      case btGetBlock ec curBlockId bt of
         λ { nothing      → return nothing
-          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot bt) ^∙ ebRound)
+          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot ec bt) ^∙ ebRound)
                             then return (just (curBlockId , res))
-                            else loop bt (block ^∙ ebParentId) (block ∷ res)
+                            else loop ec bt (block ^∙ ebParentId) (block ∷ res)
           }
 
     continue : (ec : EpochConfig) → BlockTree ec → HashValue × List ExecutedBlock
              → LBFT (Maybe (List ExecutedBlock))
-    continue bt (curBlockId , res) =
-      if-dec (curBlockId ≟Hash (bt ^∙ btRootId))
+    continue ec bt (curBlockId , res) =
+      if-dec (curBlockId ≟Hash (bt ^∙ (btRootId ec)))
        then return (just (reverse res))
        else return nothing
     
