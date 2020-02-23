@@ -10,18 +10,21 @@ open import Optics.All
 
 -- Semantic validitadion of the data structures in 'Consensus.Types'
 -- depends directly on the epoch configuration.
-module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : EpochConfig} where
+module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
 
   -- VCM: I think this is incorrect.
   --      I can always prove all authors valid...
   record IsValidQCAuthor (_ : Author) : Set where
     field
-      _ivaIdx : EpochConfig.Author ec
+      _ivaIdx : EpochConfig.Author (unsafeReadMeta ec) -- TODO: we should be able to avoid this unsafeReadMeta
+                                                       -- because IsValidQCAuthor is only ever used as a Meta type,
+                                                       -- so the read is actually safe.  Not sure how though.
+                                                       -- More instances below.
   open IsValidQCAuthor public
 
   -- Here!
   vcm-absurd : ∀{a} → IsValidQCAuthor a
-  vcm-absurd = record { _ivaIdx = first-author ec }
+  vcm-absurd = record { _ivaIdx = first-author (unsafeReadMeta ec) }
     where
       first-author : (x : EpochConfig) → EpochConfig.Author x
       first-author (record 
@@ -37,7 +40,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : EpochConfig} where
   
   record IsValidQC (qc : QuorumCert) : Set where
     field
-      _ivqcSizeOk       : QuorumSize ec ≤ length (qcVotes qc)
+      _ivqcSizeOk       : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
       _ivqcValidAuthors : All ((IsValidQCAuthor ∘ proj₁) ) (qcVotes qc)
   open IsValidQCAuthor public
 

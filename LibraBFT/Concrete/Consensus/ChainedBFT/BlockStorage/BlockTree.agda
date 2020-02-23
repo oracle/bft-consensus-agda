@@ -75,7 +75,7 @@ pathFromRootM blockId = do
     -- to prove isomorphic to agda-pathFromRootM as described
     -- in my comment above.
 
-    loop : {ec : EpochConfig} → BlockTree {ec} → HashValue → List ExecutedBlock
+    loop : {ec : Meta EpochConfig} → BlockTree {ec} → HashValue → List ExecutedBlock
          → LBFT (Maybe (HashValue × List ExecutedBlock))
     loop {ec} bt curBlockId res =
       case btGetBlock curBlockId bt of
@@ -85,7 +85,7 @@ pathFromRootM blockId = do
                             else loop bt (block ^∙ ebParentId) (block ∷ res)
           }
 
-    continue : {ec : EpochConfig} → BlockTree {ec} → HashValue × List ExecutedBlock
+    continue : {ec : Meta EpochConfig} → BlockTree {ec} → HashValue × List ExecutedBlock
              → LBFT (Maybe (List ExecutedBlock))
     continue {ec} bt (curBlockId , res) =
       if-dec (curBlockId ≟Hash (bt ^∙ btRootId))

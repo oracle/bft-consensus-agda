@@ -3,11 +3,15 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Abstract.Records 
-    (ec : EpochConfig) 
+    (mec : Meta EpochConfig)
     (UID : Set)
     -- MSM: _≟UID_ and it us not used anywhere, are we expecting to use it?
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
  where
+
+  private
+    ec : EpochConfig
+    ec = unsafeReadMeta mec
 
   record Block  : Set where
     constructor mkBlock

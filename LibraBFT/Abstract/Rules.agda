@@ -5,13 +5,17 @@ open import LibraBFT.Abstract.Types
 -- VCM : I think this module is also obsolete, for the time being.
 --       if not; there's a lot of fixing needed here
 module LibraBFT.Abstract.Rules
-  (ec : EpochConfig)
+  (mec : Meta EpochConfig)
   (UID : Set) 
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   where
 
-  open import LibraBFT.Abstract.BFT     ec UID _≟UID_
-  open import LibraBFT.Abstract.Records ec UID _≟UID_
+  private
+    ec : EpochConfig
+    ec = unsafeReadMeta mec
+
+  open import LibraBFT.Abstract.BFT     mec UID _≟UID_
+  open import LibraBFT.Abstract.Records mec UID _≟UID_
 
   ---------------------------------------
   -- Honesty and Dishonesty of Authors --

@@ -8,11 +8,11 @@ open import Optics.All
 -- to the blockstore.
 module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
-  record EventProcessor {ec : EpochConfig} : Set where
-    constructor eventProcessor
+  record EventProcessor {ec : Meta EpochConfig} : Set where
+    constructor mkEventProcessor
     field
       :epBlockStore   : BlockStore {ec}
-      _epValidators   : List Author  -- TODO: ValidatorVerifier details
+      :epValidators   : List Author  -- TODO: ValidatorVerifier details
   open EventProcessor public
 
   -- This looks a bit weird because we need to parameterize EventProcessor by _some_ EpochConfig
@@ -22,13 +22,14 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
   -- A side benefit is that we won't have to reason that the EpochConfig doesn't change whenever we
   -- modify something else in the EventProcessor that doesn't actually change epochs.
   postulate
-    mythicalAbstractionFunction : ∀ {ec : EpochConfig} → EventProcessor {ec} → EpochConfig
+    mythicalAbstractionFunction : ∀ {ec : Meta EpochConfig} → EventProcessor {ec} → Meta EpochConfig
 
   record EventProcessorWrapper : Set where
+    constructor mkEventProcessorWrapper
     field
-      :epwEpochConfig    : EpochConfig
+      :epwEpochConfig    : Meta EpochConfig
       :epwEventProcessor : EventProcessor {:epwEpochConfig}
-      _epwECCorrect      : :epwEpochConfig ≡ mythicalAbstractionFunction :epwEventProcessor
+      _epwECCorrect      : Meta (:epwEpochConfig ≡ mythicalAbstractionFunction :epwEventProcessor)
   open EventProcessorWrapper public
 
 {-
@@ -59,8 +60,8 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
 -}
 
-  lBlockStore : ∀ {ec : EpochConfig} → Lens (EventProcessor {ec}) (BlockStore {ec})
+  lBlockStore : ∀ {ec : Meta EpochConfig} → Lens (EventProcessor {ec}) (BlockStore {ec})
   lBlockStore {ec} = mkLens' :epBlockStore λ ep bs → record ep { :epBlockStore = bs}
 
-  lBlockTree : ∀ {ec : EpochConfig} → Lens (EventProcessor {ec}) (BlockTree {ec})
+  lBlockTree : ∀ {ec : Meta EpochConfig} → Lens (EventProcessor {ec}) (BlockTree {ec})
   lBlockTree {ec} = lBlockStore ∙ bsInner

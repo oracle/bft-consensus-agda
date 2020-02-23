@@ -9,6 +9,8 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Consensus.Types
+open import LibraBFT.Concrete.Consensus.Types.EpochDep
+open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 
 open import Optics.All
 
@@ -27,14 +29,23 @@ module LibraBFT.Global.ModelDraft
  open import LibraBFT.Concrete.Records
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 
- -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
- initialEventProcessorAndMessages : Author → EventProcessor × List Action
- initialEventProcessorAndMessages = const (eventProcessor (fakeEC 0) (mkBlockStore (emptyBT (fakeEC 0))) [] , [])  -- TODO: real list of authors, other details
+ -- When we have a real function for generating EpochConfigs from EventProcessors, we will
+ -- be able to provide a real EpochConfig and a proof that the BlockStore is for that EpochConfig
+ postulate
+   willGoAway : meta (fakeEC 0) ≡ mythicalAbstractionFunction
+                                    (mkEventProcessor (mkBlockStore (emptyBT (meta (fakeEC 0)))) [])
 
- actionsToSends : EventProcessor → Action → List (Author × NetworkMsg)
- actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (ep ^∙ epValidators)
- actionsToSends _  (LogErr x)            = []
- actionsToSends _  (SendVote v to)       = List-map (_, (V v)) to
+ -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
+ initialEventProcessorAndMessages : Author → EventProcessorWrapper × List Action
+ initialEventProcessorAndMessages = let ec = meta (fakeEC 0)
+                                        ep : EventProcessor {ec}
+                                        ep = mkEventProcessor (mkBlockStore (emptyBT ec)) []
+                                    in const (mkEventProcessorWrapper ec ep (meta willGoAway) , [])
+
+ actionsToSends : EventProcessorWrapper → Action → List (Author × NetworkMsg)
+ actionsToSends epw (BroadcastProposal p) = List-map (_, (P p)) (:epValidators (:epwEventProcessor epw))
+ actionsToSends _   (LogErr x)            = []
+ actionsToSends _   (SendVote v to)       = List-map (_, (V v)) to
 
  -- This captures whether the author can be counted amongst the dishonest authors of the releavnt
  -- epoch (identified by the message the author would like to send).  Thus, someone who is not an
@@ -59,7 +70,7 @@ module LibraBFT.Global.ModelDraft
                sig-NetworkMsg
                Unit
                Action
-               EventProcessor
+               EventProcessorWrapper
                initialEventProcessorAndMessages
                handle
                actionsToSends

@@ -15,8 +15,7 @@ module LibraBFT.Concrete.BlockTree
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
- 
-    (ec  : EpochConfig)
+    (ec  : Meta EpochConfig)
  where
 
   open import LibraBFT.Concrete.Util.KVMap
@@ -182,10 +181,10 @@ module LibraBFT.Concrete.BlockTree
   emptyBT : BlockTree
   emptyBT = record
     { _btIdToBlock               = empty
-    ; :btRootId                  = initialAgreedHash ec -- ?? really
-    ; _btHighestCertifiedBlockId = initialAgreedHash ec
-    ; _btHighestQuorumCert       = {!!} -- ??
-    ; _btHighestCommitCert       = {!!} -- ??
+    ; :btRootId                  = initialAgreedHash (unsafeReadMeta ec)  -- These unsafeReadMetas will go away when
+    ; _btHighestCertifiedBlockId = initialAgreedHash (unsafeReadMeta ec)  -- we do real epoch changes as these hashes will
+    ; _btHighestQuorumCert       = {!!} -- ??                             -- come from somewhere else.  Similarly for
+    ; _btHighestCommitCert       = {!!} -- ??                             -- these initial QCs.
     ; _btPendingVotes            = mkPendingVotes empty empty
     ; _btPrunedBlockIds          = []
     ; _btMaxPrunedBlocksInMem    = 0 

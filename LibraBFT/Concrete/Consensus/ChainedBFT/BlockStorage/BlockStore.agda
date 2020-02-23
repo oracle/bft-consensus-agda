@@ -11,7 +11,7 @@ open import LibraBFT.Concrete.OBM.Util
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
-  getBlock : ∀ {ec : EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
+  getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
   open RWST-do
