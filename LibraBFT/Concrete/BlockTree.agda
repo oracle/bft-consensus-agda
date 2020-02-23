@@ -24,7 +24,7 @@ module LibraBFT.Concrete.BlockTree
 
 
   open import LibraBFT.Concrete.Consensus.Types
-  open import LibraBFT.Concrete.Consensus.Types.EpochDep ec
+  open import LibraBFT.Concrete.Consensus.Types.EpochDep {ec}
 
   --------------------------------
   -- Abstracting Blocks and QCs --
@@ -182,7 +182,7 @@ module LibraBFT.Concrete.BlockTree
   emptyBT : BlockTree
   emptyBT = record
     { _btIdToBlock               = empty
-    ; _btRootId                  = initialAgreedHash ec -- ?? really
+    ; :btRootId                  = initialAgreedHash ec -- ?? really
     ; _btHighestCertifiedBlockId = initialAgreedHash ec
     ; _btHighestQuorumCert       = {!!} -- ??
     ; _btHighestCommitCert       = {!!} -- ??

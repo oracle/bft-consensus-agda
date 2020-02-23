@@ -8,10 +8,10 @@ open import Optics.All
 -- to the blockstore.
 module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
-  record EventProcessor (ec : EpochConfig) : Set where
+  record EventProcessor {ec : EpochConfig} : Set where
     constructor eventProcessor
     field
-      _epBlockStore   : BlockStore ec
+      :epBlockStore   : BlockStore {ec}
       _epValidators   : List Author  -- TODO: ValidatorVerifier details
   open EventProcessor public
 
@@ -22,13 +22,13 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
   -- A side benefit is that we won't have to reason that the EpochConfig doesn't change whenever we
   -- modify something else in the EventProcessor that doesn't actually change epochs.
   postulate
-    mythicalAbstractionFunction : ∀ {ec : EpochConfig} → EventProcessor ec → EpochConfig
+    mythicalAbstractionFunction : ∀ {ec : EpochConfig} → EventProcessor {ec} → EpochConfig
 
   record EventProcessorWrapper : Set where
     field
-      _epwEpochConfig    : EpochConfig
-      _epwEventProcessor : EventProcessor _epwEpochConfig
-      _epwECCorrect      : _epwEpochConfig ≡ mythicalAbstractionFunction _epwEventProcessor
+      :epwEpochConfig    : EpochConfig
+      :epwEventProcessor : EventProcessor {:epwEpochConfig}
+      _epwECCorrect      : :epwEpochConfig ≡ mythicalAbstractionFunction :epwEventProcessor
   open EventProcessorWrapper public
 
 {-
@@ -59,8 +59,8 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
 -}
 
-  lBlockStore : ∀ (ec : EpochConfig) → Lens (EventProcessor ec) (BlockStore ec)
-  lBlockStore ec = mkLens' _epBlockStore λ ep bs → record ep { _epBlockStore = bs}
+  lBlockStore : ∀ {ec : EpochConfig} → Lens (EventProcessor {ec}) (BlockStore {ec})
+  lBlockStore {ec} = mkLens' :epBlockStore λ ep bs → record ep { :epBlockStore = bs}
 
-  lBlockTree : ∀ (ec : EpochConfig) → Lens (EventProcessor ec) (BlockTree ec)
-  lBlockTree ec = (lBlockStore ec) ∙ (bsInner ec)
+  lBlockTree : ∀ {ec : EpochConfig} → Lens (EventProcessor {ec}) (BlockTree {ec})
+  lBlockTree {ec} = lBlockStore ∙ bsInner

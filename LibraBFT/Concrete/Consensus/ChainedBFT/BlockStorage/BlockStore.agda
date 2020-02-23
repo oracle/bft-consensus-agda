@@ -1,5 +1,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
+open import LibraBFT.Concrete.Consensus.Types.EpochDep
+open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 import      LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree as BlockTree
 
@@ -9,7 +11,7 @@ open import LibraBFT.Concrete.OBM.Util
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
-  getBlock : HashValue -> BlockStore -> Maybe ExecutedBlock
+  getBlock : ∀ {ec : EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
   open RWST-do
@@ -53,8 +55,13 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
 
   commitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   commitM finalityProof = do
-    bs ← use lBlockStore
-    let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
+    -- We cannot do "bs <- use lBlockStore" as in Haskell code.  See comments in
+    -- BlockTree.agda about why we use the following instead.
+    epw ← get
+    let ep = :epwEventProcessor epw
+        bs = ep ^∙ lBlockStore
+
+        blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of
       λ { nothing              → pure [] 
         ; (just blockToCommit) →
