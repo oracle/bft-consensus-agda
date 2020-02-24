@@ -46,6 +46,10 @@ pathFromRootM blockId = do
   -- finally; prove (∀ h → pathFromRootM h ≡ agda-pathFromRootM h);
   -- This should justify the terminating prama (which can't be eliminated;
   -- loop might in fact never terminate).
+  --
+  -- MSM: I don't think this is quite right, because Extends doesn't know anything about btRoot, so
+  -- getBlocks would not be able to return only the blocks not yet committed. Maybe we need:
+  -- (getBlocks : Extends → Round → List ExecutedBlock).  Otherwise, it seems to roughly make sense.
 
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
