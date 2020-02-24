@@ -23,6 +23,12 @@ module LibraBFT.Concrete.Consensus.Types where
   Author : Set
   Author = NodeId
 
+  AccountAddress : Set
+  AccountAddress = Author  -- TODO: comment in Haskell code indicates this will change
+
+  _≟AccountAddress_ : (a₁ a₂ : AccountAddress) → Dec (a₁ ≡ a₂)
+  _≟AccountAddress_ = _≟_
+
   fakeAuthorsN : ℕ
   fakeAuthorsN = 4
 
@@ -385,6 +391,11 @@ module LibraBFT.Concrete.Consensus.Types where
 -- lbRound  = to (^.lbExecutedBlock.ebRound)
 
 -- ------------------------------------------------------------------------------
+
+  -- Note BlockTree and BlockStore are defined in EpochDep.agda as they depend on an EpochConfig
+
+  -- Note EventProcessor is defined in EventProcessor.agda as it depends on an EpochConfig
+  -- MSM: why not put it in EpochDep then, like BlockTree and BlockStore
 
   data Action : Set where
     BroadcastProposal : ProposalMsg           → Action
