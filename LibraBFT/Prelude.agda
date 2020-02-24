@@ -24,7 +24,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List 
-    renaming (map to List-map ; filter to List-filter)
+    renaming (map to List-map ; filter to List-filter ; lookup to List-lookup)
     hiding (fromMaybe; [_])
     public
 
@@ -71,8 +71,8 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Maybe 
-    renaming (map to Maybe-map; zip to Maybe-zip)
-    hiding (align; alignWith; zipWith; _>>=_)
+    renaming (map to Maybe-map; zip to Maybe-zip ; _>>=_ to _Maybe->>=_)
+    hiding (align; alignWith; zipWith)
     public
 
   open import Data.Maybe.Relation.Unary.Any
@@ -85,7 +85,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Fin
-    using (Fin; suc; zero; fromℕ≤)
+    using (Fin; suc; zero; fromℕ; fromℕ≤ ; toℕ ; cast)
     renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
     public
 

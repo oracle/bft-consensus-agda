@@ -53,6 +53,33 @@ module LibraBFT.Lemmas where
  All-reduce⁺ f hyp []         = []
  All-reduce⁺ f hyp (ax ∷ axs) = (hyp ax) ∷ All-reduce⁺ f hyp axs 
 
+ List-index : ∀ {A : Set} → (_≟A_ : (a₁ a₂ : A) → Dec (a₁ ≡ a₂)) → A → (l : List A) → Maybe (Fin (length l))
+ List-index _≟A_ x l with break (_≟A x) l
+ ...| not≡ , _ with length not≡ <? length l
+ ...| no  _     = nothing
+ ...| yes found = just ( fromℕ≤ {length not≡} {length l} found)
+
+ nats : ℕ → List ℕ
+ nats 0 = []
+ nats (suc n) = (nats n) ++ (n ∷ [])
+
+ _ : nats 4 ≡ 0 ∷ 1 ∷ 2 ∷ 3 ∷ []
+ _ = refl
+
+ _ : Maybe-map toℕ (List-index _≟_ 2 (nats 4)) ≡ just 2
+ _ = refl
+
+ _ : Maybe-map toℕ (List-index _≟_ 4 (nats 4)) ≡ nothing
+ _ = refl
+
+ allDistinct : ∀ {A : Set} → List A → Set
+ allDistinct l = ∀ (i j : Σ ℕ (_< length l)) →
+                   proj₁ i ≡ proj₁ j
+                   ⊎ List-lookup l (fromℕ≤ (proj₂ i)) ≢ List-lookup l (fromℕ≤ (proj₂ j))
+
+ postulate -- TODO
+   allDistinct? : ∀ {A : Set} → {≟A : (a₁ a₂ : A) → Dec (a₁ ≡ a₂)} → (l : List A) → Dec (allDistinct l)
+
  {-Any-lookup-correct : ∀ {a} {A : Set a} {x : A} {l : List A} → (p : x ∈ l) → Any-lookup p ∈ l
  Any-lookup-correct (here refl) = here refl
  Any-lookup-correct (there p)   = there (Any-lookup-correct p )

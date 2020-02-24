@@ -50,6 +50,7 @@ module LibraBFT.Abstract.Types where
   -- survive at most 'bizF' byzantine failures.
   -- TODO: Generalize for different voting power, same as Rust and (future) Haskell code
   record EpochConfig : Set where
+    constructor mkEpochConfig
     field
       epochId  : EpochId
       authorsN : ℕ

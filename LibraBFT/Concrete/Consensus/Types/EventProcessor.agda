@@ -1,7 +1,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Consensus.Types.EpochDep
-
+open import LibraBFT.Concrete.Util.KVMap
+open import LibraBFT.Hash
+open import LibraBFT.Lemmas
 open import Optics.All
 
 -- The event processor ties the knot and passes its own epoch config
@@ -16,21 +18,37 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
       :epValidators   : ValidatorVerifier
   open EventProcessor public
 
-  -- This looks a bit weird because we need to parameterize EventProcessor by _some_ EpochConfig
-  -- before we can compute the right EpochConfig from it.  Not sure if there's a better way, but I
-  -- think this would work OK because the mythical function will of course not refer to the
-  -- EpochConfig passed to the module, as it will only reference "real" parts of the EventProcessor.
-  -- A side benefit is that we won't have to reason that the EpochConfig doesn't change whenever we
-  -- modify something else in the EventProcessor that doesn't actually change epochs.
-  postulate
-    mythicalAbstractionFunction : ∀ {ec : Meta EpochConfig} → EventProcessor {ec} → Meta EpochConfig
+  abstractEpochConfig : SafetyRules → ValidatorVerifier → Maybe (Meta EpochConfig)
+  abstractEpochConfig sr vv with (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo vv)))
+  ...| validators with length validators | inspect length validators
+  ...| numAuthors | [ numAuthors≡ ] with :vvQuorumVotingPower vv
+  ...| qsize with numAuthors ∸ qsize
+  ...| bizF with numAuthors ≥? suc (3 * bizF)
+  ...| no  _  = nothing
+  ...| yes xx with allDistinct? {≟A = _≟_} validators
+  ...| no  _  = nothing
+  ...| yes distinct = just (meta (mkEpochConfig
+                                   (:psEpoch (:srPersistentStorage sr))
+                                   (numAuthors)
+                                   bizF
+                                   xx
+                                   0  -- TODO: what is this for?
+                                   dummyHash
+                                   dummyHash
+                                   isVVAuthor))
+       where isVVAuthor : NodeId → Maybe (Fin numAuthors)
+             isVVAuthor nid with List-index {AccountAddress} _≟AccountAddress_ nid validators
+             ...| nothing    = nothing
+             ...| just found = just (cast numAuthors≡ found)
 
   record EventProcessorWrapper : Set where
     constructor mkEventProcessorWrapper
     field
       :epwEpochConfig    : Meta EpochConfig
       :epwEventProcessor : EventProcessor {:epwEpochConfig}
-      _epwECCorrect      : Meta (:epwEpochConfig ≡ mythicalAbstractionFunction :epwEventProcessor)
+      _epwECCorrect      : Meta (just :epwEpochConfig ≡
+                                 abstractEpochConfig (:epSafetyRules :epwEventProcessor)
+                                                     (:epValidators :epwEventProcessor))
   open EventProcessorWrapper public
 
 {-

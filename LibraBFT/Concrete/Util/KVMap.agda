@@ -1,5 +1,4 @@
 open import LibraBFT.Prelude
-  hiding (lookup)
 
 module LibraBFT.Concrete.Util.KVMap  where
 
