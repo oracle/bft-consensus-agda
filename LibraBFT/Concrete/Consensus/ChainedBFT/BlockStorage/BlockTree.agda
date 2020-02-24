@@ -60,13 +60,12 @@ pathFromRootM blockId = do
     -- For now, use the following workaround.
 
     epw ← get
-    let ep = :epwEventProcessor epw
-        bt = ep ^∙ lBlockTree
+    let bt = (:epwEventProcessor epw) ^∙ lBlockTree
 
     -- Should we:
     --   Create variants of RWST-bind and friends with implicit arguments?  Ugly, even if it works.
     --   Accept difference between Agada and Haskell?
-    --   Change Haskell to match?
+    --   Change the Haskell code to match?
 
     maybeMP (loop bt blockId []) nothing (continue bt)
    where
