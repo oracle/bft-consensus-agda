@@ -394,6 +394,48 @@ module LibraBFT.Concrete.Consensus.Types where
 
   -- Note BlockTree and BlockStore are defined in EpochDep.agda as they depend on an EpochConfig
 
+  record PersistentStorage : Set where
+    constructor mkPersistentStorage
+    field
+      :psEpoch          : EpochId
+      -- :psLastVotedRound : Round
+      -- :psPreferredRound : Round
+  open PersistentStorage public
+
+  record ValidatorSigner : Set where
+    constructor mkValidatorSigner
+    field
+      :vsAuthor     : AccountAddress  -- TODO: Not quite faithful to Haskell code, which may change
+      -- :vsPublicKey  : PK
+      -- :vsPrivateKey : SK   -- MSM: Is it OK that this is here?  The SystemModel
+                              -- doesn't allow one node to examine another's state,
+                              -- so I think it's OK: we don't model someone being able
+                              -- to impersonate someone else.
+  open ValidatorSigner public
+
+  record ValidatorInfo : Set where
+    constructor mkValidatorInfo
+    field
+      :viPublicKey   : String  -- TODO: this should be PK but have to settle down definition first
+      -- :viVotingPower : Int  -- TODO: For now we consider each validator to have one
+                               --       vote.  Generalize later.
+  open ValidatorInfo public
+
+  record ValidatorVerifier : Set where
+    constructor mkValidatorVerifier
+    field
+      :vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorInfo)
+      :vvQuorumVotingPower      : ℕ  -- TODO: for now, this is QuorumSize
+      -- :vvTotalVotingPower    : ℕ  -- TODO: commented out as I'm not sure what it's for
+  open ValidatorVerifier public
+
+  record SafetyRules : Set where
+    constructor mkSafetyRules
+    field
+      :srPersistentStorage : PersistentStorage
+      -- :srValidatorSigner   : ValidatorSigner
+  open SafetyRules public
+
   -- Note EventProcessor is defined in EventProcessor.agda as it depends on an EpochConfig
   -- MSM: why not put it in EpochDep then, like BlockTree and BlockStore
 

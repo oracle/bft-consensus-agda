@@ -12,7 +12,8 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
     constructor mkEventProcessor
     field
       :epBlockStore   : BlockStore {ec}
-      :epValidators   : List Author  -- TODO: ValidatorVerifier details
+      :epSafetyRules  : SafetyRules
+      :epValidators   : ValidatorVerifier
   open EventProcessor public
 
   -- This looks a bit weird because we need to parameterize EventProcessor by _some_ EpochConfig
