@@ -97,9 +97,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
    where postulate
-           -- VCM: Isn't this a very dangerous postulate here?
-           -- I think our btRoot should return a Maybe or should receive
-           -- this postulate as a parameter... 
+           -- TODO: The Haskell code asserts this property.  It won't fire (assuming ... :-)).
+           -- So how should we model this?  We could explicitly model assertions firing, and
+           -- the we'd have to prove that they don't.  Alternatively we could
            assumedValid : (bt : BlockTree) → btGetBlock (:btRootId bt) bt ≡ nothing → ⊥
 
   record BlockStore : Set where
