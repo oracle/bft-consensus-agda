@@ -14,6 +14,8 @@ module LibraBFT.Concrete.Consensus.Types where
 
   -- VCM: This fakeAuthors and fakeEC stuff should really move somewhere
   -- else eventually, no?
+  -- MSM: Yes, it is just for providing values of the appropropriate type while develop
+  -- pieces that depend on them.  Maybe they will go away, or just become part of tests.
 
   -- Create an EpochConfig for each epoch.  This is just for testing and facilitating progress on
   -- other stuff.
