@@ -40,6 +40,11 @@ module LibraBFT.Concrete.Util.KVMap  where
    kvm-toList-length : (kvm : KVMap Key Val)
                      → length (kvm-toList kvm) ≡ kvm-size kvm
 
+   -- TODO: need properties relating kvm-fromList showing that IF all keys in the
+   -- supplied list are distinct, then all pairs are in the resulting map, and if
+   -- not, we get nothing
+   kvm-fromList   : List (Key × Val) → Maybe (KVMap Key Val)
+
    -- properties
    lookup-correct : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≡ nothing)

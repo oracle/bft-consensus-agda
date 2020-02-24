@@ -11,6 +11,7 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Consensus.Types.EpochDep
 open import LibraBFT.Concrete.Consensus.Types.EventProcessor
+open import LibraBFT.Concrete.Util.KVMap
 
 open import Optics.All
 
@@ -29,21 +30,23 @@ module LibraBFT.Global.ModelDraft
  open import LibraBFT.Concrete.Records
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 
- -- When we have a real function for generating EpochConfigs from EventProcessors, we will
- -- be able to provide a real EpochConfig and a proof that the BlockStore is for that EpochConfig
- postulate
-   willGoAway : meta (fakeEC 0) ≡ mythicalAbstractionFunction
-                                    (mkEventProcessor (mkBlockStore (emptyBT (meta (fakeEC 0)))) [])
-
  -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
- initialEventProcessorAndMessages : Author → EventProcessorWrapper × List Action
- initialEventProcessorAndMessages = let ec = meta (fakeEC 0)
-                                        ep : EventProcessor {ec}
-                                        ep = mkEventProcessor (mkBlockStore (emptyBT ec)) []
-                                    in const (mkEventProcessorWrapper ec ep (meta willGoAway) , [])
+ -- For now, it just constructs an EventProcessor in which there are four validators with fake public keys
+ initialEventProcessorAndMessages : Author → Maybe (EventProcessorWrapper × List Action)
+ initialEventProcessorAndMessages = let sr = (mkSafetyRules (mkPersistentStorage 0))
+                                        vvMB : Maybe ValidatorVerifier
+                                        vvMB = Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
+                                    in const (vvMB Maybe->>= (λ vv → abstractEpochConfig sr vv
+                                                   Maybe->>= (λ ec → just (mkEventProcessorWrapper
+                                                                             ec
+                                                                             (ep ec sr vv)
+                                                                             (meta {! TO NOT DO: not worthwhile for temporary fake data!})
+                                                                          , []))))
+                                    where ep : (ec : Meta EpochConfig) → SafetyRules → ValidatorVerifier → EventProcessor {ec}
+                                          ep ec sr vv = mkEventProcessor (mkBlockStore (emptyBT ec)) sr vv
 
  actionsToSends : EventProcessorWrapper → Action → List (Author × NetworkMsg)
- actionsToSends epw (BroadcastProposal p) = List-map (_, (P p)) (:epValidators (:epwEventProcessor epw))
+ actionsToSends epw (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators (:epwEventProcessor epw)))))
  actionsToSends _   (LogErr x)            = []
  actionsToSends _   (SendVote v to)       = List-map (_, (V v)) to
 

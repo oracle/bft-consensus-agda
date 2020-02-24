@@ -29,7 +29,7 @@ module LibraBFT.Global.SystemModel
   -- will need dynamic peers being created, different numbers of peers for different epochs, etc.
   -- The way I have this, new peers can initialize at any time, create their state, and send some
   -- messages.
-  (Init          : Peer → (PeerState × List Action))
+  (Init          : Peer → Maybe (PeerState × List Action))
   (MsgHandler    : Message → Instant → RWST Env Action PeerState Unit)
   (ActionHandler : PeerState → Action → List (Peer × Message)) -- Discerns whether action results in
                                                                -- sending a message and to whom.
@@ -77,9 +77,11 @@ module LibraBFT.Global.SystemModel
  -- to anyone it wants, provided it is dishonest for that message.
  data Step (pre : SystemState) {p : Peer} : SystemState → Set where
    initPeer : {ready : KVMap.lookup p (peerStates pre) ≡ nothing}
+              {initp : PeerState × List Action}
+            → Init p ≡ just initp
             → Step pre (sysState
-                           (foldr (flip sendMsg) (sentMessages pre) (actionsToSends (proj₁ (Init p)) (proj₂ (Init p))))
-                           (kvm-insert p (proj₁ (Init p)) (peerStates pre) ready))
+                           (foldr (flip sendMsg) (sentMessages pre) (actionsToSends (proj₁ initp) (proj₂ initp)))
+                           (kvm-insert p (proj₁ initp) (peerStates pre) ready))
 
    recvMsg : ∀ {m : Message} {to : Peer} {env : Env} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
            → (to , m) ∈SM (sentMessages pre)
