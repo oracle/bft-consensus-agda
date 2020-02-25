@@ -18,7 +18,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
       _ivqcSizeOk          : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
       _ivqcAuthors         : All ((_≢ nothing) ∘ isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc)
       _ivqcAuthorsDistinct : allDistinct (List-map (isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc))
-  open IsValidQCAuthor public
+  open IsValidQC public
 
   -- A block tree depends on a epoch config but works regardlesss of which
   -- epoch config we have. Moreover, this epoch config can't be changed internally

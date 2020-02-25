@@ -67,7 +67,7 @@ module LibraBFT.Concrete.BlockTree
          → as ∈ qcVotes qc
          → Abs.Vote
   α-Vote qc v {author , sig , ord} as∈QC = record
-    { vAuthor   = (_ivaIdx (All-lookup (IsValidQC._ivqcValidAuthors v) as∈QC))
+    { vAuthor   = ? -- (_ivaIdx (All-lookup (IsValidQC._ivqcValidAuthors v) as∈QC))  -- TODO: this is broken as _ivqcValidAuthors has gone way, need to fix
     ; vBlockUID = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; vRound    = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
