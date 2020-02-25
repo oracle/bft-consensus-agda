@@ -35,7 +35,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
       _btPendingVotes            : PendingVotes
       _btPrunedBlockIds          : List HashValue
       _btMaxPrunedBlocksInMem    : ℕ
-      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)
+      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)  -- TODO: IsValidQC should be Meta
   open BlockTree public
 
   -- Here, we manually construct a lens for accessing the btRoodId field.  However, we cannot use
