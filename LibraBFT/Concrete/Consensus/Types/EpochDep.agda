@@ -11,7 +11,7 @@ open import Optics.All
 
 -- Semantic validitadion of the data structures in 'Consensus.Types'
 -- depends directly on the epoch configuration.
-module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
+module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
 
   record IsValidQC (qc : QuorumCert) : Set where
     field

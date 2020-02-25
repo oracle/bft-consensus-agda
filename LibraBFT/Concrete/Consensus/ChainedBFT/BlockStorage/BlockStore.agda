@@ -16,8 +16,8 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
 
   import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree hash hash-cr as BT
 
-  getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
-  getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
+  getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore ec -> Maybe ExecutedBlock
+  getBlock {ec} hv bs = btGetBlock ec hv (bs ^∙ bsInner ec)
 
   open RWST-do
 
@@ -63,7 +63,8 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
     -- We cannot do "bs <- use lBlockStore" as in Haskell code.  See comments in
     -- BlockTree.agda about why we use the following instead.
     ep ← get
-    let bs = :epBlockStore ep
+    let ec = α-EC (:epEC ep , :epEC-correct ep)
+    let bs = :epBlockStore (:epWithEC ep)
 
         blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of
@@ -71,7 +72,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
         ; (just blockToCommit) →
             -- MSM: Any chance of some more syntactic sugar so we can be closer
             -- to the guards syntax used in Haskell (see above)?
-            if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot bs) ^∙ ebRound)
+            if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot ec bs) ^∙ ebRound)
             then tell1 (LogErr "commit block round lower than root") >> pure []
             else do 
              blocksToCommit ← maybe id [] <$> pathFromRootM blockIdToCommit 

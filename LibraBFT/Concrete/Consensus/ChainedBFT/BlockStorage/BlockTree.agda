@@ -2,7 +2,6 @@
 
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
-open import LibraBFT.Concrete.Consensus.Types.EpochDep
 open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.Util.KVMap
@@ -12,10 +11,12 @@ open import LibraBFT.Hash
 open import Optics.All
 
 module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree
-  (hash    : ByteString → Hash)
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  where
-  open import LibraBFT.Concrete.BlockTree hash hash-cr
+   (hash    : ByteString → Hash)
+   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+ where
+
+  open import LibraBFT.Concrete.Consensus.Types.EpochDep 
+  open import LibraBFT.Concrete.BlockTree hash hash-cr 
 
 
 {--
@@ -77,7 +78,7 @@ insertBlock eb bt = do
   -- cannot use lenses with dependent types (e.g., lBlockTree cannot be defined because there is no
   -- way to prove that the new value is for the same EpochConfig, AFAICT.
 
-  insertBlock : ∀ {ec : Meta EpochConfig} → ExecutedBlock -> BlockTree {ec} -> Unit ⊎ BlockTree {ec}
+  insertBlock : ∀{ec} → ExecutedBlock -> BlockTree ec -> Unit ⊎ BlockTree ec
   insertBlock {ec} eb bt with (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt) |
                  inspect (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt)
   ...| just _  | _ = inj₁ unit
@@ -86,11 +87,7 @@ insertBlock eb bt = do
   -- such as correct round, etc. will need to be carried along to here.
   ...| nothing | [ idAvail ] = inj₂ (insert-block ec bt (LinkableBlock_new eb) {!!})
 
-  -- TODO: move to proper place and give proper name
-  btLens : ∀ {ec : Meta EpochConfig} → Lens (BlockStore {ec}) (BlockTree {ec})
-  btLens = mkLens' :bsInner
-                   λ bs bt → record bs {:bsInner = bt}
-
+{-
   insertBlockM : ExecutedBlock → LBFT (Maybe ExecutedBlock)
   insertBlockM eb = do
     ep ← get
@@ -102,6 +99,7 @@ insertBlock eb bt = do
        ...| inj₂ bt' = do
               put (record ep {:epBlockStore = set (:epBlockStore ep) btLens bt'})
               pure (just eb)
+-}
 
   -- TODO: logging
   -- TODO: Either vs ⊎
@@ -136,8 +134,8 @@ insertBlock eb bt = do
     -- are ignoring the EpochConfig, but if we don't at least extract it, the rest doesn't work,
     -- presumably because it can't figure out the implicit arguments to "loop".  Maybe.
 
-    _ , bt ← gets (λ ep → :epEpochConfig ep , (:bsInner ∘ :epBlockStore) ep)
-
+    ep ← get
+    let bt = :bsInner (:epBlockStore (:epWithEC ep))
     maybeMP (loop bt blockId []) nothing (continue bt)
    where
     -- VCM: Both loop and continue are pure functions; why are
@@ -145,20 +143,20 @@ insertBlock eb bt = do
     -- to prove isomorphic to agda-pathFromRootM as described
     -- in my comment above.
 
-    loop : {ec : Meta EpochConfig} → BlockTree {ec} → HashValue → List ExecutedBlock
+    loop : ∀{ec} → BlockTree ec → HashValue → List ExecutedBlock
          → LBFT (Maybe (HashValue × List ExecutedBlock))
     loop {ec} bt curBlockId res =
-      case btGetBlock curBlockId bt of
+      case btGetBlock ec curBlockId bt of
         λ { nothing      → return nothing
-          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot bt) ^∙ ebRound)
+          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot ec bt) ^∙ ebRound)
                             then return (just (curBlockId , res))
                             else loop bt (block ^∙ ebParentId) (block ∷ res)
           }
 
-    continue : {ec : Meta EpochConfig} → BlockTree {ec} → HashValue × List ExecutedBlock
+    continue : ∀{ec} → BlockTree ec → HashValue × List ExecutedBlock
              → LBFT (Maybe (List ExecutedBlock))
     continue {ec} bt (curBlockId , res) =
-      if-dec (curBlockId ≟Hash (bt ^∙ btRootId))
+      if-dec (curBlockId ≟Hash (bt ^∙ btRootId ec))
        then return (just (reverse res))
        else return nothing
     
