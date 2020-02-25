@@ -36,12 +36,15 @@ module LibraBFT.Global.ModelDraft
  initialEventProcessorAndMessages _ with mkSafetyRules (mkPersistentStorage 0)
  ...| sr with Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
  ...| nothing = nothing
- ...| just vv with (abstractEpochConfig sr) vv | inspect (abstractEpochConfig sr) vv
+ ...| just vv with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr) vv
+ ...| _ | _ = {!!}
+{-
  ...| nothing | _ = nothing
  ...| just ec | [ ec≡ ] = just (mkEventProcessor ec (mkBlockStore (emptyBT ec)) sr vv (meta (sym ec≡)) , [])
+-}
 
  actionsToSends : EventProcessor → Action → List (Author × NetworkMsg)
- actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators ep))))
+ actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators (:epEC ep)))))
  actionsToSends _  (LogErr x)            = []
  actionsToSends _  (SendVote v to)       = List-map (_, (V v)) to
 
