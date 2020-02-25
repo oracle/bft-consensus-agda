@@ -17,9 +17,7 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
   ...| qsize with numAuthors ∸ qsize
   ...| bizF with numAuthors ≥? suc (3 * bizF)
   ...| no  _  = nothing
-  ...| yes xx with allDistinct? {≟A = _≟_} validators
-  ...| no  _  = nothing
-  ...| yes distinct = just (meta (mkEpochConfig
+  ...| yes xx = just (meta (mkEpochConfig
                                    (:psEpoch (:srPersistentStorage sr))
                                    (numAuthors)
                                    bizF
