@@ -132,7 +132,9 @@ insertBlock eb bt = do
     -- However, because of dependent types, we cannot have such lenses (see comments in
     -- LibraBFT.Concrete.Consensus.Types.EventProcessor)
     --
-    -- For now, use the following workaround.
+    -- For now, use the following workaround.  MSM: I don't really understand why this works.  We
+    -- are ignoring the EpochConfig, but if we don't at least extract it, the rest doesn't work,
+    -- presumably because it can't figure out the implicit arguments to "loop".  Maybe.
 
     _ , bt ← gets (λ ep → :epEpochConfig ep , (:bsInner ∘ :epBlockStore) ep)
 
