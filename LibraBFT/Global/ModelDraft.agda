@@ -26,7 +26,7 @@ module LibraBFT.Global.ModelDraft
  postulate
    pki         : NodeId → PK
 
- open import LibraBFT.Concrete.Handle
+ open import LibraBFT.Concrete.Handle hash hash-cr
  open import LibraBFT.Concrete.Records
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 

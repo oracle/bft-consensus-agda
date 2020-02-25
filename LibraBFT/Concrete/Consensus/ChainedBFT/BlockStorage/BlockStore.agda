@@ -4,12 +4,16 @@ open import LibraBFT.Concrete.Consensus.Types.EpochDep
 open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 import      LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree as BlockTree
+open import LibraBFT.Hash
 
 open import Optics.All
 
 open import LibraBFT.Concrete.OBM.Util
 
-module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
+module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
+  (hash    : ByteString → Hash)
+  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  where
 
   getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)

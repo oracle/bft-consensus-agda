@@ -13,9 +13,12 @@ open import LibraBFT.Concrete.OBM.Util
 
 open RWST-do
 
-module LibraBFT.Concrete.Handle where
+module LibraBFT.Concrete.Handle
+  (hash    : ByteString → Hash)
+  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  where
 
- open import LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor
+ open import LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor hash hash-cr
  open import LibraBFT.Concrete.Records
 
  handle : NetworkMsg

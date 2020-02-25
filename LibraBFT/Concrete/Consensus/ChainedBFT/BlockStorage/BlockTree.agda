@@ -8,7 +8,10 @@ open import LibraBFT.Hash
 
 open import Optics.All
 
-module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree where
+module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree
+  (hash    : ByteString → Hash)
+  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  where
 
 {--
 

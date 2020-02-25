@@ -1,13 +1,18 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Prelude
-open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore as BlockStore
 open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.OBM.Util
+open import LibraBFT.Hash
 
 open RWST-do
 
-module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor where
+module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor
+  (hash    : ByteString → Hash)
+  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
+  where
+
+  open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore hash hash-cr as BlockStore
 
 
  -- processCertificatesM
