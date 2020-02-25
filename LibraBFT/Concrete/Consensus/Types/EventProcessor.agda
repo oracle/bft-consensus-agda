@@ -24,9 +24,9 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
                                    (numAuthors)
                                    bizF
                                    xx
-                                   0  -- TODO: what is this for?
-                                   dummyHash
-                                   dummyHash
+                                   0             -- TODO: what is this for?
+                                   dummyHash     -- TODO: placeholder
+                                   dummyHash     -- TODO: placeholder
                                    isVVAuthor))
        where isVVAuthor : NodeId → Maybe (Fin numAuthors)
              isVVAuthor nid with List-index {AccountAddress} _≟AccountAddress_ nid validators
