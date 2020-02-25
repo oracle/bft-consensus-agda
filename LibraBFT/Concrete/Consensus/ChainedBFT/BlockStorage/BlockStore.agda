@@ -3,7 +3,6 @@ open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Consensus.Types.EpochDep
 open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
-import      LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree as BlockTree
 open import LibraBFT.Hash
 
 open import Optics.All
@@ -15,13 +14,15 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
+  import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree hash hash-cr as BT
+
   getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore {ec} -> Maybe ExecutedBlock
   getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
   open RWST-do
 
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
-  pathFromRootM = BlockTree.pathFromRootM
+  pathFromRootM = BT.pathFromRootM
 
   pruneTreeM : HashValue -> LBFT Unit
   pruneTreeM _ = return unit
