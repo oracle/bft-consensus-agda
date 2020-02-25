@@ -35,6 +35,25 @@ pathFromRootM blockId = do
   -- instead of over a single function as shown in LibraBFT.Concrete.OBM.RWST
   open RWST-do
 
+
+{--
+
+insertBlockM
+  :: (Monad m, RWBlockTree s a)
+  => ExecutedBlock a
+  -> LBFT m e s a (Maybe (ExecutedBlock a))
+insertBlockM eb = use lBlockTree >>= \bt -> case insertBlock eb bt of
+  Left  e   -> do
+    logErr e
+    pure Nothing
+  Right bt' -> do
+    lBlockTree .= bt'   -- MSM: Note that the Haskell code uses lenses to modify the BlockTree, but we cannot
+                        -- do that as we'll have to ...
+    logInfo (InfoUpdateIdToBlockInsert eb)
+    pure (Just eb)
+
+--}
+
   -- VCM: This pathFromRootM function is exactly what our 'Extends' predicate
   -- will be doing as the boundary of concrete and abstract; The terminating
   -- can only be justified through that!
@@ -58,18 +77,11 @@ pathFromRootM blockId = do
     --
     --   bt <- use lBlockTree
     --
-    -- But we cannot "use" lenses where we need to carry implicit arguments (EpochConfigs in our
-    -- case) because they do not carry across RWST-bind, etc.
+    -- Note that lBlockTree is a GetterNoFunctor 
     --
     -- For now, use the following workaround.
 
-    epw ← get
-    let bt = (:epwEventProcessor epw) ^∙ lBlockTree
-
-    -- Should we:
-    --   Create variants of RWST-bind and friends with implicit arguments?  Ugly, even if it works.
-    --   Accept difference between Agada and Haskell?
-    --   Change the Haskell code to match?
+    _ , bt ← gets (λ ep → :epEpochConfig ep , (:bsInner ∘ :epBlockStore) ep)
 
     maybeMP (loop bt blockId []) nothing (continue bt)
    where

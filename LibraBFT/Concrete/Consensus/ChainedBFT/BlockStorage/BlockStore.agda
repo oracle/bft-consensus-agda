@@ -57,9 +57,8 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore where
   commitM finalityProof = do
     -- We cannot do "bs <- use lBlockStore" as in Haskell code.  See comments in
     -- BlockTree.agda about why we use the following instead.
-    epw ← get
-    let ep = :epwEventProcessor epw
-        bs = ep ^∙ lBlockStore
+    ep ← get
+    let bs = :epBlockStore ep
 
         blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of

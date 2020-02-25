@@ -32,23 +32,18 @@ module LibraBFT.Global.ModelDraft
 
  -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
  -- For now, it just constructs an EventProcessor in which there are four validators with fake public keys
- initialEventProcessorAndMessages : Author → Maybe (EventProcessorWrapper × List Action)
- initialEventProcessorAndMessages = let sr = (mkSafetyRules (mkPersistentStorage 0))
-                                        vvMB : Maybe ValidatorVerifier
-                                        vvMB = Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
-                                    in const (vvMB Maybe->>= (λ vv → abstractEpochConfig sr vv
-                                                   Maybe->>= (λ ec → just (mkEventProcessorWrapper
-                                                                             ec
-                                                                             (ep ec sr vv)
-                                                                             (meta {! TO NOT DO: not worthwhile for temporary fake data!})
-                                                                          , []))))
-                                    where ep : (ec : Meta EpochConfig) → SafetyRules → ValidatorVerifier → EventProcessor {ec}
-                                          ep ec sr vv = mkEventProcessor (mkBlockStore (emptyBT ec)) sr vv
+ initialEventProcessorAndMessages : Author → Maybe (EventProcessor × List Action)
+ initialEventProcessorAndMessages _ with mkSafetyRules (mkPersistentStorage 0)
+ ...| sr with Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
+ ...| nothing = nothing
+ ...| just vv with (abstractEpochConfig sr) vv | inspect (abstractEpochConfig sr) vv
+ ...| nothing | _ = nothing
+ ...| just ec | [ ec≡ ] = just (mkEventProcessor ec (mkBlockStore (emptyBT ec)) sr vv (meta (sym ec≡)) , [])
 
- actionsToSends : EventProcessorWrapper → Action → List (Author × NetworkMsg)
- actionsToSends epw (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators (:epwEventProcessor epw)))))
- actionsToSends _   (LogErr x)            = []
- actionsToSends _   (SendVote v to)       = List-map (_, (V v)) to
+ actionsToSends : EventProcessor → Action → List (Author × NetworkMsg)
+ actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators ep))))
+ actionsToSends _  (LogErr x)            = []
+ actionsToSends _  (SendVote v to)       = List-map (_, (V v)) to
 
  -- This captures whether the author can be counted amongst the dishonest authors of the releavnt
  -- epoch (identified by the message the author would like to send).  Thus, someone who is not an
@@ -73,7 +68,7 @@ module LibraBFT.Global.ModelDraft
                sig-NetworkMsg
                Unit
                Action
-               EventProcessorWrapper
+               EventProcessor
                initialEventProcessorAndMessages
                handle
                actionsToSends

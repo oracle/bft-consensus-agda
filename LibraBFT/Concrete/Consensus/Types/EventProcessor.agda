@@ -10,14 +10,6 @@ open import Optics.All
 -- to the blockstore.
 module LibraBFT.Concrete.Consensus.Types.EventProcessor where
 
-  record EventProcessor {ec : Meta EpochConfig} : Set where
-    constructor mkEventProcessor
-    field
-      :epBlockStore   : BlockStore {ec}
-      :epSafetyRules  : SafetyRules
-      :epValidators   : ValidatorVerifier
-  open EventProcessor public
-
   abstractEpochConfig : SafetyRules → ValidatorVerifier → Maybe (Meta EpochConfig)
   abstractEpochConfig sr vv with (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo vv)))
   ...| validators with length validators | inspect length validators
@@ -41,46 +33,26 @@ module LibraBFT.Concrete.Consensus.Types.EventProcessor where
              ...| nothing    = nothing
              ...| just found = just (cast numAuthors≡ found)
 
-  record EventProcessorWrapper : Set where
-    constructor mkEventProcessorWrapper
+  record EventProcessor : Set where
+    constructor mkEventProcessor
     field
-      :epwEpochConfig    : Meta EpochConfig
-      :epwEventProcessor : EventProcessor {:epwEpochConfig}
-      _epwECCorrect      : Meta (just :epwEpochConfig ≡
-                                 abstractEpochConfig (:epSafetyRules :epwEventProcessor)
-                                                     (:epValidators :epwEventProcessor))
-  open EventProcessorWrapper public
+      :epEpochConfig  : Meta EpochConfig
+      :epBlockStore   : BlockStore {:epEpochConfig}
+      :epSafetyRules  : SafetyRules
+      :epValidators   : ValidatorVerifier
+      :epECCorrect    : Meta (just :epEpochConfig ≡ abstractEpochConfig :epSafetyRules :epValidators)
+  open EventProcessor public
 
-{-
- 
-  unquoteDecl epEpochConfig   epBlockStore epValidators = mkLens (quote EventProcessor)
-             (epEpochConfig ∷ epBlockStore ∷ epValidators ∷ [])
-
-  -- Actually, makes sense lens don't work for dependent types
-  -- that easily: the type we really want here is:
+  -- NOTE: In Haskell, we have the following definitions:
   --
-  -- Lens (e : EventProcessor) (BlockStore (_epEpochConfig e))
-  -- 
-  -- Now, recall that Lens S A = (A -> F A) -> S -> F S, forall F;
-  -- Then, the above would have to be isomorphic to:
+  -- instance RWBlockStore (EventProcessor a) a where
+  --   lBlockStore = lens _epBlockStore (\x y -> x { _epBlockStore = y})
   --
-  -- (BlockStore (_epEpochConfig e) → F (BlockStore (_epEpochConfig e))
-  --   → (e : EventProcessor) → F EventProcessor
-  -- 
-  -- which makes no sense! 'e' is not in scope before its needed. Perhaps,
-  -- then, we could conceive the type:
+  -- instance RWBlockTree (EventProcessor a) a where
+  --   lBlockTree = lens (^.epBlockStore.bsInner) (\x y -> x & epBlockStore.bsInner .~ y)
   --
-  -- (∀ {ec} → BlockStore ec → F (BlockStore ec)) → EventProcessor → F EventProcessor
-  --
-  -- But now we lost the informatino about the projection being over
-  -- the "right" ec.
-  -- 
+  -- However, We cannot have useful lenses for EventProcessor, because changing any of the real fields
+  -- potentially requires proofs to be updated or proved unchanged, for which lenses do not receieve
+  -- enough information.
 
-
--}
-
-  lBlockStore : ∀ {ec : Meta EpochConfig} → Lens (EventProcessor {ec}) (BlockStore {ec})
-  lBlockStore {ec} = mkLens' :epBlockStore λ ep bs → record ep { :epBlockStore = bs}
-
-  lBlockTree : ∀ {ec : Meta EpochConfig} → Lens (EventProcessor {ec}) (BlockTree {ec})
-  lBlockTree {ec} = lBlockStore ∙ bsInner
+  -- Therefore, we will need to work around this.
