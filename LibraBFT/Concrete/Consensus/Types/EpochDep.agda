@@ -1,4 +1,5 @@
 open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 open import LibraBFT.Hash
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
@@ -12,36 +13,11 @@ open import Optics.All
 -- depends directly on the epoch configuration.
 module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
 
-  -- VCM: I think this is incorrect.
-  --      I can always prove all authors valid...
-  record IsValidQCAuthor (_ : Author) : Set where
-    field
-      _ivaIdx : EpochConfig.Author (unsafeReadMeta ec) -- TODO: we should be able to avoid this unsafeReadMeta
-                                                       -- because IsValidQCAuthor is only ever used as a Meta type,
-                                                       -- so the read is actually safe.  Not sure how though.
-                                                       -- More instances below.
-  open IsValidQCAuthor public
-
-  -- Here!
-  vcm-absurd : ∀{a} → IsValidQCAuthor a
-  vcm-absurd = record { _ivaIdx = first-author (unsafeReadMeta ec) }
-    where
-      first-author : (x : EpochConfig) → EpochConfig.Author x
-      first-author (record 
-         { epochId = epochId 
-         ; authorsN = suc authorsN 
-         ; bizF = bizF 
-         ; isBFT = s≤s isBFT 
-         ; seed = seed 
-         ; ecInitialState = ecInitialState 
-         ; initialAgreedHash = initialAgreedHash 
-         ; isAuthor = isAuthor }) 
-           = zero
-  
   record IsValidQC (qc : QuorumCert) : Set where
     field
-      _ivqcSizeOk       : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
-      _ivqcValidAuthors : All ((IsValidQCAuthor ∘ proj₁) ) (qcVotes qc)
+      _ivqcSizeOk          : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
+      _ivqcAuthors         : All ((_≢ nothing) ∘ isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc)
+      _ivqcAuthorsDistinct : allDistinct (List-map (isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc))
   open IsValidQCAuthor public
 
   -- A block tree depends on a epoch config but works regardlesss of which
