@@ -73,8 +73,9 @@ module Optics.Reflection where
      return (ml lensName finalTy genTerm)
    where
      parseTy : Type → TC Type
-     parseTy (pi _ (abs _ t)) = return t
-     parseTy _                = typeError (strErr "wrong type format" ∷ [])
+     parseTy (pi _ (abs _ t)) = parseTy t
+     parseTy (var (suc x) i)  = return (var x i)
+     parseTy r                = return r
 
      -- We might be at field 0; but our de Bruijn index depends
      -- on the total of fields
@@ -124,9 +125,9 @@ module Optics.Reflection where
 
   defineLens : MetaLens → TC ⊤
   defineLens (ml n ty trm) 
-    = do declareDef (arg (arg-info visible relevant) n) ty
+    = do -- typeError (nameErr n ∷ strErr "%%" ∷ termErr ty ∷ strErr "%%" ∷ termErr trm ∷ [])
+         declareDef (arg (arg-info visible relevant) n) ty
          defineFun n (clause [] trm ∷ [])
-         -- typeError (nameErr n ∷ [])
 
  mkLens : Name → List Name → TC ⊤
  mkLens rec lenses = do
@@ -135,3 +136,4 @@ module Optics.Reflection where
    tcMapM defineLens res  
    return tt
   -- usage will be: unquoteDecl = mkLens RecordName 
+

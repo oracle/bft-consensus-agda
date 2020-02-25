@@ -37,7 +37,14 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
       _btMaxPrunedBlocksInMem    : ℕ
       _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)  -- TODO: IsValidQC should be Meta
   open BlockTree public
+  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
+              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
+             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
+{-
   -- Here, we manually construct a lens for accessing the btRoodId field.  However, we cannot use
   -- the Haskell conventional _ prefix for the field name, as Agda thinks this is a postfix operator
   -- definition.  Using : for now; just for this field while experimenting with ideas.  TODO: decide
@@ -45,19 +52,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
 
   btRootId : Lens BlockTree HashValue
   btRootId = mkLens' :btRootId (λ bt fv → record bt {:btRootId = fv})
-
-{-
-  -- VCM: Lenses are not working for records with module parameterss... :(
-  -- if we really want it, I can try to fix it; but given there will only be two
-  -- such recods; we might be better off defining them by hand.
-  -- VCM: UPDATE: won't work anyway: check comment at Types.EventProcessor
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
-             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ [])
 -}
+
 
   -- This should live in BlockTree.hs.  Here to avoid circular import.
   -- This should not be used outside BlockTree.hs.
@@ -85,14 +81,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep {ec : Meta EpochConfig} where
       -- bsStateComputer : StateComputer
       -- bsStorage       : CBPersistentStorage
   open BlockStore public
-{-
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
--}
-
-  bsInner : Lens BlockStore BlockTree
-  bsInner = mkLens' :bsInner
-                    λ bs bt → record bs {:bsInner = bt} 
 
   bsRoot : BlockStore → ExecutedBlock
   bsRoot = btRoot ∘ :bsInner
