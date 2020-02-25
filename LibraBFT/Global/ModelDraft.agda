@@ -36,9 +36,11 @@ module LibraBFT.Global.ModelDraft
  initialEventProcessorAndMessages _ with mkSafetyRules (mkPersistentStorage 0)
  ...| sr with Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
  ...| nothing = nothing
- ...| just vv with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr) vv
- ...| _ | _ = {!!}
+ ...| just vv = {!!}
+
 {-
+with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr) vv
+ ...| _ | _ = {!!}
  ...| nothing | _ = nothing
  ...| just ec | [ ec≡ ] = just (mkEventProcessor ec (mkBlockStore (emptyBT ec)) sr vv (meta (sym ec≡)) , [])
 -}
