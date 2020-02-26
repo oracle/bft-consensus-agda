@@ -41,15 +41,15 @@ module Optics.Functorial where
 
    -- Setter:
 
-  set : ∀{S A} → S → Lens S A → A → S
-  set s (lens p) a = p id if (const a) s
-  syntax set s p a = s [ p := a ]
+  set : ∀{S A} → Lens S A → A → S → S
+  set (lens p) a s = p id if (const a) s
+  syntax set p a s = s [ p := a ]
 
   -- Modifier:
   
-  over : ∀{S A} → S → Lens S A → (A → A) → S
-  over s (lens p) f = p id if f s
-  syntax over s p f = s [ p %~ f ]
+  over : ∀{S A} → Lens S A → (A → A) → S → S
+  over (lens p) f s = p id if f s
+  syntax over p f s = s [ p %~ f ]
 
 
   -- Composition

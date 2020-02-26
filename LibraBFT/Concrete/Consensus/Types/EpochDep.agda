@@ -5,12 +5,21 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Util.KVMap as KVMap
 
-open import LibraBFT.Concrete.Consensus.Types
+open import LibraBFT.Concrete.Consensus.Types.EpochIndep
 
 open import Optics.All
 
--- Semantic validitadion of the data structures in 'Consensus.Types'
--- depends directly on the epoch configuration.
+-- This module defines the types that depend on the epoch config
+-- but never inspect it. Consequently, we define everyting over
+-- an abstract ec passed around as a module parameter.
+--
+-- VCM: Later on I'd like to make the Optics.Reflection stuff work
+-- with record parameters, so we can merge all modules back into Types,
+-- for now, this is the easiest (note: making a module inside
+-- Consensus.Types called EpochDep will break mkLens. I don't know why, but it does)
+--
+-- VCM: On another note; it does make sense to keep these types
+-- concptually separate; they are different things! 
 module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
 
   record IsValidQC (qc : QuorumCert) : Set where
@@ -44,35 +53,6 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
               btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
               btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
-{-
-  -- Here, we manually construct a lens for accessing the btRoodId field.  However, we cannot use
-  -- the Haskell conventional _ prefix for the field name, as Agda thinks this is a postfix operator
-  -- definition.  Using : for now; just for this field while experimenting with ideas.  TODO: decide
-  -- what to do and do it consistently.
-
-  btRootId : Lens BlockTree HashValue
-  btRootId = mkLens' :btRootId (λ bt fv → record bt {:btRootId = fv})
--}
-
-
-  -- This should live in BlockTree.hs.  Here to avoid circular import.
-  -- This should not be used outside BlockTree.hs.
-  btGetLinkableBlock : HashValue -> BlockTree -> Maybe LinkableBlock
-  btGetLinkableBlock hv bt = KVMap.lookup hv (_btIdToBlock bt)
-
-  -- This should live in BlockTree.hs.  Here to avoid circular import.
-  btGetBlock : HashValue -> BlockTree -> Maybe ExecutedBlock
-  btGetBlock hv bt = Maybe-map _lbExecutedBlock (btGetLinkableBlock hv bt)
-
-  btRoot : BlockTree → ExecutedBlock
-  btRoot bt with (btGetBlock (:btRootId bt)) bt | inspect (btGetBlock (:btRootId bt)) bt
-  ...| just x  | _ = x
-  ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
-   where postulate
-           -- TODO: The Haskell code asserts this property.  It won't fire (assuming ... :-)).
-           -- So how should we model this?  We could explicitly model assertions firing, and
-           -- the we'd have to prove that they don't.  Alternatively we could
-           assumedValid : (bt : BlockTree) → btGetBlock (:btRootId bt) bt ≡ nothing → ⊥
 
   record BlockStore : Set where
     constructor mkBlockStore
@@ -83,9 +63,6 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
   open BlockStore public
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
-
-  bsRoot : BlockStore → ExecutedBlock
-  bsRoot = btRoot ∘ :bsInner
 
   -- bsHighestCertifiedBlock :: GetterNoFunctor (BlockStore a) (ExecutedBlock a)
   -- bsHighestCertifiedBlock  = to (^.bsInner.btHighestCertifiedBlock)
@@ -98,4 +75,19 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
 
   -- bsHighestTimeoutCert :: GetterNoFunctor (BlockStore a) (Maybe TimeoutCertificate)
   -- bsHighestTimeoutCert  = to (^.bsInner.btHighestTimeoutCert)
+
+  -- These are the parts of the event processor that
+  -- depend on a epoch config. We do not particularly care
+  -- which epoch config they care about yet.
+  --
+  record EventProcessorWithEC : Set where
+    constructor mkEventProcessor
+    field
+      :epBlockStore   : BlockStore
+  open EventProcessorWithEC public
+  unquoteDecl epBlockStore = mkLens (quote EventProcessorWithEC)
+    (epBlockStore ∷ [])
+
+  lBlockTree : Lens EventProcessorWithEC BlockTree
+  lBlockTree = epBlockStore ∙ bsInner
 

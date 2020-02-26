@@ -21,7 +21,7 @@ module LibraBFT.Concrete.BlockTree
   open import LibraBFT.Concrete.Records
 
 
-  open import LibraBFT.Concrete.Consensus.Types
+  open import LibraBFT.Concrete.Consensus.Types.EpochIndep
   open import LibraBFT.Concrete.Consensus.Types.EpochDep ec
 
   --------------------------------
@@ -254,7 +254,7 @@ module LibraBFT.Concrete.BlockTree
       → canInsert bt (Abs.Q qc)
 
   -- An abstract record |r'| is said to extend the block tree if there exists
-  -- a record chain |rc| in the block tree such that |r'| can be appended to.
+  -- a record chain |rc| in the block tree suchthat |r'| can be appended to.
   data Extends (bt : BlockTree) : Abs.Record → Set where
      extends : ∀{r r'}
              → (rInPool : r ∈BT bt)
@@ -282,7 +282,7 @@ module LibraBFT.Concrete.BlockTree
 
   insert-block : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
                → BlockTree
-  insert-block bt cb (extends rInPool canI x) 
+  insert-block bt cb (extends rInPool canI x)
     with α-Block cb | canI
   ...| absCB | B .absCB prf 
      = record bt { _btIdToBlock = kvm-insert (Abs.bId absCB) cb 

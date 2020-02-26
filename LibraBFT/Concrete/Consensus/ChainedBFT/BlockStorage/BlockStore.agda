@@ -1,7 +1,5 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
-open import LibraBFT.Concrete.Consensus.Types.EpochDep
-open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Hash
 
@@ -18,6 +16,11 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
 
   getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore ec -> Maybe ExecutedBlock
   getBlock {ec} hv bs = btGetBlock ec hv (bs ^∙ bsInner ec)
+
+  bsRoot : ∀{ec} → BlockStore ec → ExecutedBlock
+  bsRoot = btRoot ∘ :bsInner
+
+
 
   open RWST-do
 

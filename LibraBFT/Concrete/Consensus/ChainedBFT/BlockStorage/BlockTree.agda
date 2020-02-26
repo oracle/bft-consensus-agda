@@ -1,8 +1,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
-open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.Util.KVMap
 open import LibraBFT.Concrete.OBM.Util
@@ -18,6 +16,22 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree
   open import LibraBFT.Concrete.Consensus.Types.EpochDep 
   open import LibraBFT.Concrete.BlockTree hash hash-cr 
 
+
+  btGetLinkableBlock : ∀{ec} → HashValue -> BlockTree ec -> Maybe LinkableBlock
+  btGetLinkableBlock hv bt = lookup hv (_btIdToBlock bt)
+
+  btGetBlock : ∀{ec} → HashValue -> BlockTree ec -> Maybe ExecutedBlock
+  btGetBlock hv bt = Maybe-map _lbExecutedBlock (btGetLinkableBlock hv bt)
+
+  btRoot : ∀{ec} → BlockTree ec → ExecutedBlock
+  btRoot bt with (btGetBlock (:btRootId bt)) bt | inspect (btGetBlock (:btRootId bt)) bt
+  ...| just x  | _ = x
+  ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
+   where postulate
+           -- TODO: The Haskell code asserts this property.  It won't fire (assuming ... :-)).
+           -- So how should we model this?  We could explicitly model assertions firing, and
+           -- the we'd have to prove that they don't.  Alternatively we could
+           assumedValid : ∀{ec}(bt : BlockTree ec) → btGetBlock (:btRootId bt) bt ≡ nothing → ⊥
 
 {--
 
@@ -78,7 +92,21 @@ insertBlock eb bt = do
   -- cannot use lenses with dependent types (e.g., lBlockTree cannot be defined because there is no
   -- way to prove that the new value is for the same EpochConfig, AFAICT.
 
-  insertBlock : ∀{ec} → ExecutedBlock -> BlockTree ec -> Unit ⊎ BlockTree ec
+{-
+  VCM: When it comes to finding the info we need in the last
+  argument of insert-block; inside insertBlock, we should be using records to
+  record the pre and post conditions.
+
+  record InsertBlock-Precond (b : ExecutedBlock) (bt : BlockTree) : Set where
+    field
+      ...
+
+  insertBlock : (b : ExecutedBlock) → (bt : BlockTree ec)
+              → InsertBlock-Precond b bt
+              → Σ Result (InsertBlock-Post b bt)
+-}
+
+  insertBlock : ∀{ec} → ExecutedBlock -> BlockTree ec -> Unit ⊎ (BlockTree ec)
   insertBlock {ec} eb bt with (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt) |
                  inspect (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt)
   ...| just _  | _ = inj₁ unit
@@ -87,22 +115,21 @@ insertBlock eb bt = do
   -- such as correct round, etc. will need to be carried along to here.
   ...| nothing | [ idAvail ] = inj₂ (insert-block ec bt (LinkableBlock_new eb) {!!})
 
-{-
+  -- The monadic version of insertBlockM becomes much simpler and
+  -- is guaranteed to not change verifiers and validators by construction! :)
   insertBlockM : ExecutedBlock → LBFT (Maybe ExecutedBlock)
-  insertBlockM eb = do
-    ep ← get
-    continue ep eb  -- MSM: I needed to do this to use "with" after "do".  Can I avoid this?
-    where
-       continue : ∀ (ep : EventProcessor) → ExecutedBlock → LBFT (Maybe ExecutedBlock)
-       continue ep eb with insertBlock eb ((:bsInner ∘ :epBlockStore) ep)  -- TODO: define/use lens
-       ...| inj₁ e   = return nothing
-       ...| inj₂ bt' = do
-              put (record ep {:epBlockStore = set (:epBlockStore ep) btLens bt'})
-              pure (just eb)
--}
-
+  insertBlockM eb = liftEC λ ec → do
+    bt ← use (lBlockTree ec)
+    case insertBlock eb bt of 
+      λ { (inj₁ e)   → return nothing 
+        ; (inj₂ bt') → do modify (set (lBlockTree ec) bt') 
+                          return (just eb)
+        }
+    
+{-
   -- TODO: logging
   -- TODO: Either vs ⊎
+-}
 
   -- VCM: This pathFromRootM function is exactly what our 'Extends' predicate
   -- will be doing as the boundary of concrete and abstract; The terminating
@@ -122,20 +149,8 @@ insertBlock eb bt = do
 
   {-# TERMINATING #-}  -- TODO: justify or eliminate
   pathFromRootM : HashValue → LBFT (Maybe (List ExecutedBlock))
-  pathFromRootM blockId = do
-    -- Haskell code is:
-    --
-    --   bt <- use lBlockTree
-    --
-    -- However, because of dependent types, we cannot have such lenses (see comments in
-    -- LibraBFT.Concrete.Consensus.Types.EventProcessor)
-    --
-    -- For now, use the following workaround.  MSM: I don't really understand why this works.  We
-    -- are ignoring the EpochConfig, but if we don't at least extract it, the rest doesn't work,
-    -- presumably because it can't figure out the implicit arguments to "loop".  Maybe.
-
-    ep ← get
-    let bt = :bsInner (:epBlockStore (:epWithEC ep))
+  pathFromRootM blockId = liftEC λ ec → do
+    bt ← use (lBlockTree ec)
     maybeMP (loop bt blockId []) nothing (continue bt)
    where
     -- VCM: Both loop and continue are pure functions; why are
@@ -144,17 +159,17 @@ insertBlock eb bt = do
     -- in my comment above.
 
     loop : ∀{ec} → BlockTree ec → HashValue → List ExecutedBlock
-         → LBFT (Maybe (HashValue × List ExecutedBlock))
+         → LBFT-ec ec (Maybe (HashValue × List ExecutedBlock))
     loop {ec} bt curBlockId res =
-      case btGetBlock ec curBlockId bt of
+      case btGetBlock curBlockId bt of
         λ { nothing      → return nothing
-          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot ec bt) ^∙ ebRound)
+          ; (just block) → if-dec (block ^∙ ebRound  ≤? (btRoot bt) ^∙ ebRound)
                             then return (just (curBlockId , res))
                             else loop bt (block ^∙ ebParentId) (block ∷ res)
           }
 
     continue : ∀{ec} → BlockTree ec → HashValue × List ExecutedBlock
-             → LBFT (Maybe (List ExecutedBlock))
+             → LBFT-ec ec (Maybe (List ExecutedBlock))
     continue {ec} bt (curBlockId , res) =
       if-dec (curBlockId ≟Hash (bt ^∙ btRootId ec))
        then return (just (reverse res))
