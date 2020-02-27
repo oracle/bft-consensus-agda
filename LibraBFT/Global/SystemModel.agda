@@ -5,7 +5,6 @@ open import Function using (flip ; const)
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types using (Meta)
-open import LibraBFT.Concrete.Network as NM
 open import LibraBFT.Global.Network
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
