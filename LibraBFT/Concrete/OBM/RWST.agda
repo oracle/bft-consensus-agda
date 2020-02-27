@@ -56,6 +56,10 @@ module LibraBFT.Concrete.OBM.RWST where
   modify : (St → St) → RWST Ev Wr St Unit
   modify f = rwst (λ _ st → unit , f st , [])
 
+  modify' : ∀ {A} → Lens St A → A → RWST Ev Wr St Unit
+  modify' l val = modify λ x → x [ l := val ]
+  syntax modify' l val = l ∙= val
+
   put : St → RWST Ev Wr St Unit
   put s = modify (λ _ → s)
 

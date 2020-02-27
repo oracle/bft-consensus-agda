@@ -70,8 +70,7 @@ insertBlockM eb = use lBlockTree >>= \bt -> case insertBlock eb bt of
     logErr e
     pure Nothing
   Right bt' -> do
-    lBlockTree .= bt'   -- MSM: Note that the Haskell code uses lenses to modify the BlockTree, but we cannot
-                        -- do that as we'll have to ...
+    lBlockTree .= bt'
     logInfo (InfoUpdateIdToBlockInsert eb)
     pure (Just eb)
 
@@ -122,7 +121,7 @@ insertBlock eb bt = do
     bt ← use (lBlockTree ec)
     case insertBlock eb bt of 
       λ { (inj₁ e)   → return nothing 
-        ; (inj₂ bt') → do modify (set (lBlockTree ec) bt') 
+        ; (inj₂ bt') → do (lBlockTree ec) ∙= bt'
                           return (just eb)
         }
     
