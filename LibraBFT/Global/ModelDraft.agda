@@ -10,7 +10,6 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Consensus.Types
 open import LibraBFT.Concrete.Consensus.Types.EpochDep
-open import LibraBFT.Concrete.Consensus.Types.EventProcessor
 open import LibraBFT.Concrete.Util.KVMap
 
 open import Optics.All

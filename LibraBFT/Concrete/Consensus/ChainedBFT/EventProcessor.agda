@@ -12,7 +12,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
-  open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore hash hash-cr as BlockStore
+  open import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore hash hash-cr as BS
 
 
  -- processCertificatesM
@@ -33,7 +33,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.EventProcessor
 
   processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
   processCommitM finalityProof
-     with BlockStore.commitM finalityProof
+     with BS.commitM finalityProof
   ...| blocksToCommit = {!!}
 
 

@@ -15,10 +15,10 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
   import LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree hash hash-cr as BT
 
   getBlock : ∀ {ec : Meta EpochConfig} → HashValue -> BlockStore ec -> Maybe ExecutedBlock
-  getBlock {ec} hv bs = btGetBlock ec hv (bs ^∙ bsInner ec)
+  getBlock {ec} hv bs = BT.btGetBlock hv (bs ^∙ bsInner ec)
 
   bsRoot : ∀{ec} → BlockStore ec → ExecutedBlock
-  bsRoot = btRoot ∘ :bsInner
+  bsRoot = BT.btRoot ∘ :bsInner
 
 
 
@@ -75,7 +75,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
         ; (just blockToCommit) →
             -- MSM: Any chance of some more syntactic sugar so we can be closer
             -- to the guards syntax used in Haskell (see above)?
-            if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot ec bs) ^∙ ebRound)
+            if-dec (blockToCommit ^∙ ebRound ≤? (bsRoot bs) ^∙ ebRound)
             then tell1 (LogErr "commit block round lower than root") >> pure []
             else do 
              blocksToCommit ← maybe id [] <$> pathFromRootM blockIdToCommit 
