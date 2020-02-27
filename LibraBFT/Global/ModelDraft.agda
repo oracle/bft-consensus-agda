@@ -29,9 +29,12 @@ module LibraBFT.Global.ModelDraft
  open import LibraBFT.Concrete.Records
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 
+ canInit : Author → Set
+ canInit 
+
  -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
  -- For now, it just constructs an EventProcessor in which there are four validators with fake public keys
- initialEventProcessorAndMessages : Author → Maybe (EventProcessor × List Action)
+ initialEventProcessorAndMessages : Author → EventProcessor × List Action
  initialEventProcessorAndMessages _ with mkSafetyRules (mkPersistentStorage 0)
  ...| sr with Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
  ...| nothing = nothing
@@ -73,6 +76,7 @@ with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr)
                Unit
                Action
                EventProcessor
+               canInit
                initialEventProcessorAndMessages
                handle
                actionsToSends

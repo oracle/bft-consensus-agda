@@ -82,6 +82,7 @@ module LibraBFT.Prelude where
 
   open import Data.Maybe.Properties
     using (just-injective)
+    renaming (≡-dec to Maybe-≡-dec)
     public
 
   open import Data.Fin
