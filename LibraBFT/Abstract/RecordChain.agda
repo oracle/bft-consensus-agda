@@ -40,21 +40,6 @@ module LibraBFT.Abstract.RecordChain
           → {prf : IsInPool r'} -- TODO: Make these into instance arguments too!
           → RecordChain r'
 
-  prevBlock : ∀{q} → RecordChain (Q q) → Block
-  prevBlock (step {r = B b} _ (B←Q _ _)) = b
-
-  -- Defition of 'previous_round' as in Paper Section 5.5
-  currRound : ∀{r} → RecordChain r → Round
-  currRound empty = 0
-  currRound (step {r = r} _ _) = round r
-
-  -- TODO: prev round should be defined for blocks only...
-  prevRound : ∀{r} → RecordChain r → Round
-  prevRound empty = 0
-  prevRound (step rc (I←B x vr)) = 0
-  prevRound (step rc (Q←B x vr)) = currRound rc
-  prevRound (step rc (B←Q x vr)) = prevRound rc
-
   ----------------------
   -- RecordChain Irrelevance
   --
@@ -305,3 +290,21 @@ module LibraBFT.Abstract.RecordChain
   ¬bRound≡0 (step s (I←B () h)) refl
   ¬bRound≡0 (step s (Q←B () h)) refl
 
+
+ prevBlock : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
+           → ∀{q} → WithRSS.RecordChain curr (Q q) → Block
+ prevBlock (WithRSS.step {r = B b} _ (B←Q _ _)) = b
+
+ -- Defition of 'previous_round' as in Paper Section 5.5
+ currRound : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
+           → ∀{r} → WithRSS.RecordChain curr r → Round
+ currRound WithRSS.empty = 0
+ currRound (WithRSS.step {r = r} _ _) = round r
+
+ -- TODO: prev round should be defined for blocks only...
+ prevRound : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
+           → ∀{r} → WithRSS.RecordChain curr r → Round
+ prevRound WithRSS.empty = 0
+ prevRound (WithRSS.step rc (I←B x vr)) = 0
+ prevRound (WithRSS.step rc (Q←B x vr)) = currRound rc
+ prevRound (WithRSS.step rc (B←Q x vr)) = prevRound rc

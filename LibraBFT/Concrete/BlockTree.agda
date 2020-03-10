@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
@@ -243,6 +243,19 @@ module LibraBFT.Concrete.BlockTree
   RecordChain-grow f (WithRSS.step rc x {p})
     = WithRSS.step (RecordChain-grow f rc) x {f p}
 
+  -- We can transpose a record chain to a unrelated state
+  -- as long as all of its records are in there.
+  rc-transp
+    : {bt bt' : BlockTree}{s : Abs.Record}
+    → (rc : WithRSS.RecordChain bt s) 
+    → (∀{r} → WithRSS._∈RC_ bt r rc → r ∈BT bt')
+    → WithRSS.RecordChain bt' s
+  rc-transp WithRSS.empty f 
+    = WithRSS.empty
+  rc-transp (WithRSS.step rc x {p}) f 
+    = WithRSS.step (rc-transp rc (λ r∈rc → f (WithRSS.there x r∈rc))) 
+                   x {f WithRSS.here}
+
   -- 'canInsert bt r' is just an inspectable synonym for '¬ (r ∈BT bt)'; actually,
   -- makes me thing why not using the later...
   data canInsert (bt : BlockTree) : (r' : Abs.Record) → Set where
@@ -273,10 +286,23 @@ module LibraBFT.Concrete.BlockTree
   ExtendsQC : BlockTree → Σ QuorumCert IsValidQC → Set
   ExtendsQC bt = Extends bt ∘ Abs.Q ∘ α-QC
 
+  ---------------------------------------
+  -- Properties About Valid BlockTrees --
 
-  --------------------------
-  -- Insertion of Records --
+  -- In a valid BlockTree; if a given QC certifies a block, then
+  -- such block has a concrete counterpart that belongs in the block tree.
+  qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
+                           → ∀{q} → (Abs.Q q) ∈BT bt
+                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (_btIdToBlock bt) ≡ just cb)
+  qc-certifies-closed-conc bt correct {q} q∈bt 
+    with correct (Abs.Q q) q∈bt
+  ...| WithRSS.step {Abs.B b} (WithRSS.step _ _ {b∈bt}) (B←Q refl refl) 
+    with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock bt)) b∈bt
+  ...| (cb , inThere , _) = cb , inThere
 
+  ---------------------------------
+  -- Insertion of Blocks and QCs --
+  --
   -- We will handle insertions of blocks and qcs separately,
   -- as these manipulate two different fields of our BlockTree.
 
@@ -296,24 +322,235 @@ module LibraBFT.Concrete.BlockTree
      = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
                                               (_btIdToQuorumCert bt) prf }
 
-  -- Inserting does not lose any records; be it for blocks or QCs
 
-  insert-block-stable : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
-                      → {r : Abs.Record}
-                      → r ∈BT bt
-                      → r ∈BT (insert-block bt cb ext)
-  insert-block-stable bt cb ext {Abs.I}   r∈bt                     = unit
-  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
-  insert-block-stable bt cb (extends m (B _ prf) o) {Abs.B x} r∈bt 
-    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
-  ...| (lkupRes , isJust , αres)
-    rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
-          = cong just αres
+  -- ** Properties
+  --
+  -- *** Insertion of Blocks
+ 
+  -- I'm parametrizing over bt and cb, but can't really put ExtendsB in here
+  -- since we often need to pattern-match over it.
+  module InsertBlockLemmas (bt : BlockTree)(cb : LinkableBlock) where
 
-  insert-block-no-interf : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
-                         → _btIdToQuorumCert (insert-block bt cb ext)
-                         ≡ _btIdToQuorumCert bt
-  insert-block-no-interf {cb = cb} (extends _ (B _ _) _) = refl
+    -- Inserting does not lose any records; be it for blocks or QCs
+    stable : (ext : ExtendsB bt cb){r : Abs.Record} → r ∈BT bt → r ∈BT (insert-block bt cb ext)
+    stable _                       {Abs.I}   r∈bt = unit
+    stable (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
+    stable (extends m (B _ prf) o) {Abs.B x} r∈bt 
+      with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
+    ...| (lkupRes , isJust , αres)
+      rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
+            = cong just αres
+
+    -- Inserting blocks does not interfere with _btIdToQuorumCert
+    no-interf : (ext : ExtendsB bt cb)
+              → _btIdToQuorumCert (insert-block bt cb ext)
+              ≡ _btIdToQuorumCert bt
+    no-interf (extends _ (B _ _) _) = refl
+
+    -- If a record was not in bt, but is in (insert cb bt), said record must
+    -- be the inserted one.
+    target : (ext : ExtendsB bt cb)
+           → {r : Abs.Record}
+           → ¬ (r ∈BT bt)
+           → r ∈BT (insert-block bt cb ext)
+           → r ≡ Abs.B (α-Block cb)
+    target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
+    target ext {Abs.Q x} neg hyp 
+      rewrite no-interf ext = ⊥-elim (neg hyp) 
+    target ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
+      with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock (insert-block bt cb ext))) hyp 
+    ...| (lkupRes , isJust , refl) 
+      with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
+    ...| _ , refl  = refl
+
+    -- The inserted record is an element of the update blocktree.
+    elem : (ext : ExtendsB bt cb) → Abs.B (α-Block cb) ∈BT insert-block bt cb ext
+    elem (extends rInPool (B res notThere) x) 
+      rewrite lookup-correct {k = Abs.bId (α-Block cb)} 
+                             {v = cb} 
+                             {kvm = bt ^∙ btIdToBlock} 
+                             notThere 
+            = refl
+
+    -- Inserting in a correct blocktree yeilds a correct blocktree.
+    correct : (ext : ExtendsB bt cb) → Correct bt → Correct (insert-block bt cb ext)
+    correct ext cbt s s∈post 
+      with s ∈BT? bt 
+    ...| yes s∈bt = RecordChain-grow (stable ext) (cbt s s∈bt)
+    ...| no  s∉bt 
+      rewrite target ext s∉bt s∈post 
+      with ext
+    ...| extends {r = r} a canI r←r' 
+       = WithRSS.step (RecordChain-grow (stable (extends a canI r←r')) (cbt r a)) 
+                      r←r' {elem (extends a canI r←r')}
+
+    -- The proof for increasing round rule is easy; insert-block does
+    -- not interfere with quorum certificates.
+    incr-round : (ext : ExtendsB bt cb) → ValidBT bt → IncreasingRound (insert-block bt cb ext)
+    incr-round ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
+      -- Both QC's must be old; since we just inserted a block. 
+      rewrite no-interf ext
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    ...| no imp   | _         = ⊥-elim (imp q∈bt)
+    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
+    ...| yes qOld | yes q'Old = ValidBT.incr-round-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+
+    -- Same for votes-only-once; there is no interference with quorum certificates
+    votes-once : (ext : ExtendsB bt cb) → ValidBT bt → VotesOnlyOnce (insert-block bt cb ext)
+    votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
+      -- Both QC's must be old; since we just inserted a block. 
+      rewrite no-interf ext
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    ...| no imp   | _         = ⊥-elim (imp q∈bt)
+    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
+    ...| yes qOld | yes q'Old = ValidBT.votes-once-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+
+  {-
+    -- No QuorumCert in our state can certify a freshly inserted block. 
+    nodep : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
+                       → ValidBT bt
+                       → ∀{q} → (Abs.Q q) ∈BT (insert-block bt cb ext)
+                       → Abs.qCertBlockId q ≢ Abs.bId (α-Block cb)
+    nodep bt cb ext valid {q} q∈bt abs
+      rewrite no-interf {bt} {cb} ext 
+      with ext
+    ...| extends {Abs.B b} b∈bt canIns (Q←B b0 b1) = ?
+  -}
+  {-
+      with <M$>-univ (_qcCertifies ∘ proj₁) (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt)) q∈bt
+    ...| ((q' , vq') , r , s) = {!!}
+  -}
+  {-
+      with ext
+    ...| extends x (B a b) z rewrite abs = {!!}
+  -}
+
+    pres-Q∈BT : (ext : ExtendsB bt cb) 
+              → ∀{q} → Abs.Q q ∈BT (insert-block bt cb ext) → Abs.Q q ∈BT bt
+    pres-Q∈BT ext hyp = {!!}
+
+    pres-B∈BT : (ext : ExtendsB bt cb)
+              → ∀{b} → Abs.B b ∈BT insert-block bt cb ext
+              → Abs.bId b ≢ Abs.bId (α-Block cb)
+              → Abs.B b ∈BT bt
+    pres-B∈BT ext nothd hyp = {!!}
+
+   
+    lemma : (ext : ExtendsB bt cb)
+          → ∀{q}(rc : WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q))
+          → ∀{r} → WithRSS._∈RC_ (insert-block bt cb ext) r rc
+          → r ∈BT bt
+    lemma ext rc {r} hyp = {!!}
+
+    -- A freshly inserted block is uncertifiable; in other words, for any
+    -- quorum certificaet that belongs in (insert-block bt cb ext), said QC 
+    -- cant certify cb.
+    uncertifiable : (ext : ExtendsB bt cb)
+                  → Correct bt
+                  → ∀{q} → Abs.Q q ∈BT insert-block bt cb ext
+                  → Abs.qCertBlockId q ≢ Abs.bId (α-Block cb)
+    uncertifiable ext correct {q} q∈bt' refl
+      with qc-certifies-closed-conc bt correct {q} (pres-Q∈BT ext {q} q∈bt')
+    ...| (_ , cb∈bt) 
+      with ext
+    ...| extends _ (B _ cbNew) _ = maybe-⊥ cb∈bt cbNew
+
+    -- If we have a record chain leading to a quorum certificate in the 
+    -- state that results from the insertion of a block; we can have the same record chain
+    -- wihtout said block.
+    rc-shrink : (ext : ExtendsB bt cb) 
+              → Correct bt → ∀{q}
+              → WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q)
+              → WithRSS.RecordChain bt (Abs.Q q)
+    rc-shrink ext cor {q} rc = rc-transp rc (λ r∈rc → {!!})
+{-
+    RecordChain-drop-block ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} rc@(WithRSS.step _ _) (Q←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = WithRSS.step (WithRSS.step (RecordChain-drop-block ext corr {q0} rc) 
+                        (Q←B a0 a1) {pres-B∈BT ext {b} b∈bt'
+                                      (uncertifiable ext corr {q} q∈bt')}) 
+            (B←Q b0 refl) {pres-Q∈BT ext {q} q∈bt'}
+    RecordChain-drop-block ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step WithRSS.empty (I←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = WithRSS.step (WithRSS.step WithRSS.empty 
+                        (I←B a0 a1) {pres-B∈BT ext {b} b∈bt' 
+                                      (uncertifiable ext corr {q} q∈bt')}) 
+           (B←Q b0 refl) {pres-Q∈BT ext {q} q∈bt'}
+
+
+    RecordChain-drop-block-≅ : (ext : ExtendsB bt cb) 
+                             → (c   : Correct bt) 
+                             → ∀{q}(rc  : WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q))
+                             → rc ≅ RecordChain-drop-block ext c rc
+    RecordChain-drop-block-≅ ext c (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} rc (Q←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = {!≅-cong₂ (λ P Q → WithRSS.step P (B←Q b0 refl) {Q}) !}
+    RecordChain-drop-block-≅ ext c (WithRSS.step {Abs.B b} 
+            (WithRSS.step WithRSS.empty (I←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = {!!}
+
+
+    -- And here is a very complicated way of writing the identity function
+    -- on values; yet, reducing these values lets agda undersdant the
+    -- relationship between recordchains and 𝕂-chains indexed
+    -- over states with and without a freshly inserted block.
+    𝕂-chain-drop-block : ∀{R n}(ext : ExtendsB bt cb)
+                       → (corr : Correct bt)
+                       → ∀{q}{rc : WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q)}
+                       → WithRSS.𝕂-chain (insert-block bt cb ext) R n rc 
+                       → WithRSS.𝕂-chain bt R n (RecordChain-drop-block ext corr rc)
+    𝕂-chain-drop-block ext corr WithRSS.0-chain = WithRSS.0-chain
+    𝕂-chain-drop-block ext corr {rc = (WithRSS.step {Abs.B b} 
+            (WithRSS.step WithRSS.empty (I←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'})} 
+            (WithRSS.s-chain r←b prf b←q WithRSS.0-chain) 
+      = WithRSS.s-chain r←b prf b←q WithRSS.0-chain 
+    𝕂-chain-drop-block ext corr  {rc = (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} rc (Q←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'})} 
+            (WithRSS.s-chain r←b prf b←q k) 
+      = WithRSS.s-chain r←b prf b←q (𝕂-chain-drop-block ext corr k) 
+
+    RecordChain-drop-block-cr : (ext : ExtendsB bt cb) 
+                              → (corr : Correct bt) → ∀{q}
+                              → (rc : WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q))
+                              → currRound rc ≡ currRound (RecordChain-drop-block ext corr rc)
+    RecordChain-drop-block-cr ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} rc (Q←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = refl
+    RecordChain-drop-block-cr ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step WithRSS.empty (I←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = refl
+
+    RecordChain-drop-block-pr : (ext : ExtendsB bt cb) 
+                              → (corr : Correct bt) → ∀{q}
+                              → (rc : WithRSS.RecordChain (insert-block bt cb ext) (Abs.Q q))
+                              → prevRound rc ≡ prevRound (RecordChain-drop-block ext corr rc)
+    RecordChain-drop-block-pr ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} (WithRSS.step {r} WithRSS.empty _) (Q←B a0 refl) {b∈bt'}) (B←Q refl refl) {q∈bt'}) 
+      = {!refl!}
+    RecordChain-drop-block-pr ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step {Abs.Q q0} (WithRSS.step {r} (WithRSS.step _ _) _) (Q←B a0 refl) {b∈bt'}) (B←Q refl refl) {q∈bt'}) 
+      = {!refl!}
+    RecordChain-drop-block-pr ext corr {q} (WithRSS.step {Abs.B b} 
+            (WithRSS.step WithRSS.empty (I←B a0 a1) {b∈bt'}) (B←Q b0 refl) {q∈bt'}) 
+      = refl
+
+
+    -- Lastly, the locked-round-rule has a similar proof. Not interfering with
+    -- quorum certs preserves the invariant trivially.
+    locked-round : (ext : ExtendsB bt cb) → ValidBT bt → LockedRound (insert-block bt cb ext)
+    locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp 
+      -- rewrite no-interf ext 
+      with ValidBT.locked-round-rule valid {R} α hα 
+                   {q} {RecordChain-drop-block ext (ValidBT.correct valid) {q} rc} 
+                   {n} (𝕂-chain-drop-block ext (ValidBT.correct valid) c2) 
+                   va 
+                   {q'} (RecordChain-drop-block ext (ValidBT.correct valid) {q'} rc') 
+                   va' hyp
+    ...| r = subst₂ _≤_ {!!} {!!} r
+
+-}
+
+  -- *** Insertion of QCs
 
   insert-qc-stable : (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC)(ext : ExtendsQC bt vqc)
                    → {r : Abs.Record}
@@ -328,38 +565,6 @@ module LibraBFT.Concrete.BlockTree
     rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = qc} prf isJust
           = cong just αres
 
-  insert-block-target : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
-                      → {r : Abs.Record}
-                      → ¬ (r ∈BT bt)
-                      → r ∈BT (insert-block bt cb ext)
-                      → r ≡ Abs.B (α-Block cb)
-  insert-block-target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
-  insert-block-target {bt} {cb} ext {Abs.Q x} neg hyp 
-    rewrite insert-block-no-interf {bt} {cb} ext = ⊥-elim (neg hyp) 
-  insert-block-target {bt} {cb} ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
-    with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock (insert-block bt cb ext))) hyp 
-  ...| (lkupRes , isJust , refl) 
-    with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
-  ...| _ , refl  = refl
-
-  insert-block-∈BT : {bt : BlockTree}{cb : LinkableBlock}(ext : ExtendsB bt cb)
-                   → Abs.B (α-Block cb) ∈BT insert-block bt cb ext
-  insert-block-∈BT ext = {!!}
-
-  insert-block-correct : (bt : BlockTree)(cb : LinkableBlock)(ext : ExtendsB bt cb)
-                       → ValidBT bt
-                       → Correct (insert-block bt cb ext)
-  insert-block-correct bt cb ext vbt s s∈post 
-    with s ∈BT? bt 
-  ...| yes s∈bt = RecordChain-grow (insert-block-stable bt cb ext) 
-                                   (ValidBT.correct vbt s s∈bt)
-  ...| no  s∉bt 
-    rewrite insert-block-target {bt} {cb} ext s∉bt s∈post 
-    with ext
-  ...| extends {r = r} a canI r←r' 
-     = WithRSS.step (RecordChain-grow (insert-block-stable bt cb (extends a canI r←r')) 
-                                      (ValidBT.correct vbt r a)) 
-                    r←r' {insert-block-∈BT {bt} {cb} (extends a canI r←r')}
 
 --   
 --   insert-ok-correct rss r' ext vrss s s∈post 

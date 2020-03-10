@@ -96,6 +96,12 @@ module LibraBFT.Prelude where
     hiding (decSetoid)
     public
 
+  open import Relation.Binary.HeterogeneousEquality
+    using (_≅_)
+    renaming (cong to ≅-cong; cong₂ to ≅-cong₂)
+    public
+
+
   open import Relation.Binary.Core
     public
 
