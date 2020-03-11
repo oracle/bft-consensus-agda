@@ -40,6 +40,12 @@ module LibraBFT.Abstract.RecordChain
           → {prf : IsInPool r'} -- TODO: Make these into instance arguments too!
           → RecordChain r'
 
+  -- This is a helpful syntax for talking about record chains
+  infix 30 step
+  syntax step rc r←r' {prf} = r←r' [ prf ]↝ rc
+
+
+
   ----------------------
   -- RecordChain Irrelevance
   --
@@ -205,6 +211,10 @@ module LibraBFT.Abstract.RecordChain
            → rc₀ ≈RC rc₁
            → r₀ ∈RC rc₁
 
+  ∈RC-empty-I : ∀{r} → r ∈RC empty → r ≡ I
+  ∈RC-empty-I here                      = refl
+  ∈RC-empty-I (transp old (eq-empty x)) = ∈RC-empty-I old
+
   kchainBlock-correct
     : ∀{P k q b}{rc : RecordChain (B b)}{b←q : B b ← Q q}{ipq : IsInPool (Q q)}
     → (kc : 𝕂-chain P k (step rc b←q {ipq}))
@@ -308,3 +318,4 @@ module LibraBFT.Abstract.RecordChain
  prevRound (WithRSS.step rc (I←B x vr)) = 0
  prevRound (WithRSS.step rc (Q←B x vr)) = currRound rc
  prevRound (WithRSS.step rc (B←Q x vr)) = prevRound rc
+
