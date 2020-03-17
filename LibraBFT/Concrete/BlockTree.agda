@@ -548,19 +548,77 @@ module LibraBFT.Concrete.BlockTree
                            (locked-round ext v)
 
   -- *** Insertion of QCs
+ 
+  -- I'm parametrizing over bt and cb, but can't really put ExtendsB in here
+  -- since we often need to pattern-match over it.
+  module InsertQCLemmas (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC) where
+    open WithRSS
 
-  insert-qc-stable : (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC)(ext : ExtendsQC bt vqc)
-                   → {r : Abs.Record}
-                   → r ∈BT bt
-                   → r ∈BT (insert-qc bt vqc ext)
-  insert-qc-stable bt qc ext {Abs.I}   r∈bt                     = unit
-  insert-qc-stable bt qc (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
-  insert-qc-stable bt qc (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
-    with <M$>-univ (_qcCertifies ∘ proj₁) 
-                   (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)) r∈bt
-  ...| (lkupRes , isJust , αres) 
-    rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = qc} prf isJust
-          = cong just αres
+    stable : (ext : ExtendsQC bt vqc) → {r : Abs.Record}
+                     → r ∈BT bt
+                     → r ∈BT (insert-qc bt vqc ext)
+    stable ext {Abs.I}   r∈bt                     = unit
+    stable (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
+    stable (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
+      with <M$>-univ (_qcCertifies ∘ proj₁) 
+                     (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)) r∈bt
+    ...| (lkupRes , isJust , αres) 
+      rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf isJust
+            = cong just αres
+
+    -- Inserting QCs does not interfere with _btIdToBlock
+    no-interf : (ext : ExtendsQC bt vqc)
+              → _btIdToBlock (insert-qc bt vqc ext)
+              ≡ _btIdToBlock bt
+    no-interf (extends _ (Q _ _) _) = refl
+
+    -- If a record was not in bt, but is in (insert cb bt), said record must
+    -- be the inserted one. Differntly than blocks though, here we can only
+    -- prove that the latest insertion certifies the same block, but might
+    -- not be /exactly/ the same. 
+    target : (ext : ExtendsQC bt vqc)
+           → {r : Abs.Record}
+           → ¬ (r ∈BT bt)
+           → r ∈BT (insert-qc bt vqc ext)
+           → ∃[ q ] (r ≡ Abs.Q q × Abs.qCertBlockId q ≡ Abs.qCertBlockId (α-QC vqc)
+                                 × Abs.qRound q ≡ Abs.qRound (α-QC vqc))
+    target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
+    target ext {Abs.B x} neg hyp 
+      rewrite no-interf ext = ⊥-elim (neg hyp) 
+    target ext@(extends {r' = Abs.Q x'} m (Q q0 prf) (B←Q b1 b2)) {Abs.Q x} neg hyp 
+      with <M$>-univ (_qcCertifies ∘ proj₁) 
+                     (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert (insert-qc bt vqc ext))) 
+                     hyp 
+    ...| (lkupRes , isJust , refl) 
+      with insert-target prf (λ { x → neg (cong ((_qcCertifies ∘ proj₁) <M$>_) x) }) isJust 
+    ...| refl , refl = x , refl , refl , {!!}
+
+    -- The inserted record is an element of the update blocktree.
+    elem : (ext : ExtendsQC bt vqc) → Abs.Q (α-QC vqc) ∈BT insert-qc bt vqc ext
+    elem (extends rInPool (Q res notThere) x) 
+      rewrite lookup-correct {k = Abs.qCertBlockId (α-QC vqc)} 
+                             {v = vqc} 
+                             {kvm = bt ^∙ btIdToQuorumCert} 
+                             notThere 
+            = refl
+
+    -- Inserting in a correct blocktree yeilds a correct blocktree.
+    correct : (ext : ExtendsQC bt vqc) → Correct bt → Correct (insert-qc bt vqc ext)
+    correct ext cbt s s∈post 
+      with s ∈BT? bt 
+    ...| yes s∈bt = rc-grow (stable ext) (cbt s s∈bt)
+    ...| no  s∉bt 
+      with target ext s∉bt s∈post 
+    ...| (q , refl , refl , refl) 
+      with ext
+    ...| e@(extends {r = r} a canI (B←Q refl refl))
+       = step {r' = Abs.Q q}
+              (rc-grow (stable (extends a canI (B←Q refl refl))) (cbt r a)) 
+              (B←Q {!!} refl) {elem e}
+{-
+       = WithRSS.step (rc-grow (stable (extends a canI r←r')) (cbt r a)) 
+                      r←r' {elem (extends a canI r←r')}
+-}
 
 
 --   
