@@ -408,18 +408,19 @@ module LibraBFT.Concrete.BlockTree
 
 
     -- ** The Odyssey of the LockedRound **
-    
-      
 
     pres-Q∈BT : (ext : ExtendsB bt cb) 
               → ∀{q} → Abs.Q q ∈BT (insert-block bt cb ext) → Abs.Q q ∈BT bt
-    pres-Q∈BT ext hyp = {!!}
+    pres-Q∈BT ext hyp rewrite no-interf ext = hyp
 
     pres-B∈BT : (ext : ExtendsB bt cb)
               → ∀{b} → Abs.B b ∈BT insert-block bt cb ext
               → Abs.bId b ≢ Abs.bId (α-Block cb)
               → Abs.B b ∈BT bt
-    pres-B∈BT ext nothd hyp = {!!}
+    pres-B∈BT ext@(extends _ (B _ x) _) {b} hyp nothd
+      with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock (insert-block bt cb ext))) hyp
+    ...| (bb , isJust , refl) 
+      rewrite lookup-stable-2 x isJust nothd = refl
 
     -- A freshly inserted block is uncertifiable; in other words, for any
     -- quorum certificaet that belongs in (insert-block bt cb ext), said QC 
@@ -487,7 +488,8 @@ module LibraBFT.Concrete.BlockTree
       : (ext : ExtendsB bt cb)(cor : Correct bt)
       → ∀{q}(rc : RecordChain (insert-block bt cb ext) (Abs.Q q)) 
       → prevRound rc ≡ prevRound (rc-shrink ext cor rc)
-    rc-shrink-prevRound ext cor rc = {!!}
+    rc-shrink-prevRound ext cor (step (step rc (I←B _ _)) (B←Q _ refl))         = refl
+    rc-shrink-prevRound ext cor (step (step (step _ _) (Q←B _ _)) (B←Q _ refl)) = refl
 
     -- Here, for instance, we need to go over the elements of the k-chain
     -- simply to let Agda reduce rc-shrink (patter matching on the k-chain
@@ -513,14 +515,22 @@ module LibraBFT.Concrete.BlockTree
                  → (i : Fin n)
                  → (kc : 𝕂-chain (insert-block bt cb ext) R n rc)
                  → kchainBlock bt i (kc-shrink ext corr kc) ≡ kchainBlock (insert-block bt cb ext) i kc
-    kc-shrink-≡b ext corr kc i = {!!}
+    kc-shrink-≡b ext corr () 0-chain
+    -- Base case; easy byt requires to match on a lot of stuff to reduce kc-shrink
+    kc-shrink-≡b ext corr zero (s-chain (I←B i0 i1) prf b←q 0-chain)                                      = refl
+    kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain)           = refl
+    kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) = refl
+    -- Inductive case
+    kc-shrink-≡b ext corr (suc ()) (s-chain (I←B i0 i1) prf b←q 0-chain) 
+    kc-shrink-≡b ext corr (suc ()) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain) 
+    kc-shrink-≡b ext corr (suc i) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) 
+      = kc-shrink-≡b ext corr i c
 
     -- Lastly, the locked-round-rule has a similar proof. Not interfering with
     -- quorum certs preserves the invariant trivially.
     locked-round : (ext : ExtendsB bt cb) → ValidBT bt 
                  → LockedRound (insert-block bt cb ext)
     locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp 
-      -- rewrite no-interf ext 
       with ValidBT.locked-round-rule valid {R} α hα 
                    {q} {rc-shrink ext (ValidBT.correct valid) {q} rc} 
                    {n} (kc-shrink ext (ValidBT.correct valid) c2) 
@@ -528,8 +538,14 @@ module LibraBFT.Concrete.BlockTree
                    {q'} (rc-shrink ext (ValidBT.correct valid) {q'} rc') 
                    va' hyp
     ...| r = subst₂ _≤_ (cong Abs.bRound (kc-shrink-≡b ext (ValidBT.correct valid) (suc zero) c2)) 
-                        {!!} -- (rc-shrink-prevRound ext (ValidBT.correct valid) {q} {!!})
+                        (sym (rc-shrink-prevRound ext (ValidBT.correct valid) {q'} rc')) 
                         r
+
+    valid : (ext : ExtendsB bt cb) → ValidBT bt → ValidBT (insert-block bt cb ext)
+    valid ext v = valid-bt (correct ext (ValidBT.correct v)) 
+                           (incr-round ext v) 
+                           (votes-once ext v) 
+                           (locked-round ext v)
 
   -- *** Insertion of QCs
 
