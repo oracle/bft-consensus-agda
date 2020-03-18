@@ -243,7 +243,7 @@ module LibraBFT.Concrete.BlockTree
   rc-grow f (WithRSS.step rc x {p})
     = WithRSS.step (rc-grow f rc) x {f p}
 
-  -- We can transpose a record chain to a unrelated state
+  -- We can transport a record chain to a unrelated state
   -- as long as all of its records are in there.
   rc-transp
     : {bt bt' : BlockTree}{s : Abs.Record}
@@ -321,7 +321,6 @@ module LibraBFT.Concrete.BlockTree
   ...| absQC | Q .absQC prf 
      = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
                                               (_btIdToQuorumCert bt) prf }
-
 
   -- ** Properties
   --
@@ -615,6 +614,11 @@ module LibraBFT.Concrete.BlockTree
        = step {r' = Abs.Q q}
               (rc-grow (stable (extends a canI (B←Q refl refl))) (cbt r a)) 
               (B←Q {!!} refl) {elem e}
+
+    locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
+                 → LockedRound (insert-qc bt vqc ext)
+    locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp = {!!}
+
 {-
        = WithRSS.step (rc-grow (stable (extends a canI r←r')) (cbt r a)) 
                       r←r' {elem (extends a canI r←r')}
