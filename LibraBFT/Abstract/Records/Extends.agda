@@ -38,7 +38,9 @@ module LibraBFT.Abstract.Records.Extends
   ←-≈Rec (Q←B x x₁) (I←B x₂ x₃) (eq-B refl) 
     = ⊥-elim (maybe-⊥ (sym x₁) x₃)
   ←-≈Rec (Q←B {q₀} x refl) (Q←B {q₁} x₂ refl) (eq-B refl) 
-    = inj₂ (eq-Q refl)
+    = inj₂ (eq-Q refl) -- Here is where we wouldn't be able to
+                       -- complete the proof if we required round equality
+                       -- in eq-Q
   ←-≈Rec (B←Q {b₀} x refl) (B←Q {b₁} w refl) (eq-Q refl)
     with b₀ ≟Block b₁
   ...| no  hb  = inj₁ ((b₀ , b₁) , (λ x → hb x) , refl)

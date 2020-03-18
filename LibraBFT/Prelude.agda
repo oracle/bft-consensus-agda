@@ -116,7 +116,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Product
-    renaming (map to split; swap to ×-swap)
+    renaming (map to ×-map; <_,_> to split; swap to ×-swap)
     hiding (map₁; map₂; zip)
     public
 

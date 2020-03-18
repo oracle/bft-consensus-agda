@@ -146,8 +146,14 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   qcCertifies : Lens QuorumCert  Hash
   qcCertifies = qcVoteData ∙ vdProposed ∙ biId
 
+  qcRound : Lens QuorumCert Round
+  qcRound = qcVoteData ∙ vdProposed ∙ biRound
+
   _qcCertifies : QuorumCert → Hash
   _qcCertifies q = q ^∙ qcCertifies 
+
+  _qcRound : QuorumCert → Round
+  _qcRound q = q ^∙ qcRound 
 
   ------------
   -- Blocks --

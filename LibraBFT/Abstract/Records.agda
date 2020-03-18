@@ -67,8 +67,14 @@ module LibraBFT.Abstract.Records
   -- that is, they certify the same block. It is worthwhile to note
   -- that since we are talking about /abstract/ QCs, we have proofs that
   -- both have at least QuorumSize votes for /the same block/!
+  --
+  -- It might be tempting to want qRound q₀ ≡ qRound q₁ in here,
+  -- but the proof of ←-≈Rec in LibraBFT.Abstract.Records.Extends
+  -- would be impossible, which in turn, invalidate a bunch of other
+  -- things.
   _≈QC_ : QC → QC → Set
   q₀ ≈QC q₁ = qCertBlockId q₀ ≡ qCertBlockId q₁
+  
 
   _≟≈QC_ : (q₀ q₁ : QC) → Dec (q₀ ≈QC q₁)
   q₀ ≟≈QC q₁ with qCertBlockId q₀ ≟UID qCertBlockId q₁
