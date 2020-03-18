@@ -109,8 +109,7 @@ module LibraBFT.Abstract.RecordChain.Properties
       | tri< va₂<va' _ _
      with b←q'
    ...| B←Q rrr xxx
-      with locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} P b₂←q₂ {pq} c2) a∈q₂ {q'} (step certB (B←Q rrr xxx) {pq'}) a∈q' va₂<va'
-   ...| res = ≤-trans (kchainBlockRound≤ zero (suc zero) c2 z≤n) res
+      = locked-round-rule a honest {q₂} (s-chain r←b₂ {pb} P b₂←q₂ {pq} c2) a∈q₂ {q'} (step certB (B←Q rrr xxx) {pq'}) a∈q' va₂<va'
 
   ------------------
   -- Proposition S4

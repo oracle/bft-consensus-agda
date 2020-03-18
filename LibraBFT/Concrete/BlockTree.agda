@@ -529,14 +529,14 @@ module LibraBFT.Concrete.BlockTree
     -- quorum certs preserves the invariant trivially.
     locked-round : (ext : ExtendsB bt cb) → ValidBT bt 
                  → LockedRound (insert-block bt cb ext)
-    locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp 
+    locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
       with ValidBT.locked-round-rule valid {R} α hα 
                    {q} {rc-shrink ext (ValidBT.correct valid) {q} rc} 
-                   {n} (kc-shrink ext (ValidBT.correct valid) c2) 
+                   {n} (kc-shrink ext (ValidBT.correct valid) c3) 
                    va 
                    {q'} (rc-shrink ext (ValidBT.correct valid) {q'} rc') 
                    va' hyp
-    ...| r = subst₂ _≤_ (cong Abs.bRound (kc-shrink-≡b ext (ValidBT.correct valid) (suc zero) c2)) 
+    ...| r = subst₂ _≤_ (cong Abs.bRound (kc-shrink-≡b ext (ValidBT.correct valid) (suc (suc zero)) c3)) 
                         (sym (rc-shrink-prevRound ext (ValidBT.correct valid) {q'} rc')) 
                         r
 

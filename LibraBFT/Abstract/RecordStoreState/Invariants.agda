@@ -74,19 +74,60 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
        → voteOrder (∈QC-Vote q va) ≡ voteOrder (∈QC-Vote q' va')
        → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
-    -- TODO: change parameters to ∈QC-Vote; author can be implicit; QC has to be explicit.
-    -- TOEXPLAIN: prevRound is defined for blocks only on the paper; however,
-    --            it is cumbersome to open rc' to expose the block that comes
-    --            before (Q q'). Yet, (Q q') is valid so said block has the same round,
-    --            so, the prevRound (Q q') is the prevRound of the block preceding (Q q').
-    -- This is in Set₁ because we universally quantify over (Record → Record → Set)
-    -- for the relation passed to c2.
+    -- The locked-round-rule, or preferred-round rule (from V3 onwards) is a potentially 
+    -- confusing aspect of Libra. It states that an honest node α will only cast
+    -- votes for blocks b such that prevRound(b) ≥ locked_round(α), where locked_round(α)
+    -- is defined as $max { round b | b is the head of a 2-chain }$. 
+    -- 
+    -- Operationally, α keeps a counter locked_round, initialized at 0 and, whenever
+    -- α receives a QC q that forms a 2-chain:
+    --
+    --  Fig1
+    --
+    --    I ← ⋯ ← b₁ ← q₁ ← b ← q 
+    --            ⌞₋₋₋₋₋₋₋₋₋₋₋₋₋⌟
+    --                2-chain
+    --
+    -- it should check whether round(b₁) , which is the head of the 2-chain above,
+    -- is bigger than its previously known locked_round, if it is, α should update it.
+    -- Note that α doesnt need to cast a vote in q, above, to have its locked_round updated.
+    -- All that matters is that α has seen q.
+    --
+    -- We are encoding the rules governing Libra nodes as invariants in the
+    -- state of other nodes. Hence, the LockedRoundRule below states an invariant
+    -- in the state of β, if α respects the locked-round-rule. 
+    --
+    -- Let the state of β be as below, such that α did cast votes for q
+    -- and q' in that order (α is honest here!):
+    --
+    --
+    --  Fig2
+    --                            3-chain
+    --            ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝
+    --            |    2-chain            |          α knows of the 2-chain because
+    --            ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝        |          it voted at the 3-chain.
+    --    I ← ⋯ ← b₂ ← q₂ ← b₁ ← q₁ ← b ← q
+    --         ↖ 
+    --           ⋯ ← b₁' ← q₁' ← b' ← q'
+    --
+    -- Then, since α is honest and follows the locked-round rule, we know for sure
+    -- that round(b₂) ≤ round(b₁'), thats because by seeing that α voted on q, we
+    -- know that α has seen the 2-chain above, hence, α locked_round was at least round(b₂)
+    -- at the time α casted its vote for b. 
+    --
+    -- After casting a vote for b; α casted a vote for b', which means that α must have
+    -- checked that round(b₂) ≤ prevRound(b'), as stated by the locked round rule.
+    --
+    -- The invariant below states that since α is honest, we can trust that these
+    -- checks have been performed and we can infer this information solely 
+    -- by seeing α has knowledge of te 2-chain in Fig2 above.
+    --
     LockedRoundRule : Set₁
     LockedRoundRule
       = ∀{R}(α : Author ec) → Honest ec α
-      → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c2 : 𝕂-chain R (2 + n) rc)
-      → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail.
+      → ∀{q}{rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain R (3 + n) rc)
+      → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
       → ∀{q'}(rc' : RecordChain (Q q'))
       → (vα' : α ∈QC q')
       → voteOrder (∈QC-Vote q vα) <VO voteOrder (∈QC-Vote q' vα')
-      → getRound (kchainBlock (suc zero) c2) ≤ prevRound rc'
+      → getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc'
