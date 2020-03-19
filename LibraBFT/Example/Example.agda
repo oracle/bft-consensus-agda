@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
@@ -318,7 +320,6 @@ small start that addresses only "cheat" steps.
  ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
 
 
- 
 
-
-
+ rVWSInvariant init = {!!}
+ rVWSInvariant (step x x₁) = {!!}
