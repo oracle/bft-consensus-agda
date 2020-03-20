@@ -77,8 +77,9 @@ module LibraBFT.Global.SystemModel
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
  data Step (p : Peer) (pre : SystemState): Instant → SystemState → Set where
-   initPeer : ∀ {ts}{canInit}
-            → {ready : KVMap.lookup p (peerStates pre) ≡ nothing}
+   initPeer : (ts : Instant)
+            → (canInit : CanInit p)
+            → (ready : KVMap.lookup p (peerStates pre) ≡ nothing)
             → Step p pre ts (sysState
                            (foldr (flip sendMsg) (sentMessages pre) (actionsToSends (proj₁ (Init p canInit)) (proj₂ (Init p canInit))))
                            (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
@@ -97,27 +98,27 @@ module LibraBFT.Global.SystemModel
          → Step p pre ts (sysState (sendMsg (sentMessages pre) (to , m)) (peerStates pre))
 
  isInitPeer : ∀ {pre p post ts} → Step p pre ts post → Set
- isInitPeer initPeer          = ⊤
+ isInitPeer (initPeer _ _ _)  = ⊤
  isInitPeer (recvMsg _ _ _ _) = ⊥
  isInitPeer (cheat _ _ _ _)   = ⊥
 
  isInitPeer? : ∀ {pre p post ts} → (theStep : Step p pre ts post) → Dec (isInitPeer theStep)
- isInitPeer? {pre} {p} {post} initPeer          = yes tt
+ isInitPeer? {pre} {p} {post} (initPeer _ _ _)  = yes tt
  isInitPeer? {pre} {p} {post} (recvMsg _ _ _ _) = no id
  isInitPeer? {pre} {p} {post} (cheat _ _ _ _)   = no id
 
  isCheatStep : ∀ {pre p post ts} → Step p pre ts post → Set
- isCheatStep initPeer          = ⊥
+ isCheatStep (initPeer _ _ _)  = ⊥
  isCheatStep (recvMsg _ _ _ _) = ⊥
  isCheatStep (cheat _ _ _ _)   = ⊤
 
  canInitOf : ∀ {pre p post ts} → (theStep : Step p pre ts post) → isInitPeer theStep → CanInit p
- canInitOf (initPeer {_} {canInit}) _ = canInit
+ canInitOf (initPeer _ canInit _) _ = canInit
  canInitOf (cheat _ _ _ _) ()
  canInitOf (recvMsg _ _ _ _) ()
 
-   -- TODO : we may need "spontaneous" actions that don't require a message to be received, for
-   -- example timeout events?
+ -- TODO : we may need "spontaneous" actions that don't require a message to be received, for
+ -- example timeout events?
 
  data ReachableSystemState : SystemState → Set where
    init : ReachableSystemState initState
@@ -140,8 +141,8 @@ module LibraBFT.Global.SystemModel
                        → p ≡ by
  stepByOtherPreservesJ {pre}{sysState msgs' .(peerStates pre)}{by}{p}{ppre}{ppost} prop (cheat ts to m x) ppre≡ ppost≡ preHolds postNotHold =
    ⊥-elim (postNotHold (subst prop (just-injective (trans (sym ppre≡) ppost≡)) preHolds))
- stepByOtherPreservesJ {pre}{post}{by}{p}{ppre}{ppost} prop (initPeer {ready = x}) ppre≡ ppost≡ preHolds postNotHold =
-   sym (insert-target-0 {k = by} {k' = p} {kvm = peerStates pre} {x} λ x₁ → ⊥-elim (postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x₁) ppost≡)) preHolds)))
+ stepByOtherPreservesJ {pre}{post}{by}{p}{ppre}{ppost} prop (initPeer ts cI rdy) ppre≡ ppost≡ preHolds postNotHold =
+   sym (insert-target-0 {k = by} {k' = p} {kvm = peerStates pre} {rdy} λ x₁ → ⊥-elim (postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x₁) ppost≡)) preHolds)))
  stepByOtherPreservesJ {pre}{post}{by}{p}{ppre}{ppost} prop (recvMsg ts x1 ready x2)  ppre≡ ppost≡ preHolds postNotHold =
    sym (update-target {kvm = peerStates pre}{k1 = p} {k2 = by} λ x → postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x) ppost≡)) preHolds))
 
@@ -173,7 +174,7 @@ module LibraBFT.Global.SystemModel
  ...| no  neq = {!!}
  ...| yes refl
     with theStep
- ...| initPeer {ts} {cI} {rdy}
+ ...| initPeer ts cI rdy
     with insert-target {k = by} {k' = by} rdy ((flip maybe-⊥) nothingBefore) justAfter
  ...| xxx , yyy = refl , tt , {!!} -- ((sym xxx) , yyy
 

@@ -262,7 +262,7 @@ module LibraBFT.Example.Example where
     | no maxChanged          -- Therefore this is a confirmed advance, which means that newValSender ≡ nothing in the post state, contradicting zzz      BREAK DOWN INTO SMALLER LEMMAS
     | yes refl -- p ≡ by
     with theStep
- ...| initPeer {_} {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {theStep = theStep} rdy postxx)))))
+ ...| initPeer _ cI rdy = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {theStep = theStep} rdy postxx)))))
  ...| cheat ts to m x rewrite just-injective pSt≡ | cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
               ⊥-elim (maxChanged (trans (sym (cong :maxSeen (just-injective (trans (sym postxx) (trans (cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt) prexx))))) r2))
 
@@ -288,7 +288,7 @@ module LibraBFT.Example.Example where
                           λ z → z r1))
  ...| yes refl
     with theStep
- ...| initPeer {ts} {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {pre} {post} {by} {p} {pSt} {ts} {theStep} rdy postxx)))))
+ ...| initPeer ts cI rdy = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {pre} {post} {by} {p} {pSt} {ts} {theStep} rdy postxx)))))
  ...| cheat ts to m x rewrite cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
               ⊥-elim (neq (trans (cong :newValSender (just-injective (trans (sym prexx) postxx))) r1))
  ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ts ∈SM ready run
@@ -323,6 +323,6 @@ small start that addresses only "cheat" steps.
 
  rVWSInvariant (step preReach (cheat ts to m dis)) = rVWSCheat preReach (cheat ts to m dis) tt
 
- rVWSInvariant (step preReach initPeer) = {!!}
+ rVWSInvariant (step preReach (initPeer ts cI rdy)) = {!!}
  
- rVWSInvariant (step preReach (recvMsg ts x ready x₁)) = {!!}
+ rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = {!!}
