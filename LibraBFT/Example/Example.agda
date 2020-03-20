@@ -319,7 +319,10 @@ small start that addresses only "cheat" steps.
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
  ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
 
+ rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
 
+ rVWSInvariant (step preReach (cheat ts to m dis)) = rVWSCheat preReach (cheat ts to m dis) tt
 
- rVWSInvariant init = {!!}
- rVWSInvariant (step x x₁) = {!!}
+ rVWSInvariant (step preReach initPeer) = {!!}
+ 
+ rVWSInvariant (step preReach (recvMsg ts x ready x₁)) = {!!}
