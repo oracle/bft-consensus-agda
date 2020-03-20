@@ -262,11 +262,11 @@ module LibraBFT.Example.Example where
     | no maxChanged          -- Therefore this is a confirmed advance, which means that newValSender ≡ nothing in the post state, contradicting zzz      BREAK DOWN INTO SMALLER LEMMAS
     | yes refl -- p ≡ by
     with theStep
- ...| initPeer {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {theStep = theStep} rdy postxx)))))
- ...| cheat to m x rewrite just-injective pSt≡ | cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat to m x) tt =
-              ⊥-elim (maxChanged (trans (sym (cong :maxSeen (just-injective (trans (sym postxx) (trans (cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat to m x) tt) prexx))))) r2))
+ ...| initPeer {_} {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {theStep = theStep} rdy postxx)))))
+ ...| cheat ts to m x rewrite just-injective pSt≡ | cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
+              ⊥-elim (maxChanged (trans (sym (cong :maxSeen (just-injective (trans (sym postxx) (trans (cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt) prexx))))) r2))
 
- ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ∈SM ready run
+ ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ts ∈SM ready run
     with pureHandler m ts ppre1
  ...| nothing , acts = {!!}                       -- no change, contradicts zzz , neq
  ...| just (confirmedAdvance n) , acts  = {!!}    -- sets newValsender to nothing, contradicts zzz
@@ -288,10 +288,10 @@ module LibraBFT.Example.Example where
                           λ z → z r1))
  ...| yes refl
     with theStep
- ...| initPeer {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {pre} {post} {by} {p} {pSt} {ts} {theStep} rdy postxx)))))
- ...| cheat to m x rewrite cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat to m x) tt =
+ ...| initPeer {ts} {cI} {rdy} = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {pre} {post} {by} {p} {pSt} {ts} {theStep} rdy postxx)))))
+ ...| cheat ts to m x rewrite cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
               ⊥-elim (neq (trans (cong :newValSender (just-injective (trans (sym prexx) postxx))) r1))
- ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ∈SM ready run
+ ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ts ∈SM ready run
     with pureHandler m ts ppre1
  ...| nothing , acts = {!!}                       -- no change, contradicts zzz , neq
  ...| just (confirmedAdvance n) , acts  = {!!}    -- sets newValsender to nothing, contradicts zzz
@@ -312,7 +312,7 @@ small start that addresses only "cheat" steps.
 
  rVWSCheat : ∀ {pre post by ts}
      → ReachableSystemState pre
-     → (theStep : Step {by} ts pre post)
+     → (theStep : Step by pre ts post)
      → isCheatStep theStep
      → recordedValueWasSent post
  rVWSCheat preReach theStep isCheat {pSt} sender p pSt≡ sender≡ max≡
