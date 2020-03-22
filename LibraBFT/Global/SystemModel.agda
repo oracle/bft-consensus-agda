@@ -68,9 +68,6 @@ module LibraBFT.Global.SystemModel
  actionsToSends : PeerState → List Action → List (Peer × Message)
  actionsToSends st = concat ∘ List-map (ActionHandler st)
 
- postulate
-   now : Instant
-
  sendMessage : ∀ {pre : SystemState} → Message → Peer → SystemState
  sendMessage {pre} msg p = record pre { sentMessages = sendMsg (sentMessages pre) (p , msg) }
 
@@ -88,10 +85,10 @@ module LibraBFT.Global.SystemModel
              (ts : Instant)
            → (to , m) ∈SM (sentMessages pre)
            → (ready : KVMap.lookup p (peerStates pre) ≡ just ppre)
-           → RWST-run (MsgHandler m now) env ppre ≡ (unit , ppost , acts)
+           → RWST-run (MsgHandler m ts) env ppre ≡ (unit , ppost , acts)
            → Step p pre ts (sysState
-                         (foldr (flip sendMsg) (sentMessages pre) (actionsToSends ppost acts))
-                         (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
+                             (foldr (flip sendMsg) (sentMessages pre) (actionsToSends ppost acts))
+                             (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
 
    cheat : ∀ (ts : Instant) (to : Peer) (m : Message)
          → Dishonest m p
@@ -107,6 +104,11 @@ module LibraBFT.Global.SystemModel
  isInitPeer? {pre} {p} {post} (recvMsg _ _ _ _) = no id
  isInitPeer? {pre} {p} {post} (cheat _ _ _ _)   = no id
 
+ isRecvMsg : ∀ {pre p post ts} → Step p pre ts post → Set
+ isRecvMsg (initPeer _ _ _)  = ⊥
+ isRecvMsg (recvMsg _ _ _ _) = ⊤
+ isRecvMsg (cheat _ _ _ _)   = ⊥
+
  isCheatStep : ∀ {pre p post ts} → Step p pre ts post → Set
  isCheatStep (initPeer _ _ _)  = ⊥
  isCheatStep (recvMsg _ _ _ _) = ⊥
@@ -114,8 +116,9 @@ module LibraBFT.Global.SystemModel
 
  canInitOf : ∀ {pre p post ts} → (theStep : Step p pre ts post) → isInitPeer theStep → CanInit p
  canInitOf (initPeer _ canInit _) _ = canInit
- canInitOf (cheat _ _ _ _) ()
- canInitOf (recvMsg _ _ _ _) ()
+
+ rdyOf     : ∀ {pre p post ts} → (theStep : Step p pre ts post) → isInitPeer theStep → KVMap.lookup p (peerStates pre) ≡ nothing
+ rdyOf     (initPeer _ _ rdy) _ = rdy
 
  -- TODO : we may need "spontaneous" actions that don't require a message to be received, for
  -- example timeout events?

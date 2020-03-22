@@ -52,7 +52,7 @@ module LibraBFT.Concrete.Util.KVMap  where
 
    lookup-correct-update
                   : {kvm : KVMap Key Val}
-                  → {prf : lookup k kvm ≢ nothing}
+                  → (prf : lookup k kvm ≢ nothing)
                   → lookup k (kvm-update k v kvm prf) ≡ just v
 
    lookup-stable  : {kvm : KVMap Key Val}{k k' : Key}{v' : Val}
@@ -89,4 +89,13 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k' (kvm-insert k v kvm prf) ≡ lookup k' kvm
 
  lookup-stable-1 prf hyp = trans (lookup-stable prf hyp) (sym hyp)
+
+ lookup-correct-update-2
+                : {kvm : KVMap Key Val}
+                → (prf : lookup k kvm ≢ nothing)
+                → lookup k (kvm-update k v kvm prf) ≡ just v'
+                → v ≡ v'
+ lookup-correct-update-2 {kvm} prf lkup =
+   just-injective
+     (trans (sym (lookup-correct-update prf)) lkup)
 

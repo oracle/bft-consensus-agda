@@ -79,9 +79,13 @@ module LibraBFT.Example.Example where
 
  open RWST-do
 
- data handlerResult : Set where
-   gotFirstAdvance  : PeerId → handlerResult
-   confirmedAdvance : ℕ → handlerResult
+ data HandlerResult : Set where
+   gotFirstAdvance  : PeerId → HandlerResult
+   confirmedAdvance : ℕ → HandlerResult
+
+ -- TODO: is this really necessary?
+ handlerResultConstructorDiff : ∀ {p n} → gotFirstAdvance p ≢ confirmedAdvance n
+ handlerResultConstructorDiff ()
 
  gFA-injective : ∀ {n m} → gotFirstAdvance n ≡ gotFirstAdvance m → n ≡ m
  gFA-injective refl = refl
@@ -101,12 +105,15 @@ module LibraBFT.Example.Example where
  ...| no  neq  = no (neq ∘ cA-injective)
 -}
 
- pureHandler : Message → Instant → State → Maybe handlerResult × List Action
- pureHandler msg ts st with st ^∙ maxSeen  <? msg ^∙ val
+ pureHandler : Message → Instant → State → Maybe HandlerResult × List Action
+ pureHandler msg ts st
+    with st ^∙ maxSeen  <? msg ^∙ val
  ...| no  _  = nothing , []
- ...| yes newMax with msg ^∙ val ≟ suc (st ^∙ maxSeen)
+ ...| yes newMax
+    with msg ^∙ val ≟ suc (st ^∙ maxSeen)
  ...| no  _  = nothing , []
- ...| yes newIsNext with st ^∙ newValSender
+ ...| yes newIsNext
+    with st ^∙ newValSender
  ...| nothing = just (gotFirstAdvance (msg ^∙ author)) , send (suc (msg ^∙ val)) ts ∷ []
  ...| just 1stSender = just (confirmedAdvance (msg ^∙ val)) , announce (msg ^∙ val) ∷ []
 
@@ -125,37 +132,47 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
+ modifiesMaxSeen : ∀ {ppre ppost m ts env}
+                 → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
+                 → ppre  ^∙ maxSeen ≢ ppost ^∙ maxSeen
+                 → proj₁ (pureHandler m ts ppre) ≡ just (confirmedAdvance (ppost ^∙ maxSeen))
+                 × ppost ^∙ newValSender ≡ nothing
+ modifiesMaxSeen {ppre} {ppost} {m} {ts} {env} run≡ pre≢post rewrite run≡
+    with proj₁ (pureHandler m ts ppre)
+ ...| nothing                    = ⊥-elim (pre≢post refl)
+ ...| just (gotFirstAdvance p)   = ⊥-elim (pre≢post refl)
+ ...| just (confirmedAdvance v') = refl , refl
 
-{-
- modifiesMaxSeen : ∀ {ppre ppost m now env}
-                 → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m now) env ppre)
-                 → ppost ^∙ maxSeen ≢ ppre ^∙ maxSeen
-                 → Σ ℕ (λ v → pureHandler m ppre ≡ just (confirmedAdvance v))
- modifiesMaxSeen {ppre} {ppost} {m} upd change with pureHandler m ppre
- ...| nothing = ⊥-elim (change (cong :maxSeen upd))
- ...| just (gotFirstAdvance p)  = ⊥-elim (change (subst (λ s → :maxSeen ppost ≡ :maxSeen s) upd refl))
- ...| just (confirmedAdvance v) = v , refl
- -- What's the best systematic way to prove/represent the conditions required for a variable to change?
- maxSeenChangeCond : ∀ {ppre m v}
-                   → pureHandler m ppre ≡ just (confirmedAdvance v)
-                   → (v ≡ m ^∙ val)
-                   × (v ≡ suc (ppre ^∙ maxSeen))
-                   × Σ PeerId (((ppre ^∙ newValSender) ≡_) ∘ just)
- maxSeenChangeCond {ppre} {m} {v} isConf
-   with pureHandler m ppre
- ...| just phr with phr ≟HR confirmedAdvance v
- ...| no  neq = ⊥-elim (neq (just-injective isConf))
- ...| yes phr≡ 
-   with ppre ^∙ maxSeen  <? m ^∙ val
- ...| no  xx = ⊥-elim (maybe-⊥ isConf {!!})
+ modifiesNewSenderVal : ∀ {ppre ppost m ts env v}
+                      → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
+                      → ppre  ^∙ newValSender ≢ ppost ^∙ newValSender
+                      → ppost ^∙ newValSender ≡ just v
+                      → proj₁ (pureHandler m ts ppre) ≡ just (gotFirstAdvance v)
+                      × ppost ^∙ maxSeen ≡ ppre ^∙ maxSeen
+ modifiesNewSenderVal {ppre} {ppost} {m} {ts} {env} {v} run≡ pre≢post jv rewrite run≡
+    with proj₁ (pureHandler m ts ppre)
+ ...| nothing = ⊥-elim (pre≢post refl)
+ ...| just (confirmedAdvance v') = ⊥-elim (maybe-⊥ jv refl)
+ ...| just (gotFirstAdvance  v')
+    with v' ≟ v
+ ...| no neq   = ⊥-elim (neq (just-injective jv))
+ ...| yes refl = refl , refl
+
+ -- TODO: the structure of this mirrors pureHandler.  Maybe incorporate these proofs as Meta into
+ -- pureHandler?
+ modifiesNewSenderValCond : ∀ {st msg ts v}
+                          → proj₁ (pureHandler msg ts st) ≡ just (gotFirstAdvance v)
+                          → :author msg ≡ v × :val msg ≡ suc (st ^∙ maxSeen)
+ modifiesNewSenderValCond {st} {msg} {ts} {v} handler≡
+    with st ^∙ maxSeen  <? msg ^∙ val
+ ...| no  _  = ⊥-elim (maybe-⊥ handler≡ refl)
  ...| yes newMax
-   with m ^∙ val ≟ suc (ppre ^∙ maxSeen)
- ...| no xx1 = ⊥-elim (maybe-⊥ isConf {!!})
+    with msg ^∙ val ≟ suc (st ^∙ maxSeen)
+ ...| no  _  = ⊥-elim (maybe-⊥ handler≡ refl)
  ...| yes newIsNext
-   with ppre ^∙ newValSender
- ...| nothing = ⊥-elim {!just-injective isConf!}
- ...| just xx = {!!}
--}
+    with st ^∙ newValSender
+ ...| nothing = gFA-injective (just-injective handler≡) , newIsNext
+ ...| just 1stSender = ⊥-elim (handlerResultConstructorDiff (sym (just-injective handler≡)))
 
  exampleActionsToSends : State → Action → List (PeerId × Message)
  exampleActionsToSends s (announce _) = []
@@ -182,20 +199,8 @@ module LibraBFT.Example.Example where
                exampleActionsToSends
                dishonest
 
- trivialInvariant : Invariant (const ⊤)
- trivialInvariant init = tt
- trivialInvariant (step s x) = tt
-
- -- Properties about transitions (some should go into SystemModel)
-
- 
-
- -- Here is a less trivial, but (conceptually) easy invariant.  First
- -- prove it, then look for ways to streamline parts that will be
- -- common, such as:
- --   initializing a given peer establishes the invariant for that peer
- --   initializing another peer does not falsify the invariant for a given peer
- --   cheating does not affect peer states
+ -- The following (conceptually) easy invariant states that if peer p has recorded that p' sent the
+ -- next value, then p' actually did sent it!
 
  -- Informal argument
  --
@@ -204,112 +209,16 @@ module LibraBFT.Example.Example where
  -- If the action is a cheat for any process, it does not modify anyone's peerStates, so inductive hypothesis carries the day again
  -- If the action is a recvMessage, it only *establishes* the condition if the message needed exists
 
- -- If peer p has recorded that p' sent the next value, then p' did!
- 
  recordedValueWasSent : SystemState → Set
  recordedValueWasSent st = ∀ {pSt curMax}
                            → (sender p : PeerId)
                            → lookup p (peerStates st) ≡ just pSt
                            → pSt ^∙ newValSender ≡ just sender
                            → pSt ^∙ maxSeen ≡ curMax
-                           → Σ PeerId λ recip → Σ Message (λ msg → (recip , msg) ∈SM sentMessages st
-                                                                 × WithVerSig msg
+                           → Σ PeerId λ recip → Σ Message (λ msg → WithVerSig msg
+                                                                 × (recip , msg) ∈SM sentMessages st
                                                                  × msg ^∙ author ≡ sender
                                                                  × msg ^∙ val ≡ suc curMax)
-
- rVWSInvariant2 : Invariant recordedValueWasSent
- rVWSInvariant2 {sysState _ .empty} init {pSt} sender p = ⊥-elim ∘ ((flip maybe-⊥) kvm-empty)
-
- rVWSInvariant2 (step {ts} {pre} {post} _ {by} theStep) {pSt} sender p pSt≡ r1 r2
-   with         (lookup p) (peerStates post) |
-        inspect (lookup p) (peerStates post)
- ...| nothing    | _ = ⊥-elim (maybe-⊥ pSt≡ refl)
- ...| just ppost | [ postxx ]
-   with Maybe-≡-dec _≟_ (:newValSender ppost) (just sender)
- ...| no  neq rewrite (just-injective pSt≡) = ⊥-elim (neq r1)
- ...| yes zzz with   (lookup p) (peerStates pre) |
-             inspect (lookup p) (peerStates pre)
- ...| nothing   | [ xx1 ]
-   with initPeerLemma {theStep = theStep} xx1 postxx
- ...| refl , _ , xx4 rewrite xx4 = ⊥-elim (maybe-⊥ zzz refl)
- rVWSInvariant2 (step {ts} {pre} {post} preReach {by} theStep) {pSt} {curMax} sender p pSt≡ r1 r2
-    | just ppost | [ postxx ]
-    | yes  zzz
-    | just ppre@(mkState id1 oldMax prevNewValSender) | [ prexx ] rewrite (just-injective pSt≡)
-   with Maybe-≡-dec _≟_ (:newValSender ppre) (just sender)
- ...| yes refl
-   with oldMax ≟ curMax
- ...| yes refl
-   with rVWSInvariant2 preReach sender p prexx refl refl
- ...| zz1 , m , zz2 , zz3 = zz1 , m , msgs-stable theStep zz2 , zz3
- rVWSInvariant2 (step {ts} {pre} {post} preReach {by} theStep) {pSt} {curMax} sender p pSt≡ r1 r2
-    | just ppost | [ postxx ]
-    | yes  zzz
-    | just ppre@(mkState id1 oldMax prevNewValSender) | [ prexx ]
-    | yes sender≡
-    | no maxChanged
-    with p ≟ by
- ...| no neq2 rewrite sym (just-injective pSt≡) =
-          ⊥-elim (neq2 (stepByOtherPreservesJ
-                          ((_≢ curMax) ∘ :maxSeen)
-                          theStep
-                          prexx
-                          postxx
-                          maxChanged
-                          λ z → z r2))
- rVWSInvariant2 (step {ts} {pre} {post} preReach {by} theStep) {pSt} {curMax} sender p pSt≡ r1 r2
-    | just ppost | [ postxx ]
-    | yes  zzz
-    | just ppre@(mkState id1 oldMax prevNewValSender) | [ prexx ]
-    | yes sender≡
-    | no maxChanged          -- Therefore this is a confirmed advance, which means that newValSender ≡ nothing in the post state, contradicting zzz      BREAK DOWN INTO SMALLER LEMMAS
-    | yes refl -- p ≡ by
-    with theStep
- ...| initPeer _ cI rdy = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {theStep = theStep} rdy postxx)))))
- ...| cheat ts to m x rewrite just-injective pSt≡ | cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
-              ⊥-elim (maxChanged (trans (sym (cong :maxSeen (just-injective (trans (sym postxx) (trans (cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt) prexx))))) r2))
-
- ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ts ∈SM ready run
-    with pureHandler m ts ppre1
- ...| nothing , acts = {!!}                       -- no change, contradicts zzz , neq
- ...| just (confirmedAdvance n) , acts  = {!!}    -- sets newValsender to nothing, contradicts zzz
- ...| just (gotFirstAdvance sndr') , acts = {!!}  -- sets newValSender to sndr'; if sndr' ≡ sender, m is the required message
-                                                  --                             otherwise, contradicts zzz
- rVWSInvariant2 (step {ts} {pre} {post} _ {by} theStep) {pSt} sender p pSt≡ r1 r2
-    | just ppost | [ postxx ]
-    | yes  zzz
-    | just ppre@(mkState id1 oldMax prevNewValSender) | [ prexx ]
-    | no  neq          -- p's state changed, therefore p ≡ by
-    with p ≟ by
- ...| no  neq2 rewrite sym (just-injective pSt≡) =
-          ⊥-elim (neq2 (stepByOtherPreservesJ
-                          ((_≢ (just sender)) ∘ :newValSender)
-                          theStep
-                          prexx
-                          postxx
-                          neq
-                          λ z → z r1))
- ...| yes refl
-    with theStep
- ...| initPeer ts cI rdy = ⊥-elim (maybe-⊥ r1 (cong :newValSender (proj₂ (proj₂ (initPeerLemma {pre} {post} {by} {p} {pSt} {ts} {theStep} rdy postxx)))))
- ...| cheat ts to m x rewrite cheatPreservesPeerState {pre} {post} {by} {p} {ts} (cheat ts to m x) tt =
-              ⊥-elim (neq (trans (cong :newValSender (just-injective (trans (sym prexx) postxx))) r1))
- ...| recvMsg {m} {to} {_} {ppre1} {ppost1} ts ∈SM ready run
-    with pureHandler m ts ppre1
- ...| nothing , acts = {!!}                       -- no change, contradicts zzz , neq
- ...| just (confirmedAdvance n) , acts  = {!!}    -- sets newValsender to nothing, contradicts zzz
- ...| just (gotFirstAdvance sndr') , acts = {!!}  -- sets newValSender to sndr'; if sndr' ≡ sender, m is the required message
-                                                  --                             otherwise, contradicts zzz
-
-
-{--
-
-The above is too big and messy.  I want to be able to write more concise proofs that can be combined
-together, heopfully eventually mirroring intuitive case analyses in common patterns.  Below I made a
-small start that addresses only "cheat" steps.
-
---}
-
 
  rVWSInvariant : Invariant recordedValueWasSent
 
@@ -319,8 +228,13 @@ small start that addresses only "cheat" steps.
      → isCheatStep theStep
      → recordedValueWasSent post
  rVWSCheat preReach theStep isCheat {pSt} sender p pSt≡ sender≡ max≡
+   -- A cheat step does cannot "unsend" messages and does not affect anyone's state
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
+   -- TODO: it would be nice to have a succinct "map function over nth element of tuple", but doing
+   --       this in a type-generic way is tricky.  Maybe just do specific functions for fixed-sized
+   --       tuples?  Even that is tricky to do in a general way when the function to map over one
+   --       component (msg-stable theStep in thie case) has implicit arguments.
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
 
  rVWSInitPeer : ∀ {pre post by ts}
      → ReachableSystemState pre
@@ -331,18 +245,90 @@ small start that addresses only "cheat" steps.
    with by ≟ p
  ...| yes refl
    with theStep    -- TODO: Why can't I avoid this with clause by using rdyOf below?
-                   -- It would simplify this proof by alloiwing this case to be in one line,
+                   -- It would simplify this proof by allowing this case to be in one line,
                    -- thus avoiding the need for spelling out the next case explicitly.
  ...| initPeer _ _ rdy
       -- After initializing p, the antecedent does not hold because :newValSender (lookup p (peerState post)) ≡ nothing
-      = ⊥-elim (maybe-⊥ sender≡ (subst (_≡ nothing) (cong :newValSender (sym (just-injective (trans (sym pSt≡) (lookup-correct rdy))))) refl))
-
+      = ⊥-elim (maybe-⊥ sender≡ (cong :newValSender (just-injective (trans (sym pSt≡) (lookup-correct rdy)))))
  rVWSInitPeer {pre} {post} {by} {ts} preReach theStep isInit {pSt} sender p pSt≡ sender≡ max≡
     | no xx
-   with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState {pre} {post} {by} {p} {ts} theStep xx)) pSt≡) sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
+      -- Initializing "by" does not falsify the invariant for p ≢ by
+   with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+
+ rVWSRecvMsg : ∀ {pre post by ts}
+     → ReachableSystemState pre
+     → (theStep : Step by pre ts post)
+     → isRecvMsg theStep
+     → recordedValueWasSent post
+ rVWSRecvMsg {pre} {post} {by} {ts} preReach theStep isInit {pSt} sender p pSt≡ sender≡ max≡
+    with by ≟ p
+ ...| no xx
+    -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
+    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+
+ rVWSRecvMsg {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    -- pSt ≡ ppost because of the "ready" condition for the step
+    with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
+ ...| pSt≡ppost
+    -- The step is by p; consider cases of whether the antecedent holds in the prestate
+    with Maybe-≡-dec _≟-PeerId_ (:newValSender ppre) (just sender) | curMax ≟ :maxSeen ppre
+ ...| yes refl | yes refl
+    -- It does, so the inductive hypothesis ensures the relevant message was sent before, and the step does not "unsend" it
+    with rVWSInvariant preReach {pSt = ppre} sender p rdy refl refl
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+
+ rVWSRecvMsg {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    | pSt≡ppost
+    | no nVSChanged | curMax≟maxSeen
+    -- newValSender ≢ sender in the prestate. Because newValSender ≡ sender in the poststate, the handler
+    -- result must be just (gotFirstAdvance sender)
+    with modifiesNewSenderVal {ppre} {ppost} {msg} {ts} {env} {sender}
+           (sym (cong proj₁ (cong proj₂ run≡)))
+           (subst (:newValSender ppre ≢_)
+                  (trans (sym sender≡) (cong :newValSender (sym pSt≡ppost)))
+                  nVSChanged)
+           (trans (cong :newValSender pSt≡ppost) sender≡)
+ ...| handlerResult , maxSeenUnchanged
+    with curMax≟maxSeen
+    -- Again the relevant message was already sent (∈SM-pre), and the step does not unsend it.  From
+    -- the condition required for this step, we can establish that the message has the required
+    -- values.
+ ...| yes refl = to
+                , msg
+                , {!!}
+                , ∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre
+                , modifiesNewSenderValCond {ppre} {msg} {ts} handlerResult
+ ...| no neq rewrite (sym pSt≡ppost) = ⊥-elim (neq (trans (sym max≡) maxSeenUnchanged))
+
+ rVWSRecvMsg {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    | pSt≡ppost
+    | yes refl | no curMaxChanged
+    -- Because maxSeen changed, the step sets newValSender to nothing, thus ensuring that antecedent
+    -- does not hold in the poststate
+    with modifiesMaxSeen {ppre} {ppost} {msg}
+           (sym (cong proj₁ (cong proj₂ run≡)))
+           (subst (:maxSeen ppre ≢_)
+                  (trans (sym max≡) (cong :maxSeen (sym pSt≡ppost)))
+                  (curMaxChanged ∘ sym))
+ ...| _ , falsifiesAntecedent = ⊥-elim (maybe-⊥ sender≡ (trans (cong :newValSender (sym pSt≡ppost)) falsifiesAntecedent))
+
+
+ -- TODO: so far, we have not modeled signature verification.  This should
+ -- be done systematically by the system being modeled.  We should not make
+ -- the SystemModel ensure messages received have their signature verified.
+ -- A question is where the public key is, and how this is derived from the
+ -- received message.
+
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
  rVWSInvariant (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
- rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = {!!}
+ rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg ts ∈SM-pre ready trans) tt 
