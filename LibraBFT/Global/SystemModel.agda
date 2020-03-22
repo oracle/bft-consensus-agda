@@ -196,3 +196,8 @@ module LibraBFT.Global.SystemModel
                            → (theStep : Step by pre ts post)
                            → isCheatStep theStep
                            → lookup p (peerStates post) ≡ lookup p (peerStates pre)
+
+   stepByOtherPreservesPeerState : ∀ {pre post by p ts}
+                           → (theStep : Step by pre ts post)
+                           → ¬ (by ≡ p)
+                           → lookup p (peerStates post) ≡ lookup p (peerStates pre)

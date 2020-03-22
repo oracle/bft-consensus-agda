@@ -30,6 +30,9 @@ module LibraBFT.Example.Example where
  PeerId : Set
  PeerId = ℕ
 
+ _≟-PeerId_ : (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
+ _≟-PeerId_ = _≟_
+
  record Message : Set where
    constructor mkMessage
    field
@@ -167,7 +170,7 @@ module LibraBFT.Example.Example where
  open import LibraBFT.Global.SystemModel
                Instant
                PeerId
-               _≟_
+               _≟-PeerId_
                Message
                sig-Message
                Unit
@@ -319,10 +322,27 @@ small start that addresses only "cheat" steps.
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
  ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
 
+ rVWSInitPeer : ∀ {pre post by ts}
+     → ReachableSystemState pre
+     → (theStep : Step by pre ts post)
+     → isInitPeer theStep
+     → recordedValueWasSent post
+ rVWSInitPeer {pre} {post} {by} {ts} preReach theStep isInit {pSt} sender p pSt≡ sender≡ max≡
+   with by ≟ p
+ ...| yes refl
+   with theStep    -- TODO: Why can't I avoid this with clause by using rdyOf below?
+                   -- It would simplify this proof by alloiwing this case to be in one line,
+                   -- thus avoiding the need for spelling out the next case explicitly.
+ ...| initPeer _ _ rdy
+      -- After initializing p, the antecedent does not hold because :newValSender (lookup p (peerState post)) ≡ nothing
+      = ⊥-elim (maybe-⊥ sender≡ (subst (_≡ nothing) (cong :newValSender (sym (just-injective (trans (sym pSt≡) (lookup-correct rdy))))) refl))
+
+ rVWSInitPeer {pre} {post} {by} {ts} preReach theStep isInit {pSt} sender p pSt≡ sender≡ max≡
+    | no xx
+   with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState {pre} {post} {by} {p} {ts} theStep xx)) pSt≡) sender≡ max≡
+ ...| xx1 , xx2 , xx3 , xx4 = xx1 , xx2 , msgs-stable theStep xx3 , xx4
+
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
-
- rVWSInvariant (step preReach (cheat ts to m dis)) = rVWSCheat preReach (cheat ts to m dis) tt
-
- rVWSInvariant (step preReach (initPeer ts cI rdy)) = {!!}
- 
+ rVWSInvariant (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
+ rVWSInvariant (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
  rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = {!!}
