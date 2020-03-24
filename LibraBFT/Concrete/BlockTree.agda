@@ -112,6 +112,15 @@ module LibraBFT.Concrete.BlockTree
   _≋QC_ : Abs.QC → Abs.QC → Set
   γq ≋QC αq = γq Abs.≈QC αq × Abs.qRound γq ≡ Abs.qRound αq
 
+  _≋QC?_ : (q q' : Abs.QC) → Dec (q ≋QC q')
+  q ≋QC? q' 
+    with Abs.qCertBlockId q ≟UID Abs.qCertBlockId q'
+  ...| no xx    = no (λ x → xx (proj₁ x))
+  ...| yes refl  
+    with Abs.qRound q ≟ℕ Abs.qRound q'
+  ...| no xx    = no (λ x → xx (proj₂ x))
+  ...| yes refl = yes (refl , refl)
+
 
   -- VCM: We really need to invoke the abstraction function here; otherwise
   -- we have no guarantee that the rest of the fields of the abstract block
@@ -139,13 +148,8 @@ module LibraBFT.Concrete.BlockTree
   (Abs.Q q) ∈BT? bt
     with lookup (Abs.qCertBlockId q) (BlockTree._btIdToQuorumCert bt)
   ...| nothing = no id
-  ...| just (qq , _) 
-    with _qcCertifies qq ≟UID Abs.qCertBlockId q
-  ...| no xx    = no (λ x → xx (sym (proj₁ x)))
-  ...| yes refl  
-    with _qcRound qq ≟ℕ Abs.qRound q
-  ...| no xx    = no (λ x → xx (sym (proj₂ x)))
-  ...| yes refl = yes (refl , refl)
+  ...| just qq = q ≋QC? (α-QC qq)
+
 
   ∈BT-irrelevant : ∀{r bt}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit    = refl
@@ -314,6 +318,12 @@ module LibraBFT.Concrete.BlockTree
   ...| WithRSS.step {Abs.B b} (WithRSS.step _ _ {b∈bt}) (B←Q refl refl) 
     with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock bt)) b∈bt
   ...| (cb , inThere , _) = cb , inThere
+
+  -- The tail of a record chain is always an element of the state.
+  rc-∈BT : {bt : BlockTree}{r : Abs.Record}
+         → WithRSS.RecordChain bt r → r ∈BT bt
+  rc-∈BT WithRSS.empty            = unit
+  rc-∈BT (WithRSS.step _ _ {prf}) = prf
 
   ---------------------------------
   -- Insertion of Blocks and QCs --
@@ -632,11 +642,41 @@ module LibraBFT.Concrete.BlockTree
               (rc-grow (λ {r} r∈bt → stable (extends a canI (B←Q refl refl)) {r} r∈bt) (cbt r a)) 
               (B←Q refl refl) {elem e}
 
-{-
+    incr-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
+               → IncreasingRound (insert-qc bt vqc ext)
+    incr-round = {!!}
+
     locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                  → LockedRound (insert-qc bt vqc ext)
-    locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp = {!!}
--}
+    locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
+    -- 0. Is the inserted 'vqc' either q or q'?
+      with α-QC vqc ≋QC? q | α-QC vqc ≋QC? q'
+    ...| no vqc≢q          | no vqc≢q' 
+    -- No; the inserted block is neither q nor q'; just call the 
+    -- inductive hypothesis similarly to locked-round for blocks.
+       = {!!}
+    -- Impossible; the inserted block is both q and q' but if α is honest,
+    -- it abides by the incr-round rule, which means the rounds must be equal.
+    -- Yet, hyp has type round q < round q'.
+    ...| yes (refl , r) | yes (refl , r') 
+       = ⊥-elim (n≮n _ (subst₂ _<_ (sym r) (sym r') 
+                          (incr-round ext valid α hα {q} {q'} 
+                             (rc-∈BT rc) (rc-∈BT rc') va va' hyp)))
+    -- We have just inserted q'; in this situation, we need some lemma
+    -- that says that since α is honest, it obeys its preferred round and,
+    -- we can see its preferred round is at least (getRound (kchainBlock 2 c3))
+    ...| no vqc≢q | yes (refl , refl) 
+       = {!!}
+    -- We have just inserted q; seems like we need a similar reasoning to the
+    -- case directly above.
+    ...| yes (refl , refl) | no vqc≢q' 
+       = {!!}
+ 
+    -- TODO: Our algorithm will ensure we never cast a vote to a proposal
+    -- that references a round smallar than our previous round. We will need
+    -- a proof of that. Moreover, we'll later need someway to lift properties
+    -- from our own algorithm to another honest author... I need to think carefully
+    -- about this.
 
 
 {-
