@@ -85,7 +85,7 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     --  Fig1
     --
     --    I ← ⋯ ← b₁ ← q₁ ← b ← q 
-    --            ⌞₋₋₋₋₋₋₋₋₋₋₋₋₋⌟
+    --        ⌞₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋⌟
     --                2-chain
     --
     -- it should check whether round(b₁) , which is the head of the 2-chain above,
@@ -103,15 +103,15 @@ module LibraBFT.Abstract.RecordStoreState.Invariants
     --
     --  Fig2
     --                            3-chain
-    --            ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝
-    --            |    2-chain            |          α knows of the 2-chain because
-    --            ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝        |          it voted at the 3-chain.
+    --        ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝
+    --        |        2-chain            |          α knows of the 2-chain because
+    --        ⌜⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⁻⌝        |          it voted at the 3-chain.
     --    I ← ⋯ ← b₂ ← q₂ ← b₁ ← q₁ ← b ← q
     --         ↖ 
     --           ⋯ ← b₁' ← q₁' ← b' ← q'
     --
     -- Then, since α is honest and follows the locked-round rule, we know for sure
-    -- that round(b₂) ≤ round(b₁'), thats because by seeing that α voted on q, we
+    -- that round(b₂) ≤ round(b₁') because, by seeing that α voted on q, we
     -- know that α has seen the 2-chain above, hence, α locked_round was at least round(b₂)
     -- at the time α casted its vote for b. 
     --
