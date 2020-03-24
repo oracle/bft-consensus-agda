@@ -136,6 +136,16 @@ module LibraBFT.Concrete.BlockTree
     -- We don't particularly care for the list of votes or who authored it
     = maybe ((q ≋QC_) ∘ α-QC) ⊥ (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt))
 
+  -- It can be useful to open up a `Q q ∈BT bt` hypothesis without having
+    -- to do 'with lookup | inspect lookup ...`
+  ∈BT-Q-univ : ∀{q bt} → Abs.Q q ∈BT bt
+             → ∃[ vqc ] ( lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt) ≡ just vqc
+                        × q ≋QC (α-QC vqc))
+  ∈BT-Q-univ {q} {bt} hyp with lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt)
+  ...| nothing   = ⊥-elim hyp
+  ...| just vqc  = vqc , refl , hyp
+
+
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
   (Abs.B b) ∈BT? bt 
@@ -644,7 +654,26 @@ module LibraBFT.Concrete.BlockTree
 
     incr-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                → IncreasingRound (insert-qc bt vqc ext)
-    incr-round = {!!}
+    incr-round ext@(extends _ (Q _ notThere) _) valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+    -- First we open up our hypothesis that q and q' are in the BT
+      with ∈BT-Q-univ {q}  {insert-qc bt vqc ext} q∈bt 
+         | ∈BT-Q-univ {q'} {insert-qc bt vqc ext} q'∈bt
+    ...| (γ , γ≡q , pγ) | (γ' , γ'≡q' , pγ') 
+   -- Now we check whether either q or q' have just been inserted.
+      with _qcCertifies (proj₁ vqc) ≟Hash Abs.qCertBlockId q 
+         | _qcCertifies (proj₁ vqc) ≟Hash Abs.qCertBlockId q' 
+    -- In case neither q nor q' are equal to vqc, we "simply" make a recursive call.
+    ...| no vqc≢q | no vqc≢q'
+      rewrite lookup-stable-1 {v = vqc} notThere (lookup-stable-2 notThere γ≡q (vqc≢q ∘ sym))
+            | lookup-stable-1 {v = vqc} notThere (lookup-stable-2 notThere γ'≡q' (vqc≢q' ∘ sym))
+        = ValidBT.incr-round-rule valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
+    -- The case where both q and q' are the same should be impossible: α is honest
+    -- and promisses to respect the incr-round-rule; hence, it can be that α voted twice
+    -- for the same block.
+    ...| yes refl | yes refl = {!!}
+    ...| no vqc≢q | yes refl = {!!}
+    ...| yes refl | no vqc≢q' = {!!}
+
 
     locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                  → LockedRound (insert-qc bt vqc ext)
