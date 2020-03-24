@@ -101,12 +101,22 @@ module LibraBFT.Concrete.BlockTree
   open import LibraBFT.Abstract.RecordChain            ec UID _≟UID_
   import LibraBFT.Abstract.RecordStoreState.Invariants ec UID _≟UID_
     as AbstractI
- 
+
+  -- The abstract model considers two QC's to be equal iff they
+  -- certify the same block; yet, this is a little too weak for us.
+  -- From the concrete point of view, an Abs.QC, αq, is said to be in the
+  -- blocktree iff ∃ γq such that lookup (qCertBlock αq) ≡ just γq and
+  -- γq ≋QC αq, defined next. 
+  --
+  -- TODO: find better symbol?
+  _≋QC_ : Abs.QC → Abs.QC → Set
+  γq ≋QC αq = γq Abs.≈QC αq × Abs.qRound γq ≡ Abs.qRound αq
+
+
   -- VCM: We really need to invoke the abstraction function here; otherwise
   -- we have no guarantee that the rest of the fields of the abstract block
   -- are correct. This is what ensures the abstract model will not conjure blocks
   -- out of nowhere.
-
   _∈BT_ : Abs.Record → BlockTree → Set
   Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
   (Abs.B b) ∈BT bt 
@@ -115,8 +125,7 @@ module LibraBFT.Concrete.BlockTree
     -- A qc is said to be in the abstract state iff there exists
     -- a qc that certifies the same block (i.e., with the same id).
     -- We don't particularly care for the list of votes or who authored it
-    = (_qcCertifies ∘ proj₁) <M$> (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt))
-      ≡ just (Abs.qCertBlockId q)
+    = maybe ((q ≋QC_) ∘ α-QC) ⊥ (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt))
 
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
@@ -129,21 +138,29 @@ module LibraBFT.Concrete.BlockTree
   ...| no  ok   = no (ok ∘ just-injective)
   (Abs.Q q) ∈BT? bt
     with lookup (Abs.qCertBlockId q) (BlockTree._btIdToQuorumCert bt)
-  ...| nothing = no λ x → maybe-⊥ refl (sym x)
-  ...| just (qq , _) with (_biId (_vdProposed (_qcVoteData qq))) ≟UID Abs.qCertBlockId q
-  ...| yes refl = yes refl
-  ...| no xx    = no  (xx ∘ just-injective)
+  ...| nothing = no id
+  ...| just (qq , _) 
+    with _qcCertifies qq ≟UID Abs.qCertBlockId q
+  ...| no xx    = no (λ x → xx (sym (proj₁ x)))
+  ...| yes refl  
+    with _qcRound qq ≟ℕ Abs.qRound q
+  ...| no xx    = no (λ x → xx (sym (proj₂ x)))
+  ...| yes refl = yes (refl , refl)
 
-  ∈BT-irrelevant : ∀{r rss}(p₀ p₁ : r ∈BT rss) → p₀ ≡ p₁
+  ∈BT-irrelevant : ∀{r bt}(p₀ p₁ : r ∈BT bt) → p₀ ≡ p₁
   ∈BT-irrelevant {Abs.I} unit unit    = refl
   ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
-  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 = ≡-irrelevant p0 p1
+  ∈BT-irrelevant {Abs.Q x} {st} p0 p1 
+    with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert st)
+  ...| nothing = ⊥-elim p1
+  ...| just γ  = cong₂ _,_ (≡-irrelevant (proj₁ p0) (proj₁ p1)) 
+                           (≡-irrelevant (proj₂ p0) (proj₂ p1))
 
   instance
     abstractBT : isRecordStoreState BlockTree
     abstractBT = record
       { isInPool            = _∈BT_
-      ; isInPool-irrelevant = ∈BT-irrelevant 
+      ; isInPool-irrelevant = λ {r} {bt} → ∈BT-irrelevant {r} {bt}
       }
 
   --------------------
@@ -197,28 +214,26 @@ module LibraBFT.Concrete.BlockTree
                                  (sym (kvm-empty {k = Abs.bId b}))
                                  refl))
   empty-Correct (Abs.Q q) imp
-    = ⊥-elim (maybe-⊥ imp (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
-                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
-                                 refl))
+    rewrite kvm-empty {Val = Σ QuorumCert IsValidQC} 
+                      {k = Abs.qCertBlockId q} 
+          = ⊥-elim imp 
 
   empty-IncreasingRound : IncreasingRound emptyBT
   empty-IncreasingRound α x {q = q} x₁ x₂ va va' x₃
-    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
-                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
-                                 refl))
+    rewrite kvm-empty {Val = Σ QuorumCert IsValidQC} 
+                      {k = Abs.qCertBlockId q} 
+          = ⊥-elim x₁
 
   empty-VotesOnlyOnce : VotesOnlyOnce emptyBT
   empty-VotesOnlyOnce α x {q = q} x₁ x₂ va va' x₃
-    = ⊥-elim (maybe-⊥ x₁ (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
-                                 (sym (kvm-empty {k = Abs.qCertBlockId q}))
-                                 refl))
-
+    rewrite kvm-empty {Val = Σ QuorumCert IsValidQC} 
+                      {k = Abs.qCertBlockId q} 
+          = ⊥-elim x₁
 
   empty-LockedRound : LockedRound emptyBT
   empty-LockedRound _ _ _ _ (WithRSS.step {r' = Abs.Q q'} _ _ {abs}) _ _
-    = ⊥-elim (maybe-⊥ abs (subst ((_≡ nothing) ∘ ((_qcCertifies ∘ proj₁) <M$>_))
-                                 (sym (kvm-empty {k = Abs.qCertBlockId q'}))
-                                 refl))
+    = ⊥-elim (subst (λ P₁ → maybe ((q' ≋QC_) ∘ α-QC) ⊥ P₁) 
+                    (kvm-empty {k = Abs.qCertBlockId q'}) abs)
 
   -- And now this is really trivial
   emptyBT-valid : ValidBT emptyBT
@@ -240,8 +255,8 @@ module LibraBFT.Concrete.BlockTree
     → WithRSS.RecordChain bt s → WithRSS.RecordChain bt' s
   rc-grow f WithRSS.empty
     = WithRSS.empty
-  rc-grow f (WithRSS.step rc x {p})
-    = WithRSS.step (rc-grow f rc) x {f p}
+  rc-grow f (WithRSS.step {_} {r} rc x {p})
+    = WithRSS.step (rc-grow (λ {r₀} → f {r₀}) rc) x {f {r} p}
 
   -- We can transport a record chain to a unrelated state
   -- as long as all of its records are in there.
@@ -332,7 +347,8 @@ module LibraBFT.Concrete.BlockTree
     open WithRSS
 
     -- Inserting does not lose any records; be it for blocks or QCs
-    stable : (ext : ExtendsB bt cb){r : Abs.Record} → r ∈BT bt → r ∈BT (insert-block bt cb ext)
+    stable : (ext : ExtendsB bt cb){r : Abs.Record} 
+           → r ∈BT bt → r ∈BT (insert-block bt cb ext)
     stable _                       {Abs.I}   r∈bt = unit
     stable (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
     stable (extends m (B _ prf) o) {Abs.B x} r∈bt 
@@ -376,13 +392,13 @@ module LibraBFT.Concrete.BlockTree
     correct : (ext : ExtendsB bt cb) → Correct bt → Correct (insert-block bt cb ext)
     correct ext cbt s s∈post 
       with s ∈BT? bt 
-    ...| yes s∈bt = rc-grow (stable ext) (cbt s s∈bt)
+    ...| yes s∈bt = rc-grow (λ {r} r∈bt → stable ext {r} r∈bt) (cbt s s∈bt)
     ...| no  s∉bt 
-      rewrite target ext s∉bt s∈post 
+      rewrite target ext {s} s∉bt s∈post 
       with ext
     ...| extends {r = r} a canI r←r' 
-       = WithRSS.step (rc-grow (stable (extends a canI r←r')) (cbt r a)) 
-                      r←r' {elem (extends a canI r←r')}
+       = step (rc-grow (λ {r₀} r₀∈bt → stable (extends a canI r←r') {r₀} r₀∈bt) (cbt r a)) 
+              r←r' {elem (extends a canI r←r')}
 
     -- The proof for increasing round rule is easy; insert-block does
     -- not interfere with quorum certificates.
@@ -559,11 +575,12 @@ module LibraBFT.Concrete.BlockTree
     stable ext {Abs.I}   r∈bt                     = unit
     stable (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
     stable (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
-      with <M$>-univ (_qcCertifies ∘ proj₁) 
-                     (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)) r∈bt
-    ...| (lkupRes , isJust , αres) 
-      rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf isJust
-            = cong just αres
+      with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)
+         | inspect (lookup (Abs.qCertBlockId x)) (_btIdToQuorumCert bt)
+    ...| nothing | _     = ⊥-elim r∈bt
+    ...| just γq | [ R ]
+      rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf R
+        = r∈bt
 
     -- Inserting QCs does not interfere with _btIdToBlock
     no-interf : (ext : ExtendsQC bt vqc)
@@ -585,12 +602,12 @@ module LibraBFT.Concrete.BlockTree
     target ext {Abs.B x} neg hyp 
       rewrite no-interf ext = ⊥-elim (neg hyp) 
     target ext@(extends {r' = Abs.Q x'} m (Q q0 prf) (B←Q b1 b2)) {Abs.Q x} neg hyp 
-      with <M$>-univ (_qcCertifies ∘ proj₁) 
-                     (lookup (Abs.qCertBlockId x) (_btIdToQuorumCert (insert-qc bt vqc ext))) 
-                     hyp 
-    ...| (lkupRes , isJust , refl) 
-      with insert-target prf (λ { x → neg (cong ((_qcCertifies ∘ proj₁) <M$>_) x) }) isJust 
-    ...| refl , refl = x , refl , refl , {!!}
+      with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert (insert-qc bt vqc ext))
+         | inspect (lookup (Abs.qCertBlockId x)) (_btIdToQuorumCert (insert-qc bt vqc ext))
+    ...| nothing | _     = ⊥-elim hyp
+    ...| just γq | [ R ]
+      with insert-target prf (λ abs → neg (maybe-lift ((x ≋QC_) ∘ α-QC) hyp abs)) R 
+    ...| refl , refl = x , refl , refl , proj₂ hyp
 
     -- The inserted record is an element of the update blocktree.
     elem : (ext : ExtendsQC bt vqc) → Abs.Q (α-QC vqc) ∈BT insert-qc bt vqc ext
@@ -599,25 +616,28 @@ module LibraBFT.Concrete.BlockTree
                              {v = vqc} 
                              {kvm = bt ^∙ btIdToQuorumCert} 
                              notThere 
-            = refl
+            = refl , refl
 
     -- Inserting in a correct blocktree yeilds a correct blocktree.
     correct : (ext : ExtendsQC bt vqc) → Correct bt → Correct (insert-qc bt vqc ext)
     correct ext cbt s s∈post 
       with s ∈BT? bt 
-    ...| yes s∈bt = rc-grow (stable ext) (cbt s s∈bt)
+    ...| yes s∈bt = rc-grow (λ {r} r∈bt → stable ext {r} r∈bt) (cbt s s∈bt)
     ...| no  s∉bt 
-      with target ext s∉bt s∈post 
+      with target ext {s} s∉bt s∈post 
     ...| (q , refl , refl , refl) 
       with ext
     ...| e@(extends {r = r} a canI (B←Q refl refl))
        = step {r' = Abs.Q q}
-              (rc-grow (stable (extends a canI (B←Q refl refl))) (cbt r a)) 
-              (B←Q {!!} refl) {elem e}
+              (rc-grow (λ {r} r∈bt → stable (extends a canI (B←Q refl refl)) {r} r∈bt) (cbt r a)) 
+              (B←Q refl refl) {elem e}
 
+{-
     locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                  → LockedRound (insert-qc bt vqc ext)
     locked-round ext valid {R} α hα {q} {rc} {n} c2 va {q'} rc' va' hyp = {!!}
+-}
+
 
 {-
        = WithRSS.step (rc-grow (stable (extends a canI r←r')) (cbt r a)) 
@@ -926,3 +946,5 @@ module LibraBFT.Concrete.BlockTree
 --       (insert-ok-votes-only-once  rss r ext vrss)
 --       (insert-ok-locked-round     rss r ext vrss)
 -- -}
+
+

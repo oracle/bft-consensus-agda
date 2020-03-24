@@ -184,6 +184,14 @@ module LibraBFT.Prelude where
             → ∃[ x' ] (x ≡ just x' × f x' ≡ y) 
   <M$>-univ f (just x) refl = x , (refl , refl)
 
+  maybe-lift : {A : Set}
+             → {mx : Maybe A}{x : A}
+             → (P : A → Set)
+             → P x → mx ≡ just x
+             → maybe {B = const Set} P ⊥ mx
+  maybe-lift {mx = just .x} {x} P px refl = px
+
+
   <M$>-nothing : ∀ {a b}{A : Set a}{B : Set b}(f : A → B)
                → f <M$> nothing ≡ nothing
   <M$>-nothing _ = refl
