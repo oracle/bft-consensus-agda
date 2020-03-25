@@ -715,9 +715,9 @@ module LibraBFT.Concrete.BlockTree
     ...| yes qOld | yes q'Old 
        = ValidBT.votes-once-rule valid α hα {q} {q'} qOld q'Old va va' hyp
     -- 0.2 Both are new; hence, certifying the same block at the same round;
-    --     This means that both botes va and va' hace the same vBlockUID and vRound,
+    --     This means that both votes va and va' have the same vBlockUID and vRound,
     --     the author is the same and their order is the same by hypothesis,
-    --     hence, they are the same.
+    --     hence, the votes must be the same.
     ...| no  qNew | no  q'New 
       with target ext {Abs.Q q} qNew q∈bt | target ext {Abs.Q q'} q'New q'∈bt
     ...| (γ , refl , refl , refl) | (γ' , refl , refl , refl)
@@ -726,12 +726,13 @@ module LibraBFT.Concrete.BlockTree
       with witness (Any-lookup-correct va)  (Abs.qVotes-C3 q)
          | witness (Any-lookup-correct va') (Abs.qVotes-C3 q')
     ...| bUID-eq | bUID-eq' 
-    -- 0.2.1 Similarly for rounds
+    -- 0.2.1 Extract round equality
       with witness (Any-lookup-correct va)  (Abs.qVotes-C4 q)
          | witness (Any-lookup-correct va') (Abs.qVotes-C4 q')
     ...| bR-eq | bR-eq' 
       with Any-witness va | Any-witness va'
     ...| bAuthor-eq | bAuthor-eq'
+      -- Assemble everything with a fancy congruence
       = Abs.Vote-cong-η (trans bAuthor-eq (sym bAuthor-eq')) 
                         (trans bUID-eq    (sym bUID-eq')) 
                         (trans bR-eq      (sym bR-eq')) 
