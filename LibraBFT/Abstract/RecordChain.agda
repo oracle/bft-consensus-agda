@@ -211,6 +211,11 @@ module LibraBFT.Abstract.RecordChain
            → rc₀ ≈RC rc₁
            → r₀ ∈RC rc₁
 
+  rc-←-maxRound : ∀{r r'}(rc : RecordChain r') → r ∈RC rc → round r ≤ round r'
+  rc-←-maxRound rc here                 = ≤-refl
+  rc-←-maxRound rc (transp n x)         = rc-←-maxRound _ n
+  rc-←-maxRound .(step _ p) (there p n) = ≤-trans (rc-←-maxRound _ n) (←-round-≤ p)
+
   ∈RC-empty-I : ∀{r} → r ∈RC empty → r ≡ I
   ∈RC-empty-I here                      = refl
   ∈RC-empty-I (transp old (eq-empty x)) = ∈RC-empty-I old

@@ -59,6 +59,11 @@ module LibraBFT.Abstract.Records.Extends
   ←-round-≤ (Q←B r h)    = <⇒≤ r
   ←-round-≤ (B←Q refl h) = ≤-refl
 
+  ←←-round-< : ∀{r r₀ r₁} → r ← r₀ → r₀ ← r₁ → round r < round r₁
+  ←←-round-< (I←B r h)     (B←Q refl _) = r
+  ←←-round-< (Q←B r h)     rr           = ≤-trans r (←-round-≤ rr)
+  ←←-round-< (B←Q refl h)  (Q←B prf _)  = prf
+
   -- LemmaS1, clause 2: injectivity of _←_
   lemmaS1-2 : ∀{r₀ r₁ r₂}
             → r₀ ← r₂ → r₁ ← r₂

@@ -15,6 +15,8 @@ module LibraBFT.Concrete.BlockTree
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
     (ec  : Meta EpochConfig)
+    -- We might need some system level info!
+    -- (sys : ParticularPropertiesOfTheSystemModel)
  where
 
   open import LibraBFT.Concrete.Util.KVMap
@@ -357,6 +359,32 @@ module LibraBFT.Concrete.BlockTree
      = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
                                               (_btIdToQuorumCert bt) prf }
 
+
+  -----------------------------------------------------------------------------
+  -- TEMPORARY: Properties we will need from the syste's layer as postulates --
+  -----------------------------------------------------------------------------
+
+  -- VCM: I'm writing postulates for now with the intent of making clear exactly where
+  -- the proof is. The idea is that later we can move this postulate to a module parameter
+  -- and we know exactly the invariants we need to ensure at the algorithmic level. 
+
+
+  -- In the vote-order lemma for QCs, I can ulfold and extract information all the way
+  -- to having proof that α issued the same voteOrder to vote for two different blocks.
+  -- But we also have that α is honest, so this shouldn't be possible.
+  --
+  -- I'm not too worried about how we plan on putting the pieces together for now.
+  -- so I suggest that we keep these postulates as long as we agree that these postulates
+  -- represent states and actions that will never be seen or performed by a node running 
+  -- our code.
+  postulate
+    α-BROKE-VOTE-ORDER : ∀{bt α q q'} 
+                       → (Abs.Q q) ∈BT bt → (Abs.Q q') ∈BT bt
+                       → (va  : α Abs.∈QC q)(va' : α Abs.∈QC q') 
+                       → Abs.voteOrder (Abs.∈QC-Vote q va) ≡ Abs.voteOrder (Abs.∈QC-Vote q' va')
+                       → Abs.qCertBlockId q ≢ Abs.qCertBlockId q'
+                       → ⊥
+
   -- ** Properties
   --
   -- *** Insertion of Blocks
@@ -502,6 +530,8 @@ module LibraBFT.Concrete.BlockTree
     -- If we have a record chain leading to a quorum certificate in the 
     -- state that results from the insertion of a block; we can have the same record chain
     -- wihtout said block.
+    --
+    -- We need this because ... TODO FINISH
     rc-shrink : (ext : ExtendsB bt cb) 
               → Correct bt → ∀{q}
               → RecordChain (insert-block bt cb ext) (Abs.Q q)
@@ -652,6 +682,75 @@ module LibraBFT.Concrete.BlockTree
               (rc-grow (λ {r} r∈bt → stable (extends a canI (B←Q refl refl)) {r} r∈bt) (cbt r a)) 
               (B←Q refl refl) {elem e}
 
+    votes-once : (ext : ExtendsQC bt vqc) → ValidBT bt → VotesOnlyOnce (insert-qc bt vqc ext)
+    votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+    -- 0. Which of the QC's are present in the pre-state?
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    -- 0.1 Both of them; inductive call.
+    ...| yes qOld | yes q'Old 
+       = ValidBT.votes-once-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+    -- 0.2 Both are new; hence, certifying the same block at the same round;
+    --     This means that both botes va and va' hace the same vBlockUID and vRound,
+    --     the author is the same and their order is the same by hypothesis,
+    --     hence, they are the same.
+    ...| no  qNew | no  q'New 
+      with target ext {Abs.Q q} qNew q∈bt | target ext {Abs.Q q'} q'New q'∈bt
+    ...| (γ , refl , refl , refl) | (γ' , refl , refl , refl)
+    -- 0.2.0 Albeit painful; we will extract that the blockUID of a vote
+    -- is the same as the bCertBlockId from the QC its in
+      with witness (Any-lookup-correct va)  (Abs.qVotes-C3 q)
+         | witness (Any-lookup-correct va') (Abs.qVotes-C3 q')
+    ...| bUID-eq | bUID-eq' 
+    -- 0.2.1 Similarly for rounds
+      with witness (Any-lookup-correct va)  (Abs.qVotes-C4 q)
+         | witness (Any-lookup-correct va') (Abs.qVotes-C4 q')
+    ...| bR-eq | bR-eq' 
+      with Any-witness va | Any-witness va'
+    ...| bAuthor-eq | bAuthor-eq'
+      = Abs.Vote-cong-η (trans bAuthor-eq (sym bAuthor-eq')) 
+                        (trans bUID-eq    (sym bUID-eq')) 
+                        (trans bR-eq      (sym bR-eq')) 
+                        hyp
+    -- 0.3 One qc is old, the other has just been inserted; but
+    -- this means there is a mismatch in the voteOrders issued by α.
+    -- Namelly, with a bit of gymnastics we can extract that
+    -- `qCertBlockId q' ≢ qCertBlockId q`, which implies
+    -- that `vBlockUID va ≢ `vBlockUID va'`, but `hyp` has type
+    -- `voteOrder va ≡ voteOrder va'`, hence, α used the same vote
+    -- order to cast votes for different blocks. If α is hones, this can't happen.
+    votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+       | no  qNew | yes q'Old 
+      -- AGDA_MAGIC: we need to pass some paramters to this function at this points because
+      -- the call to 'target' below will rewrite things; Yet, the last parameter
+      -- to this postulate is passed at the very end, 11 lines below.
+      with α-BROKE-VOTE-ORDER {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
+    ...| α-broke-things
+      with target ext {Abs.Q q} qNew q∈bt 
+    ...| (.q , refl , refl , refl) 
+      with ∈BT-Q-univ {q'} {bt} q'Old
+    ...| (vqcOld , isJust , refl , refl) 
+      with ext
+    ...| e@(extends _ (Q _ notThere) _)
+      with Abs.qCertBlockId q ≟Hash Abs.qCertBlockId q'
+    ...| yes refl  = ⊥-elim (maybe-⊥ isJust notThere)
+    ...| no  q≢q'  = ⊥-elim (α-broke-things q≢q')
+    -- 0.4 One qc is old, the other has just been inserted; this
+    -- is analogous to 0.3 above, but with q and q' swapped.
+    votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+       | yes qOld | no  q'New 
+      with α-BROKE-VOTE-ORDER {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
+    ...| α-broke-things
+      with target ext {Abs.Q q'} q'New q'∈bt 
+    ...| (.q' , refl , refl , refl) 
+      with ∈BT-Q-univ {q} {bt} qOld
+    ...| (vqcOld , isJust , refl , refl) 
+      with ext
+    ...| e@(extends _ (Q _ notThere) _)
+      with Abs.qCertBlockId q ≟Hash Abs.qCertBlockId q'
+    ...| yes refl  = ⊥-elim (maybe-⊥ isJust notThere)
+    ...| no  q≢q'  = ⊥-elim (α-broke-things q≢q')
+
+
     incr-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                → IncreasingRound (insert-qc bt vqc ext)
     incr-round ext@(extends _ (Q _ notThere) _) valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
@@ -670,10 +769,9 @@ module LibraBFT.Concrete.BlockTree
     -- The case where both q and q' are the same should be impossible: α is honest
     -- and promisses to respect the incr-round-rule; hence, it can be that α voted twice
     -- for the same block.
-    ...| yes refl | yes refl = {!!}
-    ...| no vqc≢q | yes refl = {!!}
+    ...| yes refl | yes refl  = {!!}
+    ...| no vqc≢q | yes refl  = {!!}
     ...| yes refl | no vqc≢q' = {!!}
-
 
     locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                  → LockedRound (insert-qc bt vqc ext)
@@ -700,6 +798,7 @@ module LibraBFT.Concrete.BlockTree
     -- case directly above.
     ...| yes (refl , refl) | no vqc≢q' 
        = {!!}
+
  
     -- TODO: Our algorithm will ensure we never cast a vote to a proposal
     -- that references a round smallar than our previous round. We will need
@@ -1016,4 +1115,36 @@ module LibraBFT.Concrete.BlockTree
 --       (insert-ok-locked-round     rss r ext vrss)
 -- -}
 
+{-
 
+TODO: refine; 
+
+A record chain is defined in terms of a bt;
+when we modify this bt, we need to "transport" the record chain
+in terms of the /new/ bt. No magic here, this is just
+dependent-types boilerplate.
+
+RecordChain : BlockTree → Record → Set
+
+
+   insert-block bt
+
+     ^
+     |
+     |
+
+
+     bt                   I <- B <- Q <- B1 <- QC1 <- B2 <- QC2 <- B3
+                          ⌞₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋|
+                                   rc : RecordChain bt B2
+
+      |
+      |
+      |
+      v
+
+  insert-qc bt     I <- B <- Q <- B1 <- QC1 <- B2 <- QC2 <- B3 <- QC3
+                   ⌞₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋₋|
+                            rc-transp rc : RecordChain (insert-qc bt) B2
+
+-}

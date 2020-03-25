@@ -35,7 +35,7 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.Any
     using (Any; here; there)
-    renaming (lookup to Any-lookup; map to Any-map)
+    renaming (lookup to Any-lookup; map to Any-map; satisfied to Any-satisfied)
     public
 
   open import Data.List.Relation.Unary.All

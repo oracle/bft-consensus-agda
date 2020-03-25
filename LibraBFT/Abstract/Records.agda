@@ -32,6 +32,13 @@ module LibraBFT.Abstract.Records
       --vState     : State
   open Vote public
 
+  Vote-cong-η : ∀{v v'}
+              → vAuthor v ≡ vAuthor v' → vBlockUID v ≡ vBlockUID v'
+              → vRound v ≡ vRound v' → vOrder v ≡ vOrder v'
+              → v ≡ v'
+  Vote-cong-η refl refl refl refl = refl
+
+
   -- * Quorum Certificates
   --
   -- These are intersting. A Valid quorum certificate contains
@@ -147,7 +154,6 @@ module LibraBFT.Abstract.Records
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
   ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
   ∈QC-Vote q a∈q = Any-lookup a∈q
-
 
   ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
                    → (∈QC-Vote {a} q p) ∈ qcVotes q

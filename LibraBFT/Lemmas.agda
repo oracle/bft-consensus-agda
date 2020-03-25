@@ -110,9 +110,17 @@ module LibraBFT.Lemmas where
    = cong₂ _∷_ (OnHead-prop _<_ x l hyp x₁ x₂) 
                (IsSorted-prop _<_ l hyp a b)
 
- Any-lookup-correct :  ∀ {a b} {A : Set a} {B : Set b} {tgt : B} {l : List A} {f : A → B} → (p : Any (λ x → f x ≡ tgt) l) → Any-lookup p ∈ l
+ Any-lookup-correct :  ∀ {a b}{A : Set a}{B : Set b}{tgt : B}{l : List A}{f : A → B} 
+                    → (p : Any (λ x → f x ≡ tgt) l) 
+                    → Any-lookup p ∈ l
  Any-lookup-correct (here px) = here refl
  Any-lookup-correct (there p) = there (Any-lookup-correct p)
+
+ Any-witness : ∀ {a b} {A : Set a} {l : List A} {P : A → Set b}
+             → (p : Any P l) → P (Any-lookup p)
+ Any-witness (here px) = px
+ Any-witness (there x) = Any-witness x
+  
 
  witness : {A : Set}{P : A → Set}{x : A}{xs : List A}
          → x ∈ xs → All P xs → P x
