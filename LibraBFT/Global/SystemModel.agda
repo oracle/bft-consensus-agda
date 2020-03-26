@@ -71,6 +71,9 @@ module LibraBFT.Global.SystemModel
  sendMessage : ∀ {pre : SystemState} → Message → Peer → SystemState
  sendMessage {pre} msg p = record pre { sentMessages = sendMsg (sentMessages pre) (p , msg) }
 
+ sendMessagesFromActions : SystemState → PeerState → List Action → SentMessages
+ sendMessagesFromActions st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
+
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
  data Step (p : Peer) (pre : SystemState): Instant → SystemState → Set where
@@ -78,7 +81,7 @@ module LibraBFT.Global.SystemModel
             → (canInit : CanInit p)
             → (ready : KVMap.lookup p (peerStates pre) ≡ nothing)
             → Step p pre ts (sysState
-                           (foldr (flip sendMsg) (sentMessages pre) (actionsToSends (proj₁ (Init p canInit)) (proj₂ (Init p canInit))))
+                           (sendMessagesFromActions pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
                            (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
 
    recvMsg : ∀ {m : Message} {to : Peer} {env : Env} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
@@ -87,7 +90,7 @@ module LibraBFT.Global.SystemModel
            → (ready : KVMap.lookup p (peerStates pre) ≡ just ppre)
            → RWST-run (MsgHandler m ts) env ppre ≡ (unit , ppost , acts)
            → Step p pre ts (sysState
-                             (foldr (flip sendMsg) (sentMessages pre) (actionsToSends ppost acts))
+                             (sendMessagesFromActions pre ppost acts)
                              (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
 
    cheat : ∀ (ts : Instant) (to : Peer) (m : Message)
@@ -179,7 +182,7 @@ module LibraBFT.Global.SystemModel
     with theStep
  ...| initPeer ts cI rdy
     with insert-target {k = by} {k' = by} rdy ((flip maybe-⊥) nothingBefore) justAfter
- ...| xxx , yyy = refl , tt , {!!} -- ((sym xxx) , yyy
+ ...| _ , yyy = refl , tt , yyy
 
  initPeerLemma {by = by} {p = p} {theStep = theStep} nothingBefore justAfter
     | yes refl
