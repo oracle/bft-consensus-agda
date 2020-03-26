@@ -113,8 +113,11 @@ module LibraBFT.Example.Example where
  ...| no  _  = nothing , []
  ...| yes _
     with st ^∙ newValSender
- ...| nothing = just (gotFirstAdvance (msg ^∙ author)) , send (suc (msg ^∙ val)) ts ∷ []
- ...| just 1stSender = just (confirmedAdvance (msg ^∙ val)) , announce (msg ^∙ val) ∷ []
+ ...| nothing = just (gotFirstAdvance (msg ^∙ author)) , []
+ ...| just 1stSender = just (confirmedAdvance (msg ^∙ val))
+                     , announce (msg ^∙ val)       -- Indicates agreement that we have reached this value
+                     ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
+                     ∷ []
 
  handle : Message → Instant → RWST Unit Action State Unit
  handle msg ts = do  -- TODO: Check signature
