@@ -93,8 +93,7 @@ module LibraBFT.Example.Example where
  cA-injective : ∀ {n m} → confirmedAdvance n ≡ confirmedAdvance m → n ≡ m
  cA-injective refl = refl
 
-{-
- _≟HR_ : (hr1 hr2 : handlerResult) → Dec (hr1 ≡ hr2)
+ _≟HR_ : (hr1 hr2 : HandlerResult) → Dec (hr1 ≡ hr2)
  (gotFirstAdvance  _) ≟HR (confirmedAdvance _) = no λ ()
  (confirmedAdvance _) ≟HR (gotFirstAdvance  _) = no λ ()
  (gotFirstAdvance p1) ≟HR (gotFirstAdvance p2) with p1 ≟ p2
@@ -103,7 +102,6 @@ module LibraBFT.Example.Example where
  (confirmedAdvance v1) ≟HR (confirmedAdvance v2) with v1 ≟ v2
  ...| yes refl = yes refl
  ...| no  neq  = no (neq ∘ cA-injective)
--}
 
  pureHandler : Message → Instant → State → Maybe HandlerResult × List Action
  pureHandler msg ts st
@@ -132,16 +130,34 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
+ nothingNoEffect : ∀ {ppre m ts env}
+                 → proj₁ (pureHandler m ts ppre) ≡ nothing
+                 → (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre) ≡ ppre
+ nothingNoEffect {ppre} {m} {ts} {env} prf rewrite prf = refl
+
+ gFAEffect : ∀   {ppre ppost m ts env sender}
+                 → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
+                 → proj₁ (pureHandler m ts ppre) ≡ just (gotFirstAdvance sender)
+                 → :newValSender ppost ≡ just sender
+                 × :maxSeen ppost ≡ :maxSeen ppre
+ gFAEffect {ppre} {m} {ts} {env} ppost≡ prf rewrite ppost≡ | prf = refl , refl
+
+ cAEffect : ∀   {ppre ppost m ts env newMax}
+                 → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
+                 → proj₁ (pureHandler m ts ppre) ≡ just (confirmedAdvance newMax)
+                 → :newValSender ppost ≡ nothing
+                 × :maxSeen      ppost ≡ newMax
+ cAEffect {ppre} {ppost} {m} {ts} {env} ppost≡ prf rewrite ppost≡ | prf = refl , refl
+
  modifiesMaxSeen : ∀ {ppre ppost m ts env}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
                  → ppre  ^∙ maxSeen ≢ ppost ^∙ maxSeen
                  → proj₁ (pureHandler m ts ppre) ≡ just (confirmedAdvance (ppost ^∙ maxSeen))
-                 × ppost ^∙ newValSender ≡ nothing
  modifiesMaxSeen {ppre} {ppost} {m} {ts} {env} run≡ pre≢post rewrite run≡
     with proj₁ (pureHandler m ts ppre)
  ...| nothing                    = ⊥-elim (pre≢post refl)
  ...| just (gotFirstAdvance p)   = ⊥-elim (pre≢post refl)
- ...| just (confirmedAdvance v') = refl , refl
+ ...| just (confirmedAdvance v') = refl
 
  modifiesNewSenderVal : ∀ {ppre ppost m ts env v}
                       → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
@@ -311,15 +327,17 @@ module LibraBFT.Example.Example where
     | yes refl
     | pSt≡ppost
     | yes refl | no curMaxChanged
-    -- Because maxSeen changed, the step sets newValSender to nothing, thus ensuring that antecedent
-    -- does not hold in the poststate
+    -- Because maxSeen changed, the handlerResult is a confirmedAdvance
     with modifiesMaxSeen {ppre} {ppost} {msg}
            (sym (cong proj₁ (cong proj₂ run≡)))
            (subst (:maxSeen ppre ≢_)
                   (trans (sym max≡) (cong :maxSeen (sym pSt≡ppost)))
                   (curMaxChanged ∘ sym))
- ...| _ , falsifiesAntecedent = ⊥-elim (maybe-⊥ sender≡ (trans (cong :newValSender (sym pSt≡ppost)) falsifiesAntecedent))
-
+ ...| isConfirmedAdvance rewrite (sym pSt≡ppost)
+    -- Therefore, the step sets newValSender to nothing, thus ensuring that antecedent does not hold
+    -- in the poststate
+    with cAEffect {ppre} {ppost} {msg} (cong (proj₁ ∘ proj₂) (sym run≡)) isConfirmedAdvance
+ ...| senderBecomesNothing , _ = ⊥-elim (maybe-⊥ sender≡ senderBecomesNothing)
 
  -- TODO: so far, we have not modeled signature verification.  This should
  -- be done systematically by the system being modeled.  We should not make
