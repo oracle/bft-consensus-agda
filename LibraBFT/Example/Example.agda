@@ -134,6 +134,10 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
+ ---------------------------------------------------------------------------
+ -- Lemmas about the effects of steps, broken down by pureHandler results --
+ ---------------------------------------------------------------------------
+
  nothingNoEffect : ∀ {ppre m ts env}
                  → proj₁ (pureHandler m ts ppre) ≡ nothing
                  → (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre) ≡ ppre
@@ -152,6 +156,17 @@ module LibraBFT.Example.Example where
                  → :newValSender ppost ≡ nothing
                  × :maxSeen      ppost ≡ newMax
  cAEffect {ppre} {ppost} {m} {ts} {env} ppost≡ prf rewrite ppost≡ | prf = refl , refl
+
+
+ ----------------------------------------------------------------------------------
+ -- Lemmas about what the pureHandler result must be if certain variables change --
+ ----------------------------------------------------------------------------------
+
+ -- We can also include conclusions about the state change, which may be redundant with the
+ -- "effects" lemmas above.  This redundancy allows for more convenient use of such conclusions when
+ -- we are reasoning based on a state changes (such as in the "modifies*" lemmas below), while also
+ -- allowing the conclusions to be used when breaking down cases my pattern matching on pureHandler
+ -- results.  See demonstration of the two different approaches in the proof of rVWSRecvMsg below.
 
  modifiesMaxSeen : ∀ {ppre ppost m ts env}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
@@ -178,6 +193,10 @@ module LibraBFT.Example.Example where
  ...| no neq   = ⊥-elim (neq (just-injective jv))
  ...| yes refl = refl , refl
 
+ -----------------------------------------------------------------------------------
+ -- Lemmas that capture what conditions must hold for various pureHandler results --
+ -----------------------------------------------------------------------------------
+
  -- TODO: the structure of this mirrors pureHandler.  Maybe incorporate these proofs as Meta into
  -- pureHandler?
  modifiesNewSenderValCond : ∀ {st msg ts v}
@@ -194,16 +213,21 @@ module LibraBFT.Example.Example where
  ...| nothing = gFA-injective (just-injective handler≡) , newIsNext
  ...| just 1stSender = ⊥-elim (handlerResultConstructorDiff (sym (just-injective handler≡)))
 
+
+ -- Send actions cause messages to be sent, accounce actions do not
  exampleActionsToSends : State → Action → List (PeerId × Message)
  exampleActionsToSends s (announce _) = []
  exampleActionsToSends s (send n peer) =  (peer , (mkMessage (s ^∙ myId) n nothing)) ∷ []  -- TODO: sign message
 
+ -- Our simple model is that there is a single fault.  For simplicity, I've assumed for now that
+ -- it's peer 0, which is obviously not general enough, but enables progress on proofs.
  -- TODO: Use Meta to avoid "peeking"?
  dishonest : Message → PeerId → Set
  dishonest m peer with peer ≟ 0
  ...| no _  = ⊥
  ...| yes d = ⊤
 
+ -- Instantiate the SystemModel for our Example system
  open import LibraBFT.Global.SystemModel
                Instant
                PeerId
@@ -314,8 +338,8 @@ module LibraBFT.Example.Example where
                   (trans (sym sender≡) (cong :newValSender (sym pSt≡ppost)))
                   nVSChanged)
            (trans (cong :newValSender pSt≡ppost) sender≡)
- ...| handlerResult , maxSeenUnchanged
-    with curMax≟maxSeen
+ ...| handlerResult , maxSeenUnchanged  -- Here we use properties about the transition given by the modifies* lemma
+    with curMax≟maxSeen                 -- In contrast, below we use the "effects" lemma separately.
     -- Again the relevant message was already sent (∈SM-pre), and the step does not unsend it.  From
     -- the condition required for this step, we can establish that the message has the required
     -- values.
@@ -340,6 +364,8 @@ module LibraBFT.Example.Example where
  ...| isConfirmedAdvance rewrite (sym pSt≡ppost)
     -- Therefore, the step sets newValSender to nothing, thus ensuring that antecedent does not hold
     -- in the poststate
+    -- Here we use the "effects" lemma, which is a little less convenient, but more general.  Keeping it
+    -- this way for demonstration purposes.
     with cAEffect {ppre} {ppost} {msg} (cong (proj₁ ∘ proj₂) (sym run≡)) isConfirmedAdvance
  ...| senderBecomesNothing , _ = ⊥-elim (maybe-⊥ sender≡ senderBecomesNothing)
 
@@ -348,7 +374,6 @@ module LibraBFT.Example.Example where
  -- the SystemModel ensure messages received have their signature verified.
  -- A question is where the public key is, and how this is derived from the
  -- received message.
-
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
