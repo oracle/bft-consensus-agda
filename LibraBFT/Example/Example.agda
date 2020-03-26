@@ -14,7 +14,7 @@ module LibraBFT.Example.Example where
 
  Here we model a super simple distributed system, in which a peer
  can send a message with a value that is one higher than a message
- previously sent by an honest peer.  A peer can also announce a
+ previously sent by an honest peer.  A peer can also "announce" a
  value, provided some honest peer has sent all previous values.
  There can be one dishonest peer, so an honest peer must see the
  same value from two different peers before being convinced that
@@ -45,7 +45,7 @@ module LibraBFT.Example.Example where
             (author ∷ val ∷ sigMB ∷ [])
 
  data Action : Set where
-   announce : ℕ → Action
+   announce : ℕ → Action           -- This is analogous to "commit"
    send     : ℕ → PeerId → Action
 
 
@@ -75,7 +75,7 @@ module LibraBFT.Example.Example where
  canInit p = ⊤
 
  initialStateAndMessages : (p : PeerId) → canInit p → State × List Action
- initialStateAndMessages p _ = mkState p 0 nothing , []
+ initialStateAndMessages p _ = mkState p 0 nothing , []  -- TODO : send something!
 
  open RWST-do
 
@@ -103,14 +103,15 @@ module LibraBFT.Example.Example where
  ...| yes refl = yes refl
  ...| no  neq  = no (neq ∘ cA-injective)
 
+ -- TODO: none of the Dec proofs are used here; can this be simplified?
  pureHandler : Message → Instant → State → Maybe HandlerResult × List Action
  pureHandler msg ts st
     with st ^∙ maxSeen  <? msg ^∙ val
  ...| no  _  = nothing , []
- ...| yes newMax
+ ...| yes _
     with msg ^∙ val ≟ suc (st ^∙ maxSeen)
  ...| no  _  = nothing , []
- ...| yes newIsNext
+ ...| yes _
     with st ^∙ newValSender
  ...| nothing = just (gotFirstAdvance (msg ^∙ author)) , send (suc (msg ^∙ val)) ts ∷ []
  ...| just 1stSender = just (confirmedAdvance (msg ^∙ val)) , announce (msg ^∙ val) ∷ []
@@ -192,7 +193,7 @@ module LibraBFT.Example.Example where
 
  exampleActionsToSends : State → Action → List (PeerId × Message)
  exampleActionsToSends s (announce _) = []
- exampleActionsToSends s (send n peer) =  (peer , (mkMessage (s ^∙ myId) n nothing)) ∷ []
+ exampleActionsToSends s (send n peer) =  (peer , (mkMessage (s ^∙ myId) n nothing)) ∷ []  -- TODO: sign message
 
  -- TODO: Use Meta to avoid "peeking"?
  dishonest : Message → PeerId → Set
