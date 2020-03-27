@@ -379,3 +379,50 @@ module LibraBFT.Example.Example where
  rVWSInvariant (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
  rVWSInvariant (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
  rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg ts ∈SM-pre ready trans) tt 
+
+
+ -- Another way of approaching the proof would be to do case analysis on pureHandler results.
+ -- In this example, if proj₁ (pureHandler msg ts ppre) =
+ --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
+ --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
+ --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
+ -- Maybe this will result in a simpler proof, not sure.  But for some reason I cannot figure out how to pattern match on
+ -- the pureHandler result, and am seeing some strange behavior, so can't make progress on this approach.
+ -- TODO: Victor, please help figure out what's wrong here.  To reproduce:
+ -- * In the first hole below, where I have filled in ppre, do ctrl-space to make it take ppre.  It seems happy.
+ -- * Now do ctrl-c ctrl-l to typecheck whole file.  It produces an error.
+ -- I can't fgure out the error or understand the with abstraction documentation sufficiently to follow advice there.
+ -- https://agda.readthedocs.io/en/v2.6.0.1/language/with-abstraction.html#ill-typed-with-abstractions says:
+ --    "To get a more informative error, pointing to the location in the type where the error is, you
+ --    can copy and paste the with-function type from the error message and try to type check it
+ --    separately."
+ -- Surely it should either give an error when I first type ctrl-space, or be happy when I do ctrl-c ctrl-l subsequently.
+ -- Seems like a bug in agda, even though I have probably done something wrong.
+
+ rVWSInvariant2 : Invariant recordedValueWasSent
+
+ rVWSRecvMsg2 : ∀ {pre post by ts}
+     → ReachableSystemState pre
+     → (theStep : Step by pre ts post)
+     → isRecvMsg theStep
+     → recordedValueWasSent post
+ rVWSRecvMsg2 {pre} {post} {by} {ts} preReach theStep isInit {pSt} sender p pSt≡ sender≡ max≡
+    with by ≟ p
+ ...| no xx
+    -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
+    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+
+ rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    with pureHandler msg ts {! ppre!}
+ ...| nothing                    , _ = {!!}
+ ...| just (confirmedAdvance xx) , _ = {!!}
+ ...| just (gotFirstAdvance xx)  , _ = {!!}
+ 
+
+ rVWSInvariant2 init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
+ rVWSInvariant2 (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
+ rVWSInvariant2 (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
+ rVWSInvariant2 (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg2 preReach (recvMsg ts ∈SM-pre ready trans) tt
