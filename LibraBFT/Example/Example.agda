@@ -80,10 +80,28 @@ module LibraBFT.Example.Example where
  open RWST-do
 
  data HandlerResult : Set where
+   -- TODO: consiser a "doNothing" result, rather than introducing an annoying Maybe return from pureHandler
    gotFirstAdvance  : PeerId → HandlerResult
    confirmedAdvance : ℕ → HandlerResult
 
- -- TODO: is this really necessary?
+ isGotFirstAdvance : HandlerResult → Maybe PeerId
+ isGotFirstAdvance (confirmedAdvance _) = nothing
+ isGotFirstAdvance (gotFirstAdvance n) = just n
+
+ isGotFirstAdvance≡ : {hR : HandlerResult}{p : PeerId}
+                    → isGotFirstAdvance hR ≡ just p
+                    → hR ≡ gotFirstAdvance p
+ isGotFirstAdvance≡ {gotFirstAdvance p'} hRj = cong gotFirstAdvance (just-injective hRj)
+
+ isConfirmedAdvance : HandlerResult → Maybe ℕ
+ isConfirmedAdvance (confirmedAdvance n) = just n
+ isConfirmedAdvance (gotFirstAdvance _)  = nothing
+
+ isConfirmedAdvance≡ : {hR : HandlerResult}{n : ℕ}
+                     → isConfirmedAdvance hR ≡ just n
+                     → hR ≡ confirmedAdvance n
+ isConfirmedAdvance≡ {confirmedAdvance n'} hRj = cong confirmedAdvance (just-injective hRj)
+
  handlerResultConstructorDiff : ∀ {p n} → gotFirstAdvance p ≢ confirmedAdvance n
  handlerResultConstructorDiff ()
 
@@ -119,6 +137,16 @@ module LibraBFT.Example.Example where
                      ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
                      ∷ []
 
+ hRMustBeSomething : ∀ {hR : Maybe HandlerResult} {msg} {ts} {st}
+                   → hR ≡ proj₁ (pureHandler msg ts st)
+                   → Maybe-map isGotFirstAdvance hR ≡ nothing
+                   → Maybe-map isConfirmedAdvance hR ≡ nothing
+                   → hR ≢ nothing
+                   → ⊥
+ hRMustBeSomething {nothing} hR≡ ¬gFA ¬cA ¬nothing = ¬nothing refl
+ hRMustBeSomething {just (gotFirstAdvance p)}  hR≡ ¬gFA ¬cA ¬nothing = maybe-⊥ (Maybe-map-cool-2 {f = isGotFirstAdvance}  refl) ¬gFA
+ hRMustBeSomething {just (confirmedAdvance n)} hR≡ ¬gFA ¬cA ¬nothing = maybe-⊥ (Maybe-map-cool-2 {f = isConfirmedAdvance} refl) ¬cA
+
  handle : Message → Instant → RWST Unit Action State Unit
  handle msg ts = do  -- TODO: Check signature
    st ← get
@@ -138,10 +166,11 @@ module LibraBFT.Example.Example where
  -- Lemmas about the effects of steps, broken down by pureHandler results --
  ---------------------------------------------------------------------------
 
- nothingNoEffect : ∀ {ppre m ts env}
+ nothingNoEffect : ∀ {ppre  ppost m ts env}
                  → proj₁ (pureHandler m ts ppre) ≡ nothing
-                 → (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre) ≡ ppre
- nothingNoEffect {ppre} {m} {ts} {env} prf rewrite prf = refl
+                 → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
+                 → ppre ≡ ppost
+ nothingNoEffect {ppre} {m} {ts} {env} {ppost} isNothing ppost≡ rewrite isNothing | ppost≡ = refl
 
  gFAEffect : ∀   {ppre ppost m ts env sender}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
@@ -381,24 +410,11 @@ module LibraBFT.Example.Example where
  rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg ts ∈SM-pre ready trans) tt 
 
 
- -- Another way of approaching the proof would be to do case analysis on pureHandler results.
+ -- Another way of approaching the proof is to do case analysis on pureHandler results.
  -- In this example, if proj₁ (pureHandler msg ts ppre) =
  --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
  --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
- -- Maybe this will result in a simpler proof, not sure.  But for some reason I cannot figure out how to pattern match on
- -- the pureHandler result, and am seeing some strange behavior, so can't make progress on this approach.
- -- TODO: Victor, please help figure out what's wrong here.  To reproduce:
- -- * In the first hole below, where I have filled in ppre, do ctrl-space to make it take ppre.  It seems happy.
- -- * Now do ctrl-c ctrl-l to typecheck whole file.  It produces an error.
- -- I can't fgure out the error or understand the with abstraction documentation sufficiently to follow advice there.
- -- https://agda.readthedocs.io/en/v2.6.0.1/language/with-abstraction.html#ill-typed-with-abstractions says:
- --    "To get a more informative error, pointing to the location in the type where the error is, you
- --    can copy and paste the with-function type from the error message and try to type check it
- --    separately."
- -- Surely it should either give an error when I first type ctrl-space, or be happy when I do ctrl-c ctrl-l subsequently.
- -- Seems like a bug in agda, even though I have probably done something wrong.
-
  rVWSInvariant2 : Invariant recordedValueWasSent
 
  rVWSRecvMsg2 : ∀ {pre post by ts}
@@ -416,11 +432,45 @@ module LibraBFT.Example.Example where
  rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
-    with pureHandler msg ts {! ppre!}
- ...| nothing                    , _ = {!!}
- ...| just (confirmedAdvance xx) , _ = {!!}
- ...| just (gotFirstAdvance xx)  , _ = {!!}
- 
+    with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
+ ...| pSt≡ppost
+    with Maybe-≡-dec _≟HR_ (proj₁ (pureHandler msg ts ppre)) nothing
+ ...| yes hR≡nothing
+    with nothingNoEffect {ppre} {ppost} {msg} {ts} {env} hR≡nothing (cong (proj₁ ∘ proj₂) (sym run≡))
+ ...| noChange
+    with (sym (trans noChange pSt≡ppost))
+ ...| pSt≡ppre
+    with rVWSInvariant preReach {pSt = ppre} sender p rdy
+                       (subst ((_≡ just sender) ∘ :newValSender) pSt≡ppre sender≡)
+                       (subst ((_≡ curMax) ∘ :maxSeen)           pSt≡ppre max≡)
+ ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+
+ rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    | pSt≡ppost
+    | no hR≢nothing
+    with (Maybe-map isGotFirstAdvance) (proj₁ (pureHandler msg ts ppre)) | inspect
+         (Maybe-map isGotFirstAdvance) (proj₁ (pureHandler msg ts ppre))
+ ...| just n | [ R ] = {!!}
+
+ rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+    | yes refl
+    | pSt≡ppost
+    | no hR≢nothing
+    | nothing | [ hR≢gFA ]
+    with (Maybe-map isConfirmedAdvance) (proj₁ (pureHandler msg ts ppre)) | inspect
+         (Maybe-map isConfirmedAdvance) (proj₁ (pureHandler msg ts ppre))
+ ...| nothing | [ hR≢cA ] = ⊥-elim (hRMustBeSomething {proj₁ (pureHandler msg ts ppre)} {msg = msg} {ts = ts} {st = ppre} refl hR≢gFA hR≢cA hR≢nothing)
+ ...| just nothing | [ xxx ] = ⊥-elim {!!}
+ ...| just (just n') | [ hR≡cA ]
+    with  cAEffect {ppre} {ppost} {msg} {ts} {env} {n'} (cong (proj₁ ∘ proj₂) (sym run≡)) {!  !}   -- Maybe-map-cool-1 {f = isConfirmedAdvance} hR≡cA 
+ ...| xxx = {!!}
+
+--    with cAEffect {ppre} {ppost} {msg} (cong (proj₁ ∘ proj₂) (sym run≡)) isConfirmedAdvance
+-- ...| senderBecomesNothing = ⊥-elim (maybe-⊥ sender≡ senderBecomesNothing)
+
 
  rVWSInvariant2 init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant2 (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
