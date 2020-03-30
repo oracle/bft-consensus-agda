@@ -80,13 +80,14 @@ module LibraBFT.Example.Example where
  open RWST-do
 
  data HandlerResult : Set where
-   -- TODO: consiser a "doNothing" result, rather than introducing an annoying Maybe return from pureHandler
+   noChange         : HandlerResult
    gotFirstAdvance  : PeerId → HandlerResult
    confirmedAdvance : ℕ → HandlerResult
 
  isGotFirstAdvance : HandlerResult → Maybe PeerId
+ isGotFirstAdvance noChange             = nothing
  isGotFirstAdvance (confirmedAdvance _) = nothing
- isGotFirstAdvance (gotFirstAdvance n) = just n
+ isGotFirstAdvance (gotFirstAdvance n)  = just n
 
  isGotFirstAdvance≡ : {hR : HandlerResult}{p : PeerId}
                     → isGotFirstAdvance hR ≡ just p
@@ -94,6 +95,7 @@ module LibraBFT.Example.Example where
  isGotFirstAdvance≡ {gotFirstAdvance p'} hRj = cong gotFirstAdvance (just-injective hRj)
 
  isConfirmedAdvance : HandlerResult → Maybe ℕ
+ isConfirmedAdvance  noChange            = nothing
  isConfirmedAdvance (confirmedAdvance n) = just n
  isConfirmedAdvance (gotFirstAdvance _)  = nothing
 
@@ -105,6 +107,12 @@ module LibraBFT.Example.Example where
  handlerResultConstructorDiff : ∀ {p n} → gotFirstAdvance p ≢ confirmedAdvance n
  handlerResultConstructorDiff ()
 
+ handlerResultIsSomething : {hR : HandlerResult}
+                          → isConfirmedAdvance hR ≡ nothing
+                          → isGotFirstAdvance  hR ≡ nothing
+                          → hR ≡ noChange
+ handlerResultIsSomething {noChange} _ _ = refl
+
  gFA-injective : ∀ {n m} → gotFirstAdvance n ≡ gotFirstAdvance m → n ≡ m
  gFA-injective refl = refl
 
@@ -112,6 +120,11 @@ module LibraBFT.Example.Example where
  cA-injective refl = refl
 
  _≟HR_ : (hr1 hr2 : HandlerResult) → Dec (hr1 ≡ hr2)
+ noChange             ≟HR (confirmedAdvance _) = no λ ()
+ noChange             ≟HR (gotFirstAdvance  _) = no λ ()
+ noChange             ≟HR noChange             = yes refl
+ (gotFirstAdvance  _) ≟HR noChange             = no λ ()
+ (confirmedAdvance _) ≟HR noChange             = no λ ()
  (gotFirstAdvance  _) ≟HR (confirmedAdvance _) = no λ ()
  (confirmedAdvance _) ≟HR (gotFirstAdvance  _) = no λ ()
  (gotFirstAdvance p1) ≟HR (gotFirstAdvance p2) with p1 ≟ p2
@@ -122,38 +135,28 @@ module LibraBFT.Example.Example where
  ...| no  neq  = no (neq ∘ cA-injective)
 
  -- TODO: none of the Dec proofs are used here; can this be simplified?
- pureHandler : Message → Instant → State → Maybe HandlerResult × List Action
+ pureHandler : Message → Instant → State → HandlerResult × List Action
  pureHandler msg ts st
     with st ^∙ maxSeen  <? msg ^∙ val
- ...| no  _  = nothing , []
+ ...| no  _  = noChange , []
  ...| yes _
     with msg ^∙ val ≟ suc (st ^∙ maxSeen)
- ...| no  _  = nothing , []
+ ...| no  _  = noChange , []
  ...| yes _
     with st ^∙ newValSender
- ...| nothing = just (gotFirstAdvance (msg ^∙ author)) , []
- ...| just 1stSender = just (confirmedAdvance (msg ^∙ val))
+ ...| nothing = (gotFirstAdvance (msg ^∙ author)) , []
+ ...| just 1stSender = (confirmedAdvance (msg ^∙ val))
                      , announce (msg ^∙ val)       -- Indicates agreement that we have reached this value
                      ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
                      ∷ []
-
- hRMustBeSomething : ∀ {hR : Maybe HandlerResult} {msg} {ts} {st}
-                   → hR ≡ proj₁ (pureHandler msg ts st)
-                   → Maybe-map isGotFirstAdvance hR ≡ nothing
-                   → Maybe-map isConfirmedAdvance hR ≡ nothing
-                   → hR ≢ nothing
-                   → ⊥
- hRMustBeSomething {nothing} hR≡ ¬gFA ¬cA ¬nothing = ¬nothing refl
- hRMustBeSomething {just (gotFirstAdvance p)}  hR≡ ¬gFA ¬cA ¬nothing = maybe-⊥ (Maybe-map-cool-2 {f = isGotFirstAdvance}  refl) ¬gFA
- hRMustBeSomething {just (confirmedAdvance n)} hR≡ ¬gFA ¬cA ¬nothing = maybe-⊥ (Maybe-map-cool-2 {f = isConfirmedAdvance} refl) ¬cA
 
  handle : Message → Instant → RWST Unit Action State Unit
  handle msg ts = do  -- TODO: Check signature
    st ← get
    case proj₁ (pureHandler msg ts st) of
-     λ { nothing    → pure unit
-       ; (just (gotFirstAdvance  p)) → newValSender ∙= just p
-       ; (just (confirmedAdvance v)) → do
+     λ { noChange             → pure unit
+       ; (gotFirstAdvance  p) → newValSender ∙= just p
+       ; (confirmedAdvance v) → do
            -- TODO: It's pretty weird to use the timestamp as a
            -- nondeterministic choice of recipient, but don't have any
            -- easy alternative currently
@@ -167,21 +170,21 @@ module LibraBFT.Example.Example where
  ---------------------------------------------------------------------------
 
  nothingNoEffect : ∀ {ppre  ppost m ts env}
-                 → proj₁ (pureHandler m ts ppre) ≡ nothing
+                 → proj₁ (pureHandler m ts ppre) ≡ noChange
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
                  → ppre ≡ ppost
  nothingNoEffect {ppre} {m} {ts} {env} {ppost} isNothing ppost≡ rewrite isNothing | ppost≡ = refl
 
  gFAEffect : ∀   {ppre ppost m ts env sender}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
-                 → proj₁ (pureHandler m ts ppre) ≡ just (gotFirstAdvance sender)
+                 → proj₁ (pureHandler m ts ppre) ≡ gotFirstAdvance sender
                  → :newValSender ppost ≡ just sender
                  × :maxSeen ppost ≡ :maxSeen ppre
  gFAEffect {ppre} {m} {ts} {env} ppost≡ prf rewrite ppost≡ | prf = refl , refl
 
  cAEffect : ∀   {ppre ppost m ts env newMax}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
-                 → proj₁ (pureHandler m ts ppre) ≡ just (confirmedAdvance newMax)
+                 → proj₁ (pureHandler m ts ppre) ≡ confirmedAdvance newMax
                  → :newValSender ppost ≡ nothing
                  × :maxSeen      ppost ≡ newMax
  cAEffect {ppre} {ppost} {m} {ts} {env} ppost≡ prf rewrite ppost≡ | prf = refl , refl
@@ -200,24 +203,24 @@ module LibraBFT.Example.Example where
  modifiesMaxSeen : ∀ {ppre ppost m ts env}
                  → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
                  → ppre  ^∙ maxSeen ≢ ppost ^∙ maxSeen
-                 → proj₁ (pureHandler m ts ppre) ≡ just (confirmedAdvance (ppost ^∙ maxSeen))
+                 → proj₁ (pureHandler m ts ppre) ≡ confirmedAdvance (ppost ^∙ maxSeen)
  modifiesMaxSeen {ppre} {ppost} {m} {ts} {env} run≡ pre≢post rewrite run≡
     with proj₁ (pureHandler m ts ppre)
- ...| nothing                    = ⊥-elim (pre≢post refl)
- ...| just (gotFirstAdvance p)   = ⊥-elim (pre≢post refl)
- ...| just (confirmedAdvance v') = refl
+ ...| noChange            = ⊥-elim (pre≢post refl)
+ ...| gotFirstAdvance p   = ⊥-elim (pre≢post refl)
+ ...| confirmedAdvance v' = refl
 
  modifiesNewSenderVal : ∀ {ppre ppost m ts env v}
                       → ppost ≡ (proj₁ ∘ proj₂) (RWST-run (handle m ts) env ppre)
                       → ppre  ^∙ newValSender ≢ ppost ^∙ newValSender
                       → ppost ^∙ newValSender ≡ just v
-                      → proj₁ (pureHandler m ts ppre) ≡ just (gotFirstAdvance v)
+                      → proj₁ (pureHandler m ts ppre) ≡ gotFirstAdvance v
                       × ppost ^∙ maxSeen ≡ ppre ^∙ maxSeen
  modifiesNewSenderVal {ppre} {ppost} {m} {ts} {env} {v} run≡ pre≢post jv rewrite run≡
     with proj₁ (pureHandler m ts ppre)
- ...| nothing = ⊥-elim (pre≢post refl)
- ...| just (confirmedAdvance v') = ⊥-elim (maybe-⊥ jv refl)
- ...| just (gotFirstAdvance  v')
+ ...| noChange            = ⊥-elim (pre≢post refl)
+ ...| confirmedAdvance v' = ⊥-elim (maybe-⊥ jv refl)
+ ...| gotFirstAdvance  v'
     with v' ≟ v
  ...| no neq   = ⊥-elim (neq (just-injective jv))
  ...| yes refl = refl , refl
@@ -229,18 +232,18 @@ module LibraBFT.Example.Example where
  -- TODO: the structure of this mirrors pureHandler.  Maybe incorporate these proofs as Meta into
  -- pureHandler?
  modifiesNewSenderValCond : ∀ {st msg ts v}
-                          → proj₁ (pureHandler msg ts st) ≡ just (gotFirstAdvance v)
+                          → proj₁ (pureHandler msg ts st) ≡ gotFirstAdvance v
                           → :author msg ≡ v × :val msg ≡ suc (st ^∙ maxSeen)
  modifiesNewSenderValCond {st} {msg} {ts} {v} handler≡
     with st ^∙ maxSeen  <? msg ^∙ val
- ...| no  _  = ⊥-elim (maybe-⊥ handler≡ refl)
+ ...| no  _  = ((λ ()) handler≡) -- TODO: How to avoid these warnings?  Need trivial auxiliary lemma?
  ...| yes newMax
     with msg ^∙ val ≟ suc (st ^∙ maxSeen)
- ...| no  _  = ⊥-elim (maybe-⊥ handler≡ refl)
+ ...| no  _  = ((λ ()) handler≡)
  ...| yes newIsNext
     with st ^∙ newValSender
- ...| nothing = gFA-injective (just-injective handler≡) , newIsNext
- ...| just 1stSender = ⊥-elim (handlerResultConstructorDiff (sym (just-injective handler≡)))
+ ...| nothing = gFA-injective handler≡ , newIsNext
+ ...| just 1stSender = (((λ ()) handler≡))
 
 
  -- Send actions cause messages to be sent, accounce actions do not
@@ -434,11 +437,11 @@ module LibraBFT.Example.Example where
     | yes refl
     with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
  ...| pSt≡ppost
-    with Maybe-≡-dec _≟HR_ (proj₁ (pureHandler msg ts ppre)) nothing
- ...| yes hR≡nothing
-    with nothingNoEffect {ppre} {ppost} {msg} {ts} {env} hR≡nothing (cong (proj₁ ∘ proj₂) (sym run≡))
- ...| noChange
-    with (sym (trans noChange pSt≡ppost))
+    with proj₁ (pureHandler msg ts ppre) ≟HR noChange
+ ...| yes hR≡noChange
+    with nothingNoEffect {ppre} {ppost} {msg} {ts} {env} hR≡noChange (cong (proj₁ ∘ proj₂) (sym run≡))
+ ...| noEffect
+    with (sym (trans noEffect pSt≡ppost))
  ...| pSt≡ppre
     with rVWSInvariant preReach {pSt = ppre} sender p rdy
                        (subst ((_≡ just sender) ∘ :newValSender) pSt≡ppre sender≡)
@@ -449,28 +452,34 @@ module LibraBFT.Example.Example where
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost
-    | no hR≢nothing
-    with (Maybe-map isGotFirstAdvance) (proj₁ (pureHandler msg ts ppre)) | inspect
-         (Maybe-map isGotFirstAdvance) (proj₁ (pureHandler msg ts ppre))
- ...| just n | [ R ] = {!!}
+    | no hR≢noChange
+    with isGotFirstAdvance (proj₁ (pureHandler msg ts ppre)) | inspect
+         isGotFirstAdvance (proj₁ (pureHandler msg ts ppre))
+ ...| just n | [ hR≡gFA ]
+    with gFAEffect {ppre} {ppost} {msg} {ts} {env} {n} (cong (proj₁ ∘ proj₂) (sym run≡)) (isGotFirstAdvance≡ hR≡gFA)
+ ...| senderBecomesN , maxUnchanged
+    with n ≟-PeerId sender
+ ...| no n≢sender = ⊥-elim (n≢sender (just-injective
+                                       (trans (sym senderBecomesN)
+                                              (subst ((_≡ just sender) ∘ :newValSender) (sym pSt≡ppost) sender≡))))
+ ...| yes refl
+    with curMax ≟ :maxSeen ppre
+ ...| no xx = ⊥-elim (xx ( trans (subst ((curMax ≡_) ∘ :maxSeen) (sym pSt≡ppost) (sym max≡)) maxUnchanged))
+ ...| yes refl = to , msg , {!!}, (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
+                                 , modifiesNewSenderValCond {ppre} {msg} {ts} {n} (isGotFirstAdvance≡ {proj₁ (pureHandler msg ts ppre)} {n}  hR≡gFA)
 
  rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost
-    | no hR≢nothing
+    | no hR≢noChange
     | nothing | [ hR≢gFA ]
-    with (Maybe-map isConfirmedAdvance) (proj₁ (pureHandler msg ts ppre)) | inspect
-         (Maybe-map isConfirmedAdvance) (proj₁ (pureHandler msg ts ppre))
- ...| nothing | [ hR≢cA ] = ⊥-elim (hRMustBeSomething {proj₁ (pureHandler msg ts ppre)} {msg = msg} {ts = ts} {st = ppre} refl hR≢gFA hR≢cA hR≢nothing)
- ...| just nothing | [ xxx ] = ⊥-elim {!!}
- ...| just (just n') | [ hR≡cA ]
-    with  cAEffect {ppre} {ppost} {msg} {ts} {env} {n'} (cong (proj₁ ∘ proj₂) (sym run≡)) {!  !}   -- Maybe-map-cool-1 {f = isConfirmedAdvance} hR≡cA 
- ...| xxx = {!!}
-
---    with cAEffect {ppre} {ppost} {msg} (cong (proj₁ ∘ proj₂) (sym run≡)) isConfirmedAdvance
--- ...| senderBecomesNothing = ⊥-elim (maybe-⊥ sender≡ senderBecomesNothing)
-
+    with isConfirmedAdvance (proj₁ (pureHandler msg ts ppre)) | inspect
+         isConfirmedAdvance (proj₁ (pureHandler msg ts ppre))
+ ...| nothing | [ hR≢cA ] = ⊥-elim ( hR≢noChange (handlerResultIsSomething {proj₁ (pureHandler msg ts ppre)} hR≢cA hR≢gFA))
+ ...| just n' | [ hR≡cA ]
+    with  cAEffect {ppre} {ppost} {msg} {ts} {env} {n'} (cong (proj₁ ∘ proj₂) (sym run≡)) (isConfirmedAdvance≡ hR≡cA)
+ ...| senderBecomesNothing , _ = ⊥-elim (maybe-⊥ sender≡ (subst ((_≡ nothing) ∘ :newValSender) pSt≡ppost senderBecomesNothing))
 
  rVWSInvariant2 init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant2 (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
