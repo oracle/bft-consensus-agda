@@ -288,16 +288,30 @@ module LibraBFT.Example.Example where
  -- If the action is a cheat for any process, it does not modify anyone's peerStates, so inductive hypothesis carries the day again
  -- If the action is a recvMessage, it only *establishes* the condition if the message needed exists
 
+ record rVWSConsequent (sender : PeerId) (curMax : ℕ) (st : SystemState) : Set where
+   constructor mkrVWSConsequent
+   field
+     to    : PeerId
+     m     : Message
+     sig   : WithVerSig m
+     m∈SM  : (to , m) ∈SM sentMessages st
+     auth≡ : m ^∙ author ≡ sender
+     val≡  : m ^∙ val ≡ suc curMax
+ open rVWSConsequent
+
+ rVWSConsCast : ∀ {sender curMax pre post}
+        → (preCons : rVWSConsequent sender curMax pre)
+        → (to preCons , m preCons) ∈SM (sentMessages post)
+        → rVWSConsequent sender curMax post
+ rVWSConsCast (mkrVWSConsequent to m sig _ a v) ∈SM-post = mkrVWSConsequent to m sig ∈SM-post a v
+
  recordedValueWasSent : SystemState → Set
  recordedValueWasSent st = ∀ {pSt curMax}
                            → (sender p : PeerId)
                            → lookup p (peerStates st) ≡ just pSt
                            → pSt ^∙ newValSender ≡ just sender
                            → pSt ^∙ maxSeen ≡ curMax
-                           → Σ PeerId λ recip → Σ Message (λ msg → WithVerSig msg
-                                                                 × (recip , msg) ∈SM sentMessages st
-                                                                 × msg ^∙ author ≡ sender
-                                                                 × msg ^∙ val ≡ suc curMax)
+                           → rVWSConsequent sender curMax st
 
  rVWSInvariant : Invariant recordedValueWasSent
 
@@ -313,7 +327,7 @@ module LibraBFT.Example.Example where
    --       this in a type-generic way is tricky.  Maybe just do specific functions for fixed-sized
    --       tuples?  Even that is tricky to do in a general way when the function to map over one
    --       component (msg-stable theStep in thie case) has implicit arguments.
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSInitPeer : ∀ {pre post by ts}
      → ReachableSystemState pre
@@ -333,7 +347,7 @@ module LibraBFT.Example.Example where
     | no xx
       -- Initializing "by" does not falsify the invariant for p ≢ by
    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSRecvMsg : ∀ {pre post by ts}
      → ReachableSystemState pre
@@ -345,7 +359,7 @@ module LibraBFT.Example.Example where
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
     with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSRecvMsg {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -359,7 +373,7 @@ module LibraBFT.Example.Example where
  ...| yes refl | yes refl
     -- It does, so the inductive hypothesis ensures the relevant message was sent before, and the step does not "unsend" it
     with rVWSInvariant preReach {pSt = ppre} sender p rdy refl refl
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSRecvMsg {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -376,12 +390,12 @@ module LibraBFT.Example.Example where
     -- Again the relevant message was already sent (∈SM-pre), and the step does not unsend it.  From
     -- the condition required for this step, we can establish that the message has the required
     -- values.
- ...| yes refl = to
-                , msg
-                , {!!}
-                , ∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre
-                , modifiesNewSenderValCond {ppre} {msg} {ts} handlerResult
  ...| no neq rewrite (sym pSt≡ppost) = ⊥-elim (neq (trans (sym max≡) maxSeenUnchanged))
+ ...| yes refl
+    with modifiesNewSenderValCond {ppre} {msg} {ts} handlerResult
+ ...| auth≡ , val≡  = mkrVWSConsequent to msg {!!}
+                                       (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
+                                       auth≡ val≡
 
  rVWSRecvMsg {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -429,7 +443,7 @@ module LibraBFT.Example.Example where
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
     with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -445,7 +459,7 @@ module LibraBFT.Example.Example where
     with pSt≡ppost | sym noEffect
  ...| refl | refl
     with rVWSInvariant preReach {pSt = ppre} sender p rdy sender≡ max≡
- ...| xx1 , xx2 , xx3 , xx4 , xx5 = xx1 , xx2 , xx3 , msgs-stable theStep xx4 , xx5
+ ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -463,8 +477,11 @@ module LibraBFT.Example.Example where
  ...| refl | yes refl
     with (sym pSt≡ppost) | curMax ≟ :maxSeen ppre
  ...| refl | no xx = ⊥-elim (xx (trans (sym max≡) maxUnchanged))
- ...| refl | yes refl = to , msg , {!!}, (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
-                                 , modifiesNewSenderValCond {ppre} {msg} {ts} {n} (isGotFirstAdvance≡ {proj₁ (pureHandler msg ts ppre)} {n} hR≡gFA)
+ ...| refl | yes refl
+    with modifiesNewSenderValCond {ppre} {msg} {ts} {n} (isGotFirstAdvance≡ {proj₁ (pureHandler msg ts ppre)} {n} hR≡gFA)
+ ...| auth≡ , val≡ = mkrVWSConsequent to msg {!!}
+                          (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
+                          auth≡ val≡
 
  rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
              theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
