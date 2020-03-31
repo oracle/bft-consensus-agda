@@ -401,12 +401,20 @@ module LibraBFT.Concrete.BlockTree
   -- represent states and actions that will never be seen or performed by a node running 
   -- our code.
   postulate
-    α-BROKE-VOTE-ORDER : ∀{bt α q q'} 
+    α-BROKE-VOTES-ONCE : ∀{bt α q q'} 
                        → (Abs.Q q) ∈BT bt → (Abs.Q q') ∈BT bt
                        → (va  : α Abs.∈QC q)(va' : α Abs.∈QC q') 
                        → Abs.voteOrder (Abs.∈QC-Vote q va) ≡ Abs.voteOrder (Abs.∈QC-Vote q' va')
                        → Abs.qCertBlockId q ≢ Abs.qCertBlockId q'
                        → ⊥
+
+    α-BROKE-VOTES-INCR : ∀{bt α q q'} 
+                       → (Abs.Q q) ∈BT bt → (Abs.Q q') ∈BT bt
+                       → (va  : α Abs.∈QC q)(va' : α Abs.∈QC q') 
+                       → q ≋QC q'
+                       → Abs.voteOrder (Abs.∈QC-Vote q va) < Abs.voteOrder (Abs.∈QC-Vote q' va')
+                       → ⊥
+
 
   -- ** Properties
   --
@@ -693,6 +701,16 @@ module LibraBFT.Concrete.BlockTree
                              notThere 
             = refl , refl
 
+    -- Easier to use version of 'target'
+    univ : (ext : ExtendsQC bt vqc){r : Abs.Record}
+         → r ∈BT insert-qc bt vqc ext
+         → (∃[ q ] (r ≡ Abs.Q q × q ≋QC (α-QC vqc)))
+         ⊎ r ∈BT bt
+    univ ext {r} r∈bt with r ∈BT? bt
+    ...| yes res  = inj₂ res
+    ...| no  rOld with target ext {r} rOld r∈bt
+    ...| (q , corr , id≡ , r≡) = inj₁ (q , corr , id≡ , r≡)
+
     -- Inserting in a correct blocktree yeilds a correct blocktree.
     correct : (ext : ExtendsQC bt vqc) → Correct bt → Correct (insert-qc bt vqc ext)
     correct ext cbt s s∈post 
@@ -749,7 +767,7 @@ module LibraBFT.Concrete.BlockTree
       -- AGDA_MAGIC: we need to pass some paramters to this function at this points because
       -- the call to 'target' below will rewrite things; Yet, the last parameter
       -- to this postulate is passed at the very end, 11 lines below.
-      with α-BROKE-VOTE-ORDER {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
+      with α-BROKE-VOTES-ONCE {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
     ...| α-broke-things
       with target ext {Abs.Q q} qNew q∈bt 
     ...| (.q , refl , refl , refl) 
@@ -764,7 +782,7 @@ module LibraBFT.Concrete.BlockTree
     -- is analogous to 0.3 above, but with q and q' swapped.
     votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
        | yes qOld | no  q'New 
-      with α-BROKE-VOTE-ORDER {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
+      with α-BROKE-VOTES-ONCE {insert-qc bt vqc ext} {α} {q} {q'} q∈bt q'∈bt va va' hyp
     ...| α-broke-things
       with target ext {Abs.Q q'} q'New q'∈bt 
     ...| (.q' , refl , refl , refl) 
@@ -780,50 +798,102 @@ module LibraBFT.Concrete.BlockTree
     incr-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                → IncreasingRound (insert-qc bt vqc ext)
     incr-round ext@(extends _ (Q _ notThere) _) valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
-    -- First we open up our hypothesis that q and q' are in the BT
-      with ∈BT-Q-univ {q}  {insert-qc bt vqc ext} q∈bt 
-         | ∈BT-Q-univ {q'} {insert-qc bt vqc ext} q'∈bt
-    ...| (γ , γ≡q , pγ) | (γ' , γ'≡q' , pγ') 
-   -- Now we check whether either q or q' have just been inserted.
-      with _qcCertifies (proj₁ vqc) ≟Hash Abs.qCertBlockId q 
-         | _qcCertifies (proj₁ vqc) ≟Hash Abs.qCertBlockId q' 
-    -- In case neither q nor q' are equal to vqc, we "simply" make a recursive call.
-    ...| no vqc≢q | no vqc≢q'
-      rewrite lookup-stable-1 {v = vqc} notThere (lookup-stable-2 notThere γ≡q (vqc≢q ∘ sym))
-            | lookup-stable-1 {v = vqc} notThere (lookup-stable-2 notThere γ'≡q' (vqc≢q' ∘ sym))
-        = ValidBT.incr-round-rule valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
-    -- The case where both q and q' are the same should be impossible: α is honest
-    -- and promisses to respect the incr-round-rule; hence, it can be that α voted twice
-    -- for the same block.
-    ...| yes refl | yes refl  = {!!}
-    ...| no vqc≢q | yes refl  = {!!}
-    ...| yes refl | no vqc≢q' = {!!}
+    -- 0. Which of the QC's are present in the pre-state?
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    -- 0.1 Both of them; inductive call.
+    ...| yes qOld | yes q'Old 
+       = ValidBT.incr-round-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+    -- 0.2 None of them; this is impossible because if both
+    -- qcs are /the/ new qc; both votes certify the same block, at the
+    -- same round but have different voteOrders (per hypothesis).
+    ...| no  qNew | no  q'New 
+      with target ext {Abs.Q q} qNew q∈bt | target ext {Abs.Q q'} q'New q'∈bt
+    ...| (γ , refl , refl , refl) | (γ' , refl , refl , refl)
+       = ⊥-elim (α-BROKE-VOTES-INCR {insert-qc bt vqc ext} {α} {q} {q'} 
+                                    q∈bt q'∈bt va va' (refl , refl) hyp)
+    -- 0.3 Here is where this gets interesting. We are looking at one old and
+    -- one new QC; the new one certifies the same block at the same round as vqc (module parm!)
+    -- butthe old one was already in the store.
+    incr-round ext@(extends _ (Q _ notThere) _) valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+       | yes qOld | no  q'New 
+      with target ext {Abs.Q q'} q'New q'∈bt
+    ...| (γ' , refl , refl , refl) = {!!}
+    incr-round ext@(extends _ (Q _ notThere) _) valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
+       | no  qNew | yes q'Old 
+      with target ext {Abs.Q q} qNew q∈bt
+    ...| (γ , refl , refl , refl) = {!!}
+
+
+
+    mutual
+     is-not-vqc : (ext : ExtendsQC bt vqc) → Correct bt
+                → ∀{b}(rc : RecordChain (insert-qc bt vqc ext) (Abs.B b))
+                → ∀{r} → _∈RC_ (insert-qc bt vqc ext) r rc
+                → r ∈BT bt
+     is-not-vqc ext cor rc (transp {_} {rc₀} old eq) 
+       = is-not-vqc ext cor rc₀ old
+     is-not-vqc ext cor rc here with rc-∈BT rc
+     ...| res rewrite no-interf ext = res
+     is-not-vqc ext cor (I←B i0 i1 [ b∈bt ]↝ empty) (there p x {prf}) 
+       rewrite ∈RC-empty-I (insert-qc bt vqc ext) x = unit
+     is-not-vqc ext cor (Q←B q0 refl [ b∈bt ]↝ rc)    (there p x {prf}) 
+       = doesnt-use-vqc ext cor (λ imp → {!!}) rc x
+
+
+     doesnt-use-vqc : (ext : ExtendsQC bt vqc) → Correct bt
+                    → ∀{q} → Abs.qCertBlockId q ≢ Abs.qCertBlockId (α-QC vqc)
+                    → (rc : RecordChain (insert-qc bt vqc ext) (Abs.Q q))
+                    → ∀{r} → _∈RC_ (insert-qc bt vqc ext) r rc
+                    → r ∈BT bt
+     doesnt-use-vqc ext cor hyp rc (transp {_} {rc₀} old eq)
+        = doesnt-use-vqc ext cor hyp rc₀ old
+     doesnt-use-vqc ext cor {q} hyp (step _ _ {q∈bt'}) here
+       with univ ext {Abs.Q q} q∈bt'
+     ...| inj₁ (.q , refl , abs , _) = ⊥-elim (hyp abs)
+     ...| inj₂ res = res
+     doesnt-use-vqc ext cor hyp (B←Q b0 refl [ q∈bt' ]↝ rc) {r} (there p x {prf})
+        = is-not-vqc ext cor rc x
+
+    rc-shrink : (ext : ExtendsQC bt vqc) 
+              → Correct bt → ∀{q}
+              → Abs.qCertBlockId q ≢ Abs.qCertBlockId (α-QC vqc)
+              → RecordChain (insert-qc bt vqc ext) (Abs.Q q)
+              → RecordChain bt (Abs.Q q)
+    rc-shrink ext cor hyp rc = rc-transp rc (doesnt-use-vqc ext cor hyp rc)
+
+
 
     locked-round : (ext : ExtendsQC bt vqc) → ValidBT bt 
                  → LockedRound (insert-qc bt vqc ext)
     locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
-    -- 0. Is the inserted 'vqc' either q or q'?
-      with α-QC vqc ≋QC? q | α-QC vqc ≋QC? q'
-    ...| no vqc≢q          | no vqc≢q' 
-    -- No; the inserted block is neither q nor q'; just call the 
-    -- inductive hypothesis similarly to locked-round for blocks.
-       = {!!}
-    -- Impossible; the inserted block is both q and q' but if α is honest,
+    -- 0. Which of the QC's are present in the pre-state?
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    -- 0.1 Both of them; inductive call.
+    ...| yes qOld | yes q'Old 
+       = ValidBT.locked-round-rule valid {R} α hα 
+            {q} 
+            {rc-shrink ext (ValidBT.correct valid) {!!} rc} {n} 
+            {!!} va {q'} 
+            (rc-shrink ext (ValidBT.correct valid) {!!} {!rc'!}) va' hyp
+    -- 0.2 Impossible; the inserted block is both q and q' but if α is honest,
     -- it abides by the incr-round rule, which means the rounds must be equal.
     -- Yet, hyp has type round q < round q'.
-    ...| yes (refl , r) | yes (refl , r') 
-       = ⊥-elim (n≮n _ (subst₂ _<_ (sym r) (sym r') 
-                          (incr-round ext valid α hα {q} {q'} 
-                             (rc-∈BT rc) (rc-∈BT rc') va va' hyp)))
+    ...| no  qNew | no  q'New 
+      with target ext {Abs.Q q} qNew (rc-∈BT rc) 
+         | target ext {Abs.Q q'} q'New (rc-∈BT rc')
+    ...| (γ , refl , refl , refl) | (γ' , refl , refl , refl)
+       = ⊥-elim (n≮n _ (incr-round ext valid α hα {q} {q'} 
+                             (rc-∈BT rc) (rc-∈BT rc') va va' hyp))
     -- We have just inserted q'; in this situation, we need some lemma
     -- that says that since α is honest, it obeys its preferred round and,
     -- we can see its preferred round is at least (getRound (kchainBlock 2 c3))
-    ...| no vqc≢q | yes (refl , refl) 
-       = {!!}
+    locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
+       | yes qOld | no  q'New = {!!}
     -- We have just inserted q; seems like we need a similar reasoning to the
     -- case directly above.
-    ...| yes (refl , refl) | no vqc≢q' 
-       = {!!}
+    locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
+       | no  qNew | yes q'Old = {!!}
+
 
  
     -- TODO: Our algorithm will ensure we never cast a vote to a proposal
