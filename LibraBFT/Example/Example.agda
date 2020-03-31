@@ -148,7 +148,10 @@ module LibraBFT.Example.Example where
  ...| yes _
     with st ^∙ newValSender
  ...| nothing = (gotFirstAdvance (msg ^∙ author)) , []
- ...| just 1stSender = (confirmedAdvance (msg ^∙ val))
+ ...| just 1stSender
+    with 1stSender ≟-PeerId (msg ^∙ author)
+ ...| no _ = noChange , []
+ ...| yes refl = (confirmedAdvance (msg ^∙ val))
                      , announce (msg ^∙ val)       -- Indicates agreement that we have reached this value
                      ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
                      ∷ []
@@ -246,7 +249,10 @@ module LibraBFT.Example.Example where
  ...| yes newIsNext
     with st ^∙ newValSender
  ...| nothing = gFA-injective handler≡ , newIsNext
- ...| just 1stSender = ⊥-elim (gFA≢cA (sym handler≡))
+ ...| just 1stSender
+    with 1stSender ≟-PeerId (msg ^∙ author)
+ ...| no _ = ⊥-elim (nC≢gFA handler≡)
+ ...| yes refl = ⊥-elim (gFA≢cA (sym handler≡))
 
 
  -- Send actions cause messages to be sent, accounce actions do not
