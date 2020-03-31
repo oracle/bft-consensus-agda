@@ -104,8 +104,11 @@ module LibraBFT.Example.Example where
                      → hR ≡ confirmedAdvance n
  isConfirmedAdvance≡ {confirmedAdvance n'} hRj = cong confirmedAdvance (just-injective hRj)
 
- handlerResultConstructorDiff : ∀ {p n} → gotFirstAdvance p ≢ confirmedAdvance n
- handlerResultConstructorDiff ()
+ gFA≢cA : ∀ {p n} → gotFirstAdvance p ≢ confirmedAdvance n
+ gFA≢cA ()
+
+ nC≢gFA : ∀ {p} → noChange ≢ gotFirstAdvance p
+ nC≢gFA ()
 
  handlerResultIsSomething : {hR : HandlerResult}
                           → isConfirmedAdvance hR ≡ nothing
@@ -236,14 +239,14 @@ module LibraBFT.Example.Example where
                           → :author msg ≡ v × :val msg ≡ suc (st ^∙ maxSeen)
  modifiesNewSenderValCond {st} {msg} {ts} {v} handler≡
     with st ^∙ maxSeen  <? msg ^∙ val
- ...| no  _  = ((λ ()) handler≡) -- TODO: How to avoid these warnings?  Need trivial auxiliary lemma?
+ ...| no  _  = ⊥-elim (nC≢gFA handler≡)
  ...| yes newMax
     with msg ^∙ val ≟ suc (st ^∙ maxSeen)
- ...| no  _  = ((λ ()) handler≡)
+ ...| no  _  = ⊥-elim (nC≢gFA handler≡)
  ...| yes newIsNext
     with st ^∙ newValSender
  ...| nothing = gFA-injective handler≡ , newIsNext
- ...| just 1stSender = (((λ ()) handler≡))
+ ...| just 1stSender = ⊥-elim (gFA≢cA (sym handler≡))
 
 
  -- Send actions cause messages to be sent, accounce actions do not
