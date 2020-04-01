@@ -110,6 +110,9 @@ module LibraBFT.Example.Example where
  nC≢gFA : ∀ {p} → noChange ≢ gotFirstAdvance p
  nC≢gFA ()
 
+ nC≢cA : ∀ {v} → noChange ≢ confirmedAdvance v
+ nC≢cA ()
+
  handlerResultIsSomething : {hR : HandlerResult}
                           → isConfirmedAdvance hR ≡ nothing
                           → isGotFirstAdvance  hR ≡ nothing
@@ -256,6 +259,26 @@ module LibraBFT.Example.Example where
  ...| no _     = ⊥-elim (gFA≢cA (sym handler≡))
 
 
+ cACond : ∀ {st msg ts v}
+        → proj₁ (pureHandler msg ts st) ≡ confirmedAdvance v
+        → :val msg ≡ v
+        × v ≡ suc (st ^∙ maxSeen)
+        × ∃[ p ] (st ^∙ newValSender ≡ just p × :author msg ≢ p)
+ cACond {st} {msg} {ts} {v} handler≡
+    with st ^∙ maxSeen  <? msg ^∙ val
+ ...| no  _  = ⊥-elim (nC≢cA handler≡)
+ ...| yes newMax
+    with msg ^∙ val ≟ suc (st ^∙ maxSeen)
+ ...| no  _  = ⊥-elim (nC≢cA handler≡)
+ ...| yes newIsNext
+    with st ^∙ newValSender
+ ...| nothing = ⊥-elim (gFA≢cA handler≡)
+ ...| just 1stSender
+    with (msg ^∙ author) ≟-PeerId 1stSender 
+ ...| yes refl = ⊥-elim (nC≢cA handler≡ )
+ ...| no diffSender
+    with cA-injective handler≡
+ ...| refl = refl , newIsNext , 1stSender , refl , diffSender
 
  -- Send actions cause messages to be sent, accounce actions do not
  exampleActionsToSends : State → Action → List (PeerId × Message)
