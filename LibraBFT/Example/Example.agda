@@ -354,10 +354,6 @@ module LibraBFT.Example.Example where
  rVWSCheat preReach theStep isCheat {pSt} sender p pSt≡ sender≡ max≡
    -- A cheat step does cannot "unsend" messages and does not affect anyone's state
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
-   -- TODO: it would be nice to have a succinct "map function over nth element of tuple", but doing
-   --       this in a type-generic way is tricky.  Maybe just do specific functions for fixed-sized
-   --       tuples?  Even that is tricky to do in a general way when the function to map over one
-   --       component (msg-stable theStep in thie case) has implicit arguments.
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
  rVWSInitPeer : ∀ {pre post by ts}
