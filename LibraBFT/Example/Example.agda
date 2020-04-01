@@ -348,7 +348,7 @@ module LibraBFT.Example.Example where
 
  rVWSCheat : ∀ {pre post by ts}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isCheatStep theStep
      → RecordedValueWasSent post
  rVWSCheat preReach theStep isCheat {pSt} sender p pSt≡ sender≡ max≡
@@ -356,40 +356,41 @@ module LibraBFT.Example.Example where
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSInitPeer : ∀ {pre post by ts}
+ rVWSInitPeer : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isInitPeer theStep  -- Not needed in this example as it is trivial; keeping it to make example more general
      → RecordedValueWasSent post
- rVWSInitPeer {pre} {post} {by} {ts} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
-   with by ≟ p
+ rVWSInitPeer {pre} {post} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
+   with peerOf theStep ≟ p
  ...| yes refl
    with theStep    -- TODO: Why can't I avoid this with clause by using rdyOf below?
                    -- It would simplify this proof by allowing this case to be in one line,
                    -- thus avoiding the need for spelling out the next case explicitly.
- ...| initPeer _ _ rdy
+ ...| initPeer _ _ _ rdy
       -- After initializing p, the antecedent does not hold because :newValSender (lookup p (peerState post)) ≡ nothing
       = ⊥-elim (maybe-⊥ sender≡ (cong :newValSender (just-injective (trans (sym pSt≡) (lookup-correct rdy)))))
- rVWSInitPeer {pre} {post} {by} {ts} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
+
+ rVWSInitPeer {pre} {post} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
     | no xx
       -- Initializing "by" does not falsify the invariant for p ≢ by
    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSRecvMsg : ∀ {pre post by ts}
+ rVWSRecvMsg : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isRecvMsg theStep
      → RecordedValueWasSent post
- rVWSRecvMsg {pre} {post} {by} {ts} preReach theStep isRecv {pSt} sender p pSt≡ sender≡ max≡
-    with by ≟ p
+ rVWSRecvMsg {pre} {post} preReach theStep isRecv {pSt} sender p pSt≡ sender≡ max≡
+    with peerOf theStep ≟ p
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
     with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSRecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     -- Stash for later use: pSt ≡ ppost because of the "ready" condition for the step
     --                      definition of ppost
@@ -402,8 +403,8 @@ module LibraBFT.Example.Example where
     with rVWSInvariant preReach {pSt = ppre} sender p rdy refl refl
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSRecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost | ppost≡
     | no nVSChanged | curMax≟maxSeen
@@ -424,8 +425,8 @@ module LibraBFT.Example.Example where
                                        (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
                                        auth≡ val≡
 
- rVWSRecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost | ppost≡
     | yes refl | no curMaxChanged
@@ -448,9 +449,9 @@ module LibraBFT.Example.Example where
  -- received message.
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
- rVWSInvariant (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
- rVWSInvariant (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
- rVWSInvariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg ts ∈SM-pre ready trans) tt 
+ rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
+ rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
+ rVWSInvariant (step preReach (recvMsg by ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg by ts ∈SM-pre ready trans) tt 
 
 
  -- Another way of approaching the proof is to do case analysis on pureHandler results.
@@ -460,20 +461,20 @@ module LibraBFT.Example.Example where
  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
  rVWSInvariant2 : Invariant RecordedValueWasSent
 
- rVWSRecvMsg2 : ∀ {pre post by ts}
+ rVWSRecvMsg2 : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isRecvMsg theStep
      → RecordedValueWasSent post
- rVWSRecvMsg2 {pre} {post} {by} {ts} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
-    with by ≟ p
+ rVWSRecvMsg2 {pre} {post} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
+    with peerOf theStep ≟ p
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
     with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg2 {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
  ...| pSt≡ppost
@@ -488,8 +489,8 @@ module LibraBFT.Example.Example where
     with rVWSInvariant preReach {pSt = ppre} sender p rdy sender≡ max≡
  ...| preCons = rVWSConsCast preCons (msgs-stable theStep (m∈SM preCons))
 
- rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg2 {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost
     | ppost≡
@@ -510,8 +511,8 @@ module LibraBFT.Example.Example where
                           (∈SM-stable-list {sentMessages pre} {to , msg} {actionsToSends ppost acts} ∈SM-pre)
                           auth≡ val≡
 
- rVWSRecvMsg2 {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsg2 {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | yes refl
     | pSt≡ppost
     | ppost≡
@@ -525,9 +526,9 @@ module LibraBFT.Example.Example where
  ...| refl | senderBecomesNothing , _ = ⊥-elim (maybe-⊥ sender≡ senderBecomesNothing)
 
  rVWSInvariant2 init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
- rVWSInvariant2 (step preReach (cheat ts to m dis))  = rVWSCheat preReach (cheat ts to m dis) tt
- rVWSInvariant2 (step preReach (initPeer ts cI rdy)) = rVWSInitPeer preReach (initPeer ts cI rdy) tt
- rVWSInvariant2 (step preReach (recvMsg ts ∈SM-pre ready trans)) = rVWSRecvMsg2 preReach (recvMsg ts ∈SM-pre ready trans) tt
+ rVWSInvariant2 (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
+ rVWSInvariant2 (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
+ rVWSInvariant2 (step preReach (recvMsg by ts ∈SM-pre ready trans)) = rVWSRecvMsg2 preReach (recvMsg by ts ∈SM-pre ready trans) tt
 
  -----------------------------------------------------------------------------------------
 
@@ -563,9 +564,9 @@ module LibraBFT.Example.Example where
  suc≢0 : ∀{n} → suc n ≢ 0
  suc≢0 {n} ()
 
- cVSB2Cheat : ∀ {pre post by ts}
+ cVSB2Cheat : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isCheatStep theStep
      → CommittedValueWasSentBy2 post
  cVSB2Cheat preReach theStep isCheat {pSt} {curMax} {p} pSt≡ max≡
@@ -574,43 +575,43 @@ module LibraBFT.Example.Example where
  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
 
- cVSB2InitPeer : ∀ {pre post by ts}
+ cVSB2InitPeer : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isInitPeer theStep
      → CommittedValueWasSentBy2 post
- cVSB2InitPeer {pre} {post} {by} {ts} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
-   with by ≟ p
+ cVSB2InitPeer {pre} {post} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
+   with peerOf theStep ≟ p
  ...| yes refl
    with theStep
- ...| initPeer _ _ rdy
+ ...| initPeer _ _ _ rdy
       -- After initializing p, the antecedent does not hold because :curMax ≡ 0
    with just-injective (trans (sym pSt≡) (lookup-correct rdy))
  ...| xxx
-      = ⊥-elim (suc≢0 {curMax} ( trans (sym max≡) (cong :maxSeen xxx)))
+      = ⊥-elim (suc≢0 {curMax} (trans (sym max≡) (cong :maxSeen xxx)))
 
- cVSB2InitPeer {pre} {post} {by} {ts} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
+ cVSB2InitPeer {pre} {post} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
     | no xx
       -- Initializing "by" does not falsify the invariant for p ≢ by
    with cVSB2Invariant preReach (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) max≡
  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
 
- cVSB2RecvMsg : ∀ {pre post by ts}
+ cVSB2RecvMsg : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step by pre ts post)
+     → (theStep : Step pre post)
      → isRecvMsg theStep
      → CommittedValueWasSentBy2 post
- cVSB2RecvMsg {pre} {post} {by} {ts} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
-    with by ≟ p
+ cVSB2RecvMsg {pre} {post} preReach theStep _ {pSt} {curMax} {p} pSt≡ max≡
+    with peerOf theStep ≟ p
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
     with cVSB2Invariant preReach (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) max≡
  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
 
- cVSB2RecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) _ {pSt} {curMax} {p} pSt≡ max≡
+ cVSB2RecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ {pSt} {curMax} {p} pSt≡ max≡
     | yes refl
     with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
  ...| pSt≡ppost
@@ -626,8 +627,8 @@ module LibraBFT.Example.Example where
  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
 
- cVSB2RecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} {p} pSt≡ max≡
+ cVSB2RecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} {p} pSt≡ max≡
     | yes refl
     | pSt≡ppost
     | ppost≡
@@ -645,8 +646,8 @@ module LibraBFT.Example.Example where
     with cVSB2Invariant preReach {pSt = ppre} {p = p} rdy refl
  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
- cVSB2RecvMsg {pre} {post} {by} {ts} preReach
-             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} .ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} {p} pSt≡ max≡
+ cVSB2RecvMsg {pre} {post} preReach
+             theStep@(recvMsg {msg} {to} {env} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} {p} pSt≡ max≡
     | yes refl
     | pSt≡ppost
     | ppost≡
@@ -671,6 +672,6 @@ module LibraBFT.Example.Example where
                                        (mkRVWSConsequent to msg {!!} (msgs-stable theStep ∈SM-pre) refl (trans (sym maxNew) max≡)))
 
  cVSB2Invariant init {p = p} x = ⊥-elim (maybe-⊥ x kvm-empty)
- cVSB2Invariant (step preReach (cheat ts to m dis))  = cVSB2Cheat preReach (cheat ts to m dis) tt
- cVSB2Invariant (step preReach (initPeer ts cI rdy)) = cVSB2InitPeer preReach (initPeer ts cI rdy) tt
- cVSB2Invariant (step preReach (recvMsg ts ∈SM-pre ready trans)) = cVSB2RecvMsg preReach (recvMsg ts ∈SM-pre ready trans) tt
+ cVSB2Invariant (step preReach (cheat by ts to m dis))  = cVSB2Cheat preReach (cheat by ts to m dis) tt
+ cVSB2Invariant (step preReach (initPeer by ts cI rdy)) = cVSB2InitPeer preReach (initPeer by ts cI rdy) tt
+ cVSB2Invariant (step preReach (recvMsg by ts ∈SM-pre ready trans)) = cVSB2RecvMsg preReach (recvMsg by ts ∈SM-pre ready trans) tt

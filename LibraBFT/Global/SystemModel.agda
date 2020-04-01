@@ -76,83 +76,92 @@ module LibraBFT.Global.SystemModel
 
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
- data Step (p : Peer) (pre : SystemState): Instant → SystemState → Set where
-   initPeer : (ts : Instant)
+ data Step (pre : SystemState): SystemState → Set where
+   initPeer : (p : Peer)
+            → (ts : Instant)
             → (canInit : CanInit p)
             → (ready : KVMap.lookup p (peerStates pre) ≡ nothing)
-            → Step p pre ts (sysState
-                           (sendMessagesFromActions pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
-                           (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
+            → Step pre (sysState
+                         (sendMessagesFromActions pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
+                         (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
 
    recvMsg : ∀ {m : Message} {to : Peer} {env : Env} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
-             (ts : Instant)
+             (p : Peer)
+           → (ts : Instant)
            → (to , m) ∈SM (sentMessages pre)
            → (ready : KVMap.lookup p (peerStates pre) ≡ just ppre)
            → RWST-run (MsgHandler m ts) env ppre ≡ (unit , ppost , acts)
-           → Step p pre ts (sysState
-                             (sendMessagesFromActions pre ppost acts)
-                             (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
+           → Step pre (sysState
+                         (sendMessagesFromActions pre ppost acts)
+                         (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
 
-   cheat : ∀ (ts : Instant) (to : Peer) (m : Message)
+   cheat : ∀ (p : Peer)
+             (ts : Instant)
+             (to : Peer) (m : Message)
          → Dishonest m p
-         → Step p pre ts (sysState (sendMsg (sentMessages pre) (to , m)) (peerStates pre))
+         → Step pre (sysState (sendMsg (sentMessages pre) (to , m)) (peerStates pre))
 
- isInitPeer : ∀ {pre p post ts} → Step p pre ts post → Set
- isInitPeer (initPeer _ _ _)  = ⊤
- isInitPeer (recvMsg _ _ _ _) = ⊥
- isInitPeer (cheat _ _ _ _)   = ⊥
+ isInitPeer : ∀ {pre post} → Step pre post → Set
+ isInitPeer (initPeer _ _ _ _)  = ⊤
+ isInitPeer (recvMsg _ _ _ _ _) = ⊥
+ isInitPeer (cheat _ _ _ _ _)   = ⊥
 
- isInitPeer? : ∀ {pre p post ts} → (theStep : Step p pre ts post) → Dec (isInitPeer theStep)
- isInitPeer? {pre} {p} {post} (initPeer _ _ _)  = yes tt
- isInitPeer? {pre} {p} {post} (recvMsg _ _ _ _) = no id
- isInitPeer? {pre} {p} {post} (cheat _ _ _ _)   = no id
+ isInitPeer? : ∀ {pre post} → (theStep : Step pre post) → Dec (isInitPeer theStep)
+ isInitPeer? {pre} {post} (initPeer _ _ _ _)  = yes tt
+ isInitPeer? {pre} {post} (recvMsg _ _ _ _ _) = no id
+ isInitPeer? {pre} {post} (cheat _ _ _ _ _)   = no id
 
- isRecvMsg : ∀ {pre p post ts} → Step p pre ts post → Set
- isRecvMsg (initPeer _ _ _)  = ⊥
- isRecvMsg (recvMsg _ _ _ _) = ⊤
- isRecvMsg (cheat _ _ _ _)   = ⊥
+ isRecvMsg : ∀ {pre post} → Step pre post → Set
+ isRecvMsg (initPeer _ _ _ _)  = ⊥
+ isRecvMsg (recvMsg _ _ _ _ _) = ⊤
+ isRecvMsg (cheat _ _ _ _ _)   = ⊥
 
- isCheatStep : ∀ {pre p post ts} → Step p pre ts post → Set
- isCheatStep (initPeer _ _ _)  = ⊥
- isCheatStep (recvMsg _ _ _ _) = ⊥
- isCheatStep (cheat _ _ _ _)   = ⊤
+ isCheatStep : ∀ {pre post} → Step pre post → Set
+ isCheatStep (initPeer _ _ _ _)  = ⊥
+ isCheatStep (recvMsg _ _ _ _ _) = ⊥
+ isCheatStep (cheat _ _ _ _ _)   = ⊤
 
- canInitOf : ∀ {pre p post ts} → (theStep : Step p pre ts post) → isInitPeer theStep → CanInit p
- canInitOf (initPeer _ canInit _) _ = canInit
+ peerOf     : ∀ {pre post} → (theStep : Step pre post) → Peer
+ peerOf     (initPeer p _ _ _)   = p
+ peerOf     (recvMsg  p _ _ _ _) = p
+ peerOf     (cheat p _ _ _ _)    = p
 
- rdyOf     : ∀ {pre p post ts} → (theStep : Step p pre ts post) → isInitPeer theStep → KVMap.lookup p (peerStates pre) ≡ nothing
- rdyOf     (initPeer _ _ rdy) _ = rdy
+ rdyOf     : ∀ {pre post} → (theStep : Step pre post) → isInitPeer theStep → KVMap.lookup (peerOf theStep) (peerStates pre) ≡ nothing
+ rdyOf     (initPeer _ _ _ rdy) _ = rdy
+
+ canInitOf : ∀ {pre post} → (theStep : Step pre post) → isInitPeer theStep → CanInit (peerOf theStep)
+ canInitOf (initPeer _ _ canInit _) _ = canInit
 
  -- TODO : we may need "spontaneous" actions that don't require a message to be received, for
  -- example timeout events?
 
  data ReachableSystemState : SystemState → Set where
    init : ReachableSystemState initState
-   step : ∀ {ts preState postState}
+   step : ∀ {preState postState}
         → ReachableSystemState preState
-        → ∀ {p}
-        → Step p preState ts postState
+        → Step preState postState
         → ReachableSystemState postState
 
  Invariant : (SystemState → Set) → Set
  Invariant P = ∀ {s : SystemState} → ReachableSystemState s → P s
 
- stepByOtherPreservesJ : ∀ {pre post by p ts ppre ppost}
+ stepByOtherPreservesJ : ∀ {pre post p ppre ppost}
                        → (prop : (PeerState → Set))
-                       → Step by pre ts post
+                       → (theStep : Step pre post)
                        → (lookup p (peerStates pre))  ≡ just ppre
                        → (lookup p (peerStates post)) ≡ just ppost
                        → prop ppre
                        → ¬ prop ppost
-                       → p ≡ by
- stepByOtherPreservesJ {pre}{sysState msgs' .(peerStates pre)}{by}{p}{ppre}{ppost} prop (cheat ts to m x) ppre≡ ppost≡ preHolds postNotHold =
+                       → p ≡ peerOf theStep
+ stepByOtherPreservesJ {pre}{sysState msgs' .(peerStates pre)}{p}{ppre}{ppost} prop (cheat by ts to m x) ppre≡ ppost≡ preHolds postNotHold =
    ⊥-elim (postNotHold (subst prop (just-injective (trans (sym ppre≡) ppost≡)) preHolds))
- stepByOtherPreservesJ {pre}{post}{by}{p}{ppre}{ppost} prop (initPeer ts cI rdy) ppre≡ ppost≡ preHolds postNotHold =
+ stepByOtherPreservesJ {pre}{post}{p}{ppre}{ppost} prop (initPeer by ts cI rdy) ppre≡ ppost≡ preHolds postNotHold =
    sym (insert-target-0 {k = by} {k' = p} {kvm = peerStates pre} {rdy} λ x₁ → ⊥-elim (postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x₁) ppost≡)) preHolds)))
- stepByOtherPreservesJ {pre}{post}{by}{p}{ppre}{ppost} prop (recvMsg ts x1 ready x2)  ppre≡ ppost≡ preHolds postNotHold =
+ stepByOtherPreservesJ {pre}{post}{p}{ppre}{ppost} prop (recvMsg by ts x1 ready x2)  ppre≡ ppost≡ preHolds postNotHold =
    sym (update-target {kvm = peerStates pre}{k1 = p} {k2 = by} λ x → postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x) ppost≡)) preHolds))
 
 {-
+ -- Not used, not updated for purely relational Step definition
  stepDoesNotInitialize : ∀ {pre post postReach p}
                        → {theStep : Step pre post}
                        → {preReach : ReachableSystemState pre}
@@ -167,43 +176,41 @@ module LibraBFT.Global.SystemModel
  ...| just jv | [ xx1 ] = ⊥-elim (xx (update-target {k1 = p} {k2 = by} nothingBefore λ x → maybe-⊥ xx1 x))
 -}
 
- -- If p's peerState is nothing in prestate and not nothing in the poststate, then the action is an initPeer by p and poststate has p's state as initial state
-
- initPeerLemma : ∀ {pre post by p pst ts}
-                 → {theStep : Step by pre ts post}
-                 → lookup p (peerStates pre) ≡ nothing
-                 → lookup p (peerStates post) ≡ just pst
-                 → by ≡ p × Σ (isInitPeer theStep)
-                              (λ act → pst ≡ proj₁ (Init by (canInitOf theStep act)))
- initPeerLemma {by = by} {p = p} {theStep = theStep} nothingBefore justAfter
-    with by ≟Peer p
- ...| no  neq = {!!}
- ...| yes refl
-    with theStep
- ...| initPeer ts cI rdy
-    with insert-target {k = by} {k' = by} rdy ((flip maybe-⊥) nothingBefore) justAfter
- ...| _ , yyy = refl , tt , yyy
-
- initPeerLemma {by = by} {p = p} {theStep = theStep} nothingBefore justAfter
-    | yes refl
-    | recvMsg _ _ rdy _ = ⊥-elim (maybe-⊥ rdy nothingBefore)
- initPeerLemma {by = by} {p = p} {theStep = theStep} nothingBefore justAfter
-    | yes refl
-    | cheat ts to m x = ⊥-elim (maybe-⊥ justAfter nothingBefore)
-
-
  postulate  -- TODO: prove
-   msgs-stable : ∀ {pre post p m ts}
-                 → (theStep : Step p pre ts post)
+   msgs-stable : ∀ {pre post m}
+                 → (theStep : Step pre post)
                  → m ∈SM sentMessages pre
                  → m ∈SM sentMessages post
 
-   cheatPreservesPeerState : ∀ {pre post by p ts}
-                           → (theStep : Step by pre ts post)
+   cheatPreservesPeerState : ∀ {pre post p}
+                           → (theStep : Step pre post)
                            → isCheatStep theStep
                            → lookup p (peerStates post) ≡ lookup p (peerStates pre)
 
-   stepByOtherPreservesPeerState : ∀ {pre post by p ts}
-                           → (theStep : Step by pre ts post)
-                           → ¬ (by ≡ p)
+   stepByOtherPreservesPeerState : ∀ {pre post p}
+                           → (theStep : Step pre post)
+                           → ¬ (peerOf theStep ≡ p)
                            → lookup p (peerStates post) ≡ lookup p (peerStates pre)
+
+ -- If p's peerState is nothing in prestate and not nothing in the poststate, then the action is an initPeer by p and poststate has p's state as initial state
+
+ initPeerLemma : ∀ {pre post p pst}
+                 → {theStep : Step pre post}
+                 → lookup p (peerStates pre) ≡ nothing
+                 → lookup p (peerStates post) ≡ just pst
+                 → peerOf theStep ≡ p × Σ (isInitPeer theStep)
+                              (λ act → pst ≡ proj₁ (Init (peerOf theStep) (canInitOf theStep act)))
+ initPeerLemma {p = p} {theStep = cheat _ _ _ _ _} nothingBefore justAfter = ⊥-elim (maybe-⊥ justAfter nothingBefore)
+
+ initPeerLemma {p = p} {theStep = theStep@(recvMsg by _ _ rdy _)} nothingBefore justAfter
+    with by ≟Peer p
+ ...| yes refl = ⊥-elim (maybe-⊥ rdy nothingBefore)
+ ...| no neq rewrite stepByOtherPreservesPeerState theStep neq = ⊥-elim (maybe-⊥ justAfter nothingBefore)
+
+ initPeerLemma {p = p} {theStep = theStep@(initPeer by _ _ rdy)} nothingBefore justAfter
+    with by ≟Peer p
+ ...| no  neq rewrite stepByOtherPreservesPeerState theStep neq = ⊥-elim (maybe-⊥ justAfter nothingBefore)
+ ...| yes refl
+    with insert-target {k = by} {k' = by} rdy ((flip maybe-⊥) nothingBefore) justAfter
+ ...| _ , yyy = refl , tt , yyy
+
