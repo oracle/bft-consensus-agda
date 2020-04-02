@@ -19,9 +19,8 @@ module LibraBFT.Global.SystemModel
   (_≟Peer_       : ∀ (p₁ p₂ : Peer) → Dec (p₁ ≡ p₂))
   (Message       : Set)
   (Signer        : WithSig Message)
-  (Env           : Set)  -- Environment for RWST monad
-  (Action        : Set)  -- What will RWST monad write?
-  (PeerState     : Set)  -- State for RWST monad
+  (Action        : Set)
+  (PeerState     : Set)
   
   -- TODO: combine these into an "event handler" to be more consistent with PTFD?  I am not doing
   -- this for now because the Run.hs for LBFT assumes a fixed number of peers, and creates all of
@@ -30,8 +29,8 @@ module LibraBFT.Global.SystemModel
   -- The way I have this, new peers can initialize at any time, create their state, and send some
   -- messages.
   (CanInit       : Peer → Set)
-  (Init          : (p : Peer) → CanInit p → (PeerState × List Action))
-  (MsgHandler    : Message → Instant → RWST Env Action PeerState Unit)
+  (Init          : (p : Peer) → CanInit p → PeerState × List Action)
+  (MsgHandler    : Message → Instant → PeerState → PeerState × List Action)
   (ActionHandler : PeerState → Action → List (Peer × Message)) -- Discerns whether action results in
                                                                -- sending a message and to whom.
 
@@ -85,12 +84,12 @@ module LibraBFT.Global.SystemModel
                          (sendMessagesFromActions pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
                          (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
 
-   recvMsg : ∀ {m : Message} {to : Peer} {env : Env} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
+   recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
              (p : Peer)
            → (ts : Instant)
            → (to , m) ∈SM (sentMessages pre)
            → (ready : KVMap.lookup p (peerStates pre) ≡ just ppre)
-           → RWST-run (MsgHandler m ts) env ppre ≡ (unit , ppost , acts)
+           → MsgHandler m ts ppre ≡ (ppost , acts)
            → Step pre (sysState
                          (sendMessagesFromActions pre ppost acts)
                          (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
