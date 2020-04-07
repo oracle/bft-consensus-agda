@@ -13,18 +13,13 @@ module LibraBFT.Abstract.RecordChain
  open import LibraBFT.Abstract.Records.Extends  ec UID _≟UID_
  open import LibraBFT.Abstract.RecordStoreState ec UID _≟UID_
 
- module WithRSS
-   {a}{RSS : Set a}⦃ isRSS : isRecordStoreState RSS ⦄
-   -- The current record pool; abstracted by saying
-   -- whether a record is in the pool or not.
-   (curr : RSS)
-     where
+ module WithST {a}{ST : Set a}⦃ isST : isRecordStoreState ST ⦄ where
 
-  IsInPool : Record → Set
-  IsInPool r = isInPool isRSS r curr
+  IsInPool : ST → Record → Set
+  IsInPool st r = isInPool isST r st
 
-  IsInPool-irrelevant : ∀{r}(p₀ p₁ : IsInPool r) → p₀ ≡ p₁
-  IsInPool-irrelevant = isInPool-irrelevant isRSS
+  IsInPool-irrelevant : ∀{st r}(p₀ p₁ : IsInPool st r) → p₀ ≡ p₁
+  IsInPool-irrelevant = isInPool-irrelevant isST
 
   -- A record chain is a slice of the reflexive transitive closure with
   -- valid records only. Validity, in turn, is defined by recursion on the
@@ -32,13 +27,13 @@ module LibraBFT.Abstract.RecordChain
 
   -- One way of looking at a 'RecordChain r' is to think of it as 
   -- one path from the epoch's initial record to r.
-  data RecordChain : Record → Set where
-    empty : RecordChain I
+  data RecordChain (st : ST) : Record → Set where
+    empty : RecordChain st I
     step  : ∀ {r r'}
-          → (rc : RecordChain r) 
+          → (rc : RecordChain st r) 
           → r ← r'
-          → {prf : IsInPool r'} -- TODO: Make these into instance arguments too!
-          → RecordChain r'
+          → {prf : IsInPool st r'} -- TODO: Make these into instance arguments too!
+          → RecordChain st r'
 
   -- This is a helpful syntax for talking about record chains
   infix 30 step
@@ -62,17 +57,17 @@ module LibraBFT.Abstract.RecordChain
   --  rc₁    : 𝓑₀ ← 𝓒₀ ← 𝓑₁ ← 𝓒₁ ← ⋯ ← 𝓑ₖ ← 𝓒ₖ
   --
   --
-  data ≈RC-pw {ℓ}(_≈_ : Rel Record ℓ) 
-      : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set ℓ where
+  data ≈RC-pw {ℓ}(_≈_ : Rel Record ℓ){st₀ st₁} 
+      : ∀{r₀ r₁} → RecordChain st₀ r₀ → RecordChain st₁ r₁ → Set ℓ where
     eq-empty : I ≈ I → ≈RC-pw _≈_ empty empty
     eq-step  : ∀{r₀ r₁ s₀ s₁}
-             → (rc₀ : RecordChain s₀)
-             → (rc₁ : RecordChain s₁)
+             → (rc₀ : RecordChain st₀ s₀)
+             → (rc₁ : RecordChain st₁ s₁)
              → r₀ ≈ r₁
              → (ext₀ : s₀ ← r₀)
              → (ext₁ : s₁ ← r₁)
-             → {p₀ : IsInPool r₀}
-             → {p₁ : IsInPool r₁}
+             → {p₀ : IsInPool st₀ r₀}
+             → {p₁ : IsInPool st₁ r₁}
              → ≈RC-pw _≈_ rc₀ rc₁
              → ≈RC-pw _≈_ (step rc₀ ext₀ {p₀}) (step rc₁ ext₁ {p₁})
 
@@ -90,13 +85,13 @@ module LibraBFT.Abstract.RecordChain
   -- It is easy to see that if rc₀ ≈RC rc₁, then they contain
   -- the same blocks (propositionally!) but potentially 
   -- different /sets of votes/ certifying said blocks.
-  _≈RC_ : ∀{r₀ r₁} → RecordChain r₀ → RecordChain r₁ → Set
+  _≈RC_ : ∀{st₀ st₁ r₀ r₁} → RecordChain st₀ r₀ → RecordChain st₁ r₁ → Set
   _≈RC_ = ≈RC-pw _≈Rec_
 
   -- Heterogeneous irrelevance of _≈RC_ happens only modulo
   -- propositional non-injectivity of block ids; which is
   -- awesome!
-  ≈RC-refl : ∀{r₀ r₁}(rc₀ : RecordChain r₀)(rc₁ : RecordChain r₁)
+  ≈RC-refl : ∀{st₀ st₁ r₀ r₁}(rc₀ : RecordChain st₀ r₀)(rc₁ : RecordChain st₁ r₁)
            → r₀ ≈Rec r₁
            → NonInjective _≡_ bId ⊎ (rc₀ ≈RC rc₁)
   ≈RC-refl empty empty hyp 
@@ -111,12 +106,14 @@ module LibraBFT.Abstract.RecordChain
   ≈RC-refl (step r0 (Q←B x x₁)) empty () 
   ≈RC-refl (step r0 (B←Q x x₁)) empty () 
 
-
-  -- Homogeneous irrelevance is easy to conjure:
-  RecordChain-irrelevant : ∀{r}(rc₀ rc₁ : RecordChain r) 
+  -- Heterogeneous irrelevance is easy to conjure and pretty interesting, it
+  -- proves that two record chains that end up in the same record
+  -- have the same blocks and equivalent QCs.
+  RecordChain-irrelevant : ∀{st₀ st₁ r}(rc₀ : RecordChain st₀ r)(rc₁ : RecordChain st₁ r) 
                          → NonInjective _≡_ bId ⊎ rc₀ ≈RC rc₁
   RecordChain-irrelevant rc0 rc1 = ≈RC-refl rc0 rc1 ≈Rec-refl
 
+{-
   -- A k-chain (paper Section 5.2) is a sequence of
   -- blocks and quorum certificates for said blocks:
   --
@@ -306,21 +303,23 @@ module LibraBFT.Abstract.RecordChain
   ¬bRound≡0 (step s (Q←B () h)) refl
 
 
- prevBlock : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
-           → ∀{q} → WithRSS.RecordChain curr (Q q) → Block
- prevBlock (WithRSS.step {r = B b} _ (B←Q _ _)) = b
+ prevBlock : ∀{a}{ST : Set a} ⦃ isST : isRecordStoreState ST ⦄ {curr : ST}
+           → ∀{q} → WithST.RecordChain curr (Q q) → Block
+ prevBlock (WithST.step {r = B b} _ (B←Q _ _)) = b
 
  -- Defition of 'previous_round' as in Paper Section 5.5
- currRound : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
-           → ∀{r} → WithRSS.RecordChain curr r → Round
- currRound WithRSS.empty = 0
- currRound (WithRSS.step {r = r} _ _) = round r
+ currRound : ∀{a}{ST : Set a} ⦃ isST : isRecordStoreState ST ⦄ {curr : ST}
+           → ∀{r} → WithST.RecordChain curr r → Round
+ currRound WithST.empty = 0
+ currRound (WithST.step {r = r} _ _) = round r
 
  -- TODO: prev round should be defined for blocks only...
- prevRound : ∀{a}{RSS : Set a} ⦃ isRSS : isRecordStoreState RSS ⦄ {curr : RSS}
-           → ∀{r} → WithRSS.RecordChain curr r → Round
- prevRound WithRSS.empty = 0
- prevRound (WithRSS.step rc (I←B x vr)) = 0
- prevRound (WithRSS.step rc (Q←B x vr)) = currRound rc
- prevRound (WithRSS.step rc (B←Q x vr)) = prevRound rc
+ prevRound : ∀{a}{ST : Set a} ⦃ isST : isRecordStoreState ST ⦄ {curr : ST}
+           → ∀{r} → WithST.RecordChain curr r → Round
+ prevRound WithST.empty = 0
+ prevRound (WithST.step rc (I←B x vr)) = 0
+ prevRound (WithST.step rc (Q←B x vr)) = currRound rc
+ prevRound (WithST.step rc (B←Q x vr)) = prevRound rc
 
+
+-}
