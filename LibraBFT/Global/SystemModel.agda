@@ -19,7 +19,7 @@ module LibraBFT.Global.SystemModel
   (_≟Peer_       : ∀ (p₁ p₂ : Peer) → Dec (p₁ ≡ p₂))
   (Message       : Set)
   (Signer        : WithSig Message)
-  (Action        : Set)
+  (Output        : Set)
   (PeerState     : Set)
   (GetPK         : Message → PeerState → PK)
   
@@ -30,9 +30,9 @@ module LibraBFT.Global.SystemModel
   -- The way I have this, new peers can initialize at any time, create their state, and send some
   -- messages.
   (CanInit       : Peer → Set)
-  (Init          : (p : Peer) → CanInit p → PeerState × List Action)
-  (MsgHandler    : (m : Message) → Maybe (WithVerSig {Message} ⦃ Signer ⦄ m) → Instant → PeerState → PeerState × List Action)
-  (ActionHandler : PeerState → Action → List (Peer × Message)) -- Discerns whether action results in
+  (Init          : (p : Peer) → CanInit p → PeerState × List Output)
+  (MsgHandler    : (m : Message) → Maybe (WithVerSig {Message} ⦃ Signer ⦄ m) → Instant → PeerState → PeerState × List Output)
+  (OutputHandler : PeerState → Output → List (Peer × Message)) -- Discerns whether action results in
                                                                -- sending a message and to whom.
 
   -- The model will allow a peer to create and send any message it wants, if there is evidence that
@@ -65,14 +65,14 @@ module LibraBFT.Global.SystemModel
  initState : SystemState
  initState = sysState noMessages empty
 
- actionsToSends : PeerState → List Action → List (Peer × Message)
- actionsToSends st = concat ∘ List-map (ActionHandler st)
+ actionsToSends : PeerState → List Output → List (Peer × Message)
+ actionsToSends st = concat ∘ List-map (OutputHandler st)
 
  sendMessage : ∀ {pre : SystemState} → Message → Peer → SystemState
  sendMessage {pre} msg p = record pre { sentMessages = sendMsg (sentMessages pre) (p , msg) }
 
- sendMessagesFromActions : SystemState → PeerState → List Action → SentMessages
- sendMessagesFromActions st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
+ sendMessagesFromOutputs : SystemState → PeerState → List Output → SentMessages
+ sendMessagesFromOutputs st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
 
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
@@ -82,10 +82,10 @@ module LibraBFT.Global.SystemModel
             → (canInit : CanInit p)
             → (ready : KVMap.lookup p (peerStates pre) ≡ nothing)
             → Step pre (sysState
-                         (sendMessagesFromActions pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
+                         (sendMessagesFromOutputs pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
                          (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
 
-   recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
+   recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Output}
              (p : Peer)
            → (ts : Instant)
            → (to , m) ∈SM (sentMessages pre)
@@ -94,7 +94,7 @@ module LibraBFT.Global.SystemModel
            → verMB ≡ check-signature ⦃ Signer ⦄ (GetPK m ppre) m
            → MsgHandler m verMB ts ppre ≡ (ppost , acts)
            → Step pre (sysState
-                         (sendMessagesFromActions pre ppost acts)
+                         (sendMessagesFromOutputs pre ppost acts)
                          (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
 
    cheat : ∀ (p : Peer)

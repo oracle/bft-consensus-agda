@@ -48,9 +48,9 @@ module LibraBFT.Example.Example where
  unquoteDecl author   val   sigMB   pubKey   = mkLens (quote Message)
             (author ∷ val ∷ sigMB ∷ pubKey ∷ [])
 
- data Action : Set where
-   announce : ℕ → Action           -- This is analogous to "commit"
-   send     : ℕ → PeerId → Action
+ data Output : Set where
+   announce : ℕ → Output           -- This is analogous to "commit"
+   send     : ℕ → PeerId → Output
 
 
  instance
@@ -79,7 +79,7 @@ module LibraBFT.Example.Example where
  canInit : PeerId → Set
  canInit p = ⊤
 
- initialStateAndMessages : (p : PeerId) → canInit p → State × List Action
+ initialStateAndMessages : (p : PeerId) → canInit p → State × List Output
  initialStateAndMessages p _ = mkState p (fakePubKey p) 0 nothing , []  -- TODO : send something!
 
  open RWST-do
@@ -146,7 +146,7 @@ module LibraBFT.Example.Example where
  ...| no  neq  = no (neq ∘ cA-injective)
 
  -- TODO: none of the Dec proofs are used here; can this be simplified?
- pureHandler : (msg : Message) → Maybe (WithVerSig msg) → Instant → State → HandlerResult × List Action
+ pureHandler : (msg : Message) → Maybe (WithVerSig msg) → Instant → State → HandlerResult × List Output
  pureHandler msg nothing ts st = noChange , []
  pureHandler msg (just ver) ts st
     with st ^∙ maxSeen  <? msg ^∙ val
@@ -165,7 +165,7 @@ module LibraBFT.Example.Example where
                      ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
                      ∷ []
 
- handle : (msg : Message) → Maybe (WithVerSig msg) → Instant → RWST Unit Action State Unit
+ handle : (msg : Message) → Maybe (WithVerSig msg) → Instant → RWST Unit Output State Unit
  handle msg verMB ts = do  -- TODO: Check signature
    st ← get
    case proj₁ (pureHandler msg verMB ts st) of
@@ -180,7 +180,7 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg verMB ts st))
 
- stepPeer : (msg : Message) → Maybe (WithVerSig msg) → Instant → State → State × List Action
+ stepPeer : (msg : Message) → Maybe (WithVerSig msg) → Instant → State → State × List Output
  stepPeer msg verMB ts st = proj₂ (RWST-run (handle msg verMB ts) unit st)
 
  -- TODO: not used, but should be able to simplify some of the cases below using this
@@ -297,9 +297,9 @@ module LibraBFT.Example.Example where
  ...| refl = refl , newIsNext , 1stSender , refl , diffSender
 
  -- Send actions cause messages to be sent, accounce actions do not
- exampleActionsToSends : State → Action → List (PeerId × Message)
- exampleActionsToSends s (announce _) = []
- exampleActionsToSends s (send n peer) =  (peer , (mkMessage (s ^∙ myId) n nothing (s ^∙ myPubKey))) ∷ []  -- TODO: sign message
+ exampleOutputsToSends : State → Output → List (PeerId × Message)
+ exampleOutputsToSends s (announce _) = []
+ exampleOutputsToSends s (send n peer) =  (peer , (mkMessage (s ^∙ myId) n nothing (s ^∙ myPubKey))) ∷ []  -- TODO: sign message
 
  -- Our simple model is that there is a single fault.  For simplicity, I've assumed for now that
  -- it's peer 0, which is obviously not general enough, but enables progress on proofs.
@@ -316,13 +316,13 @@ module LibraBFT.Example.Example where
                _≟-PeerId_
                Message
                sig-Message
-               Action
+               Output
                State
                (λ msg _ → msg ^∙ pubKey)
                canInit
                initialStateAndMessages
                stepPeer
-               exampleActionsToSends
+               exampleOutputsToSends
                dishonest
 
  -- The following (conceptually) easy invariant states that if peer p has recorded that p' sent the
