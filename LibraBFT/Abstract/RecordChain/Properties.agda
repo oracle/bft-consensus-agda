@@ -2,18 +2,20 @@ open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.RecordStoreState
+
 
 module LibraBFT.Abstract.RecordChain.Properties
   (ec  : Meta EpochConfig)
   (UID : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
+  {s}{ST : Set s}⦃ isRSS : isRecordStoreState ec UID _≟UID_ ST ⦄
    where
 
  open import LibraBFT.Abstract.BFT                         ec UID _≟UID_
  open import LibraBFT.Abstract.Records                     ec UID _≟UID_
  open import LibraBFT.Abstract.Records.Extends             ec UID _≟UID_
  open import LibraBFT.Abstract.RecordChain                 ec UID _≟UID_
- open import LibraBFT.Abstract.RecordStoreState            ec UID _≟UID_
  open import LibraBFT.Abstract.RecordStoreState.Invariants ec UID _≟UID_
    as Invariants
 
@@ -22,16 +24,13 @@ module LibraBFT.Abstract.RecordChain.Properties
  private
    postulate <VO-cmp : Trichotomous _≡_ _<VO_
 
- module ForRSS -- VCM: I can't call this WithRSS because I 'open'ed stuff above
-   {s}{RSS : Set s}⦃ isRSS : isRecordStoreState RSS ⦄
-   (curr                  : RSS) 
-   (correct               : Invariants.Correct             curr)
-   (increasing-round-rule : Invariants.IncreasingRoundRule curr)
-   (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   curr)
-   (locked-round-rule     : Invariants.LockedRoundRule     curr)
+ module WithST
+   (st                    : ST) 
+   (correct               : Invariants.Correct             st)
+   (increasing-round-rule : Invariants.IncreasingRoundRule st)
+   (votes-only-once-rule  : Invariants.VotesOnlyOnceRule   st)
+   (locked-round-rule     : Invariants.LockedRoundRule     st)
   where
-
-   open WithRSS curr
 
    ----------------------
    -- Lemma 2
@@ -46,7 +45,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    --         2) when it returns no, and the blocks are different, no problem.
    --         3) when it returns no and the blocks are equal, its impossible! HashBroke!
    lemmaS2 : {b₀ b₁ : Block}{q₀ q₁ : QC}
-           → IsInPool (Q q₀) → IsInPool (Q q₁)
+           → IsInPool (Q q₀) st → IsInPool (Q q₁) st
            → (p₀ : B b₀ ← Q q₀)
            → (p₁ : B b₁ ← Q q₁)
            → getRound b₀ ≡ getRound b₁
@@ -74,17 +73,17 @@ module LibraBFT.Abstract.RecordChain.Properties
      with votes-only-once-rule a honest {q₀} {q₁} p0 p1 a∈q₀ a∈q₁ va≡va'
    ...| v₀≡v₁ = let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
                     v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
-                    ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
+                    ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {_} {_} {q₀} {q₁} v₀∈q₀ v₁∈q₁ v₀≡v₁) 
                                             (sym h₁))
                 in inj₁ ((b₀ , b₁) , (imp , ppp))
 
    ----------------
    -- Lemma S3
 
-   lemmaS3 : ∀{P r₂}{rc : RecordChain r₂}
-           → (c3 : 𝕂-chain P 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
+   lemmaS3 : ∀{P r₂}{rc : RecordChain st r₂}
+           → (c3 : 𝕂-chain st P 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC}
-           → (certB : RecordChain (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
+           → (certB : RecordChain st (Q q')) -- Immediatly before a (Q q), we have the certified block (B b), which is the 'B' in S3
            → round r₂ < getRound q'
            → getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} _ b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
@@ -103,7 +102,7 @@ module LibraBFT.Abstract.RecordChain.Properties
      with votes-only-once-rule a honest {q₂} {q'} pq pq' a∈q₂ a∈q' va₂≡va'
    ...| v₂≡v' = let v₂∈q₂ = ∈QC-Vote-correct q₂ a∈q₂
                     v'∈q' = ∈QC-Vote-correct q' a∈q'
-                in ⊥-elim (<⇒≢ hyp (vote≡⇒QRound≡ {q₂} {q'} v₂∈q₂ v'∈q' v₂≡v'))
+                in ⊥-elim (<⇒≢ hyp (vote≡⇒QRound≡ {_} {_} {q₂} {q'} v₂∈q₂ v'∈q' v₂≡v'))
    lemmaS3 {r} (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ {pb} P b₂←q₂ {pq} c2) {q'} (step certB b←q' {pq'}) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | tri< va₂<va' _ _
@@ -128,8 +127,8 @@ module LibraBFT.Abstract.RecordChain.Properties
 
    -- Which is then translated to LibraBFT lingo
    propS4-base-lemma-1
-     : ∀{q}{rc : RecordChain (Q q)}
-     → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+     : ∀{q}{rc : RecordChain st (Q q)}
+     → (c3 : 𝕂-chain st Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
      → (r : ℕ)
      → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ r
      → r ≤ getRound (c3 b⟦ zero ⟧) 
@@ -144,10 +143,10 @@ module LibraBFT.Abstract.RecordChain.Properties
      rewrite p0 | p1 | p2 = propS4-base-arith (suc (round R)) r hyp0 hyp1
 
    propS4-base-lemma-2
-     : ∀{P k r}{rc : RecordChain r}
-     → (c  : 𝕂-chain P k rc)
-     → {b' : Block}(q' : QC) → IsInPool (Q q')
-     → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
+     : ∀{P k r}{rc : RecordChain st r}
+     → (c  : 𝕂-chain st P k rc)
+     → {b' : Block}(q' : QC) → IsInPool (Q q') st
+     → (certB : RecordChain st (B b'))(ext : (B b') ← (Q q'))
      → (ix : Fin k)
      → getRound (kchainBlock ix c) ≡ getRound b'
      → NonInjective-≡ bId ⊎ (kchainBlock ix c ≡ b')
@@ -157,10 +156,10 @@ module LibraBFT.Abstract.RecordChain.Properties
                        q' pq' certB ext (suc ix) hyp 
      = propS4-base-lemma-2 c q' pq' certB ext ix hyp
 
-   propS4-base : ∀{q}{rc : RecordChain (Q q)}
-               → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+   propS4-base : ∀{q}{rc : RecordChain st (Q q)}
+               → (c3 : 𝕂-chain st Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → {q' : QC}
-               → (certB : RecordChain (Q q'))
+               → (certB : RecordChain st (Q q'))
                → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
                → getRound q' ≤ getRound (c3 b⟦ zero ⟧) 
                → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
@@ -192,10 +191,10 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
    {-# TERMINATING #-}
-   propS4 :  ∀{q}{rc : RecordChain (Q q)}
-          → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
+   propS4 : ∀{q}{rc : RecordChain st (Q q)}
+          → (c3 : 𝕂-chain st Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → {q' : QC}
-          → (certB : RecordChain (Q q'))
+          → (certB : RecordChain st (Q q'))
           → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock certB'. Hence, to say that B₀ ←⋆ B is
@@ -225,13 +224,14 @@ module LibraBFT.Abstract.RecordChain.Properties
    -------------------
    -- Theorem S5
 
-   thmS5 : ∀{q q'}{rc : RecordChain (Q q)}{rc' : RecordChain (Q q')}
+   thmS5 : ∀{q q'}{rc : RecordChain st (Q q)}{rc' : RecordChain st (Q q')}
          → {b b' : Block}
-         → CommitRule rc  b
-         → CommitRule rc' b'
+         → CommitRule st rc  b
+         → CommitRule st rc' b'
          → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} {rc'} (commit-rule c3 refl) (commit-rule c3' refl) 
      with <-cmp (getRound (c3 b⟦ suc (suc zero) ⟧)) (getRound (c3' b⟦ suc (suc zero) ⟧)) 
    ...| tri≈ _ r≡r' _ = inj₁ <⊎$> (propS4 c3 rc' (≤-trans (≡⇒≤ r≡r')      (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri< r<r' _ _ = inj₁ <⊎$> (propS4 c3 rc' (≤-trans (≤-unstep r<r') (kchain-round-≤-lemma' c3' (suc (suc zero))))) 
    ...| tri> _ _ r'<r = inj₂ <⊎$> (propS4 c3' rc (≤-trans (≤-unstep r'<r) (kchain-round-≤-lemma' c3  (suc (suc zero))))) 
+
