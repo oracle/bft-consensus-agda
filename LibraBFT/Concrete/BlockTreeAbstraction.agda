@@ -1,4 +1,4 @@
--- {-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
@@ -9,20 +9,20 @@ open import LibraBFT.Base.PKCS
 
 open import Optics.All
 
-module LibraBFT.Concrete.BlockTree
+-- This module provides the abstraction of a block tree and
+-- gives us a insert-qc and insert-block function we should
+-- use in our Haskell copy.
+module LibraBFT.Concrete.BlockTreeAbstraction
     -- A Hash function maps a bytestring into a hash.
     (hash    : ByteString → Hash)
     -- And is colission resistant
     (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-    (ec  : Meta EpochConfig)
-    -- We might need some system level info!
-    -- (sys : ParticularPropertiesOfTheSystemModel)
+    (ec      : Meta EpochConfig)
  where
 
   open import LibraBFT.Concrete.Util.KVMap
     renaming (empty to KV-empty)
   open import LibraBFT.Concrete.Records
-
 
   open import LibraBFT.Concrete.Consensus.Types.EpochIndep
   open import LibraBFT.Concrete.Consensus.Types.EpochDep ec
@@ -295,25 +295,6 @@ module LibraBFT.Concrete.BlockTree
   ExtendsQC : BlockTree → Σ QuorumCert IsValidQC → Set
   ExtendsQC bt = Extends bt ∘ Abs.Q ∘ α-QC
 
-  ---------------------------------------
-  -- Properties About Valid BlockTrees --
-
-  -- In a valid BlockTree; if a given QC certifies a block, then
-  -- such block has a concrete counterpart that belongs in the block tree.
-  qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
-                           → ∀{q} → (Abs.Q q) ∈BT bt
-                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (_btIdToBlock bt) ≡ just cb)
-  qc-certifies-closed-conc bt correct {q} q∈bt 
-    with correct (Abs.Q q) q∈bt
-  ...| step {Abs.B b} (step _ _ {b∈bt}) (B←Q refl refl) 
-    with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock bt)) b∈bt
-  ...| (cb , inThere , _) = cb , inThere
-
-  -- The tail of a record chain is always an element of the state.
-  rc-∈BT : {bt : BlockTree}{r : Abs.Record}
-         → RecordChain bt r → r ∈BT bt
-  rc-∈BT empty            = unit
-  rc-∈BT (step _ _ {prf}) = prf
 
   ---------------------------------
   -- Insertion of Blocks and QCs --
@@ -336,6 +317,27 @@ module LibraBFT.Concrete.BlockTree
   ...| absQC | Q .absQC prf 
      = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
                                               (_btIdToQuorumCert bt) prf }
+
+{-
+  ---------------------------------------
+  -- Properties About Valid BlockTrees --
+
+  -- In a valid BlockTree; if a given QC certifies a block, then
+  -- such block has a concrete counterpart that belongs in the block tree.
+  qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
+                           → ∀{q} → (Abs.Q q) ∈BT bt
+                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (_btIdToBlock bt) ≡ just cb)
+  qc-certifies-closed-conc bt correct {q} q∈bt 
+    with correct (Abs.Q q) q∈bt
+  ...| step {Abs.B b} (step _ _ {b∈bt}) (B←Q refl refl) 
+    with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock bt)) b∈bt
+  ...| (cb , inThere , _) = cb , inThere
+
+  -- The tail of a record chain is always an element of the state.
+  rc-∈BT : {bt : BlockTree}{r : Abs.Record}
+         → RecordChain bt r → r ∈BT bt
+  rc-∈BT empty            = unit
+  rc-∈BT (step _ _ {prf}) = prf
 
   -----------------------------------------------------------------------------
   -- TEMPORARY: Properties we will need from the syste's layer as postulates --
@@ -818,11 +820,11 @@ module LibraBFT.Concrete.BlockTree
       with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
     -- 0.1 Both of them; inductive call.
     ...| yes qOld | yes q'Old 
-       = ValidBT.locked-round-rule valid {R} α hα 
+       = {!!} {- ValidBT.locked-round-rule valid {R} α hα 
             {q} 
             {rc-shrink ext (ValidBT.correct valid) {!!} rc} {n} 
             {!!} va {q'} 
-            (rc-shrink ext (ValidBT.correct valid) {!!} {!rc'!}) va' hyp
+            (rc-shrink ext (ValidBT.correct valid) {!!} {!rc'!}) va' hyp -}
     -- 0.2 Impossible; the inserted block is both q and q' but if α is honest,
     -- it abides by the incr-round rule, which means the rounds must be equal.
     -- Yet, hyp has type round q < round q'.
@@ -849,3 +851,5 @@ module LibraBFT.Concrete.BlockTree
     -- a proof of that. Moreover, we'll later need someway to lift properties
     -- from our own algorithm to another honest author... I need to think carefully
     -- about this.
+
+-}
