@@ -99,3 +99,11 @@ module LibraBFT.Concrete.Util.KVMap  where
    just-injective
      (trans (sym (lookup-correct-update prf)) lkup)
 
+ postulate
+  lookup-correct-update-3
+                : {kvm : KVMap Key Val}
+                → (prf : lookup k kvm ≢ nothing)
+                → lookup k kvm ≡ just v
+                → kvm-update k v kvm prf ≡ kvm
+
+

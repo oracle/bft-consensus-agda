@@ -34,11 +34,10 @@ module LibraBFT.Global.Network where
                        → m ∈SM (sendMsg sm m')
                        → m ≡ m'
 
-    ∈SM-stable-list : ∀ {sm : SentMessages} {m : A}
-                    → {msgs : List A}
+    ∈SM-stable-list : ∀ {msgs : List A} {sm : SentMessages} {m : A}
                     → m ∈SM sm
                     → m ∈SM foldr (flip sendMsg) sm msgs
-    ∈SM-stable-list {sm} {m} {[]}        = subst (m ∈SM_) refl
-    ∈SM-stable-list {sm} {m} {h ∷ t} prf = ∈SM-stable (∈SM-stable-list {msgs = t} prf)
+    ∈SM-stable-list {[]}    {sm} {m}     = subst (m ∈SM_) refl
+    ∈SM-stable-list {h ∷ t} {sm} {m} prf = ∈SM-stable (∈SM-stable-list {msgs = t} prf)
 
   open WithMsgType
