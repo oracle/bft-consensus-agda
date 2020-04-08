@@ -22,7 +22,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
 
   open import LibraBFT.Concrete.Util.KVMap
     renaming (empty to KV-empty)
-  open import LibraBFT.Concrete.Records
+  open import LibraBFT.Concrete.NetworkMsg
 
   open import LibraBFT.Concrete.Consensus.Types.EpochIndep
   open import LibraBFT.Concrete.Consensus.Types.EpochDep ec

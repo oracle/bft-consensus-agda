@@ -259,6 +259,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
              (vmVote ∷ vmSyncInfo ∷ [])
   postulate instance enc-VoteMsg : Encoder VoteMsg
 
+  vmProposed : Lens VoteMsg BlockInfo
+  vmProposed = vmVote ∙ vVoteData ∙ vdProposed
+
   -- This is a notification of a commit.  I don't think it's explicitly included in the Haskell/Rust
   -- code, but we need something to be able to express correctness conditions with.  It will
   -- probably have something different in it, but will serve the purpose for now.

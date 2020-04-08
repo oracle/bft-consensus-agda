@@ -26,6 +26,6 @@ module LibraBFT.Concrete.OBM.Util where
   -- define the epoch config is easy
   liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
   liftEC f = rwst λ _ st 
-    → let ec                 = α-EC (:epEC st , :epEC-correct st)
-          res , stec' , acts = RWST-run (f ec) unit (:epWithEC st)
-       in res , record st { :epWithEC = stec' } , acts
+    → let ec                 = α-EC (₋epEC st , ₋epEC-correct st)
+          res , stec' , acts = RWST-run (f ec) unit (₋epWithEC st)
+       in res , record st { ₋epWithEC = stec' } , acts

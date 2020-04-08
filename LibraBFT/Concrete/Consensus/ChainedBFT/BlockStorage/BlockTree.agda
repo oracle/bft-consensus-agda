@@ -1,7 +1,7 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
-open import LibraBFT.Concrete.Records
+open import LibraBFT.Concrete.NetworkMsg
 open import LibraBFT.Concrete.Util.KVMap
 open import LibraBFT.Concrete.OBM.Util
 open import LibraBFT.Hash
@@ -14,24 +14,24 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockTree
  where
 
   open import LibraBFT.Concrete.Consensus.Types.EpochDep 
-  open import LibraBFT.Concrete.BlockTree hash hash-cr 
+  open import LibraBFT.Concrete.BlockTreeAbstraction hash hash-cr 
 
 
   btGetLinkableBlock : ∀{ec} → HashValue -> BlockTree ec -> Maybe LinkableBlock
-  btGetLinkableBlock hv bt = lookup hv (_btIdToBlock bt)
+  btGetLinkableBlock hv bt = lookup hv (₋btIdToBlock bt)
 
   btGetBlock : ∀{ec} → HashValue -> BlockTree ec -> Maybe ExecutedBlock
-  btGetBlock hv bt = Maybe-map _lbExecutedBlock (btGetLinkableBlock hv bt)
+  btGetBlock hv bt = Maybe-map ₋lbExecutedBlock (btGetLinkableBlock hv bt)
 
   btRoot : ∀{ec} → BlockTree ec → ExecutedBlock
-  btRoot bt with (btGetBlock (:btRootId bt)) bt | inspect (btGetBlock (:btRootId bt)) bt
+  btRoot bt with (btGetBlock (₋btRootId bt)) bt | inspect (btGetBlock (₋btRootId bt)) bt
   ...| just x  | _ = x
   ...| nothing | [ imp ] = ⊥-elim (assumedValid bt imp)
    where postulate
            -- TODO: The Haskell code asserts this property.  It won't fire (assuming ... :-)).
            -- So how should we model this?  We could explicitly model assertions firing, and
            -- the we'd have to prove that they don't.  Alternatively we could
-           assumedValid : ∀{ec}(bt : BlockTree ec) → btGetBlock (:btRootId bt) bt ≡ nothing → ⊥
+           assumedValid : ∀{ec}(bt : BlockTree ec) → btGetBlock (₋btRootId bt) bt ≡ nothing → ⊥
 
 {--
 
@@ -106,13 +106,13 @@ insertBlock eb bt = do
 -}
 
   insertBlock : ∀{ec} → ExecutedBlock -> BlockTree ec -> Unit ⊎ (BlockTree ec)
-  insertBlock {ec} eb bt with (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt) |
-                 inspect (lookup (_bId (_ebBlock eb))) (_btIdToBlock bt)
+  insertBlock {ec} eb bt with (lookup (₋bId (₋ebBlock eb))) (₋btIdToBlock bt) |
+                 inspect (lookup (₋bId (₋ebBlock eb))) (₋btIdToBlock bt)
   ...| just _  | _ = inj₁ unit
   -- TODO: Here, we insert the block into the tree, so we need to provide an Extends.  This will
   -- come from properties we gather along the way.  idAvail is part of it, but other info needed,
   -- such as correct round, etc. will need to be carried along to here.
-  ...| nothing | [ idAvail ] = inj₂ (insert-block ec bt (LinkableBlock_new eb) {!!})
+  ...| nothing | [ idAvail ] = inj₂ (insert-block ec bt (LinkableBlock₋new eb) {!!})
 
   -- The monadic version of insertBlockM becomes much simpler and
   -- is guaranteed to not change verifiers and validators by construction! :)

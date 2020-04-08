@@ -14,8 +14,7 @@ open import LibraBFT.Concrete.OBM.RWST
 open import Level
 open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 
-module LibraBFT.Global.SystemModel2 (#peers : ℕ)
-   where
+module LibraBFT.Global.SystemModel (#peers : ℕ) where
  {- 
 
  VCM: I removed a number of things from the abstract model

@@ -1,6 +1,6 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Consensus.Types
-open import LibraBFT.Concrete.Records
+open import LibraBFT.Concrete.NetworkMsg
 open import LibraBFT.Hash
 
 open import Optics.All
@@ -18,7 +18,7 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
   getBlock {ec} hv bs = BT.btGetBlock hv (bs ^∙ bsInner ec)
 
   bsRoot : ∀{ec} → BlockStore ec → ExecutedBlock
-  bsRoot = BT.btRoot ∘ :bsInner
+  bsRoot = BT.btRoot ∘ ₋bsInner
 
 
 
@@ -66,8 +66,8 @@ module LibraBFT.Concrete.Consensus.ChainedBFT.BlockStorage.BlockStore
     -- We cannot do "bs <- use lBlockStore" as in Haskell code.  See comments in
     -- BlockTree.agda about why we use the following instead.
     ep ← get
-    let ec = α-EC (:epEC ep , :epEC-correct ep)
-    let bs = :epBlockStore (:epWithEC ep)
+    let ec = α-EC (₋epEC ep , ₋epEC-correct ep)
+    let bs = ₋epBlockStore (₋epWithEC ep)
 
         blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of
