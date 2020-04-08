@@ -12,8 +12,7 @@ open import Optics.All
 
 open import LibraBFT.Concrete.Consensus.Types
 
--- VCM: We should rename this module to network records, no?
-module LibraBFT.Concrete.Records where
+module LibraBFT.Concrete.NetworkMsg where
 
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
