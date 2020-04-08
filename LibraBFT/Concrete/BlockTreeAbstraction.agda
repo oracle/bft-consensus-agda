@@ -47,10 +47,10 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
   α-Block : LinkableBlock → Abs.Block
-  α-Block b' with _ebBlock (_lbExecutedBlock b')
-  ...| b with _bdBlockType (_bBlockData b)
+  α-Block b' with ₋ebBlock (₋lbExecutedBlock b')
+  ...| b with ₋bdBlockType (₋bBlockData b)
   ...| NilBlock = record
-       { bId     = _bId b
+       { bId     = ₋bId b
        ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
        ; bRound  = b ^∙ bBlockData ∙ bdRound
        }
@@ -70,7 +70,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
          → as ∈ qcVotes qc
          → Abs.Vote
   α-Vote qc v {author , sig , ord} as∈QC = record
-    { vAuthor   = {!!} -- (_ivaIdx (All-lookup (IsValidQC._ivqcValidAuthors v) as∈QC))  -- TODO: this is broken as _ivqcValidAuthors has gone way, need to fix
+    { vAuthor   = {!!} -- (₋ivaIdx (All-lookup (IsValidQC.₋ivqcValidAuthors v) as∈QC))  -- TODO: this is broken as ₋ivqcValidAuthors has gone way, need to fix
     ; vBlockUID = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
     ; vRound    = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; vOrder    = unsafeReadMeta ord -- VCM: here's the cliff hanger! if we just
@@ -83,7 +83,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
     ; qVotes       = All-reduce (α-Vote qc valid) (All-tabulate (λ x → x))
     ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
-    ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC._ivqcSizeOk valid)
+    ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC.₋ivqcSizeOk valid)
     ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
     ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self 
     }
@@ -131,19 +131,19 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   _∈BT_ : Abs.Record → BlockTree → Set
   Abs.I     ∈BT bt = Unit -- The initial record is not really *in* the record store,
   (Abs.B b) ∈BT bt 
-    = α-Block <M$> (lookup (Abs.bId b) (_btIdToBlock bt)) ≡ just b
+    = α-Block <M$> (lookup (Abs.bId b) (₋btIdToBlock bt)) ≡ just b
   (Abs.Q q) ∈BT bt 
     -- A qc is said to be in the abstract state iff there exists
     -- a qc that certifies the same block (i.e., with the same id).
     -- We don't particularly care for the list of votes or who authored it
-    = maybe ((q ≋QC_) ∘ α-QC) ⊥ (lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt))
+    = maybe ((q ≋QC_) ∘ α-QC) ⊥ (lookup (Abs.qCertBlockId q) (₋btIdToQuorumCert bt))
 
   -- It can be useful to open up a `Q q ∈BT bt` hypothesis without having
     -- to do 'with lookup | inspect lookup ...`
   ∈BT-Q-univ : ∀{q bt} → Abs.Q q ∈BT bt
-             → ∃[ vqc ] ( lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt) ≡ just vqc
+             → ∃[ vqc ] ( lookup (Abs.qCertBlockId q) (₋btIdToQuorumCert bt) ≡ just vqc
                         × q ≋QC (α-QC vqc))
-  ∈BT-Q-univ {q} {bt} hyp with lookup (Abs.qCertBlockId q) (_btIdToQuorumCert bt)
+  ∈BT-Q-univ {q} {bt} hyp with lookup (Abs.qCertBlockId q) (₋btIdToQuorumCert bt)
   ...| nothing   = ⊥-elim hyp
   ...| just vqc  = vqc , refl , hyp
 
@@ -151,14 +151,14 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   _∈BT?_ : (r : Abs.Record)(bt : BlockTree) → Dec (r ∈BT bt)
   Abs.I     ∈BT? bt = yes unit
   (Abs.B b) ∈BT? bt 
-    with lookup (Abs.bId b) (_btIdToBlock bt)
+    with lookup (Abs.bId b) (₋btIdToBlock bt)
   ...| nothing = no (λ x → maybe-⊥ refl (sym x))
   ...| just r  
     with α-Block r Abs.≟Block b
   ...| yes refl = yes refl
   ...| no  ok   = no (ok ∘ just-injective)
   (Abs.Q q) ∈BT? bt
-    with lookup (Abs.qCertBlockId q) (BlockTree._btIdToQuorumCert bt)
+    with lookup (Abs.qCertBlockId q) (BlockTree.₋btIdToQuorumCert bt)
   ...| nothing = no id
   ...| just qq = q ≋QC? (α-QC qq)
 
@@ -167,7 +167,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   ∈BT-irrelevant {Abs.I} unit unit    = refl
   ∈BT-irrelevant {Abs.B x} {st} p0 p1 = ≡-irrelevant p0 p1
   ∈BT-irrelevant {Abs.Q x} {st} p0 p1 
-    with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert st)
+    with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert st)
   ...| nothing = ⊥-elim p1
   ...| just γ  = cong₂ _,_ (≡-irrelevant (proj₁ p0) (proj₁ p1)) 
                            (≡-irrelevant (proj₂ p0) (proj₂ p1))
@@ -215,15 +215,15 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- TODO: fill out other fields
   emptyBT : BlockTree
   emptyBT = record
-    { _btIdToBlock               = KV-empty
-    ; :btRootId                  = initialAgreedHash (unsafeReadMeta ec)  -- These unsafeReadMetas will go away when
-    ; _btHighestCertifiedBlockId = initialAgreedHash (unsafeReadMeta ec)  -- we do real epoch changes as these hashes will
-    ; _btHighestQuorumCert       = {!!} -- ??                             -- come from somewhere else.  Similarly for
-    ; _btHighestCommitCert       = {!!} -- ??                             -- these initial QCs.
-    ; _btPendingVotes            = mkPendingVotes KV-empty KV-empty
-    ; _btPrunedBlockIds          = []
-    ; _btMaxPrunedBlocksInMem    = 0 
-    ; _btIdToQuorumCert          = KV-empty
+    { ₋btIdToBlock               = KV-empty
+    ; ₋btRootId                  = initialAgreedHash (unsafeReadMeta ec)  -- These unsafeReadMetas will go away when
+    ; ₋btHighestCertifiedBlockId = initialAgreedHash (unsafeReadMeta ec)  -- we do real epoch changes as these hashes will
+    ; ₋btHighestQuorumCert       = {!!} -- ??                             -- come from somewhere else.  Similarly for
+    ; ₋btHighestCommitCert       = {!!} -- ??                             -- these initial QCs.
+    ; ₋btPendingVotes            = mkPendingVotes KV-empty KV-empty
+    ; ₋btPrunedBlockIds          = []
+    ; ₋btMaxPrunedBlocksInMem    = 0 
+    ; ₋btIdToQuorumCert          = KV-empty
     }
 
   empty-Correct : Correct emptyBT
@@ -269,10 +269,10 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- makes me thing why not using the later...
   data canInsert (bt : BlockTree) : (r' : Abs.Record) → Set where
     B : (cb : Abs.Block)
-      → lookup (Abs.bId cb) (_btIdToBlock bt) ≡ nothing
+      → lookup (Abs.bId cb) (₋btIdToBlock bt) ≡ nothing
       → canInsert bt (Abs.B cb)
     Q : (qc : Abs.QC)
-      → lookup (Abs.qCertBlockId qc) (_btIdToQuorumCert bt) ≡ nothing
+      → lookup (Abs.qCertBlockId qc) (₋btIdToQuorumCert bt) ≡ nothing
       → canInsert bt (Abs.Q qc)
 
   -- An abstract record |r'| is said to extend the block tree if there exists
@@ -307,16 +307,16 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   insert-block bt cb (extends rInPool canI x)
     with α-Block cb | canI
   ...| absCB | B .absCB prf 
-     = record bt { _btIdToBlock = kvm-insert (Abs.bId absCB) cb 
-                                         (_btIdToBlock bt) prf }
+     = record bt { ₋btIdToBlock = kvm-insert (Abs.bId absCB) cb 
+                                         (₋btIdToBlock bt) prf }
 
   insert-qc : (bt : BlockTree)(qc : Σ QuorumCert IsValidQC)(ext : ExtendsQC bt qc)
             → BlockTree
   insert-qc bt qc (extends rInPool canI x) 
     with α-QC qc | canI
   ...| absQC | Q .absQC prf 
-     = record bt { _btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
-                                              (_btIdToQuorumCert bt) prf }
+     = record bt { ₋btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
+                                              (₋btIdToQuorumCert bt) prf }
 
 {-
   ---------------------------------------
@@ -326,11 +326,11 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- such block has a concrete counterpart that belongs in the block tree.
   qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
                            → ∀{q} → (Abs.Q q) ∈BT bt
-                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (_btIdToBlock bt) ≡ just cb)
+                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (₋btIdToBlock bt) ≡ just cb)
   qc-certifies-closed-conc bt correct {q} q∈bt 
     with correct (Abs.Q q) q∈bt
   ...| step {Abs.B b} (step _ _ {b∈bt}) (B←Q refl refl) 
-    with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock bt)) b∈bt
+    with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock bt)) b∈bt
   ...| (cb , inThere , _) = cb , inThere
 
   -- The tail of a record chain is always an element of the state.
@@ -386,15 +386,15 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     stable _                       {Abs.I}   r∈bt = unit
     stable (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
     stable (extends m (B _ prf) o) {Abs.B x} r∈bt 
-      with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock bt)) r∈bt
+      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock bt)) r∈bt
     ...| (lkupRes , isJust , αres)
       rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
             = cong just αres
 
-    -- Inserting blocks does not interfere with _btIdToQuorumCert
+    -- Inserting blocks does not interfere with ₋btIdToQuorumCert
     no-interf : (ext : ExtendsB bt cb)
-              → _btIdToQuorumCert (insert-block bt cb ext)
-              ≡ _btIdToQuorumCert bt
+              → ₋btIdToQuorumCert (insert-block bt cb ext)
+              ≡ ₋btIdToQuorumCert bt
     no-interf (extends _ (B _ _) _) = refl
 
     -- If a record was not in bt, but is in (insert cb bt), said record must
@@ -408,7 +408,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     target ext {Abs.Q x} neg hyp 
       rewrite no-interf ext = ⊥-elim (neg hyp) 
     target ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
-      with <M$>-univ α-Block (lookup (Abs.bId x) (_btIdToBlock (insert-block bt cb ext))) hyp 
+      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock (insert-block bt cb ext))) hyp 
     ...| (lkupRes , isJust , refl) 
       with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
     ...| _ , refl  = refl
@@ -466,7 +466,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
               → Abs.bId b ≢ Abs.bId (α-Block cb)
               → Abs.B b ∈BT bt
     pres-B∈BT ext@(extends _ (B _ x) _) {b} hyp nothd
-      with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock (insert-block bt cb ext))) hyp
+      with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) hyp
     ...| (bb , isJust , refl) 
       rewrite lookup-stable-2 x isJust nothd = refl
 
@@ -492,7 +492,7 @@ module LibraBFT.Concrete.BlockTreeAbstraction
      is-not-cb ext cor rc hyp (transp {_} {rc₀} old eq) 
        = is-not-cb ext cor rc₀ hyp old
      is-not-cb ext@(extends _ (B αbt btNew) _) cor {b} (step rc _ {prf}) hyp (here) 
-       with <M$>-univ α-Block (lookup (Abs.bId b) (_btIdToBlock (insert-block bt cb ext))) prf
+       with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) prf
      ...| (lb , isthere , refl) 
        rewrite lookup-stable-2 btNew isthere hyp 
              = refl
@@ -611,17 +611,17 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     stable ext {Abs.I}   r∈bt                     = unit
     stable (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
     stable (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
-      with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert bt)
-         | inspect (lookup (Abs.qCertBlockId x)) (_btIdToQuorumCert bt)
+      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert bt)
+         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert bt)
     ...| nothing | _     = ⊥-elim r∈bt
     ...| just γq | [ R ]
       rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf R
         = r∈bt
 
-    -- Inserting QCs does not interfere with _btIdToBlock
+    -- Inserting QCs does not interfere with ₋btIdToBlock
     no-interf : (ext : ExtendsQC bt vqc)
-              → _btIdToBlock (insert-qc bt vqc ext)
-              ≡ _btIdToBlock bt
+              → ₋btIdToBlock (insert-qc bt vqc ext)
+              ≡ ₋btIdToBlock bt
     no-interf (extends _ (Q _ _) _) = refl
 
     -- If a record was not in bt, but is in (insert cb bt), said record must
@@ -638,8 +638,8 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     target ext {Abs.B x} neg hyp 
       rewrite no-interf ext = ⊥-elim (neg hyp) 
     target ext@(extends {r' = Abs.Q x'} m (Q q0 prf) (B←Q b1 b2)) {Abs.Q x} neg hyp 
-      with lookup (Abs.qCertBlockId x) (_btIdToQuorumCert (insert-qc bt vqc ext))
-         | inspect (lookup (Abs.qCertBlockId x)) (_btIdToQuorumCert (insert-qc bt vqc ext))
+      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert (insert-qc bt vqc ext))
+         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert (insert-qc bt vqc ext))
     ...| nothing | _     = ⊥-elim hyp
     ...| just γq | [ R ]
       with insert-target prf (λ abs → neg (maybe-lift ((x ≋QC_) ∘ α-QC) hyp abs)) R 

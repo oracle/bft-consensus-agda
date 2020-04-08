@@ -43,9 +43,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record BlockInfo : Set where
     constructor mkBlockInfo
     field
-      _biEpoch : EpochId
-      _biRound : Round
-      _biId    : HashValue
+      ₋biEpoch : EpochId
+      ₋biRound : Round
+      ₋biId    : HashValue
       -- VCM: this has more fields...
   open BlockInfo public
   unquoteDecl biEpoch   biRound   biId = mkLens (quote BlockInfo)
@@ -55,8 +55,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record LedgerInfo : Set where
     constructor mkLedgerInfo
     field
-      _liCommitInfo        : BlockInfo
-      _liConsensusDataHash : HashValue
+      ₋liCommitInfo        : BlockInfo
+      ₋liConsensusDataHash : HashValue
   open LedgerInfo public
   unquoteDecl liCommitInfo   liConsensusBlockId = mkLens (quote LedgerInfo)
              (liCommitInfo ∷ liConsensusBlockId ∷ [])
@@ -65,11 +65,11 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record LedgerInfoWithSignatures : Set where
     constructor mkLedgerInfoWithSignatures
     field
-      _liwsLedgerInfo : LedgerInfo
+      ₋liwsLedgerInfo : LedgerInfo
       -- VCM: We also need vote orders in here, given that
       -- when a QC is sent, it contains agregated 'VoteData's, but
       -- not 'Vote'
-      _liwsSignatures : KVMap Author (Signature × Meta VoteOrder)
+      ₋liwsSignatures : KVMap Author (Signature × Meta VoteOrder)
   open LedgerInfoWithSignatures public
   unquoteDecl liwsLedgerInfo   liwsSignatures = mkLens (quote LedgerInfoWithSignatures)
              (liwsLedgerInfo ∷ liwsSignatures ∷ [])
@@ -82,8 +82,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record VoteData : Set where
     constructor mkVoteData
     field
-      _vdProposed : BlockInfo
-      _vdParent   : BlockInfo
+      ₋vdProposed : BlockInfo
+      ₋vdParent   : BlockInfo
   open VoteData public
   unquoteDecl vdProposed   vdParent = mkLens (quote VoteData)
              (vdProposed ∷ vdParent ∷ [])
@@ -92,25 +92,25 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record Vote : Set where
     constructor mkVote
     field
-      _vVoteData         : VoteData
-      _vAuthor           : Author
-      _vLedgerInfo       : LedgerInfo
-      _vSignature        : Signature
-      _vTimeoutSignature : Maybe Signature
+      ₋vVoteData         : VoteData
+      ₋vAuthor           : Author
+      ₋vLedgerInfo       : LedgerInfo
+      ₋vSignature        : Signature
+      ₋vTimeoutSignature : Maybe Signature
 
       -- The algo should never /read/ vote order, so we place it
       -- in the Meta monad. 
-      _vOrder            : Meta VoteOrder
+      ₋vOrder            : Meta VoteOrder
   open Vote public
-  unquoteDecl vVoteData   vAuthor   vLedgerInfo   vSignature   vTimeoutSignature = mkLens (quote Vote)
-             (vVoteData ∷ vAuthor ∷ vLedgerInfo ∷ vSignature ∷ vTimeoutSignature ∷ [])
+  unquoteDecl vVoteData   vAuthor   vLedgerInfo   vSignature   vTimeoutSignature   vOrder = mkLens (quote Vote)
+             (vVoteData ∷ vAuthor ∷ vLedgerInfo ∷ vSignature ∷ vTimeoutSignature ∷ vOrder ∷ [])
   postulate instance enc-Vote : Encoder Vote
 
   record QuorumCert : Set where
     constructor mkQuorumCert
     field
-      _qcVoteData         : VoteData
-      _qcSignedLedgerInfo : LedgerInfoWithSignatures
+      ₋qcVoteData         : VoteData
+      ₋qcSignedLedgerInfo : LedgerInfoWithSignatures
   open QuorumCert public
   unquoteDecl qcVoteData   qcSignedLedgerInfo = mkLens (quote QuorumCert)
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
@@ -138,7 +138,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   -- qcEndsEpoch  = to $ \qc -> isJust (qc^.qcSignedLedgerInfo.liwsLedgerInfo.liNextValidatorSet)
 
   qcVotesKV : QuorumCert → KVMap Author (Signature × Meta VoteOrder)
-  qcVotesKV = _liwsSignatures ∘ _qcSignedLedgerInfo
+  qcVotesKV = ₋liwsSignatures ∘ ₋qcSignedLedgerInfo
 
   qcVotes : QuorumCert → List (Author × Signature × Meta VoteOrder)
   qcVotes qc = kvm-toList (qcVotesKV qc)
@@ -149,11 +149,11 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   qcRound : Lens QuorumCert Round
   qcRound = qcVoteData ∙ vdProposed ∙ biRound
 
-  _qcCertifies : QuorumCert → Hash
-  _qcCertifies q = q ^∙ qcCertifies 
+  ₋qcCertifies : QuorumCert → Hash
+  ₋qcCertifies q = q ^∙ qcCertifies 
 
-  _qcRound : QuorumCert → Round
-  _qcRound q = q ^∙ qcRound 
+  ₋qcRound : QuorumCert → Round
+  ₋qcRound q = q ^∙ qcRound 
 
   ------------
   -- Blocks --
@@ -168,13 +168,13 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record BlockData : Set where
     constructor mkBlockData
     field
-      _bdEpoch      : EpochId
-      _bdRound      : Round
+      ₋bdEpoch      : EpochId
+      ₋bdRound      : Round
       -- VCM-QUESTION: How do we represent the block that extends
       -- the genesis block? that block doesn't come with a QC.
       -- I'm guessing we just send one with a QC containing an empty map.
-      _bdQuorumCert : QuorumCert
-      _bdBlockType  : BlockType
+      ₋bdQuorumCert : QuorumCert
+      ₋bdBlockType  : BlockType
       -- VCM-QUESTION: I don't think we need this here...
       -- bdTimeStamp : Instant
   open BlockData public
@@ -192,9 +192,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record Block : Set where
     constructor mkBlock
     field
-      _bId        : HashValue
-      _bBlockData : BlockData
-      _bSignature : Maybe Signature
+      ₋bId        : HashValue
+      ₋bBlockData : BlockData
+      ₋bSignature : Maybe Signature
   open Block public
   unquoteDecl bId   bBlockData   bSignature = mkLens (quote Block)
              (bId ∷ bBlockData ∷ bSignature ∷ [])
@@ -227,9 +227,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record SyncInfo : Set where
     constructor mkSyncInfo
     field
-      _siHighestQuorumCert  : QuorumCert
-      _siHighestCommitCert  : QuorumCert
-      -- _siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define
+      ₋siHighestQuorumCert  : QuorumCert
+      ₋siHighestCommitCert  : QuorumCert
+      -- ₋siHighestTimeoutCert : Mabe TimeoutCert -- VCM: TODO: define
   open SyncInfo public
   unquoteDecl siHighestQuorumCert   siHighestCommitCert = mkLens (quote SyncInfo)
              (siHighestQuorumCert ∷ siHighestCommitCert ∷ [])
@@ -242,8 +242,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record ProposalMsg : Set where
     constructor mkProposalMsg
     field
-      _pmProposal : Block
-      _pmSyncInfo : SyncInfo
+      ₋pmProposal : Block
+      ₋pmSyncInfo : SyncInfo
   open ProposalMsg public
   unquoteDecl pmProposal   pmSyncInfo = mkLens (quote ProposalMsg)
              (pmProposal ∷ pmSyncInfo ∷ [])
@@ -252,8 +252,8 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record VoteMsg : Set where
     constructor  mkVoteMsg
     field
-      _vmVote     : Vote
-      _vmSyncInfo : SyncInfo
+      ₋vmVote     : Vote
+      ₋vmSyncInfo : SyncInfo
   open VoteMsg public
   unquoteDecl vmVote   vmSyncInfo = mkLens (quote VoteMsg)
              (vmVote ∷ vmSyncInfo ∷ [])
@@ -265,40 +265,40 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
   record CommitMsg : Set where
     constructor mkCommitMsg
     field
-      _cEpochId : EpochId
-      _cAuthor  : NodeId
-      _cRound   : Round
-      _cCert    : Hash
-      _cSigMB   : Maybe Signature
+      ₋cEpochId : EpochId
+      ₋cAuthor  : NodeId
+      ₋cRound   : Round
+      ₋cCert    : Hash
+      ₋cSigMB   : Maybe Signature
   open CommitMsg public
   unquoteDecl cEpochId   cAuthor   cRound   cCert   cSigMB = mkLens (quote CommitMsg)
              (cEpochId ∷ cAuthor ∷ cRound ∷ cCert ∷ cSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
   record LastVoteInfo : Set where
-    constructor LastVoteInfo_new
+    constructor LastVoteInfo₋new
     field
-      _lviLiDigest  : HashValue
-      _lviRound     : Round
-      _lviIsTimeout : Bool
+      ₋lviLiDigest  : HashValue
+      ₋lviRound     : Round
+      ₋lviIsTimeout : Bool
   open LastVoteInfo public
 
   record PendingVotes : Set where
     constructor mkPendingVotes
     field
-      _pvLiDigestToVotes       : KVMap HashValue LedgerInfoWithSignatures
-      -- _pvRoundToTC             : KVMap Round TimeoutCertificate
-      _pvAuthorToLastVotedInfo : KVMap Author LastVoteInfo
+      ₋pvLiDigestToVotes       : KVMap HashValue LedgerInfoWithSignatures
+      -- ₋pvRoundToTC             : KVMap Round TimeoutCertificate
+      ₋pvAuthorToLastVotedInfo : KVMap Author LastVoteInfo
   open PendingVotes public
 
   data ProcessedVMOutput : Set where        -- TODO: this is a placeholder
     processedVMOutput : ProcessedVMOutput
 
   record ExecutedBlock : Set where
-    constructor ExecutedBlock_new
+    constructor ExecutedBlock₋new
     field
-      _ebBlock  : Block
-      _ebOutput : ProcessedVMOutput
+      ₋ebBlock  : Block
+      ₋ebOutput : ProcessedVMOutput
   open ExecutedBlock public
   unquoteDecl ebBlock   ebOutput = mkLens (quote ExecutedBlock)
              (ebBlock ∷ ebOutput ∷ []) 
@@ -332,10 +332,10 @@ module LibraBFT.Concrete.Consensus.Types.EpochIndep where
 -- ------------------------------------------------------------------------------
 
   record LinkableBlock : Set where
-    constructor LinkableBlock_new
+    constructor LinkableBlock₋new
     field
-      _lbExecutedBlock : ExecutedBlock
-      -- _lbChildren      : Set HashValue
+      ₋lbExecutedBlock : ExecutedBlock
+      -- ₋lbChildren      : Set HashValue
   open LinkableBlock public
   unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
              (lbExecutedBlock ∷ [])
