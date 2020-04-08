@@ -158,7 +158,7 @@ module LibraBFT.Abstract.RecordChain
    -- lost the ability to rewrite record chains
    transp : ∀{r}{rc₀ : RecordChain st r}{rc₁ : RecordChain st r}
           → r₀ ∈RC rc₀ → rc₀ ≈RC rc₁ → r₀ ∈RC rc₁
-          -- VCM: we could have tranp relate record chains over two
+          -- VCM: we could have transp relate record chains over two
           -- different states, but that causes issues I don't want to
           -- deal with in the concrete module; while there is no explicit
           -- need for this, I'll hold back this generalization.
