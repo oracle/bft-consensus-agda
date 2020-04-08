@@ -131,3 +131,20 @@ module LibraBFT.Lemmas where
          → y ≡ nothing
          → ⊥
  maybe-⊥ () refl
+
+ Maybe-map-cool : ∀ {S S₁ : Set} {f : S → S₁} {x : Maybe S} {z}
+                → Maybe-map f x ≡ just z
+                → x ≢ nothing
+ Maybe-map-cool {x = nothing} ()
+ Maybe-map-cool {x = just y} prf = λ x → ⊥-elim (maybe-⊥ (sym x) refl)
+
+ Maybe-map-cool-1 : ∀ {S S₁ : Set} {f : S → S₁} {x : Maybe S} {z}
+                  → Maybe-map f x ≡ just z
+                  → Σ S (λ x' → f x' ≡ z)
+ Maybe-map-cool-1 {x = nothing} ()
+ Maybe-map-cool-1 {x = just y} {z = z} refl = y , refl
+
+ Maybe-map-cool-2 : ∀ {S S₁ : Set} {f : S → S₁} {x : S} {z}
+                  → f x ≡ z
+                  → Maybe-map f (just x) ≡ just z
+ Maybe-map-cool-2 {S}{S₁}{f}{x}{z} prf rewrite prf = refl

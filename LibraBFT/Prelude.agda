@@ -59,8 +59,12 @@ module LibraBFT.Prelude where
 
   open import Data.Vec
     using (Vec; []; _∷_)
+    renaming (replicate to Vec-replicate; lookup to Vec-lookup
+             ;map to Vec-map; head to Vec-head; tail to Vec-tail
+             ;updateAt to Vec-updateAt; tabulate to Vec-tabulate
+             ;allFin to Vec-allFin; toList to Vec-toList; fromList to Vec-fromList)
     public
-  
+
   open import Data.List.Relation.Pointwise 
     using (decidable-≡)
     public
@@ -82,15 +86,16 @@ module LibraBFT.Prelude where
 
   open import Data.Maybe.Properties
     using (just-injective)
+    renaming (≡-dec to Maybe-≡-dec)
     public
 
   open import Data.Fin
     using (Fin; suc; zero; fromℕ; fromℕ≤ ; toℕ ; cast)
-    renaming (_≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
+    renaming (_≟_ to _≟Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁)
     public
 
-  postulate -- TODO
-    fins : (n : ℕ) → List (Fin n)
+  fins : (n : ℕ) → List (Fin n)
+  fins n = Vec-toList (Vec-allFin n)
 
   open import Relation.Binary.PropositionalEquality
     hiding (decSetoid)

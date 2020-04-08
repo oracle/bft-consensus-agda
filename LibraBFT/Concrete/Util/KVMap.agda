@@ -40,26 +40,41 @@ module LibraBFT.Concrete.Util.KVMap  where
    kvm-toList-length : (kvm : KVMap Key Val)
                      → length (kvm-toList kvm) ≡ kvm-size kvm
 
-   -- TODO: need properties relating kvm-fromList showing that IF all keys in the
-   -- supplied list are distinct, then all pairs are in the resulting map, and if
-   -- not, we get nothing
-   kvm-fromList   : List (Key × Val) → Maybe (KVMap Key Val)
+   -- TODO: need properties showing that the resulting map contains (k , v) for
+   --       each pair in the list, provided there is no pair (k , v') in the list
+   --       after (k , v).  This is consistent with Haskell's Data.Map.fromList
+   kvm-fromList   : List (Key × Val) → KVMap Key Val
 
    -- properties
    lookup-correct : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k (kvm-insert k v kvm prf) ≡ just v
 
+   lookup-correct-update
+                  : {kvm : KVMap Key Val}
+                  → (prf : lookup k kvm ≢ nothing)
+                  → lookup k (kvm-update k v kvm prf) ≡ just v
+
    lookup-stable  : {kvm : KVMap Key Val}{k k' : Key}{v' : Val}
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k' kvm ≡ just v
                   → lookup k' (kvm-insert k v' kvm prf) ≡ just v
+
+   insert-target-0 : {kvm : KVMap Key Val}
+                   → {prf : lookup k kvm ≡ nothing}
+                   → lookup k' kvm ≢ lookup k' (kvm-insert k v kvm prf)
+                   → k ≡ k'
 
    insert-target  : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k' kvm ≢ just v
                   → lookup k' (kvm-insert k v' kvm prf) ≡ just v
                   → k' ≡ k × v ≡ v'
+
+   update-target  : {kvm : KVMap Key Val}
+                  → ∀ {k1 k2 x}
+                  → lookup k1 kvm ≢ lookup k1 (kvm-update k2 v kvm x)
+                  → k2 ≡ k1
 
    kvm-empty      : lookup {Val = Val} k empty ≡ nothing
 
@@ -74,6 +89,14 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k' (kvm-insert k v kvm prf) ≡ lookup k' kvm
  lookup-stable-1 prf hyp = trans (lookup-stable prf hyp) (sym hyp)
 
+ lookup-correct-update-2
+                : {kvm : KVMap Key Val}
+                → (prf : lookup k kvm ≢ nothing)
+                → lookup k (kvm-update k v kvm prf) ≡ just v'
+                → v ≡ v'
+ lookup-correct-update-2 {kvm} prf lkup =
+   just-injective
+     (trans (sym (lookup-correct-update prf)) lkup)
 
  postulate
    -- Corollary

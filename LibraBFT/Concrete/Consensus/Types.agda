@@ -48,7 +48,7 @@ module LibraBFT.Concrete.Consensus.Types where
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors 
 
-  -- Given a well-formed set of definitinos that defines an EpochConfig,
+  -- Given a well-formed set of definitions that defines an EpochConfig,
   -- α-EC will compute this epoch config by abstracting away the unecessary
   -- pieces from EventProcessorEC.
   α-EC : Σ EventProcessorEC EventProcessorEC-correct → Meta EpochConfig

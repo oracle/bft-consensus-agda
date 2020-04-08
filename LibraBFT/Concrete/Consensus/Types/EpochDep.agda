@@ -81,7 +81,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
   -- which epoch config they care about yet.
   --
   record EventProcessorWithEC : Set where
-    constructor mkEventProcessor
+    constructor mkEventProcessorWithEC
     field
       :epBlockStore   : BlockStore
   open EventProcessorWithEC public

@@ -29,20 +29,25 @@ module LibraBFT.Global.ModelDraft
  open import LibraBFT.Concrete.Records
  open import LibraBFT.Concrete.BlockTree hash hash-cr
 
+
+ -- TODO: Finish updating the following to use α-EC instead of abstractEpochConfig
+
+ -- Conditions to ensure initialization can succeed
+ canInit : Author → Set
+ canInit _ = ∃[ ec ] (abstractEpochConfig (mkSafetyRules (mkPersistentStorage 0))
+                                         (mkValidatorVerifier (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4))) 3)
+                     ≡ just ec)
+
  -- TODO: this will eventually call processCertificatesM with genesis QC, similar to Haskell code
  -- For now, it just constructs an EventProcessor in which there are four validators with fake public keys
- initialEventProcessorAndMessages : Author → Maybe (EventProcessor × List Action)
- initialEventProcessorAndMessages _ with mkSafetyRules (mkPersistentStorage 0)
- ...| sr with Maybe-map (λ l → mkValidatorVerifier l 3) (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4)))
- ...| nothing = nothing
- ...| just vv = {!!}
-
-{-
-with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr) vv
- ...| _ | _ = {!!}
- ...| nothing | _ = nothing
- ...| just ec | [ ec≡ ] = just (mkEventProcessor ec (mkBlockStore (emptyBT ec)) sr vv (meta (sym ec≡)) , [])
--}
+ initialEventProcessorAndMessages : (a : Author) → canInit a → EventProcessor × List Action
+ initialEventProcessorAndMessages _ (ec , ec≡)
+    with mkValidatorVerifier (kvm-fromList (List-map (λ i → (i , mkValidatorInfo "fakePK")) (nats 4))) 3
+ ...| vv
+    with (mkSafetyRules (mkPersistentStorage 0))
+ ...| sr = (mkEventProcessor (mkEventProcessorPreEC sr vv)
+                     {!!}  -- TODO: Prove that ec satisfies 3f < n, use ec≡
+                     (mkEventProcessorWithEC ((mkBlockStore (emptyBT {! ec!})) )) , [])
 
  actionsToSends : EventProcessor → Action → List (Author × NetworkMsg)
  actionsToSends ep (BroadcastProposal p) = List-map (_, (P p)) (List-map proj₁ (kvm-toList (:vvAddressToValidatorInfo (:epValidators (:epEC ep)))))
@@ -68,11 +73,13 @@ with ({! abstractEpochConfig !} sr) vv | inspect ( {! abstractEpochConfig !} sr)
  open import LibraBFT.Global.SystemModel
                Instant
                Author
+               _≟_
                NetworkMsg
                sig-NetworkMsg
                Unit
                Action
                EventProcessor
+               canInit
                initialEventProcessorAndMessages
                handle
                actionsToSends
