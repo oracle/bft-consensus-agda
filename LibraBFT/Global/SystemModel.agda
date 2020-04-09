@@ -211,12 +211,15 @@ module LibraBFT.Global.SystemModel
                            → ¬ (peerOf theStep ≡ p)
                            → lookup p (peerStates post) ≡ lookup p (peerStates pre)
 
-   noChangePreservesState : ∀ {pre post}
-                           → (theStep : Step pre post)
-                           → (iR : isRecvMsg theStep)
-                           → ppostOf iR ≡ ppreOf iR
-                           → actsOf iR ≡ []
-                           → pre ≡ post
+ noChangePreservesState : ∀ {pre post}
+                         → (theStep : Step pre post)
+                         → (iR : isRecvMsg theStep)
+                         → ppostOf iR ≡ ppreOf iR
+                         → actsOf iR ≡ []
+                         → pre ≡ post
+ noChangePreservesState {pre} {post} (recvMsg {ppre = ppre} {ppost = ppost} {acts = acts} p ts ∈SM-pre ready run≡) iR ppost≡ acts≡
+   with sym (lookup-correct-update-4 {rdy = maybe-⊥ ready} (trans ready (cong just (sym ppost≡))))
+ ...| peerStates≡ rewrite acts≡ = cong (sysState (sentMessages pre)) peerStates≡ 
 
  -- If p's peerState is nothing in prestate and not nothing in the poststate, then the action is an initPeer by p and poststate has p's state as initial state
 

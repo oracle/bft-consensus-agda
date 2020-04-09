@@ -11,6 +11,11 @@ module LibraBFT.Concrete.Util.KVMap  where
    
 
  postulate
+   -- TODO: It should be possible to instantiate the module with a Key type and provide this, but I
+   -- don't understand the "variable" declaration above, or why we use it, and can't seem to make
+   -- this work other than by postulating it
+   _≟Key_ : ∀ (k1 k2 : Key) → Dec (k1 ≡ k2)
+
    KVMap : Set → Set → Set 
 
    _∈KV_          : Key → KVMap Key Val → Set
@@ -71,18 +76,21 @@ module LibraBFT.Concrete.Util.KVMap  where
                   → lookup k' (kvm-insert k v' kvm prf) ≡ just v
                   → k' ≡ k × v ≡ v'
 
-   update-target  : {kvm : KVMap Key Val}
+   update-target-≢  : {kvm : KVMap Key Val}
                   → ∀ {k1 k2 x}
-                  → lookup k1 kvm ≢ lookup k1 (kvm-update k2 v kvm x)
-                  → k2 ≡ k1
+                  → k2 ≢ k1
+                  → lookup k1 kvm ≡ lookup k1 (kvm-update k2 v kvm x)
 
    kvm-empty      : lookup {Val = Val} k empty ≡ nothing
 
    kvm-empty-⊥    : {k : Key} {v : Val} → lookup k empty ≡ just v → ⊥
 
+   KVM-extensionality : ∀ {kvm1 kvm2 : KVMap Key Val}
+                      → (∀ (x : Key) → lookup x kvm1 ≡ lookup x kvm2)
+                      → kvm1 ≡ kvm2
 
 
-  -- Corollary
+  -- Corollaries
  lookup-stable-1  : {kvm : KVMap Key Val}{k k' : Key}{v' : Val}
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k' kvm ≡ just v'
@@ -99,11 +107,31 @@ module LibraBFT.Concrete.Util.KVMap  where
    just-injective
      (trans (sym (lookup-correct-update prf)) lkup)
 
- postulate
-  lookup-correct-update-3
-                : {kvm : KVMap Key Val}
-                → (prf : lookup k kvm ≢ nothing)
-                → lookup k kvm ≡ just v
-                → kvm-update k v kvm prf ≡ kvm
+
+ update-target  : {kvm : KVMap Key Val}
+                → ∀ {k1 k2 x}
+                → lookup k1 kvm ≢ lookup k1 (kvm-update k2 v kvm x)
+                → k2 ≡ k1
+ update-target {kvm = kvm}{k1 = k1}{k2 = k2}{x} vneq
+    with k1 ≟Key k2
+ ...| yes refl = refl
+ ...| no  neq  = ⊥-elim (vneq (update-target-≢ {k1 = k1} {k2 = k2} (neq ∘ sym)))
+
+ lookup-correct-update-3 : ∀ {kvm : KVMap Key Val}{k1 k2 v2}
+                → (prf : lookup k2 kvm ≢ nothing)
+                → lookup k2 kvm ≡ just v2
+                → lookup k1 (kvm-update k2 v2 kvm prf) ≡ lookup k1 kvm
+ lookup-correct-update-3 {kvm = kvm} {k1 = k1} {k2 = k2} {v2 = v2} prf with k1 ≟Key k2
+ ...| yes refl = λ pr → trans (lookup-correct-update {v = v2} prf) (sym pr)
+ ...| no  neq  = λ pr → sym (update-target-≢ {k1 = k1} {k2 = k2} {prf} λ k2≢k1 → ⊥-elim (neq (sym k2≢k1)))
+
+ lookup-correct-update-4
+                : ∀ {orig : KVMap Key Val}{k1}{v1}
+                    {rdy : lookup k1 orig ≢ nothing}
+                → lookup k1 orig ≡ just v1
+                → kvm-update k1 v1 orig rdy ≡ orig
+ lookup-correct-update-4 {orig = orig} {k1 = k1} {v1 = v1} {rdy = rdy} hyp =
+    KVM-extensionality {kvm1 = kvm-update k1 v1 orig rdy} {kvm2 = orig}
+                       λ x → lookup-correct-update-3 rdy hyp
 
 
