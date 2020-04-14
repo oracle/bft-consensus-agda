@@ -359,8 +359,8 @@ module LibraBFT.Example.Example where
  -- Our simple model is that there is a single fault.  For simplicity, I've assumed for now that
  -- it's peer 0, which is obviously not general enough, but enables progress on proofs.
  -- TODO: Use Meta to avoid "peeking"?
- dishonest : Message → PeerId → Set
- dishonest m peer with getAuthor m ≟ 0
+ dishonest : Message → Set
+ dishonest m with getAuthor m ≟ 0
  ...| no _  = ⊥
  ...| yes d = ⊤
 
@@ -424,27 +424,23 @@ module LibraBFT.Example.Example where
  -- If the action is a recvMessage, it only *establishes* the condition if the message needed exists
 
 
- allegedlySent : (msg : DirectMessage) → SystemState → Set
- allegedlySent msg st = dishonest (direct msg) (getAuthor (direct msg))
-                      ⊎ ∃[ to ] ((to , (direct msg)) ∈SM sentMessages st)
-
  postulate
    mustBe : ∀ {p : PeerId}
           → {m1 : Message}
           → {m2 : DirectMessage}
           → {st : SystemState}
           → {pSt : State}
-          → ∃[ to ] ((to , m1) ∈SM (sentMessages st))
+          → allegedlySent m1 st
           → lookup p (peerStates st) ≡ just pSt
           → (State → Message → WithVerSig m2)
-          → allegedlySent m2 st
+          → allegedlySent (direct m2) st
 
  record RVWSConsequent (sender : PeerId) (curMax : ℕ) (st : SystemState) : Set where
    constructor mkRVWSConsequent
    field
      m     : DirectMessage
      sig   : WithVerSig m
-     m∈SM  : allegedlySent m st
+     m∈SM  : allegedlySent (direct m) st
      auth≡ : m ^∙ author ≡ sender
      val≡  : m ^∙ val ≡ suc curMax
  open RVWSConsequent
@@ -454,7 +450,7 @@ module LibraBFT.Example.Example where
         → Step pre post
         → RVWSConsequent sender curMax post
  rVWSConsCast {pre = pre} {post = post} (mkRVWSConsequent m sig ∈SM-pre a v) theStep = mkRVWSConsequent m sig (cast∈SM {m} ∈SM-pre) a v
-   where cast∈SM : ∀ {m'} → allegedlySent m' pre → allegedlySent m' post
+   where cast∈SM : ∀ {m'} → allegedlySent (direct m') pre → allegedlySent (direct m') post
          cast∈SM (inj₁ xx)      = inj₁ xx
          cast∈SM {m'} (inj₂ xx) = inj₂ (proj₁ xx , (msgs-stable {pre} {post} {proj₁ xx , direct m'} theStep (proj₂ xx)))
 
@@ -555,8 +551,15 @@ module LibraBFT.Example.Example where
  ...| no neq rewrite (sym pSt≡ppost) = ⊥-elim (neq (trans (sym max≡) maxSeenUnchanged))
  ...| yes refl
     with gFACond {ppre} {msg} {ts} handlerResult
- ...| auth≡ , val≡  = mkRVWSConsequent msg ver
-                                       (inj₂ ( to , (∈SM-stable-list {actionsToSends ppost acts} {sentMessages pre} {to , direct msg} ∈SM-pre)))
+ ...| auth≡ , val≡
+    with ∈SM-pre
+ ...| inj₁ dis =  mkRVWSConsequent msg ver (inj₁ dis) auth≡ val≡
+ ...| inj₂ sentM = mkRVWSConsequent msg ver
+                                       ((inj₂ (proj₁ sentM , (∈SM-stable-list
+                                                               {actionsToSends ppost acts}
+                                                               {sentMessages pre}
+                                                               {proj₁ sentM , direct msg}
+                                                               {! sentM !}))))   -- Victor please help, why won't it take sentM?
                                        auth≡ val≡
  rVWSRecvMsg {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -602,19 +605,15 @@ module LibraBFT.Example.Example where
              (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
     | inj₂ (ver' , R')
     | (just ver'') | [ R'' ] rewrite R'
-    with mustBe {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} (to , ∈SM-pre) rdy (λ _ _ → ver'')
- ...| inj₁ xx = {!!}
-
- rVWSRecvMsg {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
-    | inj₂ (ver' , R')
-    | (just ver'') | [ R'' ]
-    | inj₂ xx with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
- ...| xxy rewrite R' | R'' = rVWSRecvMsg {pre} {post} preReach (recvMsg {pre} {direct (:original msg)} {to = proj₁ xx} {ppre} {ppost} {acts} by ts (proj₂ xx) rdy {!xxy!} ) tt
-                               -- Why can't I get it to recognise that the signature check on
-                               -- ":original msg" has succeeded (R'' say it has, but the error if I
-                               -- try to give xxy for the hole suggests it hasn't, despite the
-                               -- rewriting of R'')
+    with mustBe {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
+ ...| xx
+    with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
+ ...| xxy rewrite R' | R'' = rVWSRecvMsg {pre} {post} preReach                 -- TODO: revisit after deciding about "to" parameter
+                                         (recvMsg {pre} {direct (:original msg)} {ppre = ppre} {ppost = ppost} {acts} by ts xx rdy {! xxy!} ) tt
+                               -- Victor please help.  Why can't I get it to recognise that the
+                               -- signature check on ":original msg" has succeeded (R'' say it has,
+                               -- but the error if I try to give xxy for the hole suggests it
+                               -- hasn't, despite the rewriting of R'')
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt

@@ -43,7 +43,7 @@ module LibraBFT.Global.SystemModel
   -- for messages in that epoch.  A non-author of the epoch is *not* considered dishonest for that
   -- epoch.  Its messages can be discarded.  We are concerned here with modeling an author that is
   -- allowed to send a message that doesn't follow the protocol.
-  (Dishonest     : Message → Peer → Set)
+  (Dishonest     : Message → Set)
   where
 
  -- We record the intended recipient of each message, which will be needed when we consider liveness
@@ -72,6 +72,9 @@ module LibraBFT.Global.SystemModel
  sendMessagesFromOutputs : SystemState → PeerState → List Output → SentMessages
  sendMessagesFromOutputs st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
 
+ allegedlySent : Message → SystemState → Set
+ allegedlySent msg st = Dishonest msg ⊎ ∃[ to ]((to , msg) ∈SM sentMessages st)
+
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
  data Step (pre : SystemState): SystemState → Set where
@@ -86,17 +89,17 @@ module LibraBFT.Global.SystemModel
    recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Output}
              (p : Peer)
            → (ts : Instant)
-           → (to , m) ∈SM (sentMessages pre)
+           → allegedlySent m pre
            → (ready : KVMap.lookup p (peerStates pre) ≡ just ppre)
            → MsgHandler m ts ppre ≡ (ppost , acts)
            → Step pre (sysState
                          (sendMessagesFromOutputs pre ppost acts)
                          (kvm-update p ppost (peerStates pre) (maybe-⊥ ready)))
 
-   cheat : ∀ (p : Peer)
+   cheat : ∀ (p : Peer)  -- TODO: Careful here!  Dishonest is now a function of only the message, since it contains the author.  Need to think about this.
              (ts : Instant)
              (to : Peer) (m : Message)
-         → Dishonest m p
+         → Dishonest m
          → Step pre (sysState (sendMsg (sentMessages pre) (to , m)) (peerStates pre))
 
  isInitPeer : ∀ {pre post} → Step pre post → Set
