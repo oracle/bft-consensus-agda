@@ -15,6 +15,10 @@ module LibraBFT.Base.PKCS where
   SK : Set
   IsKeyPair : PK → SK → Set
 
+  instance
+    enc-PK    : Encoder PK
+    enc-SigMB : Encoder (Maybe Signature)
+
   sign-raw : ByteString → SK → Signature
   verify   : ByteString → Signature → PK → Bool
 
