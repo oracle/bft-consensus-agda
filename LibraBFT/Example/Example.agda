@@ -455,21 +455,22 @@ module LibraBFT.Example.Example where
          cast∈SM (inj₁ xx)      = inj₁ xx
          cast∈SM {m'} (inj₂ xx) = inj₂ (proj₁ xx , (msgs-stable {pre} {post} {proj₁ xx , direct m'} theStep (proj₂ xx)))
 
- RecordedValueWasSent : SystemState → Set
- RecordedValueWasSent st = ∀ {pSt curMax}
-                           → (sender p : PeerId)
-                           → lookup p (peerStates st) ≡ just pSt
-                           → pSt ^∙ newValSender ≡ just sender
-                           → pSt ^∙ maxSeen ≡ curMax
-                           → RVWSConsequent sender curMax st
+ -- TODO: rename -> allegedly
+ RecordedValueWasAllegedlySent : SystemState → Set
+ RecordedValueWasAllegedlySent st = ∀ {pSt curMax}
+                               → (sender p : PeerId)
+                               → lookup p (peerStates st) ≡ just pSt
+                               → pSt ^∙ newValSender ≡ just sender
+                               → pSt ^∙ maxSeen ≡ curMax
+                               → RVWSConsequent sender curMax st
 
- rVWSInvariant : Invariant RecordedValueWasSent
+ rVWSInvariant : Invariant RecordedValueWasAllegedlySent
 
  rVWSCheat : ∀ {pre post}
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → isCheatStep theStep
-     → RecordedValueWasSent post
+     → RecordedValueWasAllegedlySent post
  rVWSCheat {pre} {post} preReach theStep isCheat {pSt} {curMax} sender p pSt≡ sender≡ max≡
    -- A cheat step does cannot "unsend" messages and does not affect anyone's state
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
@@ -479,7 +480,7 @@ module LibraBFT.Example.Example where
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → isInitPeer theStep  -- Not needed in this example as it is trivial; keeping it to make example more general
-     → RecordedValueWasSent post
+     → RecordedValueWasAllegedlySent post
  rVWSInitPeer {pre} {post} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
    with peerOf theStep ≟ p
  ...| yes refl
@@ -590,7 +591,7 @@ module LibraBFT.Example.Example where
         (check-signature (getPubKey (direct (:original msg)))) (:original msg)
  ...| nothing | [ R'' ]
               = (InvariantStates≡
-                  RecordedValueWasSent
+                  RecordedValueWasAllegedlySent
                   (noChangePreservesState
                     (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy (trans (unverifiedGossipNoEffect2 R' R'') run≡))
                     isRecv
@@ -622,8 +623,7 @@ module LibraBFT.Example.Example where
 --  --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
 --  --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
 --  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
---  rVWSInvariant2 : Invariant RecordedValueWasSent
-
+--  rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
 
 --  {-# TERMINATING #-} -- MSM: Why is this necessary?  See comment on other TERMINATING directive above.
 
@@ -631,11 +631,11 @@ module LibraBFT.Example.Example where
 --      → ReachableSystemState pre
 --      → (theStep : Step pre post)
 --      → isRecvMsg theStep
---      → RecordedValueWasSent post
+--      → RecordedValueWasAllegedlySent post
 
 --  rVWSRecvMsg2 {pre} {post} preReach
 --               theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
---     with verifySigDirect {msg = msg} RecordedValueWasSent theStep isRecv (rVWSInvariant preReach) rdy run≡
+--     with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
 --  ...| inj₁ done = done sender p pSt≡ sender≡ max≡
 --  ...| inj₂ (ver , R)
 --     with peerOf theStep ≟ p
@@ -706,7 +706,7 @@ module LibraBFT.Example.Example where
 --  -- message it contains
 --  rVWSRecvMsg2 {pre} {post} preReach
 --              theStep@(recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
---     with verifySigGossip {msg = msg} RecordedValueWasSent theStep isRecv (rVWSInvariant preReach) rdy run≡
+--     with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
 --  ...| inj₁ done = done
 --  ...| inj₂ (ver' , R') = rVWSRecvMsg2 {pre} {post} preReach theStep isRecv
 
