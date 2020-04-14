@@ -199,7 +199,7 @@ module LibraBFT.Example.Example where
                      ∷ []
 
  handle : (msg : DirectMessage) → Instant → RWST Unit Output State Unit
- handle msg ts = do  -- TODO: Check signature
+ handle msg ts = do
    st ← get
    case proj₁ (pureHandler msg ts st) of
      λ { noChange             → pure unit
@@ -213,20 +213,21 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
- {-# TERMINATING #-} -- MSM: Why is this necessary?  See comment on other TERMINATING directive below.
- handle1 : Message → Instant → RWST Unit Output State Unit
- handle1 (direct msg) ts
-    with check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (getPubKey (direct msg)) msg
+ handleDirect : DirectMessage → Instant → RWST Unit Output State Unit
+ handleDirect msg ts
+    with check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author)) msg
  ...| nothing = pure unit
  ...| just ver = handle msg ts
 
- handle1 (gossip msg) ts
-    with check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg
+ handleGossip : GossipMessage → Instant → RWST Unit Output State Unit
+ handleGossip msg ts
+    with check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg
  ...| nothing = pure unit  -- ACCOUNTABILITY OPPORTUNITY
- ...| just ver' = handle1 (direct (msg ^∙ original)) ts
+ ...| just ver' = handleDirect (msg ^∙ original) ts
 
  stepPeer : (msg : Message) → Instant → State → State × List Output
- stepPeer msg ts st = proj₂ (RWST-run (handle1 msg ts) unit st)
+ stepPeer (direct msg) ts st = proj₂ (RWST-run (handleDirect msg ts) unit st)
+ stepPeer (gossip msg) ts st = proj₂ (RWST-run (handleGossip msg ts) unit st)
 
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg ≡ nothing
@@ -242,7 +243,7 @@ module LibraBFT.Example.Example where
  verifiedGossipEffect : ∀ {msg ts st ver ver'}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg ≡ just ver
    → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (getPubKey (direct (:original msg))) (:original msg) ≡ just ver'
-   → stepPeer (gossip msg) ts st ≡ proj₂ (RWST-run (handle1 (direct (:original msg)) ts) unit st)
+   → stepPeer (gossip msg) ts st ≡ proj₂ (RWST-run (handleDirect (:original msg) ts) unit st)
  verifiedGossipEffect {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
 
  ---------------------------------------------------------------------------
@@ -494,10 +495,6 @@ module LibraBFT.Example.Example where
       -- Initializing "by" does not falsify the invariant for p ≢ by
    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons theStep
-
- {-# TERMINATING #-} -- MSM: Why is this necessary?  The proof for a gossip message invokes the one
-                     -- for the direct message it contains, but proofs for direct messages make no
-                     -- recursive calls, so....?
 
  rVWSRecvMsg : ∀ {pre post}
      → ReachableSystemState pre
