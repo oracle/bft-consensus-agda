@@ -18,10 +18,8 @@ module LibraBFT.Global.SystemModel
   (Peer          : Set)
   (_≟Peer_       : ∀ (p₁ p₂ : Peer) → Dec (p₁ ≡ p₂))
   (Message       : Set)
-  (Signer        : WithSig Message)
   (Output        : Set)
   (PeerState     : Set)
-  (GetPK         : Message → PeerState → PK)
   
   -- TODO: combine these into an "event handler" to be more consistent with PTFD?  I am not doing
   -- this for now because the Run.hs for LBFT assumes a fixed number of peers, and creates all of

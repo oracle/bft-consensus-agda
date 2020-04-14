@@ -188,11 +188,6 @@ module LibraBFT.Example.Example where
  stepPeer : (msg : Message) → Instant → State → State × List Output
  stepPeer msg ts st = proj₂ (RWST-run (handle1 msg ts) unit st)
 
- unsignedMsgDNMPeerState : ∀ {msg ts st}
-   → check-signature (msg ^∙ pubKey) msg ≡ nothing
-   → RWST-run (handle1 msg ts) unit st ≡ (unit , (st , []))
- unsignedMsgDNMPeerState verFail rewrite verFail = refl
-
  ---------------------------------------------------------------------------
  -- Lemmas about the effects of steps, broken down by pureHandler results --
  ---------------------------------------------------------------------------
@@ -318,10 +313,8 @@ module LibraBFT.Example.Example where
                PeerId
                _≟-PeerId_
                Message
-               sig-Message
                Output
                State
-               (λ msg _ → msg ^∙ pubKey)
                canInit
                initialStateAndMessages
                stepPeer
