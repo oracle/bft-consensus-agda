@@ -14,6 +14,7 @@ module LibraBFT.Base.PKCS where
   PK : Set
   SK : Set
   IsKeyPair : PK → SK → Set
+  _≟PK_ : (pk1 pk2 : PK) → Dec (pk1 ≡ pk2)
 
   instance
     enc-PK    : Encoder PK
