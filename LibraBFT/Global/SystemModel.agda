@@ -50,7 +50,7 @@ module LibraBFT.Global.SystemModel (#peers : ℕ) where
   -- Messages to be sent accross
   (Message       : Set)
   -- These messages must be carry signatures,
-  (Signer        : WithSig Message)
+  -- (Signer        : WithSig Message) -- VCM: unecessary here!
   -- (Honest?) peers will keep a value of type PeerState as their state.
   -- The initial state is PeerState₀.
   (PeerState     : Set)  

@@ -39,7 +39,7 @@ module LibraBFT.Concrete.Handle
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- step : NetworkMsg → Instant → EventProcessor 
-      → EventProcessor × List (Author × NetworkMsg)
- step msg i st = let (st' , acts) = handle-mm msg i st
-                  in (st' , concat (List-map (processActionMsgs st') acts))
+ step : EventProcessor → NetworkMsg
+      → List (Author × NetworkMsg) × EventProcessor
+ step st msg = let (st' , acts) = handle-mm msg {!!} st
+                in (concat (List-map (processActionMsgs st') acts) , st')
