@@ -557,7 +557,7 @@ module LibraBFT.Example.Example where
                                                                {actionsToSends ppost acts}
                                                                {sentMessages pre}
                                                                {proj₁ sentM , direct msg}
-                                                               {! sentM !}))))   -- Victor please help, why won't it take sentM?
+                                                               (proj₂ sentM)))))
                                        auth≡ val≡
  rVWSRecvMsg {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
