@@ -65,6 +65,10 @@ module LibraBFT.Example.Example where
    direct : DirectMessage → Message
    gossip : GossipMessage → Message
 
+ isDirect : Message → Set
+ isDirect (direct _) = ⊤
+ isDirect (gossip _) = ⊥
+
  isGossip : Message → Set
  isGossip (direct _) = ⊥
  isGossip (gossip _) = ⊤
@@ -498,15 +502,15 @@ module LibraBFT.Example.Example where
    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons theStep
 
- rVWSRecvMsgD : ∀ {pre post msg}
+ rVWSRecvMsgD : ∀ {pre post}
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → (iR : isRecvMsg theStep)
-     → msgOf iR ≡ direct msg
+     → isDirect (msgOf iR)
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsgD {pre} {post} preReach
-             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv isDirect sender p pSt≡ sender≡ max≡
-    with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
+             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ sender p pSt≡ sender≡ max≡
+    with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep tt (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done sender p pSt≡ sender≡ max≡
  ...| inj₂ (ver , R)
     with peerOf theStep ≟ p
@@ -516,7 +520,7 @@ module LibraBFT.Example.Example where
  ...| preCons = rVWSConsCast preCons theStep
 
  rVWSRecvMsgD {pre} {post} preReach
-             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv isDirect {pSt} {curMax} sender p pSt≡ sender≡ max≡
+             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | inj₂ (ver , R)
     | yes refl
 
@@ -562,7 +566,7 @@ module LibraBFT.Example.Example where
                                                                (proj₂ sentM)))))
                                        auth≡ val≡
  rVWSRecvMsgD {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | inj₂ (ver , R)
     | yes refl
     | pSt≡ppost | ppost≡
@@ -589,9 +593,9 @@ module LibraBFT.Example.Example where
      → isGossip (msgOf iR)
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsgG {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _
+             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _
              -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consume them, but they are needed for the next case
-    with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv (rVWSInvariant preReach) rdy run≡
+    with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) tt (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done
  ...| inj₂ (ver' , R') rewrite R'
     -- This is somewhat redundant with verifySig*, but couldn't quite use it.  TODO: try again, think about unverifiedgossipnoeffect2
@@ -602,7 +606,7 @@ module LibraBFT.Example.Example where
                   RecordedValueWasAllegedlySent
                   (noChangePreservesState
                     (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy (trans (unverifiedGossipNoEffect2 R' R'') run≡))
-                    isRecv
+                    tt
                     (cong proj₁ (sym run≡))
                     (cong proj₂ (sym run≡)))
                   (rVWSInvariant preReach))
@@ -610,17 +614,17 @@ module LibraBFT.Example.Example where
     with mustBe {by} {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
  ...| xx
      with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
- ...| xxy rewrite R'' | R' = rVWSRecvMsgD {pre} {post} {:original msg} preReach
+ ...| xxy rewrite R'' | R' = rVWSRecvMsgD {pre} {post} preReach
                                          (recvMsg {pre} {direct (:original msg)} { 42 }  -- We just have to provide *some* recipient.  It would be tidier
                                                                                          -- if the Gossip message included the original "to" peer, so we
                                                                                          -- could keep it the same, but it doesn't matter much.
-                                                  {ppre} {ppost} {acts} by ts xx rdy (trans xxy run≡)) tt refl
+                                                  {ppre} {ppost} {acts} by ts xx rdy (trans xxy run≡)) tt tt
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
  rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
  rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
-               = rVWSRecvMsgD {msg = msg} preReach (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt refl
+               = rVWSRecvMsgD preReach (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
  rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
                = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
 
