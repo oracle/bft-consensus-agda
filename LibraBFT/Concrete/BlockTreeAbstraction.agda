@@ -318,10 +318,142 @@ module LibraBFT.Concrete.BlockTreeAbstraction
      = record bt { ₋btIdToQuorumCert = kvm-insert (Abs.qCertBlockId absQC) qc
                                               (₋btIdToQuorumCert bt) prf }
 
-{-
   ---------------------------------------
   -- Properties About Valid BlockTrees --
 
+  -- Properties about insert-block
+  module _ (bt : BlockTree)(cb : LinkableBlock) where
+
+    insert-block-stable : (ext : ExtendsB bt cb){r : Abs.Record} 
+                        → r ∈BT bt → r ∈BT (insert-block bt cb ext)
+    insert-block-stable _                       {Abs.I}   r∈bt = unit
+    insert-block-stable (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
+    insert-block-stable (extends m (B _ prf) o) {Abs.B x} r∈bt 
+      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock bt)) r∈bt
+    ...| (lkupRes , isJust , αres)
+      rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
+            = cong just αres
+
+    -- Inserting blocks does not interfere with ₋btIdToQuorumCert
+    insert-block-no-interf : (ext : ExtendsB bt cb)
+                           → ₋btIdToQuorumCert (insert-block bt cb ext)
+                           ≡ ₋btIdToQuorumCert bt
+    insert-block-no-interf (extends _ (B _ _) _) = refl
+
+    -- If a record was not in bt, but is in (insert cb bt), said record must
+    -- be the inserted one.
+    insert-block-target : (ext : ExtendsB bt cb)
+                        → {r : Abs.Record}
+                        → ¬ (r ∈BT bt)
+                        → r ∈BT (insert-block bt cb ext)
+                        → r ≡ Abs.B (α-Block cb)
+    insert-block-target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
+    insert-block-target ext {Abs.Q x} neg hyp 
+      rewrite insert-block-no-interf ext = ⊥-elim (neg hyp) 
+    insert-block-target ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
+      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock (insert-block bt cb ext))) hyp 
+    ...| (lkupRes , isJust , refl) 
+      with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
+    ...| _ , refl  = refl
+
+    -- The inserted record is an element of the update blocktree.
+    insert-block-elem : (ext : ExtendsB bt cb) → Abs.B (α-Block cb) ∈BT insert-block bt cb ext
+    insert-block-elem (extends rInPool (B res notThere) x) 
+      rewrite lookup-correct {k = Abs.bId (α-Block cb)} 
+                             {v = cb} 
+                             {kvm = bt ^∙ btIdToBlock} 
+                             notThere 
+            = refl
+
+    -- Inserting in a correct blocktree yeilds a correct blocktree.
+    insert-block-correct : (ext : ExtendsB bt cb) → Correct bt → Correct (insert-block bt cb ext)
+    insert-block-correct ext cbt s s∈post 
+      with s ∈BT? bt 
+    ...| yes s∈bt = rc-grow (λ {r} r∈bt → insert-block-stable ext {r} r∈bt) (cbt s s∈bt)
+    ...| no  s∉bt 
+      rewrite insert-block-target ext {s} s∉bt s∈post 
+      with ext
+    ...| extends {r = r} a canI r←r' 
+       = step (rc-grow (λ {r₀} r₀∈bt → insert-block-stable (extends a canI r←r') {r₀} r₀∈bt) (cbt r a)) 
+              r←r' {insert-block-elem (extends a canI r←r')}
+
+  -- Properties about insert-qc
+  module _ (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC) where
+
+    insert-qc-stable : (ext : ExtendsQC bt vqc) → {r : Abs.Record}
+                     → r ∈BT bt
+                     → r ∈BT (insert-qc bt vqc ext)
+    insert-qc-stable ext {Abs.I}   r∈bt                     = unit
+    insert-qc-stable (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
+    insert-qc-stable (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
+      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert bt)
+         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert bt)
+    ...| nothing | _     = ⊥-elim r∈bt
+    ...| just γq | [ R ]
+      rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf R
+        = r∈bt
+
+    -- Inserting QCs does not interfere with ₋btIdToBlock
+    insert-qc-no-interf : (ext : ExtendsQC bt vqc)
+                        → ₋btIdToBlock (insert-qc bt vqc ext)
+                        ≡ ₋btIdToBlock bt
+    insert-qc-no-interf (extends _ (Q _ _) _) = refl
+
+    -- If a record was not in bt, but is in (insert cb bt), said record must
+    -- be the inserted one. Differntly than blocks though, here we can only
+    -- prove that the latest insertion certifies the same block, but might
+    -- not be /exactly/ the same. 
+    insert-qc-target : (ext : ExtendsQC bt vqc)
+                     → {r : Abs.Record}
+                     → ¬ (r ∈BT bt)
+                     → r ∈BT (insert-qc bt vqc ext)
+                     → ∃[ q ] (r ≡ Abs.Q q × Abs.qCertBlockId q ≡ Abs.qCertBlockId (α-QC vqc)
+                                           × Abs.qRound q ≡ Abs.qRound (α-QC vqc))
+    insert-qc-target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
+    insert-qc-target ext {Abs.B x} neg hyp 
+      rewrite insert-qc-no-interf ext = ⊥-elim (neg hyp) 
+    insert-qc-target ext@(extends {r' = Abs.Q x'} m (Q q0 prf) (B←Q b1 b2)) {Abs.Q x} neg hyp 
+      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert (insert-qc bt vqc ext))
+         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert (insert-qc bt vqc ext))
+    ...| nothing | _     = ⊥-elim hyp
+    ...| just γq | [ R ]
+      with insert-target prf (λ abs → neg (maybe-lift ((x ≋QC_) ∘ α-QC) hyp abs)) R 
+    ...| refl , refl = x , refl , refl , proj₂ hyp
+
+    -- The inserted record is an element of the update blocktree.
+    insert-qc-elem : (ext : ExtendsQC bt vqc) → Abs.Q (α-QC vqc) ∈BT insert-qc bt vqc ext
+    insert-qc-elem (extends rInPool (Q res notThere) x) 
+      rewrite lookup-correct {k = Abs.qCertBlockId (α-QC vqc)} 
+                             {v = vqc} 
+                             {kvm = bt ^∙ btIdToQuorumCert} 
+                             notThere 
+            = refl , refl
+
+    -- Easier to use version of 'target'
+    insert-qc-univ : (ext : ExtendsQC bt vqc){r : Abs.Record}
+                   → r ∈BT insert-qc bt vqc ext
+                   → (∃[ q ] (r ≡ Abs.Q q × q ≋QC (α-QC vqc))) ⊎ r ∈BT bt
+    insert-qc-univ ext {r} r∈bt with r ∈BT? bt
+    ...| yes res  = inj₂ res
+    ...| no  rOld with insert-qc-target ext {r} rOld r∈bt
+    ...| (q , corr , id≡ , r≡) = inj₁ (q , corr , id≡ , r≡)
+
+    -- Inserting in a correct blocktree yeilds a correct blocktree.
+    insert-qc-correct : (ext : ExtendsQC bt vqc) → Correct bt → Correct (insert-qc bt vqc ext)
+    insert-qc-correct ext cbt s s∈post 
+      with s ∈BT? bt 
+    ...| yes s∈bt = rc-grow (λ {r} r∈bt → insert-qc-stable ext {r} r∈bt) (cbt s s∈bt)
+    ...| no  s∉bt 
+      with insert-qc-target ext {s} s∉bt s∈post 
+    ...| (q , refl , refl , refl) 
+      with ext
+    ...| e@(extends {r = r} a canI (B←Q refl refl))
+       = step {r' = Abs.Q q}
+              (rc-grow (λ {r} r∈bt → insert-qc-stable (extends a canI (B←Q refl refl)) {r} r∈bt) (cbt r a)) 
+              (B←Q refl refl) {insert-qc-elem e}
+
+
+{-
   -- In a valid BlockTree; if a given QC certifies a block, then
   -- such block has a concrete counterpart that belongs in the block tree.
   qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
@@ -379,61 +511,6 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- I'm parametrizing over bt and cb, but can't really put ExtendsB in here
   -- since we often need to pattern-match over it.
   module InsertBlockLemmas (bt : BlockTree)(cb : LinkableBlock) where
-
-    -- Inserting does not lose any records; be it for blocks or QCs
-    stable : (ext : ExtendsB bt cb){r : Abs.Record} 
-           → r ∈BT bt → r ∈BT (insert-block bt cb ext)
-    stable _                       {Abs.I}   r∈bt = unit
-    stable (extends m (B _ prf) o) {Abs.Q x} r∈bt = r∈bt
-    stable (extends m (B _ prf) o) {Abs.B x} r∈bt 
-      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock bt)) r∈bt
-    ...| (lkupRes , isJust , αres)
-      rewrite lookup-stable {k' = Abs.bId x} {v' = cb} prf isJust 
-            = cong just αres
-
-    -- Inserting blocks does not interfere with ₋btIdToQuorumCert
-    no-interf : (ext : ExtendsB bt cb)
-              → ₋btIdToQuorumCert (insert-block bt cb ext)
-              ≡ ₋btIdToQuorumCert bt
-    no-interf (extends _ (B _ _) _) = refl
-
-    -- If a record was not in bt, but is in (insert cb bt), said record must
-    -- be the inserted one.
-    target : (ext : ExtendsB bt cb)
-           → {r : Abs.Record}
-           → ¬ (r ∈BT bt)
-           → r ∈BT (insert-block bt cb ext)
-           → r ≡ Abs.B (α-Block cb)
-    target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
-    target ext {Abs.Q x} neg hyp 
-      rewrite no-interf ext = ⊥-elim (neg hyp) 
-    target ext@(extends m (B _ prf) o) {Abs.B x} neg hyp 
-      with <M$>-univ α-Block (lookup (Abs.bId x) (₋btIdToBlock (insert-block bt cb ext))) hyp 
-    ...| (lkupRes , isJust , refl) 
-      with insert-target prf (λ { x → neg (cong (α-Block <M$>_) x) }) isJust
-    ...| _ , refl  = refl
-
-    -- The inserted record is an element of the update blocktree.
-    elem : (ext : ExtendsB bt cb) → Abs.B (α-Block cb) ∈BT insert-block bt cb ext
-    elem (extends rInPool (B res notThere) x) 
-      rewrite lookup-correct {k = Abs.bId (α-Block cb)} 
-                             {v = cb} 
-                             {kvm = bt ^∙ btIdToBlock} 
-                             notThere 
-            = refl
-
-    -- Inserting in a correct blocktree yeilds a correct blocktree.
-    correct : (ext : ExtendsB bt cb) → Correct bt → Correct (insert-block bt cb ext)
-    correct ext cbt s s∈post 
-      with s ∈BT? bt 
-    ...| yes s∈bt = rc-grow (λ {r} r∈bt → stable ext {r} r∈bt) (cbt s s∈bt)
-    ...| no  s∉bt 
-      rewrite target ext {s} s∉bt s∈post 
-      with ext
-    ...| extends {r = r} a canI r←r' 
-       = step (rc-grow (λ {r₀} r₀∈bt → stable (extends a canI r←r') {r₀} r₀∈bt) (cbt r a)) 
-              r←r' {elem (extends a canI r←r')}
-
     -- The proof for increasing round rule is easy; insert-block does
     -- not interfere with quorum certificates.
     incr-round : (ext : ExtendsB bt cb) → ValidBT bt → IncreasingRound (insert-block bt cb ext)
@@ -604,80 +681,6 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- I'm parametrizing over bt and cb, but can't really put ExtendsB in here
   -- since we often need to pattern-match over it.
   module InsertQCLemmas (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC) where
-
-    stable : (ext : ExtendsQC bt vqc) → {r : Abs.Record}
-           → r ∈BT bt
-           → r ∈BT (insert-qc bt vqc ext)
-    stable ext {Abs.I}   r∈bt                     = unit
-    stable (extends m (Q _ prf) o) {Abs.B x} r∈bt = r∈bt
-    stable (extends m (Q _ prf) o) {Abs.Q x} r∈bt 
-      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert bt)
-         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert bt)
-    ...| nothing | _     = ⊥-elim r∈bt
-    ...| just γq | [ R ]
-      rewrite lookup-stable {k' = Abs.qCertBlockId x} {v' = vqc} prf R
-        = r∈bt
-
-    -- Inserting QCs does not interfere with ₋btIdToBlock
-    no-interf : (ext : ExtendsQC bt vqc)
-              → ₋btIdToBlock (insert-qc bt vqc ext)
-              ≡ ₋btIdToBlock bt
-    no-interf (extends _ (Q _ _) _) = refl
-
-    -- If a record was not in bt, but is in (insert cb bt), said record must
-    -- be the inserted one. Differntly than blocks though, here we can only
-    -- prove that the latest insertion certifies the same block, but might
-    -- not be /exactly/ the same. 
-    target : (ext : ExtendsQC bt vqc)
-           → {r : Abs.Record}
-           → ¬ (r ∈BT bt)
-           → r ∈BT (insert-qc bt vqc ext)
-           → ∃[ q ] (r ≡ Abs.Q q × Abs.qCertBlockId q ≡ Abs.qCertBlockId (α-QC vqc)
-                                 × Abs.qRound q ≡ Abs.qRound (α-QC vqc))
-    target ext {Abs.I}   neg hyp = ⊥-elim (neg hyp)
-    target ext {Abs.B x} neg hyp 
-      rewrite no-interf ext = ⊥-elim (neg hyp) 
-    target ext@(extends {r' = Abs.Q x'} m (Q q0 prf) (B←Q b1 b2)) {Abs.Q x} neg hyp 
-      with lookup (Abs.qCertBlockId x) (₋btIdToQuorumCert (insert-qc bt vqc ext))
-         | inspect (lookup (Abs.qCertBlockId x)) (₋btIdToQuorumCert (insert-qc bt vqc ext))
-    ...| nothing | _     = ⊥-elim hyp
-    ...| just γq | [ R ]
-      with insert-target prf (λ abs → neg (maybe-lift ((x ≋QC_) ∘ α-QC) hyp abs)) R 
-    ...| refl , refl = x , refl , refl , proj₂ hyp
-
-    -- The inserted record is an element of the update blocktree.
-    elem : (ext : ExtendsQC bt vqc) → Abs.Q (α-QC vqc) ∈BT insert-qc bt vqc ext
-    elem (extends rInPool (Q res notThere) x) 
-      rewrite lookup-correct {k = Abs.qCertBlockId (α-QC vqc)} 
-                             {v = vqc} 
-                             {kvm = bt ^∙ btIdToQuorumCert} 
-                             notThere 
-            = refl , refl
-
-    -- Easier to use version of 'target'
-    univ : (ext : ExtendsQC bt vqc){r : Abs.Record}
-         → r ∈BT insert-qc bt vqc ext
-         → (∃[ q ] (r ≡ Abs.Q q × q ≋QC (α-QC vqc)))
-         ⊎ r ∈BT bt
-    univ ext {r} r∈bt with r ∈BT? bt
-    ...| yes res  = inj₂ res
-    ...| no  rOld with target ext {r} rOld r∈bt
-    ...| (q , corr , id≡ , r≡) = inj₁ (q , corr , id≡ , r≡)
-
-    -- Inserting in a correct blocktree yeilds a correct blocktree.
-    correct : (ext : ExtendsQC bt vqc) → Correct bt → Correct (insert-qc bt vqc ext)
-    correct ext cbt s s∈post 
-      with s ∈BT? bt 
-    ...| yes s∈bt = rc-grow (λ {r} r∈bt → stable ext {r} r∈bt) (cbt s s∈bt)
-    ...| no  s∉bt 
-      with target ext {s} s∉bt s∈post 
-    ...| (q , refl , refl , refl) 
-      with ext
-    ...| e@(extends {r = r} a canI (B←Q refl refl))
-       = step {r' = Abs.Q q}
-              (rc-grow (λ {r} r∈bt → stable (extends a canI (B←Q refl refl)) {r} r∈bt) (cbt r a)) 
-              (B←Q refl refl) {elem e}
-
     votes-once : (ext : ExtendsQC bt vqc) → ValidBT bt → VotesOnlyOnce (insert-qc bt vqc ext)
     votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp 
     -- 0. Which of the QC's are present in the pre-state?
