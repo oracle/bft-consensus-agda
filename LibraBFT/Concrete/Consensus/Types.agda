@@ -32,8 +32,8 @@ module LibraBFT.Concrete.Consensus.Types where
   record EventProcessorEC : Set where
     constructor mkEventProcessorPreEC
     field
-      :epSafetyRules  : SafetyRules
-      :epValidators   : ValidatorVerifier
+      ₋epSafetyRules  : SafetyRules
+      ₋epValidators   : ValidatorVerifier
   open EventProcessorEC public
   unquoteDecl epSafetyRules epValidators = mkLens (quote EventProcessorEC)
     (epSafetyRules ∷ epValidators ∷ [])
@@ -75,9 +75,9 @@ module LibraBFT.Concrete.Consensus.Types where
   record EventProcessor : Set where
     constructor mkEventProcessor
     field
-      :epEC           : EventProcessorEC 
-      :epEC-correct   : EventProcessorEC-correct :epEC
-      :epWithEC       : EventProcessorWithEC (α-EC (:epEC , :epEC-correct))
+      ₋epEC           : EventProcessorEC 
+      ₋epEC-correct   : EventProcessorEC-correct ₋epEC
+      ₋epWithEC       : EventProcessorWithEC (α-EC (₋epEC , ₋epEC-correct))
      -- VCM: I think that if we want to add pieces that neither contribute
      -- to the construction of the EC nor need one, they should come
      -- in EventProcessor directly

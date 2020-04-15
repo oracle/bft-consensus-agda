@@ -24,9 +24,9 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
 
   record IsValidQC (qc : QuorumCert) : Set where
     field
-      _ivqcSizeOk          : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
-      _ivqcAuthors         : All ((_≢ nothing) ∘ isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc)
-      _ivqcAuthorsDistinct : allDistinct (List-map (isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc))
+      ₋ivqcSizeOk          : QuorumSize (unsafeReadMeta ec) ≤ length (qcVotes qc)
+      ₋ivqcAuthors         : All ((_≢ nothing) ∘ isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc)
+      ₋ivqcAuthorsDistinct : allDistinct (List-map (isAuthor (unsafeReadMeta ec) ∘ proj₁) (qcVotes qc))
   open IsValidQC public
 
   -- A block tree depends on a epoch config but works regardlesss of which
@@ -35,16 +35,16 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
   record BlockTree : Set where
     constructor mkBlockTree
     field
-      _btIdToBlock               : KVMap HashValue LinkableBlock
-      :btRootId                  : HashValue
-      _btHighestCertifiedBlockId : HashValue
-      _btHighestQuorumCert       : QuorumCert
+      ₋btIdToBlock               : KVMap HashValue LinkableBlock
+      ₋btRootId                  : HashValue
+      ₋btHighestCertifiedBlockId : HashValue
+      ₋btHighestQuorumCert       : QuorumCert
       -- btHighestTimeoutCert      : Maybe TimeoutCertificate
-      _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
-      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)  -- TODO: IsValidQC should be Meta
+      ₋btHighestCommitCert       : QuorumCert
+      ₋btPendingVotes            : PendingVotes
+      ₋btPrunedBlockIds          : List HashValue
+      ₋btMaxPrunedBlocksInMem    : ℕ
+      ₋btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)  -- TODO: IsValidQC should be Meta
   open BlockTree public
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
               btHighestCommitCert   btPendingVotes   btPrunedBlockIds
@@ -57,7 +57,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
   record BlockStore : Set where
     constructor mkBlockStore
     field
-      :bsInner         : BlockTree
+      ₋bsInner         : BlockTree
       -- bsStateComputer : StateComputer
       -- bsStorage       : CBPersistentStorage
   open BlockStore public
@@ -83,7 +83,7 @@ module LibraBFT.Concrete.Consensus.Types.EpochDep (ec : Meta EpochConfig) where
   record EventProcessorWithEC : Set where
     constructor mkEventProcessorWithEC
     field
-      :epBlockStore   : BlockStore
+      ₋epBlockStore   : BlockStore
   open EventProcessorWithEC public
   unquoteDecl epBlockStore = mkLens (quote EventProcessorWithEC)
     (epBlockStore ∷ [])

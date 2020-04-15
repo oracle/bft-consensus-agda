@@ -14,6 +14,16 @@ module LibraBFT.Concrete.Util.KVMap  where
    -- TODO: It should be possible to instantiate the module with a Key type and provide this, but I
    -- don't understand the "variable" declaration above, or why we use it, and can't seem to make
    -- this work other than by postulating it
+   -- VCM: a variable block is just a way of adding implicit parameters
+   -- everywhere. Take: 
+   --
+   -- > variable m n : Nat
+   -- > +-comm : m + n == n + m
+   --
+   -- Agda translates it to:
+   --
+   -- > +-comm : {m n : Nat} -> m + n == n + m
+   --
    _≟Key_ : ∀ (k1 k2 : Key) → Dec (k1 ≡ k2)
 
    KVMap : Set → Set → Set 
@@ -134,4 +144,11 @@ module LibraBFT.Concrete.Util.KVMap  where
     KVM-extensionality {kvm1 = kvm-update k1 v1 orig rdy} {kvm2 = orig}
                        λ x → lookup-correct-update-3 rdy hyp
 
+ postulate
+   -- Corollary
+  lookup-stable-2  : {kvm : KVMap Key Val}{k k' : Key}{v' : Val}
+                   → (prf : lookup k kvm ≡ nothing)
+                   → lookup k' (kvm-insert k v kvm prf) ≡ just v'
+                   → k' ≢ k
+                   → lookup k' kvm ≡ just v'
 

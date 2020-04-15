@@ -32,6 +32,13 @@ module LibraBFT.Abstract.Records
       --vState     : State
   open Vote public
 
+  Vote-cong-η : ∀{v v'}
+              → vAuthor v ≡ vAuthor v' → vBlockUID v ≡ vBlockUID v'
+              → vRound v ≡ vRound v' → vOrder v ≡ vOrder v'
+              → v ≡ v'
+  Vote-cong-η refl refl refl refl = refl
+
+
   -- * Quorum Certificates
   --
   -- These are intersting. A Valid quorum certificate contains
@@ -67,8 +74,14 @@ module LibraBFT.Abstract.Records
   -- that is, they certify the same block. It is worthwhile to note
   -- that since we are talking about /abstract/ QCs, we have proofs that
   -- both have at least QuorumSize votes for /the same block/!
+  --
+  -- It might be tempting to want qRound q₀ ≡ qRound q₁ in here,
+  -- but the proof of ←-≈Rec in LibraBFT.Abstract.Records.Extends
+  -- would be impossible, which in turn, invalidate a bunch of other
+  -- things.
   _≈QC_ : QC → QC → Set
   q₀ ≈QC q₁ = qCertBlockId q₀ ≡ qCertBlockId q₁
+  
 
   _≟≈QC_ : (q₀ q₁ : QC) → Dec (q₀ ≈QC q₁)
   q₀ ≟≈QC q₁ with qCertBlockId q₀ ≟UID qCertBlockId q₁
@@ -141,7 +154,6 @@ module LibraBFT.Abstract.Records
   -- TODO: gets the vote of a ∈QC -- TODO: make q explicit; a implicit
   ∈QC-Vote : ∀{a : Author ec} (q : QC) → (a ∈QC q) → Vote
   ∈QC-Vote q a∈q = Any-lookup a∈q
-
 
   ∈QC-Vote-correct : ∀ q → {a : Author ec} → (p : a ∈QC q)
                    → (∈QC-Vote {a} q p) ∈ qcVotes q
