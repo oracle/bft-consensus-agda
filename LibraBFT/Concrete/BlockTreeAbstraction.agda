@@ -321,6 +321,23 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   ---------------------------------------
   -- Properties About Valid BlockTrees --
 
+  -- In a valid BlockTree; if a given QC certifies a block, then
+  -- such block has a concrete counterpart that belongs in the block tree.
+  qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
+                           → ∀{q} → (Abs.Q q) ∈BT bt
+                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (₋btIdToBlock bt) ≡ just cb)
+  qc-certifies-closed-conc bt correct {q} q∈bt 
+    with correct (Abs.Q q) q∈bt
+  ...| step {Abs.B b} (step _ _ {b∈bt}) (B←Q refl refl) 
+    with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock bt)) b∈bt
+  ...| (cb , inThere , _) = cb , inThere
+
+  -- The tail of a record chain is always an element of the state.
+  rc-∈BT : {bt : BlockTree}{r : Abs.Record}
+         → RecordChain bt r → r ∈BT bt
+  rc-∈BT empty            = unit
+  rc-∈BT (step _ _ {prf}) = prf
+
   -- Properties about insert-block
   module _ (bt : BlockTree)(cb : LinkableBlock) where
 
@@ -376,6 +393,184 @@ module LibraBFT.Concrete.BlockTreeAbstraction
     ...| extends {r = r} a canI r←r' 
        = step (rc-grow (λ {r₀} r₀∈bt → insert-block-stable (extends a canI r←r') {r₀} r₀∈bt) (cbt r a)) 
               r←r' {insert-block-elem (extends a canI r←r')}
+
+    -- The proof for increasing round rule is easy; insert-block does
+    -- not interfere with quorum certificates.
+    insert-block-incr-round : (ext : ExtendsB bt cb) → ValidBT bt → IncreasingRound (insert-block bt cb ext)
+    insert-block-incr-round ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
+      -- Both QC's must be old; since we just inserted a block. 
+      rewrite insert-block-no-interf ext
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    ...| no imp   | _         = ⊥-elim (imp q∈bt)
+    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
+    ...| yes qOld | yes q'Old = ValidBT.incr-round-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+
+    -- Same for votes-only-once; there is no interference with quorum certificates
+    insert-block-votes-once : (ext : ExtendsB bt cb) → ValidBT bt → VotesOnlyOnce (insert-block bt cb ext)
+    insert-block-votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
+      -- Both QC's must be old; since we just inserted a block. 
+      rewrite insert-block-no-interf ext
+      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
+    ...| no imp   | _         = ⊥-elim (imp q∈bt)
+    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
+    ...| yes qOld | yes q'Old = ValidBT.votes-once-rule valid α hα {q} {q'} qOld q'Old va va' hyp
+
+    -- ** The Odyssey of the LockedRound **
+
+    -- VCM: We can make Abstract.RecrodChain.∈RC.transp heterogeneous
+    -- but it will break the proofs below; For now, I'll leave ∈RC homogeneous
+    -- and keep te proofs. If the implemenation and the system either require or,
+    -- indeed, give us wha we need on a plate, I'll come back around.
+
+    insert-block-pres-Q∈BT 
+      : (ext : ExtendsB bt cb) 
+      → ∀{q} → Abs.Q q ∈BT (insert-block bt cb ext) → Abs.Q q ∈BT bt
+    insert-block-pres-Q∈BT ext hyp rewrite insert-block-no-interf ext = hyp
+
+    insert-block-pres-B∈BT 
+      : (ext : ExtendsB bt cb)
+      → ∀{b} → Abs.B b ∈BT insert-block bt cb ext
+      → Abs.bId b ≢ Abs.bId (α-Block cb)
+      → Abs.B b ∈BT bt
+    insert-block-pres-B∈BT ext@(extends _ (B _ x) _) {b} hyp nothd
+      with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) hyp
+    ...| (bb , isJust , refl) 
+      rewrite lookup-stable-2 x isJust nothd = refl
+
+    -- A freshly inserted block is uncertifiable; in other words, for any
+    -- quorum certificaet that belongs in (insert-block bt cb ext), said QC 
+    -- cant certify cb.
+    insert-block-uncertifiable 
+      : (ext : ExtendsB bt cb)
+      → Correct bt
+      → ∀{q} → Abs.Q q ∈BT insert-block bt cb ext
+      → Abs.qCertBlockId q ≢ Abs.bId (α-Block cb)
+    insert-block-uncertifiable ext correct {q} q∈bt' refl
+      with qc-certifies-closed-conc bt correct {q} (insert-block-pres-Q∈BT ext {q} q∈bt')
+    ...| (_ , cb∈bt) 
+      with ext
+    ...| extends _ (B _ cbNew) _ = maybe-⊥ cb∈bt cbNew
+
+    mutual
+     insert-block-is-not-cb 
+       : (ext : ExtendsB bt cb) → Correct bt
+       → ∀{b}(rc : RecordChain (insert-block bt cb ext) (Abs.B b))
+       → Abs.bId b ≢ Abs.bId (α-Block cb)
+       → ∀{r} → r ∈RC rc
+       → r ∈BT bt
+     insert-block-is-not-cb ext cor rc hyp (transp {_} {rc₀} old eq) 
+       = insert-block-is-not-cb ext cor rc₀ hyp old
+     insert-block-is-not-cb ext@(extends _ (B αbt btNew) _) cor {b} (step rc _ {prf}) hyp (here) 
+       with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) prf
+     ...| (lb , isthere , refl) 
+       rewrite lookup-stable-2 btNew isthere hyp 
+             = refl
+     insert-block-is-not-cb ext cor (empty ↜[ b∈bt ] I←B i0 i1) hyp (there p x {prf}) 
+       rewrite ∈RC-empty-I x = unit
+     insert-block-is-not-cb ext cor (rc ↜[ b∈bt ] Q←B q0 q1)    hyp (there p x {prf}) 
+       = insert-block-doesnt-use-cb ext cor rc x
+
+     insert-block-doesnt-use-cb 
+       : (ext : ExtendsB bt cb) → Correct bt
+       → ∀{q}(rc : RecordChain (insert-block bt cb ext) (Abs.Q q))
+       → ∀{r} → r ∈RC rc
+       → r ∈BT bt
+     insert-block-doesnt-use-cb ext cor rc (transp {_} {rc₀} old eq) 
+       = insert-block-doesnt-use-cb ext cor rc₀ old
+     insert-block-doesnt-use-cb ext cor (step _ _ {q∈bt'}) {r} (here) 
+       rewrite insert-block-no-interf ext = q∈bt'
+     insert-block-doesnt-use-cb ext cor {q} (rc ↜[ q∈bt' ] B←Q b0 b1) {r} (there p x {prf})
+       = insert-block-is-not-cb ext cor rc (λ h → insert-block-uncertifiable ext cor {q} prf (trans (sym b1) h)) x
+
+    -- If we have a record chain leading to a quorum certificate in the 
+    -- state that results from the insertion of a block; we can have the same record chain
+    -- wihtout said block.
+    --
+    -- We need this because we need to explain to Agda that any RecordChain
+    -- that ends in a QC can't reference the newly inserted block. This is useful
+    -- to call our invariants inductively
+    insert-block-rc-shrink 
+      : (ext : ExtendsB bt cb) 
+      → Correct bt → ∀{q}
+      → RecordChain (insert-block bt cb ext) (Abs.Q q)
+      → RecordChain bt (Abs.Q q)
+    insert-block-rc-shrink ext cor rc = rc-transp rc (insert-block-doesnt-use-cb ext cor rc)
+
+    -- Here we must prove that transporting a record chain doesn't change
+    -- its last round. In fact, I would love to have something like:
+    --
+    -- > rc ≅ rc-transp rc f
+    --
+    -- But we can't prove that (the base cases of each side have different types
+    -- and hence refl can't be used). 
+    --
+    -- This means we need one lemma for each 'accessor' of record chains
+    -- we need. Right now we just need prevRound; lets pray it stays this way
+    -- and we should be fine.
+    insert-block-rc-shrink-prevRound
+      : (ext : ExtendsB bt cb)(cor : Correct bt)
+      → ∀{q}(rc : RecordChain (insert-block bt cb ext) (Abs.Q q)) 
+      → prevRound rc ≡ prevRound (insert-block-rc-shrink ext cor rc)
+    insert-block-rc-shrink-prevRound ext cor (step (step rc (I←B _ _)) (B←Q _ refl))         = refl
+    insert-block-rc-shrink-prevRound ext cor (step (step (step _ _) (Q←B _ _)) (B←Q _ refl)) = refl
+
+    -- Here, for instance, we need to go over the elements of the k-chain
+    -- simply to let Agda reduce rc-shrink (patter matching on the k-chain
+    -- yeilds info about the shabe of the recordchain, which in turn, reduces rc-shrink)
+    insert-block-kc-shrink 
+      : ∀{R n}(ext : ExtendsB bt cb)
+      → (corr : Correct bt)
+      → ∀{q}{rc : RecordChain (insert-block bt cb ext) (Abs.Q q)}
+      → 𝕂-chain (insert-block bt cb ext) R n rc 
+      → 𝕂-chain bt R n (insert-block-rc-shrink ext corr rc)
+    insert-block-kc-shrink ext cor 0-chain = 0-chain
+    insert-block-kc-shrink ext cor (s-chain (I←B i0 i1) prf b←q 0-chain) 
+      = s-chain (I←B i0 i1) prf b←q 0-chain
+    insert-block-kc-shrink ext cor (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain) 
+      = s-chain (Q←B q0 q1) prf (B←Q b0 refl) 0-chain
+    insert-block-kc-shrink ext cor (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) 
+      = s-chain (Q←B q0 q1) prf (B←Q b0 refl) (insert-block-kc-shrink ext cor {q'} c) 
+
+    -- We should be able to "easily" prove that kc-shrink does /not/
+    -- alter the blocks of the kchain.
+    insert-block-kc-shrink-≡b : ∀{R n}(ext : ExtendsB bt cb)
+                 → (corr : Correct bt)
+                 → ∀{q}{rc : RecordChain (insert-block bt cb ext) (Abs.Q q)}
+                 → (i : Fin n)
+                 → (kc : 𝕂-chain (insert-block bt cb ext) R n rc)
+                 → kchainBlock i (insert-block-kc-shrink ext corr kc) ≡ kchainBlock i kc
+    insert-block-kc-shrink-≡b ext corr () 0-chain
+    -- Base case; easy byt requires to match on a lot of stuff to reduce kc-shrink
+    insert-block-kc-shrink-≡b ext corr zero (s-chain (I←B i0 i1) prf b←q 0-chain)                                      = refl
+    insert-block-kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain)           = refl
+    insert-block-kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) = refl
+    -- Inductive case
+    insert-block-kc-shrink-≡b ext corr (suc ()) (s-chain (I←B i0 i1) prf b←q 0-chain) 
+    insert-block-kc-shrink-≡b ext corr (suc ()) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain) 
+    insert-block-kc-shrink-≡b ext corr (suc i) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) 
+      = insert-block-kc-shrink-≡b ext corr i c
+
+    -- Lastly, the locked-round-rule has a similar proof. Not interfering with
+    -- quorum certs preserves the invariant trivially.
+    insert-block-locked-round : (ext : ExtendsB bt cb) → ValidBT bt 
+                              → LockedRound (insert-block bt cb ext)
+    insert-block-locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
+      with ValidBT.locked-round-rule valid {R} α hα 
+                   {q} {insert-block-rc-shrink ext (ValidBT.correct valid) {q} rc} 
+                   {n} (insert-block-kc-shrink ext (ValidBT.correct valid) c3) 
+                   va 
+                   {q'} (insert-block-rc-shrink ext (ValidBT.correct valid) {q'} rc') 
+                   va' hyp
+    ...| r = subst₂ _≤_ (cong Abs.bRound (insert-block-kc-shrink-≡b ext (ValidBT.correct valid) (suc (suc zero)) c3)) 
+                        (sym (insert-block-rc-shrink-prevRound ext (ValidBT.correct valid) {q'} rc')) 
+                        r
+
+    insert-block-valid : (ext : ExtendsB bt cb) → ValidBT bt → ValidBT (insert-block bt cb ext)
+    insert-block-valid ext v = valid-bt (insert-block-correct ext (ValidBT.correct v)) 
+                                        (insert-block-incr-round ext v) 
+                                        (insert-block-votes-once ext v) 
+                                        (insert-block-locked-round ext v)
+
 
   -- Properties about insert-qc
   module _ (bt : BlockTree)(vqc : Σ QuorumCert IsValidQC) where
@@ -454,23 +649,6 @@ module LibraBFT.Concrete.BlockTreeAbstraction
 
 
 {-
-  -- In a valid BlockTree; if a given QC certifies a block, then
-  -- such block has a concrete counterpart that belongs in the block tree.
-  qc-certifies-closed-conc : (bt : BlockTree) → Correct bt
-                           → ∀{q} → (Abs.Q q) ∈BT bt
-                           → ∃[ cb ] (lookup (Abs.qCertBlockId q) (₋btIdToBlock bt) ≡ just cb)
-  qc-certifies-closed-conc bt correct {q} q∈bt 
-    with correct (Abs.Q q) q∈bt
-  ...| step {Abs.B b} (step _ _ {b∈bt}) (B←Q refl refl) 
-    with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock bt)) b∈bt
-  ...| (cb , inThere , _) = cb , inThere
-
-  -- The tail of a record chain is always an element of the state.
-  rc-∈BT : {bt : BlockTree}{r : Abs.Record}
-         → RecordChain bt r → r ∈BT bt
-  rc-∈BT empty            = unit
-  rc-∈BT (step _ _ {prf}) = prf
-
   -----------------------------------------------------------------------------
   -- TEMPORARY: Properties we will need from the syste's layer as postulates --
   -----------------------------------------------------------------------------
@@ -511,170 +689,6 @@ module LibraBFT.Concrete.BlockTreeAbstraction
   -- I'm parametrizing over bt and cb, but can't really put ExtendsB in here
   -- since we often need to pattern-match over it.
   module InsertBlockLemmas (bt : BlockTree)(cb : LinkableBlock) where
-    -- The proof for increasing round rule is easy; insert-block does
-    -- not interfere with quorum certificates.
-    incr-round : (ext : ExtendsB bt cb) → ValidBT bt → IncreasingRound (insert-block bt cb ext)
-    incr-round ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
-      -- Both QC's must be old; since we just inserted a block. 
-      rewrite no-interf ext
-      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
-    ...| no imp   | _         = ⊥-elim (imp q∈bt)
-    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
-    ...| yes qOld | yes q'Old = ValidBT.incr-round-rule valid α hα {q} {q'} qOld q'Old va va' hyp
-
-    -- Same for votes-only-once; there is no interference with quorum certificates
-    votes-once : (ext : ExtendsB bt cb) → ValidBT bt → VotesOnlyOnce (insert-block bt cb ext)
-    votes-once ext valid α hα {q} {q'} q∈bt q'∈bt va va' hyp
-      -- Both QC's must be old; since we just inserted a block. 
-      rewrite no-interf ext
-      with Abs.Q q ∈BT? bt | Abs.Q q' ∈BT? bt
-    ...| no imp   | _         = ⊥-elim (imp q∈bt)
-    ...| yes qOld | no  imp   = ⊥-elim (imp q'∈bt)
-    ...| yes qOld | yes q'Old = ValidBT.votes-once-rule valid α hα {q} {q'} qOld q'Old va va' hyp
-
-    -- ** The Odyssey of the LockedRound **
-
-    pres-Q∈BT : (ext : ExtendsB bt cb) 
-              → ∀{q} → Abs.Q q ∈BT (insert-block bt cb ext) → Abs.Q q ∈BT bt
-    pres-Q∈BT ext hyp rewrite no-interf ext = hyp
-
-    pres-B∈BT : (ext : ExtendsB bt cb)
-              → ∀{b} → Abs.B b ∈BT insert-block bt cb ext
-              → Abs.bId b ≢ Abs.bId (α-Block cb)
-              → Abs.B b ∈BT bt
-    pres-B∈BT ext@(extends _ (B _ x) _) {b} hyp nothd
-      with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) hyp
-    ...| (bb , isJust , refl) 
-      rewrite lookup-stable-2 x isJust nothd = refl
-
-    -- A freshly inserted block is uncertifiable; in other words, for any
-    -- quorum certificaet that belongs in (insert-block bt cb ext), said QC 
-    -- cant certify cb.
-    uncertifiable : (ext : ExtendsB bt cb)
-                  → Correct bt
-                  → ∀{q} → Abs.Q q ∈BT insert-block bt cb ext
-                  → Abs.qCertBlockId q ≢ Abs.bId (α-Block cb)
-    uncertifiable ext correct {q} q∈bt' refl
-      with qc-certifies-closed-conc bt correct {q} (pres-Q∈BT ext {q} q∈bt')
-    ...| (_ , cb∈bt) 
-      with ext
-    ...| extends _ (B _ cbNew) _ = maybe-⊥ cb∈bt cbNew
-
-    mutual
-     is-not-cb : (ext : ExtendsB bt cb) → Correct bt
-               → ∀{b}(rc : RecordChain (insert-block bt cb ext) (Abs.B b))
-               → Abs.bId b ≢ Abs.bId (α-Block cb)
-               → ∀{r} → r ∈RC rc
-               → r ∈BT bt
-     is-not-cb ext cor rc hyp (transp {_} {rc₀} old eq) 
-       = is-not-cb ext cor rc₀ hyp old
-     is-not-cb ext@(extends _ (B αbt btNew) _) cor {b} (step rc _ {prf}) hyp (here) 
-       with <M$>-univ α-Block (lookup (Abs.bId b) (₋btIdToBlock (insert-block bt cb ext))) prf
-     ...| (lb , isthere , refl) 
-       rewrite lookup-stable-2 btNew isthere hyp 
-             = refl
-     is-not-cb ext cor (empty ↜[ b∈bt ] I←B i0 i1) hyp (there p x {prf}) 
-       rewrite ∈RC-empty-I x = unit
-     is-not-cb ext cor (rc ↜[ b∈bt ] Q←B q0 q1)    hyp (there p x {prf}) 
-       = doesnt-use-cb ext cor rc x
-
-     doesnt-use-cb : (ext : ExtendsB bt cb) → Correct bt
-                   → ∀{q}(rc : RecordChain (insert-block bt cb ext) (Abs.Q q))
-                   → ∀{r} → r ∈RC rc
-                   → r ∈BT bt
-     doesnt-use-cb ext cor rc (transp {_} {rc₀} old eq) 
-       = doesnt-use-cb ext cor rc₀ old
-     doesnt-use-cb ext cor (step _ _ {q∈bt'}) {r} (here) 
-       rewrite no-interf ext = q∈bt'
-     doesnt-use-cb ext cor {q} (rc ↜[ q∈bt' ] B←Q b0 b1) {r} (there p x {prf})
-       = is-not-cb ext cor rc (λ h → uncertifiable ext cor {q} prf (trans (sym b1) h)) x
-
-    -- If we have a record chain leading to a quorum certificate in the 
-    -- state that results from the insertion of a block; we can have the same record chain
-    -- wihtout said block.
-    --
-    -- We need this because we need to explain to Agda that any RecordChain
-    -- that ends in a QC can't reference the newly inserted block. This is useful
-    -- to call our invariants inductively
-    rc-shrink : (ext : ExtendsB bt cb) 
-              → Correct bt → ∀{q}
-              → RecordChain (insert-block bt cb ext) (Abs.Q q)
-              → RecordChain bt (Abs.Q q)
-    rc-shrink ext cor rc = rc-transp rc (doesnt-use-cb ext cor rc)
-
-    -- Here we must prove that transporting a record chain doesn't change
-    -- its last round. In fact, I would love to have something like:
-    --
-    -- > rc ≅ rc-transp rc f
-    --
-    -- But we can't prove that (the base cases of each side have different types
-    -- and hence refl can't be used). 
-    --
-    -- This means we need one lemma for each 'accessor' of record chains
-    -- we need. Right now we just need prevRound; lets pray it stays this way
-    -- and we should be fine.
-    rc-shrink-prevRound
-      : (ext : ExtendsB bt cb)(cor : Correct bt)
-      → ∀{q}(rc : RecordChain (insert-block bt cb ext) (Abs.Q q)) 
-      → prevRound rc ≡ prevRound (rc-shrink ext cor rc)
-    rc-shrink-prevRound ext cor (step (step rc (I←B _ _)) (B←Q _ refl))         = refl
-    rc-shrink-prevRound ext cor (step (step (step _ _) (Q←B _ _)) (B←Q _ refl)) = refl
-
-    -- Here, for instance, we need to go over the elements of the k-chain
-    -- simply to let Agda reduce rc-shrink (patter matching on the k-chain
-    -- yeilds info about the shabe of the recordchain, which in turn, reduces rc-shrink)
-    kc-shrink : ∀{R n}(ext : ExtendsB bt cb)
-              → (corr : Correct bt)
-              → ∀{q}{rc : RecordChain (insert-block bt cb ext) (Abs.Q q)}
-              → 𝕂-chain (insert-block bt cb ext) R n rc 
-              → 𝕂-chain bt R n (rc-shrink ext corr rc)
-    kc-shrink ext cor 0-chain = 0-chain
-    kc-shrink ext cor (s-chain (I←B i0 i1) prf b←q 0-chain) 
-      = s-chain (I←B i0 i1) prf b←q 0-chain
-    kc-shrink ext cor (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain) 
-      = s-chain (Q←B q0 q1) prf (B←Q b0 refl) 0-chain
-    kc-shrink ext cor (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) 
-      = s-chain (Q←B q0 q1) prf (B←Q b0 refl) (kc-shrink ext cor {q'} c) 
-
-    -- We should be able to "easily" prove that kc-shrink does /not/
-    -- alter the blocks of the kchain.
-    kc-shrink-≡b : ∀{R n}(ext : ExtendsB bt cb)
-                 → (corr : Correct bt)
-                 → ∀{q}{rc : RecordChain (insert-block bt cb ext) (Abs.Q q)}
-                 → (i : Fin n)
-                 → (kc : 𝕂-chain (insert-block bt cb ext) R n rc)
-                 → kchainBlock i (kc-shrink ext corr kc) ≡ kchainBlock i kc
-    kc-shrink-≡b ext corr () 0-chain
-    -- Base case; easy byt requires to match on a lot of stuff to reduce kc-shrink
-    kc-shrink-≡b ext corr zero (s-chain (I←B i0 i1) prf b←q 0-chain)                                      = refl
-    kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain)           = refl
-    kc-shrink-≡b ext corr zero (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) = refl
-    -- Inductive case
-    kc-shrink-≡b ext corr (suc ()) (s-chain (I←B i0 i1) prf b←q 0-chain) 
-    kc-shrink-≡b ext corr (suc ()) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@0-chain) 
-    kc-shrink-≡b ext corr (suc i) (s-chain {r = Abs.Q q'} (Q←B q0 q1) prf (B←Q b0 refl) c@(s-chain _ _ _ _)) 
-      = kc-shrink-≡b ext corr i c
-
-    -- Lastly, the locked-round-rule has a similar proof. Not interfering with
-    -- quorum certs preserves the invariant trivially.
-    locked-round : (ext : ExtendsB bt cb) → ValidBT bt 
-                 → LockedRound (insert-block bt cb ext)
-    locked-round ext valid {R} α hα {q} {rc} {n} c3 va {q'} rc' va' hyp 
-      with ValidBT.locked-round-rule valid {R} α hα 
-                   {q} {rc-shrink ext (ValidBT.correct valid) {q} rc} 
-                   {n} (kc-shrink ext (ValidBT.correct valid) c3) 
-                   va 
-                   {q'} (rc-shrink ext (ValidBT.correct valid) {q'} rc') 
-                   va' hyp
-    ...| r = subst₂ _≤_ (cong Abs.bRound (kc-shrink-≡b ext (ValidBT.correct valid) (suc (suc zero)) c3)) 
-                        (sym (rc-shrink-prevRound ext (ValidBT.correct valid) {q'} rc')) 
-                        r
-
-    valid : (ext : ExtendsB bt cb) → ValidBT bt → ValidBT (insert-block bt cb ext)
-    valid ext v = valid-bt (correct ext (ValidBT.correct v)) 
-                           (incr-round ext v) 
-                           (votes-once ext v) 
-                           (locked-round ext v)
 
   -- *** Insertion of QCs
  
