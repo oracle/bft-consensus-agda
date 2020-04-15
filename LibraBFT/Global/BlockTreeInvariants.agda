@@ -34,6 +34,12 @@ module LibraBFT.Global.BlockTreeInvariants
   open import LibraBFT.Abstract.RecordChain ec UID _≟UID_ ⦃ abstractBT ⦄
   import LibraBFT.Abstract.Records ec UID _≟UID_ as Abs
 
+  -- VCM: I'm starting to realize that the properties votes-once; incr-round
+  -- and locked-round are /NOT/ invariants of one state; they are 
+  -- invariants of the /system/!
+  --
+  -- It makes no sense to try framing them as invariants of a single node's
+  -- state. I will try working on my smiplified system model branch.
 
   -- *** Insertion of QCs
  
