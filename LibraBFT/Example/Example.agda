@@ -65,6 +65,10 @@ module LibraBFT.Example.Example where
    direct : DirectMessage → Message
    gossip : GossipMessage → Message
 
+ isGossip : Message → Set
+ isGossip (direct _) = ⊥
+ isGossip (gossip _) = ⊤
+
  getAuthor : Message → PeerId
  getAuthor (direct m) = m ^∙ author
  getAuthor (gossip m) = m ^∙ gmAuthor
@@ -578,15 +582,15 @@ module LibraBFT.Example.Example where
 
  -- For gossip messages, we simply verify the signature and if it verifies, handle the original
  -- message it contains
- rVWSRecvMsgG : ∀ {pre post msg}
+ rVWSRecvMsgG : ∀ {pre post}
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → (iR : isRecvMsg theStep)
-     → msgOf iR ≡ gossip msg
+     → isGossip (msgOf iR)
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsgG {pre} {post} preReach
              (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _
-             -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consumer them, but they are needed for the next case
+             -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consume them, but they are needed for the next case
     with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done
  ...| inj₂ (ver' , R') rewrite R'
@@ -602,20 +606,15 @@ module LibraBFT.Example.Example where
                     (cong proj₁ (sym run≡))
                     (cong proj₂ (sym run≡)))
                   (rVWSInvariant preReach))
-
- rVWSRecvMsgG {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _
-    | inj₂ (ver' , R')
-    | (just ver'') | [ R'' ] rewrite R'
-    with mustBe {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
+ ...| (just ver'') | [ R'' ] rewrite R' | R''
+    with mustBe {by} {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
  ...| xx
-    with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
- ...| xxy rewrite R' | R'' = rVWSRecvMsg {pre} {post} preReach                 -- TODO: revisit after deciding about "to" parameter
-                                         (recvMsg {pre} {direct (:original msg)} {ppre = ppre} {ppost = ppost} {acts} by ts xx rdy {! xxy!} ) tt
-                               -- Victor please help.  Why can't I get it to recognise that the
-                               -- signature check on ":original msg" has succeeded (R'' say it has,
-                               -- but the error if I try to give xxy for the hole suggests it
-                               -- hasn't, despite the rewriting of R'')
+     with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
+ ...| xxy rewrite R'' | R' = rVWSRecvMsgD {pre} {post} {:original msg} preReach
+                                         (recvMsg {pre} {direct (:original msg)} { 42 }  -- We just have to provide *some* recipient.  It would be tidier
+                                                                                         -- if the Gossip message included the original "to" peer, so we
+                                                                                         -- could keep it the same, but it doesn't matter much.
+                                                  {ppre} {ppost} {acts} by ts xx rdy (trans xxy run≡)) tt refl
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
@@ -623,14 +622,14 @@ module LibraBFT.Example.Example where
  rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
                = rVWSRecvMsgD {msg = msg} preReach (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt refl
  rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
-               = rVWSRecvMsgG {msg = msg} preReach (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt refl
+               = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
 
---  -- Another way of approaching the proof is to do case analysis on pureHandler results.
---  -- In this example, if proj₁ (pureHandler msg ts ppre) =
---  --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
---  --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
---  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
---  rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
+ -- Another way of approaching the proof is to do case analysis on pureHandler results.
+ -- In this example, if proj₁ (pureHandler msg ts ppre) =
+ --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
+ --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
+ --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
+ rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
 
 
 --  rVWSRecvMsg2 : ∀ {pre post}
