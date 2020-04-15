@@ -65,12 +65,13 @@ module LibraBFT.Example.Example where
    direct : DirectMessage → Message
    gossip : GossipMessage → Message
 
+ isGossip : Message → Set
+ isGossip (direct _) = ⊥
+ isGossip (gossip _) = ⊤
+
  getAuthor : Message → PeerId
  getAuthor (direct m) = m ^∙ author
  getAuthor (gossip m) = m ^∙ gmAuthor
-
- getPubKey : Message → PK
- getPubKey = fakePubKey ∘ getAuthor
 
  data Output : Set where
    announce : ℕ → Output           -- This is analogous to "commit"
@@ -199,7 +200,7 @@ module LibraBFT.Example.Example where
                      ∷ []
 
  handle : (msg : DirectMessage) → Instant → RWST Unit Output State Unit
- handle msg ts = do  -- TODO: Check signature
+ handle msg ts = do
    st ← get
    case proj₁ (pureHandler msg ts st) of
      λ { noChange             → pure unit
@@ -213,36 +214,37 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
- {-# TERMINATING #-} -- MSM: Why is this necessary?  See comment on other TERMINATING directive below.
- handle1 : Message → Instant → RWST Unit Output State Unit
- handle1 (direct msg) ts
-    with check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (getPubKey (direct msg)) msg
+ handleDirect : DirectMessage → Instant → RWST Unit Output State Unit
+ handleDirect msg ts
+    with check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author)) msg
  ...| nothing = pure unit
  ...| just ver = handle msg ts
 
- handle1 (gossip msg) ts
-    with check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg
+ handleGossip : GossipMessage → Instant → RWST Unit Output State Unit
+ handleGossip msg ts
+    with check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg
  ...| nothing = pure unit  -- ACCOUNTABILITY OPPORTUNITY
- ...| just ver' = handle1 (direct (msg ^∙ original)) ts
+ ...| just ver' = handleDirect (msg ^∙ original) ts
 
  stepPeer : (msg : Message) → Instant → State → State × List Output
- stepPeer msg ts st = proj₂ (RWST-run (handle1 msg ts) unit st)
+ stepPeer (direct msg) ts st = proj₂ (RWST-run (handleDirect msg ts) unit st)
+ stepPeer (gossip msg) ts st = proj₂ (RWST-run (handleGossip msg ts) unit st)
 
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
-   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg ≡ nothing
+   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ nothing
    → stepPeer (gossip msg) ts st ≡ (st , [])
  unverifiedGossipNoEffect1 {msg} {ts} {st} prf rewrite prf = refl
 
  unverifiedGossipNoEffect2 : ∀ {msg ts st ver}
-   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg ≡ just ver
-   → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (getPubKey (direct (:original msg))) (:original msg) ≡ nothing
+   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ just ver
+   → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey ((:original msg) ^∙ author)) (:original msg) ≡ nothing
    → stepPeer (gossip msg) ts st ≡ (st , [])
  unverifiedGossipNoEffect2 {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
 
  verifiedGossipEffect : ∀ {msg ts st ver ver'}
-   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (getPubKey (gossip msg)) msg ≡ just ver
-   → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (getPubKey (direct (:original msg))) (:original msg) ≡ just ver'
-   → stepPeer (gossip msg) ts st ≡ proj₂ (RWST-run (handle1 (direct (:original msg)) ts) unit st)
+   → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ just ver
+   → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey ((:original msg) ^∙ author)) (:original msg) ≡ just ver'
+   → stepPeer (gossip msg) ts st ≡ proj₂ (RWST-run (handleDirect (:original msg) ts) unit st)
  verifiedGossipEffect {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
 
  ---------------------------------------------------------------------------
@@ -386,10 +388,10 @@ module LibraBFT.Example.Example where
                       → P pre
                       → lookup by (peerStates pre) ≡ just (ppreOf iR)
                       → stepPeer (direct msg) ts (ppreOf iR) ≡ (ppostOf iR , actsOf iR)
-                      → P post ⊎ ∃[ ver ] (check-signature (getPubKey (direct msg)) msg ≡ just ver)
+                      → P post ⊎ ∃[ ver ] (check-signature (fakePubKey (msg ^∙ author)) msg ≡ just ver)
  verifySigDirect {pre} {post} {msg} {by} {ts} P theStep iR Ppre rdy run≡
-    with  check-signature (getPubKey (direct msg))  msg | inspect
-         (check-signature (getPubKey (direct msg))) msg
+    with  check-signature (fakePubKey (msg ^∙ author))  msg | inspect
+         (check-signature (fakePubKey (msg ^∙ author))) msg
  ...| just ver | [ R ] = inj₂ (ver , R)
  ...| nothing  | [ R ] rewrite R =
     inj₁ (InvariantStates≡ P
@@ -403,10 +405,10 @@ module LibraBFT.Example.Example where
                       → P pre
                       → lookup by (peerStates pre) ≡ just (ppreOf iR)
                       → stepPeer (gossip msg) ts (ppreOf iR) ≡ (ppostOf iR , actsOf iR)
-                      → P post ⊎ ∃[ ver ] (check-signature (getPubKey (gossip msg)) msg ≡ just ver)
+                      → P post ⊎ ∃[ ver ] (check-signature (fakePubKey (msg ^∙ gmAuthor)) msg ≡ just ver)
  verifySigGossip {pre} {post} {msg} {by} {ts} P theStep iR Ppre rdy run≡
-    with  check-signature (getPubKey (gossip msg))  msg | inspect
-         (check-signature (getPubKey (gossip msg))) msg
+    with  check-signature (fakePubKey (msg ^∙ gmAuthor))  msg | inspect
+         (check-signature (fakePubKey (msg ^∙ gmAuthor))) msg
  ...| just ver | [ R ] = inj₂ (ver , R)
  ...| nothing  | [ R ] rewrite R =
     inj₁ (InvariantStates≡ P
@@ -454,21 +456,22 @@ module LibraBFT.Example.Example where
          cast∈SM (inj₁ xx)      = inj₁ xx
          cast∈SM {m'} (inj₂ xx) = inj₂ (proj₁ xx , (msgs-stable {pre} {post} {proj₁ xx , direct m'} theStep (proj₂ xx)))
 
- RecordedValueWasSent : SystemState → Set
- RecordedValueWasSent st = ∀ {pSt curMax}
-                           → (sender p : PeerId)
-                           → lookup p (peerStates st) ≡ just pSt
-                           → pSt ^∙ newValSender ≡ just sender
-                           → pSt ^∙ maxSeen ≡ curMax
-                           → RVWSConsequent sender curMax st
+ -- TODO: rename -> allegedly
+ RecordedValueWasAllegedlySent : SystemState → Set
+ RecordedValueWasAllegedlySent st = ∀ {pSt curMax}
+                               → (sender p : PeerId)
+                               → lookup p (peerStates st) ≡ just pSt
+                               → pSt ^∙ newValSender ≡ just sender
+                               → pSt ^∙ maxSeen ≡ curMax
+                               → RVWSConsequent sender curMax st
 
- rVWSInvariant : Invariant RecordedValueWasSent
+ rVWSInvariant : Invariant RecordedValueWasAllegedlySent
 
  rVWSCheat : ∀ {pre post}
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → isCheatStep theStep
-     → RecordedValueWasSent post
+     → RecordedValueWasAllegedlySent post
  rVWSCheat {pre} {post} preReach theStep isCheat {pSt} {curMax} sender p pSt≡ sender≡ max≡
    -- A cheat step does cannot "unsend" messages and does not affect anyone's state
    with rVWSInvariant preReach sender p (trans (sym (cheatPreservesPeerState theStep isCheat)) pSt≡) sender≡ max≡
@@ -478,7 +481,7 @@ module LibraBFT.Example.Example where
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → isInitPeer theStep  -- Not needed in this example as it is trivial; keeping it to make example more general
-     → RecordedValueWasSent post
+     → RecordedValueWasAllegedlySent post
  rVWSInitPeer {pre} {post} preReach theStep _ {pSt} sender p pSt≡ sender≡ max≡
    with peerOf theStep ≟ p
  ...| yes refl
@@ -495,18 +498,15 @@ module LibraBFT.Example.Example where
    with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons theStep
 
- {-# TERMINATING #-} -- MSM: Why is this necessary?  The proof for a gossip message invokes the one
-                     -- for the direct message it contains, but proofs for direct messages make no
-                     -- recursive calls, so....?
-
- rVWSRecvMsg : ∀ {pre post}
+ rVWSRecvMsgD : ∀ {pre post msg}
      → ReachableSystemState pre
      → (theStep : Step pre post)
-     → isRecvMsg theStep
-     → RecordedValueWasSent post
- rVWSRecvMsg {pre} {post} preReach
-             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv sender p pSt≡ sender≡ max≡
-    with verifySigDirect {msg = msg} RecordedValueWasSent theStep isRecv (rVWSInvariant preReach) rdy run≡
+     → (iR : isRecvMsg theStep)
+     → msgOf iR ≡ direct msg
+     → RecordedValueWasAllegedlySent post
+ rVWSRecvMsgD {pre} {post} preReach
+             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv isDirect sender p pSt≡ sender≡ max≡
+    with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done sender p pSt≡ sender≡ max≡
  ...| inj₂ (ver , R)
     with peerOf theStep ≟ p
@@ -515,8 +515,8 @@ module LibraBFT.Example.Example where
     with rVWSInvariant preReach sender p (trans (sym (stepByOtherPreservesPeerState theStep xx)) pSt≡) sender≡ max≡
  ...| preCons = rVWSConsCast preCons theStep
 
- rVWSRecvMsg {pre} {post} preReach
-             theStep@(recvMsg {msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsgD {pre} {post} preReach
+             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv isDirect {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | inj₂ (ver , R)
     | yes refl
 
@@ -531,8 +531,8 @@ module LibraBFT.Example.Example where
     with rVWSInvariant preReach {pSt = ppre} sender p rdy refl refl
  ...| preCons = rVWSConsCast preCons theStep
 
- rVWSRecvMsg {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsgD {pre} {post} preReach
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | inj₂ (ver , R)
     | yes refl
     | pSt≡ppost | ppost≡
@@ -559,10 +559,10 @@ module LibraBFT.Example.Example where
                                                                {actionsToSends ppost acts}
                                                                {sentMessages pre}
                                                                {proj₁ sentM , direct msg}
-                                                               {! sentM !}))))   -- Victor please help, why won't it take sentM?
+                                                               (proj₂ sentM)))))
                                        auth≡ val≡
- rVWSRecvMsg {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
+ rVWSRecvMsgD {pre} {post} preReach
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
     | inj₂ (ver , R)
     | yes refl
     | pSt≡ppost | ppost≡
@@ -582,63 +582,65 @@ module LibraBFT.Example.Example where
 
  -- For gossip messages, we simply verify the signature and if it verifies, handle the original
  -- message it contains
- rVWSRecvMsg {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
-             -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consumer them, but they are needed for the next case
-    with verifySigGossip {msg = msg} RecordedValueWasSent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv (rVWSInvariant preReach) rdy run≡
+ rVWSRecvMsgG : ∀ {pre post}
+     → ReachableSystemState pre
+     → (theStep : Step pre post)
+     → (iR : isRecvMsg theStep)
+     → isGossip (msgOf iR)
+     → RecordedValueWasAllegedlySent post
+ rVWSRecvMsgG {pre} {post} preReach
+             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _
+             -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consume them, but they are needed for the next case
+    with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done
  ...| inj₂ (ver' , R') rewrite R'
     -- This is somewhat redundant with verifySig*, but couldn't quite use it.  TODO: try again, think about unverifiedgossipnoeffect2
-    with check-signature (getPubKey (direct (:original msg)))  (:original msg) | inspect
-        (check-signature (getPubKey (direct (:original msg)))) (:original msg)
+    with check-signature (fakePubKey ((:original msg) ^∙ author))  (:original msg) | inspect
+        (check-signature (fakePubKey ((:original msg) ^∙ author))) (:original msg)
  ...| nothing | [ R'' ]
               = (InvariantStates≡
-                  RecordedValueWasSent
+                  RecordedValueWasAllegedlySent
                   (noChangePreservesState
                     (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy (trans (unverifiedGossipNoEffect2 R' R'') run≡))
                     isRecv
                     (cong proj₁ (sym run≡))
                     (cong proj₂ (sym run≡)))
                   (rVWSInvariant preReach))
-
- rVWSRecvMsg {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
-    | inj₂ (ver' , R')
-    | (just ver'') | [ R'' ] rewrite R'
-    with mustBe {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
+ ...| (just ver'') | [ R'' ] rewrite R' | R''
+    with mustBe {by} {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
  ...| xx
-    with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
- ...| xxy rewrite R' | R'' = rVWSRecvMsg {pre} {post} preReach                 -- TODO: revisit after deciding about "to" parameter
-                                         (recvMsg {pre} {direct (:original msg)} {ppre = ppre} {ppost = ppost} {acts} by ts xx rdy {! xxy!} ) tt
-                               -- Victor please help.  Why can't I get it to recognise that the
-                               -- signature check on ":original msg" has succeeded (R'' say it has,
-                               -- but the error if I try to give xxy for the hole suggests it
-                               -- hasn't, despite the rewriting of R'')
+     with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
+ ...| xxy rewrite R'' | R' = rVWSRecvMsgD {pre} {post} {:original msg} preReach
+                                         (recvMsg {pre} {direct (:original msg)} { 42 }  -- We just have to provide *some* recipient.  It would be tidier
+                                                                                         -- if the Gossip message included the original "to" peer, so we
+                                                                                         -- could keep it the same, but it doesn't matter much.
+                                                  {ppre} {ppost} {acts} by ts xx rdy (trans xxy run≡)) tt refl
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
  rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
- rVWSInvariant (step preReach (recvMsg by ts ∈SM-pre ready trans)) = rVWSRecvMsg preReach (recvMsg by ts ∈SM-pre ready trans) tt
+ rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
+               = rVWSRecvMsgD {msg = msg} preReach (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt refl
+ rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
+               = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
 
---  -- Another way of approaching the proof is to do case analysis on pureHandler results.
---  -- In this example, if proj₁ (pureHandler msg ts ppre) =
---  --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
---  --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
---  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
---  rVWSInvariant2 : Invariant RecordedValueWasSent
+ -- Another way of approaching the proof is to do case analysis on pureHandler results.
+ -- In this example, if proj₁ (pureHandler msg ts ppre) =
+ --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
+ --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
+ --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
+ rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
 
-
---  {-# TERMINATING #-} -- MSM: Why is this necessary?  See comment on other TERMINATING directive above.
 
 --  rVWSRecvMsg2 : ∀ {pre post}
 --      → ReachableSystemState pre
 --      → (theStep : Step pre post)
 --      → isRecvMsg theStep
---      → RecordedValueWasSent post
+--      → RecordedValueWasAllegedlySent post
 
 --  rVWSRecvMsg2 {pre} {post} preReach
 --               theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv {pSt} {curMax} sender p pSt≡ sender≡ max≡
---     with verifySigDirect {msg = msg} RecordedValueWasSent theStep isRecv (rVWSInvariant preReach) rdy run≡
+--     with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
 --  ...| inj₁ done = done sender p pSt≡ sender≡ max≡
 --  ...| inj₂ (ver , R)
 --     with peerOf theStep ≟ p
@@ -709,7 +711,7 @@ module LibraBFT.Example.Example where
 --  -- message it contains
 --  rVWSRecvMsg2 {pre} {post} preReach
 --              theStep@(recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv
---     with verifySigGossip {msg = msg} RecordedValueWasSent theStep isRecv (rVWSInvariant preReach) rdy run≡
+--     with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
 --  ...| inj₁ done = done
 --  ...| inj₂ (ver' , R') = rVWSRecvMsg2 {pre} {post} preReach theStep isRecv
 
@@ -782,7 +784,6 @@ module LibraBFT.Example.Example where
 -- --  ...| s1 , s2 , preCons = s1 , s2 , cVSB2ConsCast preCons (msgs-stable theStep (m∈SM (msg1 preCons)))
 -- --                                                           (msgs-stable theStep (m∈SM (msg2 preCons)))
 
--- --  {-# TERMINATING #-} -- MSM: Why is this necessary?  See comment on other TERMINATING directive above.
 -- --  cVSB2RecvMsg : ∀ {pre post}
 -- --      → ReachableSystemState pre
 -- --      → (theStep : Step pre post)
