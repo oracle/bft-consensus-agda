@@ -1,5 +1,12 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
+
+{- This file seems to be intended to serve roughly the same purpose as ModelDraft.agda, which has
+   fallen out of date as work has proceeded on SystemModel using Example.  This version appears to
+   assume Victor's simpler SystemModel, but we have not agreed on that direction and it is not
+   reflected in this branch.
+-}
+
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
