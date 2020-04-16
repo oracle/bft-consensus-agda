@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
@@ -27,8 +29,8 @@ module LibraBFT.Libra
  step' st m = let (acts , st') = step st m
                in (List-map (×-map author2peer id) acts , st')
 
- open import LibraBFT.Global.SystemModel #peer
- open WithParms NetworkMsg EventProcessor EventProcessor₀ step'
+ -- open import LibraBFT.Global.SystemModel #peer
+ -- open WithParms NetworkMsg EventProcessor EventProcessor₀ step'
  
    
  

@@ -2,7 +2,7 @@
 
 open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Abstract.BFT
-open import LibraBFT.Concrete.Network as NM
+-- open import LibraBFT.Concrete.Network as NM
 open import LibraBFT.Global.Network
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
@@ -20,6 +20,13 @@ module LibraBFT.Global.ModelDraft
   (hash    : ByteString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
    where
+
+{-- This file is outdated as work has been proceeding on SystemModel with Example, and this is not
+    staying up-to-date.  It appears to be intended to serve roughly the same purpose as the new
+    Libra.agda.  Commenting everything out for now so it doesn't break Everything.agda.
+
+
+
  -- TODO: more temporary scaffolding
 
  postulate
@@ -112,3 +119,5 @@ module LibraBFT.Global.ModelDraft
  --                ---------------------
  --              → cCert  c₁ ≡ cCert  c₂
  --  Correctness = {!!}
+
+--}
