@@ -31,7 +31,7 @@ module LibraBFT.Example.Example where
  PeerId = ℕ
 
  postulate
-   fakePubKey : ℕ → PK
+   fakePubKey : PeerId → PK
    fakePubKey-inj : ∀ {a1 a2} → fakePubKey a1 ≡ fakePubKey a2 → a1 ≡ a2
 
  _≟-PeerId_ : (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
@@ -120,6 +120,24 @@ module LibraBFT.Example.Example where
                                        ∷ encode ((gm ^∙ original) ^∙ sigMB)
                                        ∷ [])
       }
+
+   sig-Message : WithSig Message
+   sig-Message = record
+      { Signed         = λ { (direct m) → Signed m
+                           ; (gossip m) → Signed m
+                           }
+      ; isSigned?      = λ { (direct m) → isSigned? m
+                           ; (gossip m) → isSigned? m
+                           }
+      ; signature      = λ { (direct m) → signature m
+                           ; (gossip m) → signature m
+                           }
+      ; signableFields = λ { (direct m) → signableFields m
+                           ; (gossip m) → signableFields m
+                           }
+      }
+
+
 
  open RWST-do
 
@@ -384,6 +402,53 @@ module LibraBFT.Example.Example where
                exampleOutputsToSends
                dishonest
 
+ -- This postulate captures the assumption that one peer p0 cannot create a verifiably signed
+ -- message by another peer p1 unless p1 is dishonest for that message (*, see notes below).
+ -- However, nothing here specifically refers to the peers.  So, in fact, a peer can create and sign
+ -- a message with its own key, and if it doesn't send it (or hasn't yet), then this postulate would
+ -- suggest that the peer must be dishonest.  I think this is OK because an honest peer (which runs
+ -- the code) would never conclude that it is dishonest itself.  In fact, at this stage, honest
+ -- peers don't specifically conclude anyone is dishonest; they just use this property to reason
+ -- about the (at least one, by the BFT assumption) honest peers that contributed to a quorum.  It
+ -- might be preferable to make the postulate specifically about other peers, but then we have to
+ -- get into who has what public key, etc.  I think we should do something more refined here.  In
+ -- particular, this postulate would not be true (even for "other" peers") if all peers had the same
+ -- key pair.  We do assume that this is not the case (see fakePubKey-inj above), but that is not
+ -- referenced here.  TODO: We should refine this postulate when we address key pairs properly.
+ --
+ -- (*) What does it mean for p1 to be "dishonest for a message"?  This is motivated by the fact
+ -- that assumptions about peer honest are at the granularity of epochs.  Thus, a peer may be honest
+ -- for one epoch and dishonest for another.  Therefore, whether a message was sent by an honest or
+ -- dishonest peer is a function of that message, as well as of which peers are dishonest for the
+ -- epoch of the message.
+
+ -- NOTES:
+ --
+ -- (1) The definition is complicated by specifying that hasSig and hasSig' respectively are the
+ -- evidence that m and m' are signed.  I suspect this could be cleaned up if we require proof
+ -- irrelevance for isSigned, but not sure how and not important enough to spend time on at the
+ -- moment.
+ --
+ -- (2) The minor irritation caused by the "to" component of message made me realise that we could
+ -- achieve the same purpose with a "Meta" field in messages, and there is no need to complicate the
+ -- system model with it at all.  (Reminder: the purpose of this is just recording the intended
+ -- recipient of a message.  As we do not assume that messages are received only by their intended
+ -- recipient for safety purposes, the only reason for recording the intended recipient is for
+ -- liveness proofs, and I think having the recipient recorded in messages (as Meta) will be fine
+ -- for that purpose.  TODO NEXT: get rid of it!
+
+
+ postulate
+   sentUnlessDishonest : ∀ {m : Message}{st : SystemState}⦃ sm : WithSig Message ⦄
+                       → (wvs : WithVerSig {Message} ⦃ sm ⦄ m)
+                       → dishonest m
+                         ⊎ ∃[ m' ] ∃[ hasSig ] ∃[ hasSig' ]
+                             ( isSigned wvs ≡ hasSig
+                             × signature {Message} m' hasSig' ≡ signature {Message} m hasSig
+                             × Σ (WithVerSig m')( λ wvs' → isSigned {Message} ⦃ sm ⦄ {m'} wvs' ≡ hasSig')
+                             × ∃[ to ]( (to , m') ∈SM (sentMessages st))
+                             )
+
  -- TODO: Somewhat of a DRY fail here.  Unify?
  verifySigDirect      : ∀ {pre post msg by ts}
                       → (P : SystemState → Set)
@@ -430,16 +495,6 @@ module LibraBFT.Example.Example where
  -- If the action is a recvMessage, it only *establishes* the condition if the message needed exists
 
 
- postulate
-   mustBe : ∀ {p : PeerId}
-          → {m1 : Message}
-          → {m2 : DirectMessage}
-          → {st : SystemState}
-          → {pSt : State}
-          → allegedlySent m1 st
-          → lookup p (peerStates st) ≡ just pSt
-          → (State → Message → WithVerSig m2)
-          → allegedlySent (direct m2) st
 
  record RVWSConsequent (sender : PeerId) (curMax : ℕ) (st : SystemState) : Set where
    constructor mkRVWSConsequent
@@ -460,7 +515,6 @@ module LibraBFT.Example.Example where
          cast∈SM (inj₁ xx)      = inj₁ xx
          cast∈SM {m'} (inj₂ xx) = inj₂ (proj₁ xx , (msgs-stable {pre} {post} {proj₁ xx , direct m'} theStep (proj₂ xx)))
 
- -- TODO: rename -> allegedly
  RecordedValueWasAllegedlySent : SystemState → Set
  RecordedValueWasAllegedlySent st = ∀ {pSt curMax}
                                → (sender p : PeerId)
@@ -611,14 +665,41 @@ module LibraBFT.Example.Example where
                     (cong proj₂ (sym run≡)))
                   (rVWSInvariant preReach))
  ...| (just ver'') | [ R'' ] rewrite R' | R''
-    with mustBe {by} {m1 = gossip msg} {m2 = :original msg} {pre} {ppre} ∈SM-pre rdy (λ _ _ → ver'')
- ...| xx
      with verifiedGossipEffect {msg} {ts} {ppre} {ver'} {ver''} R' R''
- ...| xxy rewrite R'' | R' = rVWSRecvMsgD {pre} {post} preReach
-                                         (recvMsg {pre} {direct (:original msg)} { 42 }  -- We just have to provide *some* recipient.  It would be tidier
-                                                                                         -- if the Gossip message included the original "to" peer, so we
-                                                                                         -- could keep it the same, but it doesn't matter much.
-                                                  {ppre} {ppost} {acts} by ts xx rdy (trans xxy run≡)) tt tt
+ ...| xxy
+
+    -- Here we need to construct a message that contains the same signature as the original message and verifies.
+    with sentUnlessDishonest { direct (:original msg) } {pre} ⦃ sig-Message ⦄
+                             (record { isSigned  = isSigned ver''
+                                     ; verWithPK = verWithPK ver''
+                                     ; verified  = verified ver''
+                                     })
+ ...| inj₁ senderDishonest rewrite R'' | R' =
+           rVWSRecvMsgD {pre} {post} preReach
+                        (recvMsg {pre} {direct (:original msg)} { 42 }
+                          {ppre} {ppost} {acts} by ts (inj₁ senderDishonest) rdy (trans xxy run≡)) tt tt
+                         -- Re: 42.  We just have to provide *some* recipient.  It
+                         -- would be tidier if the Gossip message included the
+                         -- original "to" peer, so we could keep it the same, but it
+                         -- doesn't matter much.
+ ...| inj₂ (m' , hs , hs' , xx) rewrite R'' | R' = 
+      -- Now we know that we have a verifiably signed message m' that has been sent.  It has the
+      -- same signature as the one (:original msg) whose signature we have verified (ver'').
+      -- However, this does not prove that it is the same message, and indeed it may not be (fields
+      -- not covered by the signature may be different, and fields covered by the signature may be
+      -- different too, if we assume signature collisions are possible).  Most importantly, we don't
+      -- know that the effect of handling m' will be the same as that of handling :original msg.  We
+      -- will need to prove that.  It encompasses the question of whether the signature covers all
+      -- the necessary fields.  Note that it could be possible that there is a correct algorithm
+      -- that does not have this property.  For example, it could be that the intended recipient is
+      -- different in the two messages, so if an algorithm recorded in some way the intended
+      -- recipient, then handling the two messages would not have identical effect, even though this
+      -- would not affect correctness.  In that case, we'd need to prove that the effects of the two
+      -- messages are "sufficiently" the same to ensure correctness (somewhat similar to what we've
+      -- done for QCs.)
+           rVWSRecvMsgD {pre} {post} preReach
+                        (recvMsg {pre} {m'} { 42 }  -- See comment above regarding 42
+                           {ppre} {ppost} {acts} by ts (inj₂ ({!!} , {!xx!})) rdy {!!} {- (trans xxy run≡) -}) tt {!!}
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
