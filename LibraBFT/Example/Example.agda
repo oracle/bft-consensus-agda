@@ -1,5 +1,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
+open import LibraBFT.Abstract.Types using (Meta ; meta)
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
@@ -42,13 +43,14 @@ module LibraBFT.Example.Example where
  record DirectMessage : Set where
    constructor mkDirectMessage
    field
+     :to     : Meta PeerId
      :author : PeerId
      :val    : ℕ
      :sigMB  : Maybe Signature
  open DirectMessage
 
- unquoteDecl author   val   sigMB = mkLens (quote DirectMessage)
-            (author ∷ val ∷ sigMB ∷ [])
+ unquoteDecl to   author   val   sigMB = mkLens (quote DirectMessage)
+            (to ∷ author ∷ val ∷ sigMB ∷ [])
 
  record GossipMessage : Set where
    constructor mkGossipMessage
@@ -394,9 +396,9 @@ module LibraBFT.Example.Example where
      → stepPeer (direct m') ts ppre ≡ stepPeer (direct m) ts ppre
 
  -- Send actions cause messages to be sent, accounce actions do not
- exampleOutputsToSends : State → Output → List (PeerId × Message)
+ exampleOutputsToSends : State → Output → List Message
  exampleOutputsToSends s (announce _) = []
- exampleOutputsToSends s (send n peer) =  (peer , direct (mkDirectMessage (s ^∙ myId) n nothing)) ∷ []  -- TODO: sign message
+ exampleOutputsToSends s (send n peer) = direct (mkDirectMessage (meta peer) (s ^∙ myId) n nothing) ∷ []  -- TODO: sign message
 
  -- Our simple model is that there is a single fault.  For simplicity, I've assumed for now that
  -- it's peer 0, which is obviously not general enough, but enables progress on proofs.
@@ -448,15 +450,6 @@ module LibraBFT.Example.Example where
  -- evidence that m and m' are signed.  I suspect this could be cleaned up if we require proof
  -- irrelevance for isSigned, but not sure how and not important enough to spend time on at the
  -- moment.
- --
- -- (2) The minor irritation caused by the "to" component of message made me realise that we could
- -- achieve the same purpose with a "Meta" field in messages, and there is no need to complicate the
- -- system model with it at all.  (Reminder: the purpose of this is just recording the intended
- -- recipient of a message.  As we do not assume that messages are received only by their intended
- -- recipient for safety purposes, the only reason for recording the intended recipient is for
- -- liveness proofs, and I think having the recipient recorded in messages (as Meta) will be fine
- -- for that purpose.  TODO NEXT: get rid of it!
-
 
  postulate
    sentUnlessDishonest : ∀ {m : DirectMessage}{st : SystemState}⦃ sm : WithSig DirectMessage ⦄
@@ -466,7 +459,7 @@ module LibraBFT.Example.Example where
                              ( isSigned wvs ≡ hasSig
                              × signature {DirectMessage} m' hasSig' ≡ signature {DirectMessage} m hasSig
                              × Σ (WithVerSig m')( λ wvs' → isSigned {DirectMessage} ⦃ sm ⦄ {m'} wvs' ≡ hasSig')
-                             × ∃[ to ]( (to , (direct m')) ∈SM (sentMessages st))
+                             × direct m' ∈SM sentMessages st
                              )
 
  -- TODO: Somewhat of a DRY fail here.  Unify?
@@ -533,7 +526,7 @@ module LibraBFT.Example.Example where
  rVWSConsCast {pre = pre} {post = post} (mkRVWSConsequent m sig ∈SM-pre a v) theStep = mkRVWSConsequent m sig (cast∈SM {m} ∈SM-pre) a v
    where cast∈SM : ∀ {m'} → allegedlySent (direct m') pre → allegedlySent (direct m') post
          cast∈SM (inj₁ xx)      = inj₁ xx
-         cast∈SM {m'} (inj₂ xx) = inj₂ (proj₁ xx , (msgs-stable {pre} {post} {proj₁ xx , direct m'} theStep (proj₂ xx)))
+         cast∈SM {m'} (inj₂ xx) = inj₂ (msgs-stable {pre} {post} {direct m'} theStep xx)
 
  RecordedValueWasAllegedlySent : SystemState → Set
  RecordedValueWasAllegedlySent st = ∀ {pSt curMax}
@@ -633,11 +626,11 @@ module LibraBFT.Example.Example where
     with ∈SM-pre
  ...| inj₁ dis =  mkRVWSConsequent msg ver (inj₁ dis) auth≡ val≡
  ...| inj₂ sentM = mkRVWSConsequent msg ver
-                                       ((inj₂ (proj₁ sentM , (∈SM-stable-list
+                                       ((inj₂ (∈SM-stable-list
                                                                {actionsToSends ppost acts}
                                                                {sentMessages pre}
-                                                               {proj₁ sentM , direct msg}
-                                                               (proj₂ sentM)))))
+                                                               {direct msg}
+                                                               (sentM))))
                                        auth≡ val≡
  rVWSRecvMsgD {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {pSt} {curMax} sender p pSt≡ sender≡ max≡
@@ -702,7 +695,7 @@ module LibraBFT.Example.Example where
                          -- would be tidier if the Gossip message included the
                          -- original "to" peer, so we could keep it the same, but it
                          -- doesn't matter much.
- ...| inj₂ (m' , hs , hs' , is≡ , sigs≡ , (wvs' , is≡') , recip , xx) rewrite R'' | R'
+ ...| inj₂ (m' , hs , hs' , is≡ , sigs≡ , (wvs' , is≡') , xx) rewrite R'' | R'
    with sameSignatureSameEffect {ppre} {ts} {:original msg} {m'} {hs} {hs'} ver'' is≡
                                 wvs' is≡' sigs≡
  ...| sameEffect =
@@ -722,17 +715,17 @@ module LibraBFT.Example.Example where
       -- done for QCs.)
            rVWSRecvMsgD {pre} {post} preReach
                         (recvMsg {pre} {direct m'} { 42 }  -- See comment above regarding 42
-                           {ppre} {ppost} {acts} by ts (inj₂ (recip , xx)) rdy
+                           {ppre} {ppost} {acts} by ts (inj₂ xx) rdy
                            (trans sameEffect (trans xxy run≡)))
                            tt tt
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
- rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
+ rVWSInvariant (step preReach (cheat by ts m dis))     = rVWSCheat preReach (cheat by ts m dis) tt
  rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
- rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
-               = rVWSRecvMsgD preReach (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
- rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
-               = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
+ rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
+               = rVWSRecvMsgD preReach (recvMsg {pre} {direct msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
+ rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
+               = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
 
  -- Another way of approaching the proof is to do case analysis on pureHandler results.
  -- In this example, if proj₁ (pureHandler msg ts ppre) =

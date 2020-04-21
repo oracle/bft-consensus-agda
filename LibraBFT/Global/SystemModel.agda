@@ -30,8 +30,8 @@ module LibraBFT.Global.SystemModel
   (CanInit       : Peer → Set)
   (Init          : (p : Peer) → CanInit p → PeerState × List Output)
   (MsgHandler    : (m : Message) → Instant → PeerState → PeerState × List Output)
-  (OutputHandler : PeerState → Output → List (Peer × Message)) -- Discerns whether action results in
-                                                               -- sending a message and to whom.
+  (OutputHandler : PeerState → Output → List Message)          -- Discerns whether action results in
+                                                               -- sending a message.
 
   -- The model will allow a peer to create and send any message it wants, if there is evidence that
   -- the peer is not honest.  But peers can be honest in some contexts and not honest in others.
@@ -51,7 +51,7 @@ module LibraBFT.Global.SystemModel
  -- within some time period (after GST).  However, for safety, we ignore the recipient and let any
  -- peer receive any message, regardless of intended recipient.  This is conservative, as anyone
  -- could redirect a message to someone else anyway.
- open LibraBFT.Global.Network.WithMsgType (Peer × Message) public
+ open LibraBFT.Global.Network.WithMsgType Message public
 
  record SystemState : Set where
    constructor sysState
@@ -63,17 +63,17 @@ module LibraBFT.Global.SystemModel
  initState : SystemState
  initState = sysState noMessages empty
 
- actionsToSends : PeerState → List Output → List (Peer × Message)
+ actionsToSends : PeerState → List Output → List Message
  actionsToSends st = concat ∘ List-map (OutputHandler st)
 
- sendMessage : ∀ {pre : SystemState} → Message → Peer → SystemState
- sendMessage {pre} msg p = record pre { sentMessages = sendMsg (sentMessages pre) (p , msg) }
+ sendMessage : ∀ {pre : SystemState} → Message → SystemState
+ sendMessage {pre} msg = record pre { sentMessages = sendMsg (sentMessages pre) msg }
 
  sendMessagesFromOutputs : SystemState → PeerState → List Output → SentMessages
  sendMessagesFromOutputs st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
 
  allegedlySent : Message → SystemState → Set
- allegedlySent msg st = Dishonest msg ⊎ ∃[ to ]((to , msg) ∈SM sentMessages st)
+ allegedlySent msg st = Dishonest msg ⊎ msg ∈SM sentMessages st
 
  -- All steps are for honest peers, except "cheat", which allows a peer to send any message it wants
  -- to anyone it wants, provided it is dishonest for that message.
@@ -98,34 +98,34 @@ module LibraBFT.Global.SystemModel
 
    cheat : ∀ (p : Peer)  -- TODO: Careful here!  Dishonest is now a function of only the message, since it contains the author.  Need to think about this.
              (ts : Instant)
-             (to : Peer) (m : Message)
+             (m : Message)
          → Dishonest m
-         → Step pre (sysState (sendMsg (sentMessages pre) (to , m)) (peerStates pre))
+         → Step pre (sysState (sendMsg (sentMessages pre) m) (peerStates pre))
 
  isInitPeer : ∀ {pre post} → Step pre post → Set
  isInitPeer (initPeer _ _ _ _)  = ⊤
  isInitPeer (recvMsg _ _ _ _ _) = ⊥
- isInitPeer (cheat _ _ _ _ _)   = ⊥
+ isInitPeer (cheat _ _ _ _)     = ⊥
 
  isInitPeer? : ∀ {pre post} → (theStep : Step pre post) → Dec (isInitPeer theStep)
  isInitPeer? {pre} {post} (initPeer _ _ _ _)  = yes tt
  isInitPeer? {pre} {post} (recvMsg _ _ _ _ _) = no id
- isInitPeer? {pre} {post} (cheat _ _ _ _ _)   = no id
+ isInitPeer? {pre} {post} (cheat _ _ _ _)     = no id
 
  isRecvMsg : ∀ {pre post} → Step pre post → Set
  isRecvMsg (initPeer _ _ _ _)  = ⊥
  isRecvMsg (recvMsg _ _ _ _ _) = ⊤
- isRecvMsg (cheat _ _ _ _ _)   = ⊥
+ isRecvMsg (cheat _ _ _ _)     = ⊥
 
  isCheatStep : ∀ {pre post} → Step pre post → Set
  isCheatStep (initPeer _ _ _ _)  = ⊥
  isCheatStep (recvMsg _ _ _ _ _) = ⊥
- isCheatStep (cheat _ _ _ _ _)   = ⊤
+ isCheatStep (cheat _ _ _ _)     = ⊤
 
  peerOf     : ∀ {pre post} → (theStep : Step pre post) → Peer
  peerOf     (initPeer p _ _ _)   = p
  peerOf     (recvMsg  p _ _ _ _) = p
- peerOf     (cheat p _ _ _ _)    = p
+ peerOf     (cheat p _ _ _)      = p
 
  rdyOf     : ∀ {pre post} → {theStep : Step pre post} → isInitPeer theStep → KVMap.lookup (peerOf theStep) (peerStates pre) ≡ nothing
  rdyOf     {theStep = initPeer _ _ _ rdy} _ = rdy
@@ -173,7 +173,7 @@ module LibraBFT.Global.SystemModel
                        → prop ppre
                        → ¬ prop ppost
                        → p ≡ peerOf theStep
- stepByOtherPreservesJ {pre}{sysState msgs' .(peerStates pre)}{p}{ppre}{ppost} prop (cheat by ts to m x) ppre≡ ppost≡ preHolds postNotHold =
+ stepByOtherPreservesJ {pre}{sysState msgs' .(peerStates pre)}{p}{ppre}{ppost} prop (cheat by ts m x) ppre≡ ppost≡ preHolds postNotHold =
    ⊥-elim (postNotHold (subst prop (just-injective (trans (sym ppre≡) ppost≡)) preHolds))
  stepByOtherPreservesJ {pre}{post}{p}{ppre}{ppost} prop (initPeer by ts cI rdy) ppre≡ ppost≡ preHolds postNotHold =
    sym (insert-target-0 {k = by} {k' = p} {kvm = peerStates pre} {rdy} λ x₁ → ⊥-elim (postNotHold (subst prop (just-injective (trans (trans (sym ppre≡) x₁) ppost≡)) preHolds)))
@@ -230,7 +230,7 @@ module LibraBFT.Global.SystemModel
                  → lookup p (peerStates post) ≡ just pst
                  → peerOf theStep ≡ p × Σ (isInitPeer theStep)
                               (λ act → pst ≡ proj₁ (Init (peerOf theStep) (canInitOf act)))
- initPeerLemma {p = p} {theStep = cheat _ _ _ _ _} nothingBefore justAfter = ⊥-elim (maybe-⊥ justAfter nothingBefore)
+ initPeerLemma {p = p} {theStep = cheat _ _ _ _} nothingBefore justAfter = ⊥-elim (maybe-⊥ justAfter nothingBefore)
 
  initPeerLemma {p = p} {theStep = theStep@(recvMsg by _ _ rdy _)} nothingBefore justAfter
     with by ≟Peer p
