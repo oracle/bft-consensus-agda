@@ -375,6 +375,24 @@ module LibraBFT.Example.Example where
     with cA-injective handler≡
  ...| refl = refl , newIsNext , 1stSender , refl , diffSender
 
+ -- Handling two direct messages that are both verifiably signed and have the same signature has the
+ -- same effect (post state and actions).  TODO: Probably can be simplified if we require/prove
+ -- proof irrelevance for isSigned.
+ --
+ -- TODO: Prove this postulate.  This will require an assumption that signatures are injective, and
+ -- that the encodings used to generate and concatenate the signable fields are also injective.
+
+ postulate
+   sameSignatureSameEffect :
+     ∀ {ppre}{ts}{m m' : DirectMessage}
+       {hs : Signed m} {hs' : Signed m'}
+     → (wvs  : WithVerSig {DirectMessage} m)
+     → isSigned wvs ≡ hs
+     → (wvs' : WithVerSig {DirectMessage} m')
+     → isSigned wvs' ≡ hs'
+     → signature {DirectMessage} m' hs' ≡ signature {DirectMessage} m hs
+     → stepPeer (direct m') ts ppre ≡ stepPeer (direct m) ts ppre
+
  -- Send actions cause messages to be sent, accounce actions do not
  exampleOutputsToSends : State → Output → List (PeerId × Message)
  exampleOutputsToSends s (announce _) = []
@@ -424,6 +442,8 @@ module LibraBFT.Example.Example where
 
  -- NOTES:
  --
+ -- (0) We need this only for direct messages, because we don't use it for gossip message.
+ --
  -- (1) The definition is complicated by specifying that hasSig and hasSig' respectively are the
  -- evidence that m and m' are signed.  I suspect this could be cleaned up if we require proof
  -- irrelevance for isSigned, but not sure how and not important enough to spend time on at the
@@ -439,14 +459,14 @@ module LibraBFT.Example.Example where
 
 
  postulate
-   sentUnlessDishonest : ∀ {m : Message}{st : SystemState}⦃ sm : WithSig Message ⦄
-                       → (wvs : WithVerSig {Message} ⦃ sm ⦄ m)
-                       → dishonest m
+   sentUnlessDishonest : ∀ {m : DirectMessage}{st : SystemState}⦃ sm : WithSig DirectMessage ⦄
+                       → (wvs : WithVerSig {DirectMessage} ⦃ sm ⦄ m)
+                       → dishonest (direct m)
                          ⊎ ∃[ m' ] ∃[ hasSig ] ∃[ hasSig' ]
                              ( isSigned wvs ≡ hasSig
-                             × signature {Message} m' hasSig' ≡ signature {Message} m hasSig
-                             × Σ (WithVerSig m')( λ wvs' → isSigned {Message} ⦃ sm ⦄ {m'} wvs' ≡ hasSig')
-                             × ∃[ to ]( (to , m') ∈SM (sentMessages st))
+                             × signature {DirectMessage} m' hasSig' ≡ signature {DirectMessage} m hasSig
+                             × Σ (WithVerSig m')( λ wvs' → isSigned {DirectMessage} ⦃ sm ⦄ {m'} wvs' ≡ hasSig')
+                             × ∃[ to ]( (to , (direct m')) ∈SM (sentMessages st))
                              )
 
  -- TODO: Somewhat of a DRY fail here.  Unify?
@@ -669,7 +689,7 @@ module LibraBFT.Example.Example where
  ...| xxy
 
     -- Here we need to construct a message that contains the same signature as the original message and verifies.
-    with sentUnlessDishonest { direct (:original msg) } {pre} ⦃ sig-Message ⦄
+    with sentUnlessDishonest { :original msg } {pre} ⦃ sig-DirectMessage ⦄
                              (record { isSigned  = isSigned ver''
                                      ; verWithPK = verWithPK ver''
                                      ; verified  = verified ver''
@@ -682,7 +702,10 @@ module LibraBFT.Example.Example where
                          -- would be tidier if the Gossip message included the
                          -- original "to" peer, so we could keep it the same, but it
                          -- doesn't matter much.
- ...| inj₂ (m' , hs , hs' , xx) rewrite R'' | R' = 
+ ...| inj₂ (m' , hs , hs' , is≡ , sigs≡ , (wvs' , is≡') , recip , xx) rewrite R'' | R'
+   with sameSignatureSameEffect {ppre} {ts} {:original msg} {m'} {hs} {hs'} ver'' is≡
+                                wvs' is≡' sigs≡
+ ...| sameEffect =
       -- Now we know that we have a verifiably signed message m' that has been sent.  It has the
       -- same signature as the one (:original msg) whose signature we have verified (ver'').
       -- However, this does not prove that it is the same message, and indeed it may not be (fields
@@ -698,8 +721,10 @@ module LibraBFT.Example.Example where
       -- messages are "sufficiently" the same to ensure correctness (somewhat similar to what we've
       -- done for QCs.)
            rVWSRecvMsgD {pre} {post} preReach
-                        (recvMsg {pre} {m'} { 42 }  -- See comment above regarding 42
-                           {ppre} {ppost} {acts} by ts (inj₂ ({!!} , {!xx!})) rdy {!!} {- (trans xxy run≡) -}) tt {!!}
+                        (recvMsg {pre} {direct m'} { 42 }  -- See comment above regarding 42
+                           {ppre} {ppost} {acts} by ts (inj₂ (recip , xx)) rdy
+                           (trans sameEffect (trans xxy run≡)))
+                           tt tt
 
  rVWSInvariant init sender p x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts to m dis))  = rVWSCheat preReach (cheat by ts to m dis) tt
