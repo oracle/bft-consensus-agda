@@ -6,6 +6,7 @@ open import LibraBFT.Prelude hiding (_⊔_)
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types using (Meta)
 open import LibraBFT.Global.Network
+open import LibraBFT.Global.SystemModelPrelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Concrete.Util.KVMap as KVMap -- TODO: move KVMap out of Concrete
@@ -18,7 +19,6 @@ module LibraBFT.Global.SystemModel
   (Peer          : Set)
   (_≟Peer_       : ∀ (p₁ p₂ : Peer) → Dec (p₁ ≡ p₂))
   (Message       : Set)
-  (Output        : Set)
   (PeerState     : Set)
   
   -- TODO: combine these into an "event handler" to be more consistent with PTFD?  I am not doing
@@ -28,10 +28,8 @@ module LibraBFT.Global.SystemModel
   -- The way I have this, new peers can initialize at any time, create their state, and send some
   -- messages.
   (CanInit       : Peer → Set)
-  (Init          : (p : Peer) → CanInit p → PeerState × List Output)
-  (MsgHandler    : (m : Message) → Instant → PeerState → PeerState × List Output)
-  (OutputHandler : PeerState → Output → List Message)          -- Discerns whether action results in
-                                                               -- sending a message.
+  (Init          : (p : Peer) → CanInit p → PeerState × List Action)
+  (MsgHandler    : (m : Message) → Instant → PeerState → PeerState × List Action)
 
   -- The model will allow a peer to create and send any message it wants, if there is evidence that
   -- the peer is not honest.  But peers can be honest in some contexts and not honest in others.
@@ -63,14 +61,14 @@ module LibraBFT.Global.SystemModel
  initState : SystemState
  initState = sysState noMessages empty
 
- actionsToSends : PeerState → List Output → List Message
- actionsToSends st = concat ∘ List-map (OutputHandler st)
+ actionsToMessages : List Action → List Message
+ actionsToMessages = List-map msgToSend
 
  sendMessage : ∀ {pre : SystemState} → Message → SystemState
  sendMessage {pre} msg = record pre { sentMessages = sendMsg (sentMessages pre) msg }
 
- sendMessagesFromOutputs : SystemState → PeerState → List Output → SentMessages
- sendMessagesFromOutputs st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToSends pst acts)
+ sendMessagesFromOutputs : SystemState → PeerState → List Action → SentMessages
+ sendMessagesFromOutputs st pst acts = foldr (flip sendMsg) (sentMessages st) (actionsToMessages acts)
 
  allegedlySent : Message → SystemState → Set
  allegedlySent msg st = Dishonest msg ⊎ msg ∈SM sentMessages st
@@ -86,7 +84,7 @@ module LibraBFT.Global.SystemModel
                          (sendMessagesFromOutputs pre (proj₁ (Init p canInit)) (proj₂ (Init p canInit)))
                          (kvm-insert p (proj₁ (Init p canInit)) (peerStates pre) ready))
 
-   recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Output}
+   recvMsg : ∀ {m : Message} {to : Peer} {ppre : PeerState} {ppost : PeerState} {acts : List Action}
              (p : Peer)
            → (ts : Instant)
            → allegedlySent m pre
@@ -143,7 +141,7 @@ module LibraBFT.Global.SystemModel
  msgOf   : ∀ {pre post} → {theStep : Step pre post} → (isRecv : isRecvMsg theStep) → Message
  msgOf   {theStep = recvMsg {m = m} _ _ _ _ _} _ = m
 
- actsOf   : ∀ {pre post} → {theStep : Step pre post} → (isRecv : isRecvMsg theStep) → List Output
+ actsOf   : ∀ {pre post} → {theStep : Step pre post} → (isRecv : isRecvMsg theStep) → List (Action {Message})
  actsOf   {theStep = recvMsg {acts = acts} _ _ _ _ _} _ = acts
 
  canInitOf : ∀ {pre post} → {theStep : Step pre post} → isInitPeer theStep → CanInit (peerOf theStep)
@@ -220,7 +218,7 @@ module LibraBFT.Global.SystemModel
                          → pre ≡ post
  noChangePreservesState {pre} {post} (recvMsg {ppre = ppre} {ppost = ppost} {acts = acts} p ts ∈SM-pre ready run≡) iR ppost≡ acts≡
    with sym (lookup-correct-update-4 {rdy = maybe-⊥ ready} (trans ready (cong just (sym ppost≡))))
- ...| peerStates≡ rewrite acts≡ = cong (sysState (sentMessages pre)) peerStates≡ 
+ ...| peerStates≡ rewrite acts≡ = cong (sysState (sentMessages pre)) peerStates≡
 
  -- If p's peerState is nothing in prestate and not nothing in the poststate, then the action is an initPeer by p and poststate has p's state as initial state
 

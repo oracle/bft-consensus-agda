@@ -83,6 +83,11 @@ module LibraBFT.Example.Example where
    announce : ℕ → Output           -- This is analogous to "commit"
    send     : ℕ → PeerId → Output
 
+ open import LibraBFT.Global.SystemModelPrelude {Message}
+
+ canInit : PeerId → Set
+ canInit p = ⊤
+
  record State : Set where
    constructor mkState
    field
@@ -95,10 +100,7 @@ module LibraBFT.Example.Example where
  unquoteDecl myId   myPubKey   maxSeen   newValSender = mkLens (quote State)
             (myId ∷ myPubKey ∷ maxSeen ∷ newValSender ∷ [])
 
- canInit : PeerId → Set
- canInit p = ⊤
-
- initialStateAndMessages : (p : PeerId) → canInit p → State × List Output
+ initialStateAndMessages : (p : PeerId) → canInit p → State × List Action
  initialStateAndMessages p _ = mkState p (fakePubKey p) 0 nothing , []  -- TODO : send something!
 
  instance
@@ -223,6 +225,18 @@ module LibraBFT.Example.Example where
                      ∷ send (suc (msg ^∙ val)) ts  -- Initiates advance to next value
                      ∷ []
 
+ -- TODO: move to prelude or find in standard library?
+ overSecond : ∀ {A B C : Set} → (A → B) → (C × A) → (C × B)
+ overSecond f (c , a) = (c , f a)
+
+ -- Send outputs cause messages to be sent, accounce outputs do not
+ exampleOutputToSends : State → Output → List Action
+ exampleOutputToSends s (announce _) = []
+ exampleOutputToSends s (send n peer) = send (direct (mkDirectMessage (meta peer) (s ^∙ myId) n nothing)) ∷ []  -- TODO: sign message
+
+ outputToSends : State → (State × List Output) → (State × List Action)
+ outputToSends st = overSecond (concat ∘ List-map (exampleOutputToSends st))
+
  handle : (msg : DirectMessage) → Instant → RWST Unit Output State Unit
  handle msg ts = do
    st ← get
@@ -250,9 +264,9 @@ module LibraBFT.Example.Example where
  ...| nothing = pure unit  -- ACCOUNTABILITY OPPORTUNITY
  ...| just ver' = handleDirect (msg ^∙ original) ts
 
- stepPeer : (msg : Message) → Instant → State → State × List Output
- stepPeer (direct msg) ts st = proj₂ (RWST-run (handleDirect msg ts) unit st)
- stepPeer (gossip msg) ts st = proj₂ (RWST-run (handleGossip msg ts) unit st)
+ stepPeer : (msg : Message) → Instant → State → State × List Action
+ stepPeer (direct msg) ts st = outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st))
+ stepPeer (gossip msg) ts st = outputToSends st (proj₂ (RWST-run (handleGossip msg ts) unit st))
 
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ nothing
@@ -268,7 +282,7 @@ module LibraBFT.Example.Example where
  verifiedGossipEffect : ∀ {msg ts st ver ver'}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ just ver
    → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey ((:original msg) ^∙ author)) (:original msg) ≡ just ver'
-   → stepPeer (gossip msg) ts st ≡ proj₂ (RWST-run (handleDirect (:original msg) ts) unit st)
+   → stepPeer (gossip msg) ts st ≡ outputToSends st (proj₂ (RWST-run (handleDirect (:original msg) ts) unit st))
  verifiedGossipEffect {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
 
  ---------------------------------------------------------------------------
@@ -378,7 +392,7 @@ module LibraBFT.Example.Example where
  ...| refl = refl , newIsNext , 1stSender , refl , diffSender
 
  -- Handling two direct messages that are both verifiably signed and have the same signature has the
- -- same effect (post state and actions).  TODO: Probably can be simplified if we require/prove
+ -- same effect (post state and outputs).  TODO: Probably can be simplified if we require/prove
  -- proof irrelevance for isSigned.
  --
  -- TODO: Prove this postulate.  This will require an assumption that signatures are injective, and
@@ -395,11 +409,6 @@ module LibraBFT.Example.Example where
      → signature {DirectMessage} m' hs' ≡ signature {DirectMessage} m hs
      → stepPeer (direct m') ts ppre ≡ stepPeer (direct m) ts ppre
 
- -- Send actions cause messages to be sent, accounce actions do not
- exampleOutputsToSends : State → Output → List Message
- exampleOutputsToSends s (announce _) = []
- exampleOutputsToSends s (send n peer) = direct (mkDirectMessage (meta peer) (s ^∙ myId) n nothing) ∷ []  -- TODO: sign message
-
  -- Our simple model is that there is a single fault.  For simplicity, I've assumed for now that
  -- it's peer 0, which is obviously not general enough, but enables progress on proofs.
  -- TODO: Use Meta to avoid "peeking"?
@@ -414,12 +423,10 @@ module LibraBFT.Example.Example where
                PeerId
                _≟-PeerId_
                Message
-               Output
                State
                canInit
                initialStateAndMessages
                stepPeer
-               exampleOutputsToSends
                dishonest
 
  -- This postulate captures the assumption that one peer p0 cannot create a verifiably signed
@@ -627,7 +634,7 @@ module LibraBFT.Example.Example where
  ...| inj₁ dis =  mkRVWSConsequent msg ver (inj₁ dis) auth≡ val≡
  ...| inj₂ sentM = mkRVWSConsequent msg ver
                                        ((inj₂ (∈SM-stable-list
-                                                               {actionsToSends ppost acts}
+                                                               {actionsToMessages acts}
                                                                {sentMessages pre}
                                                                {direct msg}
                                                                (sentM))))
