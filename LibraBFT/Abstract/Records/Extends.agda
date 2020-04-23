@@ -38,7 +38,9 @@ module LibraBFT.Abstract.Records.Extends
   ←-≈Rec (Q←B x x₁) (I←B x₂ x₃) (eq-B refl) 
     = ⊥-elim (maybe-⊥ (sym x₁) x₃)
   ←-≈Rec (Q←B {q₀} x refl) (Q←B {q₁} x₂ refl) (eq-B refl) 
-    = inj₂ (eq-Q refl)
+    = inj₂ (eq-Q refl) -- Here is where we wouldn't be able to
+                       -- complete the proof if we required round equality
+                       -- in eq-Q
   ←-≈Rec (B←Q {b₀} x refl) (B←Q {b₁} w refl) (eq-Q refl)
     with b₀ ≟Block b₁
   ...| no  hb  = inj₁ ((b₀ , b₁) , (λ x → hb x) , refl)
@@ -56,6 +58,11 @@ module LibraBFT.Abstract.Records.Extends
   ←-round-≤ (I←B r h)    = z≤n
   ←-round-≤ (Q←B r h)    = <⇒≤ r
   ←-round-≤ (B←Q refl h) = ≤-refl
+
+  ←←-round-< : ∀{r r₀ r₁} → r ← r₀ → r₀ ← r₁ → round r < round r₁
+  ←←-round-< (I←B r h)     (B←Q refl _) = r
+  ←←-round-< (Q←B r h)     rr           = ≤-trans r (←-round-≤ rr)
+  ←←-round-< (B←Q refl h)  (Q←B prf _)  = prf
 
   -- LemmaS1, clause 2: injectivity of _←_
   lemmaS1-2 : ∀{r₀ r₁ r₂}

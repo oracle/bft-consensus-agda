@@ -12,8 +12,7 @@ open import Optics.All
 
 open import LibraBFT.Concrete.Consensus.Types
 
--- VCM: We should rename this module to network records, no?
-module LibraBFT.Concrete.Records where
+module LibraBFT.Concrete.NetworkMsg where
 
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
@@ -33,20 +32,20 @@ module LibraBFT.Concrete.Records where
    -- A Block might carry a signature
    sig-Block : WithSig Block
    sig-Block = record  
-      { Signed         = Is-just ∘ _bSignature 
+      { Signed         = Is-just ∘ ₋bSignature 
       ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (b ^∙ bSignature)
       ; signature      = λ { _ prf → to-witness prf }
-      ; signableFields = λ b → concat (encodeH (_bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
+      ; signableFields = λ b → concat (encodeH (₋bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
       }
 
    -- A proposal message might carry a signature inside the block it
    -- is proposing.
    sig-ProposalMsg : WithSig ProposalMsg
    sig-ProposalMsg = record
-      { Signed         = Signed         ∘ _pmProposal
-      ; isSigned?      = isSigned?      ∘ _pmProposal
-      ; signature      = signature      ∘ _pmProposal
-      ; signableFields = signableFields ∘ _pmProposal
+      { Signed         = Signed         ∘ ₋pmProposal
+      ; isSigned?      = isSigned?      ∘ ₋pmProposal
+      ; signature      = signature      ∘ ₋pmProposal
+      ; signableFields = signableFields ∘ ₋pmProposal
       }
 
    -- A vote is always signed; as seen by the 'Unit'
@@ -57,21 +56,21 @@ module LibraBFT.Concrete.Records where
    sig-Vote = record
       { Signed         = λ _ → Unit
       ; isSigned?      = λ _ → yes unit
-      ; signature      = λ v _ → _vSignature v
+      ; signature      = λ v _ → ₋vSignature v
       ; signableFields = λ v → concat {!!}
       }
 
    sig-VoteMsg : WithSig VoteMsg
    sig-VoteMsg = record
-      { Signed         = Signed         ∘ _vmVote
-      ; isSigned?      = isSigned?      ∘ _vmVote
-      ; signature      = signature      ∘ _vmVote
-      ; signableFields = signableFields ∘ _vmVote
+      { Signed         = Signed         ∘ ₋vmVote
+      ; isSigned?      = isSigned?      ∘ ₋vmVote
+      ; signature      = signature      ∘ ₋vmVote
+      ; signableFields = signableFields ∘ ₋vmVote
       }
 
    sig-commit : WithSig CommitMsg
    sig-commit = record
-      { Signed         = Is-just ∘ _cSigMB
+      { Signed         = Is-just ∘ ₋cSigMB
       ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (c ^∙ cSigMB)
       ; signature      = λ { _ prf → to-witness prf }
       ; signableFields = λ c → concat ( encode  (c ^∙ cEpochId)

@@ -739,7 +739,7 @@ module LibraBFT.Example.Example where
  --   nothing              -- then the antecedent holds in the prestate, so the inductive hypothesis and ∈SM-stable-list suffice
  --   confirmedAdvance _   -- then the effect is to set newValSender to nothing, ensuring the antecedent does not hold
  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
- rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
+ -- rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
 
 
 --  rVWSRecvMsg2 : ∀ {pre post}
