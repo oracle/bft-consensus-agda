@@ -210,6 +210,13 @@ module LibraBFT.Global.SystemModel
                            → ¬ (peerOf theStep ≡ p)
                            → lookup p (peerStates post) ≡ lookup p (peerStates pre)
 
+ allegedlySentStable : ∀ {m pre post}
+                     → Step pre post
+                     → allegedlySent m pre
+                     → allegedlySent m post
+ allegedlySentStable     theStep (inj₁ xx) = inj₁ xx
+ allegedlySentStable {m} {pre} theStep (inj₂ xx) = inj₂ (msgs-stable theStep xx)
+
  noChangePreservesState : ∀ {pre post}
                          → (theStep : Step pre post)
                          → (iR : isRecvMsg theStep)

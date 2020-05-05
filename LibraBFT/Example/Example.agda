@@ -533,10 +533,8 @@ module LibraBFT.Example.Example where
         → (preCons : RVWSConsequent sender curMax pre)
         → Step pre post
         → RVWSConsequent sender curMax post
- rVWSConsCast {pre = pre} {post = post} (mkRVWSConsequent m sig ∈SM-pre a v) theStep = mkRVWSConsequent m sig (cast∈SM {m} ∈SM-pre) a v
-   where cast∈SM : ∀ {m'} → allegedlySent (direct m') pre → allegedlySent (direct m') post
-         cast∈SM (inj₁ xx)      = inj₁ xx
-         cast∈SM {m'} (inj₂ xx) = inj₂ (msgs-stable {pre} {post} {direct m'} theStep xx)
+ rVWSConsCast {pre = pre} {post = post} (mkRVWSConsequent m sig ∈SM-pre a v) theStep =
+              mkRVWSConsequent m sig (allegedlySentStable {direct m} {pre} {post} theStep ∈SM-pre) a v
 
  RecordedValueWasAllegedlySent : SystemState → Set
  RecordedValueWasAllegedlySent st = ∀ {pSt curMax}
