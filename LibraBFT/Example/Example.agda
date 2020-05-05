@@ -469,6 +469,9 @@ module LibraBFT.Example.Example where
                              × direct m' ∈SM sentMessages st
                              )
 
+ -- The following functions enable us to conveniently prove that handling a message that is not
+ -- correctly signed preserves any invariant (because we do not update any state in that case).
+
  -- TODO: Somewhat of a DRY fail here.  Unify?
  verifySigDirect      : ∀ {pre post msg by ts}
                       → (P : SystemState → Set)
