@@ -673,14 +673,13 @@ module LibraBFT.Example.Example where
     with gFACond {ppre} {msg} {ts} handlerResult
  ...| auth≡ , val≡
     with ∈SM-pre
- ...| inj₁ dis =  mkRVWSConsequent msg ver (inj₁ dis) auth≡ val≡
- ...| inj₂ sentM = mkRVWSConsequent msg ver
-                                       ((inj₂ (∈SM-stable-list
-                                                               {actionsToMessages acts}
-                                                               {sentMessages pre}
-                                                               {direct msg}
-                                                               (sentM))))
-                                       auth≡ val≡
+ ...| inj₁ dis   = mkRVWSConsequent msg ver (inj₁ dis) auth≡ val≡
+ ...| inj₂ sentM = mkRVWSConsequent msg ver (inj₂ (∈SM-stable-list
+                                                    {actionsToMessages acts}
+                                                    {sentMessages pre}
+                                                    {direct msg}
+                                                    (sentM)))
+                                            auth≡ val≡
  rVWSRecvMsgD {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ (_ , R , _)
@@ -783,19 +782,17 @@ module LibraBFT.Example.Example where
  --   gotFirstAdvance  p'  -- requires case analysis on whether p' ≡ p and maxSeen ppre and the message contents
  rVWSInvariant2 : Invariant RecordedValueWasAllegedlySent
 
-
  rVWSRecvMsg2D : ∀ {pre post}
      → ReachableSystemState pre
      → (theStep : Step pre post)
      → (iR : isRecvMsg theStep)
      → isDirect (msgOf iR)
      → RecordedValueWasAllegedlySent post
-
  rVWSRecvMsg2D {pre} {post} preReach
               theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv (rVWSInvariant preReach) rdy run≡
+    with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done sender pSt≡ sender≡ max≡
- ...| inj₂ (ver , R)
+ ...| inj₂ _
     with peerOf theStep ≟ p
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
@@ -803,14 +800,12 @@ module LibraBFT.Example.Example where
  ...| preCons = rVWSConsCast preCons theStep
 
  rVWSRecvMsg2D {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ (ver , R , pks≡)
     | yes refl
     rewrite R
-    with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
- ...| pSt≡ppost
-    with cong proj₁ (sym run≡)
- ...| ppost≡
+    with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡ | cong proj₁ (sym run≡)
+ ...| pSt≡ppost | ppost≡
     with proj₁ (pureHandler msg ts ppre) ≟HR noChange
  ...| yes hR≡noChange
     with nothingNoEffect {ppre} {ppost} {msg} {ts} hR≡noChange ppost≡
@@ -824,7 +819,7 @@ module LibraBFT.Example.Example where
                                       (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
 
  rVWSRecvMsg2D {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ (ver , R , pks≡)
     | yes refl
     | pSt≡ppost
@@ -852,7 +847,7 @@ module LibraBFT.Example.Example where
                           auth≡ val≡
 
  rVWSRecvMsg2D {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ (_ , R , _)
     | yes refl
     | pSt≡ppost
@@ -877,7 +872,7 @@ module LibraBFT.Example.Example where
     → isGossip (msgOf iR)
     → RecordedValueWasAllegedlySent post
  rVWSRecvMsg2G {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _
+             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _
     with verifySigGossip {msg = msg} RecordedValueWasAllegedlySent (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) tt (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done
  ...| inj₂ (ver' , R') rewrite R'
@@ -934,7 +929,7 @@ module LibraBFT.Example.Example where
                            {ppre} {ppost} {acts} by ts (inj₂ xx) rdy
                            (trans sameEffect (trans xxy run≡)))
                            tt tt
-
+ -- Note that only the recvMsg cases are different; the rest are inherited from the previous proof
  rVWSInvariant2 init sender x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant2 (step preReach (cheat by ts m dis))                 = rVWSCheat preReach (cheat by ts m dis) tt
  rVWSInvariant2 (step preReach (initPeer by ts cI rdy))             = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
