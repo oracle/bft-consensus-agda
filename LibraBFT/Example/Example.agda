@@ -789,7 +789,7 @@ module LibraBFT.Example.Example where
      → isDirect (msgOf iR)
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsg2D {pre} {post} preReach
-              theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+    {- *** -}  theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep isRecv (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done sender pSt≡ sender≡ max≡
  ...| inj₂ _
@@ -800,7 +800,7 @@ module LibraBFT.Example.Example where
  ...| preCons = rVWSConsCast preCons theStep
 
  rVWSRecvMsg2D {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+    {- *** -}  (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ (ver , R , pks≡)
     | yes refl
     rewrite R
@@ -817,6 +817,13 @@ module LibraBFT.Example.Example where
                              preCons
                              (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy
                                       (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
+                                      -- A lot of complexity arises here because Agda doesn't figure
+                                      -- out that this step with run≡ in place of this last term is
+                                      -- precisely the Step pre post that is provided for the second
+                                      -- explicit parameter.  The reason this happened is because of
+                                      -- a weird error if I try to use theStep@ when pattern
+                                      -- matching (compare lines marked above with *** comments) as
+                                      -- works fine in many other cases.  Why?!
 
  rVWSRecvMsg2D {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
