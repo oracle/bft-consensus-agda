@@ -103,10 +103,19 @@ module LibraBFT.Example.Example where
  initialStateAndMessages : (p : PeerId) → canInit p → State × List Action
  initialStateAndMessages p _ = mkState p (fakePubKey p) 0 nothing , []  -- TODO : send something!
 
+ postulate
+   Signed-pi-Direct : (m : DirectMessage)
+                    → (is1 is2 : (Is-just ∘ :sigMB) m)
+                    → is1 ≡ is2
+   Signed-pi-Gossip : ∀ (m : GossipMessage)
+                    → (is1 is2 : (Is-just ∘ :gmSigMB) m)
+                    → is1 ≡ is2
+
  instance
    sig-DirectMessage : WithSig DirectMessage
    sig-DirectMessage = record
       { Signed         = Is-just ∘ :sigMB
+      ; Signed-pi      = Signed-pi-Direct
       ; isSigned?      = λ m → Maybe-Any-dec (λ _ → yes tt) (m ^∙ sigMB)
       ; signature      = λ { _ prf → to-witness prf }
       ; signableFields = λ dm → concat ( encode (dm ^∙ author)
@@ -117,6 +126,7 @@ module LibraBFT.Example.Example where
    sig-GossipMessage : WithSig GossipMessage
    sig-GossipMessage = record
       { Signed         = Is-just ∘ :gmSigMB
+      ; Signed-pi      = Signed-pi-Gossip
       ; isSigned?      = λ m → Maybe-Any-dec (λ _ → yes tt) (m ^∙ gmSigMB)
       ; signature      = λ { _ prf → to-witness prf }
       ; signableFields = λ gm → concat ( encode ((gm ^∙ original) ^∙ author)
@@ -129,6 +139,9 @@ module LibraBFT.Example.Example where
    sig-Message = record
       { Signed         = λ { (direct m) → Signed m
                            ; (gossip m) → Signed m
+                           }
+      ; Signed-pi      = λ { (direct m) → Signed-pi m
+                           ; (gossip m) → Signed-pi m
                            }
       ; isSigned?      = λ { (direct m) → isSigned? m
                            ; (gossip m) → isSigned? m
@@ -257,11 +270,25 @@ module LibraBFT.Example.Example where
        }
    tell (proj₂ (pureHandler msg ts st))
 
+ handleDirectVerified : (m : DirectMessage) → WithVerSig m → Instant → RWST Unit Output State Unit
+ handleDirectVerified msg _ ts = handle msg ts
+
  handleDirect : DirectMessage → Instant → RWST Unit Output State Unit
  handleDirect msg ts
     with check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author)) msg
  ...| nothing = pure unit
  ...| just ver = handle msg ts
+
+ handleDirect≡ : (m : DirectMessage)
+               → (wvs : WithVerSig m)
+               → verWithPK wvs ≡ (fakePubKey (m ^∙ author))
+               → (ts : Instant)
+               → handleDirect m ts ≡ handleDirectVerified m wvs ts
+ handleDirect≡ msg wvs pks≡ ts
+     with (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg | inspect
+          (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg
+ ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ (check-signature-≡ wvs pks≡) R')
+ ...| just ver | [ R' ] = refl
 
  handleGossip : GossipMessage → Instant → RWST Unit Output State Unit
  handleGossip msg ts
@@ -272,6 +299,14 @@ module LibraBFT.Example.Example where
  stepPeer : (msg : Message) → Instant → State → State × List Action
  stepPeer (direct msg) ts st = outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st))
  stepPeer (gossip msg) ts st = outputToSends st (proj₂ (RWST-run (handleGossip msg ts) unit st))
+
+ stepPeerDirect≡ : (msg : DirectMessage)
+                 → (wvs : WithVerSig msg)
+                 → verWithPK wvs ≡ (fakePubKey (msg ^∙ author))
+                 → (ts : Instant) → (st : State)
+                 → outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st)) ≡
+                   outputToSends st (proj₂ (RWST-run (handleDirectVerified msg wvs ts) unit st))
+ stepPeerDirect≡ msg wvs pks≡ ts st = cong (outputToSends st) (cong (λ x → proj₂ (RWST-run x unit st)) (handleDirect≡ msg wvs pks≡ ts))
 
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ nothing
@@ -485,15 +520,16 @@ module LibraBFT.Example.Example where
                       → P pre
                       → lookup by (peerStates pre) ≡ just (ppreOf iR)
                       → stepPeer (direct msg) ts (ppreOf iR) ≡ (ppostOf iR , actsOf iR)
-                      → P post ⊎ ∃[ ver ] (check-signature (fakePubKey (msg ^∙ author)) msg ≡ just ver)
+                      → P post ⊎ ∃[ ver ] ( check-signature (fakePubKey (msg ^∙ author)) msg ≡ just ver
+                                          × verWithPK ver ≡ (fakePubKey (msg ^∙ author)))
  verifySigDirect {pre} {post} {msg} {by} {ts} P theStep iR Ppre rdy run≡
     with  check-signature (fakePubKey (msg ^∙ author))  msg | inspect
          (check-signature (fakePubKey (msg ^∙ author))) msg
- ...| just ver | [ R ] = inj₂ (ver , R)
  ...| nothing  | [ R ] rewrite R =
     inj₁ (InvariantStates≡ P
            (noChangePreservesState theStep iR (cong proj₁ (sym run≡)) (cong proj₂ (sym run≡)))
            Ppre)
+ ...| just ver | [ R ] = inj₂ (ver , R , check-signature-pk≡ ver R)
 
  verifySigGossip      : ∀ {pre post msg by ts}
                       → (P : SystemState → Set)
@@ -592,7 +628,7 @@ module LibraBFT.Example.Example where
              theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} sender pSt≡ sender≡ max≡
     with verifySigDirect {msg = msg} RecordedValueWasAllegedlySent theStep tt (rVWSInvariant preReach) rdy run≡
  ...| inj₁ done = done sender pSt≡ sender≡ max≡
- ...| inj₂ (ver , R)
+ ...| inj₂ _
     with peerOf theStep ≟ p
  ...| no xx
     -- A step of "by" does not affect the state of p ≢ by, and does not "unsend" messages
@@ -601,7 +637,7 @@ module LibraBFT.Example.Example where
 
  rVWSRecvMsgD {pre} {post} preReach
              theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ _
     | yes refl
 
     -- Stash for later use: pSt ≡ ppost because of the "ready" condition for the step
@@ -617,7 +653,7 @@ module LibraBFT.Example.Example where
 
  rVWSRecvMsgD {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ (ver , R , _)
     | yes refl
     | pSt≡ppost | ppost≡
     | no nVSChanged | curMax≟maxSeen
@@ -647,7 +683,7 @@ module LibraBFT.Example.Example where
                                        auth≡ val≡
  rVWSRecvMsgD {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ (_ , R , _)
     | yes refl
     | pSt≡ppost | ppost≡
     | yes refl | no curMaxChanged
@@ -768,7 +804,7 @@ module LibraBFT.Example.Example where
 
  rVWSRecvMsg2D {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ (ver , R , pks≡)
     | yes refl
     rewrite R
     with lookup-correct-update-2 (maybe-⊥ rdy) pSt≡
@@ -781,12 +817,15 @@ module LibraBFT.Example.Example where
  ...| noEffect
     with pSt≡ppost | sym noEffect
  ...| refl | refl
-    with rVWSInvariant preReach {pSt = ppre} sender p rdy sender≡ max≡
- ...| preCons rewrite R = rVWSConsCast preCons (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy {!trans ? run≡!} {- run≡ -})
+    with rVWSInvariant preReach {pSt = ppre} sender rdy sender≡ max≡
+ ...| preCons = rVWSConsCast {pre = pre} {post = post}
+                             preCons
+                             (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy
+                                      (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
 
  rVWSRecvMsg2D {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ (ver , R , pks≡)
     | yes refl
     | pSt≡ppost
     | ppost≡
@@ -805,12 +844,16 @@ module LibraBFT.Example.Example where
  ...| refl | yes refl
     with gFACond {ppre} {msg} {ts} {n} (isGotFirstAdvance≡ {proj₁ (pureHandler msg ts ppre)} {n} hR≡gFA)
  ...| auth≡ , val≡ = mkRVWSConsequent msg ver
-                          (allegedlySentStable {direct msg} {pre} {post} (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy {!!}) ∈SM-pre)
+                          (allegedlySentStable {direct msg} {pre} {post}
+                                               (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts}
+                                                        by ts ∈SM-pre rdy
+                                                        (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
+                                               ∈SM-pre)
                           auth≡ val≡
 
  rVWSRecvMsg2D {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) isRecv _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
-    | inj₂ (ver , R)
+    | inj₂ (_ , R , _)
     | yes refl
     | pSt≡ppost
     | ppost≡
