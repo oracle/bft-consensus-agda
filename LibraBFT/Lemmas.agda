@@ -120,7 +120,9 @@ module LibraBFT.Lemmas where
              → (p : Any P l) → P (Any-lookup p)
  Any-witness (here px) = px
  Any-witness (there x) = Any-witness x
-  
+
+ false≢true : false ≢ true
+ false≢true () 
 
  witness : {A : Set}{P : A → Set}{x : A}{xs : List A}
          → x ∈ xs → All P xs → P x
