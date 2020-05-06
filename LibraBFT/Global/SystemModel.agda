@@ -128,11 +128,14 @@ module LibraBFT.Global.SystemModel
  rdyOf     : ∀ {pre post} → {theStep : Step pre post} → isInitPeer theStep → KVMap.lookup (peerOf theStep) (peerStates pre) ≡ nothing
  rdyOf     {theStep = initPeer _ _ _ rdy} _ = rdy
 
+ tsOf      : ∀ {pre post} → {theStep : Step pre post} → isRecvMsg theStep → Instant
+ tsOf      {theStep = recvMsg _ ts _ _ _} _ = ts
+
  ppreOf    : ∀ {pre post} → {theStep : Step pre post} → isRecvMsg theStep → PeerState
  ppreOf    {theStep = recvMsg {ppre = ppre} _ _ _ _  _} _ = ppre
 
- ppostOf    : ∀ {pre post} → {theStep : Step pre post} → isRecvMsg theStep → PeerState
- ppostOf    {theStep = recvMsg {ppost = ppost} _ _ _ _  _} _ = ppost
+ ppostOf   : ∀ {pre post} → {theStep : Step pre post} → isRecvMsg theStep → PeerState
+ ppostOf   {theStep = recvMsg {ppost = ppost} _ _ _ _  _} _ = ppost
 
  -- TODO: rename to avoid confusion with rdy
  readyOf   : ∀ {pre post} → {theStep : Step pre post} → (isRecv : isRecvMsg theStep) → KVMap.lookup (peerOf theStep) (peerStates pre) ≡ just (ppreOf {theStep = theStep} isRecv)
@@ -143,6 +146,9 @@ module LibraBFT.Global.SystemModel
 
  actsOf   : ∀ {pre post} → {theStep : Step pre post} → (isRecv : isRecvMsg theStep) → List (Action {Message})
  actsOf   {theStep = recvMsg {acts = acts} _ _ _ _ _} _ = acts
+
+ stepOf   : ∀ {pre post} → {theStep : Step pre post} → (iR : isRecvMsg theStep) → MsgHandler (msgOf iR) (tsOf iR) (ppreOf iR) ≡ (ppostOf iR , actsOf iR)
+ stepOf   {theStep = recvMsg p _ _ _ run≡} _ = run≡
 
  canInitOf : ∀ {pre post} → {theStep : Step pre post} → isInitPeer theStep → CanInit (peerOf theStep)
  canInitOf {theStep = initPeer _ _ canInit _} _ = canInit
