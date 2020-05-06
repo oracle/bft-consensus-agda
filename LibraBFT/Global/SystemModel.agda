@@ -97,7 +97,7 @@ module LibraBFT.Global.SystemModel
    cheat : ∀ (p : Peer)  -- TODO: Careful here!  Dishonest is now a function of only the message, since it contains the author.  Need to think about this.
              (ts : Instant)
              (m : Message)
-         → Dishonest m
+         → Dishonest m    -- TODO: let cheater change state because ... (can't remember why we thought this would be needed, so not doing it for now)
          → Step pre (sysState (sendMsg (sentMessages pre) m) (peerStates pre))
 
  isInitPeer : ∀ {pre post} → Step pre post → Set
