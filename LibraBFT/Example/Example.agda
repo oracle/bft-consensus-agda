@@ -279,18 +279,6 @@ module LibraBFT.Example.Example where
  ...| nothing = pure unit
  ...| just ver = handle msg ts
 
- handleDirect≡ : {m : DirectMessage}
-               → {wvs : WithVerSig m}
-               → check-signature (fakePubKey (m ^∙ author)) m ≡ just wvs
-               → (ts : Instant)
-               → State
-               → handleDirect m ts ≡ handleDirectVerified m wvs ts
- handleDirect≡ {msg} {wvs} prf ts st
-     with (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg | inspect
-          (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg
- ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ prf refl)
- ...| just ver | [ R' ] = refl
-
  handleGossip : GossipMessage → Instant → RWST Unit Output State Unit
  handleGossip msg ts
     with check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg
@@ -322,6 +310,18 @@ module LibraBFT.Example.Example where
    → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey ((:original msg) ^∙ author)) (:original msg) ≡ just ver'
    → stepPeer (gossip msg) ts st ≡ outputToSends st (proj₂ (RWST-run (handleDirect (:original msg) ts) unit st))
  verifiedGossipEffect {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
+
+ handleDirect≡ : {m : DirectMessage}
+               → {wvs : WithVerSig m}
+               → check-signature (fakePubKey (m ^∙ author)) m ≡ just wvs
+               → (ts : Instant)
+               → State
+               → handleDirect m ts ≡ handleDirectVerified m wvs ts
+ handleDirect≡ {msg} {wvs} prf ts st
+     with (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg | inspect
+          (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg
+ ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ prf refl)
+ ...| just ver | [ R' ] = refl
 
  stepPeerDirect≡ : {msg : DirectMessage}
                  → {wvs : WithVerSig msg}
