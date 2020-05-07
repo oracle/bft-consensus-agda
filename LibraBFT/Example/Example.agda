@@ -279,15 +279,16 @@ module LibraBFT.Example.Example where
  ...| nothing = pure unit
  ...| just ver = handle msg ts
 
- handleDirect≡ : (m : DirectMessage)
-               → (wvs : WithVerSig m)
-               → verWithPK wvs ≡ (fakePubKey (m ^∙ author))
+ handleDirect≡ : {m : DirectMessage}
+               → {wvs : WithVerSig m}
+               → check-signature (fakePubKey (m ^∙ author)) m ≡ just wvs
                → (ts : Instant)
+               → State
                → handleDirect m ts ≡ handleDirectVerified m wvs ts
- handleDirect≡ msg wvs pks≡ ts
+ handleDirect≡ {msg} {wvs} prf ts st
      with (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg | inspect
           (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg
- ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ (check-signature-≡ wvs pks≡) R')
+ ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ prf refl)
  ...| just ver | [ R' ] = refl
 
  handleGossip : GossipMessage → Instant → RWST Unit Output State Unit
@@ -300,13 +301,10 @@ module LibraBFT.Example.Example where
  stepPeer (direct msg) ts st = outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st))
  stepPeer (gossip msg) ts st = outputToSends st (proj₂ (RWST-run (handleGossip msg ts) unit st))
 
- stepPeerDirect≡ : (msg : DirectMessage)
-                 → (wvs : WithVerSig msg)
-                 → verWithPK wvs ≡ (fakePubKey (msg ^∙ author))
-                 → (ts : Instant) → (st : State)
-                 → outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st)) ≡
-                   outputToSends st (proj₂ (RWST-run (handleDirectVerified msg wvs ts) unit st))
- stepPeerDirect≡ msg wvs pks≡ ts st = cong (outputToSends st) (cong (λ x → proj₂ (RWST-run x unit st)) (handleDirect≡ msg wvs pks≡ ts))
+ unverifiedDirectNoEffect1 : ∀ {msg ts st}
+   → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author)) msg ≡ nothing
+   → stepPeer (direct msg) ts st ≡ (st , [])
+ unverifiedDirectNoEffect1 {msg} {ts} {st} prf rewrite prf = refl
 
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
    → check-signature {GossipMessage} ⦃ sig-GossipMessage ⦄ (fakePubKey (msg ^∙ gmAuthor)) msg ≡ nothing
@@ -324,6 +322,15 @@ module LibraBFT.Example.Example where
    → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey ((:original msg) ^∙ author)) (:original msg) ≡ just ver'
    → stepPeer (gossip msg) ts st ≡ outputToSends st (proj₂ (RWST-run (handleDirect (:original msg) ts) unit st))
  verifiedGossipEffect {msg} {ts} {st} prf1 prf2 rewrite prf1 | prf2 = refl
+
+ stepPeerDirect≡ : {msg : DirectMessage}
+                 → {wvs : WithVerSig msg}
+                 → check-signature (fakePubKey (msg ^∙ author)) msg ≡ just wvs
+                 → (ts : Instant)
+                 → (st : State)
+                 → outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st)) ≡
+                   outputToSends st (proj₂ (RWST-run (handleDirectVerified msg wvs ts) unit st))
+ stepPeerDirect≡ prf ts st = cong (outputToSends st) (cong (λ x → proj₂ (RWST-run x unit st)) (handleDirect≡ prf ts st))
 
  ---------------------------------------------------------------------------
  -- Lemmas about the effects of steps, broken down by pureHandler results --
@@ -813,10 +820,8 @@ module LibraBFT.Example.Example where
     with pSt≡ppost | sym noEffect
  ...| refl | refl
     with rVWSInvariant preReach {pSt = ppre} sender rdy sender≡ max≡
- ...| preCons = rVWSConsCast {pre = pre} {post = post}
-                             preCons
-                             (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy
-                                      (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
+ ...| preCons = rVWSConsCast preCons (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy
+                                              (trans (stepPeerDirect≡ R ts ppre) run≡))
                                       -- A lot of complexity arises here because Agda doesn't figure
                                       -- out that this step with run≡ in place of this last term is
                                       -- precisely the Step pre post that is provided for the second
@@ -849,7 +854,7 @@ module LibraBFT.Example.Example where
                           (allegedlySentStable {direct msg} {pre} {post}
                                                (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts}
                                                         by ts ∈SM-pre rdy
-                                                        (trans (stepPeerDirect≡ msg ver pks≡ ts ppre) run≡))
+                                                        (trans (stepPeerDirect≡ R ts ppre) run≡))
                                                ∈SM-pre)
                           auth≡ val≡
 
