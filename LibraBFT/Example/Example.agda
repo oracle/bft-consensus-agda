@@ -285,9 +285,12 @@ module LibraBFT.Example.Example where
  ...| nothing = pure unit  -- ACCOUNTABILITY OPPORTUNITY
  ...| just ver' = handleDirect (msg ^∙ original) ts
 
+ runHandler : State → RWST Unit Output State Unit → State × List Action
+ runHandler st handler = outputToSends st (proj₂ (RWST-run handler unit st))
+
  stepPeer : (msg : Message) → Instant → State → State × List Action
- stepPeer (direct msg) ts st = outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st))
- stepPeer (gossip msg) ts st = outputToSends st (proj₂ (RWST-run (handleGossip msg ts) unit st))
+ stepPeer (direct msg) ts st = runHandler st (handleDirect msg ts)
+ stepPeer (gossip msg) ts st = runHandler st (handleGossip msg ts)
 
  unverifiedDirectNoEffect1 : ∀ {msg ts st}
    → check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author)) msg ≡ nothing
@@ -316,21 +319,12 @@ module LibraBFT.Example.Example where
                → check-signature (fakePubKey (m ^∙ author)) m ≡ just wvs
                → (ts : Instant)
                → State
-               → handleDirect m ts ≡ handleDirectVerified m wvs ts
+               → handleDirectVerified m wvs ts ≡ handleDirect m ts
  handleDirect≡ {msg} {wvs} prf ts st
      with (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg | inspect
           (check-signature {DirectMessage} ⦃ sig-DirectMessage ⦄ (fakePubKey (msg ^∙ author))) msg
  ...| nothing  | [ R' ] = ⊥-elim (maybe-⊥ prf refl)
  ...| just ver | [ R' ] = refl
-
- stepPeerDirect≡ : {msg : DirectMessage}
-                 → {wvs : WithVerSig msg}
-                 → check-signature (fakePubKey (msg ^∙ author)) msg ≡ just wvs
-                 → (ts : Instant)
-                 → (st : State)
-                 → outputToSends st (proj₂ (RWST-run (handleDirect msg ts) unit st)) ≡
-                   outputToSends st (proj₂ (RWST-run (handleDirectVerified msg wvs ts) unit st))
- stepPeerDirect≡ prf ts st = cong (outputToSends st) (cong (λ x → proj₂ (RWST-run x unit st)) (handleDirect≡ prf ts st))
 
  ---------------------------------------------------------------------------
  -- Lemmas about the effects of steps, broken down by pureHandler results --
@@ -821,14 +815,12 @@ module LibraBFT.Example.Example where
  ...| refl | refl
     with rVWSInvariant preReach {pSt = ppre} sender rdy sender≡ max≡
  ...| preCons = rVWSConsCast preCons (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy
-                                              (trans (stepPeerDirect≡ R ts ppre) run≡))
-                                      -- A lot of complexity arises here because Agda doesn't figure
-                                      -- out that this step with run≡ in place of this last term is
-                                      -- precisely the Step pre post that is provided for the second
-                                      -- explicit parameter.  The reason this happened is because of
-                                      -- a weird error if I try to use theStep@ when pattern
-                                      -- matching (compare lines marked above with *** comments) as
-                                      -- works fine in many other cases.  Why?!
+                                              (subst ((_≡ ppost , acts) ∘ (runHandler ppre))
+                                                     (handleDirect≡ {msg} {ver} R ts ppre)
+                                                     run≡))
+
+                                      -- Because of the rewrite R above, Agda no longer recognizes
+                                      -- that run≡ is
 
  rVWSRecvMsg2D {pre} {post} preReach
              (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
@@ -854,7 +846,9 @@ module LibraBFT.Example.Example where
                           (allegedlySentStable {direct msg} {pre} {post}
                                                (recvMsg {pre} {direct msg} {to} {ppre} {ppost} {acts}
                                                         by ts ∈SM-pre rdy
-                                                        (trans (stepPeerDirect≡ R ts ppre) run≡))
+                                                        (subst ((_≡ ppost , acts) ∘ (runHandler ppre))
+                                                               (handleDirect≡ {msg} {ver} R ts ppre)
+                                                               run≡))
                                                ∈SM-pre)
                           auth≡ val≡
 
