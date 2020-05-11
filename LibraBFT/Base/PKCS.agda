@@ -112,70 +112,113 @@ module LibraBFT.Base.PKCS where
                                                   (verified wvs2))))
  ...| yes pks≡ = withVerSig-≡ {wvs1 = wvs1} {wvs2 = wvs2} (Signed-pi c (isSigned wvs1) (isSigned wvs2)) pks≡
 
- check-signature : {C : Set} ⦃ ws : WithSig C ⦄ → PK → (c : C) → Maybe (WithVerSig c)
+
+ data SigCheckResult {C : Set} ⦃ ws : WithSig C ⦄ (pk : PK) (c : C) : Set where
+   notSigned   : ¬ Signed c → SigCheckResult pk c
+   checkFailed : (sc : Signed c) → verify (signableFields c) (signature c sc) pk ≡ false → SigCheckResult pk c
+   sigVerified : (sc : Signed c) → verify (signableFields c) (signature c sc) pk ≡ true  → WithVerSig c → SigCheckResult pk c
+
+ data SigCheckOutcome : Set where
+   notSigned   : SigCheckOutcome
+   checkFailed : SigCheckOutcome
+   sigVerified : SigCheckOutcome
+
+ data SigCheckFailed : Set where
+   notSigned   : SigCheckFailed
+   checkFailed : SigCheckFailed
+
+ check-signature : {C : Set} ⦃ ws : WithSig C ⦄ → (pk : PK) → (c : C) → SigCheckResult pk c
  check-signature pk c with isSigned? c
- ...| no  _  = nothing
+ ...| no  ns  = notSigned ns
  ...| yes sc with verify (signableFields c) (signature c sc) pk
                 | inspect (verify (signableFields c) (signature c sc)) pk
- ...| false |   _   = nothing
- ...| true  | [ R ] = just (record { isSigned  = sc 
-                                   ; verWithPK = pk 
-                                   ; verified  = R })
+ ...| false | [ nv ] = checkFailed sc nv
+ ...| true  | [ v  ] = sigVerified sc v (record { isSigned  = sc
+                                                ; verWithPK = pk
+                                                ; verified  = v })
 
- check-signature-signed : {C : Set} ⦃ ws : WithSig C ⦄
-                        → {c : C}
-                        → (wvs : WithVerSig c)
-                        → Signed c
- check-signature-signed {C} {c = c} wvs = isSigned wvs
+ sigCheckOutcomeFor : {C : Set} ⦃ ws : WithSig C ⦄ (pk : PK) (c : C) → SigCheckOutcome
+ sigCheckOutcomeFor pk c with check-signature pk c
+ ...| notSigned _       = notSigned
+ ...| checkFailed _ _   = checkFailed
+ ...| sigVerified _ _ _ = sigVerified
 
- check-signature-pk≡ : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
-                     → (wvs : WithVerSig c)
-                     → check-signature pk c ≡ just wvs
-                     → verWithPK wvs ≡ pk
- check-signature-pk≡  {pk = pk} {c = c} wvs prf
-    with isSigned? c
- ...| no ¬signed = ⊥-elim (¬signed (isSigned wvs))
- ...| yes signed
-    with  verify (signableFields c) (signature c signed)  pk | inspect
-         (verify (signableFields c) (signature c signed)) pk
- ...| false | [ R ] = ⊥-elim (maybe-⊥ prf refl)
- ...| true  | [ R ] rewrite Signed-pi c signed (isSigned wvs)= verify-pk-inj (verified wvs) R
+ sigVerifiedVerSig : {C : Set} ⦃ ws : WithSig C ⦄ (pk : PK) (c : C)
+                   → sigCheckOutcomeFor pk c ≡ sigVerified
+                   → WithVerSig c
+ sigVerifiedVerSig pk c prf with check-signature pk c
+ ...| sigVerified sc ver verSig = verSig
 
- check-signature-nothing : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
-                         → check-signature pk c ≡ nothing
-                         → ¬ (Signed c) ⊎ Σ (Signed c) (λ x → false ≡ verify (signableFields c) (signature c x) pk)
- check-signature-nothing {pk = pk} {c = c} prf
-    with isSigned? c
- ...| no ¬signed = inj₁ ¬signed
- ...| yes signed
-    with  verify (signableFields c) (signature c signed) pk | inspect
-         (verify (signableFields c) (signature c signed)) pk
- ...| false | [ R ] = inj₂ ( signed , sym R )
- ...| true  | [ R ] = ⊥-elim (maybe-⊥ (sym prf) refl)
+ sigVerifiedVerSigCS : {C : Set} ⦃ ws : WithSig C ⦄ {pk : PK} {c : C}
+                     → sigCheckOutcomeFor pk c ≡ sigVerified
+                     → ∃[ sc ] ∃[ ver ] ∃[ wvs ](check-signature pk c ≡ sigVerified sc ver wvs)
+ sigVerifiedVerSigCS {pk = pk} {c = c} prf with  check-signature pk c | inspect
+                                   (check-signature pk) c
+ ...| sigVerified sc ver verSig | [ R ] = sc , ver , verSig , R
 
- check-signature-≡ : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
-                      → (wvs : WithVerSig c)
-                      → verWithPK wvs ≡ pk
-                      → check-signature pk c ≡ just wvs
- check-signature-≡ {pk = pk} {c = c} wvs pks≡
-    with  check-signature pk  c | inspect
-         (check-signature pk) c
- ...| just wvs' | [ R' ] = cong just (withVerSig-pi wvs wvs')
- ...| nothing   | [ R' ]
-    with check-signature-nothing R'
- ...| inj₁ ¬signed = ⊥-elim (¬signed (isSigned wvs))
- ...| inj₂ ( signed , ¬ver ) rewrite (sym pks≡) | Signed-pi c signed (isSigned wvs) =
-                           ⊥-elim (false≢true (trans ¬ver (verified wvs)))
+ failedSigCheckOutcome : {C : Set} ⦃ ws : WithSig C ⦄ (pk : PK) (c : C)
+                       → sigCheckOutcomeFor pk c ≢ sigVerified
+                       → SigCheckFailed
+ failedSigCheckOutcome pk c prf with sigCheckOutcomeFor pk c
+ ...| notSigned   = notSigned
+ ...| checkFailed = checkFailed
+ ...| sigVerified = ⊥-elim (prf refl)
 
- check-signature-correct : {C : Set} ⦃ ws : WithSig C ⦄
-                         → {c : C}
-                         → (wvs : WithVerSig c)
-                         → check-signature {C} ⦃ ws ⦄ (verWithPK wvs) c ≡ just wvs
- check-signature-correct {C} {c = c} wvs
-    with isSigned? c
- ...| no  notSigned = ⊥-elim (notSigned (isSigned wvs))
- ...| yes sc
-    with verify (signableFields c) (signature c sc) (verWithPK wvs)
-                | inspect (verify (signableFields c) (signature c sc)) (verWithPK wvs)
- ...| false | [ R ] rewrite Signed-pi c sc (isSigned wvs) = ⊥-elim (false≢true (trans (sym R) (verified wvs)))
- ...| true  | [ R ] = cong just (withVerSig-pi wvs (record { isSigned = sc ; verWithPK = verWithPK wvs ; verified = R }))
+ -- The below is out of date, possibly not needed
+ -- check-signature-signed : {C : Set} ⦃ ws : WithSig C ⦄
+ --                        → {c : C}
+ --                        → (wvs : WithVerSig c)
+ --                        → Signed c
+ -- check-signature-signed {C} {c = c} wvs = isSigned wvs
+
+ -- check-signature-pk≡ : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
+ --                     → (wvs : WithVerSig c)
+ --                     → check-signature pk c ≡ just wvs
+ --                     → verWithPK wvs ≡ pk
+ -- check-signature-pk≡  {pk = pk} {c = c} wvs prf
+ --    with isSigned? c
+ -- ...| no ¬signed = ⊥-elim (¬signed (isSigned wvs))
+ -- ...| yes signed
+ --    with  verify (signableFields c) (signature c signed)  pk | inspect
+ --         (verify (signableFields c) (signature c signed)) pk
+ -- ...| false | [ R ] = ⊥-elim (maybe-⊥ prf refl)
+ -- ...| true  | [ R ] rewrite Signed-pi c signed (isSigned wvs)= verify-pk-inj (verified wvs) R
+
+ -- check-signature-nothing : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
+ --                         → check-signature pk c ≡ nothing
+ --                         → ¬ (Signed c) ⊎ Σ (Signed c) (λ x → false ≡ verify (signableFields c) (signature c x) pk)
+ -- check-signature-nothing {pk = pk} {c = c} prf
+ --    with isSigned? c
+ -- ...| no ¬signed = inj₁ ¬signed
+ -- ...| yes signed
+ --    with  verify (signableFields c) (signature c signed) pk | inspect
+ --         (verify (signableFields c) (signature c signed)) pk
+ -- ...| false | [ R ] = inj₂ ( signed , sym R )
+ -- ...| true  | [ R ] = ⊥-elim (maybe-⊥ (sym prf) refl)
+
+ -- check-signature-≡ : {C : Set} {pk : PK} {c : C} ⦃ ws : WithSig C ⦄
+ --                      → (wvs : WithVerSig c)
+ --                      → verWithPK wvs ≡ pk
+ --                      → check-signature pk c ≡ just wvs
+ -- check-signature-≡ {pk = pk} {c = c} wvs pks≡
+ --    with  check-signature pk  c | inspect
+ --         (check-signature pk) c
+ -- ...| just wvs' | [ R' ] = cong just (withVerSig-pi wvs wvs')
+ -- ...| nothing   | [ R' ]
+ --    with check-signature-nothing R'
+ -- ...| inj₁ ¬signed = ⊥-elim (¬signed (isSigned wvs))
+ -- ...| inj₂ ( signed , ¬ver ) rewrite (sym pks≡) | Signed-pi c signed (isSigned wvs) =
+ --                           ⊥-elim (false≢true (trans ¬ver (verified wvs)))
+
+ -- check-signature-correct : {C : Set} ⦃ ws : WithSig C ⦄
+ --                         → {c : C}
+ --                         → (wvs : WithVerSig c)
+ --                         → check-signature {C} ⦃ ws ⦄ (verWithPK wvs) c ≡ just wvs
+ -- check-signature-correct {C} {c = c} wvs
+ --    with isSigned? c
+ -- ...| no  notSigned = ⊥-elim (notSigned (isSigned wvs))
+ -- ...| yes sc
+ --    with verify (signableFields c) (signature c sc) (verWithPK wvs)
+ --                | inspect (verify (signableFields c) (signature c sc)) (verWithPK wvs)
+ -- ...| false | [ R ] rewrite Signed-pi c sc (isSigned wvs) = ⊥-elim (false≢true (trans (sym R) (verified wvs)))
+ -- ...| true  | [ R ] = cong just (withVerSig-pi wvs (record { isSigned = sc ; verWithPK = verWithPK wvs ; verified = R }))
