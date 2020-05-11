@@ -657,13 +657,16 @@ module LibraBFT.Example.Example where
 
  rVWSRecvMsgD : ∀ {pre post}
      → ReachableSystemState pre
-     → (theStep : Step pre post)
-     → (iR : isRecvMsg theStep)
-     → isDirect (msgOf iR)
+     → (Σ (Step pre post) λ theStep →
+          Σ (isRecvMsg theStep) λ iR → 
+            isDirect (msgOf iR))
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsgD {pre} {post} preReach
-             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ isD {p} sender pSt≡ sender≡ max≡
-    with verifySigPreservesD {msg = msg} RecordedValueWasAllegedlySent theStep tt (rVWSInvariant preReach) rdy run≡ 
+             (theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) , iR , iD ) {p} sender pSt≡ sender≡ max≡
+    with verifySigPreservesD {msg} {pre} {post} {by} {ts}
+                             RecordedValueWasAllegedlySent
+                             theStep tt
+                             (rVWSInvariant preReach) (readyOf {theStep = theStep} iR)                                                                                                                                    (stepOf  {theStep = theStep} iR)
  ...| inj₁ done = done sender pSt≡ sender≡ max≡
  ...| inj₂ _
     with peerOf theStep ≟ p
@@ -673,7 +676,7 @@ module LibraBFT.Example.Example where
  ...| preCons = rVWSConsCast preCons theStep
 
  rVWSRecvMsgD {pre} {post} preReach
-             theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             (theStep@(recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) , iR , iD) {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ _
     | yes refl
 
@@ -689,7 +692,7 @@ module LibraBFT.Example.Example where
  ...| preCons = rVWSConsCast preCons theStep
 
  rVWSRecvMsgD {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ isD {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             ((recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) , iR , isD) {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ sigVer
     | yes refl
     | pSt≡ppost | ppost≡
@@ -720,7 +723,7 @@ module LibraBFT.Example.Example where
                                                     (sentM)))
                                             auth≡ val≡
  rVWSRecvMsgD {pre} {post} preReach
-             (recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) _ _ {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
+             ((recvMsg {direct msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy _) , iR , iD) {p} {pSt} {curMax} sender pSt≡ sender≡ max≡
     | inj₂ sigVer
     | yes refl
     | pSt≡ppost | ppost≡
@@ -747,7 +750,7 @@ module LibraBFT.Example.Example where
      → RecordedValueWasAllegedlySent post
  rVWSRecvMsgG {pre} {post} preReach theStep iR iG
     with verifySigPreservesG {msg = (gossipMessageOf iG)} {ts = tsOf iR} RecordedValueWasAllegedlySent
-                             -- This is exactly the step 
+                             -- This is exactly the step
                              theStep
                              iR (rVWSInvariant preReach) (readyOf iR) (trans (gossipStepPeer {iR = iR} iG) (stepOf iR))
  ...| inj₁ done = done
@@ -764,16 +767,13 @@ module LibraBFT.Example.Example where
  ...| (sc , ver , wvs , wvsProp)
     rewrite dmVer
 
-
     -- Here we need to construct a message that contains the same signature as the original message and verifies.
     with sentUnlessDishonest { :original (gossipMessageOf iG) } {pre} ⦃ sig-DirectMessage ⦄
                              (record { isSigned  = isSigned wvs
                                      ; verWithPK = verWithPK wvs
                                      ; verified  = verified wvs
                                      })
- ...| inj₁ senderDishonest rewrite dmVer | gmVer = rVWSRecvMsgD {pre} {post} preReach (proj₁ (gossipStepPeerD {pre} {post} iR iG))
-                                                                                      (proj₁ (proj₂ (gossipStepPeerD {pre} {post} iR iG)))
-                                                                                      (proj₂ (proj₂ (gossipStepPeerD {pre} {post} iR iG)))
+ ...| inj₁ senderDishonest rewrite dmVer | gmVer = rVWSRecvMsgD {pre} {post} preReach (gossipStepPeerD {pre} {post} iR iG)
  ...| inj₂ (m' , m'∈SM , wvs' , sigs≡)
       -- Now we know that we have a message (m') that has been sent (m'∈SM), and it verifies (wvs')
       -- with the same signature (sigs≡) as m.  This does not prove that it is the same message, and
@@ -791,15 +791,13 @@ module LibraBFT.Example.Example where
      with Signed-pi-Direct (:original (gossipMessageOf iG)) (isSigned wvs) sc
  ...| isSigned≡
      with sameSignatureSameEffect {ppreOf iR} {tsOf iR} wvs wvs' sigs≡
- ...| sameEffect rewrite dmVer = rVWSRecvMsgD preReach (proj₁ (gossipStepPeerD iR iG))
-                                                       (proj₁ (proj₂ (gossipStepPeerD iR iG)))
-                                                       (proj₂ (proj₂ (gossipStepPeerD iR iG)))
+ ...| sameEffect rewrite dmVer = rVWSRecvMsgD preReach (gossipStepPeerD iR iG)
 
  rVWSInvariant init sender x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts m dis))     = rVWSCheat preReach (cheat by ts m dis) tt
  rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
  rVWSInvariant (step {pre} preReach (recvMsg {direct msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
-               = rVWSRecvMsgD preReach (recvMsg {pre} {direct msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
+               = rVWSRecvMsgD preReach ((recvMsg {pre} {direct msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) , tt , tt)
  rVWSInvariant (step {pre} preReach (recvMsg {gossip msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans))
                = rVWSRecvMsgG preReach (recvMsg {pre} {gossip msg} {ppre} {ppost} {acts} by ts ∈SM-pre ready trans) tt tt
 
