@@ -75,6 +75,9 @@ module LibraBFT.Example.Example where
  isGossip (direct _) = ⊥
  isGossip (gossip _) = ⊤
 
+ gossipMessageOf : {m : Message} → isGossip m → GossipMessage
+ gossipMessageOf {gossip m} _ = m
+
  getAuthor : Message → PeerId
  getAuthor (direct m) = m ^∙ author
  getAuthor (gossip m) = m ^∙ gmAuthor
@@ -270,7 +273,6 @@ module LibraBFT.Example.Example where
  stepPeer (direct msg) ts st = stepPeerD msg ts st
  stepPeer (gossip msg) ts st = stepPeerG msg ts st
 
-
  notSignedNoEffectD : ∀ {msg ts st}
                     → sigCheckOutcomeFor (fakePubKey (msg ^∙ author)) msg ≡ notSigned
                     → stepPeer (direct msg) ts st ≡ (st , [])
@@ -291,15 +293,16 @@ module LibraBFT.Example.Example where
                       → stepPeer (gossip msg) ts st ≡ (st , [])
  notVerifiedNoEffectG {msg} {ts} {st} nv rewrite nv = refl
 
- verifiedGossipEffect≡ : ∀ {msg : GossipMessage}{ts st}
-                       → sigCheckOutcomeFor (fakePubKey (msg ^∙ gmAuthor)) msg ≡ sigVerified
-                       → stepPeer (gossip msg) ts st ≡ stepPeer (direct (:original msg)) ts st
- verifiedGossipEffect≡ {msg} {ts} {st} prf rewrite prf
-    with sigCheckOutcomeFor (fakePubKey ((msg ^∙ original) ^∙ author)) msg
- ...| notSigned   = refl
- ...| checkFailed = refl
- ...| sigVerified = refl
-
+ verifiedGossipEffect≡ : ∀ {msg : Message}{ts st}
+                       → (iG : isGossip msg)
+                       → sigCheckOutcomeFor (fakePubKey (:gmAuthor (gossipMessageOf iG))) (gossipMessageOf iG) ≡ sigVerified
+                       → stepPeer msg ts st ≡ stepPeer (direct (:original (gossipMessageOf iG))) ts st
+ verifiedGossipEffect≡ {gossip msg} {ts} {st} _ prf rewrite prf
+    with  sigCheckOutcomeFor (fakePubKey ((msg ^∙ original) ^∙ author))  (msg ^∙ original) | inspect
+         (sigCheckOutcomeFor (fakePubKey ((msg ^∙ original) ^∙ author))) (msg ^∙ original)
+ ...| notSigned   | [ R ] rewrite R = refl
+ ...| checkFailed | [ R ] rewrite R = refl
+ ...| sigVerified | [ R ] rewrite R = refl
 
 {-
  unverifiedGossipNoEffect1 : ∀ {msg ts st}
@@ -476,6 +479,31 @@ module LibraBFT.Example.Example where
                initialStateAndMessages
                stepPeer
                dishonest
+
+ gossipStepPeer : ∀ {pre} {post}
+                → {theStep : Step pre post}
+                → {iR : isRecvMsg theStep}
+                → (iG : isGossip (msgOf iR))
+                → stepPeerG (gossipMessageOf iG) (tsOf iR) (ppreOf iR) ≡
+                  stepPeer (msgOf iR) (tsOf iR) (ppreOf iR)
+ gossipStepPeer {theStep = theStep} {iR = iR} iG
+    with msgOf iR
+ ...| gossip gm
+    with  sigCheckOutcomeFor (fakePubKey (:gmAuthor gm))  gm | inspect
+         (sigCheckOutcomeFor (fakePubKey (:gmAuthor gm))) gm
+ ...| notSigned   | _ = refl
+ ...| checkFailed | _ = refl
+ ...| sigVerified | [ R ] rewrite R = refl
+
+ postulate
+   gossipStepPeerD : ∀ {pre} {post}
+                 → {theStep : Step pre post}
+                 → (iR : isRecvMsg theStep)
+                 → (iG : isGossip (msgOf iR))
+                 → Σ (Step pre post) λ theStep' →
+                     Σ (isRecvMsg theStep') λ iR' →
+                       (isDirect (msgOf iR'))
+
 
  -- This postulate captures the assumption that one peer p0 cannot create a verifiably signed
  -- message by another peer p1 unless p1 is dishonest for that message (*, see notes below).
@@ -717,35 +745,35 @@ module LibraBFT.Example.Example where
      → (iR : isRecvMsg theStep)
      → isGossip (msgOf iR)
      → RecordedValueWasAllegedlySent post
- rVWSRecvMsgG {pre} {post} preReach
-             (recvMsg {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡) _ _
-             -- It's annoying that this case spells out all the parameters of rVWSInvariant just to then consume them, but they are needed for the next case
-    with verifySigPreservesG {msg = msg} RecordedValueWasAllegedlySent
-                             (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡)
-                             tt (rVWSInvariant preReach) rdy run≡
+ rVWSRecvMsgG {pre} {post} preReach theStep iR iG
+    with verifySigPreservesG {msg = (gossipMessageOf iG)} {ts = tsOf iR} RecordedValueWasAllegedlySent
+                             -- This is exactly the step 
+                             theStep
+                             iR (rVWSInvariant preReach) (readyOf iR) (trans (gossipStepPeer {iR = iR} iG) (stepOf iR))
  ...| inj₁ done = done
  ...| inj₂ gmVer rewrite gmVer
-    -- Effect of verified gossip message is equivalent to effect of direct message it contains
-    with trans (verifiedGossipEffect≡ {msg} {ts} {ppre} gmVer) run≡
- ...| run≡'
-    with verifySigPreservesD {msg = msg ^∙ original} RecordedValueWasAllegedlySent
-                             (recvMsg {pre} {gossip msg} {to} {ppre} {ppost} {acts} by ts ∈SM-pre rdy run≡')
-                             tt (rVWSInvariant preReach) rdy run≡
+--    -- Effect of verified gossip message is equivalent to effect of direct message it contains
+--    with trans (verifiedGossipEffect≡ gmVer) (stepOf iR)
+-- ...| run≡'
+    with verifySigPreservesD {msg = (gossipMessageOf iG) ^∙ original} RecordedValueWasAllegedlySent
+                             theStep
+                             iR (rVWSInvariant preReach) (readyOf iR) (trans (sym (verifiedGossipEffect≡ {msgOf iR} {tsOf iR} {ppreOf iR} iG gmVer)) (stepOf iR))
  ...| inj₁ done  = done
  ...| inj₂ dmVer
     with sigVerifiedVerSigCS dmVer
  ...| (sc , ver , wvs , wvsProp)
     rewrite dmVer
+
+
     -- Here we need to construct a message that contains the same signature as the original message and verifies.
-    with sentUnlessDishonest { :original msg } {pre} ⦃ sig-DirectMessage ⦄
+    with sentUnlessDishonest { :original (gossipMessageOf iG) } {pre} ⦃ sig-DirectMessage ⦄
                              (record { isSigned  = isSigned wvs
                                      ; verWithPK = verWithPK wvs
                                      ; verified  = verified wvs
                                      })
- ...| inj₁ senderDishonest rewrite dmVer | gmVer =
-           rVWSRecvMsgD {pre} {post} preReach
-                        (recvMsg {pre} {direct (:original msg)} {42}
-                                 {ppre} {ppost} {acts} by ts (inj₁ senderDishonest) rdy run≡') tt tt
+ ...| inj₁ senderDishonest rewrite dmVer | gmVer = rVWSRecvMsgD {pre} {post} preReach (proj₁ (gossipStepPeerD {pre} {post} iR iG))
+                                                                                      (proj₁ (proj₂ (gossipStepPeerD {pre} {post} iR iG)))
+                                                                                      (proj₂ (proj₂ (gossipStepPeerD {pre} {post} iR iG)))
  ...| inj₂ (m' , m'∈SM , wvs' , sigs≡)
       -- Now we know that we have a message (m') that has been sent (m'∈SM), and it verifies (wvs')
       -- with the same signature (sigs≡) as m.  This does not prove that it is the same message, and
@@ -760,15 +788,13 @@ module LibraBFT.Example.Example where
       -- not have identical effect, even though this would not affect correctness.  In that case,
       -- we'd need to prove that the effects of the two messages are "sufficiently" the same to
       -- ensure correctness (somewhat similar to what we've done for QCs.)
-     with Signed-pi-Direct (:original msg) (isSigned wvs) sc
+     with Signed-pi-Direct (:original (gossipMessageOf iG)) (isSigned wvs) sc
  ...| isSigned≡
-     with sameSignatureSameEffect {ppre} {ts} {:original msg} {m'} wvs wvs'
- ...| sameEffect rewrite dmVer | gmVer =
-           rVWSRecvMsgD {pre} {post} preReach
-                        (recvMsg {pre} {direct m'} { 42 }  -- See comment above regarding 42
-                           {ppre} {ppost} {acts} by ts (inj₂ m'∈SM) rdy
-                           (trans (sameEffect sigs≡) run≡))
-                           tt tt
+     with sameSignatureSameEffect {ppreOf iR} {tsOf iR} wvs wvs' sigs≡
+ ...| sameEffect rewrite dmVer = rVWSRecvMsgD preReach (proj₁ (gossipStepPeerD iR iG))
+                                                       (proj₁ (proj₂ (gossipStepPeerD iR iG)))
+                                                       (proj₂ (proj₂ (gossipStepPeerD iR iG)))
+
  rVWSInvariant init sender x = ⊥-elim (maybe-⊥ x kvm-empty)
  rVWSInvariant (step preReach (cheat by ts m dis))     = rVWSCheat preReach (cheat by ts m dis) tt
  rVWSInvariant (step preReach (initPeer by ts cI rdy)) = rVWSInitPeer preReach (initPeer by ts cI rdy) tt
