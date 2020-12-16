@@ -1,0 +1,6 @@
+dist/
+*.agdai
+*~
+Everything.agda
+/LibraBFT/.projectile
+/MAlonzo/*
