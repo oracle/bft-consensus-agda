@@ -33,19 +33,11 @@ the issue number as part of your branch name, e.g. `1234-fixes`
 3. Ensure that any documentation is updated with the changes that are required
 by your fix.
 4. Ensure that your changes have not broken any existing proofs (`./Scripts/run-everything.sh yes` should complete without errors).
-5. Update the list below to include your name if it does not already.
+5. Update the [list of contributors](README.md#contributors) to include your name if it does not already.
 6. Submit the pull request. *Do not leave the pull request blank*. Explain exactly
 what your changes are meant to do and provide simple steps on how to validate
 your changes. Ensure that you reference the issue you created as well.
 7. We will review the pull request before it is merged.
-
-## Contributors
-
-As of the beginning of this repo, contributions have been made by
-[Victor Cacciari Miraldo](https://github.com/VictorCMiraldo), [Harold Carr](https://github.com/haroldcarr), [Mark Moir](https://github.com/mark-moir), and [Lisandra Silva](https://github.com/lisandrasilva), all while employed at Oracle Labs.
-
-We are grateful to the following people for contributions since then:
-* `[your name here]`
 
 ## Code of Conduct
 

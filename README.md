@@ -47,3 +47,11 @@ If you would like to consider contributing to the project, please see our [Contr
 ## License
 
 `Agda-LBFT` is [licensed](LICENSE.txt) under [UPL 1.0](https://opensource.oracle.com/licenses/upl).
+
+## Contributors
+
+As of the beginning of this repo, contributions have been made by
+[Victor Cacciari Miraldo](https://github.com/VictorCMiraldo), [Harold Carr](https://github.com/haroldcarr), [Mark Moir](https://github.com/mark-moir), and [Lisandra Silva](https://github.com/lisandrasilva), all while employed at Oracle Labs.
+
+We are grateful to the following people for contributions since then:
+* `[your name here]`
