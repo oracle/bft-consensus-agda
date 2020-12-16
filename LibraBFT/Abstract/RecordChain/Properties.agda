@@ -12,7 +12,7 @@ open import LibraBFT.Abstract.Types
 -- theorem S5, which is the main per-epoch correctness condition.  The
 -- properties are based on the original version of the LibraBFT paper,
 -- which was current when they were developed:
--- https://developers.libra.org/docs/assets/papers/libra-consensus-state-machine-replication-in-the-libra-blockchain/2019-06-28.pdf
+-- https://developers.diem.com/docs/assets/papers/diem-consensus-state-machine-replication-in-the-diem-blockchain/2019-06-28.pdf
 -- Even though the implementation has changed since that version of the
 -- paper, we do not need to redo these proofs because that affects only
 -- the concrete implementation.  This demonstrates one advantage of

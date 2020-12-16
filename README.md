@@ -1,6 +1,6 @@
 # Formal verification of byzantine fault tolerant consensus in Agda
 
-  This repository contains **work in progress** towards a model and formal verification of a Byzantine Fault Tolerant consensus protocol based on [LibraBFT](https://developers.libra.org/docs/state-machine-replication-paper), which is itself based on [HotStuff](https://arxiv.org/abs/1803.05069).  The model and proofs are written in [Agda](https://agda.readthedocs.io).
+  This repository contains **work in progress** towards a model and formal verification of a Byzantine Fault Tolerant consensus protocol based on [LibraBFT](https://developers.diem.com/docs/technical-papers/state-machine-replication-paper), which is itself based on [HotStuff](https://arxiv.org/abs/1803.05069).  (Note that LibraBFT has recently been renamed to DiemBFT.)  The model and proofs are written in [Agda](https://agda.readthedocs.io).
 
   Our first contribution is an abstract representation of a system in which records (blocks, votes, and quorum certificates) exist satisfying certain properties, along with proofs that various correctness conditions hold, subject to assumptions about the maximum number of dishonest participants (per epoch) and rules that honest participants follow when sending votes, which we call *implementation obligations*.  One such correctness condition is essentially Theorem S5 from earlier versions of the LIbraBFT paper, which can be informally stated as:
   
