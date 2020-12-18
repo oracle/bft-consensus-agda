@@ -1,6 +1,6 @@
 # Looking for ways to contribute?  
 
-We aim to maintain some pointers here for ways people could contribute.  (We do assume that you are reasonably conversant with Agda, though you don't necessarily need to be super expert to contribute.  We recommend [this tutorial](https://plfa.github.io/) as a great place to start or build on your Agda journey.)
+We aim to maintain some pointers here for ways people could contribute.  We assume that you are reasonably conversant with Agda, though you don't necessarily need to be super expert to contribute.  We recommend [this tutorial](https://plfa.github.io/) as a great place to start or build on your Agda journey.
 
 Initially, we have sprinkled `TODO-n` comments throughout the repo, coded as follows, based on our assessment of the scope of the task.  
 

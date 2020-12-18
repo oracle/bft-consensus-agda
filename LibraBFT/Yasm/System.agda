@@ -149,16 +149,6 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
  -- virtue of being a member of that epoch and being assigned an honest PK
  -- for the epoch), cannot send a message for that epoch using a cheat
  -- step.
- --
- -- TODO-3: Would it be better and more intuitive to require only that some
- -- message with the same signature was sent by *someone*, rather than
- -- part-author?  The latter tacitly captures the notion that, for an honest PK,
- -- only the owner of the PK for a given epoch can send a new signed message for
- -- that epoch and PK, but this is a bit of a leap.  Why not just say that the
- -- signature has been sent before, and then prove separately that if some message
- -- has been sent with the same signature, then it must have originally been sent
- -- by the owner of the PK, using the implementation-specific
- -- StepPeerState-AllValidParts property and cheater constraints?
  CheatPartConstraint : SentMessages → Part → Set
  CheatPartConstraint pool m = ∀{pk} → (ver : WithVerSig pk m)
                                     → Meta-Dishonest-PK pk

@@ -1,8 +1,8 @@
 # Formal verification of byzantine fault tolerant consensus in Agda
 
-  This repository contains **work in progress** towards a model and formal verification of a Byzantine Fault Tolerant consensus protocol based on [LibraBFT](https://developers.libra.org/docs/state-machine-replication-paper), which is itself based on [HotStuff](https://arxiv.org/abs/1803.05069).  The model and proofs are written in [Agda](https://agda.readthedocs.io).
+  This repository contains **work in progress** towards a model and formal verification of a Byzantine Fault Tolerant consensus protocol based on [LibraBFT](https://developers.diem.com/docs/technical-papers/state-machine-replication-paper), which is itself based on [HotStuff](https://arxiv.org/abs/1803.05069).  (Note that LibraBFT has recently been renamed to DiemBFT.)  The model and proofs are written in [Agda](https://agda.readthedocs.io).
 
-  Our first contribution is an abstract representation of a system in which records (blocks, votes, quorum certificates, etc.) exist satisfying certain properties, along with proofs that various correctness conditions hold, subject to assumptions about that maximum number of dishonest participants (per epoch) and rules that honest participants follow when sending votes, which we call *implementation obligations*.  One such correctness condition is essentially Theorem S5 from earlier versions of the LIbraBFT paper, which can be informally stated as:
+  Our first contribution is an abstract representation of a system in which records (blocks, votes, and quorum certificates) exist satisfying certain properties, along with proofs that various correctness conditions hold, subject to assumptions about the maximum number of dishonest participants (per epoch) and rules that honest participants follow when sending votes, which we call *implementation obligations*.  One such correctness condition is essentially Theorem S5 from earlier versions of the LIbraBFT paper, which can be informally stated as:
   
 > Given two committed blocks `b` and `b'`, either `b` extends `b'` or vice-versa.
 
@@ -41,9 +41,17 @@ If you would like to consider contributing to the project, please see our [Contr
 
 ## Get Support
 
-* Open a [GitHub issue](https://github.com/oracle/bft-consensus-agda/issues) to provide feedback, raise issues, ask questions, etc.
+* Open a [GitHub issue](https://github.com/oracle/bft-consensus-agda/issues) to provide feedback, raise issues and ask questions.
 * Report a security vulnerability according to the [Reporting Vulnerabilities guide](https://www.oracle.com/corporate/security-practices/assurance/vulnerability/reporting.html). More information at [SECURITY](SECURITY.md).
 
 ## License
 
 `Agda-LBFT` is [licensed](LICENSE.txt) under [UPL 1.0](https://opensource.oracle.com/licenses/upl).
+
+## Contributors
+
+As of the beginning of this repo, contributions have been made by
+[Victor Cacciari Miraldo](https://github.com/VictorCMiraldo), [Harold Carr](https://github.com/haroldcarr), [Mark Moir](https://github.com/mark-moir), and [Lisandra Silva](https://github.com/lisandrasilva), all while employed at Oracle Labs.
+
+We are grateful to the following people for contributions since then:
+* `[your name here]`
