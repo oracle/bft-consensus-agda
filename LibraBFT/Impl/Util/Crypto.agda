@@ -92,9 +92,11 @@ module LibraBFT.Impl.Util.Crypto where
   ...| inj₂ _     | inj₁ hb   = inj₁ hb
   ...| inj₂ prop≡ | inj₂ par≡ = inj₂ (VoteData-η prop≡ par≡)
 
+  lIHashes : LedgerInfo → List HashValue
+  lIHashes (mkLedgerInfo ci cdh) = hashBI ci ∷ cdh ∷ []
+
   hashLI : LedgerInfo → HashValue
-  hashLI (mkLedgerInfo commitInfo consensusDataHash) =
-    hash-concat (hashBI commitInfo ∷ consensusDataHash ∷ [])
+  hashLI = hash-concat ∘ lIHashes
 
   hashLI-inj : ∀ {li1 li2} → hashLI li1 ≡ hashLI li2 → NonInjective-≡ sha256 ⊎ li1 ≡ li2
   hashLI-inj {mkLedgerInfo ci1 cd1} {mkLedgerInfo ci2 cd2} prf
