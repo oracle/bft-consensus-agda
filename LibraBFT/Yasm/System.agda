@@ -331,6 +331,14 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
              → (prf  : Any-Step P cont)
              → Any-Step P (step-s cont this)
 
+ Any-Step-⇒ : ∀ {P Q : SystemStateRel Step}
+            → (∀ {e e'}{pre : SystemState e}{post : SystemState e'} → (x : Step pre post) → P {e} {e'} x → Q {e} {e'} x)
+            → ∀ {e e' fst lst} {tr : Step* {e} {e'} fst lst}
+            → Any-Step P tr
+            → Any-Step Q tr
+ Any-Step-⇒ p⇒q (step-here cont {this} prf) = step-here cont (p⇒q this prf)
+ Any-Step-⇒ p⇒q (step-there anyStep) = step-there (Any-Step-⇒ p⇒q anyStep)
+
  Any-Step-elim
    : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set}
    → {r : Step* st₀ st₁}

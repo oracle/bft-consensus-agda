@@ -48,6 +48,19 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
    ; vp-key             = vpk
    }
 
+ postulate -- TODO-1: prove
+   samePKandEpoch⇒sameEC : ∀ {e p1 p2 pk}{𝓔s : AvailableEpochs e}
+                         → (vp1 : ValidPartForPK 𝓔s p1 pk)
+                         → (vp2 : ValidPartForPK 𝓔s p2 pk)
+                         → part-epoch p1 ≡ part-epoch p2
+                         → vp-ec vp2 ≡ vp-ec vp1
+
+   samePKandEpoch⇒sameMember : ∀ {e p1 p2 pk}{𝓔s : AvailableEpochs e}
+                           → (vp1 : ValidPartForPK 𝓔s p1 pk)
+                           → (vp2 : ValidPartForPK 𝓔s p2 pk)
+                           → (e≡ : part-epoch p1 ≡ part-epoch p2)
+                           → vp-member vp1 ≡ cast (cong authorsN (samePKandEpoch⇒sameEC vp1 vp2 e≡)) (vp-member vp2)
+
  -- A valid part remains valid
  ValidPartForPK-stable : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
                     → Step* st st' → ∀{part pk}
