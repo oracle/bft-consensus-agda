@@ -95,7 +95,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
 
      -- We can unwind the state and highlight the step where a part was
      -- originally sent. This 'unwind' function combined with Any-Step-elim
-     -- enables a powerful form of reasoning. The 'honestVoteEpoch' below
+     -- enables a powerful form of reasoning. The 'honestPartValid' below
      -- exemplifies this well.
      unwind : ∀{e}{st : SystemState e}(tr : ReachableSystemState st)
             → ∀{p m σ pk} → Meta-Honest-PK pk
