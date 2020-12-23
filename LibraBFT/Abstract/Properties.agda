@@ -52,11 +52,6 @@ module LibraBFT.Abstract.Properties
        → vMember v' ≡ α → HasBeenSent v'
        → vRound v ≡ vRound v'
        → vBlockUID v ≡ vBlockUID v'
-       -- NOTE: It is interesting that this does not require the timeout signature (or even
-       -- presence/lack thereof) to be the same.  The abstract proof goes through without out it, so I
-       -- am leaving it out for now, but I'm curious what if anything could go wrong if an honest
-       -- author can send different votes for the same epoch and round that differ on timeout
-       -- signature.  Maybe something for liveness?
 
   proof : Type → StaticInv.VotesOnlyOnceRule 𝓢
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys va va' VO≡
