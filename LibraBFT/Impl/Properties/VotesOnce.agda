@@ -60,12 +60,12 @@ module LibraBFT.Impl.Properties.VotesOnce where
   firstSendEstablishes : Vote → PK → SystemStateRel Step
   firstSendEstablishes _ _ (step-epoch _) = ⊥ 
   firstSendEstablishes _ _ (step-peer (step-cheat _ _)) = ⊥
-  firstSendEstablishes v' pk {e} {.e} sysStep@(step-peer {pid = pid} {pre = pre} pstep@(step-honest {st = pst} {outs} _)) =
+  firstSendEstablishes v' pk {e} {.e} sysStep@(step-peer {pid = pid'} {pre = pre} pstep@(step-honest {st = pst} {outs} _)) =
     let post = StepPeer-post pstep
-     in Map-lookup pid (peerStates post) ≡ just pst
+     in Map-lookup pid' (peerStates post) ≡ just pst
       × Σ (IsValidNewPart (₋vSignature v') pk sysStep)
           λ ivnp → let (_ , (_ , vpb)) = ivnp
-                    in ( EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid)
+                    in ( EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid')
                        × ∃[ v ] ( v ^∙ vEpoch < e
                                 × v ^∙ vRound ≤ (₋epEC pst) ^∙ epLastVotedRound
                                 × Σ (WithVerSig pk v)
