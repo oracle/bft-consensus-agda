@@ -81,6 +81,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
     -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
     -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
+
+
+    -- TODO: adjust this so that we can get what we need to establish that the pids of the two steps
+    -- are the same.
+    
     whatWeWant : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
                → firstSendEstablishes v' pk theStep
                → Step* post final
@@ -98,9 +103,49 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
   ...| vpf' , ij , v'rnd≤lvr
      with newVoteSameEpochGreaterRound {e} {pid} {availEpochs pre} {ps = ps} (step-msg m∈pool ps≡ xx) ps≡ v⊂m m∈outs sig ¬sentb4
-  ...| eIds≡' , rnd> = ⊥-elim ((<⇒≢ rnd>) (sym (≤-antisym (≤-trans (≤-reflexive rnds≡) (≤-trans v'rnd≤lvr (≤-reflexive (cong (_^∙ epLastVotedRound) (cong ₋epEC (sameECs (to-witness ij) ps)))))) (≤-pred (≤-step rnd>)))))
-                       where postulate -- TODO: temporary, need to eliminate
-                               sameECs : ∀ (ep1 ep2 : EventProcessor) → ep1 ≡ ep2
+  ...| eIds≡' , rnd> = ⊥-elim ((<⇒≢ rnd>) (sym (≤-antisym (≤-trans (≤-reflexive rnds≡)
+                                                                   (≤-trans v'rnd≤lvr
+                                                                            (≤-reflexive (cong (_^∙ epLastVotedRound)
+                                                                                         (cong ₋epEC (sameEPs (to-witness ij) ps))))))
+                                                          (≤-pred (≤-step rnd>)))))
+                       where sameEPs : ∀ (ep1 ep2 : EventProcessor) → ep1 ≡ ep2  -- TODO: this does not hold, need to refine so we can prove it!
+                             sameEPs ep1 ep2
+                                with samePKandEpoch⇒sameEC vpf' vpb (sym eIds≡) 
+                             ...| xxx = {! vpf'!}
+
+{- What do we know about ps and (to-witness ij) ?
+
+  ps≡ :          Map-lookup pid                                                  (peerStates pre) ≡ just ps
+
+  ij  : Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf') (vp-member vpf')) (peerStates pre))
+
+  Need to establish that pid ≡ EpochConfig.toNodeId (vp-ec vpf') (vp-member vpf'))
+
+  -- PK-inj, ...
+
+  vpf' : ValidPartForPK (availEpochs pre) v' pk
+
+  vpb  : ValidPartForPK (availEpochs pre) v  pk
+
+  pid≡ : EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid
+
+  eIds≡ : v ^∙ vEpoch ≡ v' ^∙ vEpoch
+
+  trans (vp-key vpb) (sym (vp-key vpf')) :
+      EpochConfig.getPubKey (vp-ec vpb) (vp-member vpb) ≡
+      EpochConfig.getPubKey (vp-ec vpf') (vp-member vpf')
+
+  ¬sentb4 & vpb -> step taken by owner of pk
+
+
+  This should help : ValidNewPartSentByPid
+
+
+-}
+
+
+
+
 
   postulate  -- TODO : prove
     vo₂ : VO.ImplObligation₂
