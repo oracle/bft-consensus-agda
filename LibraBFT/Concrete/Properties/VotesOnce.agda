@@ -60,7 +60,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- If v is really new and valid
      -- Note that this does not directly exclude possibility of previous message with
      -- same signature, but sent by someone else.  We could prove it implies it though.
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPK (availEpochs pre) v pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPKandPeer (availEpochs pre) v pk pid
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (sndr , m') ∈ (msgPool pre) → WithVerSig pk v'
    -- If v and v' share the same epoch and round
@@ -80,11 +80,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPK (availEpochs pre) v pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPKandPeer (availEpochs pre) v pk pid
 
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → m' ∈ outs → (sig' : WithVerSig pk v')
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → ValidPartForPK (availEpochs pre) v' pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → ValidPartForPKandPeer (availEpochs pre) v' pk pid
 
    -- If v and v' share the same epoch and round
    → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)

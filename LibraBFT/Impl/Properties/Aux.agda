@@ -62,5 +62,5 @@ module LibraBFT.Impl.Properties.Aux where
                                                refl
                                                {! !}       -- The implementation will need to check that the voter is a member of
                                                            -- the epoch of the message it's sending.
-                                               refl)
+                                               refl , {!!})
                         , msg∉)

@@ -92,7 +92,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
   vo₁-unwind2 r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁-unwind2 {e} {pid} {pk = pk} {pre = pre} r (step-msg {s = ps} m∈pool ps≡ xx) {v' = v'} {m' = m'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' eIds≡ rnds≡
+  vo₁-unwind2 {e} {pid} {pk = pk} {pre = pre} r (step-msg {s = ps} m∈pool ps≡ xx) {v' = v'} {m' = m'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
      with Any-Step-elim (whatWeWant {v' = v'} {pk})
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
