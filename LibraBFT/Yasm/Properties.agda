@@ -36,6 +36,9 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
      vp-key             : getPubKey vp-ec vp-member ≡ pk
  open ValidPartForPK public
 
+ ValidPartForPKandPeer : ∀ {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) (pid : PeerId) → Set
+ ValidPartForPKandPeer 𝓔s part pk pid = Σ (ValidPartForPK 𝓔s part pk) λ vp → EpochConfig.toNodeId (vp-ec vp) (vp-member vp) ≡ pid
+
  -- A valid part remains valid when new epochs are added
  ValidPartForPK-stable-epoch : ∀{e part pk}{𝓔s : AvailableEpochs e}(𝓔 : EpochConfigFor e)
                           → ValidPartForPK 𝓔s part pk
@@ -85,7 +88,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
                                  -- NOTE: this doesn't DIRECTLY imply that nobody else has sent a
                                  -- message with the same signature just that the author of the part
                                  -- hasn't.
-   → (ValidPartForPK 𝓔s part pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
+   → (ValidPartForPKandPeer 𝓔s part pk α × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
@@ -143,7 +146,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | (m , refl , m∈outs)
         | inj₁ (valid-part , notBefore) =
                step-here tr (notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
-                                       , valid-part)
+                                       , proj₁ valid-part)
 
      -- Unwind is inconvenient to use by itself because we have to do
      -- induction on Any-Step-elim. The 'honestPartValid' property below
@@ -200,7 +203,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs) = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
+     ...| (m , refl , m∈outs) = ⊎-map (proj₁ ∘ proj₁) MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
 
      -- The ext-unforgeability' property can be collapsed in a single clause.
 
@@ -260,7 +263,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m' , refl , m∈outs)
         with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
-     ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
+     ...| inj₁ (vpbα₀ , _) = mws , proj₁ vpbα₀
      ...| inj₂ mws'
         with msgWithSigSentByAuthor preach hpk mws'
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , vpb''
