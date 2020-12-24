@@ -79,6 +79,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → IsValidNewPart (₋vSignature v') pk theStep
                      → firstSendEstablishes v' pk theStep
 
+    -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
+    -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
     whatWeWant : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
                → firstSendEstablishes v' pk theStep
                → Step* post final

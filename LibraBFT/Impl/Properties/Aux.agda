@@ -51,7 +51,7 @@ module LibraBFT.Impl.Properties.Aux where
                                   -- previously with the same signature.
   ...| withVoteSIHighCC x = {!!}
 
-  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
+  impl-sps-avp {pk = pk} {α = α} st hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
      | here refl
      | vote∈vm {v} {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}

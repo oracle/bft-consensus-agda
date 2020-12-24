@@ -80,8 +80,11 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  -- not been included in a previously sent message with the same signature), or (ii) the part been
  -- included in a previously sent message with the same signature.
  StepPeerState-AllValidParts : Set
- StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}{st : SystemState e}
-   → (r : ReachableSystemState st)
+ StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}
+   → (st : SystemState e)
+   --  → (r : ReachableSystemState st) -- TODO-3 (or not!) It's a pain to feed this parameter, and
+                                       -- typical implementations will not need to know that the
+                                       -- state is reachable to know that they obey these rules.
    → Meta-Honest-PK pk
    → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) s outs
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
@@ -137,7 +140,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m , refl , m∈outs)
-       with sps-avp tr hpk x m∈outs p⊂m sig
+       with sps-avp pre {- tr -} hpk x m∈outs p⊂m sig
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
@@ -203,7 +206,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs) = ⊎-map (proj₁ ∘ proj₁) MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
+     ...| (m , refl , m∈outs) = ⊎-map (proj₁ ∘ proj₁) MsgWithSig∈-++ʳ (sps-avp pre {- st -} hpk x m∈outs p⊆m sig)
 
      -- The ext-unforgeability' property can be collapsed in a single clause.
 
@@ -262,7 +265,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | inj₁ thisStep
         with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m' , refl , m∈outs)
-        with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
+        with sps-avp pre {- preach -} hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
      ...| inj₁ (vpbα₀ , _) = mws , proj₁ vpbα₀
      ...| inj₂ mws'
         with msgWithSigSentByAuthor preach hpk mws'
