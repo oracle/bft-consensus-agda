@@ -35,12 +35,12 @@ open import LibraBFT.Concrete.Obligations
 module LibraBFT.Impl.Properties.VotesOnce where
 
   postulate  -- TODO : prove
-    newVoteSameEpochGreaterRound : ∀ {e pid 𝓔s pool ms s s' outs v m pk ps}
+    newVoteSameEpochGreaterRound : ∀ {e 𝓔s pid pool ms s s' outs v m pk}
                                  → StepPeerState {e} pid 𝓔s pool ms s' outs
                                  → ms ≡ just s
                                  → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                  → ¬ MsgWithSig∈ pk (ver-signature sig) pool
-                                 → (v ^∙ vEpoch) ≡ (₋epEC ps) ^∙ epEpoch
+                                 → (v ^∙ vEpoch) ≡ (₋epEC s) ^∙ epEpoch
                                  × (₋epEC s) ^∙ epLastVotedRound < (v ^∙ vRound)  -- New votes are for higher round than lastVotedRound in pre-state
 
     noEpochChangeYet : ∀ {e pid 𝓔s pool outs ps' ps}
@@ -82,70 +82,47 @@ module LibraBFT.Impl.Properties.VotesOnce where
     -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
     -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
 
-
-    -- TODO: adjust this so that we can get what we need to establish that the pids of the two steps
-    -- are the same.
-    
-    whatWeWant : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
-               → firstSendEstablishes v' pk theStep
-               → Step* post final
-               → Σ (ValidPartForPK (availEpochs final) v' pk)
-                   λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates final)))
-                           λ ij → v' ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+    fSE⇒rnd≤lvr : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
+                → firstSendEstablishes v' pk theStep
+                → Step* post final
+                → Σ (ValidPartForPK (availEpochs final) v' pk)
+                    λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates final)))
+                            λ ij → v' ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
 
   vo₁-unwind2 : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
   vo₁-unwind2 r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁-unwind2 {e} {pid} {pk = pk} {pre = pre} r (step-msg {s = ps} m∈pool ps≡ xx) {v' = v'} {m' = m'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
-     with Any-Step-elim (whatWeWant {v' = v'} {pk})
+  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
+     -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
+     -- prove that going from the post state of that step to pre results in a state in which the
+     -- round of v' is at most the last voted round recorded in the peerState of pid (the peer that
+     -- sent v')
+     with Any-Step-elim (fSE⇒rnd≤lvr {v' = v'} {pk})
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
   ...| vpf' , ij , v'rnd≤lvr
-     with newVoteSameEpochGreaterRound {e} {pid} {availEpochs pre} {ps = ps} (step-msg m∈pool ps≡ xx) ps≡ v⊂m m∈outs sig ¬sentb4
-  ...| eIds≡' , rnd> = ⊥-elim ((<⇒≢ rnd>) (sym (≤-antisym (≤-trans (≤-reflexive rnds≡)
-                                                                   (≤-trans v'rnd≤lvr
-                                                                            (≤-reflexive (cong (_^∙ epLastVotedRound)
-                                                                                         (cong ₋epEC (sameEPs (to-witness ij) ps))))))
-                                                          (≤-pred (≤-step rnd>)))))
-                       where sameEPs : ∀ (ep1 ep2 : EventProcessor) → ep1 ≡ ep2  -- TODO: this does not hold, need to refine so we can prove it!
-                             sameEPs ep1 ep2
-                                with samePKandEpoch⇒sameEC vpf' vpb (sym eIds≡) 
-                             ...| xxx = {! vpf'!}
+     -- The fake/trivial handler always sends a vote for its current epoch, but for a
+     -- round greater than its last voted round
+     with newVoteSameEpochGreaterRound {e} {availEpochs pre} sm ps≡ v⊂m m∈outs sig ¬sentb4
+  ...| eIds≡' , rnd>
+     -- Both votes have the same epochID, therefore same EpochConfig
+     with sameEpoch⇒sameEC vpb vpf' eIds≡
+  ...| refl
+     -- Because the votes have the same EpochConfig and same PK, they are by
+     -- the same member
+     with toℕ-injective (sameEC⇒sameMember vpb vpf' refl)
+  ...| refl
+     -- Therefore they are by the same peer
+     with trans (sym pid≡) ((cong (EpochConfig.toNodeId (vp-ec vpb)) refl))
+  ...| refl
+     -- So the peerState the sender of v' is the same as the peerState of the peer taking this step
+     with just-injective (trans (sym ps≡) (to-witness-lemma ij refl))
+     -- Now we can establish a contradiction with the hypothesis that the rounds of v and v' are equal
+  ...| ps≡tow = ⊥-elim ((<⇒≢ rnd>) (sym (≤-antisym (≤-trans (≤-reflexive rnds≡)
+                                                            (≤-trans v'rnd≤lvr
+                                                                     (≤-reflexive (cong ((_^∙ epLastVotedRound) ∘ ₋epEC) (sym ps≡tow)))))
+                                                   (≤-pred (≤-step rnd>)))))
 
-{- What do we know about ps and (to-witness ij) ?
-
-  ps≡ :          Map-lookup pid                                                  (peerStates pre) ≡ just ps
-
-  ij  : Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf') (vp-member vpf')) (peerStates pre))
-
-  Need to establish that pid ≡ EpochConfig.toNodeId (vp-ec vpf') (vp-member vpf'))
-
-  -- PK-inj, ...
-
-  vpf' : ValidPartForPK (availEpochs pre) v' pk
-
-  vpb  : ValidPartForPK (availEpochs pre) v  pk
-
-  pid≡ : EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid
-
-  eIds≡ : v ^∙ vEpoch ≡ v' ^∙ vEpoch
-
-  trans (vp-key vpb) (sym (vp-key vpf')) :
-      EpochConfig.getPubKey (vp-ec vpb) (vp-member vpb) ≡
-      EpochConfig.getPubKey (vp-ec vpf') (vp-member vpf')
-
-  ¬sentb4 & vpb -> step taken by owner of pk
-
-
-  This should help : ValidNewPartSentByPid
-
-
--}
-
-
-
-
-
-  postulate  -- TODO : prove
-    vo₂ : VO.ImplObligation₂
+--   postulate  -- TODO : prove
+--     vo₂ : VO.ImplObligation₂
