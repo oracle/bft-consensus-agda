@@ -41,7 +41,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                  → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                  → ¬ MsgWithSig∈ pk (ver-signature sig) pool
                                  → (v ^∙ vEpoch) ≡ (₋epEC s) ^∙ epEpoch
-                                 × (₋epEC s) ^∙ epLastVotedRound < (v ^∙ vRound)  -- New votes are for higher round than lastVotedRound in pre-state
+                                 × suc ((₋epEC s) ^∙ epLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
+                                 × (v ^∙ vRound) ≡ ((₋epEC s') ^∙ epLastVotedRound)     -- Last voted round is round of new vote
 
     noEpochChangeYet : ∀ {e pid 𝓔s pool outs ps' ps}
                      → StepPeerState {e} pid 𝓔s pool (just ps') ps outs
@@ -93,7 +94,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
   vo₁-unwind2 r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
+  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg {s = ps} {s' = ps'} _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
      -- prove that going from the post state of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of pid (the peer that
@@ -105,7 +106,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with newVoteSameEpochGreaterRound {e} {availEpochs pre} sm ps≡ v⊂m m∈outs sig ¬sentb4
-  ...| eIds≡' , rnd>
+  ...| eIds≡' , suclvr≡v'rnd , _
      -- Both votes have the same epochID, therefore same EpochConfig
      with sameEpoch⇒sameEC vpb vpf' eIds≡
   ...| refl
@@ -119,10 +120,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
      -- So the peerState the sender of v' is the same as the peerState of the peer taking this step
      with just-injective (trans (sym ps≡) (to-witness-lemma ij refl))
      -- Now we can establish a contradiction with the hypothesis that the rounds of v and v' are equal
-  ...| ps≡tow = ⊥-elim ((<⇒≢ rnd>) (sym (≤-antisym (≤-trans (≤-reflexive rnds≡)
-                                                            (≤-trans v'rnd≤lvr
-                                                                     (≤-reflexive (cong ((_^∙ epLastVotedRound) ∘ ₋epEC) (sym ps≡tow)))))
-                                                   (≤-pred (≤-step rnd>)))))
+  -- TODO-1: this may be overly complicated now that rnd≡ is an equality
+  ...| refl rewrite rnds≡ = ⊥-elim (<⇒≢ (≤-reflexive suclvr≡v'rnd) (≤-antisym (<⇒≤ (≤-reflexive suclvr≡v'rnd)) v'rnd≤lvr))
 
 --   postulate  -- TODO : prove
 --     vo₂ : VO.ImplObligation₂
