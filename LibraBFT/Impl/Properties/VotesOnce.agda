@@ -44,6 +44,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                  × suc ((₋epEC s) ^∙ epLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
                                  × (v ^∙ vRound) ≡ ((₋epEC s') ^∙ epLastVotedRound)     -- Last voted round is round of new vote
 
+{- Unused, so far
     noEpochChangeYet : ∀ {e pid 𝓔s pool outs ps' ps}
                      → StepPeerState {e} pid 𝓔s pool (just ps') ps outs
                      → (₋epEC ps) ^∙ epEpoch ≡ (₋epEC ps') ^∙ epEpoch
@@ -57,6 +58,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                           → ReachableSystemState st
                           → (pid , m) ∈ msgPool st
                           → Is-just (Map-lookup pid (peerStates st))
+-}
 
   firstSendEstablishes : Vote → PK → SystemStateRel Step
   firstSendEstablishes _ _ (step-epoch _) = ⊥ 
@@ -64,7 +66,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   firstSendEstablishes v' pk {e} {.e} sysStep@(step-peer {pid = pid'} {pre = pre} pstep@(step-honest {st = pst} {outs} _)) =
     let post = StepPeer-post pstep
      in Map-lookup pid' (peerStates post) ≡ just pst
-      × Σ (IsValidNewPart (₋vSignature v') pk sysStep)
+      × Σ (IsValidNewPart (₋vSignature v') pk sysStep)   -- TODO: this says that a message was sent with the same signature as v', but actually v' itself is sent
           λ ivnp → let (_ , (_ , vpb)) = ivnp
                     in ( EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid')
                        × ∃[ v ] ( v ^∙ vEpoch < e
@@ -108,14 +110,24 @@ module LibraBFT.Impl.Properties.VotesOnce where
     -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
     -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
 
-  postulate
-    fSE⇒rnd≤lvr : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
-                → Meta-Honest-PK pk
-                → firstSendEstablishes v' pk theStep
-                → Step* post final
-                → Σ (ValidPartForPK (availEpochs final) v' pk)
-                    λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates final)))
-                            λ ij → v' ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+  fSE⇒rnd≤lvr : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
+              → Meta-Honest-PK pk
+              → firstSendEstablishes v' pk theStep
+              → Step* post final
+              → Σ (ValidPartForPK (availEpochs final) v' pk)
+                  λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates final)))
+                          λ ij → v' ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+  fSE⇒rnd≤lvr {theStep = step-epoch _} _ ()
+  fSE⇒rnd≤lvr {theStep = step-peer (step-cheat _ _)} _ ()
+  fSE⇒rnd≤lvr {pk = pk} {pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} hpk (_ , (¬sentb4 , mws , vpk) , v , eIR , vrnd≤lvr , sig , sigs≡ ) step*
+     with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
+  ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
+  ...| inj₁ thisStep
+       with Any-satisfied-∈ (Any-map⁻ thisStep)
+  ...| nm , refl , nm∈outs rewrite sym (msgSameSig mws)
+     with impl-sps-avp {m = msgWhole mws} pre hpk sps nm∈outs (msg⊆ mws) (msgSigned mws)
+  ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
+  ...| inj₁ ((vpk' , sender) , _) = mkValidPartForPK {!vp-epoch vpk' !} {!!} {!!} {!!} {!!} , {!!}
 
   vo₁-unwind2 : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
