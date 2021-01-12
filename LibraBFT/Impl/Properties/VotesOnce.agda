@@ -60,19 +60,17 @@ module LibraBFT.Impl.Properties.VotesOnce where
                           → Is-just (Map-lookup pid (peerStates st))
 -}
 
+  WhatWeWant : ∀ {e} → PK → Signature → SystemState e → Set
+  WhatWeWant pk sig st = Σ (MsgWithSig∈ pk sig (msgPool st))
+                           λ mws → Σ (ValidPartForPK (availEpochs st) (msgPart mws) pk)
+                                     λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates st)))
+                                               λ ij → (msgPart mws) ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+
   firstSendEstablishes : Vote → PK → SystemStateRel Step
   firstSendEstablishes _ _ (step-epoch _) = ⊥ 
   firstSendEstablishes _ _ (step-peer (step-cheat _ _)) = ⊥
   firstSendEstablishes v' pk {e} {.e} sysStep@(step-peer {pid = pid'} {pre = pre} pstep@(step-honest {st = pst} {outs} _)) =
-    let post = StepPeer-post pstep
-     in Map-lookup pid' (peerStates post) ≡ just pst
-      × Σ (IsValidNewPart (₋vSignature v') pk sysStep)   -- TODO: this says that a message was sent with the same signature as v', but actually v' itself is sent
-          λ ivnp → let (_ , (_ , vpb)) = ivnp
-                    in ( EpochConfig.toNodeId (vp-ec vpb) (vp-member vpb) ≡ pid')
-                       × ∃[ v ] ( v ^∙ vEpoch < e
-                                × v ^∙ vRound ≤ (₋epEC pst) ^∙ epLastVotedRound
-                                × Σ (WithVerSig pk v)
-                                    λ vsig → (ver-signature vsig ≡ ₋vSignature v'))
+                       Σ (IsValidNewPart (signature v' unit) pk sysStep) λ ivnp → WhatWeWant pk (signature v' unit) (StepPeer-post pstep)
 
   isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
                      → Meta-Honest-PK pk
@@ -91,7 +89,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ dis = ⊥-elim (hpk dis)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
 
-  isValidNewPart⇒fSE {pk = pk}{pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (¬sentb4 , mws , vpk)
+  isValidNewPart⇒fSE {pk = pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (¬sentb4 , mws , vpk)
      | inj₁ thisStep
      | step-honest x
      with Any-satisfied-∈ (Any-map⁻ thisStep)
@@ -103,9 +101,16 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| step-init _ refl = ⊥-elim (¬Any[] nm∈outs)
   ...| step-msg m∈pool ms≡ handle≡
      with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws) (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre)) (sym (msgSameSig mws)) ¬sentb4)
-  ...| _ , refl , newlvr = Map-set-correct
-                                  , ( (¬sentb4 , (MsgWithSig∈-transp mws (Any-++ˡ thisStep) , vpk'))
-                                    , (sender , ((msgPart mws) , (vp-epoch vpk' , (≤-reflexive newlvr , (msgSigned mws , msgSameSig mws))))))
+  ...| _ , refl , newlvr = (¬sentb4 , (mws , vpk)) , (mws , vpk , subst (λ pid → Is-just (Map-lookup pid (peerStates post))) {!sym sender!} {!ms≡!} , {!!})
+
+-- , (( ¬sentb4 , (MsgWithSig∈-transp mws (Any-++ˡ thisStep) , vpk'))
+--                             , (sender , ≤-reflexive newlvr))
+
+  postulate
+    transp-WhatWeWant : ∀ {e e' pk v'} {start : SystemState e}{final : SystemState e'}
+                    → WhatWeWant pk v' start
+                    → Step* start final
+                    → WhatWeWant pk v' final
 
     -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
     -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
@@ -114,20 +119,18 @@ module LibraBFT.Impl.Properties.VotesOnce where
               → Meta-Honest-PK pk
               → firstSendEstablishes v' pk theStep
               → Step* post final
-              → Σ (ValidPartForPK (availEpochs final) v' pk)
-                  λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates final)))
-                          λ ij → v' ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+              → WhatWeWant pk (signature v' unit) final
   fSE⇒rnd≤lvr {theStep = step-epoch _} _ ()
   fSE⇒rnd≤lvr {theStep = step-peer (step-cheat _ _)} _ ()
-  fSE⇒rnd≤lvr {pk = pk} {pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} hpk (_ , (¬sentb4 , mws , vpk) , v , eIR , vrnd≤lvr , sig , sigs≡ ) step*
+  fSE⇒rnd≤lvr {e} {v' = v'} {pk} {pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} hpk ((¬sentb4 , mws , vpk) , (mws' , vpk' , ij , xxx)) step*
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
        with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs rewrite sym (msgSameSig mws)
-     with impl-sps-avp {m = msgWhole mws} pre hpk sps nm∈outs (msg⊆ mws) (msgSigned mws)
+     with impl-sps-avp {m = nm} pre hpk sps nm∈outs (msg⊆ mws) (msgSigned mws)
   ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ ((vpk' , sender) , _) = mkValidPartForPK {!vp-epoch vpk' !} {!!} {!!} {!!} {!!} , {!!}
+  ...| inj₁ ((vpk'' , sender) , xx) = transp-WhatWeWant (mws' , vpk' , (ij , xxx)) step*
 
   vo₁-unwind2 : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
@@ -141,11 +144,14 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with Any-Step-elim (fSE⇒rnd≤lvr {v' = v'} hpk)
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE hpk ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
-  ...| vpf' , ij , v'rnd≤lvr
+  ...| mws , vpf' , ij , v'rnd≤lvr
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with newVoteSameEpochGreaterRound {e} {availEpochs pre} sm ps≡ v⊂m m∈outs sig ¬sentb4
   ...| eIds≡' , suclvr≡v'rnd , _
+     with sameHonestSig⇒sameVoteData hpk (msgSigned mws) sig' (msgSameSig mws)
+  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
+  ...| inj₂ refl
      -- Both votes have the same epochID, therefore same EpochConfig
      with sameEpoch⇒sameEC vpb vpf' eIds≡
   ...| refl
