@@ -203,15 +203,15 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
    -- of the actual EpochConfig for the epoch being initialized.  Later, we
    -- may move to a more general scheme, enabled by assuming a function
    -- 'render : InitPackage -> EpochConfig'.
-   step-init : ∀{ms s' out}(ix : Fin e)
-             → (s' , out) ≡ init pid (AE.lookup' 𝓔s ix) ms
-             → StepPeerState pid 𝓔s pool ms s' out
+   step-init : ∀{ms s' outs}(ix : Fin e)
+             → (s' , outs) ≡ init pid (AE.lookup' 𝓔s ix) ms
+             → StepPeerState pid 𝓔s pool ms s' outs
 
    -- The peer processes a message in the pool
-   step-msg  : ∀{m ms s s' out}
+   step-msg  : ∀{m ms s s' outs}
              → m ∈ pool
-             → ms ≡ just s → (s' , out) ≡ handle pid (proj₂ m) s
-             → StepPeerState pid 𝓔s pool ms s' out
+             → ms ≡ just s → (s' , outs) ≡ handle pid (proj₂ m) s
+             → StepPeerState pid 𝓔s pool ms s' outs
 
  -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
  data StepPeer {e}(pre : SystemState e) : PeerId → Maybe PeerState → List Msg → Set where
