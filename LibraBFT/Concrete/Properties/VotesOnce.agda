@@ -214,7 +214,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
      PredStep-wlog-ht' {pre = pre} preach hip ps {v} v⊂m m∈outs v'⊂m' m'∈pool ver ver' hpk eids≡ r≡
      -- (1) The first step is branching on whether 'v' above is a /new/ vote or not.
      -- (1.1) If it's new:
-       with sps-corr pre {- preach -} hpk ps m∈outs v⊂m ver
+       with sps-corr pre preach hpk ps m∈outs v⊂m ver
      ...| inj₁ (vValid , vNew)
        with honestPartValid preach hpk v'⊂m' m'∈pool ver'
      ...| v'Old , vOldValid
@@ -285,7 +285,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
      -- Since the step is from an honest peer, we can check whether the messages are in fact
      -- new or not.
      PredStep-hh' {pre = pre} preach hip ps {v} v⊂m m∈outs v'⊂m' m'∈outs ver ver' hpk e≡ r≡
-       with sps-corr pre {- preach -} hpk ps m∈outs v⊂m ver | sps-corr pre {- preach -} hpk ps m'∈outs v'⊂m' ver'
+       with sps-corr pre preach hpk ps m∈outs v⊂m ver | sps-corr pre preach hpk ps m'∈outs v'⊂m' ver'
      -- (A) Both are old: call induction hypothesis
      ...| inj₂ vOld            | inj₂ v'Old = hip hpk ver vOld ver' v'Old e≡ r≡
 

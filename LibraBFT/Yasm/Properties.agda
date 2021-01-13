@@ -82,9 +82,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  StepPeerState-AllValidParts : Set
  StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}
    → (st : SystemState e)
-   --  → (r : ReachableSystemState st) -- TODO-3 (or not!) It's a pain to feed this parameter, and
-                                       -- typical implementations will not need to know that the
-                                       -- state is reachable to know that they obey these rules.
+   → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
    → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) s outs
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
@@ -100,7 +98,8 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  -- said step is a /step-peer/ and
  IsValidNewPart {pre = pre} sig pk (step-peer pstep)
     -- the part has never been seen before
-    = ¬ (MsgWithSig∈ pk sig (msgPool pre))
+    = ReachableSystemState pre
+    × ¬ (MsgWithSig∈ pk sig (msgPool pre))
     × Σ (MsgWithSig∈ pk sig (msgPool (StepPeer-post pstep)))
         (λ m → ValidPartForPK (availEpochs pre) (msgPart m) pk)
 
@@ -140,7 +139,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m , refl , m∈outs)
-       with sps-avp pre {- tr -} hpk x m∈outs p⊂m sig
+       with sps-avp pre tr hpk x m∈outs p⊂m sig
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
@@ -148,8 +147,8 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | step-honest x
         | (m , refl , m∈outs)
         | inj₁ (valid-part , notBefore) =
-               step-here tr (notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
-                                       , proj₁ valid-part)
+               step-here tr (tr , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
+                                , proj₁ valid-part)
 
      -- Unwind is inconvenient to use by itself because we have to do
      -- induction on Any-Step-elim. The 'honestPartValid' property below
@@ -167,7 +166,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
      -- was first sent: (a) there is a message with the same signature /in the current pool/
      -- and (b) its epoch is less than e.
         = Any-Step-elim (λ { {st = step-epoch _} ()
-                           ; {st = step-peer ps} (_ , new , valid) tr
+                           ; {st = step-peer ps} (_ , _ , new , valid) tr
                              →  MsgWithSig∈-Step* tr new
                                 , ValidPartForPK-stable tr
                                     (subst (λ P → ValidPartForPK _ P pk)
@@ -206,7 +205,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs) = ⊎-map (proj₁ ∘ proj₁) MsgWithSig∈-++ʳ (sps-avp pre {- st -} hpk x m∈outs p⊆m sig)
+     ...| (m , refl , m∈outs) = ⊎-map (proj₁ ∘ proj₁) MsgWithSig∈-++ʳ (sps-avp pre st hpk x m∈outs p⊆m sig)
 
      -- The ext-unforgeability' property can be collapsed in a single clause.
 
@@ -265,7 +264,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
         | inj₁ thisStep
         with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m' , refl , m∈outs)
-        with sps-avp pre {- preach -} hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
+        with sps-avp pre preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
      ...| inj₁ (vpbα₀ , _) = mws , proj₁ vpbα₀
      ...| inj₂ mws'
         with msgWithSigSentByAuthor preach hpk mws'

@@ -30,11 +30,11 @@ module LibraBFT.Impl.Properties.Aux where
 
   impl-sps-avp : StepPeerState-AllValidParts
   -- In our fake/simple implementation, init and handling V and C msgs do not send any messages
-  impl-sps-avp _ hpk (step-init ix eff) m∈outs part⊂m ver        rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
-  impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
-  impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ _ hpk (step-init ix eff) m∈outs part⊂m ver        rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ _ hpk (step-msg {sndr , V vm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ _ hpk (step-msg {sndr , C cm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
   -- These aren't true yet, because processProposalMsgM sends fake votes that don't follow the rules for ValidPartForPK
-  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
+  impl-sps-avp st preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
      with m∈outs
      -- Handler sends at most one vote, so it can't be "there"
   ...| there {xs = xs} imp rewrite proj₂ (∷-injective (cong proj₂ eff)) = ⊥-elim (¬Any[] imp)
@@ -51,7 +51,7 @@ module LibraBFT.Impl.Properties.Aux where
                                   -- previously with the same signature.
   ...| withVoteSIHighCC x = {!!}
 
-  impl-sps-avp {pk = pk} {α = α} st hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
+  impl-sps-avp {pk = pk} {α = α} st preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
      | here refl
      | vote∈vm {v} {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
