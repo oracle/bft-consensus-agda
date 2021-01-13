@@ -99,12 +99,24 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ ((vpk' , sender) , _)
      with x
   ...| step-init _ refl = ⊥-elim (¬Any[] nm∈outs)
-  ...| step-msg m∈pool ms≡ handle≡
+  ...| step-msg {s' = st} m∈pool ms≡ handle≡
+     with sameEpoch⇒sameEC vpk vpk' refl
+  ...| refl
+     with toℕ-injective (sameEC⇒sameMember vpk vpk' refl)
+  ...| refl
      with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws) (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre)) (sym (msgSameSig mws)) ¬sentb4)
-  ...| _ , refl , newlvr = (¬sentb4 , (mws , vpk)) , (mws , vpk , subst (λ pid → Is-just (Map-lookup pid (peerStates post))) {!sym sender!} {!ms≡!} , {!!})
-
--- , (( ¬sentb4 , (MsgWithSig∈-transp mws (Any-++ˡ thisStep) , vpk'))
---                             , (sender , ≤-reflexive newlvr))
+  ...| _ , refl , newlvr
+     with Map-set-correct {k = β} {mv = just st} {m = peerStates pre}
+  ...| maps≡
+     with subst (λ β' → Map-lookup β' (Map-set β (just st) (peerStates pre)) ≡ just st) (sym sender) Map-set-correct
+  ...| psUpdated
+       = (¬sentb4 , (mws , vpk))
+                         , (mws
+                           , vpk
+                           , (isJust psUpdated)
+                           , ≤-reflexive (trans newlvr
+                                                (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
+                                                      (sym (to-witness-isJust-≡ {prf = psUpdated})))))
 
   postulate
     transp-WhatWeWant : ∀ {e e' pk v'} {start : SystemState e}{final : SystemState e'}
