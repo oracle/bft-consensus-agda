@@ -60,27 +60,31 @@ module LibraBFT.Impl.Properties.VotesOnce where
                           → Is-just (Map-lookup pid (peerStates st))
 -}
 
-  record WhatWeWant (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set where
+  record WhatWeWant (pk : PK) (sig : Signature) {e} (origSt : SystemState e) {e'} (st : SystemState e') : Set where
     constructor mkWhatWeWant
     field
-      wwwSent   : MsgWithSig∈ pk sig (msgPool st)
-      wwwValid  : ValidPartForPK (availEpochs st) (msgPart wwwSent) pk
-      wwwIsJust : Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec wwwValid) (vp-member wwwValid)) (peerStates st))
-      wwwLvr    : (msgPart wwwSent) ^∙ vRound ≤ (₋epEC (to-witness wwwIsJust)) ^∙ epLastVotedRound
+      wwwSent       : MsgWithSig∈ pk sig (msgPool origSt)
+      wwwValid      : ValidPartForPK (availEpochs origSt) (msgPart wwwSent) pk
+      wwwOrigSndr   : NodeId
+      wwwOrigSndr≡  : wwwOrigSndr ≡ EpochConfig.toNodeId (vp-ec wwwValid) (vp-member wwwValid) 
+      wwwIsJust     : Is-just (Map-lookup wwwOrigSndr (peerStates st))
+      wwwLvr        : (msgPart wwwSent) ^∙ vRound ≤ (₋epEC (to-witness wwwIsJust)) ^∙ epLastVotedRound
   open WhatWeWant
 
-  firstSendEstablishes : Vote → PK → SystemStateRel Step
-  firstSendEstablishes _ _ (step-epoch _) = ⊥ 
-  firstSendEstablishes _ _ (step-peer (step-cheat _ _)) = ⊥
-  firstSendEstablishes v' pk sysStep@(step-peer {e} {pid'} {pre = pre} pstep@(step-honest _)) =
-                         ReachableSystemState pre
-                       × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                       × WhatWeWant pk (signature v' unit) (StepPeer-post pstep)
+  firstSendEstablishes : ∀ {e} → Vote → PK → SystemState e → SystemStateRel Step
+  firstSendEstablishes _ _ _ (step-epoch _) = ⊥ 
+  firstSendEstablishes _ _ _ (step-peer (step-cheat _ _)) = ⊥
+  firstSendEstablishes {e} v' pk origSt sysStep@(step-peer {e'} {pid'} {pre = pre} pstep@(step-honest _)) =
+                         Σ (e' ≡ e) λ refl →
+                         (origSt ≡ (subst SystemState refl (StepPeer-post pstep))
+                         × ReachableSystemState pre
+                         × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
+                         × WhatWeWant pk (signature v' unit) origSt origSt)
 
   isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
                      → Meta-Honest-PK pk
                      → IsValidNewPart (₋vSignature v') pk theStep
-                     → firstSendEstablishes v' pk theStep
+                     → firstSendEstablishes v' pk post theStep
   isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
      -- TODO-1 : DRY fail, see proof of unwind, refactor?
@@ -94,7 +98,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ dis = ⊥-elim (hpk dis)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
 
-  isValidNewPart⇒fSE {pk = pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
+  isValidNewPart⇒fSE {e' = e'}{pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
      | inj₁ thisStep
      | step-honest x
      with Any-satisfied-∈ (Any-map⁻ thisStep)
@@ -110,22 +114,23 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with toℕ-injective (sameEC⇒sameMember vpk vpk' refl)
   ...| refl
      with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws) (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre)) (sym (msgSameSig mws)) ¬sentb4)
-  ...| _ , refl , newlvr = r , ¬sentb4 ,
-                           (mkWhatWeWant mws vpk (isJust Map-set-correct)
+  ...| _ , refl , newlvr = refl , refl , r , ¬sentb4
+                         , (mkWhatWeWant mws vpk β refl (isJust Map-set-correct)
                                          (≤-reflexive (trans newlvr
-                                                            (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
-                                                                  (sym (to-witness-isJust-≡ {prf = (Map-set-correct {mv = just st})}))))))
-
-  postulate
-    WhatWeWant-transp : ∀ {e e' pk sig} {pre : SystemState e}{post : SystemState e'}
+                                                             (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
+                                                                   (sym (to-witness-isJust-≡ {prf = (Map-set-correct {mv = just st})}))))))
+  
+  WhatWeWant-transp : ∀ {e e' e'' pk sig} {orig : SystemState e} {pre : SystemState e'}{post : SystemState e''}
                      → (theStep : Step pre post)
-                     → WhatWeWant pk sig pre
-                     → WhatWeWant pk sig post
-
+                     → WhatWeWant pk sig orig pre
+                     → WhatWeWant pk sig orig post
+  WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant mws vpk origSndr refl ij lvr) = mkWhatWeWant mws vpk origSndr refl ij lvr
+  WhatWeWant-transp {pre = pre} {post} (step-peer sps) (mkWhatWeWant mws vpk origSndr refl ij lvr) = mkWhatWeWant mws vpk origSndr refl {!!} {!!} 
+  
   WhatWeWant-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
-                     → WhatWeWant pk sig start
+                     → WhatWeWant pk sig start start
                      → (step* : Step* start final)
-                     → WhatWeWant pk sig {e'} final
+                     → WhatWeWant pk sig start final
   WhatWeWant-transp* www step-0 = www
   WhatWeWant-transp* www (step-s s* s) = WhatWeWant-transp s (WhatWeWant-transp* www s*)
   
@@ -133,11 +138,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
               → {final : SystemState e'}
               → Meta-Honest-PK pk
               → ∀ {d d'}{pre : SystemState d} {post : SystemState d'}{theStep : Step pre post}
-              → firstSendEstablishes v' pk theStep
+              → firstSendEstablishes v' pk post theStep
               → (step* : Step* post final)
-              → WhatWeWant pk (signature v' unit) final
+              → WhatWeWant pk (signature v' unit) post final
   fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
-  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {e} {pre = pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} (r , ¬sentb4 , www@(mkWhatWeWant mws _ _ _)) step*
+  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {e} {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} (e'≡e , st≡ , r , ¬sentb4 , www@(mkWhatWeWant mws _ _ _ _ _)) step*
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
