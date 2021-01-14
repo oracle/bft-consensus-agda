@@ -60,23 +60,28 @@ module LibraBFT.Impl.Properties.VotesOnce where
                           → Is-just (Map-lookup pid (peerStates st))
 -}
 
-  WhatWeWant : ∀ {e} → PK → Signature → SystemState e → Set
-  WhatWeWant pk sig st = Σ (MsgWithSig∈ pk sig (msgPool st))
-                           λ mws → Σ (ValidPartForPK (availEpochs st) (msgPart mws) pk)
-                                     λ vpf → Σ (Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec vpf) (vp-member vpf)) (peerStates st)))
-                                               λ ij → (msgPart mws) ^∙ vRound ≤ (₋epEC (to-witness ij)) ^∙ epLastVotedRound
+  record WhatWeWant (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set where
+    constructor mkWhatWeWant
+    field
+      wwwSent   : MsgWithSig∈ pk sig (msgPool st)
+      wwwValid  : ValidPartForPK (availEpochs st) (msgPart wwwSent) pk
+      wwwIsJust : Is-just (Map-lookup (EpochConfig.toNodeId (vp-ec wwwValid) (vp-member wwwValid)) (peerStates st))
+      wwwLvr    : (msgPart wwwSent) ^∙ vRound ≤ (₋epEC (to-witness wwwIsJust)) ^∙ epLastVotedRound
+  open WhatWeWant
 
   firstSendEstablishes : Vote → PK → SystemStateRel Step
   firstSendEstablishes _ _ (step-epoch _) = ⊥ 
   firstSendEstablishes _ _ (step-peer (step-cheat _ _)) = ⊥
-  firstSendEstablishes v' pk {e} {.e} sysStep@(step-peer {pid = pid'} {pre = pre} pstep@(step-honest {st = pst} {outs} _)) =
-                       Σ (IsValidNewPart (signature v' unit) pk sysStep) λ ivnp → WhatWeWant pk (signature v' unit) (StepPeer-post pstep)
+  firstSendEstablishes v' pk sysStep@(step-peer {e} {pid'} {pre = pre} pstep@(step-honest _)) =
+                         ReachableSystemState pre
+                       × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
+                       × WhatWeWant pk (signature v' unit) (StepPeer-post pstep)
 
   isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
                      → Meta-Honest-PK pk
                      → IsValidNewPart (₋vSignature v') pk theStep
                      → firstSendEstablishes v' pk theStep
-  isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (¬sentb4 , mws , _)
+  isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
      -- TODO-1 : DRY fail, see proof of unwind, refactor?
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
@@ -89,14 +94,14 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ dis = ⊥-elim (hpk dis)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
 
-  isValidNewPart⇒fSE {pk = pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (¬sentb4 , mws , vpk)
+  isValidNewPart⇒fSE {pk = pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
      | inj₁ thisStep
      | step-honest x
      with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs
-     with impl-sps-avp {m = msgWhole mws} pre hpk x nm∈outs (msg⊆ mws) (msgSigned mws)
+     with impl-sps-avp {m = msgWhole mws} pre r hpk x nm∈outs (msg⊆ mws) (msgSigned mws)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ ((vpk' , sender) , _)
+  ...| inj₁ ((vpk' , refl) , _)
      with x
   ...| step-init _ refl = ⊥-elim (¬Any[] nm∈outs)
   ...| step-msg {s' = st} m∈pool ms≡ handle≡
@@ -105,58 +110,56 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with toℕ-injective (sameEC⇒sameMember vpk vpk' refl)
   ...| refl
      with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws) (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre)) (sym (msgSameSig mws)) ¬sentb4)
-  ...| _ , refl , newlvr
-     with Map-set-correct {k = β} {mv = just st} {m = peerStates pre}
-  ...| maps≡
-     with subst (λ β' → Map-lookup β' (Map-set β (just st) (peerStates pre)) ≡ just st) (sym sender) Map-set-correct
-  ...| psUpdated
-       = (¬sentb4 , (mws , vpk))
-                         , (mws
-                           , vpk
-                           , (isJust psUpdated)
-                           , ≤-reflexive (trans newlvr
-                                                (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
-                                                      (sym (to-witness-isJust-≡ {prf = psUpdated})))))
+  ...| _ , refl , newlvr = r , ¬sentb4 ,
+                           (mkWhatWeWant mws vpk (isJust Map-set-correct)
+                                         (≤-reflexive (trans newlvr
+                                                            (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
+                                                                  (sym (to-witness-isJust-≡ {prf = (Map-set-correct {mv = just st})}))))))
 
   postulate
-    transp-WhatWeWant : ∀ {e e' pk v'} {start : SystemState e}{final : SystemState e'}
-                    → WhatWeWant pk v' start
-                    → Step* start final
-                    → WhatWeWant pk v' final
+    WhatWeWant-transp : ∀ {e e' pk sig} {pre : SystemState e}{post : SystemState e'}
+                     → (theStep : Step pre post)
+                     → WhatWeWant pk sig pre
+                     → WhatWeWant pk sig post
 
-    -- We will use impl-sps-avp to establish the first conjunct of firstsendestablishes; it no
-    -- longer needs to know its pre-state is reachable, which is inconvenient to know here.
-
-  fSE⇒rnd≤lvr : ∀ {e e' e'' v' pk}{pre : SystemState e} {post : SystemState e'}{final : SystemState e''} {theStep : Step pre post}
+  WhatWeWant-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
+                     → WhatWeWant pk sig start
+                     → (step* : Step* start final)
+                     → WhatWeWant pk sig {e'} final
+  WhatWeWant-transp* www step-0 = www
+  WhatWeWant-transp* www (step-s s* s) = WhatWeWant-transp s (WhatWeWant-transp* www s*)
+  
+  fSE⇒rnd≤lvr : ∀ {v' pk e'}
+              → {final : SystemState e'}
               → Meta-Honest-PK pk
+              → ∀ {d d'}{pre : SystemState d} {post : SystemState d'}{theStep : Step pre post}
               → firstSendEstablishes v' pk theStep
-              → Step* post final
+              → (step* : Step* post final)
               → WhatWeWant pk (signature v' unit) final
-  fSE⇒rnd≤lvr {theStep = step-epoch _} _ ()
-  fSE⇒rnd≤lvr {theStep = step-peer (step-cheat _ _)} _ ()
-  fSE⇒rnd≤lvr {e} {v' = v'} {pk} {pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} hpk ((¬sentb4 , mws , vpk) , (mws' , vpk' , ij , xxx)) step*
+  fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
+  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {e} {pre = pre} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} (r , ¬sentb4 , www@(mkWhatWeWant mws _ _ _)) step*
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
        with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs rewrite sym (msgSameSig mws)
-     with impl-sps-avp {m = nm} pre hpk sps nm∈outs (msg⊆ mws) (msgSigned mws)
+     with impl-sps-avp {m = nm} pre r hpk sps nm∈outs (msg⊆ mws) (msgSigned mws)
   ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ ((vpk'' , sender) , xx) = transp-WhatWeWant (mws' , vpk' , (ij , xxx)) step*
+  ...| inj₁ ((vpk'' , sender) , _) rewrite msgSameSig mws = WhatWeWant-transp* www step*
 
   vo₁-unwind2 : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
   vo₁-unwind2 r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg {s = ps} {s' = ps'} _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , pid≡) v'⊂m' m'∈pool sig' eIds≡ rnds≡
+  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg {s = ps} {s' = ps'} _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , refl) v'⊂m' m'∈pool sig' eIds≡ rnds≡
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
      -- prove that going from the post state of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of pid (the peer that
      -- sent v')
-     with Any-Step-elim (fSE⇒rnd≤lvr {v' = v'} hpk)
+     with Any-Step-elim (fSE⇒rnd≤lvr {v'} hpk)
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE hpk ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
-  ...| mws , vpf' , ij , v'rnd≤lvr
+  ...| mkWhatWeWant mws vpf' ij v'rnd≤lvr
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with newVoteSameEpochGreaterRound {e} {availEpochs pre} sm ps≡ v⊂m m∈outs sig ¬sentb4
@@ -172,8 +175,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with toℕ-injective (sameEC⇒sameMember vpb vpf' refl)
   ...| refl
      -- Therefore they are by the same peer
-     with trans (sym pid≡) ((cong (EpochConfig.toNodeId (vp-ec vpb)) refl))
-  ...| refl
      -- So the peerState the sender of v' is the same as the peerState of the peer taking this step
      with just-injective (trans (sym ps≡) (to-witness-lemma ij refl))
      -- Now we can establish a contradiction with the hypothesis that the rounds of v and v' are equal
