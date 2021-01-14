@@ -60,11 +60,13 @@ module LibraBFT.Impl.Properties.VotesOnce where
                           → Is-just (Map-lookup pid (peerStates st))
 -}
 
-  record WhatWeWant (pk : PK) (sig : Signature) {e} (origSt : SystemState e) {e'} (st : SystemState e') : Set where
+  record WhatWeWant (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set where
     constructor mkWhatWeWant
     field
-      wwwSent       : MsgWithSig∈ pk sig (msgPool origSt)
-      wwwValid      : ValidPartForPK (availEpochs origSt) (msgPart wwwSent) pk
+      wwwOrigE      : ℕ
+      wwwOrigSt     : SystemState wwwOrigE
+      wwwSent       : MsgWithSig∈ pk sig (msgPool wwwOrigSt)
+      wwwValid      : ValidPartForPK (availEpochs st) (msgPart wwwSent) pk
       wwwOrigSndr   : NodeId
       wwwOrigSndr≡  : wwwOrigSndr ≡ EpochConfig.toNodeId (vp-ec wwwValid) (vp-member wwwValid) 
       wwwIsJust     : Is-just (Map-lookup wwwOrigSndr (peerStates st))
@@ -75,11 +77,12 @@ module LibraBFT.Impl.Properties.VotesOnce where
   firstSendEstablishes _ _ _ (step-epoch _) = ⊥ 
   firstSendEstablishes _ _ _ (step-peer (step-cheat _ _)) = ⊥
   firstSendEstablishes {e} v' pk origSt sysStep@(step-peer {e'} {pid'} {pre = pre} pstep@(step-honest _)) =
-                         Σ (e' ≡ e) λ refl →
-                         (origSt ≡ (subst SystemState refl (StepPeer-post pstep))
-                         × ReachableSystemState pre
+                         ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                         × WhatWeWant pk (signature v' unit) origSt origSt)
+                         × Σ (WhatWeWant pk (signature v' unit) origSt) λ www →
+                             Σ (e ≡ wwwOrigE www) λ refl →
+                               wwwOrigSt www ≡ subst SystemState refl origSt
+                         )
 
   isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
                      → Meta-Honest-PK pk
@@ -114,25 +117,26 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with toℕ-injective (sameEC⇒sameMember vpk vpk' refl)
   ...| refl
      with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws) (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre)) (sym (msgSameSig mws)) ¬sentb4)
-  ...| _ , refl , newlvr = refl , refl , r , ¬sentb4
-                         , (mkWhatWeWant mws vpk β refl (isJust Map-set-correct)
+  ...| _ , refl , newlvr = r , ¬sentb4
+                         , (mkWhatWeWant e' post mws vpk β refl (isJust Map-set-correct)
                                          (≤-reflexive (trans newlvr
                                                              (cong ((_^∙ epLastVotedRound) ∘ ₋epEC)
                                                                    (sym (to-witness-isJust-≡ {prf = (Map-set-correct {mv = just st})}))))))
+                         , refl , refl
   
   WhatWeWant-transp : ∀ {e e' e'' pk sig} {orig : SystemState e} {pre : SystemState e'}{post : SystemState e''}
                      → (theStep : Step pre post)
-                     → WhatWeWant pk sig orig pre
-                     → WhatWeWant pk sig orig post
-  WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant mws vpk origSndr refl ij lvr) = mkWhatWeWant mws vpk origSndr refl ij lvr
-  WhatWeWant-transp {pre = pre} {post} (step-peer sps) (mkWhatWeWant mws vpk origSndr refl ij lvr) = mkWhatWeWant mws vpk origSndr refl {!!} {!!} 
+                     → WhatWeWant pk sig pre
+                     → WhatWeWant pk sig post
+  WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) = mkWhatWeWant origE origSt mws (ValidPartForPK-stable-epoch ec vpk) origSndr {!!} ij lvr
+  WhatWeWant-transp {pre = pre} {post} (step-peer sps) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) = mkWhatWeWant origE origSt mws vpk origSndr refl {!!} {!!} 
   
   WhatWeWant-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
-                     → WhatWeWant pk sig start start
+                     → WhatWeWant pk sig start
                      → (step* : Step* start final)
-                     → WhatWeWant pk sig start final
+                     → WhatWeWant pk sig final
   WhatWeWant-transp* www step-0 = www
-  WhatWeWant-transp* www (step-s s* s) = WhatWeWant-transp s (WhatWeWant-transp* www s*)
+  WhatWeWant-transp* {start = start} www (step-s s* s) = WhatWeWant-transp {orig = start} s (WhatWeWant-transp* www s*)
   
   fSE⇒rnd≤lvr : ∀ {v' pk e'}
               → {final : SystemState e'}
@@ -140,9 +144,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
               → ∀ {d d'}{pre : SystemState d} {post : SystemState d'}{theStep : Step pre post}
               → firstSendEstablishes v' pk post theStep
               → (step* : Step* post final)
-              → WhatWeWant pk (signature v' unit) post final
+              → WhatWeWant pk (signature v' unit) final
   fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
-  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {e} {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} (e'≡e , st≡ , r , ¬sentb4 , www@(mkWhatWeWant mws _ _ _ _ _)) step*
+  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {e} {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)} (r , ¬sentb4 , www@(mkWhatWeWant origE origSt mws _ _ _ _ _) , refl , refl) step*
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
@@ -164,7 +168,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with Any-Step-elim (fSE⇒rnd≤lvr {v'} hpk)
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE hpk ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
-  ...| mkWhatWeWant mws vpf' ij v'rnd≤lvr
+  ...| mkWhatWeWant origE origSt mws vpf' origSndr refl ij v'rnd≤lvr
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with newVoteSameEpochGreaterRound {e} {availEpochs pre} sm ps≡ v⊂m m∈outs sig ¬sentb4
