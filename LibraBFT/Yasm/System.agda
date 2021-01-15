@@ -282,6 +282,11 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
           → Step pre post
           → Step* fst post
 
+ postulate
+   initializedStableStep : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {pid}
+                         → (theStep : Step pre post)
+                         → Is-just (Map-lookup pid (peerStates pre))
+                         → Is-just (Map-lookup pid (peerStates post))
  ReachableSystemState : ∀{e} → SystemState e → Set
  ReachableSystemState = Step* initialState
 

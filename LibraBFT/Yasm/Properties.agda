@@ -51,6 +51,21 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
    ; vp-key             = vpk
    }
 
+ VPfPK-stable-ec-stable : ∀{e part pk}{𝓔s : AvailableEpochs e}(𝓔 : EpochConfigFor e)
+                          → (vpk : ValidPartForPK 𝓔s part pk)
+                          → vp-ec vpk ≡ vp-ec (ValidPartForPK-stable-epoch 𝓔 vpk)
+ VPfPK-stable-ec-stable _ (mkValidPartForPK _ ec refl _ _) = refl
+ postulate
+   epochPreservestoNodeId : ∀ {e part pk ec}{𝓔s : AvailableEpochs e}
+      → (vpk : ValidPartForPK 𝓔s part pk)
+      → EpochConfig.toNodeId (vp-ec vpk) (vp-member vpk) ≡
+        EpochConfig.toNodeId (vp-ec (ValidPartForPK-stable-epoch ec vpk)) (vp-member (ValidPartForPK-stable-epoch ec vpk))
+
+ VPfPK-stable-member-stable : ∀{e part pk}{𝓔s : AvailableEpochs e}(𝓔 : EpochConfigFor e)
+                          → (vpk : ValidPartForPK 𝓔s part pk)
+                          → toℕ (vp-member (ValidPartForPK-stable-epoch 𝓔 vpk)) ≡ toℕ (vp-member vpk)
+ VPfPK-stable-member-stable _ (mkValidPartForPK _ _ refl mem _) = refl
+
  postulate -- TODO-1: prove
    sameEpoch⇒sameEC : ∀ {e p1 p2 pk}{𝓔s : AvailableEpochs e}
                     → (vp1 : ValidPartForPK 𝓔s p1 pk)

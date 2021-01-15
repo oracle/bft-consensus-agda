@@ -128,8 +128,15 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → (theStep : Step pre post)
                      → WhatWeWant pk sig pre
                      → WhatWeWant pk sig post
-  WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) = mkWhatWeWant origE origSt mws (ValidPartForPK-stable-epoch ec vpk) origSndr {!!} ij lvr
-  WhatWeWant-transp {pre = pre} {post} (step-peer sps) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) = mkWhatWeWant origE origSt mws vpk origSndr refl {!!} {!!} 
+  WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) =
+    mkWhatWeWant origE origSt mws (ValidPartForPK-stable-epoch ec vpk) origSndr (epochPreservestoNodeId vpk) ij lvr
+  WhatWeWant-transp {pre = pre} {post} sp@(step-peer {pid = pid} {st'} sps) (mkWhatWeWant origE origSt mws vpk origSndr xxx ij lvr)
+     with origSndr ≟ℕ pid
+  ...| no diff rewrite Map-set-target-≢ {k = pid} {k' = origSndr} {mv = st'} {m = peerStates pre} diff =
+               mkWhatWeWant origE origSt mws vpk origSndr xxx ij lvr
+  ...| yes same = mkWhatWeWant origE origSt mws vpk origSndr xxx
+                               (initializedStableStep sp ij)
+                               (≤-trans lvr {! !})  -- I think I can do this one.  Famous last words?
   
   WhatWeWant-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
                      → WhatWeWant pk sig start
