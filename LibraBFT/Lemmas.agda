@@ -210,3 +210,9 @@ module LibraBFT.Lemmas where
  to-witness-isJust-≡ {aMB = just a'} {a} {prf}
     with to-witness-lemma (isJust {aMB = just a'} {a} prf) refl
  ...| xxx = just-injective (trans (sym xxx) prf)
+
+ to-witness-known-value : ∀ {ℓ}{A : Set ℓ} {aMB a}
+                        → (ij : Is-just {ℓ} {A} aMB)
+                        → aMB ≡ just a
+                        → a ≡ to-witness ij
+ to-witness-known-value (just x) refl = refl

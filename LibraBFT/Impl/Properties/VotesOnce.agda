@@ -12,6 +12,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Impl.Properties.Aux
 
 open import LibraBFT.Concrete.System impl-sps-avp
@@ -44,21 +45,28 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                  × suc ((₋epEC s) ^∙ epLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
                                  × (v ^∙ vRound) ≡ ((₋epEC s') ^∙ epLastVotedRound)     -- Last voted round is round of new vote
 
-{- Unused, so far
-    noEpochChangeYet : ∀ {e pid 𝓔s pool outs ps' ps}
-                     → StepPeerState {e} pid 𝓔s pool (just ps') ps outs
-                     → (₋epEC ps) ^∙ epEpoch ≡ (₋epEC ps') ^∙ epEpoch
+    noEpochChangeYet : ∀ {e pid 𝓔s pool outs ps ps'}
+                     → StepPeerState {e} pid 𝓔s pool (just ps) ps' outs
+                     → (₋epEC ps') ^∙ epEpoch ≡ (₋epEC ps) ^∙ epEpoch  -- Always true, so far, as no epoch changes.
 
-    lastVoteRound-mono : ∀ {e pid 𝓔s pool outs ps' ps}
-                       → StepPeerState {e} pid 𝓔s pool (just ps') ps outs
-                       → (₋epEC ps') ^∙ epEpoch ≡ (₋epEC ps) ^∙ epEpoch  -- Always true, so far, as no epoch changes.
-                       → (₋epEC ps') ^∙ epLastVotedRound ≤ (₋epEC ps) ^∙ epLastVotedRound
 
+    lastVoteRound-mono : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}
+                       → Step pre post
+                       → (ij : Is-just (Map-lookup pid (peerStates pre)))
+                       → Σ (Is-just (Map-lookup pid (peerStates post)))
+                           λ ij' → ((₋epEC (to-witness ij') ^∙ epEpoch ≡ (₋epEC (to-witness ij)) ^∙ epEpoch  -- Always true, so far, as no epoch changes.
+                                    → (₋epEC (to-witness ij)) ^∙ epLastVotedRound ≤ (₋epEC (to-witness ij')) ^∙ epLastVotedRound))
+{-
     noMsgsByUninitialised : ∀ {e} {st : SystemState e} {pid} {m}
                           → ReachableSystemState st
                           → (pid , m) ∈ msgPool st
                           → Is-just (Map-lookup pid (peerStates st))
 -}
+
+
+  -- This is the information we can establish about the state after the first time a signature is
+  -- sent, and that we can carry forward to subsequent states, so we can use it to prove
+  -- VO.ImplObligation₁.  TODO-1: this needs a better name!
 
   record WhatWeWant (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set where
     constructor mkWhatWeWant
@@ -130,14 +138,40 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → WhatWeWant pk sig post
   WhatWeWant-transp {e} {pre = pre} {post} (step-epoch ec) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr) =
     mkWhatWeWant origE origSt mws (ValidPartForPK-stable-epoch ec vpk) origSndr (epochPreservestoNodeId vpk) ij lvr
-  WhatWeWant-transp {pre = pre} {post} sp@(step-peer {pid = pid} {st'} sps) (mkWhatWeWant origE origSt mws vpk origSndr xxx ij lvr)
+  WhatWeWant-transp {e' = e'} {pre = pre} {post} sp@(step-peer {pid = pid} {st'} {pre = .pre} sps) (mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr)
      with origSndr ≟ℕ pid
   ...| no diff rewrite Map-set-target-≢ {k = pid} {k' = origSndr} {mv = st'} {m = peerStates pre} diff =
-               mkWhatWeWant origE origSt mws vpk origSndr xxx ij lvr
-  ...| yes same = mkWhatWeWant origE origSt mws vpk origSndr xxx
-                               (initializedStableStep sp ij)
-                               (≤-trans lvr {! !})  -- I think I can do this one.  Famous last words?
-  
+               mkWhatWeWant origE origSt mws vpk origSndr refl ij lvr
+  ...| yes refl
+     with sps
+  ...| step-cheat fm isch rewrite cheatStepDNMPeerStates (step-cheat {pre = pre} fm isch) unit =
+                  mkWhatWeWant origE origSt mws vpk origSndr refl ij (≤-trans lvr (≤-reflexive refl)) -- PeerStates not changed by cheat steps
+  ...| step-honest (step-init _ handle≡) = {!!}
+                                         -- We cannot prove this yet because
+                                         -- initialEventProcessorAndMessages is faked for now.  We
+                                         -- need to establish rules for what initialization by a
+                                         -- peer pid does.  It must ensure that if pid's new
+                                         -- peerState is for epoch e and has lastVotedRound = r,
+                                         -- then pid has not previously sent any messages containing
+                                         -- votes for the epoch e and for a round higher than r.
+
+  ...| theStep@(step-honest msgStep@(step-msg {s = s} {s' = s'}{outs = outs} m∈pool ps≡pre handler≡))
+     -- If the epoch doesn't change (which it never does, so far), then the lastVotedRound is
+     -- monotonically nondecreasing for each honest peer step.
+     with lastVoteRound-mono (step-peer theStep) ij
+  ...| ij' , lvrmono
+     -- Now we need some annoying translation between Is-just and known values, so we can invoke
+     -- noEpochChangeYet for this step.  Makes me wonder why we use Is-just, why not just use an
+     -- existential?  Or maybe recast noEpochChangeYet?
+     with (trans ps≡pre (cong just (to-witness-known-value ij ps≡pre)))
+  ...| justs≡witij
+       with to-witness-known-value ij' Map-set-correct
+  ...| s'≡witij'
+     with subst₂ (λ mspre pspost → StepPeerState origSndr (availEpochs pre) (msgPool pre) mspre pspost outs)
+                 justs≡witij s'≡witij' msgStep
+  ...| msgStep' = mkWhatWeWant origE origSt mws vpk origSndr refl ij'
+                                (≤-trans lvr (lvrmono (noEpochChangeYet msgStep')))
+
   WhatWeWant-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
                      → WhatWeWant pk sig start
                      → (step* : Step* start final)

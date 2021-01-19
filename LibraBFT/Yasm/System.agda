@@ -267,6 +267,11 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
                        → m ∈ (ml ++ sm)
                        → m ∈ ml
 
+   cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
+                          → (theStep : StepPeer pre pid st' outs)
+                          → isCheat theStep
+                          → peerStates (StepPeer-post theStep) ≡ peerStates pre
+
  step-epoch-does-not-send : ∀ {e} (pre : SystemState e) (𝓔 : EpochConfigFor e)
                             → msgPool (pushEpoch 𝓔 pre) ≡ msgPool pre
  step-epoch-does-not-send _ _ = refl
@@ -282,11 +287,6 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
           → Step pre post
           → Step* fst post
 
- postulate
-   initializedStableStep : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {pid}
-                         → (theStep : Step pre post)
-                         → Is-just (Map-lookup pid (peerStates pre))
-                         → Is-just (Map-lookup pid (peerStates post))
  ReachableSystemState : ∀{e} → SystemState e → Set
  ReachableSystemState = Step* initialState
 

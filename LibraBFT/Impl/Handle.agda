@@ -26,7 +26,7 @@ module LibraBFT.Impl.Handle
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
- open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+ open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr public
  open import LibraBFT.Impl.NetworkMsg
 
  postulate
