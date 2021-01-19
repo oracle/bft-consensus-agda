@@ -197,11 +197,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
   ...| inj₁ ((vpk'' , sender) , _) rewrite msgSameSig mws = WhatWeWant-transp* www step*
 
-  vo₁-unwind2 : VO.ImplObligation₁
+  vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
-  vo₁-unwind2 r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁-unwind2 {e} {pk = pk} {pre = pre} r sm@(step-msg {s = ps} {s' = ps'} _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , refl) v'⊂m' m'∈pool sig' eIds≡ rnds≡
+  vo₁ r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
+  vo₁ {e} {pk = pk} {pre = pre} r sm@(step-msg {s = ps} {s' = ps'} _ ps≡ _) {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 (vpb , refl) v'⊂m' m'∈pool sig' eIds≡ rnds≡
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
      -- prove that going from the post state of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of pid (the peer that
@@ -231,5 +231,5 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- TODO-1: this may be overly complicated now that rnd≡ is an equality
   ...| refl rewrite rnds≡ = ⊥-elim (<⇒≢ (≤-reflexive suclvr≡v'rnd) (≤-antisym (<⇒≤ (≤-reflexive suclvr≡v'rnd)) v'rnd≤lvr))
 
---   postulate  -- TODO : prove
---     vo₂ : VO.ImplObligation₂
+  postulate  -- TODO : prove
+    vo₂ : VO.ImplObligation₂
