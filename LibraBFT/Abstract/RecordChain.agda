@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
@@ -495,12 +494,12 @@ module LibraBFT.Abstract.RecordChain
  ...| eq-I = inj₂ (transp-CR rcf≈rc (commit-rule c3 prf))
 
 
- vote≡⇒QPrevHash≡ : {q q' : QC} {v v' : Vote}
-                  → v  ∈ qcVotes q
-                  → v' ∈ qcVotes q'
-                  → v ≡ v'
-                  → qCertBlockId q ≡ qCertBlockId q'
- vote≡⇒QPrevHash≡ {q} {q'} v∈q v'∈q' refl
+ vote≡⇒QPrevId≡ : {q q' : QC} {v v' : Vote}
+                → v  ∈ qcVotes q
+                → v' ∈ qcVotes q'
+                → v ≡ v'
+                → qCertBlockId q ≡ qCertBlockId q'
+ vote≡⇒QPrevId≡ {q} {q'} v∈q v'∈q' refl
      with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
  ... | refl | refl = refl
 

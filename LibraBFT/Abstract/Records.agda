@@ -123,8 +123,9 @@ module LibraBFT.Abstract.Records
     }
 
   -- Accessing common fields in different Records types is a nuissance; yet, Blocks,
-  -- votes and QC's all have three important common fields: author, round and prevHash.
-  -- Therefore we declare a type-class that provide "getters" for commonly used fields.
+  -- votes and QC's all have three important common fields: author, round and maybe the
+  -- ID of a previous record.  Therefore we declare a type-class that provide "getters"
+  -- for commonly used fields.
   record HasRound (A : Set) : Set where
     constructor is-librabft-record
     field
@@ -227,7 +228,7 @@ module LibraBFT.Abstract.Records
 
   -- Record unique ids carry whether the abstract id was assigned
   -- to a QC or a Block; this can be useful to avoid having to deal
-  -- with 'blockId ≟ initialAgreedHash' in order to decide whether
+  -- with 'blockId ≟ initialAgreedID' in order to decide whether
   -- a block is the genesis block or not.
   data TypedUID : Set where
     id-I   : TypedUID

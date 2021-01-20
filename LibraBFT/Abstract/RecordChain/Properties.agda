@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
@@ -81,7 +80,7 @@ module LibraBFT.Abstract.RecordChain.Properties
       | tri≈ _ v₀≡v₁ _ =
      let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
          v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
-         ppp   = trans h₀ (trans (vote≡⇒QPrevHash≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ (votes-only-once a honest ex₀ ex₁ a∈q₀ a∈q₁ v₀≡v₁))
+         ppp   = trans h₀ (trans (vote≡⇒QPrevId≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ (votes-only-once a honest ex₀ ex₁ a∈q₀ a∈q₁ v₀≡v₁))
                                  (sym h₁))
      in inj₁ ((b₀ , b₁) , (imp , ppp))
 
