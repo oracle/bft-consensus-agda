@@ -5,7 +5,6 @@
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 

@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
@@ -22,8 +21,8 @@ module LibraBFT.Abstract.Records.Extends
   -- by the implementation to validate data received.
   --
   -- In the Abstract model, however, we are only concerned with
-  -- proving the properties; only round numbers and hashes are
-  -- actually critical to thm S5!
+  -- proving the properties; only round numbers and identifiers
+  -- for previous records are actually critical to thm S5!
   data _←_ : Record → Record → Set where
     I←B : {b : Block}
         → 0 < getRound b
