@@ -30,7 +30,7 @@ module LibraBFT.Abstract.Types where
     field
       -- TODO-2 : This should really be a UID as Hash should not show up in the Abstract namespace.
       -- This will require some refactoring of modules and reordering of module parameters.
-      initialAgreedHash : Hash
+      genesisUID : Hash
       epochId   : EpochId
       authorsN  : ℕ
       bizF      : ℕ

@@ -66,13 +66,13 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open import LibraBFT.Abstract.RecordChain     𝓔 UID _≟UID_ ConcreteVoteEvidence
 
   data VoteCoherence (v : Vote) (b : Abs.Block) : Set where
-    initial  : v ^∙ vParentId    ≡ initialAgreedHash
+    initial  : v ^∙ vParentId    ≡ genesisUID
              → v ^∙ vParentRound ≡ 0
              → Abs.bPrevQC b     ≡ nothing
              → VoteCoherence v b
 
     ¬initial : ∀{b' q}
-             → v ^∙ vParentId    ≢ initialAgreedHash
+             → v ^∙ vParentId    ≢ genesisUID
              → v ^∙ vParentRound ≢ 0
              → v ^∙ vParentId    ≡ Abs.bId b'
              → v ^∙ vParentRound ≡ Abs.bRound b'
