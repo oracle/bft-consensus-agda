@@ -172,39 +172,36 @@ module LibraBFT.Abstract.RecordChain.Properties
    propS4-base-lemma-2 prev∈sys (s-chain r←b prf b←q c) q' q'∈sys certB ext (suc ix)
      = propS4-base-lemma-2 (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 prev∈sys)) c q' q'∈sys certB ext ix
 
-   propS4-base : ∀{q}
-               → {rc : RecordChain (Q q)}
-               → All-InSys 𝓢 rc
+   propS4-base : ∀{q q'}
+               → {rc : RecordChain (Q q)}   → All-InSys 𝓢 rc
+               → (rc' : RecordChain (Q q')) → InSys (Q q')
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
-               → {q' : QC}
-               → InSys (Q q')
-               → (certB : RecordChain (Q q'))
                → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
                → getRound q' ≤ getRound (c3 b⟦ zero ⟧)
-               → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC certB
-   propS4-base prev∈sys c3 {q'} q'∈sys (step {B b} certB@(step certB' q←b) b←q@(B←Q refl _)) hyp0 hyp1
+               → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
+   propS4-base {q' = q'} prev∈sys (step {B b} rc'@(step rc'' q←b) b←q@(B←Q refl _)) q'∈sys c3 hyp0 hyp1
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
    ...| here r
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys certB b←q zero (sym r)
+     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' b←q zero (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
-     with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res certB
+     with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res rc'
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there b←q res')
-   propS4-base {q} prev∈sys c3 {q'} q'∈sys (step certB (B←Q refl x₀)) hyp0 hyp1
+   propS4-base {q} {q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
       | there (here r)
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys certB (B←Q refl x₀) (suc zero) (sym r)
+     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' (B←Q refl x₀) (suc zero) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
-     with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res certB
+     with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res rc'
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
-   propS4-base prev∈sys c3 {q'} q'∈sys (step certB (B←Q refl x₀)) hyp0 hyp1
+   propS4-base {q' = q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
       | there (there (here r))
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys certB (B←Q refl x₀) (suc (suc zero)) (sym r)
+     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' (B←Q refl x₀) (suc (suc zero)) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
-     with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res certB
+     with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res rc'
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
@@ -219,7 +216,7 @@ module LibraBFT.Abstract.RecordChain.Properties
           → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
    propS4 {q' = q'} {rc} prev∈sys (step rc' b←q') prev∈sys' c3 hyp
      with getRound q' ≤?ℕ getRound (c3 b⟦ zero ⟧)
-   ...| yes rq≤rb₂ = propS4-base prev∈sys c3 {q'} (All-InSys⇒last-InSys 𝓢 prev∈sys') (step rc' b←q') hyp rq≤rb₂
+   ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') (All-InSys⇒last-InSys 𝓢 prev∈sys') c3 hyp rq≤rb₂
    propS4 {q' = q'} prev∈sys (step rc' b←q') all∈sys c3 hyp
       | no  rb₂<rq
      with lemmaS3 (All-InSys⇒last-InSys 𝓢 prev∈sys) c3
