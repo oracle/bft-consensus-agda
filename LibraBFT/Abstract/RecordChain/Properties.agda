@@ -160,17 +160,19 @@ module LibraBFT.Abstract.RecordChain.Properties
      rewrite p0 | p1 = propS4-base-arith (bRound b2) r hyp0 hyp1
 
    propS4-base-lemma-2
-     : ∀{P k r}{rc : RecordChain r} → All-InSys 𝓢 rc
-     → (c  : 𝕂-chain P k rc)
-     → {b' : Block}(q' : QC) → InSys (Q q')
-     → (certB : RecordChain (B b'))(ext : (B b') ← (Q q'))
+     : ∀{k r}
+       {rc : RecordChain r} → All-InSys 𝓢 rc
+     → (q' : QC) → InSys (Q q')
+     → {b' : Block}
+     → (rc' : RecordChain (B b')) → (ext : (B b') ← (Q q'))
+     → (c  : 𝕂-chain Contig k rc)
      → (ix : Fin k)
      → getRound (kchainBlock ix c) ≡ getRound b'
      → NonInjective-≡ bId ⊎ (kchainBlock ix c ≡ b')
-   propS4-base-lemma-2 {rc = rc} prev∈sys (s-chain r←b prf b←q c) q' q'∈sys certB ext zero hyp
+   propS4-base-lemma-2 {rc = rc} prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) zero hyp
      = lemmaS2 (All-InSys⇒last-InSys 𝓢 prev∈sys) q'∈sys b←q ext hyp
-   propS4-base-lemma-2 prev∈sys (s-chain r←b prf b←q c) q' q'∈sys certB ext (suc ix)
-     = propS4-base-lemma-2 (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 prev∈sys)) c q' q'∈sys certB ext ix
+   propS4-base-lemma-2 prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) (suc ix)
+     = propS4-base-lemma-2 (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 prev∈sys)) q' q'∈sys rc' ext c ix
 
    propS4-base : ∀{q q'}
                → {rc : RecordChain (Q q)}   → All-InSys 𝓢 rc
@@ -182,7 +184,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    propS4-base {q' = q'} prev∈sys (step {B b} rc'@(step rc'' q←b) b←q@(B←Q refl _)) q'∈sys c3 hyp0 hyp1
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
    ...| here r
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' b←q zero (sym r)
+     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' b←q c3 zero (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res rc'
@@ -190,7 +192,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₂ res' = inj₂ (there b←q res')
    propS4-base {q} {q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
       | there (here r)
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' (B←Q refl x₀) (suc zero) (sym r)
+     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' (B←Q refl x₀) c3 (suc zero) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res rc'
@@ -198,7 +200,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
    propS4-base {q' = q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
       | there (there (here r))
-     with propS4-base-lemma-2 prev∈sys c3 q' q'∈sys rc' (B←Q refl x₀) (suc (suc zero)) (sym r)
+     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' (B←Q refl x₀) c3 (suc (suc zero)) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res rc'
