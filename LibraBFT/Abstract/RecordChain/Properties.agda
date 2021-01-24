@@ -87,14 +87,13 @@ module LibraBFT.Abstract.RecordChain.Properties
    ----------------
    -- Lemma S3
 
-   lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
-           → InSys r₂
-           → (c3 : 𝕂-chain Contig 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
-           → {q' : QC} → InSys (Q q')
-           → (certB : RecordChain (Q q')) -- Immediately before a (Q q), we have the certified block (B b), which is the 'B' in S3
+   lemmaS3 : ∀{r₂ q'}
+             {rc : RecordChain r₂}      → InSys r₂
+           → (rc' : RecordChain (Q q')) → InSys (Q q')  -- Immediately before a (Q q), we have the certified block (B b), which is the 'B' in S3
+           → (c3 : 𝕂-chain Contig 3 rc)                 -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → round r₂ < getRound q'
-           → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB)
-   lemmaS3 {r₂} ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
+           → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
+   lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
      with lemmaB1 q₂ q'
    ...| (a , (a∈q₂ , a∈q' , honest))
      -- TODO-1: We have done similar reasoning on the order of votes for
@@ -107,7 +106,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| tri> _ _ va'<va₂
      with subst₂ _<_ a∈q'rnd≡ a∈q₂rnd≡   (≤-trans va'<va₂ (≤-reflexive (sym a∈q₂rnd≡)))
    ...| res = ⊥-elim (n≮n (getRound q') (≤-trans res (≤-unstep hyp)))
-   lemmaS3 ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
+   lemmaS3 {q' = q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | a∈q'rnd≡ | a∈q₂rnd≡
       | tri≈ _ v₂≡v' _ =
@@ -116,14 +115,14 @@ module LibraBFT.Abstract.RecordChain.Properties
       in ⊥-elim (<⇒≢ hyp (vote≡⇒QRound≡ {q₂} {q'} v₂∈q₂ v'∈q'
                                         (votes-only-once a honest {q₂} {q'} ex₀ ex₁ a∈q₂ a∈q'
                                                          (trans a∈q₂rnd≡ v₂≡v'))))
-   lemmaS3 {r} ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
+   lemmaS3 {r} {q'} ex₀ (step rc' b←q') ex₁  (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | a∈q'rnd≡ | a∈q₂rnd≡
       | tri< va₂<va' _ _
      with b←q'
    ...| B←Q rrr xxx
       = locked-round-rule a honest {q₂} {q'} ex₀ ex₁ (s-chain r←b₂ P b₂←q₂ c2) a∈q₂
-                    (step certB (B←Q rrr xxx)) a∈q'
+                    (step rc' (B←Q rrr xxx)) a∈q'
                           (≤-trans (≤-reflexive (cong suc a∈q₂rnd≡))
                                    va₂<va')
 
@@ -221,8 +220,8 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') (All-InSys⇒last-InSys 𝓢 prev∈sys') c3 hyp rq≤rb₂
    propS4 {q' = q'} prev∈sys (step rc' b←q') all∈sys c3 hyp
       | no  rb₂<rq
-     with lemmaS3 (All-InSys⇒last-InSys 𝓢 prev∈sys) c3
-                  (All-InSys⇒last-InSys 𝓢 all∈sys) (step rc' b←q')
+     with lemmaS3 (All-InSys⇒last-InSys 𝓢 prev∈sys) (step rc' b←q')
+                  (All-InSys⇒last-InSys 𝓢 all∈sys) c3
                   (subst (_< getRound q') (kchainBlockRoundZero-lemma c3) (≰⇒> rb₂<rq))
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ ls3
