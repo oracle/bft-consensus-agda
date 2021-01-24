@@ -208,12 +208,6 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
-   -- TODO-2: Eliminate the need for the TERMINATING pragma here.  The
-   -- problem is that propS4 invokes itself recursively with an argument
-   -- (ls3) that is returned from lemmaS3, and Agda doesn't know that this
-   -- argument, which is an inequality on round numbers, is "smaller" than
-   -- the original argument "hyp".
-   {-# TERMINATING #-}
    propS4 : ∀{q}
           → {rc : RecordChain (Q q)}
           → All-InSys 𝓢 rc
