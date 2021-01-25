@@ -87,14 +87,14 @@ module LibraBFT.Abstract.RecordChain.Properties
    ----------------
    -- Lemma S3
 
-   lemmaS3 : ∀{P r₂}{rc : RecordChain r₂}
+   lemmaS3 : ∀{r₂}{rc : RecordChain r₂}
            → InSys r₂
-           → (c3 : 𝕂-chain P 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
+           → (c3 : 𝕂-chain Contig 3 rc)        -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → {q' : QC} → InSys (Q q')
            → (certB : RecordChain (Q q')) -- Immediately before a (Q q), we have the certified block (B b), which is the 'B' in S3
            → round r₂ < getRound q'
            → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound certB)
-   lemmaS3 {r} {r₂} ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
+   lemmaS3 {r₂} ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
      with lemmaB1 q₂ q'
    ...| (a , (a∈q₂ , a∈q' , honest))
      -- TODO-1: We have done similar reasoning on the order of votes for
@@ -107,7 +107,7 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| tri> _ _ va'<va₂
      with subst₂ _<_ a∈q'rnd≡ a∈q₂rnd≡   (≤-trans va'<va₂ (≤-reflexive (sym a∈q₂rnd≡)))
    ...| res = ⊥-elim (n≮n (getRound q') (≤-trans res (≤-unstep hyp)))
-   lemmaS3 {r} ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
+   lemmaS3 ex₀ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) {q'} ex₁ (step certB b←q') hyp
       | (a , (a∈q₂ , a∈q' , honest))
       | a∈q'rnd≡ | a∈q₂rnd≡
       | tri≈ _ v₂≡v' _ =
@@ -208,12 +208,6 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₁ hb   = inj₁ hb
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
-   -- TODO-2: Eliminate the need for the TERMINATING pragma here.  The
-   -- problem is that propS4 invokes itself recursively with an argument
-   -- (ls3) that is returned from lemmaS3, and Agda doesn't know that this
-   -- argument, which is an inequality on round numbers, is "smaller" than
-   -- the original argument "hyp".
-   {-# TERMINATING #-}
    propS4 : ∀{q}
           → {rc : RecordChain (Q q)}
           → All-InSys 𝓢 rc

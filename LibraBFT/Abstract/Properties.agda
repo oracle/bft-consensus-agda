@@ -110,7 +110,7 @@ module LibraBFT.Abstract.Properties
       qc←b      : Q qc ← B (veBlock votesForB)
       rc        : RecordChain (Q qc)
       n         : ℕ
-      is-2chain : 𝕂-chain Simple (2 + n) rc
+      is-2chain : 𝕂-chain Contig (2 + n) rc
   open Cand-3-chain-vote public
 
   -- Returns the round of the head of the candidate 3-chain. In the diagram
@@ -157,8 +157,8 @@ module LibraBFT.Abstract.Properties
            (λ vp → Cand-3-chain-head-round c2 ≤ round (vpParent vp))
 
   private
-   make-cand-3-chain : ∀{n R α q}{rc : RecordChain (Q q)}
-                     → (c3 : 𝕂-chain R (3 + n) rc)
+   make-cand-3-chain : ∀{n α q}{rc : RecordChain (Q q)}
+                     → (c3 : 𝕂-chain Contig (3 + n) rc)
                      → (v  : α ∈QC q)
                      → Cand-3-chain-vote (∈QC-Vote q v)
    make-cand-3-chain {q = q} (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
@@ -170,14 +170,14 @@ module LibraBFT.Abstract.Properties
                 ; qc←b = ext₀
                 ; rc = rc
                 ; n  = n
-                ; is-2chain = 𝕂-chain-to-Simple c2
+                ; is-2chain = c2
                 }
 
    -- It is important that the make-cand-3-chain lemma doesn't change the head of
    -- the 3-chain/cand-2-chain.
    make-cand-3-chain-lemma
-     : ∀{n R α q}{rc : RecordChain (Q q)}
-     → (c3 : 𝕂-chain R (3 + n) rc)
+     : ∀{n α q}{rc : RecordChain (Q q)}
+     → (c3 : 𝕂-chain Contig (3 + n) rc)
      → (v  : α ∈QC q)
      → NonInjective-≡ bId ⊎ kchainBlock (suc zero) (is-2chain (make-cand-3-chain c3 v)) ≡ kchainBlock (suc (suc zero)) c3
    make-cand-3-chain-lemma {q = q} c3@(s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v

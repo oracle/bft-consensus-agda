@@ -102,11 +102,11 @@ module LibraBFT.Abstract.RecordChain.Invariants
    -- checks have been performed and we can infer this information solely
    -- by seeing α has knowledge of the 2-chain in Fig2 above.
    --
-   LockedRoundRule : Set (ℓ+1 ℓ0 ℓ⊔ ℓ)
+   LockedRoundRule : Set ℓ
    LockedRoundRule
-     = ∀{R}(α : Member)(hpk : Meta-Honest-Member 𝓔 α)
+     = ∀(α : Member)(hpk : Meta-Honest-Member 𝓔 α)
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
-     → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain R (3 + n) rc)
+     → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
      → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
      → (rc' : RecordChain (Q q'))
      → (vα' : α ∈QC q')
