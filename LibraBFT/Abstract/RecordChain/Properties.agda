@@ -226,13 +226,13 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ ls3
      with rc' | b←q'
-   ...| step rc'' b←q | (B←Q {b} rx x)
-     with rc'' | b←q
+   ...| step rc'' q←b | (B←Q {b} rx x)
+     with rc'' | q←b
    ...| empty | (I←B _ _)
       = contradiction (n≤0⇒n≡0 ls3)
                       (¬bRound≡0 (kchain-to-RecordChain-at-b⟦⟧ c3 (suc (suc zero))))
-   ...| step {r = r} rc''' (B←Q {q = q''} refl q←b) | (Q←B ry y)
-     with propS4 {q' = q''} prev∈sys (step rc''' (B←Q refl q←b)) (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 all∈sys)) c3 ls3
+   ...| step {r = r} rc''' (B←Q {q = q''} refl bid≡) | (Q←B ry y)
+     with propS4 {q' = q''} prev∈sys (step rc''' (B←Q refl bid≡)) (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 all∈sys)) c3 ls3
    ...| inj₁ hb'   = inj₁ hb'
    ...| inj₂ final = inj₂ (there (B←Q rx x) (there (Q←B ry y) final))
 
