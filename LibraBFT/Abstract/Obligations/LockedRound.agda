@@ -2,7 +2,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Assumptions.LockedRound
+module LibraBFT.Abstract.Obligations.LockedRound
   (𝓔 : EpochConfig)(𝓔-valid : ValidEpoch 𝓔)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))

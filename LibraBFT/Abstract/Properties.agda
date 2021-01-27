@@ -37,8 +37,8 @@ module LibraBFT.Abstract.Properties
  open EpochConfig 𝓔
  open ValidEpoch 𝓔-valid
 
- open import LibraBFT.Abstract.Assumptions.VotesOnce 𝓔 𝓔-valid UID _≟UID_ 𝓥 as VO
- open import LibraBFT.Abstract.Assumptions.LockedRound 𝓔 𝓔-valid UID _≟UID_ 𝓥 as LR
+ open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 𝓔-valid UID _≟UID_ 𝓥 as VO
+ open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 𝓔-valid UID _≟UID_ 𝓥 as LR
 
  --------------------------------------------------------------------------------------------
  -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --

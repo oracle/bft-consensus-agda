@@ -114,7 +114,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- epochs in the system are valid. This will be dependent on how the epoch-change-transaction
    -- mechanism is architected and consequently is left as future work.
    module _ (valid-𝓔 : ValidEpoch 𝓔) where
-    open import LibraBFT.Abstract.Assumptions.VotesOnce 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO
+    open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO
 
     -- The VO proof is done by induction on the execution trace leading to 'st'. In
     -- Agda, this is 'r : RechableSystemState st' above. We will use induction to
