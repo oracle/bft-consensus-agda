@@ -44,8 +44,7 @@ module LibraBFT.Abstract.System
       ∈QC⇒HasBeenSent : ∀{q α} → InSys (Q q) → Meta-Honest-Member 𝓔 α
                       → (va : α ∈QC q) → HasBeenSent (∈QC-Vote q va)
 
-  module _ {ℓ}(sys : AbsSystemState ℓ) where
-    open AbsSystemState sys
+  module All-InSys-props {ℓ}(InSys : Record → Set ℓ) where
 
     All-InSys : ∀ {o r} → RecordChainFrom o r → Set ℓ
     All-InSys rc = {r' : Record} → r' ∈RC-simple rc → InSys r'
@@ -72,8 +71,9 @@ module LibraBFT.Abstract.System
   Complete sys = ∀{α q }
                → Meta-Honest-Member 𝓔 α
                → (va : α ∈QC q)
-               → HasBeenSent sys (∈QC-Vote q va)  -- TODO-1: we could eliminate this, as it can be proved using ∈QC⇒HasBeenSent
+               → InSys (Q q)
                → ∃[ b ] (B b ← Q q
                          × Σ (RecordChain (B b))
-                             (λ rc → All-InSys sys rc ))
-    where open AbsSystemState
+                             (λ rc → All-InSys rc))
+    where open AbsSystemState sys
+          open All-InSys-props InSys

@@ -57,7 +57,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    -- epochs in the system are valid. This will be dependent on how the epoch-change-transaction
    -- mechanism is architected and consequently is left as future work.
    module _ (valid-𝓔 : ValidEpoch 𝓔) where
-    open import LibraBFT.Abstract.Properties 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
 
     postulate  -- TODO-3: prove it
-     lrr : LockedRound.Type ConcSystemState
+     lrr : LR.Type ConcSystemState

@@ -24,24 +24,24 @@ module LibraBFT.Abstract.RecordChain.Properties
   (𝓥      : VoteEvidence 𝓔 UID)
    where
 
- open import LibraBFT.Abstract.System                 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records                𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends        𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain            𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.BFT                    𝓔 valid UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Invariants 𝓔 valid UID _≟UID_ 𝓥
-   as Invariants
+ open import LibraBFT.Abstract.System                  𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.BFT                     𝓔 valid UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 valid UID _≟UID_ 𝓥
+   as Assumptions
 
  open EpochConfig 𝓔
  open ValidEpoch valid
 
  module WithInvariants {ℓ}
-   (𝓢                     : AbsSystemState ℓ)
-   (votes-only-once       : Invariants.VotesOnlyOnceRule   𝓢)
-   (locked-round-rule     : Invariants.LockedRoundRule     𝓢)
+   (InSys                 : Record → Set ℓ)
+   (votes-only-once       : Assumptions.VotesOnlyOnceRule InSys)
+   (locked-round-rule     : Assumptions.LockedRoundRule   InSys)
   where
 
-   open AbsSystemState 𝓢
+   open All-InSys-props InSys
 
    ----------------------
    -- Lemma 2
@@ -160,7 +160,7 @@ module LibraBFT.Abstract.RecordChain.Properties
 
    propS4-base-lemma-2
      : ∀{k r}
-       {rc : RecordChain r} → All-InSys 𝓢 rc
+       {rc : RecordChain r} → All-InSys rc
      → (q' : QC) → InSys (Q q')
      → {b' : Block}
      → (rc' : RecordChain (B b')) → (ext : (B b') ← (Q q'))
@@ -169,12 +169,12 @@ module LibraBFT.Abstract.RecordChain.Properties
      → getRound (kchainBlock ix c) ≡ getRound b'
      → NonInjective-≡ bId ⊎ (kchainBlock ix c ≡ b')
    propS4-base-lemma-2 {rc = rc} prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) zero hyp
-     = lemmaS2 (All-InSys⇒last-InSys 𝓢 prev∈sys) q'∈sys b←q ext hyp
+     = lemmaS2 (All-InSys⇒last-InSys prev∈sys) q'∈sys b←q ext hyp
    propS4-base-lemma-2 prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) (suc ix)
-     = propS4-base-lemma-2 (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 prev∈sys)) q' q'∈sys rc' ext c ix
+     = propS4-base-lemma-2 (All-InSys-unstep (All-InSys-unstep prev∈sys)) q' q'∈sys rc' ext c ix
 
    propS4-base : ∀{q q'}
-               → {rc : RecordChain (Q q)}   → All-InSys 𝓢 rc
+               → {rc : RecordChain (Q q)}   → All-InSys rc
                → (rc' : RecordChain (Q q')) → InSys (Q q')
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
@@ -207,8 +207,8 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
    propS4 : ∀{q q'}
-          → {rc : RecordChain (Q q)}   → All-InSys 𝓢 rc
-          → (rc' : RecordChain (Q q')) → All-InSys 𝓢 rc'
+          → {rc : RecordChain (Q q)}   → All-InSys rc
+          → (rc' : RecordChain (Q q')) → All-InSys rc'
           → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
           → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
@@ -217,11 +217,11 @@ module LibraBFT.Abstract.RecordChain.Properties
           → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
    propS4 {q' = q'} {rc} prev∈sys (step rc' b←q') prev∈sys' c3 hyp
      with getRound q' ≤?ℕ getRound (c3 b⟦ zero ⟧)
-   ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') (All-InSys⇒last-InSys 𝓢 prev∈sys') c3 hyp rq≤rb₂
+   ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') (All-InSys⇒last-InSys prev∈sys') c3 hyp rq≤rb₂
    propS4 {q' = q'} prev∈sys (step rc' b←q') all∈sys c3 hyp
       | no  rb₂<rq
-     with lemmaS3 (All-InSys⇒last-InSys 𝓢 prev∈sys) (step rc' b←q')
-                  (All-InSys⇒last-InSys 𝓢 all∈sys) c3
+     with lemmaS3 (All-InSys⇒last-InSys prev∈sys) (step rc' b←q')
+                  (All-InSys⇒last-InSys all∈sys) c3
                   (subst (_< getRound q') (kchainBlockRoundZero-lemma c3) (≰⇒> rb₂<rq))
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ ls3
@@ -232,15 +232,15 @@ module LibraBFT.Abstract.RecordChain.Properties
       = contradiction (n≤0⇒n≡0 ls3)
                       (¬bRound≡0 (kchain-to-RecordChain-at-b⟦⟧ c3 (suc (suc zero))))
    ...| step {r = r} rc''' (B←Q {q = q''} refl bid≡) | (Q←B ry y)
-     with propS4 {q' = q''} prev∈sys (step rc''' (B←Q refl bid≡)) (All-InSys-unstep 𝓢 (All-InSys-unstep 𝓢 all∈sys)) c3 ls3
+     with propS4 {q' = q''} prev∈sys (step rc''' (B←Q refl bid≡)) (All-InSys-unstep (All-InSys-unstep all∈sys)) c3 ls3
    ...| inj₁ hb'   = inj₁ hb'
    ...| inj₂ final = inj₂ (there (B←Q rx x) (there (Q←B ry y) final))
 
    -------------------
    -- Theorem S5
    thmS5 : ∀{q q'}
-         → {rc  : RecordChain (Q q )} → All-InSys 𝓢 rc
-         → {rc' : RecordChain (Q q')} → All-InSys 𝓢 rc'
+         → {rc  : RecordChain (Q q )} → All-InSys rc
+         → {rc' : RecordChain (Q q')} → All-InSys rc'
          → {b b' : Block}
          → CommitRule rc  b
          → CommitRule rc' b'
