@@ -32,8 +32,7 @@ module LibraBFT.Abstract.RecordChain.Invariants
 
   open EpochConfig 𝓔
 
-  module _ {ℓ}(𝓢 : AbsSystemState ℓ) where
-   open AbsSystemState 𝓢
+  module _ {ℓ}(InSys : Record → Set ℓ) where
 
    -- Another important predicate of a "valid" RecordStoreState is the fact
    -- that α's n-th vote is always the same.
@@ -50,8 +49,7 @@ module LibraBFT.Abstract.RecordChain.Invariants
       → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
 
 
-  module _ {ℓ}(𝓢 : AbsSystemState ℓ) where
-   open AbsSystemState 𝓢
+  module _ {ℓ}(InSys  : Record → Set ℓ) where
 
    -- The locked-round-rule, or preferred-round rule (from V3 onwards) is a critical
    -- aspect of LibraBFT's correctness. It states that an honest node α will cast

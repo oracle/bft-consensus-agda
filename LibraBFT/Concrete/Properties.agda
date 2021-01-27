@@ -47,10 +47,12 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
       ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid valid-𝓔
       }
 
+    open All-InSys-props (AbsSystemState.InSys ConcSystemState)
+
     -- commited blocks do not conflict.
     S5 : ∀{q q'}
-       → {rc  : RecordChain (Abs.Q q)}  → All-InSys ConcSystemState rc
-       → {rc' : RecordChain (Abs.Q q')} → All-InSys ConcSystemState rc'
+       → {rc  : RecordChain (Abs.Q q)}  → All-InSys rc
+       → {rc' : RecordChain (Abs.Q q')} → All-InSys rc'
        → {b b' : Abs.Block}
        → CommitRule rc  b
        → CommitRule rc' b'

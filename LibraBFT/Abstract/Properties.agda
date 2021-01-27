@@ -57,7 +57,7 @@ module LibraBFT.Abstract.Properties
        -- author can send different votes for the same epoch and round that differ on timeout
        -- signature.  Maybe something for liveness?
 
-  proof : Type → StaticInv.VotesOnlyOnceRule 𝓢
+  proof : Type → StaticInv.VotesOnlyOnceRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys va va' VO≡
      with ∈QC⇒HasBeenSent q∈sys  hα va
         | ∈QC⇒HasBeenSent q'∈sys hα va'
@@ -216,7 +216,7 @@ module LibraBFT.Abstract.Properties
    ...| B←Q refl refl | B←Q refl refl = inj₂ refl
 
   -- Finally, we can prove the locked round rule from the global version;
-  proof : Type → StaticInv.LockedRoundRule 𝓢
+  proof : Type → StaticInv.LockedRoundRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'
@@ -253,16 +253,17 @@ module LibraBFT.Abstract.Properties
  -- and variants.
  module _ {ℓ}(𝓢 : AbsSystemState ℓ) (st-valid : ValidSysState 𝓢) where
    open AbsSystemState 𝓢
+   open All-InSys-props InSys
    import LibraBFT.Abstract.RecordChain.Properties 𝓔 𝓔-valid UID _≟UID_ 𝓥 as Props
 
    CommitsDoNotConflict : ∀{q q'}
-        → {rc  : RecordChain (Q q)}  → All-InSys 𝓢 rc
-        → {rc' : RecordChain (Q q')} → All-InSys 𝓢 rc'
+        → {rc  : RecordChain (Q q)}  → All-InSys rc
+        → {rc' : RecordChain (Q q')} → All-InSys rc'
         → {b b' : Block}
         → CommitRule rc  b
         → CommitRule rc' b'
         → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-   CommitsDoNotConflict = Props.WithInvariants.thmS5 𝓢
+   CommitsDoNotConflict = Props.WithInvariants.thmS5 InSys
      (VotesOnce.proof   𝓢 (vss-votes-once st-valid))
      (LockedRound.proof 𝓢 (vss-locked-round st-valid))
 
@@ -283,9 +284,7 @@ module LibraBFT.Abstract.Properties
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
        with lemmaB1 q q'
     ...| α , α∈q , α∈q' , hα
-       with ∈QC⇒HasBeenSent q∈sys hα α∈q | ∈QC⇒HasBeenSent q'∈sys hα α∈q'
-    ...| evs | evs'
-       with ∈QC⇒AllSent {q = q} hα α∈q evs | ∈QC⇒AllSent {q = q'} hα α∈q' evs'
+       with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
             RecordChain-irrelevant (step arc' ab←q') (step rc' b←q')
@@ -293,8 +292,8 @@ module LibraBFT.Abstract.Properties
     ...| inj₂ _      | inj₁ hb = inj₁ hb
     ...| inj₂ arc≈rc | inj₂ arc'≈rc'
        with CommitsDoNotConflict
-                 (All-InSys-step 𝓢 ais  ab←q  q∈sys )
-                 (All-InSys-step 𝓢 ais' ab←q' q'∈sys)
+                 (All-InSys-step ais  ab←q  q∈sys )
+                 (All-InSys-step ais' ab←q' q'∈sys)
                  (transp-CR (≈RC-sym arc≈rc  ) cr )
                  (transp-CR (≈RC-sym arc'≈rc') cr')
     ...| inj₁ hb = inj₁ hb
@@ -321,9 +320,7 @@ module LibraBFT.Abstract.Properties
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
       with lemmaB1 q q'
     ...| α , α∈q , α∈q' , hα
-          with ∈QC⇒HasBeenSent q∈sys hα α∈q | ∈QC⇒HasBeenSent q'∈sys hα α∈q'   -- TODO-1: DRY fail, see proof for Commitsdonotconflict' above
-    ...| evs | evs'
-       with ∈QC⇒AllSent {q = q} hα α∈q evs | ∈QC⇒AllSent {q = q'} hα α∈q' evs'
+       with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with step arc  ab←q | step arc' ab←q'
     ...| rcq | rcq'
