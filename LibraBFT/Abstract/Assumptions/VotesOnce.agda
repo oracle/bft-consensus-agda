@@ -9,8 +9,8 @@ module LibraBFT.Abstract.Assumptions.VotesOnce
   where
 
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Invariants 𝓔 𝓔-valid UID _≟UID_ 𝓥
-   as StaticInv
+ import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
+   as StaticAssumptions
  open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
 
  -------------------
@@ -33,7 +33,7 @@ module LibraBFT.Abstract.Assumptions.VotesOnce
        -- author can send different votes for the same epoch and round that differ on timeout
        -- signature.  Maybe something for liveness?
 
-  proof : Type → StaticInv.VotesOnlyOnceRule InSys
+  proof : Type → StaticAssumptions.VotesOnlyOnceRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys va va' VO≡
      with ∈QC⇒HasBeenSent q∈sys  hα va
         | ∈QC⇒HasBeenSent q'∈sys hα va'

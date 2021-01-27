@@ -12,8 +12,8 @@ module LibraBFT.Abstract.Assumptions.LockedRound
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Invariants 𝓔 𝓔-valid UID _≟UID_ 𝓥
-   as StaticInv
+ import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
+   as StaticAssumptions
  open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
 
  ---------------------
@@ -163,7 +163,7 @@ module LibraBFT.Abstract.Assumptions.LockedRound
    ...| B←Q refl refl | B←Q refl refl = inj₂ refl
 
   -- Finally, we can prove the locked round rule from the global version;
-  proof : Type → StaticInv.LockedRoundRule InSys
+  proof : Type → StaticAssumptions.LockedRoundRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'

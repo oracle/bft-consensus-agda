@@ -28,8 +28,8 @@ module LibraBFT.Abstract.Properties
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Invariants 𝓔 𝓔-valid UID _≟UID_ 𝓥
-   as StaticInv
+ import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
+   as StaticAssumptions
  open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
 
  open import LibraBFT.Abstract.BFT 𝓔 𝓔-valid UID _≟UID_ 𝓥

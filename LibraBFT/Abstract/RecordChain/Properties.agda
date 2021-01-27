@@ -24,21 +24,21 @@ module LibraBFT.Abstract.RecordChain.Properties
   (𝓥      : VoteEvidence 𝓔 UID)
    where
 
- open import LibraBFT.Abstract.System                 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records                𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends        𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain            𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.BFT                    𝓔 valid UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Invariants 𝓔 valid UID _≟UID_ 𝓥
-   as Invariants
+ open import LibraBFT.Abstract.System                  𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.BFT                     𝓔 valid UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 valid UID _≟UID_ 𝓥
+   as Assumptions
 
  open EpochConfig 𝓔
  open ValidEpoch valid
 
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)
-   (votes-only-once       : Invariants.VotesOnlyOnceRule InSys)
-   (locked-round-rule     : Invariants.LockedRoundRule   InSys)
+   (votes-only-once       : Assumptions.VotesOnlyOnceRule InSys)
+   (locked-round-rule     : Assumptions.LockedRoundRule   InSys)
   where
 
    open All-InSys-props InSys

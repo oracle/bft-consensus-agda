@@ -17,7 +17,7 @@ open import LibraBFT.Abstract.Types
 -- The module 'LibraBFT.Abstract.Properties' proves that the invariants
 -- presented here can be obtained from reasoning about sent votes,
 -- which provides a much easier-to-prove interface to an implementation.
-module LibraBFT.Abstract.RecordChain.Invariants
+module LibraBFT.Abstract.RecordChain.Assumptions
     (𝓔      : EpochConfig)(valid : ValidEpoch 𝓔)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
