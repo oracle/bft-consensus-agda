@@ -13,7 +13,7 @@ open import LibraBFT.Impl.Consensus.Types
 
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.Obligations
-import LibraBFT.Concrete.Properties.VotesOnce as VO
+import LibraBFT.Concrete.Properties.VotesOnce   as VO
 import LibraBFT.Concrete.Properties.LockedRound as LR
 
 open import LibraBFT.Yasm.System     ConcSysParms
@@ -40,6 +40,9 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
     open import LibraBFT.Abstract.RecordChain 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
     open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
     open import LibraBFT.Abstract.Properties 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+
+    open import LibraBFT.Abstract.Assumptions.VotesOnce 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.Assumptions.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
 
     validState : ValidSysState ConcSystemState
     validState = record
