@@ -2,7 +2,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Obligations.LockedRound
+module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)(𝓔-valid : ValidEpoch 𝓔)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
@@ -14,14 +14,14 @@ module LibraBFT.Abstract.Obligations.LockedRound
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
  import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
    as StaticAssumptions
- open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
 
  ---------------------
  -- * LockedRound * --
  ---------------------
 
- module _ {ℓ}(𝓢 : AbsSystemState ℓ) where
-  open AbsSystemState 𝓢
+ module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
+  open IntermediateSystemState 𝓢
 
  -- The LockedRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced

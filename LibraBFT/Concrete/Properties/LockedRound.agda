@@ -48,7 +48,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
 
-   -- Bring in ConcSystemState
+   -- Bring in IntSystemState
    open import LibraBFT.Concrete.System sps-corr
    open PerState st r
    open PerEpoch eid
@@ -57,7 +57,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    -- epochs in the system are valid. This will be dependent on how the epoch-change-transaction
    -- mechanism is architected and consequently is left as future work.
    module _ (valid-𝓔 : ValidEpoch 𝓔) where
-    open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
+    open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
 
     postulate  -- TODO-3: prove it
-     lrr : LR.Type ConcSystemState
+     lrr : LR.Type IntSystemState

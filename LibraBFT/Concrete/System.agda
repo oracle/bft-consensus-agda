@@ -67,11 +67,11 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
                (sameHonestSig⇒sameVoteData hpk ver (msgSigned msg)
                                            (sym (msgSameSig msg)))
 
- -- We are now ready to define an 'AbsSystemState' view for a concrete
+ -- We are now ready to define an 'IntermediateSystemState' view for a concrete
  -- reachable state.  We will do so by fixing an epoch that exists in
  -- the system, which will enable us to define the abstract
  -- properties. The culminaton of this 'PerEpoch' module is seen in
- -- the 'ConcSysState' "function" at the bottom, which probably the
+ -- the 'IntSystemState' "function" at the bottom, which probably the
  -- best place to start uynderstanding this.  Longer term, we will
  -- also need higher-level, cross-epoch properties.
  module PerState {e}(st : SystemState e)(r : ReachableSystemState st) where
@@ -106,6 +106,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
    open EpochConfig
 
    open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Concrete.Intermediate 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
    open import LibraBFT.Concrete.Records 𝓔
    import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
 
@@ -219,8 +220,8 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
                  nm∈st
 
    -- Finally, we can define the abstract system state corresponding to the concrete state st
-   ConcSystemState : AbsSystemState ℓ0
-   ConcSystemState = record
+   IntSystemState : IntermediateSystemState ℓ0
+   IntSystemState = record
      { InSys           = λ { r → r α-Sent (msgPool st) }
      ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
      ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}
