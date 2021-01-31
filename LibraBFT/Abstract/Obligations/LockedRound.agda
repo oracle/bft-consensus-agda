@@ -91,8 +91,8 @@ module LibraBFT.Abstract.Obligations.LockedRound
   Type : Set ℓ
   Type = ∀{α v v'}
        → Meta-Honest-Member 𝓔 α
-       → vMember v  ≡ α → (hbs  : HasBeenSent v)
-       → vMember v' ≡ α → (hbs' : HasBeenSent v')
+       → vMember v  ≡ α → HasBeenSent v
+       → vMember v' ≡ α → HasBeenSent v'
        -- If v is a vote on a candidate 3-chain, that is, is a vote on a block
        -- that extends a 2-chain,
        → (c2 : Cand-3-chain-vote v)
