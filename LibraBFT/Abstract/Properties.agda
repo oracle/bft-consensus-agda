@@ -73,7 +73,7 @@ module LibraBFT.Abstract.Properties
        with lemmaB1 q q'
     ...| α , α∈q , α∈q' , hα
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
-    ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
+    ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
             RecordChain-irrelevant (step arc' ab←q') (step rc' b←q')
     ...| inj₁ hb     | _       = inj₁ hb
@@ -109,7 +109,7 @@ module LibraBFT.Abstract.Properties
       with lemmaB1 q q'
     ...| α , α∈q , α∈q' , hα
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
-    ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
+    ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
        with step arc  ab←q | step arc' ab←q'
     ...| rcq | rcq'
        with crf⇒cr rcf  rcq  crf | crf⇒cr rcf' rcq' crf'

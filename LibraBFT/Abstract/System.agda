@@ -54,6 +54,6 @@ module LibraBFT.Abstract.System
                 → Meta-Honest-Member 𝓔 α
                 → α ∈QC q
                 → ∈sys (Q q)
-                → ∃[ b ] ( B b ← Q q
-                         × Σ (RecordChain (B b)) All-InSys)
+                → ∃[ b ] ( Σ (RecordChain (B b)) All-InSys
+                         × B b ← Q q)
     where open All-InSys-props ∈sys
