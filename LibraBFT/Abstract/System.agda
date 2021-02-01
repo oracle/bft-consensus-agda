@@ -49,12 +49,11 @@ module LibraBFT.Abstract.System
   -- block is in a RecordChain whose records are all in the system.  This notion
   -- is used to extend correctness conditions on RecordChains to correctness conditions that
   -- require only a short suffix of a RecordChain.
-  Complete : ∀{ℓ} → (InSys : Record → Set ℓ) → Set ℓ
-  Complete ∈sys = ∀{α q }
+  Complete : ∀{ℓ} → (Record → Set ℓ) → Set ℓ
+  Complete ∈sys = ∀{α q}
                 → Meta-Honest-Member 𝓔 α
-                → (va : α ∈QC q)
+                → α ∈QC q
                 → ∈sys (Q q)
-                → ∃[ b ] (B b ← Q q
-                          × Σ (RecordChain (B b))
-                              (λ rc → All-InSys rc))
+                → ∃[ b ] ( B b ← Q q
+                         × Σ (RecordChain (B b)) All-InSys)
     where open All-InSys-props ∈sys
