@@ -29,10 +29,6 @@ module LibraBFT.Abstract.RecordChain
  RecordChain : Record → Set
  RecordChain = RecordChainFrom I
 
- -- This is a helpful syntax for talking about record chains
- infix 30 step
- syntax step rc r←r' = rc ↜ r←r'
-
  prevBlock : ∀{q} → RecordChain (Q q) → Block
  prevBlock (step {r = B b} _ (B←Q _ _)) = b
 
@@ -249,7 +245,7 @@ module LibraBFT.Abstract.RecordChain
            → (prf : R k r (B b))
            → (b←q : B b ← Q q)
            → 𝕂-chain R k rc
-           → 𝕂-chain R (suc k) ((rc ↜ r←b) ↜ b←q)
+           → 𝕂-chain R (suc k) (step (step rc r←b) b←q)
 
  -- Simple 𝕂-chains do not impose any restricton on its records.
  Simple : ℕ → Record → Record → Set
