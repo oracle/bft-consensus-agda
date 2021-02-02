@@ -68,16 +68,8 @@ module LibraBFT.Abstract.RecordChain.Properties
    ...| a∈q₀rnd≡ | a∈q₁rnd≡
      with <-cmp (abs-vRound (∈QC-Vote q₀ a∈q₀)) (abs-vRound (∈QC-Vote q₁ a∈q₁))
    ...| tri< va<va' _ _ = ⊥-elim (<⇒≢ (subst₂ _<_ a∈q₀rnd≡ a∈q₁rnd≡ va<va') refl)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} ex₀ ex₁ (B←Q refl h₀) (B←Q refl h₁) refl
-      | no imp
-      | (a , (a∈q₀ , a∈q₁ , honest))
-      | a∈q₀rnd≡ | a∈q₁rnd≡
-      | tri> _ _ va'<va = ⊥-elim (<⇒≢ (subst₂ _≤_ (cong suc a∈q₁rnd≡) a∈q₀rnd≡ va'<va) refl)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} ex₀ ex₁ (B←Q refl h₀) (B←Q refl h₁) hyp
-      | no imp
-      |  (a , (a∈q₀ , a∈q₁ , honest))
-      | a∈q₀rnd≡ | a∈q₁rnd≡
-      | tri≈ _ v₀≡v₁ _ =
+   ...| tri> _ _ va'<va = ⊥-elim (<⇒≢ (subst₂ _≤_ (cong suc a∈q₁rnd≡) a∈q₀rnd≡ va'<va) refl)
+   ...| tri≈ _ v₀≡v₁ _ =
      let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
          v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
          ppp   = trans h₀ (trans (vote≡⇒QPrevId≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ (votes-only-once a honest ex₀ ex₁ a∈q₀ a∈q₁ v₀≡v₁))
