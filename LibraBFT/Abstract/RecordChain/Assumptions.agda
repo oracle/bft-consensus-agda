@@ -18,7 +18,7 @@ open import LibraBFT.Abstract.Types
 -- presented here can be obtained from reasoning about sent votes,
 -- which provides a much easier-to-prove interface to an implementation.
 module LibraBFT.Abstract.RecordChain.Assumptions
-    (𝓔      : EpochConfig)(valid : ValidEpoch 𝓔)
+    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
     (𝓥      : VoteEvidence 𝓔 UID)
@@ -27,7 +27,6 @@ module LibraBFT.Abstract.RecordChain.Assumptions
   open import LibraBFT.Abstract.System           𝓔 UID _≟UID_ 𝓥
   open import LibraBFT.Abstract.Records          𝓔 UID _≟UID_ 𝓥
   open import LibraBFT.Abstract.Records.Extends  𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.BFT              𝓔 valid UID _≟UID_ 𝓥
   open import LibraBFT.Abstract.RecordChain      𝓔 UID _≟UID_ 𝓥
 
   open EpochConfig 𝓔

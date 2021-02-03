@@ -34,30 +34,28 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
    open PerState st r
    open PerEpoch eid
 
-   -- For any valid epoch within said state
-   module _ (valid-𝓔 : ValidEpoch 𝓔) where
-    import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
-    open import LibraBFT.Abstract.RecordChain 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.Properties 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
+   open import LibraBFT.Abstract.RecordChain 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Abstract.Properties 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
 
-    open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
 
-    validState : ValidSysState ConcSystemState
-    validState = record
-      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid valid-𝓔
-      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid valid-𝓔
-      }
+   validState : ValidSysState ConcSystemState
+   validState = record
+     { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid
+     ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid
+     }
 
-    open All-InSys-props (AbsSystemState.InSys ConcSystemState)
+   open All-InSys-props (AbsSystemState.InSys ConcSystemState)
 
-    -- commited blocks do not conflict.
-    S5 : ∀{q q'}
-       → {rc  : RecordChain (Abs.Q q)}  → All-InSys rc
-       → {rc' : RecordChain (Abs.Q q')} → All-InSys rc'
-       → {b b' : Abs.Block}
-       → CommitRule rc  b
-       → CommitRule rc' b'
-       → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
-    S5 = CommitsDoNotConflict ConcSystemState validState
+   -- commited blocks do not conflict.
+   S5 : ∀{q q'}
+      → {rc  : RecordChain (Abs.Q q)}  → All-InSys rc
+      → {rc' : RecordChain (Abs.Q q')} → All-InSys rc'
+      → {b b' : Abs.Block}
+      → CommitRule rc  b
+      → CommitRule rc' b'
+      → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
+   S5 = CommitsDoNotConflict ConcSystemState validState

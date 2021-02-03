@@ -142,6 +142,13 @@ module LibraBFT.Lemmas where
  IsSorted-map⁻ f .(_ ∷ []) (x ∷ []) = [] ∷ []
  IsSorted-map⁻ f .(_ ∷ _ ∷ _) (on-∷ x ∷ (x₁ ∷ is)) = (on-∷ x) ∷ IsSorted-map⁻ f _ (x₁ ∷ is)
 
+ -- TODO-1 : Better name and/or replace with library property
+ Any-sym : ∀ {a b}{A : Set a}{B : Set b}{tgt : B}{l : List A}{f : A → B}
+         → Any (λ x → tgt ≡ f x) l
+         → Any (λ x → f x ≡ tgt) l
+ Any-sym (here x)  = here (sym x)
+ Any-sym (there x) = there (Any-sym x)
+
  Any-lookup-correct :  ∀ {a b}{A : Set a}{B : Set b}{tgt : B}{l : List A}{f : A → B}
                     → (p : Any (λ x → f x ≡ tgt) l)
                     → Any-lookup p ∈ l

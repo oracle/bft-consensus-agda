@@ -19,7 +19,7 @@ open import LibraBFT.Abstract.Types
 -- properties.
 
 module LibraBFT.Abstract.Properties
-  (𝓔 : EpochConfig)(𝓔-valid : ValidEpoch 𝓔)
+  (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   (𝓥      : VoteEvidence 𝓔 UID)
@@ -28,17 +28,14 @@ module LibraBFT.Abstract.Properties
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
+ import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as StaticAssumptions
  open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
 
- open import LibraBFT.Abstract.BFT 𝓔 𝓔-valid UID _≟UID_ 𝓥
-
  open EpochConfig 𝓔
- open ValidEpoch 𝓔-valid
 
- open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 𝓔-valid UID _≟UID_ 𝓥 as VO
- open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 𝓔-valid UID _≟UID_ 𝓥 as LR
+ open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 UID _≟UID_ 𝓥 as VO
+ open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 UID _≟UID_ 𝓥 as LR
 
  --------------------------------------------------------------------------------------------
  -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
@@ -55,7 +52,7 @@ module LibraBFT.Abstract.Properties
  module _ {ℓ}(𝓢 : AbsSystemState ℓ) (st-valid : ValidSysState 𝓢) where
    open AbsSystemState 𝓢
    open All-InSys-props InSys
-   import LibraBFT.Abstract.RecordChain.Properties 𝓔 𝓔-valid UID _≟UID_ 𝓥 as Props
+   import LibraBFT.Abstract.RecordChain.Properties 𝓔 UID _≟UID_ 𝓥 as Props
 
    CommitsDoNotConflict : ∀{q q'}
         → {rc  : RecordChain (Q q)}  → All-InSys rc
@@ -83,8 +80,10 @@ module LibraBFT.Abstract.Properties
       → CommitRule rc' b'
       → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
-       with lemmaB1 q q'
-    ...| α , α∈q , α∈q' , hα
+       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+    ...| α , α∈qmem , α∈q'mem , hα
+       with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
+    ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
@@ -119,8 +118,10 @@ module LibraBFT.Abstract.Properties
       → NonInjective-≡ bId ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
                            ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
-      with lemmaB1 q q'
-    ...| α , α∈q , α∈q' , hα
+       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+    ...| α , α∈qmem , α∈q'mem , hα
+       with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
+    ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with step arc  ab←q | step arc' ab←q'

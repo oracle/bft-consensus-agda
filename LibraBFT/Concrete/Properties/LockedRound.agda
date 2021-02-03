@@ -53,11 +53,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    open PerState st r
    open PerEpoch eid
 
-   -- TODO-4: For now we assume 𝓔 is a "ValidEpoch", but in the future we should prove that all
-   -- epochs in the system are valid. This will be dependent on how the epoch-change-transaction
-   -- mechanism is architected and consequently is left as future work.
-   module _ (valid-𝓔 : ValidEpoch 𝓔) where
-    open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
+   open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
 
-    postulate  -- TODO-3: prove it
+   postulate  -- TODO-3: prove it
      lrr : LR.Type ConcSystemState

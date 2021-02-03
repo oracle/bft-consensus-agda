@@ -15,7 +15,7 @@ open import LibraBFT.Yasm.Properties ConcSysParms
 
 module LibraBFT.Concrete.Obligations where
 
-  record ImplObligations : Set where
+  record ImplObligations : Set₁ where
     field
       -- Structural obligations:
       sps-cor : StepPeerState-AllValidParts
