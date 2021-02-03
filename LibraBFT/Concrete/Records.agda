@@ -96,7 +96,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
    ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
-   ; qVotes-C2    = subst (_ ≤_) {!!} (IsValidQC.₋ivqcSizeOk valid)
+   ; qVotes-C2    = {! IsValidQC.₋ivqcIsQuorum valid!}
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C5    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self
