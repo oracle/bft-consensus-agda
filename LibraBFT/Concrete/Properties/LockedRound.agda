@@ -53,7 +53,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    open PerState st r
    open PerEpoch eid
 
-   open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
+   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
 
    postulate  -- TODO-3: prove it
      lrr : LR.Type IntSystemState

@@ -28,20 +28,18 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
 
   -- For any reachable state,
   module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
-   open import LibraBFT.Concrete.System sps-cor
-   open PerState st r
-   open PerEpoch eid
+    open import LibraBFT.Concrete.System sps-cor
+    open PerState st r
+    open PerEpoch eid
 
-   -- For any valid epoch within said state
-   module _ (valid-𝓔 : ValidEpoch 𝓔) where
     import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Abstract.RecordChain 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
     open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.Properties 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.Properties 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
 
     open import LibraBFT.Concrete.Intermediate 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    import LibraBFT.Concrete.Obligations.VotesOnce   𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO-obl
-    import LibraBFT.Concrete.Obligations.LockedRound 𝓔 valid-𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR-obl
+    import LibraBFT.Concrete.Obligations.VotesOnce   𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO-obl
+    import LibraBFT.Concrete.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR-obl
     open import LibraBFT.Concrete.Properties.VotesOnce as VO
     open import LibraBFT.Concrete.Properties.LockedRound as LR
 
@@ -66,8 +64,8 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
 
     validState : ValidSysState IntSystemState
     validState = record
-      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid valid-𝓔
-      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid valid-𝓔
+      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid
+      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid
       }
 
     open IntermediateSystemState IntSystemState
