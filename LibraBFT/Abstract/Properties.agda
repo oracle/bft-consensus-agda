@@ -80,8 +80,10 @@ module LibraBFT.Abstract.Properties
       → CommitRule rc' b'
       → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
-       with lemmaB1 q q'
-    ...| α , α∈q , α∈q' , hα
+       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+    ...| α , α∈qmem , α∈q'mem , hα
+       with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
+    ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
@@ -116,8 +118,10 @@ module LibraBFT.Abstract.Properties
       → NonInjective-≡ bId ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
                            ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
-      with lemmaB1 q q'
-    ...| α , α∈q , α∈q' , hα
+       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+    ...| α , α∈qmem , α∈q'mem , hα
+       with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
+    ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
     ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
        with step arc  ab←q | step arc' ab←q'
