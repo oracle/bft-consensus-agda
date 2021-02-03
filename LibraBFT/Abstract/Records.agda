@@ -73,7 +73,7 @@ module LibraBFT.Abstract.Records
      -- which guarantees distinct authors.
      qVotes-C1      : IsSorted (λ v₀ v₁ → vMember v₀ <Fin vMember v₁) qVotes
      -- Second, we it must have at least 'QuorumSize' votes, for the given epoch.
-     qVotes-C2      : QSize ≤ length qVotes
+     qVotes-C2      : IsQuorum (List-map vMember qVotes)
      -- All the votes must vote for the same blockId
      qVotes-C3      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
      -- Likewise for rounds

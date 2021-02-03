@@ -78,16 +78,7 @@ module LibraBFT.Impl.Consensus.Types where
         qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in (mkEpochConfig {! someHash?!}
-                (epec ^∙ epEpoch)
-                numAuthors
-                bizF
-                ok
-                {!!}
-                {!!}
-                {!!}
-                {!!}
-                {!!}
-                {!!})
+                (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
   α-EC-≡ : (epec1  : EventProcessorEC)
          → (epec2  : EventProcessorEC)

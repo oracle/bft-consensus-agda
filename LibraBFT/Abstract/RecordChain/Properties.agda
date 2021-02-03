@@ -18,7 +18,7 @@ open import LibraBFT.Abstract.Types
 -- separating these proofs into abstract and concrete pieces.
 
 module LibraBFT.Abstract.RecordChain.Properties
-  (𝓔      : EpochConfig)(valid : ValidEpoch 𝓔)
+  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   (𝓥      : VoteEvidence 𝓔 UID)
@@ -28,12 +28,10 @@ module LibraBFT.Abstract.RecordChain.Properties
  open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.BFT                     𝓔 valid UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 valid UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as Assumptions
 
  open EpochConfig 𝓔
- open ValidEpoch valid
 
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)

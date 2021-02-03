@@ -25,7 +25,7 @@ module LibraBFT.Abstract.Types where
   --
   -- The reason for the separation is that we should be able to provide
   -- an EpochConfig from a single peer state.
-  record EpochConfig : Set where
+  record EpochConfig : Set₁ where
     constructor mkEpochConfig
     field
       -- TODO-2 : This should really be a UID as Hash should not show up in the Abstract
@@ -34,11 +34,6 @@ module LibraBFT.Abstract.Types where
       genesisUID : Hash
       epochId   : EpochId
       authorsN  : ℕ
-      bizF      : ℕ
-      isBFT     : authorsN ≥ suc (3 * bizF)
-
-    QSize : ℕ
-    QSize = authorsN ∸ bizF
 
     -- The set of members of this epoch.
     Member : Set
@@ -58,6 +53,13 @@ module LibraBFT.Abstract.Types where
 
       PK-inj : ∀ {m1 m2} → getPubKey m1 ≡ getPubKey m2 → m1 ≡ m2
 
+      IsQuorum : List Member → Set
+
+      bft-assumption : ∀ {xs ys}
+                     → IsQuorum xs → IsQuorum ys
+                     → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
+
+
   open EpochConfig
 
   toNodeId-inj : ∀{𝓔}{x y : Member 𝓔} → toNodeId 𝓔 x ≡ toNodeId 𝓔 y → x ≡ y
@@ -65,7 +67,7 @@ module LibraBFT.Abstract.Types where
                                         (trans (cong (isMember? 𝓔) hyp)
                                                (nodeid-author-id 𝓔)))
 
-  record EpochConfigFor (eid : ℕ) : Set where
+  record EpochConfigFor (eid : ℕ) : Set₁ where
     field
      epochConfig : EpochConfig
      forEpochId  : epochId epochConfig ≡ eid
@@ -103,22 +105,6 @@ module LibraBFT.Abstract.Types where
      = trans (sym (author-nodeid-id 𝓔 RA))
              (trans (cong (toNodeId 𝓔) prf)
                     (author-nodeid-id 𝓔 RB))
-
-  -- ValidEpoch specifies a requirement for an epoch to have "enough"
-  -- honest verifiers to ensure that any pair of quorums has an honest
-  -- peer in its intersection. EpochConfig carries the information that
-  -- a peer will have immediately in its state. ValidEpoch, on the
-  -- other hand, carries information that the protocol and epoch
-  -- changes will need to guarantee.
-  record ValidEpoch (𝓔 : EpochConfig) : Set₁ where
-    field
-      bft-lemma : {xs ys : List (Member 𝓔)}
-                -- enforcing both xs and ys to be sorted lists according to
-                -- a anti-reflexive linear order ensures authors are distinct.
-                → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-                → QSize 𝓔 ≤ length xs
-                → QSize 𝓔 ≤ length ys
-                → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-Member 𝓔 α)
 
   -- The abstract model is connected to the implementaton by means of
   -- 'VoteEvidence'. The record module will be parameterized by a
