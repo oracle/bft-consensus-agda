@@ -3,6 +3,7 @@
    Copyright (c) 2020 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Hash
@@ -140,13 +141,13 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   ₋cveSignature : ∀{vd} → ConcreteVoteEvidence vd → Signature
   ₋cveSignature = ₋vSignature ∘ ₋cveVote
 
-  -- A valid quorum certificate is a collection of at least QSize valid votes
-  -- cast by different authors.
+  -- A valid quorum certificate contains a collection of valid votes, such that
+  -- the members represented by those votes (which exist because the votes are valid)
+  -- constitutes a quorum.
   record IsValidQC (qc : QuorumCert) : Set where
     field
-      ₋ivqcSizeOk          : QSize ≤ length (qcVotes qc)
-      ₋ivqcAuthorsDistinct : allDistinct (List-map (isMember? ∘ proj₁) (qcVotes qc)) -- TODO-2: consider using the sortedBy _<_ trick; might be simpler.
       ₋ivqcVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
+      ₋ivqcIsQuorum        : IsQuorum {!!}  -- TODO: extract list of abstract members using ₋ivqcVotesValid?
   open IsValidQC public
 
   vqcMember : (qc : QuorumCert) → IsValidQC qc

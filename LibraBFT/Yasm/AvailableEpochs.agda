@@ -37,20 +37,20 @@ module LibraBFT.Yasm.AvailableEpochs where
  fromℕ-≤-step-natural (s≤s (s≤s prf)) = cong suc (fromℕ-≤-step-natural (s≤s prf))
 
 
- Vec-All-lookup∘tabulate : ∀{n}{A : Set}{v : Vec A n}{P : A → Set}
+ Vec-All-lookup∘tabulate : ∀{n}{A : Set}{v : Vec A n}{ℓ : Level}{P : A → Set ℓ}
                          → (f : (x : Fin n) → P (Vec-lookup v x))(i : Fin n)
                          → Vec-All.lookup {P = P} i (Vec-All.tabulate {xs = v} f) ≡ f i
  Vec-All-lookup∘tabulate {v = v₀ ∷ vs} f zero = refl
  Vec-All-lookup∘tabulate {v = v₀ ∷ vs} f (suc i) = Vec-All-lookup∘tabulate (f ∘ suc) i
 
- subst-elim : {A : Set}(P : A → Set){a₀ a₁ : A}
+ subst-elim : {A : Set}{ℓ : Level}(P : A → Set ℓ){a₀ a₁ : A}
             → (prf : a₀ ≡ a₁)(x : P a₁)
             → subst P prf (subst P (sym prf) x) ≡ x
  subst-elim _ refl x = refl
 
  -- Available epochs consist of a vector of EpochConfigs with
  -- the correct epoch ids.
- AvailableEpochs : ℕ → Set
+ AvailableEpochs : ℕ → Set₁
  AvailableEpochs = Vec-All (EpochConfigFor ∘ toℕ) ∘ Vec-allFin
 
  lookup : ∀{e} → AvailableEpochs e → (ix : Fin e) → EpochConfigFor (toℕ ix)

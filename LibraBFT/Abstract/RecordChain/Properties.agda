@@ -18,7 +18,7 @@ open import LibraBFT.Abstract.Types
 -- separating these proofs into abstract and concrete pieces.
 
 module LibraBFT.Abstract.RecordChain.Properties
-  (𝓔      : EpochConfig)(valid : ValidEpoch 𝓔)
+  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   (𝓥      : VoteEvidence 𝓔 UID)
@@ -28,12 +28,10 @@ module LibraBFT.Abstract.RecordChain.Properties
  open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.BFT                     𝓔 valid UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 valid UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as Assumptions
 
  open EpochConfig 𝓔
- open ValidEpoch valid
 
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)
@@ -61,8 +59,10 @@ module LibraBFT.Abstract.RecordChain.Properties
      with b₀ ≟Block b₁
    ...| yes done = inj₂ done
    ...| no  imp
-     with lemmaB1 q₀ q₁
-   ...|  (a , (a∈q₀ , a∈q₁ , honest))
+     with bft-assumption (qVotes-C2 q₀) (qVotes-C2 q₁)
+   ...|  (a , (a∈q₀mem , a∈q₁mem , honest))
+     with Any-sym (Any-map⁻ a∈q₀mem) | Any-sym (Any-map⁻ a∈q₁mem)
+   ...| a∈q₀ | a∈q₁
       with All-lookup (qVotes-C4 q₀) (∈QC-Vote-correct q₀ a∈q₀) |
            All-lookup (qVotes-C4 q₁) (∈QC-Vote-correct q₁ a∈q₁)
    ...| a∈q₀rnd≡ | a∈q₁rnd≡
@@ -86,8 +86,11 @@ module LibraBFT.Abstract.RecordChain.Properties
            → round r₂ < getRound q'
            → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
    lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
-     with lemmaB1 q₂ q'
-   ...| (a , (a∈q₂ , a∈q' , honest))
+     with bft-assumption (qVotes-C2 q₂) (qVotes-C2 q')
+   ...| (a , (a∈q₂mem , a∈q'mem , honest))
+        with Any-sym (Any-map⁻ a∈q₂mem) | Any-sym (Any-map⁻ a∈q'mem)
+   ...| a∈q₂ | a∈q'
+
      -- TODO-1: We have done similar reasoning on the order of votes for
      -- lemmaS2. We should factor out a predicate that analyzes the rounds
      -- of QC's and returns us a judgement about the order of the votes.
@@ -99,7 +102,8 @@ module LibraBFT.Abstract.RecordChain.Properties
      with subst₂ _<_ a∈q'rnd≡ a∈q₂rnd≡   (≤-trans va'<va₂ (≤-reflexive (sym a∈q₂rnd≡)))
    ...| res = ⊥-elim (n≮n (getRound q') (≤-trans res (≤-unstep hyp)))
    lemmaS3 {q' = q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) hyp
-      | (a , (a∈q₂ , a∈q' , honest))
+      | (a , (a∈q₂mem , a∈q'mem , honest))
+      | a∈q₂ | a∈q'
       | a∈q'rnd≡ | a∈q₂rnd≡
       | tri≈ _ v₂≡v' _ =
      let v₂∈q₂ = ∈QC-Vote-correct q₂ a∈q₂
@@ -108,7 +112,8 @@ module LibraBFT.Abstract.RecordChain.Properties
                                         (votes-only-once a honest {q₂} {q'} ex₀ ex₁ a∈q₂ a∈q'
                                                          (trans a∈q₂rnd≡ v₂≡v'))))
    lemmaS3 {r} {q'} ex₀ (step rc' b←q') ex₁  (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ P b₂←q₂ c2) hyp
-      | (a , (a∈q₂ , a∈q' , honest))
+      | (a , (a∈q₂mem , a∈q'mem , honest))
+      | a∈q₂ | a∈q'
       | a∈q'rnd≡ | a∈q₂rnd≡
       | tri< va₂<va' _ _
      with b←q'

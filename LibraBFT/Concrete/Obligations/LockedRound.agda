@@ -8,7 +8,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
 module LibraBFT.Concrete.Obligations.LockedRound
-  (𝓔 : EpochConfig)(𝓔-valid : ValidEpoch 𝓔)
+  (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
   (𝓥      : VoteEvidence 𝓔 UID)
@@ -17,7 +17,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 𝓔-valid UID _≟UID_ 𝓥
+ import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as StaticAssumptions
  open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
 
