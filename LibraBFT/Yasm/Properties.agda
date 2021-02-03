@@ -26,7 +26,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
  -- a member of the associated epoch config, and (iii) has the given PK in that epoch.
- record ValidPartForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) : Set where
+ record ValidPartForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) : Set₁ where
    constructor mkValidPartForPK
    field
      vp-epoch           : part-epoch part < e
@@ -63,7 +63,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and has
  -- not been included in a previously sent message with the same signature), or (ii) the part been
  -- included in a previously sent message with the same signature.
- StepPeerState-AllValidParts : Set
+ StepPeerState-AllValidParts : Set₁
  StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
@@ -76,8 +76,8 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
- IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set
- IsValidNewPart _ _ (step-epoch _) = ⊥
+ IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set₁
+ IsValidNewPart _ _ (step-epoch _) = Lift (ℓ+1 0ℓ) ⊥
  -- said step is a /step-peer/ and
  IsValidNewPart {pre = pre} sig pk (step-peer pstep)
     -- the part has never been seen before
@@ -100,7 +100,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
      unwind : ∀{e}{st : SystemState e}(tr : ReachableSystemState st)
             → ∀{p m σ pk} → Meta-Honest-PK pk
             → p ⊂Msg m → (σ , m) ∈ msgPool st → (ver : WithVerSig pk p)
-            → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
+            → Any-Step ((IsValidNewPart (ver-signature ver) pk)) tr
      unwind (step-s tr (step-epoch _))    hpk p⊂m m∈sm sig
        = step-there (unwind tr hpk p⊂m m∈sm sig)
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
@@ -124,6 +124,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
        with sps-avp tr hpk x m∈outs p⊂m sig
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
+     
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
         | inj₁ thisStep
         | step-honest x

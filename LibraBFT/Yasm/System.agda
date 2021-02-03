@@ -165,7 +165,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
  --
  -- A system consists in a partial map from PeerId to PeerState, a pool
  -- of sent messages and a number of available epochs.
- record SystemState (e : ℕ) : Set where
+ record SystemState (e : ℕ) : Set₁ where
    field
      peerStates  : Map PeerId PeerState
      msgPool     : SentMessages          -- All messages ever sent
@@ -242,7 +242,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
- data Step : ∀{e e'} → SystemState e → SystemState e' → Set where
+ data Step : ∀{e e'} → SystemState e → SystemState e' → Set₁ where
    step-epoch : ∀{e}{pre : SystemState e}
               → (𝓔 : EpochConfigFor e)
               -- TODO-3: Eventually, we'll condition this step to only be
@@ -273,7 +273,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
 
  -- * Reflexive-Transitive Closure
 
- data Step* : ∀{e e'} → SystemState e → SystemState e' → Set where
+ data Step* : ∀{e e'} → SystemState e → SystemState e' → Set₁ where
    step-0 : ∀{e}{pre : SystemState e}
           → Step* pre pre
 
@@ -282,7 +282,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
           → Step pre post
           → Step* fst post
 
- ReachableSystemState : ∀{e} → SystemState e → Set
+ ReachableSystemState : ∀{e} → SystemState e → Set₁
  ReachableSystemState = Step* initialState
 
  Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
@@ -314,8 +314,8 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
- SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set) → Set₁
- SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set
+ SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set₁) → Set₂
+ SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set₁
 
  -- Just like Data.List.Any maps a predicate over elements to a predicate over lists,
  -- Any-step maps a relation over steps to a relation over steps in a trace.
@@ -332,7 +332,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
              → Any-Step P (step-s cont this)
 
  Any-Step-elim
-   : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set}
+   : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set₁}
    → {r : Step* st₀ st₁}
    → (P⇒Q : ∀{d d'}{s : SystemState d}{s' : SystemState d'}{st : Step s s'}
           → P st → Step* s' st₁ → Q)
