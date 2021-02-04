@@ -154,7 +154,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
    vote∈QcProps : ∀ {q α st} → (αSent : Abs.Q q α-Sent st) → (α∈q : α Abs.∈QC q)
                 → Vote∈QcProps {q} (qc-α-Sent⇒ αSent) α∈q
    vote∈QcProps {q} {α} αSent va∈q
-      with  All-lookup (Abs.qVotes-C5 q)  (Abs.∈QC-Vote-correct q va∈q)
+      with  All-lookup (Abs.qVotes-C4 q)  (Abs.∈QC-Vote-correct q va∈q)
    ...| ev
       with qc-α-Sent⇒ αSent
    ...| qcp

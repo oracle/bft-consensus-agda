@@ -496,7 +496,7 @@ module LibraBFT.Abstract.RecordChain
                 → v ≡ v'
                 → qCertBlockId q ≡ qCertBlockId q'
  vote≡⇒QPrevId≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
+     with witness v∈q (qVotes-C2 q) | witness v'∈q' (qVotes-C2 q')
  ... | refl | refl = refl
 
  vote≡⇒QRound≡ : {q q' : QC} {v v' : Vote}
@@ -505,7 +505,7 @@ module LibraBFT.Abstract.RecordChain
                → v ≡ v'
                → getRound q ≡ getRound q'
  vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
+     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
  ... | refl | refl = refl
 
  ¬bRound≡0 : ∀{b} → RecordChain (B b) → ¬ (getRound b ≡ 0)

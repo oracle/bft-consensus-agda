@@ -59,12 +59,12 @@ module LibraBFT.Abstract.RecordChain.Properties
      with b₀ ≟Block b₁
    ...| yes done = inj₂ done
    ...| no  imp
-     with bft-assumption (qVotes-C2 q₀) (qVotes-C2 q₁)
+     with bft-assumption (qVotes-C1 q₀) (qVotes-C1 q₁)
    ...|  (a , (a∈q₀mem , a∈q₁mem , honest))
      with Any-sym (Any-map⁻ a∈q₀mem) | Any-sym (Any-map⁻ a∈q₁mem)
    ...| a∈q₀ | a∈q₁
-      with All-lookup (qVotes-C4 q₀) (∈QC-Vote-correct q₀ a∈q₀) |
-           All-lookup (qVotes-C4 q₁) (∈QC-Vote-correct q₁ a∈q₁)
+      with All-lookup (qVotes-C3 q₀) (∈QC-Vote-correct q₀ a∈q₀) |
+      All-lookup (qVotes-C3 q₁) (∈QC-Vote-correct q₁ a∈q₁)
    ...| a∈q₀rnd≡ | a∈q₁rnd≡
      with <-cmp (abs-vRound (∈QC-Vote q₀ a∈q₀)) (abs-vRound (∈QC-Vote q₁ a∈q₁))
    ...| tri< va<va' _ _ = ⊥-elim (<⇒≢ (subst₂ _<_ a∈q₀rnd≡ a∈q₁rnd≡ va<va') refl)
@@ -86,7 +86,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → round r₂ < getRound q'
            → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
    lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
-     with bft-assumption (qVotes-C2 q₂) (qVotes-C2 q')
+     with bft-assumption (qVotes-C1 q₂) (qVotes-C1 q')
    ...| (a , (a∈q₂mem , a∈q'mem , honest))
         with Any-sym (Any-map⁻ a∈q₂mem) | Any-sym (Any-map⁻ a∈q'mem)
    ...| a∈q₂ | a∈q'
@@ -94,8 +94,8 @@ module LibraBFT.Abstract.RecordChain.Properties
      -- TODO-1: We have done similar reasoning on the order of votes for
      -- lemmaS2. We should factor out a predicate that analyzes the rounds
      -- of QC's and returns us a judgement about the order of the votes.
-     with All-lookup (qVotes-C4 q') (∈QC-Vote-correct q' a∈q') |
-          All-lookup (qVotes-C4 q₂) (∈QC-Vote-correct q₂ a∈q₂)
+     with All-lookup (qVotes-C3 q') (∈QC-Vote-correct q' a∈q') |
+          All-lookup (qVotes-C3 q₂) (∈QC-Vote-correct q₂ a∈q₂)
    ...| a∈q'rnd≡ | a∈q₂rnd≡
      with <-cmp (round r₂) (abs-vRound (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂

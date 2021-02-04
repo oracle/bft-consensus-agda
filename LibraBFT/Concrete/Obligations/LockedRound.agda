@@ -116,8 +116,8 @@ module LibraBFT.Concrete.Obligations.LockedRound
    make-cand-3-chain {q = q} (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
    ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c))
-       = record { votesForB = mkVE b (All-lookup (qVotes-C3 q) (Any-lookup-correct v))
-                                      (trans (All-lookup (qVotes-C4 q) (Any-lookup-correct v)) h1)
+       = record { votesForB = mkVE b (All-lookup (qVotes-C2 q) (Any-lookup-correct v))
+                                      (trans (All-lookup (qVotes-C3 q) (Any-lookup-correct v)) h1)
                 ; qc = q₀
                 ; qc←b = ext₀
                 ; rc = rc
@@ -137,7 +137,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
    ...| no neq = inj₁ ((veBlock (Cand-3-chain-vote.votesForB (make-cand-3-chain c3 v)) , b)
                       , neq
                       , trans (sym (veId (votesForB (make-cand-3-chain c3 v))))
-                              (All-lookup (qVotes-C3 q) (∈QC-Vote-correct q v)))
+                              (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q v)))
    ...| yes b≡
      with c2
    ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c)) rewrite b≡ = inj₂ refl
@@ -149,7 +149,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
    vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) va vp
      with b ≟Block (veBlock (vpExt vp))
    ...| no imp = inj₁ ( (b , veBlock (vpExt vp))
-                      , (imp , id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C3 q) (∈QC-Vote-correct q va)))
+                      , (imp , id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
                                                                (veId (vpExt vp))))))
    ...| yes refl
      with ←-inj y (vpExt' vp)

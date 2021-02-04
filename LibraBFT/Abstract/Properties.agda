@@ -71,7 +71,7 @@ module LibraBFT.Abstract.Properties
       → CommitRule rc' b'
       → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
-       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'
@@ -109,7 +109,7 @@ module LibraBFT.Abstract.Properties
       → NonInjective-≡ bId ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
                            ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
-       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'
