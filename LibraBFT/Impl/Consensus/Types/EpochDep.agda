@@ -148,7 +148,6 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
     field
       ₋ivqcVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
       ₋ivqcIsQuorum        : IsQuorum (All-reduce ₋ivvMember ₋ivqcVotesValid)
-                             -- TODO: extract list of abstract members using ₋ivqcVotesValid?
   open IsValidQC public
 
   vqcMember : (qc : QuorumCert) → IsValidQC qc
