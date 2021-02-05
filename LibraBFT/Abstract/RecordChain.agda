@@ -235,6 +235,10 @@ module LibraBFT.Abstract.RecordChain
  --
  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₖ ← Cₖ
  --
+ -- such that for each Bᵢ some predicate R is satisfies for Bᵢ and Bᵢ₊₁.
+ -- The first parameter R enables predicate definitions to avoid the need
+ -- to find a predecessor for B₀ (see Contig definition below).
+ --
  -- The 𝕂-chain datatype captures exactly that structure.
  --
  data 𝕂-chain (R : ℕ → Record → Record → Set)
