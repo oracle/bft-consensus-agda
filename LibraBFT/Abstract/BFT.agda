@@ -439,6 +439,13 @@ module LibraBFT.Abstract.BFT
    ...| fst , [] | [ eq₁ ] = cong suc (span-dis {xs} eq₁)
 
 
+   -- TODO-1 : An alternative to prove this lemma would be:
+   -- - First use the library lemma length-filter to prove that
+   --   length (List-filter Meta-dishonest? xs) ≤ length xs.
+   -- - Then prove that if length (List-filter Meta-dishonest? xs) < length xs
+   --   then ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α)).
+   -- - Otherwise, if length (List-filter Meta-dishonest? xs ≡ )length xs we
+   --   get a contradiction using the bft assumption (as we have now).
    find-honest : ∀ {xs : List Member}
                → IsSorted _<Fin_ xs
                → bizF + 1 ≤ length xs
