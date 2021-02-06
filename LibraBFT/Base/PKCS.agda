@@ -79,6 +79,9 @@ module LibraBFT.Base.PKCS where
    -- proofs.
    Meta-Dishonest-PK : PK → Set
 
+   Meta-DishonestPK? : (pk : PK) → Dec (Meta-Dishonest-PK pk)
+
+
  Meta-Honest-PK : PK → Set
  Meta-Honest-PK  = ¬_ ∘ Meta-Dishonest-PK
 
