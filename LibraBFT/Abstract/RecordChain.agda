@@ -29,10 +29,6 @@ module LibraBFT.Abstract.RecordChain
  RecordChain : Record → Set
  RecordChain = RecordChainFrom I
 
- -- This is a helpful syntax for talking about record chains
- infix 30 step
- syntax step rc r←r' = rc ↜ r←r'
-
  prevBlock : ∀{q} → RecordChain (Q q) → Block
  prevBlock (step {r = B b} _ (B←Q _ _)) = b
 
@@ -239,6 +235,10 @@ module LibraBFT.Abstract.RecordChain
  --
  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₖ ← Cₖ
  --
+ -- such that for each Bᵢ some predicate R is satisfies for Bᵢ and Bᵢ₊₁.
+ -- The first parameter R enables predicate definitions to avoid the need
+ -- to find a predecessor for B₀ (see Contig definition below).
+ --
  -- The 𝕂-chain datatype captures exactly that structure.
  --
  data 𝕂-chain (R : ℕ → Record → Record → Set)
@@ -249,7 +249,7 @@ module LibraBFT.Abstract.RecordChain
            → (prf : R k r (B b))
            → (b←q : B b ← Q q)
            → 𝕂-chain R k rc
-           → 𝕂-chain R (suc k) ((rc ↜ r←b) ↜ b←q)
+           → 𝕂-chain R (suc k) (step (step rc r←b) b←q)
 
  -- Simple 𝕂-chains do not impose any restricton on its records.
  Simple : ℕ → Record → Record → Set
@@ -500,7 +500,7 @@ module LibraBFT.Abstract.RecordChain
                 → v ≡ v'
                 → qCertBlockId q ≡ qCertBlockId q'
  vote≡⇒QPrevId≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
+     with witness v∈q (qVotes-C2 q) | witness v'∈q' (qVotes-C2 q')
  ... | refl | refl = refl
 
  vote≡⇒QRound≡ : {q q' : QC} {v v' : Vote}
@@ -509,7 +509,7 @@ module LibraBFT.Abstract.RecordChain
                → v ≡ v'
                → getRound q ≡ getRound q'
  vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
+     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
  ... | refl | refl = refl
 
  ¬bRound≡0 : ∀{b} → RecordChain (B b) → ¬ (getRound b ≡ 0)

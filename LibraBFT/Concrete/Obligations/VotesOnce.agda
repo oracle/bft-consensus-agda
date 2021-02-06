@@ -1,7 +1,12 @@
+{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
+
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
+-}
 open import LibraBFT.Prelude
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Obligations.VotesOnce
+module LibraBFT.Concrete.Obligations.VotesOnce
   (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
@@ -11,14 +16,14 @@ module LibraBFT.Abstract.Obligations.VotesOnce
  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
  import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as StaticAssumptions
- open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
 
  -------------------
  -- * VotesOnce * --
  -------------------
 
- module _ {ℓ}(𝓢 : AbsSystemState ℓ) where
-  open AbsSystemState 𝓢
+ module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
+  open IntermediateSystemState 𝓢
 
   Type : Set ℓ
   Type = ∀{α v v'}

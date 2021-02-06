@@ -1,8 +1,13 @@
+{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
+
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
+-}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 
-module LibraBFT.Abstract.Obligations.LockedRound
+module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
@@ -14,14 +19,14 @@ module LibraBFT.Abstract.Obligations.LockedRound
  open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
  import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
    as StaticAssumptions
- open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
 
  ---------------------
  -- * LockedRound * --
  ---------------------
 
- module _ {ℓ}(𝓢 : AbsSystemState ℓ) where
-  open AbsSystemState 𝓢
+ module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
+  open IntermediateSystemState 𝓢
 
  -- The LockedRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced
@@ -91,8 +96,8 @@ module LibraBFT.Abstract.Obligations.LockedRound
   Type : Set ℓ
   Type = ∀{α v v'}
        → Meta-Honest-Member 𝓔 α
-       → vMember v  ≡ α → (hbs  : HasBeenSent v)
-       → vMember v' ≡ α → (hbs' : HasBeenSent v')
+       → vMember v  ≡ α → HasBeenSent v
+       → vMember v' ≡ α → HasBeenSent v'
        -- If v is a vote on a candidate 3-chain, that is, is a vote on a block
        -- that extends a 2-chain,
        → (c2 : Cand-3-chain-vote v)
@@ -111,8 +116,8 @@ module LibraBFT.Abstract.Obligations.LockedRound
    make-cand-3-chain {q = q} (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
    ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c))
-       = record { votesForB = mkVE b (All-lookup (qVotes-C3 q) (Any-lookup-correct v))
-                                      (trans (All-lookup (qVotes-C4 q) (Any-lookup-correct v)) h1)
+       = record { votesForB = mkVE b (All-lookup (qVotes-C2 q) (Any-lookup-correct v))
+                                      (trans (All-lookup (qVotes-C3 q) (Any-lookup-correct v)) h1)
                 ; qc = q₀
                 ; qc←b = ext₀
                 ; rc = rc
@@ -132,7 +137,7 @@ module LibraBFT.Abstract.Obligations.LockedRound
    ...| no neq = inj₁ ((veBlock (Cand-3-chain-vote.votesForB (make-cand-3-chain c3 v)) , b)
                       , neq
                       , trans (sym (veId (votesForB (make-cand-3-chain c3 v))))
-                              (All-lookup (qVotes-C3 q) (∈QC-Vote-correct q v)))
+                              (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q v)))
    ...| yes b≡
      with c2
    ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c)) rewrite b≡ = inj₂ refl
@@ -144,7 +149,7 @@ module LibraBFT.Abstract.Obligations.LockedRound
    vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) va vp
      with b ≟Block (veBlock (vpExt vp))
    ...| no imp = inj₁ ( (b , veBlock (vpExt vp))
-                      , (imp , id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C3 q) (∈QC-Vote-correct q va)))
+                      , (imp , id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
                                                                (veId (vpExt vp))))))
    ...| yes refl
      with ←-inj y (vpExt' vp)

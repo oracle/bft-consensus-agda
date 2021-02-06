@@ -69,17 +69,14 @@ module LibraBFT.Abstract.Records
      qRound         : Round
      qCertBlockId   : UID -- this is the id for the block it certifies.
      qVotes         : List Vote
-     -- Here are the coherence conditions. First, 'qVotes' must be sorted,
-     -- which guarantees distinct authors.
-     qVotes-C1      : IsSorted (λ v₀ v₁ → vMember v₀ <Fin vMember v₁) qVotes
-     -- Second, we it must have at least 'QuorumSize' votes, for the given epoch.
-     qVotes-C2      : IsQuorum (List-map vMember qVotes)
-     -- All the votes must vote for the same blockId
-     qVotes-C3      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
+     -- The voters form a quorum
+     qVotes-C1      : IsQuorum (List-map vMember qVotes)
+     -- All votes are for the same blockId
+     qVotes-C2      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
      -- Likewise for rounds
-     qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
-     -- And we have evidence for all votes.
-     qVotes-C5      : All 𝓥 qVotes
+     qVotes-C3      : All (λ v → vRound v ≡ qRound) qVotes
+     -- And we have evidence for all votes
+     qVotes-C4      : All 𝓥 qVotes
   open QC public
 
   ------------------------
@@ -184,8 +181,8 @@ module LibraBFT.Abstract.Records
              → v ∈ qcVotes q → v ∈ qcVotes q'
              → q ≈QC q'
   ∈QC-Vote-≈ {v} {q} {q'} vq vq'
-    = trans (sym (All-lookup (qVotes-C3 q)  vq))
-                 (All-lookup (qVotes-C3 q') vq')
+    = trans (sym (All-lookup (qVotes-C2 q)  vq))
+                 (All-lookup (qVotes-C2 q') vq')
 
   -- A record is either one of the types introduced above or the initial/genesis record.
   data Record : Set where
