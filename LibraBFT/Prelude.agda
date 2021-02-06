@@ -35,7 +35,7 @@ module LibraBFT.Prelude where
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map)
-    using (∷-injective)
+    using (∷-injective; length-++)
     public
 
   open import Data.List.Relation.Unary.Any
@@ -73,7 +73,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List.Membership.Propositional
-    using (_∈_)
+    using (_∈_; _∉_)
     public
 
   open import Data.Vec
@@ -136,6 +136,7 @@ module LibraBFT.Prelude where
 
   open import Data.Fin.Properties
     using (toℕ-injective)
+    renaming (<-cmp to Fin-<-cmp; <-trans to Fin-<-trans)
     public
 
   open import Relation.Binary.PropositionalEquality
@@ -167,8 +168,8 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Product
-    renaming (map to ×-map; map₂ to ×-map₂; <_,_> to split; swap to ×-swap)
-    hiding (map₁; zip)
+    renaming (map to ×-map; map₂ to ×-map₂; map₁ to ×-map₁; <_,_> to split; swap to ×-swap)
+    hiding (zip)
     public
 
   open import Data.Product.Properties
