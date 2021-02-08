@@ -27,6 +27,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
+  open WithEpochConfig 𝓔
 
  -- The LockedRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced
@@ -95,7 +96,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
   -- Given two votes by an honest author α:
   Type : Set ℓ
   Type = ∀{α v v'}
-       → Meta-Honest-Member 𝓔 α
+       → Meta-Honest-Member α
        → vMember v  ≡ α → HasBeenSent v
        → vMember v' ≡ α → HasBeenSent v'
        -- If v is a vote on a candidate 3-chain, that is, is a vote on a block

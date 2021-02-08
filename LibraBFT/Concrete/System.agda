@@ -201,9 +201,11 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
        nmInOuts : nm vmFor ∈ outs
    open ∃VoteMsgInFor public
 
+   open WithEpochConfig 𝓔
+
    ∈QC⇒sent : ∀{e} {st : SystemState e} {q α}
             → Abs.Q q α-Sent (msgPool st)
-            → Meta-Honest-Member 𝓔 α
+            → Meta-Honest-Member α
             → (vα : α Abs.∈QC q)
             → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
 
