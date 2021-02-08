@@ -30,6 +30,7 @@ module LibraBFT.Abstract.RecordChain.Assumptions
   open import LibraBFT.Abstract.RecordChain      𝓔 UID _≟UID_ 𝓥
 
   open EpochConfig 𝓔
+  open WithEpochConfig 𝓔
 
   module _ {ℓ}(InSys : Record → Set ℓ) where
 
@@ -38,7 +39,7 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    VotesOnlyOnceRule : Set ℓ
    VotesOnlyOnceRule
       -- Given an honest α
-      = (α : Member) → (hpk : Meta-Honest-Member 𝓔 α)
+      = (α : Member) → Meta-Honest-Member α
       -- For all system states where q and q' exist,
       → ∀{q q'} → (q∈𝓢 : InSys (Q q)) → (q'∈𝓢 : InSys (Q q'))
       -- such that α voted for q and q'; if α says it's the same vote, then it's the same vote.
@@ -101,7 +102,7 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    --
    LockedRoundRule : Set ℓ
    LockedRoundRule
-     = ∀(α : Member)(hpk : Meta-Honest-Member 𝓔 α)
+     = ∀(α : Member) → Meta-Honest-Member α
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
      → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
      → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!

@@ -78,9 +78,11 @@ module LibraBFT.Abstract.Types where
               → EpochConfig.Member 𝓔'
   MemberSubst refl = id
 
-  -- A member of an epoch is considered "honest" iff its public key is honest.
-  Meta-Honest-Member : (𝓔 : EpochConfig) → Member 𝓔 → Set
-  Meta-Honest-Member 𝓔 α = Meta-Honest-PK (getPubKey 𝓔 α)
+  module WithEpochConfig (𝓔 : EpochConfig) where
+
+    -- A member of an epoch is considered "honest" iff its public key is honest.
+    Meta-Honest-Member : Member 𝓔 → Set
+    Meta-Honest-Member α = Meta-Honest-PK (getPubKey 𝓔 α)
 
   -- Naturally, if two witnesses that two authors belong
   -- in the epoch are the same, then the authors are also the same.

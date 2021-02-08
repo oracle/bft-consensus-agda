@@ -30,6 +30,8 @@ module LibraBFT.Concrete.Intermediate
 
    open import LibraBFT.Abstract.Records         𝓔 UID _≟UID_ 𝓥
 
+   open WithEpochConfig 𝓔
+
    -- Since the invariants we want to specify (votes-once and locked-round-rule),
    -- are predicates over a /System State/, we must factor out the necessary
    -- functionality.
@@ -46,5 +48,5 @@ module LibraBFT.Concrete.Intermediate
 
        -- Such that, the votes that belong to honest participants inside a
        -- QC that exists in the system must have been sent
-       ∈QC⇒HasBeenSent : ∀{q α} → InSys (Q q) → Meta-Honest-Member 𝓔 α
+       ∈QC⇒HasBeenSent : ∀{q α} → InSys (Q q) → Meta-Honest-Member α
                        → (va : α ∈QC q) → HasBeenSent (∈QC-Vote q va)

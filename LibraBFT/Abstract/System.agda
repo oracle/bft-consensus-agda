@@ -43,6 +43,8 @@ module LibraBFT.Abstract.System
     All-InSys-step hyp ext r here = r
     All-InSys-step hyp ext r (there .ext r∈rc) = hyp r∈rc
 
+  open WithEpochConfig 𝓔
+
   -- We say an InSys predicate is /Complete/ when we can construct a record chain
   -- from any vote by an honest participant. This essentially says that whenever
   -- an honest participant casts a vote, they have checked that the voted-for
@@ -51,7 +53,7 @@ module LibraBFT.Abstract.System
   -- require only a short suffix of a RecordChain.
   Complete : ∀{ℓ} → (Record → Set ℓ) → Set ℓ
   Complete ∈sys = ∀{α q}
-                → Meta-Honest-Member 𝓔 α
+                → Meta-Honest-Member α
                 → α ∈QC q
                 → ∈sys (Q q)
                 → ∃[ b ] ( Σ (RecordChain (B b)) All-InSys

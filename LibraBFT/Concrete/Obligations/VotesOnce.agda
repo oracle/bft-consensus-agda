@@ -24,10 +24,11 @@ module LibraBFT.Concrete.Obligations.VotesOnce
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
+  open WithEpochConfig 𝓔
 
   Type : Set ℓ
   Type = ∀{α v v'}
-       → Meta-Honest-Member 𝓔 α
+       → Meta-Honest-Member α
        → vMember v  ≡ α → HasBeenSent v
        → vMember v' ≡ α → HasBeenSent v'
        → vRound v ≡ vRound v'
