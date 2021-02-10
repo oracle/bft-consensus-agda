@@ -19,14 +19,18 @@ open import LibraBFT.Base.PKCS
 module LibraBFT.Abstract.BFT
   (authorsN  : ℕ)
   (bizF      : ℕ)
-  (isBFT     : authorsN ≥ suc (3 * bizF))
+  (N         : ℕ)
+  (votPower  : Fin authorsN → ℕ)
+  (votPowerT : N ≡ sum (List-map votPower (List-tabulate id)))
+  (isBFT     : N ≥ suc (3 * bizF))
   (getPubKey : Fin authorsN → PK)
+
 
  where
 
 
  QSize : ℕ
- QSize = authorsN ∸ bizF
+ QSize = N ∸ bizF
 
  -- The set of members of this epoch.
  Member : Set
@@ -35,8 +39,10 @@ module LibraBFT.Abstract.BFT
  Meta-dishonest? :  ∀ (m : Member) → Dec (Meta-Dishonest-PK (getPubKey m))
  Meta-dishonest? m = Meta-DishonestPK? (getPubKey m)
 
- module _  (bft-assumption : ∀ {xs : List Member} → IsSorted _<Fin_ xs
-                           → length (List-filter Meta-dishonest? xs) ≤ bizF)
+ --TODO-1 : replace IsSorted with allDistict
+ module _  (bft-assumption : ∀ {xs : List Member}
+                           → IsSorted _<Fin_ xs
+                           → sum (List-map votPower (List-filter Meta-dishonest? xs)) ≤ bizF)
    where
 
    _∈?_ : (x : Member) → (xs : List Member) → Dec (Any (x ≡_) xs)
@@ -228,6 +234,32 @@ module LibraBFT.Abstract.BFT
    union-length-UpLim sxs sys = sorted-length (union-sorted sxs sys)
 
 
+
+   xxx : ∀ {n} {xs : List (Fin n)} {f : Fin n → ℕ}
+       → IsSorted _<Fin_ xs
+       → length xs ≤ n
+       → sum (List-map f xs) ≤ sum (List-map f (List-tabulate id))
+   xxx {n} {[]} {f} sxs l≤n = {!!}
+   xxx {suc n} {x ∷ xs} {f} sxs l≤n = {!!}
+
+
+
+   votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
+                   → sum (List-map votPower xs) ≤ N
+   votingPower≤N {[]} sxs = z≤n
+   votingPower≤N {zero ∷ xs} (x₁ ∷ sxs) rewrite votPowerT = {!!}
+   votingPower≤N {suc x ∷ xs} (x₁ ∷ sxs) = {!!}
+
+
+   union-votPower : ∀ {xs ys : List Member}
+                      → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+                      → sum (List-map votPower (union xs ys)) ≤ N
+   union-votPower {xs} {ys} sxs sys = votingPower≤N (union-sorted sxs sys)
+   --  with union-sorted sxs sys
+   --...| sorted|q₁∪q₂| rewrite votPowerT
+   --  = xxx sorted|q₁∪q₂| (sorted-length sorted|q₁∪q₂|)
+
+
    union-∈ : ∀ {xs} {x} (ys : List Member)
            → x ∈ xs → x ∈ union xs ys
    union-∈ {xs} {x} [] x∈xs = x∈xs
@@ -382,6 +414,78 @@ module LibraBFT.Abstract.BFT
                         = cong suc (union-length≡ sxs sys)
 
 
+   unionElem-∈-≡ : ∀ {xs : List Member} {x}
+                 → x ∈ xs → IsSorted _<Fin_ xs
+                 → unionElem xs x ≡ xs
+
+
+   intersectElem-∈-≡ : ∀ {xs : List Member} {x}
+                     → x ∈ xs → IsSorted _<Fin_ xs
+                     → intersectElem xs x ≡ x ∷ []
+
+   intersectElem-∉-[] :  ∀ {xs : List Member} {x} → x ∉ xs → IsSorted _<Fin_ xs
+                         → intersectElem xs x ≡ []
+
+
+   unionElem-∉-sum : ∀ {xs : List Member} {x} (f : Member → ℕ) → x ∉ xs
+                   → sum (List-map f (unionElem xs x)) ≡ f x + sum (List-map f xs)
+
+   sumIntersect≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
+                 → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+                 → sum (List-map f (intersect xs ys)) ≤ sum (List-map f (xs ++ ys))
+
+
+   combinedPower : List Member → ℕ
+   combinedPower = {!!}
+
+
+   union-votPower≡ :  ∀ {xs ys : List Member}
+                      → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
+                      → sum (List-map votPower (union xs ys)) ≡ sum (List-map votPower (xs ++ ys))
+                                                              ∸ sum (List-map votPower (intersect xs ys))
+   union-votPower≡ {xs} {[]} sxs sys
+     rewrite map-++-commute votPower xs []
+           | sum-++-commute (List-map votPower xs) []
+           | +-identityʳ (sum (List-map votPower xs)) = refl
+   union-votPower≡ {xs} {y ∷ ys} sxs (y₁ ∷ sys)
+      with y ∈? xs
+   ...| yes y∈xs rewrite unionElem-∈-≡ (union-∈ ys y∈xs) (union-sorted sxs sys)
+                       | union-votPower≡ sxs sys
+                       | sym (m+n∸n≡m (sum (List-map votPower (xs ++ ys))) (votPower y))
+                       | ∸-+-assoc (sum (List-map votPower (xs ++ ys)) + votPower y)
+                                   (votPower y)
+                                   (sum (List-map votPower (intersect xs ys)))
+                       | map-++-commute votPower xs ys
+                       | sum-++-commute (List-map votPower xs) (List-map votPower ys)
+                       | +-assoc (sum (List-map votPower xs))
+                                 (sum (List-map votPower ys))
+                                 (votPower y)
+                       | +-comm (sum (List-map votPower ys)) (votPower y)
+                       | map-++-commute votPower xs (y ∷ ys)
+                       | sum-++-commute (List-map votPower xs) (List-map votPower (y ∷ ys))
+                       | map-++-commute votPower (intersectElem xs y) (intersect xs ys)
+                       | sum-++-commute (List-map votPower (intersectElem xs y))
+                                        (List-map votPower (intersect xs ys))
+                       | intersectElem-∈-≡ y∈xs sxs
+                       | +-identityʳ (votPower y) = refl
+
+   ...| no  y∉xs rewrite map-++-commute votPower xs (y ∷ ys)
+                       | sum-++-commute (List-map votPower xs) (List-map votPower (y ∷ ys))
+                       | sym (+-assoc (sum (List-map votPower xs))
+                                      (votPower y)
+                                      (sum (List-map votPower ys)))
+                       | +-comm (sum (List-map votPower xs)) (votPower y)
+                       | unionElem-∉-sum votPower (union-∉ (h∉t (y₁ ∷ sys)) y∉xs)
+                       | union-votPower≡ sxs sys
+                       | intersectElem-∉-[] y∉xs sxs
+                       | +-assoc (votPower y)
+                                 (sum (List-map votPower xs))
+                                 (sum (List-map votPower ys))
+                       | sym (sum-++-commute (List-map votPower xs) (List-map votPower ys))
+                       | sym (map-++-commute votPower xs ys)
+                       | +-∸-assoc (votPower y) (sumIntersect≤ votPower sxs sys) = refl
+
+
    m∸n≤o⇒m∸o≤n : ∀ (x z w : ℕ) → x ∸ z ≤ w → x ∸ w ≤ z
    m∸n≤o⇒m∸o≤n x zero w p≤ rewrite m≤n⇒m∸n≡0 p≤ = z≤n
    m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
@@ -389,12 +493,12 @@ module LibraBFT.Abstract.BFT
 
 
    quorumInt>biz : ∀ (xs ys : List Member)
-                 → QSize ≤ length xs
-                 → QSize ≤ length ys
-                 → length xs + length ys ∸ authorsN ≤ length (intersect xs ys)
-                 → bizF + 1 ≤ length (intersect xs ys)
-   quorumInt>biz xs ys q≤x q≤y ≤int =
-     let p₁ = ≤-trans (∸-monoˡ-≤ authorsN (+-mono-≤ q≤x q≤y)) ≤int
+                 → QSize ≤ sum (List-map votPower xs)
+                 → QSize ≤ sum (List-map votPower ys)
+                 → sum (List-map votPower (xs ++ ys)) ∸ N ≤ sum (List-map votPower (intersect xs ys))
+                 → bizF + 1 ≤ sum (List-map votPower (intersect xs ys))
+   quorumInt>biz xs ys q≤x q≤y ≤int = {!!}
+   {-  let p₁ = ≤-trans (∸-monoˡ-≤ authorsN (+-mono-≤ q≤x q≤y)) ≤int
          p₂ = subst (_≤ length (intersect xs ys)) (simpExp₁ authorsN bizF) p₁
          p₃ = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
      in subst (_≤ length (intersect xs ys)) (simpExp₂ bizF) p₃
@@ -412,7 +516,7 @@ module LibraBFT.Abstract.BFT
               simpExp₂ : ∀ (x : ℕ) → suc (3 * x) ∸ 2 * x ≡ x + 1
               simpExp₂ x rewrite +-∸-assoc 1 (*-monoˡ-≤ x {2} {3} (s≤s (s≤s z≤n)))
                                | sym (*-distribʳ-∸ x 3 2)
-                               | sym (+-suc x 0) = refl
+                               | sym (+-suc x 0) = refl -}
 
 
    span-hon : ∀ {xs dis hon : List Member} {x : Member}
@@ -448,32 +552,32 @@ module LibraBFT.Abstract.BFT
    --   get a contradiction using the bft assumption (as we have now).
    find-honest : ∀ {xs : List Member}
                → IsSorted _<Fin_ xs
-               → bizF + 1 ≤ length xs
+               → bizF + 1 ≤ sum (List-map votPower xs)
                → ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α))
-   find-honest {xs} sxs biz<
-     with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
+   find-honest {xs} sxs biz< = {!!}
+   {-  with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
    ...| dis , [] | [ eq ] rewrite +-comm bizF 1
-                                 | span-dis {xs} eq = ⊥-elim (<⇒≱ biz< (bft-assumption sxs))
-   ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq)
+                                 | span-dis {xs} eq = ⊥-elim (<⇒≱ biz< {!!}) --(bft-assumption sxs))
+   ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq) -}
 
 
    bft-lemma : {xs ys : List Member}
              -- enforcing both xs and ys to be sorted lists according to
              -- a anti-reflexive linear order ensures authors are distinct.
              → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-             → QSize ≤ length xs
-             → QSize ≤ length ys
+             → QSize ≤ sum (List-map votPower xs)
+             → QSize ≤ sum (List-map votPower ys)
              → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
    bft-lemma {xs} {ys} difxs difys q≤xs q≤ys
-     = let |q₁|+|q₂|   = length xs + length ys
-           |q₁∩q₂|     = length (intersect xs ys)
-           |q₁∪q₂|≤n   = union-length-UpLim difxs difys
-           exp₁        = subst (_≤ authorsN) (union-length≡ difxs difys) |q₁∪q₂|≤n
-           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| authorsN exp₁
+     = let |q₁|+|q₂|   = sum (List-map votPower (xs ++ ys))
+           |q₁∩q₂|     = sum (List-map votPower (intersect xs ys))
+           |q₁∪q₂|≤n   = union-votPower difxs difys
+           exp₁        = subst (_≤ N) (union-votPower≡ difxs difys) |q₁∪q₂|≤n
+           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| N exp₁
            f+1≤|q₁∩q₂| = quorumInt>biz xs ys q≤xs q≤ys exp₂
            honInf      = find-honest (intersectDiff difxs difys) f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect difxs difys ((proj₁ ∘ proj₂) honInf)
-        in proj₁ honInf , proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
+       in proj₁ honInf , proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
 
 
 

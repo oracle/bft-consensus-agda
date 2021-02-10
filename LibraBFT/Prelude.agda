@@ -29,13 +29,14 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List
-    renaming (map to List-map ; filter to List-filter ; lookup to List-lookup)
+    renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
+              tabulate to List-tabulate)
     hiding (fromMaybe; [_])
     public
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map)
-    using (∷-injective; length-++)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute)
     public
 
   open import Data.List.Relation.Unary.Any
