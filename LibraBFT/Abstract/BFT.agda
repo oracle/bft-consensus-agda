@@ -42,7 +42,7 @@ module LibraBFT.Abstract.BFT
  CombinedPower xs = sum (List-map votPower xs)
 
  --TODO-1 : replace IsSorted with allDistict
- module _  (votPowerT : N ≡ CombinedPower (List-tabulate id))
+ module _  (totalVotPower  : N ≡ CombinedPower (List-tabulate id))
            (bft-assumption : ∀ {xs : List Member}
                            → IsSorted _<Fin_ xs
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
@@ -50,6 +50,9 @@ module LibraBFT.Abstract.BFT
 
    _∈?_ : (x : Member) → (xs : List Member) → Dec (Any (x ≡_) xs)
    x ∈? xs = Any-any (x ≟Fin_) xs
+
+   participants : List Member
+   participants = List-tabulate id
 
    -- TODO-2 : Many of these lemmas can be generalized for any list or any
    -- IsSorted list of Fin. Perhaps establish a Lemmas.FinProps module.
@@ -237,30 +240,54 @@ module LibraBFT.Abstract.BFT
    union-length-UpLim sxs sys = sorted-length (union-sorted sxs sys)
 
 
+   h∉t : ∀ {xs : List Member} {x} → IsSorted _<Fin_ (x ∷ xs) → x ∉ xs
+   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
+   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs)
+     = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
 
-   xxx : ∀ {n} {xs : List (Fin n)} {f : Fin n → ℕ}
-       → IsSorted _<Fin_ xs
-       → length xs ≤ n
-       → sum (List-map f xs) ≤ sum (List-map f (List-tabulate id))
-   xxx {n} {[]} {f} sxs l≤n = {!!}
-   xxx {suc n} {x ∷ xs} {f} sxs l≤n = {!!}
 
+   _⊆List_ : ∀ {A : Set} → List A → List A → Set
+   xs ⊆List ys = All (_∈ ys) xs
+
+
+   aux-1 : ∀ {n} {y} {xs ys : List (Fin n)}
+         → xs ⊆List (y ∷ ys) → y ∉ xs
+         → xs ⊆List ys
+
+
+   aux-2 : ∀ {n} {x y} {xs ys : List (Fin n)}
+         → IsSorted _<Fin_ (x ∷ xs) → IsSorted _<Fin_ (y ∷ ys)
+         → x ∈ ys
+         → y ∉ xs
+
+
+   sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
+           → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+           → xs ⊆List ys
+           → sum (List-map f xs) ≤ sum (List-map f ys)
+   sum-⊆-≤ {[]} {ys} f sxs sys [] = z≤n
+   sum-⊆-≤ {x ∷ xs} {x ∷ ys} f (x₁ ∷ sxs) (y₁ ∷ sys) (here refl ∷ xs∈)
+     = +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys (aux-1 xs∈ (h∉t (x₁ ∷ sxs))))
+   sum-⊆-≤ {x ∷ xs} {y ∷ ys} f (x₁ ∷ sxs) (y₁ ∷ sys) (there px ∷ xs∈)
+     = ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ aux-1 xs∈ (aux-2 (x₁ ∷ sxs) (y₁ ∷ sys) px)))
+
+
+   tabulateSort : IsSorted _<Fin_ participants
+
+
+   members⊆ : ∀ (xs : List Member) → xs ⊆List participants
 
 
    votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
                    → CombinedPower xs ≤ N
-   votingPower≤N {[]} sxs = z≤n
-   votingPower≤N {zero ∷ xs} (x₁ ∷ sxs) rewrite votPowerT = {!!}
-   votingPower≤N {suc x ∷ xs} (x₁ ∷ sxs) = {!!}
+   votingPower≤N {xs} sxs rewrite totalVotPower
+     = sum-⊆-≤ votPower sxs tabulateSort (members⊆ xs)
 
 
    union-votPower : ∀ {xs ys : List Member}
                       → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
                       → CombinedPower (union xs ys) ≤ N
    union-votPower {xs} {ys} sxs sys = votingPower≤N (union-sorted sxs sys)
-   --  with union-sorted sxs sys
-   --...| sorted|q₁∪q₂| rewrite votPowerT
-   --  = xxx sorted|q₁∪q₂| (sorted-length sorted|q₁∪q₂|)
 
 
    union-∈ : ∀ {xs} {x} (ys : List Member)
@@ -357,11 +384,6 @@ module LibraBFT.Abstract.BFT
    ...| tri< a ¬b ¬c = cong suc (unionElem-∉ (proj₂ (y∉⇒All≢ x∉)))
    ...| tri≈ ¬a b ¬c = contradiction b (proj₁ (y∉⇒All≢ x∉))
    ...| tri> ¬a ¬b c = refl
-
-
-   h∉t : ∀ {xs : List Member} {x} → IsSorted _<Fin_ (x ∷ xs) → x ∉ xs
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs) = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
 
 
    intersectElem-∈ : ∀ {xs : List Member} {x} → x ∈ xs → IsSorted _<Fin_ xs
@@ -498,7 +520,8 @@ module LibraBFT.Abstract.BFT
 
    union-votPower≡ :  ∀ {xs ys : List Member}
                       → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
-                      → CombinedPower (union xs ys) ≡ CombinedPower (xs ++ ys) ∸ CombinedPower (intersect xs ys)
+                      → CombinedPower (union xs ys) ≡ CombinedPower (xs ++ ys)
+                                                    ∸ CombinedPower (intersect xs ys)
    union-votPower≡ {xs} {[]} sxs sys
      rewrite map-++-commute votPower xs []
            | sum-++-commute (List-map votPower xs) []
@@ -593,14 +616,13 @@ module LibraBFT.Abstract.BFT
    span-dis : ∀ {xs dis : List Member}
             → span Meta-dishonest? xs ≡ (dis , [])
             → List-filter Meta-dishonest? xs ≡ xs
-{-
-   span-dis {[]} {dis} eq = refl
-   span-dis {x ∷ xs} {dis} eq
-     with Meta-dishonest? x | eq
+   span-dis {[]} {dis} span≡ = refl
+   span-dis {x ∷ xs} {dis} span≡
+      with Meta-dishonest? x | span≡
    ...| no ¬dis  | ()
    ...| yes prf  | _
-     with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| fst , [] | [ eq₁ ] = cong suc (span-dis {xs} eq₁) -}
+      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
+   ...| fst , [] | [ eq₁ ] = cong (x ∷_) (span-dis {xs} eq₁)
 
 
    -- TODO-1 : An alternative to prove this lemma would be:
