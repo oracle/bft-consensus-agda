@@ -534,32 +534,37 @@ module LibraBFT.Abstract.BFT
 
    span-dis : ∀ {xs dis : List Member}
             → span Meta-dishonest? xs ≡ (dis , [])
-            → length xs ≡ length (List-filter Meta-dishonest? xs)
+            → List-filter Meta-dishonest? xs ≡ xs
+{-
    span-dis {[]} {dis} eq = refl
    span-dis {x ∷ xs} {dis} eq
      with Meta-dishonest? x | eq
    ...| no ¬dis  | ()
    ...| yes prf  | _
      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| fst , [] | [ eq₁ ] = cong suc (span-dis {xs} eq₁)
+   ...| fst , [] | [ eq₁ ] = cong suc (span-dis {xs} eq₁) -}
 
 
    -- TODO-1 : An alternative to prove this lemma would be:
-   -- - First use the library lemma length-filter to prove that
-   --   length (List-filter Meta-dishonest? xs) ≤ length xs.
-   -- - Then prove that if length (List-filter Meta-dishonest? xs) < length xs
-   --   then ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α)).
-   -- - Otherwise, if length (List-filter Meta-dishonest? xs ≡ )length xs we
+   -- - First prove that
+   --   CombinedPower (List-filter Meta-dishonest? xs) ≤ CombinedPower xs.
+   -- - Then prove that:
+   --   - If CombinedPower (List-filter Meta-dishonest? xs) ≤ CombinedPower xs
+   --     then ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α)).
+   --   - If CombinedPower (List-filter Meta-dishonest? xs ≡ CombinedPower xs we
    --   get a contradiction using the bft assumption (as we have now).
    find-honest : ∀ {xs : List Member}
                → IsSorted _<Fin_ xs
                → bizF + 1 ≤ CombinedPower xs
                → ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α))
-   find-honest {xs} sxs biz< = {!!}
-   {-  with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| dis , [] | [ eq ] rewrite +-comm bizF 1
-                                 | span-dis {xs} eq = ⊥-elim (<⇒≱ biz< {!!}) --(bft-assumption sxs))
-   ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq) -}
+   find-honest {xs} sxs biz<
+     with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
+   ...| dis , [] | [ eq ]
+        rewrite +-comm bizF 1
+          = let bft     = bft-assumption sxs
+                xsVot≤f = subst (_≤ bizF) (cong CombinedPower (span-dis {xs} eq)) bft
+            in ⊥-elim (<⇒≱ biz< xsVot≤f)
+   ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq)
 
 
    bft-lemma : {xs ys : List Member}
