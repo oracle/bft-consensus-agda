@@ -43,10 +43,10 @@ module LibraBFT.Abstract.RecordChain.Assumptions
       -- For all system states where q and q' exist,
       → ∀{q q'} → (q∈𝓢 : InSys (Q q)) → (q'∈𝓢 : InSys (Q q'))
       -- such that α voted for q and q'; if α says it's the same vote, then it's the same vote.
-      → (va  : α ∈QC q)(va' : α ∈QC q')
-      → abs-vRound (∈QC-Vote q va) ≡ abs-vRound (∈QC-Vote q' va')
+      → (v  : α ∈QC q)(v' : α ∈QC q')
+      → abs-vRound (∈QC-Vote q v) ≡ abs-vRound (∈QC-Vote q' v')
       -----------------
-      → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
+      → ∈QC-Vote q v ≡ ∈QC-Vote q' v'
 
 
   module _ {ℓ}(InSys  : Record → Set ℓ) where
@@ -105,8 +105,8 @@ module LibraBFT.Abstract.RecordChain.Assumptions
      = ∀(α : Member) → Meta-Honest-Member α
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
      → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
-     → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
+     → (v : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
      → (rc' : RecordChain (Q q'))
-     → (vα' : α ∈QC q')
-     → abs-vRound (∈QC-Vote q vα) < abs-vRound (∈QC-Vote q' vα')
+     → (v' : α ∈QC q')
+     → abs-vRound (∈QC-Vote q v) < abs-vRound (∈QC-Vote q' v')
      → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
