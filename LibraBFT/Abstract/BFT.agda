@@ -495,11 +495,14 @@ module LibraBFT.Abstract.BFT
                  → QSize ≤ CombinedPower ys
                  → CombinedPower (xs ++ ys) ∸ N ≤ CombinedPower (intersect xs ys)
                  → bizF + 1 ≤ CombinedPower (intersect xs ys)
-   quorumInt>biz xs ys q≤x q≤y ≤int = {!!}
-   {-  let p₁ = ≤-trans (∸-monoˡ-≤ authorsN (+-mono-≤ q≤x q≤y)) ≤int
-         p₂ = subst (_≤ length (intersect xs ys)) (simpExp₁ authorsN bizF) p₁
-         p₃ = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
-     in subst (_≤ length (intersect xs ys)) (simpExp₂ bizF) p₃
+   quorumInt>biz xs ys q≤x q≤y ≤int
+     rewrite map-++-commute votPower xs ys
+           | sum-++-commute (List-map votPower xs) (List-map votPower ys)
+           = let powInt = CombinedPower (intersect xs ys)
+                 p₁     = ≤-trans (∸-monoˡ-≤ N (+-mono-≤ q≤x q≤y)) ≤int
+                 p₂     = subst (_≤ powInt) (simpExp₁ N bizF) p₁
+                 p₃     = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
+             in subst (_≤ powInt) (simpExp₂ bizF) p₃
        where  simpExp₁ : ∀ (x y : ℕ) → (x ∸ y) + (x ∸ y) ∸ x ≡ x ∸ (2 * y)
               simpExp₁ x y rewrite sym (*-identityʳ (x ∸ y))
                                  | sym (*-distribˡ-+ (x ∸ y) 1 1)
@@ -514,7 +517,7 @@ module LibraBFT.Abstract.BFT
               simpExp₂ : ∀ (x : ℕ) → suc (3 * x) ∸ 2 * x ≡ x + 1
               simpExp₂ x rewrite +-∸-assoc 1 (*-monoˡ-≤ x {2} {3} (s≤s (s≤s z≤n)))
                                | sym (*-distribʳ-∸ x 3 2)
-                               | sym (+-suc x 0) = refl -}
+                               | sym (+-suc x 0) = refl
 
 
    span-hon : ∀ {xs dis hon : List Member} {x : Member}
