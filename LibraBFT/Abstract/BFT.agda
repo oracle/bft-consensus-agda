@@ -97,7 +97,7 @@ module LibraBFT.Abstract.BFT
    ...| tri> ¬a ¬b c = slist
 
 
-   trans-OnHead : ∀ {xs : List Member} {y x : Member}
+   trans-OnHead : ∀ {n} {xs : List (Fin n)} {y x : Fin n}
                 → OnHead _<Fin_ y xs
                 → x <Fin y
                 → OnHead _<Fin_ x xs
@@ -240,9 +240,9 @@ module LibraBFT.Abstract.BFT
    union-length-UpLim sxs sys = sorted-length (union-sorted sxs sys)
 
 
-   h∉t : ∀ {xs : List Member} {x} → IsSorted _<Fin_ (x ∷ xs) → x ∉ xs
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs)
+   h∉t : ∀ {n} {xs : List (Fin n)} {x} → IsSorted _<Fin_ (x ∷ xs) → x ∉ xs
+   h∉t {_} {x₁ ∷ xs} {x} (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
+   h∉t {_} {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs)
      = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
 
    y∉⇒All≢ : ∀ {n} {xs : List (Fin n)} {x y} → y ∉ (x ∷ xs)
@@ -254,6 +254,16 @@ module LibraBFT.Abstract.BFT
      with x ≟Fin y
    ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
    ...| no  x≢y = x≢y , y∉xs
+
+
+   ≤-head : ∀ {n} {xs : List (Fin n)} {x y}
+          → y ∈ (x ∷ xs) → IsSorted _<Fin_ (x ∷ xs)
+          → x ≤Fin y
+   ≤-head {_} {xs} {x} {x} (here refl) sxs = ≤-refl
+   ≤-head {_} {x₁ ∷ []} {x} {x₁} (there (here refl)) (on-∷ x< ∷ sxs) = <⇒≤ x<
+   ≤-head {_} {x₁ ∷ x₂ ∷ xs} {x} {y} (there y∈) (on-∷ x<x₁ ∷ sxs)
+     = ≤-trans (<⇒≤ x<x₁) (≤-head y∈ sxs)
+
 
 
    _⊆List_ : ∀ {A : Set} → List A → List A → Set
@@ -282,7 +292,10 @@ module LibraBFT.Abstract.BFT
                → IsSorted _<Fin_ (x ∷ xs) → IsSorted _<Fin_ (y ∷ ys)
                → x ∈ ys
                → y ∉ xs
-   sort→∈-disj = {!!}
+   sort→∈-disj {ys = y₁ ∷ ys} (x< ∷ sxs) (on-∷ y<y₁ ∷ sys) x∈ys y∈xs
+     = let y₁≤x = ≤-head x∈ys sys
+           y<x  = <-transˡ y<y₁ y₁≤x
+       in h∉t (trans-OnHead x< y<x ∷ sxs) y∈xs
 
 
    sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
@@ -384,13 +397,6 @@ module LibraBFT.Abstract.BFT
    ...| inj₁ y∈xs = ⊥-elim (y∉xs y∈xs)
    ...| inj₂ y∈ys = ⊥-elim (y∉ys y∈ys)
 
-
-   ≤-head : ∀ {xs : List Member} {x y}
-                   → y ∈ (x ∷ xs) → IsSorted _<Fin_ (x ∷ xs)
-                   → x ≤Fin y
-   ≤-head {xs} {x} {x} (here refl) sxs = ≤-refl
-   ≤-head {x₁ ∷ []} {x} {x₁} (there (here refl)) (on-∷ x< ∷ sxs) = <⇒≤ x<
-   ≤-head {x₁ ∷ x₂ ∷ xs} {x} {y} (there y∈) (on-∷ x<x₁ ∷ sxs) = ≤-trans (<⇒≤ x<x₁) (≤-head y∈ sxs)
 
 
    unionElemLength-∈ : ∀ {xs : List Member} {x} → x ∈ xs → IsSorted _<Fin_ xs
