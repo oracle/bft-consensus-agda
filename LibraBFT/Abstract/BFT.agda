@@ -246,6 +246,25 @@ module LibraBFT.Abstract.BFT
      = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
 
 
+   xx : ∀ {n} {f : Fin (suc n) → ℕ}
+      → List-map f (List-tabulate suc) ≡ List-map (f ∘ suc) (List-tabulate id)
+
+
+   xxx : ∀ {n} {xs : List (Fin n)} {f : Fin n → ℕ}
+       → IsSorted _<Fin_ xs
+       → sum (List-map f xs) ≤ sum (List-map f (List-tabulate id))
+   xxx {_} {[]} {f} x = z≤n
+   xxx {n} {x₁ ∷ xs} {f} x
+     with List-tabulate {0ℓ} {Fin n} id
+   ... | [] = {!!}
+   ... | x₂ ∷ ys = {!!}
+   {- xxx {n} {[]} {f} sxs l≤n = z≤n
+   xxx {suc n} {zero ∷ []} {f} ([] ∷ sxs) l≤n rewrite +-identityʳ (f zero)
+     = m≤m+n (f zero) (sum (List-map f (List-tabulate (id ∘ suc))))
+   xxx {suc n} {zero ∷ (x ∷ xs)} {f} (on-∷ z< ∷ sxs) l≤n = {!!}
+   xxx {suc n} {suc x ∷ xs} {f} sxs l≤n = {!!} -}
+
+
    _⊆List_ : ∀ {A : Set} → List A → List A → Set
    xs ⊆List ys = All (_∈ ys) xs
 
@@ -272,7 +291,22 @@ module LibraBFT.Abstract.BFT
      = ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ aux-1 xs∈ (aux-2 (x₁ ∷ sxs) (y₁ ∷ sys) px)))
 
 
-   tabulateSort : IsSorted _<Fin_ participants
+   map-tabulate : ∀ (n : ℕ)
+                → List-map suc (List-tabulate {0ℓ} {Fin n} id) ≡ List-tabulate {0ℓ} {Fin (suc n)} suc
+
+
+   map-suc-sort : ∀ {n} {xs : List (Fin n)}
+                → IsSorted _<Fin_ xs
+                → IsSorted _<Fin_ (List-map suc xs)
+
+
+   onHead-zero : ∀ {n} → OnHead _<Fin_ zero (List-tabulate {0ℓ} {Fin (suc n)} suc)
+
+   tabulateSort : ∀ (n : ℕ) → IsSorted _<Fin_ (List-tabulate {0ℓ} {Fin n} id)
+   tabulateSort zero = []
+   tabulateSort (suc n)
+     with tabulateSort n
+   ...| xx = onHead-zero ∷ (subst (IsSorted _<Fin_) (map-tabulate n) (map-suc-sort xx))
 
 
    members⊆ : ∀ (xs : List Member) → xs ⊆List participants
@@ -281,7 +315,7 @@ module LibraBFT.Abstract.BFT
    votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
                    → CombinedPower xs ≤ N
    votingPower≤N {xs} sxs rewrite totalVotPower
-     = sum-⊆-≤ votPower sxs tabulateSort (members⊆ xs)
+     = sum-⊆-≤ votPower sxs (tabulateSort authorsN) (members⊆ xs)
 
 
    union-votPower : ∀ {xs ys : List Member}
