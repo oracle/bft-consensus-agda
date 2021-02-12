@@ -3,7 +3,6 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
@@ -33,10 +32,6 @@ module LibraBFT.Abstract.Properties
  open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
 
  open EpochConfig 𝓔
-
- open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 UID _≟UID_ 𝓥 as VO
- open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 UID _≟UID_ 𝓥 as LR
- open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
 
  module WithAssumptions {ℓ}
    (InSys                 : Record → Set ℓ)
