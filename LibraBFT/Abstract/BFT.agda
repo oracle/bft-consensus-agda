@@ -48,7 +48,7 @@ module LibraBFT.Abstract.BFT
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
    where
 
-   _∈?_ : (x : Member) → (xs : List Member) → Dec (Any (x ≡_) xs)
+   _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
    x ∈? xs = Any-any (x ≟Fin_) xs
 
    participants : List Member
@@ -245,39 +245,44 @@ module LibraBFT.Abstract.BFT
    h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs)
      = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
 
-
-   xx : ∀ {n} {f : Fin (suc n) → ℕ}
-      → List-map f (List-tabulate suc) ≡ List-map (f ∘ suc) (List-tabulate id)
-
-
-   xxx : ∀ {n} {xs : List (Fin n)} {f : Fin n → ℕ}
-       → IsSorted _<Fin_ xs
-       → sum (List-map f xs) ≤ sum (List-map f (List-tabulate id))
-   xxx {_} {[]} {f} x = z≤n
-   xxx {n} {x₁ ∷ xs} {f} x
-     with List-tabulate {0ℓ} {Fin n} id
-   ... | [] = {!!}
-   ... | x₂ ∷ ys = {!!}
-   {- xxx {n} {[]} {f} sxs l≤n = z≤n
-   xxx {suc n} {zero ∷ []} {f} ([] ∷ sxs) l≤n rewrite +-identityʳ (f zero)
-     = m≤m+n (f zero) (sum (List-map f (List-tabulate (id ∘ suc))))
-   xxx {suc n} {zero ∷ (x ∷ xs)} {f} (on-∷ z< ∷ sxs) l≤n = {!!}
-   xxx {suc n} {suc x ∷ xs} {f} sxs l≤n = {!!} -}
+   y∉⇒All≢ : ∀ {n} {xs : List (Fin n)} {x y} → y ∉ (x ∷ xs)
+           → x ≢ y × y ∉ xs
+   y∉⇒All≢ {_} {xs} {x} {y} y∉
+     with y ∈? xs
+   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
+   ...| no  y∉xs
+     with x ≟Fin y
+   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
+   ...| no  x≢y = x≢y , y∉xs
 
 
    _⊆List_ : ∀ {A : Set} → List A → List A → Set
    xs ⊆List ys = All (_∈ ys) xs
 
 
-   aux-1 : ∀ {n} {y} {xs ys : List (Fin n)}
-         → xs ⊆List (y ∷ ys) → y ∉ xs
-         → xs ⊆List ys
+   ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
+              → x ∈ (y ∷ ys) → x ≢ y
+              → x ∈ ys
+   ∈List-elim {_} {x} {y} {ys} (here x≡y) x≢y = ⊥-elim (x≢y x≡y)
+   ∈List-elim {_} {x} {y} {ys} (there x∈) x≢y = x∈
 
 
-   aux-2 : ∀ {n} {x y} {xs ys : List (Fin n)}
-         → IsSorted _<Fin_ (x ∷ xs) → IsSorted _<Fin_ (y ∷ ys)
-         → x ∈ ys
-         → y ∉ xs
+   ⊆List-elim : ∀ {n} {y} {xs ys : List (Fin n)}
+              → xs ⊆List (y ∷ ys) → y ∉ xs
+              → xs ⊆List ys
+   ⊆List-elim {n} {y} {[]} {ys} xs∈ y∉ = []
+   ⊆List-elim {n} {x} {x ∷ xs} {[]} (here refl ∷ xs∈) y∉
+     = ⊥-elim (proj₁ (y∉⇒All≢ y∉) refl)
+   ⊆List-elim {n} {y} {x ∷ xs} {y₁ ∷ ys} (x∈ ∷ xs∈) y∉
+     with y∉⇒All≢ y∉
+   ...| x≢y , y∉xs = ∈List-elim x∈ x≢y ∷ ⊆List-elim xs∈ y∉xs
+
+
+   sort→∈-disj : ∀ {n} {x y} {xs ys : List (Fin n)}
+               → IsSorted _<Fin_ (x ∷ xs) → IsSorted _<Fin_ (y ∷ ys)
+               → x ∈ ys
+               → y ∉ xs
+   sort→∈-disj = {!!}
 
 
    sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
@@ -286,9 +291,12 @@ module LibraBFT.Abstract.BFT
            → sum (List-map f xs) ≤ sum (List-map f ys)
    sum-⊆-≤ {[]} {ys} f sxs sys [] = z≤n
    sum-⊆-≤ {x ∷ xs} {x ∷ ys} f (x₁ ∷ sxs) (y₁ ∷ sys) (here refl ∷ xs∈)
-     = +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys (aux-1 xs∈ (h∉t (x₁ ∷ sxs))))
+     = let xs∈ys = ⊆List-elim xs∈ (h∉t (x₁ ∷ sxs))
+       in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys xs∈ys)
    sum-⊆-≤ {x ∷ xs} {y ∷ ys} f (x₁ ∷ sxs) (y₁ ∷ sys) (there px ∷ xs∈)
-     = ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ aux-1 xs∈ (aux-2 (x₁ ∷ sxs) (y₁ ∷ sys) px)))
+     = let y∉xs  = sort→∈-disj (x₁ ∷ sxs) (y₁ ∷ sys) px
+           xs∈ys = ⊆List-elim xs∈ y∉xs
+       in ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ xs∈ys))
 
 
    map-tabulate : ∀ (n : ℕ)
@@ -397,17 +405,6 @@ module LibraBFT.Abstract.BFT
    ...| tri< a ¬b ¬c = cong suc (unionElemLength-∈ x∈ sxs)
    ...| tri≈ ¬a b ¬c = refl
    ...| tri> ¬a ¬b c = ⊥-elim (<⇒≱ c (≤-head (there x∈) (x₂ ∷ sxs)))
-
-
-   y∉⇒All≢ : ∀ {xs : List Member} {x y} → y ∉ (x ∷ xs)
-           → x ≢ y × y ∉ xs
-   y∉⇒All≢ {xs} {x} {y} y∉
-     with y ∈? xs
-   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
-   ...| no  y∉xs
-     with x ≟Fin y
-   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
-   ...| no  x≢y = x≢y , y∉xs
 
 
    unionElem-∉ : ∀ {xs : List Member} {y} → y ∉ xs
