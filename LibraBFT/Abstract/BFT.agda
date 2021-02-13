@@ -329,14 +329,15 @@ module LibraBFT.Abstract.BFT
            | map-tabulate n (g ∘ f ∘ suc) id = refl
 
 
-   onHead-zero : ∀ {n} → OnHead _<Fin_ zero (List-tabulate {0ℓ} {Fin (suc n)} suc)
-
-
    tabulateSort : ∀ (n : ℕ) → IsSorted _<Fin_ (List-tabulate {0ℓ} {Fin n} id)
    tabulateSort zero = []
-   tabulateSort (suc n)
-     with tabulateSort n
-   ...| xx = onHead-zero ∷ (subst (IsSorted _<Fin_) (map-tabulate n suc id) (map-suc-sort xx))
+   tabulateSort (suc zero) = [] ∷ []
+   tabulateSort (suc (suc n)) =
+     let rec      = tabulateSort (suc n)
+         sortSuc  = map-suc-sort rec
+         map∘Tab≡ = map-tabulate (suc n) suc id
+     in (on-∷ (s≤s z≤n)) ∷ (subst (IsSorted _<Fin_) map∘Tab≡ sortSuc)
+
 
 
    members⊆ : ∀ (xs : List Member) → xs ⊆List participants
