@@ -312,11 +312,12 @@ module LibraBFT.Abstract.BFT
        in ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ xs∈ys))
 
 
-
-
    map-suc-sort : ∀ {n} {xs : List (Fin n)}
                 → IsSorted _<Fin_ xs
                 → IsSorted _<Fin_ (List-map suc xs)
+   map-suc-sort [] = []
+   map-suc-sort (x ∷ []) = [] ∷ []
+   map-suc-sort (on-∷ x< ∷ (x₁ ∷ sxs)) = (on-∷ (s≤s x<)) ∷ (map-suc-sort (x₁ ∷ sxs))
 
 
    map-tabulate : ∀  {A B : Set} (n : ℕ) (g : A → B) (f : Fin n → A)
