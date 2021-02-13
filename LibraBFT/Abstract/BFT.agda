@@ -339,8 +339,9 @@ module LibraBFT.Abstract.BFT
      in (on-∷ (s≤s z≤n)) ∷ (subst (IsSorted _<Fin_) map∘Tab≡ sortSuc)
 
 
-
    members⊆ : ∀ (xs : List Member) → xs ⊆List participants
+   members⊆ [] = []
+   members⊆ (x ∷ xs) = Any-tabulate⁺ x refl ∷ (members⊆ xs)
 
 
    votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs

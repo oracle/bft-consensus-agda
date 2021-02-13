@@ -47,14 +47,15 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.Any.Properties
     using    (¬Any[])
-    renaming ( map⁺      to Any-map⁺
-             ; map⁻      to Any-map⁻
-             ; concat⁺   to Any-concat⁺
-             ; concat⁻   to Any-concat⁻
-             ; ++⁻       to Any-++⁻
-             ; ++⁺ʳ      to Any-++ʳ
-             ; ++⁺ˡ      to Any-++ˡ
+    renaming ( map⁺       to Any-map⁺
+             ; map⁻       to Any-map⁻
+             ; concat⁺    to Any-concat⁺
+             ; concat⁻    to Any-concat⁻
+             ; ++⁻        to Any-++⁻
+             ; ++⁺ʳ       to Any-++ʳ
+             ; ++⁺ˡ       to Any-++ˡ
              ; singleton⁻ to Any-singleton⁻
+             ; tabulate⁺  to Any-tabulate⁺
              )
     public
 
