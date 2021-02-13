@@ -312,8 +312,6 @@ module LibraBFT.Abstract.BFT
        in ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ xs∈ys))
 
 
-   map-tabulate : ∀ (n : ℕ)
-                → List-map suc (List-tabulate {0ℓ} {Fin n} id) ≡ List-tabulate {0ℓ} {Fin (suc n)} suc
 
 
    map-suc-sort : ∀ {n} {xs : List (Fin n)}
@@ -321,13 +319,23 @@ module LibraBFT.Abstract.BFT
                 → IsSorted _<Fin_ (List-map suc xs)
 
 
+   map-tabulate : ∀  {A B : Set} (n : ℕ) (g : A → B) (f : Fin n → A)
+                  → List-map g (List-tabulate f) ≡ List-tabulate (g ∘ f)
+   map-tabulate zero    _ _ = refl
+   map-tabulate (suc n) g f
+     rewrite sym (map-tabulate n (f ∘ suc) id)
+           | sym (List-map-compose  {g = g} {f = f ∘ suc} (List-tabulate id))
+           | map-tabulate n (g ∘ f ∘ suc) id = refl
+
+
    onHead-zero : ∀ {n} → OnHead _<Fin_ zero (List-tabulate {0ℓ} {Fin (suc n)} suc)
+
 
    tabulateSort : ∀ (n : ℕ) → IsSorted _<Fin_ (List-tabulate {0ℓ} {Fin n} id)
    tabulateSort zero = []
    tabulateSort (suc n)
      with tabulateSort n
-   ...| xx = onHead-zero ∷ (subst (IsSorted _<Fin_) (map-tabulate n) (map-suc-sort xx))
+   ...| xx = onHead-zero ∷ (subst (IsSorted _<Fin_) (map-tabulate n suc id) (map-suc-sort xx))
 
 
    members⊆ : ∀ (xs : List Member) → xs ⊆List participants

@@ -35,7 +35,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List.Properties
-    renaming (≡-dec to List-≡-dec; length-map to List-length-map)
+    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose)
     using (∷-injective; length-++; map-++-commute; sum-++-commute)
     public
 
