@@ -217,3 +217,14 @@ module LibraBFT.Lemmas where
  to-witness-isJust-≡ {aMB = just a'} {a} {prf}
     with to-witness-lemma (isJust {aMB = just a'} {a} prf) refl
  ...| xxx = just-injective (trans (sym xxx) prf)
+
+
+ ∸-suc-≤ : ∀ (x w : ℕ) → suc x ∸ w ≤ suc (x ∸ w)
+ ∸-suc-≤ x zero = ≤-refl
+ ∸-suc-≤ zero (suc w) rewrite 0∸n≡0 w = z≤n
+ ∸-suc-≤ (suc x) (suc w) = ∸-suc-≤ x w
+
+ m∸n≤o⇒m∸o≤n : ∀ (x z w : ℕ) → x ∸ z ≤ w → x ∸ w ≤ z
+ m∸n≤o⇒m∸o≤n x zero w p≤ rewrite m≤n⇒m∸n≡0 p≤ = z≤n
+ m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
+ m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
