@@ -138,7 +138,7 @@ module LibraBFT.Prelude where
 
   open import Data.Fin.Properties
     using (toℕ-injective)
-    renaming (<-cmp to Fin-<-cmp; <-trans to Fin-<-trans)
+    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin)
     public
 
   open import Relation.Binary.PropositionalEquality

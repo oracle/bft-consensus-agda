@@ -78,7 +78,7 @@ module LibraBFT.Abstract.BFT
 
 
    -- The `intersect` and `union` functions assume that the lists are
-   -- sorted
+   -- sorted and produce sorted lists
    intersectElem : List Member → Member → List Member
    intersectElem [] y = []
    intersectElem (x ∷ xs) y
@@ -107,18 +107,10 @@ module LibraBFT.Abstract.BFT
    union xs (y ∷ ys) = unionElem (union xs ys) y
 
 
-   ≤-head : ∀ {n} {xs : List (Fin n)} {x y}
-          → y ∈ (x ∷ xs) → IsSorted _<Fin_ (x ∷ xs)
-          → x ≤Fin y
-   ≤-head (here refl) _ = ≤-refl
-   ≤-head (there y∈) (on-∷ x<x₁ ∷ sxs)
-     = ≤-trans (<⇒≤ x<x₁) (≤-head y∈ sxs)
-
-
-   y∉⇒All≢ : ∀ {n} {xs : List (Fin n)} {x y}
+   y∉xs⇒Allxs≢y : ∀ {n} {xs : List (Fin n)} {x y}
            → y ∉ (x ∷ xs)
            → x ≢ y × y ∉ xs
-   y∉⇒All≢ {_} {xs} {x} {y} y∉
+   y∉xs⇒Allxs≢y {_} {xs} {x} {y} y∉
      with y ∈? xs
    ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
    ...| no  y∉xs
@@ -139,7 +131,8 @@ module LibraBFT.Abstract.BFT
      with Fin-<-cmp x₁ x
    ...| tri< _ _ _    = intersectElem-∈-≡ x∈xs sxs
    ...| tri≈ _ _ _    = refl
-   ...| tri> _ _ x₁>x = ⊥-elim (<⇒≱ x₁>x (≤-head (there x∈xs) (x₂ ∷ sxs)))
+   ...| tri> _ _ x₁>x
+     = ⊥-elim (<⇒≱ x₁>x (≤-head ≤-refl (≤-trans ∘ <⇒≤) (there x∈xs) (x₂ ∷ sxs)))
 
 
    intersectElem-∉-[] : ∀ {xs : List Member} {x}
@@ -148,25 +141,9 @@ module LibraBFT.Abstract.BFT
    intersectElem-∉-[] {[]}      {x} x∉xs = refl
    intersectElem-∉-[] {x₁ ∷ xs} {x} x∉xs
       with Fin-<-cmp x₁ x
-   ...| tri< _ _    _ = intersectElem-∉-[] (proj₂ (y∉⇒All≢ x∉xs))
-   ...| tri≈ _ x₁≡x _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) x₁≡x)
+   ...| tri< _ _    _ = intersectElem-∉-[] (proj₂ (y∉xs⇒Allxs≢y x∉xs))
+   ...| tri≈ _ x₁≡x _ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y x∉xs) x₁≡x)
    ...| tri> _ _    _ = refl
-
-
-   trans-OnHead : ∀ {n} {xs : List (Fin n)} {y x : Fin n}
-                → OnHead _<Fin_ y xs
-                → x <Fin y
-                → OnHead _<Fin_ x xs
-   trans-OnHead [] _ = []
-   trans-OnHead (on-∷ y<f) x<y = on-∷ (Fin-<-trans x<y y<f)
-
-
-   ++-OnHead : ∀ {xs ys : List Member} {y : Member}
-             → OnHead _<Fin_ y xs
-             → OnHead _<Fin_ y ys
-             → OnHead _<Fin_ y (xs ++ ys)
-   ++-OnHead []         y<y₁ = y<y₁
-   ++-OnHead (on-∷ y<x) _    = on-∷ y<x
 
 
    intElem-OnHead : ∀ {xs : List Member} {y x : Member}
@@ -185,7 +162,7 @@ module LibraBFT.Abstract.BFT
               → OnHead _<Fin_ y (intersect xs ys)
    int-OnHead      ([] ∷ _) = []
    int-OnHead {xs} (on-∷ p ∷ sxs) = ++-OnHead (intElem-OnHead {xs} p)
-                                              (trans-OnHead (int-OnHead sxs) p)
+                                              (transOnHead <-trans (int-OnHead sxs) p)
 
 
    int-[]≡[] : (xs : List Member) → intersect [] xs ≡ []
@@ -263,14 +240,6 @@ module LibraBFT.Abstract.BFT
            ...| tri> _   _ x>y = on-∷ x>y ∷ (x< ∷ sxs)
 
 
-   h∉t : ∀ {n} {xs : List (Fin n)} {x}
-       → IsSorted _<Fin_ (x ∷ xs)
-       → x ∉ xs
-   h∉t (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
-   h∉t (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs)
-     = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
-
-
    _⊆List_ : ∀ {A : Set} → List A → List A → Set
    xs ⊆List ys = All (_∈ ys) xs
 
@@ -286,9 +255,9 @@ module LibraBFT.Abstract.BFT
               → xs ⊆List (y ∷ ys) → y ∉ xs
               → xs ⊆List ys
    ⊆List-elim [] y∉ = []
-   ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉⇒All≢ y∉) refl)
+   ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y y∉) refl)
    ⊆List-elim (there x∈  ∷ xs∈) y∉
-     with y∉⇒All≢ y∉
+     with y∉xs⇒Allxs≢y y∉
    ...| x≢y , y∉xs = ∈List-elim (there x∈) x≢y ∷ ⊆List-elim xs∈ y∉xs
 
 
@@ -297,9 +266,9 @@ module LibraBFT.Abstract.BFT
                → x ∈ ys
                → y ∉ xs
    sort→∈-disj (x< ∷ sxs) (on-∷ y<y₁ ∷ sys) x∈ys y∈xs
-     = let y₁≤x = ≤-head x∈ys sys
+     = let y₁≤x = ≤-head ≤-refl (≤-trans ∘ <⇒≤) x∈ys sys
            y<x  = <-transˡ y<y₁ y₁≤x
-       in h∉t (trans-OnHead x< y<x ∷ sxs) y∈xs
+       in h∉t <⇒≢Fin <-trans (transOnHead <-trans x< y<x ∷ sxs) y∈xs
 
 
    sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
@@ -308,7 +277,7 @@ module LibraBFT.Abstract.BFT
            → sum (List-map f xs) ≤ sum (List-map f ys)
    sum-⊆-≤ {[]} f sxs sys [] = z≤n
    sum-⊆-≤ {x ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (here refl ∷ xs∈)
-     = let xs∈ys = ⊆List-elim xs∈ (h∉t (x₁ ∷ sxs))
+     = let xs∈ys = ⊆List-elim xs∈ (h∉t <⇒≢Fin <-trans (x₁ ∷ sxs))
        in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys xs∈ys)
    sum-⊆-≤ {_ ∷ _} {y ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (there px ∷ xs∈)
      = let y∉xs  = sort→∈-disj (x₁ ∷ sxs) (y₁ ∷ sys) px
@@ -419,7 +388,8 @@ module LibraBFT.Abstract.BFT
       with Fin-<-cmp x₁ x
    ...| tri< _ _ _    = cong (x₁ ∷_) (unionElem-∈-≡ x∈xs sxs)
    ...| tri≈ _ _ _    = refl
-   ...| tri> _ _ x₁>x = ⊥-elim (<⇒≱ x₁>x (≤-head (there x∈xs) (x₂ ∷ sxs)))
+   ...| tri> _ _ x₁>x = let x≥x₁ = ≤-head ≤-refl (≤-trans ∘ <⇒≤) (there x∈xs) (x₂ ∷ sxs)
+                        in ⊥-elim (<⇒≱ x₁>x x≥x₁)
 
 
    unionElem-∉-sum : ∀ {xs : List Member} {x} (f : Member → ℕ) → x ∉ xs
@@ -427,11 +397,11 @@ module LibraBFT.Abstract.BFT
    unionElem-∉-sum {[]}      {_} _ _ = refl
    unionElem-∉-sum {x₁ ∷ xs} {x} f x∉xs
       with Fin-<-cmp x₁ x
-   ...| tri< _ _ _ rewrite unionElem-∉-sum f ((proj₂ (y∉⇒All≢ x∉xs)))
+   ...| tri< _ _ _ rewrite unionElem-∉-sum f ((proj₂ (y∉xs⇒Allxs≢y x∉xs)))
                          | sym (+-assoc (f x) (f x₁) (sum (List-map f xs)))
                          | +-comm (f x) (f x₁)
                          | +-assoc (f x₁) (f x) (sum (List-map f xs)) = refl
-   ...| tri≈ _ x₁≢x _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) x₁≢x)
+   ...| tri≈ _ x₁≢x _ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y x∉xs) x₁≢x)
    ...| tri> _ _    _ = refl
 
 
@@ -496,7 +466,7 @@ module LibraBFT.Abstract.BFT
                                       (votPower y)
                                       (CombinedPower ys))
                        | +-comm (CombinedPower xs) (votPower y)
-                       | unionElem-∉-sum votPower (union-∉ (h∉t (y₁ ∷ sys)) y∉xs)
+                       | unionElem-∉-sum votPower (union-∉ (h∉t <⇒≢Fin <-trans (y₁ ∷ sys)) y∉xs)
                        | union-votPower≡ sxs sys
                        | intersectElem-∉-[] y∉xs
                        | +-assoc (votPower y)
