@@ -29,13 +29,14 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List
-    renaming (map to List-map ; filter to List-filter ; lookup to List-lookup)
+    renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
+              tabulate to List-tabulate)
     hiding (fromMaybe; [_])
     public
 
   open import Data.List.Properties
-    renaming (≡-dec to List-≡-dec; length-map to List-length-map)
-    using (∷-injective; length-++)
+    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate)
     public
 
   open import Data.List.Relation.Unary.Any
@@ -46,14 +47,15 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.Any.Properties
     using    (¬Any[])
-    renaming ( map⁺      to Any-map⁺
-             ; map⁻      to Any-map⁻
-             ; concat⁺   to Any-concat⁺
-             ; concat⁻   to Any-concat⁻
-             ; ++⁻       to Any-++⁻
-             ; ++⁺ʳ      to Any-++ʳ
-             ; ++⁺ˡ      to Any-++ˡ
+    renaming ( map⁺       to Any-map⁺
+             ; map⁻       to Any-map⁻
+             ; concat⁺    to Any-concat⁺
+             ; concat⁻    to Any-concat⁻
+             ; ++⁻        to Any-++⁻
+             ; ++⁺ʳ       to Any-++ʳ
+             ; ++⁺ˡ       to Any-++ˡ
              ; singleton⁻ to Any-singleton⁻
+             ; tabulate⁺  to Any-tabulate⁺
              )
     public
 
@@ -136,7 +138,7 @@ module LibraBFT.Prelude where
 
   open import Data.Fin.Properties
     using (toℕ-injective)
-    renaming (<-cmp to Fin-<-cmp; <-trans to Fin-<-trans)
+    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin)
     public
 
   open import Relation.Binary.PropositionalEquality

@@ -8,25 +8,37 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Base.PKCS
 
-  -- This module provides a utility function to make it easy to provide the
-  -- bft-lemma for implementations that assume one peer, one vote and assume
-  -- that: at most bizF members are byzantine; authorsN ≥ suc (3 * bizF);
-  -- and a list of Members is a quorum if it contains at least authorsN ∸
-  -- bizF = QSize distinct Members. The bft-lemma is the last lemma in this
-  -- file and proves that in the intersection of any two lists with at least
-  -- QSize distinct Members there is an honest Member.
+  -- This module provides a utility function to make it easy to
+  -- provide the bft-lemma for implementations in which the
+  -- participants can have different voting power.
+
+  -- The module is parametrized with the number of participants -
+  -- `authorsN`, and with a function - `votPower` - that assigns to
+  -- each participant its voting power. The parameter `N` corresponds
+  -- to the total voting power of all participants, as required by the
+  -- parameter `totalVotPower` in the inner module. These
+  -- implementations should assume a fixed unknown subset of malicious
+  -- nodes - Byzantine - but should also assume a security threshold
+  -- `bizF`, such that N > 3 * bizF, which should be provided in
+  -- parameter `isBFT`.  Finally, the `bft-assumption` states that the
+  -- combined voting power of Byzantine nodes must not exceed the
+  -- security threshold `bizF`.
+
+  -- The bft-lemma is the last lemma in this file and proves that in
+  -- the intersection of any quorums, whose combined voting power is
+  -- greater or equal than `N - bizF`, there is an honest Member.
 
 module LibraBFT.Abstract.BFT
-  (authorsN  : ℕ)
-  (bizF      : ℕ)
-  (isBFT     : authorsN ≥ suc (3 * bizF))
-  (getPubKey : Fin authorsN → PK)
+  (authorsN      : ℕ)
+  (votPower      : Fin authorsN → ℕ)
+  (totalVotPower : ℕ)
+  (bizF          : ℕ)
+  (isBFT         : totalVotPower ≥ suc (3 * bizF))
+  (getPubKey     : Fin authorsN → PK)
+
 
  where
 
-
- QSize : ℕ
- QSize = authorsN ∸ bizF
 
  -- The set of members of this epoch.
  Member : Set
@@ -35,22 +47,45 @@ module LibraBFT.Abstract.BFT
  Meta-dishonest? :  ∀ (m : Member) → Dec (Meta-Dishonest-PK (getPubKey m))
  Meta-dishonest? m = Meta-DishonestPK? (getPubKey m)
 
- module _  (bft-assumption : ∀ {xs : List Member} → IsSorted _<Fin_ xs
-                           → length (List-filter Meta-dishonest? xs) ≤ bizF)
+ CombinedPower : List Member → ℕ
+ CombinedPower xs = sum (List-map votPower xs)
+
+ -- The bft-assumption states that the combined voting power of
+ -- Byzantine nodes must not exceed the security threshold
+ -- `bizF`. Therefore, for any list of distinct participants, the
+ -- combined power of the dishonest nodes is less or equal than
+ -- `bizF`. To express a list of distinct particpants we used the data
+ -- type `IsSorted _<Fin_`, enforcing xs to be sorted according to a
+ -- anti-reflexive linear order ensures authors are distinct.
+
+ -- TODO-1 : Replace `IsSorted _<Fin_ xs` with the type `allDistinct`
+ -- in `LibraBFT.Lemmas
+
+ module _  (totalVotPower≡  : totalVotPower ≡ CombinedPower (List-tabulate id))
+           (bft-assumption : ∀ {xs : List Member}
+                           → IsSorted _<Fin_ xs
+                           → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
    where
 
-   _∈?_ : (x : Member) → (xs : List Member) → Dec (Any (x ≡_) xs)
+   _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
    x ∈? xs = Any-any (x ≟Fin_) xs
+
+   participants : List Member
+   participants = List-tabulate id
 
    -- TODO-2 : Many of these lemmas can be generalized for any list or any
    -- IsSorted list of Fin. Perhaps establish a Lemmas.FinProps module.
+
+
+   -- The `intersect` and `union` functions assume that the lists are
+   -- sorted and produce sorted lists
    intersectElem : List Member → Member → List Member
    intersectElem [] y = []
    intersectElem (x ∷ xs) y
       with Fin-<-cmp x y
-   ...| tri< a ¬b ¬c = intersectElem xs y
-   ...| tri≈ ¬a b ¬c = y ∷ []
-   ...| tri> ¬a ¬b c = []
+   ...| tri< _ _ _ = intersectElem xs y
+   ...| tri≈ _ _ _ = y ∷ []
+   ...| tri> _ _ _ = []
 
 
    intersect : List Member → List Member → List Member
@@ -62,9 +97,9 @@ module LibraBFT.Abstract.BFT
    unionElem [] y = y ∷ []
    unionElem (x ∷ xs) y
      with Fin-<-cmp x y
-   ...| tri< a ¬b ¬c = x ∷ unionElem xs y
-   ...| tri≈ ¬a b ¬c = x ∷ xs
-   ...| tri> ¬a ¬b c = y ∷ x ∷ xs
+   ...| tri< _ _ _ = x ∷ unionElem xs y
+   ...| tri≈ _ _ _ = x ∷ xs
+   ...| tri> _ _ _ = y ∷ x ∷ xs
 
 
    union : List Member → List Member → List Member
@@ -72,60 +107,62 @@ module LibraBFT.Abstract.BFT
    union xs (y ∷ ys) = unionElem (union xs ys) y
 
 
-   intDiffElem : ∀ {slist} (xs : List Member)
-               → (intS : IsSorted _<Fin_ slist)
-               → (y : Member)
-               → OnHead _<Fin_ y slist
-               → IsSorted _<Fin_ (intersectElem xs y ++ slist)
-   intDiffElem [] slist y x = slist
-   intDiffElem (x ∷ xs) slist y yOH
-     with Fin-<-cmp x y
-   ...| tri< a ¬b ¬c = intDiffElem xs slist y yOH
-   ...| tri≈ ¬a b ¬c = yOH ∷ slist
-   ...| tri> ¬a ¬b c = slist
+   y∉xs⇒Allxs≢y : ∀ {n} {xs : List (Fin n)} {x y}
+           → y ∉ (x ∷ xs)
+           → x ≢ y × y ∉ xs
+   y∉xs⇒Allxs≢y {_} {xs} {x} {y} y∉
+     with y ∈? xs
+   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
+   ...| no  y∉xs
+     with x ≟Fin y
+   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
+   ...| no  x≢y = x≢y , y∉xs
 
 
-   trans-OnHead : ∀ {xs : List Member} {y x : Member}
-                → OnHead _<Fin_ y xs
-                → x <Fin y
-                → OnHead _<Fin_ x xs
-   trans-OnHead [] x<y = []
-   trans-OnHead (on-∷ y<f) x<y = on-∷ (Fin-<-trans x<y y<f)
+   intersectElem-∈-≡ : ∀ {xs : List Member} {x}
+                     → x ∈ xs → IsSorted _<Fin_ xs
+                     → intersectElem xs x ≡ x ∷ []
+   intersectElem-∈-≡ {x₁ ∷ xs} {.x₁} (here refl) sxs
+     with Fin-<-cmp x₁ x₁
+   ...| tri< _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   ...| tri≈ _ _     _ = refl
+   ...| tri> _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   intersectElem-∈-≡ {x₁ ∷ xs} {x} (there x∈xs) (x₂ ∷ sxs)
+     with Fin-<-cmp x₁ x
+   ...| tri< _ _ _    = intersectElem-∈-≡ x∈xs sxs
+   ...| tri≈ _ _ _    = refl
+   ...| tri> _ _ x₁>x
+     = ⊥-elim (<⇒≱ x₁>x (≤-head ≤-refl (≤-trans ∘ <⇒≤) (there x∈xs) (x₂ ∷ sxs)))
 
 
-   ++-OnHead : ∀ {xs ys : List Member} {y : Member}
-             → OnHead _<Fin_ y xs
-             → OnHead _<Fin_ y ys
-             → OnHead _<Fin_ y (xs ++ ys)
-   ++-OnHead {[]} {ys} {y} xsOH ysOH = ysOH
-   ++-OnHead {x ∷ xs} {ys} {y} (on-∷ y<x) ysOH = on-∷ y<x
+   intersectElem-∉-[] : ∀ {xs : List Member} {x}
+                      → x ∉ xs
+                      → intersectElem xs x ≡ []
+   intersectElem-∉-[] {[]}      {x} x∉xs = refl
+   intersectElem-∉-[] {x₁ ∷ xs} {x} x∉xs
+      with Fin-<-cmp x₁ x
+   ...| tri< _ _    _ = intersectElem-∉-[] (proj₂ (y∉xs⇒Allxs≢y x∉xs))
+   ...| tri≈ _ x₁≡x _ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y x∉xs) x₁≡x)
+   ...| tri> _ _    _ = refl
 
 
    intElem-OnHead : ∀ {xs : List Member} {y x : Member}
                   → x <Fin y
                   → OnHead _<Fin_ x (intersectElem xs y)
-   intElem-OnHead {[]} {y} {x} x<y = []
-   intElem-OnHead {x₁ ∷ xs} {y} {x} x<y
+   intElem-OnHead {[]} _ = []
+   intElem-OnHead {x₁ ∷ xs} {y} x<y
       with Fin-<-cmp x₁ y
-   ...| tri< a ¬b ¬c = intElem-OnHead {xs} x<y
-   ...| tri≈ ¬a b ¬c = on-∷ x<y
-   ...| tri> ¬a ¬b c = []
+   ...| tri< _ _ _ = intElem-OnHead {xs} x<y
+   ...| tri≈ _ _ _ = on-∷ x<y
+   ...| tri> _ _ _ = []
 
 
    int-OnHead : ∀ {xs ys : List Member} {y : Member}
               → IsSorted _<Fin_ (y ∷ ys)
               → OnHead _<Fin_ y (intersect xs ys)
-   int-OnHead {xs} {[]} sl = []
-   int-OnHead {xs} {y ∷ ys} (on-∷ p ∷ sl) = ++-OnHead (intElem-OnHead {xs} p)
-                                                      (trans-OnHead (int-OnHead sl) p)
-
-
-   intersectDiff : ∀ {xs ys : List Member}
-                 → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
-                 → IsSorted _<Fin_ (intersect xs ys)
-   intersectDiff {xs} {[]} _ _ = []
-   intersectDiff {xs} {y ∷ ys} sxs (y₁ ∷ sys) = intDiffElem xs (intersectDiff sxs sys) y
-                                                               (int-OnHead (y₁ ∷ sys))
+   int-OnHead      ([] ∷ _) = []
+   int-OnHead {xs} (on-∷ p ∷ sxs) = ++-OnHead (intElem-OnHead {xs} p)
+                                              (transOnHead <-trans (int-OnHead sxs) p)
 
 
    int-[]≡[] : (xs : List Member) → intersect [] xs ≡ []
@@ -133,138 +170,195 @@ module LibraBFT.Abstract.BFT
    int-[]≡[] (x ∷ xs) = int-[]≡[] xs
 
 
-   ∈-intersectElem : ∀ {xs : List Member} {α y}
-                     → α ∈ intersectElem xs y
-                     → α ∈ xs × α ∈ y ∷ []
-   ∈-intersectElem {x ∷ xs} {α} {y} ∈int
+   intersectDiff : ∀ {xs ys : List Member}
+                 → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
+                 → IsSorted _<Fin_ (intersect xs ys)
+   intersectDiff {_}  {.[]}   _   [] = []
+   intersectDiff {xs} {y ∷ _} sxs (y< ∷ sys)
+     with y ∈? xs
+   ...| yes y∈xs rewrite intersectElem-∈-≡ y∈xs sxs
+        = int-OnHead (y< ∷ sys) ∷ intersectDiff sxs sys
+   ...| no  y∉xs rewrite intersectElem-∉-[] y∉xs = intersectDiff sxs sys
+
+
+   ∈-intersectElem : ∀ {α y} (xs : List Member)
+                   → α ∈ intersectElem xs y
+                   → α ∈ xs × α ∈ y ∷ []
+   ∈-intersectElem {_} {y} (x ∷ xs) ∈int
      with Fin-<-cmp x y
-   ...| tri< a ¬b ¬c = (Any-++ʳ (x ∷ []) (proj₁ (∈-intersectElem ∈int))) , proj₂ (∈-intersectElem {xs} ∈int)
-   ...| tri≈ ¬a refl ¬c = Any-++ˡ ∈int , ∈int
-   ...| tri> ¬a ¬b c = contradiction ∈int ¬Any[]
+   ...| tri< _ _ _
+        = Any-++ʳ (x ∷ []) (proj₁ (∈-intersectElem xs ∈int)) , proj₂ (∈-intersectElem xs ∈int)
+   ...| tri≈ _ refl _ = Any-++ˡ ∈int , ∈int
+   ...| tri> _ _ _    = contradiction ∈int ¬Any[]
 
 
    ∈-intersect : ∀ {xs ys : List Member} {α}
-                 → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
-                 → α ∈ intersect xs ys → α ∈ xs × α ∈ ys
-   ∈-intersect {[]} {y ∷ ys} sxs (y₁ ∷ sys) α∈∩ rewrite int-[]≡[] ys = contradiction α∈∩ ¬Any[]
-   ∈-intersect {x ∷ xs} {y ∷ ys} sxs (y₁ ∷ sys) α∈∩
-     with Fin-<-cmp x y
-   ∈-intersect {x ∷ xs} {.x ∷ ys} sxs (y₁ ∷ sys) (here px) | tri≈ ¬a refl ¬c
-     = here px , here px
-   ∈-intersect {x ∷ xs} {.x ∷ ys} sxs (y₁ ∷ sys) (there α∈∩) | tri≈ ¬a refl ¬c
-     = proj₁ (∈-intersect sxs sys α∈∩) , Any-++ʳ (x ∷ []) (proj₂ (∈-intersect sxs sys α∈∩))
-   ...| tri> ¬a ¬b c
-     = proj₁ (∈-intersect sxs sys α∈∩) , there (proj₂ (∈-intersect sxs sys α∈∩))
-   ...| tri< a ¬b ¬c
-     with Any-++⁻ (intersectElem xs y) α∈∩
-   ...| inj₁ x₁ = Any-++ʳ (x ∷ []) (proj₁ (∈-intersectElem x₁)) , Any-++ˡ (proj₂ (∈-intersectElem {xs} x₁))
-   ...| inj₂ y₂ = proj₁ (∈-intersect sxs sys y₂) , Any-++ʳ (y ∷ []) (proj₂ (∈-intersect sxs sys y₂))
+               → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
+               → α ∈ intersect xs ys
+               → α ∈ xs × α ∈ ys
+   ∈-intersect {[]} {_ ∷ ys} [] (_ ∷ _) α∈∩ rewrite int-[]≡[] ys
+     = contradiction α∈∩ ¬Any[]
+   ∈-intersect {x ∷ xs} {y ∷ _} sxs (_ ∷ sys) α∈∩
+     with Fin-<-cmp x y  | α∈∩
+   ...| tri≈ _ refl _    | here refl
+        = here refl , here refl
+   ...| tri≈ _ refl _    | there α∈
+        = proj₁ (∈-intersect sxs sys α∈) , Any-++ʳ (x ∷ []) (proj₂ (∈-intersect sxs sys α∈))
+   ...| tri> _ _ _       | α∈
+        = proj₁ (∈-intersect sxs sys α∈) , there (proj₂ (∈-intersect sxs sys α∈))
+   ...| tri< _ _ _       | α∈
+     with Any-++⁻ (intersectElem xs y) α∈
+   ...| inj₁ x₁ = Any-++ʳ (x ∷ []) (proj₁ (∈-intersectElem xs x₁))
+                , Any-++ˡ (proj₂ (∈-intersectElem xs x₁))
+   ...| inj₂ y₂ = proj₁ (∈-intersect sxs sys y₂)
+                , Any-++ʳ (y ∷ []) (proj₂ (∈-intersect sxs sys y₂))
 
 
-   pred-Fin : ∀ {n} → Fin (suc (suc n)) → Fin (suc n)
-   pred-Fin zero = zero
-   pred-Fin (suc x) = x
-
-   ∸-suc-≤ : ∀ (x w : ℕ) → suc x ∸ w ≤ suc (x ∸ w)
-   ∸-suc-≤ x zero = ≤-refl
-   ∸-suc-≤ zero (suc w) rewrite 0∸n≡0 w = z≤n
-   ∸-suc-≤ (suc x) (suc w) = ∸-suc-≤ x w
-
-
-   head-Sort : ∀ {n x l} {xs : List (Fin n)} → IsSorted _<Fin_ (x ∷ xs)
-             → length (x ∷ xs) ≡ l → l ≤ n → toℕ x ≤ n ∸ l
-   head-Sort {suc zero} {zero} {l} {xs} sxs eq l≤n = z≤n
-   head-Sort {suc (suc n)} {x} {suc l} {x₁ ∷ xs} (on-∷ p ∷ sxs) eq l≤n
-    with head-Sort sxs (cong pred eq) (≤pred⇒≤ (≤-pred l≤n))
-   ...| rec = ≤-pred (≤-trans p (≤-trans rec (∸-suc-≤ (suc n) l)))
-   head-Sort {suc (suc n)} {zero} {suc zero} {[]} (x₁ ∷ sxs) eq l≤n = z≤n
-   head-Sort {suc (suc n)} {suc x} {suc zero} {[]} (x₁ ∷ sxs) eq l≤n
-     = s≤s (head-Sort ([] ∷ []) eq (s≤s z≤n))
-
-
-   sorted-length : ∀ {n} {xs : List (Fin n)} → IsSorted _<Fin_ xs
-                 → length xs ≤ n
-   sorted-length {n} {[]} x = z≤n
-   sorted-length {suc n} {x₁ ∷ []} (x ∷ sxs) = s≤s z≤n
-   sorted-length {suc n} {x₁ ∷ x₂ ∷ xs} (x ∷ sxs)
-     with m≤n⇒m<n∨m≡n (sorted-length sxs)
-   ...| inj₁ l<n = l<n
-   ...| inj₂ l≡n
-     with head-Sort sxs l≡n ≤-refl
-   ...| xxx
-     with subst (toℕ x₂ ≤_) (n∸n≡0 n) xxx
-   sorted-length {suc n} {x₁ ∷ zero ∷ xs} (on-∷ () ∷ sxs) | inj₂ y | xxx | yy
-
-
-   union-sorted :  ∀ {xs ys : List Member}
+   unionSorted :  ∀ {xs ys : List Member}
                 → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
                 → IsSorted _<Fin_ (union xs ys)
-   union-sorted {xs} {[]} sxs sys = sxs
-   union-sorted {xs} {y ∷ ys} sxs (y₁ ∷ sys) = unionElem-sorted (union-sorted sxs sys)
+   unionSorted sxs [] = sxs
+   unionSorted sxs (y₁ ∷ sys) = unionElem-sorted (unionSorted sxs sys)
      where union-OnHead : ∀ {xs : List Member} {x y}
                         → IsSorted _<Fin_ (x ∷ xs)
                         → x <Fin y
                         → OnHead _<Fin_ x (unionElem xs y)
-           union-OnHead {[]} {x} {y} sxs x<y = on-∷ x<y
-           union-OnHead {x₁ ∷ xs} {x} {y} (on-∷ xx ∷ sxs) x<y
+           union-OnHead {[]} {_} {_} _ x<y = on-∷ x<y
+           union-OnHead {x₁ ∷ _} {x} {y} (on-∷ x<x₁ ∷ _) x<y
               with Fin-<-cmp x₁ y
-           ...| tri< a ¬b ¬c = on-∷ xx
-           ...| tri≈ ¬a b ¬c = on-∷ xx
-           ...| tri> ¬a ¬b c = on-∷ x<y
+           ...| tri< _ _ _ = on-∷ x<x₁
+           ...| tri≈ _ _ _ = on-∷ x<x₁
+           ...| tri> _ _ _ = on-∷ x<y
 
            unionElem-sorted : ∀ {xs y} → IsSorted _<Fin_ xs
                             → IsSorted _<Fin_ (unionElem xs y)
            unionElem-sorted {[]} {y} [] = [] ∷ []
-           unionElem-sorted {(x ∷ xs)} {y} (x₁ ∷ sxs)
+           unionElem-sorted {x ∷ xs} {y} (x< ∷ sxs)
              with Fin-<-cmp x y
-           ...| tri< a ¬b ¬c = union-OnHead (x₁ ∷ sxs) a ∷ (unionElem-sorted sxs)
-           ...| tri≈ ¬a b ¬c = (x₁ ∷ sxs)
-           ...| tri> ¬a ¬b c = on-∷ c ∷ (x₁ ∷ sxs)
+           ...| tri< x<y _ _   = union-OnHead (x< ∷ sxs) x<y ∷ (unionElem-sorted sxs)
+           ...| tri≈ _   _ _   = (x< ∷ sxs)
+           ...| tri> _   _ x>y = on-∷ x>y ∷ (x< ∷ sxs)
 
 
-   union-length-UpLim : ∀ {xs ys : List Member}
+   _⊆List_ : ∀ {A : Set} → List A → List A → Set
+   xs ⊆List ys = All (_∈ ys) xs
+
+
+   ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
+              → x ∈ (y ∷ ys) → x ≢ y
+              → x ∈ ys
+   ∈List-elim (here x≡y) x≢y = ⊥-elim (x≢y x≡y)
+   ∈List-elim (there x∈) x≢y = x∈
+
+
+   ⊆List-elim : ∀ {n} {y} {xs ys : List (Fin n)}
+              → xs ⊆List (y ∷ ys) → y ∉ xs
+              → xs ⊆List ys
+   ⊆List-elim [] y∉ = []
+   ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y y∉) refl)
+   ⊆List-elim (there x∈  ∷ xs∈) y∉
+     with y∉xs⇒Allxs≢y y∉
+   ...| x≢y , y∉xs = ∈List-elim (there x∈) x≢y ∷ ⊆List-elim xs∈ y∉xs
+
+
+   sort→∈-disj : ∀ {n} {x y} {xs ys : List (Fin n)}
+               → IsSorted _<Fin_ (x ∷ xs) → IsSorted _<Fin_ (y ∷ ys)
+               → x ∈ ys
+               → y ∉ xs
+   sort→∈-disj (x< ∷ sxs) (on-∷ y<y₁ ∷ sys) x∈ys y∈xs
+     = let y₁≤x = ≤-head ≤-refl (≤-trans ∘ <⇒≤) x∈ys sys
+           y<x  = <-transˡ y<y₁ y₁≤x
+       in h∉t <⇒≢Fin <-trans (transOnHead <-trans x< y<x ∷ sxs) y∈xs
+
+
+   sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
+           → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+           → xs ⊆List ys
+           → sum (List-map f xs) ≤ sum (List-map f ys)
+   sum-⊆-≤ {[]} f sxs sys [] = z≤n
+   sum-⊆-≤ {x ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (here refl ∷ xs∈)
+     = let xs∈ys = ⊆List-elim xs∈ (h∉t <⇒≢Fin <-trans (x₁ ∷ sxs))
+       in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys xs∈ys)
+   sum-⊆-≤ {_ ∷ _} {y ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (there px ∷ xs∈)
+     = let y∉xs  = sort→∈-disj (x₁ ∷ sxs) (y₁ ∷ sys) px
+           xs∈ys = ⊆List-elim xs∈ y∉xs
+       in ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ xs∈ys))
+
+
+   map-suc-sort : ∀ {n} {xs : List (Fin n)}
+                → IsSorted _<Fin_ xs
+                → IsSorted _<Fin_ (List-map suc xs)
+   map-suc-sort [] = []
+   map-suc-sort (x ∷ []) = [] ∷ []
+   map-suc-sort (on-∷ x< ∷ (x₁ ∷ sxs)) = (on-∷ (s≤s x<)) ∷ (map-suc-sort (x₁ ∷ sxs))
+
+
+   tabulateSort : ∀ (n : ℕ) → IsSorted _<Fin_ (List-tabulate {0ℓ} {Fin n} id)
+   tabulateSort zero = []
+   tabulateSort (suc zero) = [] ∷ []
+   tabulateSort (suc (suc n)) =
+     let rec      = tabulateSort (suc n)
+         sortSuc  = map-suc-sort rec
+         map∘Tab≡ = map-tabulate id suc
+     in (on-∷ (s≤s z≤n)) ∷ (subst (IsSorted _<Fin_) map∘Tab≡ sortSuc)
+
+
+   members⊆ : ∀ (xs : List Member) → xs ⊆List participants
+   members⊆ [] = []
+   members⊆ (x ∷ xs) = Any-tabulate⁺ x refl ∷ (members⊆ xs)
+
+
+   votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
+                 → CombinedPower xs ≤ totalVotPower
+   votingPower≤N {xs} sxs rewrite totalVotPower≡
+     = sum-⊆-≤ votPower sxs (tabulateSort authorsN) (members⊆ xs)
+
+
+   union-votPower : ∀ {xs ys : List Member}
                       → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-                      → length (union xs ys) ≤ authorsN
-   union-length-UpLim sxs sys = sorted-length (union-sorted sxs sys)
+                      → CombinedPower (union xs ys) ≤ totalVotPower
+   union-votPower sxs sys = votingPower≤N (unionSorted sxs sys)
 
 
    union-∈ : ∀ {xs} {x} (ys : List Member)
            → x ∈ xs → x ∈ union xs ys
-   union-∈ {xs} {x} [] x∈xs = x∈xs
-   union-∈ {xs} {x} (y ∷ ys) x∈xs = unionElem-∈ (union-∈ ys x∈xs)
+   union-∈ [] x∈xs = x∈xs
+   union-∈ (y ∷ ys) x∈xs = unionElem-∈ (union-∈ ys x∈xs)
      where unionElem-∈ : ∀ {xs : List Member} {x y} → x ∈ xs
                          → x ∈ unionElem xs y
-           unionElem-∈ {x₁ ∷ xs} {x} {y} (here px)
+           unionElem-∈ {x₁ ∷ _} {_} {y} (here px)
              with Fin-<-cmp x₁ y
-           ...| tri< a ¬b ¬c = here px
-           ...| tri≈ ¬a b ¬c = here px
-           ...| tri> ¬a ¬b c = there (here px)
-           unionElem-∈ {x₁ ∷ xs} {x} {y} (there x∈xs)
+           ...| tri< _ _ _ = here px
+           ...| tri≈ _ _ _ = here px
+           ...| tri> _ _ _ = there (here px)
+           unionElem-∈ {x₁ ∷ _} {_} {y} (there x∈xs)
              with Fin-<-cmp x₁ y
-           ...| tri< a ¬b ¬c = there (unionElem-∈ x∈xs)
-           ...| tri≈ ¬a b ¬c = there x∈xs
-           ...| tri> ¬a ¬b c = there (there x∈xs)
+           ...| tri< _ _ _ = there (unionElem-∈ x∈xs)
+           ...| tri≈ _ _ _ = there x∈xs
+           ...| tri> _ _ _ = there (there x∈xs)
 
 
-   unionElem-∈-disj : ∀ {y x} (xs : List Member) → y ∈ unionElem xs x
+   unionElem-∈-disj : ∀ {x y} (xs : List Member)
+                    → y ∈ unionElem xs x
                     → y ≡ x ⊎ y ∈ xs
-   unionElem-∈-disj {y} {x} [] (here px) = inj₁ px
-   unionElem-∈-disj {y} {x} (x₁ ∷ xs) y∈
-     with Fin-<-cmp x₁ x
-   ...| tri≈ ¬a b ¬c = inj₂ y∈
-   unionElem-∈-disj {y} {x} (x₁ ∷ xs) (here px) | tri> ¬a ¬b c = inj₁ px
-   unionElem-∈-disj {y} {x} (x₁ ∷ xs) (there y∈) | tri> ¬a ¬b c = inj₂ y∈
-   unionElem-∈-disj {y} {x} (x₁ ∷ xs) (here px) | tri< a ¬b ¬c = inj₂ (here px)
-   unionElem-∈-disj {y} {x} (x₁ ∷ xs) (there y∈) | tri< a ¬b ¬c
-     with unionElem-∈-disj xs y∈
+   unionElem-∈-disj [] (here px) = inj₁ px
+   unionElem-∈-disj {x} (x₁ ∷ xs) y∈
+     with Fin-<-cmp x₁ x | y∈
+   ...| tri≈ ¬a b ¬c     | y∈∪         = inj₂ y∈∪
+   ...| tri> ¬a ¬b c     | (here px)   = inj₁ px
+   ...| tri> ¬a ¬b c     | (there y∈∪) = inj₂ y∈∪
+   ...| tri< a ¬b ¬c     | (here px)   = inj₂ (here px)
+   ...| tri< a ¬b ¬c     | (there y∈∪)
+     with unionElem-∈-disj xs y∈∪
    ...| inj₁ y≡x  = inj₁ y≡x
    ...| inj₂ y∈xs = inj₂ (there y∈xs)
 
 
-   union-∈-disj : ∀ {y} (xs ys : List Member) → y ∈ union xs ys
+   union-∈-disj : ∀ {y} (xs ys : List Member)
+                → y ∈ union xs ys
                 → y ∈ xs ⊎ y ∈ ys
-   union-∈-disj xs [] y∈ = inj₁ y∈
-   union-∈-disj xs (x ∷ ys) y∈
+   union-∈-disj _ [] y∈ = inj₁ y∈
+   union-∈-disj xs (y ∷ ys) y∈
      with unionElem-∈-disj (union xs ys) y∈
    ...| inj₁ y≡x = inj₂ (here y≡x)
    ...| inj₂ y∈un
@@ -274,130 +368,128 @@ module LibraBFT.Abstract.BFT
 
 
    union-∉ : ∀ {ys xs : List Member} {y}
-           → y ∉ ys → y ∉ xs → y ∉ union xs ys
-   union-∉ {ys} {xs} {y} y∉ys y∉xs y∈union
+           → y ∉ ys → y ∉ xs
+           → y ∉ union xs ys
+   union-∉ {ys} {xs} y∉ys y∉xs y∈union
      with union-∈-disj xs ys y∈union
    ...| inj₁ y∈xs = ⊥-elim (y∉xs y∈xs)
    ...| inj₂ y∈ys = ⊥-elim (y∉ys y∈ys)
 
 
-   unionElemLength-∈ : ∀ {xs : List Member} {x} → x ∈ xs → IsSorted _<Fin_ xs
-                     → length (unionElem xs x) ≡ length xs
-   unionElemLength-∈ {x ∷ xs} (here refl) _
-     with Fin-<-cmp x x
-   ...| tri< a ¬b ¬c = ⊥-elim (¬b refl)
-   ...| tri≈ ¬a b ¬c = refl
-   ...| tri> ¬a ¬b c = ⊥-elim (¬b refl)
-   unionElemLength-∈ {x ∷ xs} {x₁} (there x∈) (x₂ ∷ sxs)
-     with Fin-<-cmp x x₁
-   ...| tri< a ¬b ¬c = cong suc (unionElemLength-∈ x∈ sxs)
-   ...| tri≈ ¬a b ¬c = refl
-   ...| tri> ¬a ¬b c = ⊥-elim (<⇒≱ c (≤-head (there x∈) (x₂ ∷ sxs)))
-     where  ≤-head : ∀ {xs : List Member} {x y}
-                   → y ∈ (x ∷ xs) → IsSorted _<Fin_ (x ∷ xs)
-                   → x ≤Fin y
-            ≤-head {xs} {x} {x} (here refl) sxs = ≤-refl
-            ≤-head {x₁ ∷ []} {x} {x₁} (there (here refl)) (on-∷ x< ∷ sxs) = <⇒≤ x<
-            ≤-head {x₁ ∷ x₂ ∷ xs} {x} {y} (there y∈) (on-∷ x<x₁ ∷ sxs)
-              = ≤-trans (<⇒≤ x<x₁) (≤-head y∈ sxs)
+   unionElem-∈-≡ : ∀ {xs : List Member} {x}
+                 → x ∈ xs → IsSorted _<Fin_ xs
+                 → unionElem xs x ≡ xs
+   unionElem-∈-≡ {x₁ ∷ x_} {.x₁} (here refl) _
+      with Fin-<-cmp x₁ x₁
+   ...| tri< _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   ...| tri≈ _ _     _ = refl
+   ...| tri> _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   unionElem-∈-≡ {x₁ ∷ _} {x} (there x∈xs) (x₂ ∷ sxs)
+      with Fin-<-cmp x₁ x
+   ...| tri< _ _ _    = cong (x₁ ∷_) (unionElem-∈-≡ x∈xs sxs)
+   ...| tri≈ _ _ _    = refl
+   ...| tri> _ _ x₁>x = let x≥x₁ = ≤-head ≤-refl (≤-trans ∘ <⇒≤) (there x∈xs) (x₂ ∷ sxs)
+                        in ⊥-elim (<⇒≱ x₁>x x≥x₁)
 
 
-   y∉⇒All≢ : ∀ {xs : List Member} {x y} → y ∉ (x ∷ xs)
-           → x ≢ y × y ∉ xs
-   y∉⇒All≢ {xs} {x} {y} y∉
+   unionElem-∉-sum : ∀ {xs : List Member} {x} (f : Member → ℕ) → x ∉ xs
+                   → sum (List-map f (unionElem xs x)) ≡ f x + sum (List-map f xs)
+   unionElem-∉-sum {[]}      {_} _ _ = refl
+   unionElem-∉-sum {x₁ ∷ xs} {x} f x∉xs
+      with Fin-<-cmp x₁ x
+   ...| tri< _ _ _ rewrite unionElem-∉-sum f ((proj₂ (y∉xs⇒Allxs≢y x∉xs)))
+                         | sym (+-assoc (f x) (f x₁) (sum (List-map f xs)))
+                         | +-comm (f x) (f x₁)
+                         | +-assoc (f x₁) (f x) (sum (List-map f xs)) = refl
+   ...| tri≈ _ x₁≢x _ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y x∉xs) x₁≢x)
+   ...| tri> _ _    _ = refl
+
+
+   sumIntersect≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
+                 → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+                 → sum (List-map f (intersect xs ys)) ≤ sum (List-map f (xs ++ ys))
+   sumIntersect≤ {_} {[]} _ _ _ = z≤n
+   sumIntersect≤ {xs} {y ∷ ys} f sxs (_ ∷ sys)
      with y ∈? xs
-   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
-   ...| no  y∉xs
-     with x ≟Fin y
-   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
-   ...| no  x≢y = x≢y , y∉xs
+   ...| yes y∈xs rewrite intersectElem-∈-≡ y∈xs sxs
+                       | map-++-commute f xs (y ∷ ys)
+                       | sum-++-commute (List-map f xs) (List-map f (y ∷ ys))
+                       | sym (+-assoc (sum (List-map f xs)) (f y) (sum (List-map f ys)))
+                       | +-comm (sum (List-map f xs)) (f y)
+                       | +-assoc (f y) (sum (List-map f xs)) (sum (List-map f ys))
+                       | sym (sum-++-commute (List-map f xs) (List-map f ys))
+                       | sym (map-++-commute f xs ys)
+                         = +-monoʳ-≤ (f y) (sumIntersect≤ f sxs sys)
+   ...| no  y∉xs rewrite intersectElem-∉-[] y∉xs
+                       | map-++-commute f xs (y ∷ ys)
+                       | sum-++-commute (List-map f xs) (List-map f (y ∷ ys))
+                       | +-comm (f y) (sum (List-map f ys))
+                       | sym (+-assoc (sum (List-map f xs)) (sum (List-map f ys)) (f y))
+                       | sym (sum-++-commute (List-map f xs) (List-map f ys))
+                       | sym (map-++-commute f xs ys)
+                         = ≤-stepsʳ (f y) (sumIntersect≤ f sxs sys)
 
 
-   unionElem-∉ : ∀ {xs : List Member} {y} → y ∉ xs
-               → length (unionElem xs y) ≡ 1 + length xs
-   unionElem-∉ {[]} {y} _ = refl
-   unionElem-∉ {x ∷ xs} {y} x∉
-     with Fin-<-cmp x y
-   ...| tri< a ¬b ¬c = cong suc (unionElem-∉ (proj₂ (y∉⇒All≢ x∉)))
-   ...| tri≈ ¬a b ¬c = contradiction b (proj₁ (y∉⇒All≢ x∉))
-   ...| tri> ¬a ¬b c = refl
+   union-votPower≡ :  ∀ {xs ys : List Member}
+                      → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
+                      → CombinedPower (union xs ys) ≡ CombinedPower (xs ++ ys)
+                                                    ∸ CombinedPower (intersect xs ys)
+   union-votPower≡ {xs} {[]} _ _
+     rewrite map-++-commute votPower xs []
+           | sum-++-commute (List-map votPower xs) []
+           | +-identityʳ (CombinedPower xs) = refl
+   union-votPower≡ {xs} {y ∷ ys} sxs (y₁ ∷ sys)
+      with y ∈? xs
+   ...| yes y∈xs rewrite unionElem-∈-≡ (union-∈ ys y∈xs) (unionSorted sxs sys)
+                       | union-votPower≡ sxs sys
+                       | sym (m+n∸n≡m (CombinedPower (xs ++ ys)) (votPower y))
+                       | ∸-+-assoc (CombinedPower (xs ++ ys) + votPower y)
+                                   (votPower y)
+                                   (CombinedPower (intersect xs ys))
+                       | map-++-commute votPower xs ys
+                       | sum-++-commute (List-map votPower xs) (List-map votPower ys)
+                       | +-assoc (CombinedPower xs)
+                                 (CombinedPower ys)
+                                 (votPower y)
+                       | +-comm (CombinedPower ys) (votPower y)
+                       | map-++-commute votPower xs (y ∷ ys)
+                       | sum-++-commute (List-map votPower xs) (List-map votPower (y ∷ ys))
+                       | map-++-commute votPower (intersectElem xs y) (intersect xs ys)
+                       | sum-++-commute (List-map votPower (intersectElem xs y))
+                                        (List-map votPower (intersect xs ys))
+                       | intersectElem-∈-≡ y∈xs sxs
+                       | +-identityʳ (votPower y) = refl
 
-
-   h∉t : ∀ {xs : List Member} {x} → IsSorted _<Fin_ (x ∷ xs) → x ∉ xs
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ sxs) (here refl) = ⊥-elim (<⇒≢ x< refl)
-   h∉t {x₁ ∷ xs} {x} (on-∷ x< ∷ (x₁< ∷ sxs)) (there x∈xs) = h∉t ((trans-OnHead x₁< x<) ∷ sxs) x∈xs
-
-
-   intersectElem-∈ : ∀ {xs : List Member} {x} → x ∈ xs → IsSorted _<Fin_ xs
-                   → length (intersectElem xs x) ≡ 1
-   intersectElem-∈ {x₁ ∷ xs} {x₁} (here refl) _
-     with Fin-<-cmp x₁ x₁
-   ...| tri< a ¬b ¬c = ⊥-elim (¬b refl)
-   ...| tri≈ ¬a b ¬c = refl
-   ...| tri> ¬a ¬b c = ⊥-elim (¬b refl)
-   intersectElem-∈ {x₁ ∷ xs} {x} (there x∈xs) (xx ∷ sxs)
-        with Fin-<-cmp x₁ x
-   ...| tri< a ¬b ¬c = intersectElem-∈ x∈xs sxs
-   ...| tri≈ ¬a b ¬c = refl
-   ...| tri> ¬a ¬b c = contradiction (there x∈xs) (h∉t (on-∷ c ∷ xx ∷ sxs))
-
-
-   intersectElem-∉ : ∀ {xs : List Member} {x} → x ∉ xs
-                   → length (intersectElem xs x) ≡ 0
-   intersectElem-∉ {[]} {x} x∉xs = refl
-   intersectElem-∉ {x₁ ∷ xs} {x} x∉xs
-     with Fin-<-cmp x₁ x
-   ...| tri< a ¬b ¬c = intersectElem-∉ (proj₂ (y∉⇒All≢ x∉xs))
-   ...| tri≈ ¬a b ¬c = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) b)
-   ...| tri> ¬a ¬b c = refl
-
-
-   length-int-≤ : ∀ (xs ys : List Member) → IsSorted _<Fin_ xs
-                → length (intersect xs ys) ≤ length ys
-   length-int-≤ xs [] _ = z≤n
-   length-int-≤ xs (y ∷ ys) sxs
-     with y ∈? xs
-   ...| yes y∈xs rewrite length-++ (intersectElem xs y) {intersect xs ys}
-                        | intersectElem-∈ y∈xs sxs = s≤s (length-int-≤ xs ys sxs)
-   ...| no  y∉xs rewrite length-++ (intersectElem xs y) {intersect xs ys}
-                        | intersectElem-∉ y∉xs = ≤-step (length-int-≤ xs ys sxs)
-
-
-   union-length≡ : ∀ {xs ys : List Member}
-                 → (sxs : IsSorted _<Fin_ xs) → (sys : IsSorted _<Fin_ ys)
-                 → length (union xs ys) ≡ length xs + length ys ∸ length (intersect xs ys)
-   union-length≡ {xs} {[]} sxs sys rewrite +-identityʳ (length xs) = refl
-   union-length≡ {xs} {y ∷ ys} sxs (y₁ ∷ sys)
-     rewrite length-++ (intersectElem xs y) {intersect xs ys}
-     with y ∈? xs
-   ...| yes y∈xs rewrite unionElemLength-∈ (union-∈ ys y∈xs) (union-sorted sxs sys)
-                        | intersectElem-∈ y∈xs sxs
-                        | +-∸-assoc (length xs) (s≤s (length-int-≤ xs ys sxs))
-                        | sym (+-∸-assoc (length xs) (length-int-≤ xs ys sxs))
-                        = union-length≡ sxs sys
-   ...| no  y∉xs rewrite unionElem-∉ (union-∉ (h∉t (y₁ ∷ sys)) y∉xs)
-                        | intersectElem-∉ y∉xs
-                        | +-suc (length xs) (length ys)
-                        | +-∸-assoc 1 (≤-stepsˡ (length xs) (length-int-≤ xs ys sxs))
-                        = cong suc (union-length≡ sxs sys)
-
-
-   m∸n≤o⇒m∸o≤n : ∀ (x z w : ℕ) → x ∸ z ≤ w → x ∸ w ≤ z
-   m∸n≤o⇒m∸o≤n x zero w p≤ rewrite m≤n⇒m∸n≡0 p≤ = z≤n
-   m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
-   m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
+   ...| no  y∉xs rewrite map-++-commute votPower xs (y ∷ ys)
+                       | sum-++-commute (List-map votPower xs) (List-map votPower (y ∷ ys))
+                       | sym (+-assoc (CombinedPower xs)
+                                      (votPower y)
+                                      (CombinedPower ys))
+                       | +-comm (CombinedPower xs) (votPower y)
+                       | unionElem-∉-sum votPower (union-∉ (h∉t <⇒≢Fin <-trans (y₁ ∷ sys)) y∉xs)
+                       | union-votPower≡ sxs sys
+                       | intersectElem-∉-[] y∉xs
+                       | +-assoc (votPower y)
+                                 (CombinedPower xs)
+                                 (CombinedPower ys)
+                       | sym (sum-++-commute (List-map votPower xs) (List-map votPower ys))
+                       | sym (map-++-commute votPower xs ys)
+                       | +-∸-assoc (votPower y) (sumIntersect≤ votPower sxs sys) = refl
 
 
    quorumInt>biz : ∀ (xs ys : List Member)
-                 → QSize ≤ length xs
-                 → QSize ≤ length ys
-                 → length xs + length ys ∸ authorsN ≤ length (intersect xs ys)
-                 → bizF + 1 ≤ length (intersect xs ys)
-   quorumInt>biz xs ys q≤x q≤y ≤int =
-     let p₁ = ≤-trans (∸-monoˡ-≤ authorsN (+-mono-≤ q≤x q≤y)) ≤int
-         p₂ = subst (_≤ length (intersect xs ys)) (simpExp₁ authorsN bizF) p₁
-         p₃ = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
-     in subst (_≤ length (intersect xs ys)) (simpExp₂ bizF) p₃
+                 → totalVotPower ∸ bizF ≤ CombinedPower xs
+                 → totalVotPower ∸ bizF ≤ CombinedPower ys
+                 → CombinedPower (xs ++ ys) ∸ totalVotPower ≤ CombinedPower (intersect xs ys)
+                 → bizF + 1 ≤ CombinedPower (intersect xs ys)
+   quorumInt>biz xs ys q≤x q≤y ≤combPower
+     rewrite map-++-commute votPower xs ys
+           | sum-++-commute (List-map votPower xs) (List-map votPower ys)
+           = let powInt = CombinedPower (intersect xs ys)
+                 p₁     = ≤-trans (∸-monoˡ-≤ totalVotPower (+-mono-≤ q≤x q≤y)) ≤combPower
+                 p₂     = subst (_≤ powInt) (simpExp₁ totalVotPower bizF) p₁
+                 p₃     = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
+             in subst (_≤ powInt) (simpExp₂ bizF) p₃
        where  simpExp₁ : ∀ (x y : ℕ) → (x ∸ y) + (x ∸ y) ∸ x ≡ x ∸ (2 * y)
               simpExp₁ x y rewrite sym (*-identityʳ (x ∸ y))
                                  | sym (*-distribˡ-+ (x ∸ y) 1 1)
@@ -418,42 +510,46 @@ module LibraBFT.Abstract.BFT
    span-hon : ∀ {xs dis hon : List Member} {x : Member}
             → span Meta-dishonest? xs ≡ (dis , x ∷ hon)
             → x ∈ xs ×  Meta-Honest-PK (getPubKey x)
-   span-hon {x ∷ xs} {dis} {hon} eq
+   span-hon {x ∷ xs} eq
      with Meta-dishonest? x | eq
    ...| no imp  | refl = here refl , imp
-   ...| yes prf | eq₁
+   ...| yes _   | eq₁
      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| fst , x₂ ∷ snd | [ eq₂ ] rewrite just-injective (cong (head ∘ proj₂) eq₁)
+   ...| _ , x₂ ∷ _ | [ eq₂ ] rewrite just-injective (cong (head ∘ proj₂) eq₁)
      = ×-map₁ there (span-hon eq₂)
 
 
    span-dis : ∀ {xs dis : List Member}
             → span Meta-dishonest? xs ≡ (dis , [])
-            → length xs ≡ length (List-filter Meta-dishonest? xs)
-   span-dis {[]} {dis} eq = refl
-   span-dis {x ∷ xs} {dis} eq
-     with Meta-dishonest? x | eq
+            → List-filter Meta-dishonest? xs ≡ xs
+   span-dis {[]} _ = refl
+   span-dis {x ∷ xs} span≡
+      with Meta-dishonest? x | span≡
    ...| no ¬dis  | ()
-   ...| yes prf  | _
-     with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| fst , [] | [ eq₁ ] = cong suc (span-dis {xs} eq₁)
+   ...| yes _  | _
+      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
+   ...| _ , [] | [ eq₁ ] = cong (x ∷_) (span-dis {xs} eq₁)
 
 
    -- TODO-1 : An alternative to prove this lemma would be:
-   -- - First use the library lemma length-filter to prove that
-   --   length (List-filter Meta-dishonest? xs) ≤ length xs.
-   -- - Then prove that if length (List-filter Meta-dishonest? xs) < length xs
-   --   then ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α)).
-   -- - Otherwise, if length (List-filter Meta-dishonest? xs ≡ )length xs we
+   -- - First prove that
+   --   CombinedPower (List-filter Meta-dishonest? xs) ≤ CombinedPower xs.
+   -- - Then prove that:
+   --   - If CombinedPower (List-filter Meta-dishonest? xs) ≤ CombinedPower xs
+   --     then ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α)).
+   --   - If CombinedPower (List-filter Meta-dishonest? xs ≡ CombinedPower xs we
    --   get a contradiction using the bft assumption (as we have now).
    find-honest : ∀ {xs : List Member}
                → IsSorted _<Fin_ xs
-               → bizF + 1 ≤ length xs
+               → bizF + 1 ≤ CombinedPower xs
                → ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α))
    find-honest {xs} sxs biz<
      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
-   ...| dis , [] | [ eq ] rewrite +-comm bizF 1
-                                 | span-dis {xs} eq = ⊥-elim (<⇒≱ biz< (bft-assumption sxs))
+   ...| dis , [] | [ eq ]
+        rewrite +-comm bizF 1
+          = let bft     = bft-assumption sxs
+                xsVot≤f = subst (_≤ bizF) (cong CombinedPower (span-dis {xs} eq)) bft
+            in ⊥-elim (<⇒≱ biz< xsVot≤f)
    ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq)
 
 
@@ -461,19 +557,19 @@ module LibraBFT.Abstract.BFT
              -- enforcing both xs and ys to be sorted lists according to
              -- a anti-reflexive linear order ensures authors are distinct.
              → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-             → QSize ≤ length xs
-             → QSize ≤ length ys
+             → totalVotPower ∸ bizF ≤ CombinedPower xs
+             → totalVotPower ∸ bizF ≤ CombinedPower ys
              → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
-   bft-lemma {xs} {ys} difxs difys q≤xs q≤ys
-     = let |q₁|+|q₂|   = length xs + length ys
-           |q₁∩q₂|     = length (intersect xs ys)
-           |q₁∪q₂|≤n   = union-length-UpLim difxs difys
-           exp₁        = subst (_≤ authorsN) (union-length≡ difxs difys) |q₁∪q₂|≤n
-           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| authorsN exp₁
+   bft-lemma {xs} {ys} sxs sys q≤xs q≤ys
+     = let |q₁|+|q₂|   = CombinedPower (xs ++ ys)
+           |q₁∩q₂|     = CombinedPower (intersect xs ys)
+           |q₁∪q₂|≤n   = union-votPower sxs sys
+           exp₁        = subst (_≤ totalVotPower) (union-votPower≡ sxs sys) |q₁∪q₂|≤n
+           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| totalVotPower exp₁
            f+1≤|q₁∩q₂| = quorumInt>biz xs ys q≤xs q≤ys exp₂
-           honInf      = find-honest (intersectDiff difxs difys) f+1≤|q₁∩q₂|
-           h∈∩         = ∈-intersect difxs difys ((proj₁ ∘ proj₂) honInf)
-        in proj₁ honInf , proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
+           honInf      = find-honest (intersectDiff sxs sys) f+1≤|q₁∩q₂|
+           h∈∩         = ∈-intersect sxs sys ((proj₁ ∘ proj₂) honInf)
+       in proj₁ honInf , proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
 
 
 

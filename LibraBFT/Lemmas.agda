@@ -142,6 +142,38 @@ module LibraBFT.Lemmas where
  IsSorted-map⁻ f .(_ ∷ []) (x ∷ []) = [] ∷ []
  IsSorted-map⁻ f .(_ ∷ _ ∷ _) (on-∷ x ∷ (x₁ ∷ is)) = (on-∷ x) ∷ IsSorted-map⁻ f _ (x₁ ∷ is)
 
+
+ transOnHead : ∀ {A} {l : List A} {y x : A} {_<_ : A → A → Set}
+              → Transitive _<_
+              → OnHead _<_ y l
+              → x < y
+              → OnHead _<_ x l
+ transOnHead _ [] _ = []
+ transOnHead trans (on-∷ y<f) x<y = on-∷ (trans x<y y<f)
+
+ ++-OnHead : ∀ {A} {xs ys : List A} {y : A} {_<_ : A → A → Set}
+           → OnHead _<_ y xs
+           → OnHead _<_ y ys
+           → OnHead _<_ y (xs ++ ys)
+ ++-OnHead []         y<y₁ = y<y₁
+ ++-OnHead (on-∷ y<x) _    = on-∷ y<x
+
+ h∉t : ∀ {A} {t : List A} {h : A} {_<_ : A → A → Set}
+     → Irreflexive _<_ _≡_ → Transitive _<_
+     → IsSorted _<_ (h ∷ t)
+     → h ∉ t
+ h∉t irfl trans (on-∷ h< ∷ sxs) (here refl) = ⊥-elim (irfl h< refl)
+ h∉t irfl trans (on-∷ h< ∷ (x₁< ∷ sxs)) (there h∈t)
+   = h∉t irfl trans ((transOnHead trans x₁< h<) ∷ sxs) h∈t
+
+ ≤-head : ∀ {A} {l : List A} {x y : A} {_<_ : A → A → Set} {_≤_ : A → A → Set}
+        → Reflexive _≤_ → Trans _<_ _≤_ _≤_
+        → y ∈ (x ∷ l) → IsSorted _<_ (x ∷ l)
+        → _≤_ x y
+ ≤-head ref≤ trans (here refl) _ = ref≤
+ ≤-head ref≤ trans (there y∈) (on-∷ x<x₁ ∷ sl) = trans x<x₁ (≤-head ref≤ trans y∈ sl)
+
+
  -- TODO-1 : Better name and/or replace with library property
  Any-sym : ∀ {a b}{A : Set a}{B : Set b}{tgt : B}{l : List A}{f : A → B}
          → Any (λ x → tgt ≡ f x) l
@@ -217,3 +249,14 @@ module LibraBFT.Lemmas where
  to-witness-isJust-≡ {aMB = just a'} {a} {prf}
     with to-witness-lemma (isJust {aMB = just a'} {a} prf) refl
  ...| xxx = just-injective (trans (sym xxx) prf)
+
+
+ ∸-suc-≤ : ∀ (x w : ℕ) → suc x ∸ w ≤ suc (x ∸ w)
+ ∸-suc-≤ x zero = ≤-refl
+ ∸-suc-≤ zero (suc w) rewrite 0∸n≡0 w = z≤n
+ ∸-suc-≤ (suc x) (suc w) = ∸-suc-≤ x w
+
+ m∸n≤o⇒m∸o≤n : ∀ (x z w : ℕ) → x ∸ z ≤ w → x ∸ w ≤ z
+ m∸n≤o⇒m∸o≤n x zero w p≤ rewrite m≤n⇒m∸n≡0 p≤ = z≤n
+ m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
+ m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
