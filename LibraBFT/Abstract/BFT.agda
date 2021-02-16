@@ -10,10 +10,10 @@ open import LibraBFT.Base.PKCS
 
   -- This module provides a utility function to make it easy to
   -- provide the bft-lemma for implementations in which the
-  -- participants can hve different voting power.
+  -- participants can have different voting power.
 
-  -- The module should be parametrized with the number of participants
-  -- - `authorsN`, and with a function - `votPower` - that assigns to
+  -- The module is parametrized with the number of participants -
+  -- `authorsN`, and with a function - `votPower` - that assigns to
   -- each participant its voting power. The parameter `N` corresponds
   -- to the total voting power of all participants, as required by the
   -- parameter `totalVotPower` in the inner module. These
@@ -22,21 +22,19 @@ open import LibraBFT.Base.PKCS
   -- `bizF`, such that N > 3 * bizF, which should be provided in
   -- parameter `isBFT`.  Finally, the `bft-assumption` states that the
   -- combined voting power of Byzantine nodes must not exceed the
-  -- security threshold `bizF`. A quorum is a subset of distinct nodes
-  -- whose combined voting power `QSize` satisfies `QSize ≥ N ∸ bizF`,
-  -- received as the parameter `quorumVotPower` in the ineer module.
+  -- security threshold `bizF`.
 
   -- The bft-lemma is the last lemma in this file and proves that in
-  -- the intersection of any quoruns there is an honest Member.
+  -- the intersection of any quorums, whose combined voting power is
+  -- greater or equal than `N - bizF`, there is an honest Member.
 
 module LibraBFT.Abstract.BFT
-  (authorsN  : ℕ)
-  (votPower  : Fin authorsN → ℕ)
-  (N         : ℕ)
-  (bizF      : ℕ)
-  (isBFT     : N ≥ suc (3 * bizF))
-  (QSize     : ℕ)
-  (getPubKey : Fin authorsN → PK)
+  (authorsN      : ℕ)
+  (votPower      : Fin authorsN → ℕ)
+  (totalVotPower : ℕ)
+  (bizF          : ℕ)
+  (isBFT         : totalVotPower ≥ suc (3 * bizF))
+  (getPubKey     : Fin authorsN → PK)
 
 
  where
@@ -54,15 +52,16 @@ module LibraBFT.Abstract.BFT
 
  -- The bft-assumption states that the combined voting power of
  -- Byzantine nodes must not exceed the security threshold
- -- `bizF`. Therefore, for any possible list of distinct participants
- -- the combined power of the dishonest nodes is less or equal than
+ -- `bizF`. Therefore, for any list of distinct participants, the
+ -- combined power of the dishonest nodes is less or equal than
  -- `bizF`. To express a list of distinct particpants we used the data
  -- type `IsSorted _<Fin_`, enforcing xs to be sorted according to a
  -- anti-reflexive linear order ensures authors are distinct.
- -- TODO-1 : Replace `IsSorted _<Fin_ xs` with the type `allDistinct` in
- -- `LibraBFT.Lemmas
- module _  (totalVotPower  : N ≡ CombinedPower (List-tabulate id))
-           (quorumVotPower : QSize ≥ N ∸ bizF)
+
+ -- TODO-1 : Replace `IsSorted _<Fin_ xs` with the type `allDistinct`
+ -- in `LibraBFT.Lemmas
+
+ module _  (totalVotPower≡  : totalVotPower ≡ CombinedPower (List-tabulate id))
            (bft-assumption : ∀ {xs : List Member}
                            → IsSorted _<Fin_ xs
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
@@ -133,14 +132,14 @@ module LibraBFT.Abstract.BFT
                      → intersectElem xs x ≡ x ∷ []
    intersectElem-∈-≡ {x₁ ∷ xs} {.x₁} (here refl) sxs
      with Fin-<-cmp x₁ x₁
-   ...| tri< _ ¬b _ = ⊥-elim (¬b refl)
-   ...| tri≈ _ _ _ = refl
-   ...| tri> _ ¬b _ = ⊥-elim (¬b refl)
+   ...| tri< _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   ...| tri≈ _ _     _ = refl
+   ...| tri> _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
    intersectElem-∈-≡ {x₁ ∷ xs} {x} (there x∈xs) (x₂ ∷ sxs)
      with Fin-<-cmp x₁ x
-   ...| tri< a ¬b ¬c = intersectElem-∈-≡ x∈xs sxs
-   ...| tri≈ ¬a b ¬c = refl
-   ...| tri> ¬a ¬b c = ⊥-elim (<⇒≱ c (≤-head (there x∈xs) (x₂ ∷ sxs)))
+   ...| tri< _ _ _    = intersectElem-∈-≡ x∈xs sxs
+   ...| tri≈ _ _ _    = refl
+   ...| tri> _ _ x₁>x = ⊥-elim (<⇒≱ x₁>x (≤-head (there x∈xs) (x₂ ∷ sxs)))
 
 
    intersectElem-∉-[] : ∀ {xs : List Member} {x}
@@ -149,9 +148,9 @@ module LibraBFT.Abstract.BFT
    intersectElem-∉-[] {[]}      {x} x∉xs = refl
    intersectElem-∉-[] {x₁ ∷ xs} {x} x∉xs
       with Fin-<-cmp x₁ x
-   ...| tri< _ _ _ = intersectElem-∉-[] (proj₂ (y∉⇒All≢ x∉xs))
-   ...| tri≈ _ b _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) b)
-   ...| tri> _ _ _ = refl
+   ...| tri< _ _    _ = intersectElem-∉-[] (proj₂ (y∉⇒All≢ x∉xs))
+   ...| tri≈ _ x₁≡x _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) x₁≡x)
+   ...| tri> _ _    _ = refl
 
 
    trans-OnHead : ∀ {n} {xs : List (Fin n)} {y x : Fin n}
@@ -259,9 +258,9 @@ module LibraBFT.Abstract.BFT
            unionElem-sorted {[]} {y} [] = [] ∷ []
            unionElem-sorted {x ∷ xs} {y} (x< ∷ sxs)
              with Fin-<-cmp x y
-           ...| tri< a _ _ = union-OnHead (x< ∷ sxs) a ∷ (unionElem-sorted sxs)
-           ...| tri≈ _ _ _ = (x< ∷ sxs)
-           ...| tri> _ _ c = on-∷ c ∷ (x< ∷ sxs)
+           ...| tri< x<y _ _   = union-OnHead (x< ∷ sxs) x<y ∷ (unionElem-sorted sxs)
+           ...| tri≈ _   _ _   = (x< ∷ sxs)
+           ...| tri> _   _ x>y = on-∷ x>y ∷ (x< ∷ sxs)
 
 
    h∉t : ∀ {n} {xs : List (Fin n)} {x}
@@ -341,14 +340,14 @@ module LibraBFT.Abstract.BFT
 
 
    votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
-                 → CombinedPower xs ≤ N
-   votingPower≤N {xs} sxs rewrite totalVotPower
+                 → CombinedPower xs ≤ totalVotPower
+   votingPower≤N {xs} sxs rewrite totalVotPower≡
      = sum-⊆-≤ votPower sxs (tabulateSort authorsN) (members⊆ xs)
 
 
    union-votPower : ∀ {xs ys : List Member}
                       → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-                      → CombinedPower (union xs ys) ≤ N
+                      → CombinedPower (union xs ys) ≤ totalVotPower
    union-votPower sxs sys = votingPower≤N (unionSorted sxs sys)
 
 
@@ -413,14 +412,14 @@ module LibraBFT.Abstract.BFT
                  → unionElem xs x ≡ xs
    unionElem-∈-≡ {x₁ ∷ x_} {.x₁} (here refl) _
       with Fin-<-cmp x₁ x₁
-   ...| tri< _ ¬b _ = ⊥-elim (¬b refl)
-   ...| tri≈ _ _ _  = refl
-   ...| tri> _ ¬b _  = ⊥-elim (¬b refl)
+   ...| tri< _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
+   ...| tri≈ _ _     _ = refl
+   ...| tri> _ x₁≢x₁ _ = ⊥-elim (x₁≢x₁ refl)
    unionElem-∈-≡ {x₁ ∷ _} {x} (there x∈xs) (x₂ ∷ sxs)
       with Fin-<-cmp x₁ x
-   ...| tri< _ _ _ = cong (x₁ ∷_) (unionElem-∈-≡ x∈xs sxs)
-   ...| tri≈ _ _ _ = refl
-   ...| tri> _ _ c = ⊥-elim (<⇒≱ c (≤-head (there x∈xs) (x₂ ∷ sxs)))
+   ...| tri< _ _ _    = cong (x₁ ∷_) (unionElem-∈-≡ x∈xs sxs)
+   ...| tri≈ _ _ _    = refl
+   ...| tri> _ _ x₁>x = ⊥-elim (<⇒≱ x₁>x (≤-head (there x∈xs) (x₂ ∷ sxs)))
 
 
    unionElem-∉-sum : ∀ {xs : List Member} {x} (f : Member → ℕ) → x ∉ xs
@@ -429,11 +428,11 @@ module LibraBFT.Abstract.BFT
    unionElem-∉-sum {x₁ ∷ xs} {x} f x∉xs
       with Fin-<-cmp x₁ x
    ...| tri< _ _ _ rewrite unionElem-∉-sum f ((proj₂ (y∉⇒All≢ x∉xs)))
-                           | sym (+-assoc (f x) (f x₁) (sum (List-map f xs)))
-                           | +-comm (f x) (f x₁)
-                           | +-assoc (f x₁) (f x) (sum (List-map f xs)) = refl
-   ...| tri≈ _ b _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) b)
-   ...| tri> _ _ _ = refl
+                         | sym (+-assoc (f x) (f x₁) (sum (List-map f xs)))
+                         | +-comm (f x) (f x₁)
+                         | +-assoc (f x₁) (f x) (sum (List-map f xs)) = refl
+   ...| tri≈ _ x₁≢x _ = ⊥-elim (proj₁ (y∉⇒All≢ x∉xs) x₁≢x)
+   ...| tri> _ _    _ = refl
 
 
    sumIntersect≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
@@ -509,18 +508,16 @@ module LibraBFT.Abstract.BFT
 
 
    quorumInt>biz : ∀ (xs ys : List Member)
-                 → QSize ≤ CombinedPower xs
-                 → QSize ≤ CombinedPower ys
-                 → CombinedPower (xs ++ ys) ∸ N ≤ CombinedPower (intersect xs ys)
+                 → totalVotPower ∸ bizF ≤ CombinedPower xs
+                 → totalVotPower ∸ bizF ≤ CombinedPower ys
+                 → CombinedPower (xs ++ ys) ∸ totalVotPower ≤ CombinedPower (intersect xs ys)
                  → bizF + 1 ≤ CombinedPower (intersect xs ys)
-   quorumInt>biz xs ys q≤x q≤y ≤int
+   quorumInt>biz xs ys q≤x q≤y ≤combPower
      rewrite map-++-commute votPower xs ys
            | sum-++-commute (List-map votPower xs) (List-map votPower ys)
            = let powInt = CombinedPower (intersect xs ys)
-                 q₁≥n∸f = ≤-trans quorumVotPower q≤x
-                 q₂≥n∸f = ≤-trans quorumVotPower q≤y
-                 p₁     = ≤-trans (∸-monoˡ-≤ N (+-mono-≤ q₁≥n∸f q₂≥n∸f)) ≤int
-                 p₂     = subst (_≤ powInt) (simpExp₁ N bizF) p₁
+                 p₁     = ≤-trans (∸-monoˡ-≤ totalVotPower (+-mono-≤ q≤x q≤y)) ≤combPower
+                 p₂     = subst (_≤ powInt) (simpExp₁ totalVotPower bizF) p₁
                  p₃     = ≤-trans (∸-monoˡ-≤ (2 * bizF) isBFT) p₂
              in subst (_≤ powInt) (simpExp₂ bizF) p₃
        where  simpExp₁ : ∀ (x y : ℕ) → (x ∸ y) + (x ∸ y) ∸ x ≡ x ∸ (2 * y)
@@ -590,15 +587,15 @@ module LibraBFT.Abstract.BFT
              -- enforcing both xs and ys to be sorted lists according to
              -- a anti-reflexive linear order ensures authors are distinct.
              → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
-             → QSize ≤ CombinedPower xs
-             → QSize ≤ CombinedPower ys
+             → totalVotPower ∸ bizF ≤ CombinedPower xs
+             → totalVotPower ∸ bizF ≤ CombinedPower ys
              → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
    bft-lemma {xs} {ys} sxs sys q≤xs q≤ys
      = let |q₁|+|q₂|   = CombinedPower (xs ++ ys)
            |q₁∩q₂|     = CombinedPower (intersect xs ys)
            |q₁∪q₂|≤n   = union-votPower sxs sys
-           exp₁        = subst (_≤ N) (union-votPower≡ sxs sys) |q₁∪q₂|≤n
-           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| N exp₁
+           exp₁        = subst (_≤ totalVotPower) (union-votPower≡ sxs sys) |q₁∪q₂|≤n
+           exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| totalVotPower exp₁
            f+1≤|q₁∩q₂| = quorumInt>biz xs ys q≤xs q≤ys exp₂
            honInf      = find-honest (intersectDiff sxs sys) f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect sxs sys ((proj₁ ∘ proj₂) honInf)
