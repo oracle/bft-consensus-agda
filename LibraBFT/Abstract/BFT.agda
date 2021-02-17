@@ -67,9 +67,6 @@ module LibraBFT.Abstract.BFT
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
    where
 
-   _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
-   x ∈? xs = Any-any (x ≟Fin_) xs
-
    participants : List Member
    participants = List-tabulate id
 
@@ -105,18 +102,6 @@ module LibraBFT.Abstract.BFT
    union : List Member → List Member → List Member
    union xs [] = xs
    union xs (y ∷ ys) = unionElem (union xs ys) y
-
-
-   y∉xs⇒Allxs≢y : ∀ {n} {xs : List (Fin n)} {x y}
-           → y ∉ (x ∷ xs)
-           → x ≢ y × y ∉ xs
-   y∉xs⇒Allxs≢y {_} {xs} {x} {y} y∉
-     with y ∈? xs
-   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
-   ...| no  y∉xs
-     with x ≟Fin y
-   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
-   ...| no  x≢y = x≢y , y∉xs
 
 
    intersectElem-∈-≡ : ∀ {xs : List Member} {x}
@@ -239,26 +224,6 @@ module LibraBFT.Abstract.BFT
            ...| tri≈ _   _ _   = (x< ∷ sxs)
            ...| tri> _   _ x>y = on-∷ x>y ∷ (x< ∷ sxs)
 
-
-   _⊆List_ : ∀ {A : Set} → List A → List A → Set
-   xs ⊆List ys = All (_∈ ys) xs
-
-
-   ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
-              → x ∈ (y ∷ ys) → x ≢ y
-              → x ∈ ys
-   ∈List-elim (here x≡y) x≢y = ⊥-elim (x≢y x≡y)
-   ∈List-elim (there x∈) x≢y = x∈
-
-
-   ⊆List-elim : ∀ {n} {y} {xs ys : List (Fin n)}
-              → xs ⊆List (y ∷ ys) → y ∉ xs
-              → xs ⊆List ys
-   ⊆List-elim [] y∉ = []
-   ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y y∉) refl)
-   ⊆List-elim (there x∈  ∷ xs∈) y∉
-     with y∉xs⇒Allxs≢y y∉
-   ...| x≢y , y∉xs = ∈List-elim (there x∈) x≢y ∷ ⊆List-elim xs∈ y∉xs
 
 
    sort→∈-disj : ∀ {n} {x y} {xs ys : List (Fin n)}

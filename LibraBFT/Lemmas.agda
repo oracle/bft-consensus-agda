@@ -260,3 +260,82 @@ module LibraBFT.Lemmas where
  m∸n≤o⇒m∸o≤n x zero w p≤ rewrite m≤n⇒m∸n≡0 p≤ = z≤n
  m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
  m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
+
+
+ _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
+ x ∈? xs = Any-any (x ≟Fin_) xs
+
+
+ y∉xs⇒Allxs≢y : ∀ {n} {xs : List (Fin n)} {x y}
+         → y ∉ (x ∷ xs)
+         → x ≢ y × y ∉ xs
+ y∉xs⇒Allxs≢y {_} {xs} {x} {y} y∉
+   with y ∈? xs
+ ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
+ ...| no  y∉xs
+   with x ≟Fin y
+ ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
+ ...| no  x≢y = x≢y , y∉xs
+
+
+ insertSort : ∀ {n} → Fin n → List (Fin n) → List (Fin n)
+ insertSort x [] = x ∷ []
+ insertSort x (h ∷ t)
+   with toℕ x ≤? toℕ h
+ ... | yes x≤h = x ∷ h ∷ t
+ ... | no  x>h = h ∷ insertSort x t
+
+
+ sort : ∀ {n} → List (Fin n) → List (Fin n)
+ sort [] = []
+ sort (x ∷ xs) = insertSort x (sort xs)
+
+ _⊆List_ : ∀ {A : Set} → List A → List A → Set
+ xs ⊆List ys = All (_∈ ys) xs
+
+
+ ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
+            → x ∈ (y ∷ ys) → x ≢ y
+            → x ∈ ys
+ ∈List-elim (here x≡y) x≢y = ⊥-elim (x≢y x≡y)
+ ∈List-elim (there x∈) x≢y = x∈
+
+
+ ⊆List-elim : ∀ {n} {y} {xs ys : List (Fin n)}
+            → xs ⊆List (y ∷ ys) → y ∉ xs
+            → xs ⊆List ys
+ ⊆List-elim [] y∉ = []
+ ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y y∉) refl)
+ ⊆List-elim (there x∈  ∷ xs∈) y∉
+   with y∉xs⇒Allxs≢y y∉
+ ...| x≢y , y∉xs = ∈List-elim (there x∈) x≢y ∷ ⊆List-elim xs∈ y∉xs
+
+
+ postulate
+   allDistinctTail : ∀ {A} {x : A} {xs : List A} → allDistinct (x ∷ xs)
+                   → allDistinct xs
+
+   inSort⇒Sort : ∀ {n} {x} {xs : List (Fin n)} → allDistinct (x ∷ xs)
+               → IsSorted _<Fin_ xs
+               → IsSorted _<Fin_ (insertSort x xs)
+
+   allDistict-⊆ : ∀ {n} {xs ys : List (Fin n)}
+                → xs ⊆List ys → allDistinct ys
+                → allDistinct xs
+
+   sort-⊆ : ∀ {n} {xs : List (Fin n)}
+          → sort xs ⊆List xs
+
+   ∈-⊆Listˡ : ∀ {A} {y} {xs ys : List A}
+            → xs ⊆List ys
+            → xs ⊆List (y ∷ ys)
+
+
+ sortAllDinstinct : ∀ {n} → (xs : List (Fin n)) → allDistinct xs
+                    → IsSorted _<Fin_ (sort xs)
+ sortAllDinstinct [] _ = []
+ sortAllDinstinct (x ∷ xs) allDist
+   = let distTail = allDistinctTail allDist
+         sortTail = sortAllDinstinct xs distTail
+         sortDist = allDistict-⊆ ((here refl) ∷ ∈-⊆Listˡ sort-⊆) allDist
+     in inSort⇒Sort sortDist sortTail
