@@ -130,7 +130,8 @@ module LibraBFT.Prelude where
 
   open import Data.Fin
     using (Fin; suc; zero; fromℕ; fromℕ< ; toℕ ; cast)
-    renaming (_≟_ to _≟Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁; inject+ to Fin-inject+)
+    renaming (_≟_ to _≟Fin_; _≤?_ to _≤?Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_;
+              inject₁ to Fin-inject₁; inject+ to Fin-inject+)
     public
 
   fins : (n : ℕ) → List (Fin n)
@@ -195,7 +196,7 @@ module LibraBFT.Prelude where
   if-dec x then f else g = if-yes x then const f else const g
 
   open import Relation.Nullary.Negation
-    using (contradiction)
+    using (contradiction; contraposition)
     public
 
   open import Relation.Binary
