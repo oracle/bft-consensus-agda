@@ -262,10 +262,6 @@ module LibraBFT.Lemmas where
  m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
 
 
-   
- 
-
-
  _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
  x ∈? xs = Any-any (x ≟Fin_) xs
 
@@ -324,39 +320,94 @@ module LibraBFT.Lemmas where
  ...| inj₂ lookup≢ = inj₂ lookup≢
 
 
- postulate
-   sortInsertSort : ∀ {n} {x x₁} {xs : List (Fin n)}
-                  → IsSorted _<Fin_ (x₁ ∷ xs)
-                  → x₁ <Fin x
-                  → OnHead _<Fin_ x₁ (insertSort x xs)
+ onHeadInsSort : ∀ {n} {x x₁} {xs : List (Fin n)}
+               → IsSorted _<Fin_ (x₁ ∷ xs)
+               → x₁ <Fin x → x ∉ xs
+               → OnHead _<Fin_ x₁ (insertSort x xs)
+ onHeadInsSort {xs = []} (x₂< ∷ []) x₁<x x∉xs = on-∷ x₁<x
+ onHeadInsSort {x = x} {xs = x₂ ∷ xs} (on-∷ x₁<x₂ ∷ sxs) x₁<x x∉xs
+    with x ≤?Fin x₂
+ ...| yes x≤x₂ = on-∷ x₁<x
+ ...| no  x≰x₂ = on-∷ x₁<x₂
 
-   ⊆List-refl : ∀ {A} {xs : List A} → xs ⊆List xs
-
-   ∈-⊆Listˡ : ∀ {A} {y} {xs ys : List A}
-              → xs ⊆List ys
-              → xs ⊆List (y ∷ ys)
-
-   sort-⊆ : ∀ {n} {xs : List (Fin n)}
-          → sort xs ⊆List xs
+ ∈-⊆Listˡ : ∀ {A} {y} {xs ys : List A}
+          → xs ⊆List ys
+          → xs ⊆List (y ∷ ys)
+ ∈-⊆Listˡ [] = []
+ ∈-⊆Listˡ (x∈ys ∷ xs⊆ys) = there x∈ys ∷ (∈-⊆Listˡ xs⊆ys)
 
 
- allDistict-⊆ : ∀ {n} {xs ys : List (Fin n)}
-                → xs ⊆List ys → allDistinct ys
-                → allDistinct xs
- allDistict-⊆ = {!!}
+ ⊆List-refl : ∀ {A} {xs : List A}
+            → xs ⊆List xs
+ ⊆List-refl {_} {[]} = []
+ ⊆List-refl {_} {x ∷ xs} = here refl ∷ ∈-⊆Listˡ ⊆List-refl
 
- inSort⇒Sort : ∀ {n} {x} {xs : List (Fin n)} → allDistinct (x ∷ xs)
+
+ insSort-⊆ : ∀ {n} {x} (xs ys : List (Fin n))
+           → xs ⊆List ys
+           → insertSort x xs ⊆List (x ∷ ys)
+ insSort-⊆ [] _ _ = here refl ∷ []
+ insSort-⊆ {x = x} (x₁ ∷ xs) ys (x∈ys ∷ xs⊆ys)
+    with x ≤?Fin x₁
+ ...| yes x≤x₂ = here refl ∷ (there x∈ys) ∷ ∈-⊆Listˡ xs⊆ys
+ ...| no  x≰x₂ = there x∈ys ∷ insSort-⊆ xs ys xs⊆ys
+
+ sort-⊆ : ∀ {n} (xs : List (Fin n))
+        → sort xs ⊆List xs
+ sort-⊆ {n} [] = []
+ sort-⊆ {n} (x ∷ xs) = insSort-⊆ (sort xs) xs (sort-⊆ xs)
+
+
+ ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
+             → x ∉ xs → ys ⊆List xs
+             → x ∉ ys
+ ∉∧⊆List⇒∉ x∉xs (here refl  ∷ ys⊆xs) (here refl)  = ⊥-elim (x∉xs (here refl))
+ ∉∧⊆List⇒∉ x∉xs (here refl  ∷ ys⊆xs) (there x∈ys) = ⊥-elim ((∉∧⊆List⇒∉ x∉xs ys⊆xs) x∈ys)
+ ∉∧⊆List⇒∉ x∉xs (there y∈xs ∷ ys⊆xs) (here refl)  = ⊥-elim (x∉xs (there y∈xs))
+ ∉∧⊆List⇒∉ x∉xs (there _    ∷ ys⊆xs) (there x∈ys) = ⊥-elim ((∉∧⊆List⇒∉ x∉xs ys⊆xs) x∈ys)
+
+
+ allDistinctʳʳ : ∀ {A} {x x₁ : A} {xs : List A}
+                 → allDistinct (x ∷ x₁ ∷ xs)
+                 → allDistinct (x ∷ xs)
+ allDistinctʳʳ allDist (zero , i<l) (zero , j<l) = inj₁ refl
+ allDistinctʳʳ {_} {x} {x₁} {xs} allDist (zero , i<l) (suc j , j<l)
+   with allDist (0 , s≤s z≤n) (suc (suc j) , s≤s j<l)
+ ... | inj₂ x≢lookup
+     = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
+ allDistinctʳʳ {_} {x} {_} {xs} allDist (suc i , i<l) (zero , j<l)
+   with allDist (suc (suc i) , s≤s i<l) (0 , s≤s z≤n)
+ ... | inj₂ x≢lookup
+     = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
+ allDistinctʳʳ allDist (suc i , i<l) (suc j , j<l)
+   with allDist (2 + i , (s≤s i<l)) (2 + j , s≤s j<l)
+ ... | inj₁ si≡sj   = inj₁ (cong pred si≡sj)
+ ... | inj₂ lookup≡ = inj₂ lookup≡
+
+
+ allDistinct⇒∉ : ∀ {n} {x} {xs : List (Fin n)}
+               → allDistinct (x ∷ xs)
+               → x ∉ xs
+ allDistinct⇒∉ allDist (here x≡x₁)
+   with allDist (0 , s≤s z≤n) (1 , s≤s (s≤s z≤n))
+ ... | inj₂ x≢x₁ = ⊥-elim (x≢x₁ x≡x₁)
+ allDistinct⇒∉ allDist (there x∈xs)
+   = allDistinct⇒∉ (allDistinctʳʳ allDist) x∈xs
+
+
+ inSort⇒Sort : ∀ {n} {x} {xs : List (Fin n)} → x ∉ xs
              → IsSorted _<Fin_ xs
              → IsSorted _<Fin_ (insertSort x xs)
- inSort⇒Sort allDist [] = [] ∷ []
- inSort⇒Sort {_} {x} {x₁ ∷ xs} allDist (x< ∷ sxs)
-   with x ≤?Fin x₁ | allDist (0 , s≤s z≤n) (1 , s≤s (s≤s z≤n))
- ...| no x≰x₁      | inj₂ x≢x₁
-   = let onHead-x₁   = sortInsertSort (x< ∷ sxs) (≰⇒> x≰x₁)
-         allDist-xxs = allDistict-⊆ (here refl ∷ ∈-⊆Listˡ (∈-⊆Listˡ ⊆List-refl)) allDist
-     in onHead-x₁ ∷ inSort⇒Sort allDist-xxs sxs
- ...| yes x≤x₁     | inj₂ x≢x₁
-   = on-∷ (≤∧≢⇒< x≤x₁ (contraposition toℕ-injective x≢x₁)) ∷ x< ∷ sxs
+ inSort⇒Sort {_} {_} {[]} _ _ = [] ∷ []
+ inSort⇒Sort {_} {x} {x₁ ∷ xs} x∉xs (x₁< ∷ sxs)
+   with x ≤?Fin x₁
+ ...| yes x≤x₁
+   = let nx≢nx₁ = ≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))
+         x≢x₁   = contraposition toℕ-injective nx≢nx₁
+     in on-∷ (≤∧≢⇒< x≤x₁ x≢x₁) ∷ x₁< ∷ sxs
+ ...| no  x≰x₁
+   = let x∉xxs = proj₂ (y∉xs⇒Allxs≢y x∉xs)
+     in onHeadInsSort (x₁< ∷ sxs) (≰⇒> x≰x₁) x∉xxs ∷ (inSort⇒Sort x∉xxs sxs)
 
 
  sortAllDinstinct : ∀ {n} → (xs : List (Fin n)) → allDistinct xs
@@ -365,5 +416,5 @@ module LibraBFT.Lemmas where
  sortAllDinstinct (x ∷ xs) allDist
    = let distTail = allDistinctTail allDist
          sortTail = sortAllDinstinct xs distTail
-         sortDist = allDistict-⊆ ((here refl) ∷ ∈-⊆Listˡ sort-⊆) allDist
-     in inSort⇒Sort sortDist sortTail
+         x∉xs     = allDistinct⇒∉ allDist
+     in inSort⇒Sort (∉∧⊆List⇒∉ x∉xs (sort-⊆ xs)) sortTail
