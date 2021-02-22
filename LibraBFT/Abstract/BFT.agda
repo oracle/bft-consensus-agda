@@ -62,8 +62,8 @@ module LibraBFT.Abstract.BFT
  -- in `LibraBFT.Lemmas
 
  module _  (totalVotPower≡  : totalVotPower ≡ CombinedPower (List-tabulate id))
-           (bft-assumption : ∀ {xs : List Member}
-                           → IsSorted _<Fin_ xs
+           (bft-assumption : ∀ (xs : List Member)
+                           → allDistinct xs
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
    where
 
@@ -505,14 +505,14 @@ module LibraBFT.Abstract.BFT
    --   - If CombinedPower (List-filter Meta-dishonest? xs ≡ CombinedPower xs we
    --   get a contradiction using the bft assumption (as we have now).
    find-honest : ∀ {xs : List Member}
-               → IsSorted _<Fin_ xs
+               → allDistinct xs
                → bizF + 1 ≤ CombinedPower xs
                → ∃[ α ] (α ∈ xs × Meta-Honest-PK (getPubKey α))
    find-honest {xs} sxs biz<
      with span Meta-dishonest? xs | inspect (span Meta-dishonest?) xs
    ...| dis , [] | [ eq ]
         rewrite +-comm bizF 1
-          = let bft     = bft-assumption sxs
+          = let bft     = bft-assumption xs sxs
                 xsVot≤f = subst (_≤ bizF) (cong CombinedPower (span-dis {xs} eq)) bft
             in ⊥-elim (<⇒≱ biz< xsVot≤f)
    ...| dis , x ∷ hon | [ eq ] = x , (span-hon eq)
@@ -521,20 +521,25 @@ module LibraBFT.Abstract.BFT
    bft-lemma : {xs ys : List Member}
              -- enforcing both xs and ys to be sorted lists according to
              -- a anti-reflexive linear order ensures authors are distinct.
-             → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+             → allDistinct xs → allDistinct ys
              → totalVotPower ∸ bizF ≤ CombinedPower xs
              → totalVotPower ∸ bizF ≤ CombinedPower ys
              → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
-   bft-lemma {xs} {ys} sxs sys q≤xs q≤ys
-     = let |q₁|+|q₂|   = CombinedPower (xs ++ ys)
-           |q₁∩q₂|     = CombinedPower (intersect xs ys)
+   bft-lemma {xs} {ys} all≢xs all≢ys q≤≢xs q≤≢ys rewrite sumSort≡ xs votPower
+                                                       | sumSort≡ ys votPower
+     = let sxs         = allDistict⇒Sorted xs all≢xs
+           sys         = allDistict⇒Sorted ys all≢ys
+           |q₁|+|q₂|   = CombinedPower ((sort xs) ++ (sort ys))
+           |q₁∩q₂|     = CombinedPower (intersect (sort xs) (sort ys))
            |q₁∪q₂|≤n   = union-votPower sxs sys
            exp₁        = subst (_≤ totalVotPower) (union-votPower≡ sxs sys) |q₁∪q₂|≤n
            exp₂        = m∸n≤o⇒m∸o≤n |q₁|+|q₂| |q₁∩q₂| totalVotPower exp₁
-           f+1≤|q₁∩q₂| = quorumInt>biz xs ys q≤xs q≤ys exp₂
-           honInf      = find-honest (intersectDiff sxs sys) f+1≤|q₁∩q₂|
+           f+1≤|q₁∩q₂| = quorumInt>biz (sort xs) (sort ys) q≤≢xs q≤≢ys exp₂
+           honInf      = find-honest (sorted⇒AllDistinct (intersectDiff sxs sys)) f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect sxs sys ((proj₁ ∘ proj₂) honInf)
-       in proj₁ honInf , proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
+           α∈xs        = ∈-⊆List-trans (proj₁ h∈∩) (sort-⊆ xs)
+           α∈ys        = ∈-⊆List-trans (proj₂ h∈∩) (sort-⊆ ys)
+       in proj₁ honInf , α∈xs , α∈ys , (proj₂ ∘ proj₂) honInf
 
 
 
