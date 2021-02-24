@@ -6,6 +6,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
 
 -- For each desired property (VotesOnce and LockedRoundRule), we have a
 -- module containing a Type that defines a property that an implementation
@@ -18,29 +19,29 @@ open import LibraBFT.Abstract.Types
 -- properties.
 
 module LibraBFT.Abstract.Properties
-  (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
+  (NodeId : Set)
+  (𝓔  : EpochConfig UID NodeId)
+  (𝓥  : VoteEvidence UID NodeId 𝓔)
   where
 
- open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
-   as StaticAssumptions
- open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.System                  UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Properties  UID _≟UID_ NodeId 𝓔 𝓥
 
  open EpochConfig 𝓔
 
  module WithAssumptions {ℓ}
    (InSys                 : Record → Set ℓ)
-   (votes-only-once       : StaticAssumptions.VotesOnlyOnceRule InSys)
-   (locked-round-rule     : StaticAssumptions.LockedRoundRule   InSys)
+   (votes-only-once       : VotesOnlyOnceRule InSys)
+   (locked-round-rule     : LockedRoundRule   InSys)
   where
 
    open All-InSys-props InSys
-   import LibraBFT.Abstract.RecordChain.Properties 𝓔 UID _≟UID_ 𝓥 as Props
 
    CommitsDoNotConflict : ∀{q q'}
         → {rc  : RecordChain (Q q)}  → All-InSys rc
@@ -49,7 +50,7 @@ module LibraBFT.Abstract.Properties
         → CommitRule rc  b
         → CommitRule rc' b'
         → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-   CommitsDoNotConflict = Props.WithInvariants.thmS5 InSys votes-only-once locked-round-rule
+   CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once locked-round-rule
 
    -- When we are dealing with a /Complete/ InSys predicate, we can go a few steps
    -- further and prove that commits do not conflict even if we have only partial

@@ -4,7 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types using (VoteEvidence)
+open import LibraBFT.Abstract.Types.EpochConfig
 
 -- This module defines and abstract view if a system, encompassing only a predicate for Records,
 -- another for Votes and a proof that, if a Vote is included in a QC in the system, then and
@@ -15,15 +16,17 @@ open import LibraBFT.Abstract.Types
 -- require only a short suffix of a RecordChain.
 
 module LibraBFT.Abstract.System
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
-   where
+    (NodeId : Set)
+    (𝓔 : EpochConfig UID NodeId)
+    (𝓥 : VoteEvidence UID NodeId 𝓔)
+  where
 
-  open import LibraBFT.Abstract.Records         𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.RecordChain     𝓔 UID _≟UID_ 𝓥
+  open import LibraBFT.Abstract.Types           UID        NodeId 𝓔
+  open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 𝓥
 
   module All-InSys-props {ℓ}(InSys : Record → Set ℓ) where
 
@@ -42,8 +45,6 @@ module LibraBFT.Abstract.System
                    → All-InSys (step rc ext)
     All-InSys-step hyp ext r here = r
     All-InSys-step hyp ext r (there .ext r∈rc) = hyp r∈rc
-
-  open WithEpochConfig 𝓔
 
   -- We say an InSys predicate is /Complete/ when we can construct a record chain
   -- from any vote by an honest participant. This essentially says that whenever

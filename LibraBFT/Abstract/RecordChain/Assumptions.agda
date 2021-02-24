@@ -1,11 +1,12 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types using (VoteEvidence)
+open import LibraBFT.Abstract.Types.EpochConfig
 
 -- Here we establish the properties necessary to achieve consensus
 -- just like we see them on paper: stating facts about the state of
@@ -17,20 +18,22 @@ open import LibraBFT.Abstract.Types
 -- The module 'LibraBFT.Abstract.Properties' proves that the invariants
 -- presented here can be obtained from reasoning about sent votes,
 -- which provides a much easier-to-prove interface to an implementation.
+
 module LibraBFT.Abstract.RecordChain.Assumptions
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
+    (NodeId : Set)
+    (𝓔      : EpochConfig UID NodeId)
+    (𝓥      : VoteEvidence UID NodeId 𝓔)
   where
 
-  open import LibraBFT.Abstract.System           𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records          𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records.Extends  𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.RecordChain      𝓔 UID _≟UID_ 𝓥
+  open import LibraBFT.Abstract.Types           UID        NodeId 𝓔
+  open import LibraBFT.Abstract.System          UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 𝓥
 
   open EpochConfig 𝓔
-  open WithEpochConfig 𝓔
 
   module _ {ℓ}(InSys : Record → Set ℓ) where
 

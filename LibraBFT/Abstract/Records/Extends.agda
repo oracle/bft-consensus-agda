@@ -1,20 +1,26 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+
+-- This module defines the notion of one Record r "extending" another
+-- Record r' (denoted r' ← r), ensuring rules about rounds and that r
+-- correctly identifies r'
 
 module LibraBFT.Abstract.Records.Extends
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
- where
+    (NodeId : Set)
+    (𝓔      : EpochConfig UID NodeId)
+    (𝓥     : VoteEvidence UID NodeId 𝓔)
+  where
 
-  open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
+  open import LibraBFT.Abstract.Records UID _≟UID_ NodeId 𝓔 𝓥
 
   -- Most of the conditions in section 4.2 of the paper (see
   -- LibraBFT.Abstract.RecordChain.Properties) would be checked

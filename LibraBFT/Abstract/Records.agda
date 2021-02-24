@@ -1,22 +1,26 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types using (VoteEvidence)
+open import LibraBFT.Abstract.Types.EpochConfig
 
 -- This module defines abstract records (the initial or "genesis" record, blocks, and quorum
 -- certificates), along with related definitions and properties.
 
 module LibraBFT.Abstract.Records
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁)) -- Needed to prove ≟Block and ≈?QC
-    (𝓥      : VoteEvidence 𝓔 UID)
+    (NodeId : Set)
+    (𝓔 : EpochConfig UID NodeId)
+    (𝓥 : VoteEvidence UID NodeId 𝓔)
  where
 
+  open import LibraBFT.Abstract.Types UID NodeId
   open EpochConfig 𝓔
 
   -- Abstract blocks do /not/ need to carry the state hash. Since the
@@ -42,7 +46,7 @@ module LibraBFT.Abstract.Records
   -- to the correct parameters; This helps in defining
   -- and manipulating the 𝓥 vote evidence predicate.
   Vote : Set
-  Vote = AbsVoteData 𝓔 UID
+  Vote = AbsVoteData 𝓔
 
   vRound      : Vote → Round
   vRound      = abs-vRound

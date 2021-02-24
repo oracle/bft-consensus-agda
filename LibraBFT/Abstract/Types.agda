@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
@@ -9,7 +9,6 @@ open import LibraBFT.Lemmas
 -- with the necessary module parameters (PK and MetaHonestPK)
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-
 open import LibraBFT.Abstract.Types.EpochConfig
 
 -- This module brings in the base types used through libra
