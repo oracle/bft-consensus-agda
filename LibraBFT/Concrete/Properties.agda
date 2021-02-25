@@ -4,44 +4,39 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
-
-open import LibraBFT.Abstract.Types
-
-open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Consensus.Types
-
-open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Abstract.Types UID NodeId
 open import LibraBFT.Concrete.Obligations
-
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open import LibraBFT.Concrete.System.Parameters
+open EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- In this module, we assume that the implementation meets its
--- obligations, and use this assumption to prove that the
--- implementatioon enjoys one of the per-epoch correctness conditions
--- proved in Abstract.Properties.  It can be extended to other
+-- obligations, and use this assumption to prove that, in any reachable
+-- state, the implementatioon enjoys one of the per-epoch correctness
+-- conditions proved in Abstract.Properties.  It can be extended to other
 -- properties later.
-
-module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
-  open ImplObligations impl-correct
-
-  -- For any reachable state,
-  module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
+module LibraBFT.Concrete.Properties
+         (impl-correct : ImplObligations)
+         {e}(st : SystemState e)
+         (r : ReachableSystemState st)
+         (eid : Fin e)
+         where
+    open ImplObligations impl-correct
     open import LibraBFT.Concrete.System sps-cor
     open PerState st r
     open PerEpoch eid
 
-    import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
-    open import LibraBFT.Abstract.RecordChain 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.Properties 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-
-    open import LibraBFT.Concrete.Intermediate 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-    import LibraBFT.Concrete.Obligations.VotesOnce   𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO-obl
-    import LibraBFT.Concrete.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR-obl
-    open import LibraBFT.Concrete.Properties.VotesOnce as VO
-    open import LibraBFT.Concrete.Properties.LockedRound as LR
+    open import LibraBFT.Abstract.Records      UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
+    open import LibraBFT.Abstract.RecordChain  UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.System       UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.Properties   UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
+    import      LibraBFT.Concrete.Obligations.VotesOnce          𝓔 (ConcreteVoteEvidence 𝓔) as VO-obl
+    import      LibraBFT.Concrete.Obligations.LockedRound        𝓔 (ConcreteVoteEvidence 𝓔) as LR-obl
+    open import LibraBFT.Concrete.Properties.VotesOnce                                       as VO
+    open import LibraBFT.Concrete.Properties.LockedRound                                     as LR
 
     --------------------------------------------------------------------------------------------
     -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
@@ -52,7 +47,6 @@ module LibraBFT.Concrete.Properties (impl-correct : ImplObligations) where
         vss-votes-once   : VO-obl.Type 𝓢
         vss-locked-round : LR-obl.Type 𝓢
     open ValidSysState public
-
 
     -- TODO-2 : This should be provided as a module parameter here, and the
     -- proofs provided to instantiate it should be refactored into LibraBFT.Impl.

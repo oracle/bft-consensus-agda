@@ -3,9 +3,6 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types
-
 -- This module defines an intermediate (between an implementation and Abstract) notion
 -- of a system state.  The goal is to enable proving for a particular implementation
 -- the properties required to provide to Abstract.Properties in order to get the high
@@ -21,16 +18,17 @@ open import LibraBFT.Abstract.Types
 -- be provided as module parameters to LibraBFT.Concrete (including IsValidVote and
 -- α-ValidVote)
 
+open import LibraBFT.Prelude
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Abstract.Types             UID NodeId using (VoteEvidence)
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+
 module LibraBFT.Concrete.Intermediate
-    (𝓔      : EpochConfig)
-    (UID    : Set)
-    (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
+    (𝓔 : EpochConfig)
+    (𝓥 : VoteEvidence 𝓔)
    where
-
-   open import LibraBFT.Abstract.Records         𝓔 UID _≟UID_ 𝓥
-
-   open WithEpochConfig 𝓔
+   open import LibraBFT.Abstract.Types   UID        NodeId 𝓔
+   open import LibraBFT.Abstract.Records UID _≟UID_ NodeId 𝓔 𝓥
 
    -- Since the invariants we want to specify (votes-once and locked-round-rule),
    -- are predicates over a /System State/, we must factor out the necessary

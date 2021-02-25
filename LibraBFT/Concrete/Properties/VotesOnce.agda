@@ -5,25 +5,17 @@
 -}
 open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Abstract.Types
-open EpochConfig
-
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Hash
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-
 open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs ; lookup'; lookup'')
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -39,8 +31,8 @@ open import LibraBFT.Yasm.Properties ConcSysParms
 -- semantic obligations, along with a structural one about messages
 -- sent by honest peers in the implementation, then the implemenation
 -- satisfies the LibraBFT.Abstract.Properties.VotesOnce invariant.
-module LibraBFT.Concrete.Properties.VotesOnce where
 
+module LibraBFT.Concrete.Properties.VotesOnce where
  -- TODO-3: This may not be the best way to state the implementation obligation.  Why not reduce
  -- this as much as possible before giving the obligation to the implementation?  For example, this
  -- will still require the implementation to deal with hash collisons (v and v' could be different,
@@ -110,7 +102,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    open PerState st r
    open PerEpoch eid
 
-   open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as VO
+   open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 
    -- The VO proof is done by induction on the execution trace leading to 'st'. In
    -- Agda, this is 'r : RechableSystemState st' above. We will use induction to

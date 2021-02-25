@@ -5,25 +5,18 @@
 -}
 open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Abstract.Types
-open EpochConfig
-
-open import LibraBFT.Impl.NetworkMsg
+open import LibraBFT.Hash
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-
 open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs ; lookup'; lookup'')
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open import LibraBFT.Abstract.Types UID NodeId
+open EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module contains placeholders for the future analog of the
 -- corresponding VotesOnce property.  Defining the implementation
@@ -53,7 +46,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    open PerState st r
    open PerEpoch eid
 
-   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
+   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 (ConcreteVoteEvidence 𝓔) as LR
 
    postulate  -- TODO-3: prove it
      lrr : LR.Type IntSystemState
