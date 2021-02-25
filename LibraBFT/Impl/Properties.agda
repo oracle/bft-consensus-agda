@@ -7,8 +7,6 @@ open import LibraBFT.Prelude
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
 
 -- This module collects the implementation obligations for our (fake/simple, for now)
 -- "implementation" into the structure required by Concrete.Properties.

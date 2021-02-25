@@ -4,25 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Optics.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Properties.Aux
-
-open import LibraBFT.Concrete.System impl-sps-avp
-open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
-
-open import LibraBFT.Yasm.AvailableEpochs
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
-open        Structural impl-sps-avp
 
 open import LibraBFT.Concrete.Obligations
 

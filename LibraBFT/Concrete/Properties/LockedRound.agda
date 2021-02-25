@@ -19,11 +19,8 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 
 open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs ; lookup'; lookup'')
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module contains placeholders for the future analog of the
 -- corresponding VotesOnce property.  Defining the implementation

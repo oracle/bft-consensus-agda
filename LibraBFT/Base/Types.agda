@@ -10,6 +10,10 @@ open import LibraBFT.Base.Encode
 
 -- The ground types over which we build our abstract reasoning
 module LibraBFT.Base.Types where
+
+  NodeId : Set
+  NodeId = ℕ
+
   EpochId : Set
   EpochId = ℕ
 
