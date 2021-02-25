@@ -7,6 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- For each desired property (VotesOnce and LockedRoundRule), we have a
 -- module containing a Type that defines a property that an implementation

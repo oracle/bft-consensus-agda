@@ -10,7 +10,6 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Abstract.Types UID NodeId
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms

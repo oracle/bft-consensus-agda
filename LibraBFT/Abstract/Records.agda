@@ -6,8 +6,8 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
-open import LibraBFT.Abstract.Types using (VoteEvidence)
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- This module defines abstract records (the initial or "genesis" record, blocks, and quorum
 -- certificates), along with related definitions and properties.
@@ -46,7 +46,7 @@ module LibraBFT.Abstract.Records
   -- to the correct parameters; This helps in defining
   -- and manipulating the 𝓥 vote evidence predicate.
   Vote : Set
-  Vote = AbsVoteData 𝓔
+  Vote = AbsVoteData UID NodeId 𝓔
 
   vRound      : Vote → Round
   vRound      = abs-vRound

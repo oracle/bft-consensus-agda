@@ -7,7 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Abstract.Types UID NodeId using (VoteEvidence)
+open WithAbsVote
 
 module LibraBFT.Concrete.Obligations.VotesOnce
   (𝓔 : EpochConfig)

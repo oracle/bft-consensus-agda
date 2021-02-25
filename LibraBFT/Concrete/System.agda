@@ -96,9 +96,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
    𝓔 = EC-lookup (availEpochs st) eid
    open EpochConfig
 
-   import      LibraBFT.Abstract.Records      UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
-   open import LibraBFT.Abstract.System       UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Abstract.Types        UID        NodeId 𝓔
+   open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
    open import LibraBFT.Concrete.Records                        𝓔
 

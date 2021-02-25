@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types using (VoteEvidence)
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- This module defines and abstract view if a system, encompassing only a predicate for Records,
 -- another for Votes and a proof that, if a Vote is included in a QC in the system, then and

@@ -10,7 +10,6 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-open import LibraBFT.Abstract.Types UID NodeId
 open EpochConfig
 open import LibraBFT.Yasm.Base NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN
 

@@ -15,6 +15,7 @@ open import LibraBFT.Impl.Consensus.Types.EpochIndep
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open WithAbsVote
 
 -- Here we have the abstraction functions that connect
 -- the datatypes defined in LibraBFT.Impl.Consensus.Types
@@ -22,10 +23,9 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- for a given EpochConfig.
 --
 module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
- open import LibraBFT.Abstract.Types UID NodeId 𝓔
  open import LibraBFT.Impl.Consensus.Types.EpochDep 𝓔
+ open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (bId; qcVotes; Block)
  open EpochConfig 𝓔
- import LibraBFT.Abstract.Records UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs
  --------------------------------
  -- Abstracting Blocks and QCs --
  --------------------------------

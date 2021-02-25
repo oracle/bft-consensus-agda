@@ -20,15 +20,14 @@
 
 open import LibraBFT.Prelude
 open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Abstract.Types             UID NodeId using (VoteEvidence)
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open WithAbsVote
 
 module LibraBFT.Concrete.Intermediate
     (𝓔 : EpochConfig)
     (𝓥 : VoteEvidence 𝓔)
    where
-   open import LibraBFT.Abstract.Types   UID        NodeId 𝓔
-   open import LibraBFT.Abstract.Records UID _≟UID_ NodeId 𝓔 𝓥
+   open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
 
    -- Since the invariants we want to specify (votes-once and locked-round-rule),
    -- are predicates over a /System State/, we must factor out the necessary

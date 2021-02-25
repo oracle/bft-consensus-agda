@@ -7,6 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- This module contains properties about RecordChains, culminating in
 -- theorem S5, which is the main per-epoch correctness condition.  The

@@ -6,7 +6,6 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Abstract.Types UID NodeId
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System.Parameters
 open EpochConfig

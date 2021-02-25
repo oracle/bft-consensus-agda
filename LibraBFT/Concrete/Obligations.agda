@@ -8,7 +8,6 @@ import LibraBFT.Concrete.Properties.VotesOnce as VO
 import LibraBFT.Concrete.Properties.LockedRound as LR
 
 open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Abstract.Types             UID NodeId
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open EpochConfig
 

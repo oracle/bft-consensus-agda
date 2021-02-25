@@ -7,6 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- This module defines the notion of one Record r "extending" another
 -- Record r' (denoted r' ← r), ensuring rules about rounds and that r

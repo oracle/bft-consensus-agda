@@ -5,7 +5,7 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Abstract.Types.EpochConfig
-open import LibraBFT.Abstract.Types
+open WithAbsVote
 
 -- This module provides a convenient way for modules in other namespaces to import
 -- everything from Abstract.
@@ -19,7 +19,7 @@ module LibraBFT.Abstract.Abstract
   where
     open import LibraBFT.Abstract.Types                   UID        NodeId 𝓔    public
     open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥 public
-    open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥  public
+    open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥 public
     open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥 public
     open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥 public
     open import LibraBFT.Abstract.Properties              UID _≟UID_ NodeId 𝓔 𝓥 public

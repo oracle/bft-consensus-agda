@@ -37,8 +37,8 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- mkLens (not sure why).
 
 module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
-  import LibraBFT.Abstract.Types UID NodeId 𝓔 as LAT
   open EpochConfig 𝓔
+  open WithAbsVote 𝓔
 
   -- A 'ConcreteVoteEvidence' is a piece of information that
   -- captures that the 'vd : AbsVoteData' in question was not /invented/
@@ -48,7 +48,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- Moreover, we will also store the RecordChain that leads to the vote;
   -- this requires some mutually-recursive shenanigans, so we first declare
   -- ConcreteVoteEvidence, then import the necessary modules, and then define it.
-  record ConcreteVoteEvidence (vd : LAT.AbsVoteData) : Set
+  record ConcreteVoteEvidence (vd : AbsVoteData) : Set
 
   open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (qcVotes; Vote)
 

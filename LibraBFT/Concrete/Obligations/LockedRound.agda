@@ -8,14 +8,14 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Abstract.Types UID NodeId using (VoteEvidence)
+open WithAbsVote
 
 module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)
   (𝓥 : VoteEvidence 𝓔)
   where
- open import LibraBFT.Abstract.Abstract                UID _≟UID_ NodeId 𝓔 𝓥
- open import LibraBFT.Concrete.Intermediate                              𝓔 𝓥
+ open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
  ---------------------
  -- * LockedRound * --

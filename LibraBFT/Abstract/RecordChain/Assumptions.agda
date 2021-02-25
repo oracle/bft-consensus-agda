@@ -5,8 +5,8 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types using (VoteEvidence)
 open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- Here we establish the properties necessary to achieve consensus
 -- just like we see them on paper: stating facts about the state of
