@@ -1,18 +1,16 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude hiding (_⊔_)
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-
 open import Optics.All
+open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
+open import LibraBFT.Hash
+open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.Encode
+open import LibraBFT.Base.PKCS
+open import LibraBFT.Impl.Consensus.Types.EpochIndep
 
 -- This module postulates a collision-resistant cryptographic hash
 -- function (we call it sha256 for concreteness, but it could be any
@@ -21,7 +19,6 @@ open import Optics.All
 -- about it, and how Votes and Blocks are signed.
 
 module LibraBFT.Impl.Util.Crypto where
-
   -- Note that this is an abstraction of a collision-resistant hash function.  It could be any such
   -- hash function, not necessarily sha256.  We just call it sha256 for "concreteness", to remind
   -- ourselves it's modeling such a function.

@@ -1,22 +1,20 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
+open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
+open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Hash
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
-
 open import LibraBFT.Impl.Util.Util
-
-open RWST-do
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
@@ -25,9 +23,8 @@ module LibraBFT.Impl.Handle
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
-
  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
- open import LibraBFT.Impl.NetworkMsg
+ open RWST-do
 
  postulate
    fakeEP : EventProcessor
@@ -43,8 +40,6 @@ module LibraBFT.Impl.Handle
  ...| P p = processProposalMsg now p
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
-
- open import LibraBFT.Yasm.Base
 
  -- For now, the SystemModel supports only one kind of action: to send a Message.  Later it might
  -- include things like logging, crashes, assertion failures, etc.  At that point, definitions like
