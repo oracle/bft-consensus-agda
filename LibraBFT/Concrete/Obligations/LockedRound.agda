@@ -14,13 +14,8 @@ module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)
   (𝓥 : VoteEvidence 𝓔)
   where
- open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥
- open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥
- open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥
- open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
- open import LibraBFT.Abstract.Types                   UID        NodeId 𝓔
+ open import LibraBFT.Abstract.Abstract                UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Concrete.Intermediate                              𝓔 𝓥
-
 
  ---------------------
  -- * LockedRound * --

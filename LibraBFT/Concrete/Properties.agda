@@ -28,10 +28,7 @@ module LibraBFT.Concrete.Properties
     open PerState st r
     open PerEpoch eid
 
-    open import LibraBFT.Abstract.Records      UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
-    open import LibraBFT.Abstract.RecordChain  UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.System       UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
-    open import LibraBFT.Abstract.Properties   UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+    open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
     import      LibraBFT.Concrete.Obligations.VotesOnce          𝓔 (ConcreteVoteEvidence 𝓔) as VO-obl
     import      LibraBFT.Concrete.Obligations.LockedRound        𝓔 (ConcreteVoteEvidence 𝓔) as LR-obl

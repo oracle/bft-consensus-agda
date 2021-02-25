@@ -37,7 +37,7 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- mkLens (not sure why).
 
 module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
-  open import LibraBFT.Abstract.Types UID NodeId 𝓔
+  import LibraBFT.Abstract.Types UID NodeId 𝓔 as LAT
   open EpochConfig 𝓔
 
   -- A 'ConcreteVoteEvidence' is a piece of information that
@@ -48,11 +48,9 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- Moreover, we will also store the RecordChain that leads to the vote;
   -- this requires some mutually-recursive shenanigans, so we first declare
   -- ConcreteVoteEvidence, then import the necessary modules, and then define it.
-  record ConcreteVoteEvidence (vd : AbsVoteData) : Set
+  record ConcreteVoteEvidence (vd : LAT.AbsVoteData) : Set
 
-  import      LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs
-  open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence
-  open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence
+  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (qcVotes; Vote)
 
   data VoteCoherence (v : Vote) (b : Abs.Block) : Set where
     initial  : v ^∙ vParentId    ≡ genesisUID
