@@ -3,8 +3,6 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
-
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
