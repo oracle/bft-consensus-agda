@@ -39,6 +39,11 @@ module LibraBFT.Prelude where
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate)
     public
 
+  open import Data.List.Relation.Binary.Subset.Propositional
+    renaming (_⊆_ to _⊆List_)
+    public
+
+
   open import Data.List.Relation.Unary.Any
     using (Any; here; there)
     renaming (lookup to Any-lookup; map to Any-map; satisfied to Any-satisfied

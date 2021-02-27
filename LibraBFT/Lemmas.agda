@@ -290,9 +290,6 @@ module LibraBFT.Lemmas where
  sort [] = []
  sort (x ∷ xs) = insertSort x (sort xs)
 
- _⊆List_ : ∀ {A : Set} → List A → List A → Set
- xs ⊆List ys = All (_∈ ys) xs
-
 
  ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
             → x ∈ (y ∷ ys) → x ≢ y
@@ -301,14 +298,13 @@ module LibraBFT.Lemmas where
  ∈List-elim (there x∈) x≢y = x∈
 
 
- ⊆List-elim : ∀ {n} {y} {xs ys : List (Fin n)}
+ ⊆List-elim : ∀ {A : Set} {y} {xs ys : List A}
             → xs ⊆List (y ∷ ys) → y ∉ xs
             → xs ⊆List ys
- ⊆List-elim [] y∉ = []
- ⊆List-elim (here refl ∷ xs∈) y∉ = ⊥-elim (proj₁ (y∉xs⇒Allxs≢y y∉) refl)
- ⊆List-elim (there x∈  ∷ xs∈) y∉
-   with y∉xs⇒Allxs≢y y∉
- ...| x≢y , y∉xs = ∈List-elim (there x∈) x≢y ∷ ⊆List-elim xs∈ y∉xs
+ ⊆List-elim xs∈yys y∉xs x∈xs
+   with xs∈yys x∈xs
+ ... | here refl = ⊥-elim (y∉xs x∈xs)
+ ... | there x∈ys = x∈ys
 
 
  allDistinctTail : ∀ {A} {x : A} {xs : List A}
@@ -330,38 +326,72 @@ module LibraBFT.Lemmas where
  ...| yes x≤x₂ = on-∷ x₁<x
  ...| no  x≰x₂ = on-∷ x₁<x₂
 
- ∈-⊆Listˡ : ∀ {A} {y} {xs ys : List A}
-          → xs ⊆List ys
-          → xs ⊆List (y ∷ ys)
- ∈-⊆Listˡ [] = []
- ∈-⊆Listˡ (x∈ys ∷ xs⊆ys) = there x∈ys ∷ (∈-⊆Listˡ xs⊆ys)
+ xs-⊆List-ysˡ : ∀ {A : Set} {y} {xs ys : List A}
+              → xs ⊆List ys
+              → xs ⊆List (y ∷ ys)
+ xs-⊆List-ysˡ xs⊆ys x∈xs = there (xs⊆ys x∈xs)
 
 
- ⊆List-refl : ∀ {A} {xs : List A}
+ xs-⊆List-ysʳ : ∀ {A : Set} {x} {xs ys : List A}
+              → (x ∷ xs) ⊆List ys
+              → xs ⊆List ys
+ xs-⊆List-ysʳ xxs⊆ys x∈xs = xxs⊆ys (there x∈xs)
+
+
+ ∈-Any-Index-elim :  ∀ {A : Set} {x y} {ys : List A} (x∈ys : x ∈ ys)
+                  → x ≢ y → y ∈ ys
+                  → y ∈ ys ─ Any-index x∈ys
+ ∈-Any-Index-elim (here refl)  x≢y (here refl)  = ⊥-elim (x≢y refl)
+ ∈-Any-Index-elim (here refl)  x≢y (there y∈ys) = y∈ys
+ ∈-Any-Index-elim (there x∈ys) x≢y (here refl)  = here refl
+ ∈-Any-Index-elim (there x∈ys) x≢y (there y∈ys) = there (∈-Any-Index-elim x∈ys x≢y y∈ys)
+
+
+ ⊆List-refl : ∀ {A : Set} {xs : List A}
             → xs ⊆List xs
- ⊆List-refl {_} {[]} = []
- ⊆List-refl {_} {x ∷ xs} = here refl ∷ ∈-⊆Listˡ ⊆List-refl
+ ⊆List-refl = id
 
- ∈-⊆List-trans : ∀ {A} {x} {xs ys : List A}
+
+ ⊆List-Elim :  ∀ {n} {x} {xs ys : List (Fin n)} (x∈ys : x ∈ ys)
+                    → x ∉ xs → xs ⊆List ys
+                    → xs ⊆List ys ─ Any-index x∈ys
+ ⊆List-Elim {_} {x} {x₁ ∷ xs} {y ∷ ys} (here refl) x∉xs xs∈ys x₂∈xs
+   with xs∈ys x₂∈xs
+ ... | here refl  = ⊥-elim (x∉xs x₂∈xs)
+ ... | there x∈xs = x∈xs
+ ⊆List-Elim {_} {x} {x₁ ∷ xs} {y ∷ ys} (there x∈ys) x∉xs xs∈ys x₂∈xxs
+   with x₂∈xxs
+ ... | there x₂∈xs
+       = ⊆List-Elim (there x∈ys) (proj₂ (y∉xs⇒Allxs≢y x∉xs)) (xs-⊆List-ysʳ xs∈ys) x₂∈xs
+ ... | here refl
+   with xs∈ys x₂∈xxs
+ ... | here refl = here refl
+ ... | there x₂∈ys
+       = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
+
+
+
+ ∈-⊆List-trans : ∀ {A : Set} {x} {xs ys : List A}
                  → x ∈ xs → xs ⊆List ys
                  → x ∈ ys
- ∈-⊆List-trans (here refl)  (x∈ys ∷ xs⊆ys)  = x∈ys
- ∈-⊆List-trans (there x∈xs) (x₁∈ys ∷ xs⊆ys) = ∈-⊆List-trans x∈xs xs⊆ys
+ ∈-⊆List-trans x∈xs xs⊆ys = xs⊆ys x∈xs
 
 
  insSort-⊆ : ∀ {n} {x} (xs ys : List (Fin n))
            → xs ⊆List ys
            → insertSort x xs ⊆List (x ∷ ys)
- insSort-⊆ [] _ _ = here refl ∷ []
- insSort-⊆ {x = x} (x₁ ∷ xs) ys (x∈ys ∷ xs⊆ys)
-    with x ≤?Fin x₁
- ...| yes x≤x₂ = here refl ∷ (there x∈ys) ∷ ∈-⊆Listˡ xs⊆ys
- ...| no  x≰x₂ = there x∈ys ∷ insSort-⊆ xs ys xs⊆ys
+ insSort-⊆ [] _ _ (here refl) = here refl
+ insSort-⊆ {x = x} (x₁ ∷ xs) ys xs⊆ys x∈is
+    with x ≤?Fin x₁  | x∈is
+ ... | yes x≤x₂      | here refl   = here refl
+ ... | yes x≤x₂      | there x∈xs  = there (xs⊆ys x∈xs)
+ ... | no x≰x₂       | here refl   = there (xs⊆ys (here refl))
+ ... | no x≰x₂       | there x₂∈is = insSort-⊆ xs ys (λ x∈ → xs⊆ys (there x∈)) x₂∈is
+
 
  sort-⊆ : ∀ {n} (xs : List (Fin n))
         → sort xs ⊆List xs
- sort-⊆ {n} [] = []
- sort-⊆ {n} (x ∷ xs) = insSort-⊆ (sort xs) xs (sort-⊆ xs)
+ sort-⊆ (x₁ ∷ xs) x = insSort-⊆ (sort xs) xs (sort-⊆ xs) x
 
 
  sumInsertSort≡ : ∀ {n} (x : Fin n) (xs : List (Fin n)) (f : Fin n → ℕ)
@@ -386,10 +416,7 @@ module LibraBFT.Lemmas where
  ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
              → x ∉ xs → ys ⊆List xs
              → x ∉ ys
- ∉∧⊆List⇒∉ x∉xs (here refl  ∷ ys⊆xs) (here refl)  = ⊥-elim (x∉xs (here refl))
- ∉∧⊆List⇒∉ x∉xs (here refl  ∷ ys⊆xs) (there x∈ys) = ⊥-elim ((∉∧⊆List⇒∉ x∉xs ys⊆xs) x∈ys)
- ∉∧⊆List⇒∉ x∉xs (there y∈xs ∷ ys⊆xs) (here refl)  = ⊥-elim (x∉xs (there y∈xs))
- ∉∧⊆List⇒∉ x∉xs (there _    ∷ ys⊆xs) (there x∈ys) = ⊥-elim ((∉∧⊆List⇒∉ x∉xs ys⊆xs) x∈ys)
+ ∉∧⊆List⇒∉ x∉xs ys∈xs x∈ys = ⊥-elim (x∉xs (ys∈xs x∈ys))
 
 
  allDistinctʳʳ : ∀ {A} {x x₁ : A} {xs : List A}

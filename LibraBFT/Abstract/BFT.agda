@@ -236,47 +236,37 @@ module LibraBFT.Abstract.BFT
        in h∉t <⇒≢Fin <-trans (transOnHead <-trans x< y<x ∷ sxs) y∈xs
 
 
+   sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
+              → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
+   sumListMap f (here refl)  = refl
+   sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
+     rewrite sumListMap f x∈xs
+           | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
+           | +-comm (f x) (f x₁)
+           | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
+
+
    sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
-           → IsSorted _<Fin_ xs → IsSorted _<Fin_ ys
+           → IsSorted _<Fin_ xs
            → xs ⊆List ys
            → sum (List-map f xs) ≤ sum (List-map f ys)
-   sum-⊆-≤ {[]} f sxs sys [] = z≤n
-   sum-⊆-≤ {x ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (here refl ∷ xs∈)
-     = let xs∈ys = ⊆List-elim xs∈ (h∉t <⇒≢Fin <-trans (x₁ ∷ sxs))
-       in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs sys xs∈ys)
-   sum-⊆-≤ {_ ∷ _} {y ∷ _} f (x₁ ∷ sxs) (y₁ ∷ sys) (there px ∷ xs∈)
-     = let y∉xs  = sort→∈-disj (x₁ ∷ sxs) (y₁ ∷ sys) px
-           xs∈ys = ⊆List-elim xs∈ y∉xs
-       in ≤-stepsˡ (f y) (sum-⊆-≤ f (x₁ ∷ sxs) sys (px ∷ xs∈ys))
+   sum-⊆-≤ {[]} _ _ _ = z≤n
+   sum-⊆-≤ {x ∷ xs} f (x< ∷ sxs) xxs⊆ys
+     rewrite sumListMap f (xxs⊆ys (here refl))
+     = let x∉xs = h∉t <⇒≢Fin <-trans (x< ∷ sxs)
+           xs⊆ys = xs-⊆List-ysʳ xxs⊆ys
+           xs⊆ys-x = ⊆List-Elim (xxs⊆ys (here refl)) x∉xs xs⊆ys
+       in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs xs⊆ys-x)
 
 
-   map-suc-sort : ∀ {n} {xs : List (Fin n)}
-                → IsSorted _<Fin_ xs
-                → IsSorted _<Fin_ (List-map suc xs)
-   map-suc-sort [] = []
-   map-suc-sort (x ∷ []) = [] ∷ []
-   map-suc-sort (on-∷ x< ∷ (x₁ ∷ sxs)) = (on-∷ (s≤s x<)) ∷ (map-suc-sort (x₁ ∷ sxs))
-
-
-   tabulateSort : ∀ (n : ℕ) → IsSorted _<Fin_ (List-tabulate {0ℓ} {Fin n} id)
-   tabulateSort zero = []
-   tabulateSort (suc zero) = [] ∷ []
-   tabulateSort (suc (suc n)) =
-     let rec      = tabulateSort (suc n)
-         sortSuc  = map-suc-sort rec
-         map∘Tab≡ = map-tabulate id suc
-     in (on-∷ (s≤s z≤n)) ∷ (subst (IsSorted _<Fin_) map∘Tab≡ sortSuc)
-
-
-   members⊆ : ∀ (xs : List Member) → xs ⊆List participants
-   members⊆ [] = []
-   members⊆ (x ∷ xs) = Any-tabulate⁺ x refl ∷ (members⊆ xs)
+   members⊆ : ∀ {xs : List Member} → xs ⊆List participants
+   members⊆ {_} {x} _ = Any-tabulate⁺ {f = id} x refl
 
 
    votingPower≤N : ∀ {xs : List Member} → IsSorted _<Fin_ xs
                  → CombinedPower xs ≤ totalVotPower
    votingPower≤N {xs} sxs rewrite totalVotPower≡
-     = sum-⊆-≤ votPower sxs (tabulateSort authorsN) (members⊆ xs)
+     = sum-⊆-≤ votPower sxs members⊆
 
 
    union-votPower : ∀ {xs ys : List Member}
