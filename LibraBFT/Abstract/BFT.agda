@@ -236,29 +236,6 @@ module LibraBFT.Abstract.BFT
        in h∉t <⇒≢Fin <-trans (transOnHead <-trans x< y<x ∷ sxs) y∈xs
 
 
-   sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
-              → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
-   sumListMap f (here refl)  = refl
-   sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
-     rewrite sumListMap f x∈xs
-           | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
-           | +-comm (f x) (f x₁)
-           | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
-
-
-   sum-⊆-≤ : ∀ {xs ys : List Member} (f : Member → ℕ)
-           → IsSorted _<Fin_ xs
-           → xs ⊆List ys
-           → sum (List-map f xs) ≤ sum (List-map f ys)
-   sum-⊆-≤ {[]} _ _ _ = z≤n
-   sum-⊆-≤ {x ∷ xs} f (x< ∷ sxs) xxs⊆ys
-     rewrite sumListMap f (xxs⊆ys (here refl))
-     = let x∉xs = h∉t <⇒≢Fin <-trans (x< ∷ sxs)
-           xs⊆ys = xs-⊆List-ysʳ xxs⊆ys
-           xs⊆ys-x = ⊆List-Elim (xxs⊆ys (here refl)) x∉xs xs⊆ys
-       in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs xs⊆ys-x)
-
-
    members⊆ : ∀ {xs : List Member} → xs ⊆List participants
    members⊆ {_} {x} _ = Any-tabulate⁺ {f = id} x refl
 
@@ -527,8 +504,8 @@ module LibraBFT.Abstract.BFT
            f+1≤|q₁∩q₂| = quorumInt>biz (sort xs) (sort ys) q≤≢xs q≤≢ys exp₂
            honInf      = find-honest (sorted⇒AllDistinct (intersectDiff sxs sys)) f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect sxs sys ((proj₁ ∘ proj₂) honInf)
-           α∈xs        = ∈-⊆List-trans (proj₁ h∈∩) (sort-⊆ xs)
-           α∈ys        = ∈-⊆List-trans (proj₂ h∈∩) (sort-⊆ ys)
+           α∈xs        = sort-⊆ xs (proj₁ h∈∩)
+           α∈ys        = sort-⊆ ys (proj₂ h∈∩)
        in proj₁ honInf , α∈xs , α∈ys , (proj₂ ∘ proj₂) honInf
 
 

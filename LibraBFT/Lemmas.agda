@@ -291,22 +291,6 @@ module LibraBFT.Lemmas where
  sort (x ∷ xs) = insertSort x (sort xs)
 
 
- ∈List-elim : ∀ {A : Set} {x y : A} {ys : List A}
-            → x ∈ (y ∷ ys) → x ≢ y
-            → x ∈ ys
- ∈List-elim (here x≡y) x≢y = ⊥-elim (x≢y x≡y)
- ∈List-elim (there x∈) x≢y = x∈
-
-
- ⊆List-elim : ∀ {A : Set} {y} {xs ys : List A}
-            → xs ⊆List (y ∷ ys) → y ∉ xs
-            → xs ⊆List ys
- ⊆List-elim xs∈yys y∉xs x∈xs
-   with xs∈yys x∈xs
- ... | here refl = ⊥-elim (y∉xs x∈xs)
- ... | there x∈ys = x∈ys
-
-
  allDistinctTail : ∀ {A} {x : A} {xs : List A}
                  → allDistinct (x ∷ xs)
                  → allDistinct xs
@@ -326,11 +310,6 @@ module LibraBFT.Lemmas where
  ...| yes x≤x₂ = on-∷ x₁<x
  ...| no  x≰x₂ = on-∷ x₁<x₂
 
- xs-⊆List-ysˡ : ∀ {A : Set} {y} {xs ys : List A}
-              → xs ⊆List ys
-              → xs ⊆List (y ∷ ys)
- xs-⊆List-ysˡ xs⊆ys x∈xs = there (xs⊆ys x∈xs)
-
 
  xs-⊆List-ysʳ : ∀ {A : Set} {x} {xs ys : List A}
               → (x ∷ xs) ⊆List ys
@@ -345,11 +324,6 @@ module LibraBFT.Lemmas where
  ∈-Any-Index-elim (here refl)  x≢y (there y∈ys) = y∈ys
  ∈-Any-Index-elim (there x∈ys) x≢y (here refl)  = here refl
  ∈-Any-Index-elim (there x∈ys) x≢y (there y∈ys) = there (∈-Any-Index-elim x∈ys x≢y y∈ys)
-
-
- ⊆List-refl : ∀ {A : Set} {xs : List A}
-            → xs ⊆List xs
- ⊆List-refl = id
 
 
  ⊆List-Elim :  ∀ {n} {x} {xs ys : List (Fin n)} (x∈ys : x ∈ ys)
@@ -368,13 +342,6 @@ module LibraBFT.Lemmas where
  ... | here refl = here refl
  ... | there x₂∈ys
        = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
-
-
-
- ∈-⊆List-trans : ∀ {A : Set} {x} {xs ys : List A}
-                 → x ∈ xs → xs ⊆List ys
-                 → x ∈ ys
- ∈-⊆List-trans x∈xs xs⊆ys = xs⊆ys x∈xs
 
 
  insSort-⊆ : ∀ {n} {x} (xs ys : List (Fin n))
@@ -412,6 +379,28 @@ module LibraBFT.Lemmas where
  sumSort≡ (x ∷ xs) f rewrite sumInsertSort≡ x (sort xs) f
    = cong (f x +_) (sumSort≡ xs f)
 
+
+ sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
+            → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
+ sumListMap f (here refl)  = refl
+ sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
+   rewrite sumListMap f x∈xs
+         | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
+         | +-comm (f x) (f x₁)
+         | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
+
+
+ sum-⊆-≤ : ∀ {n} {xs ys : List (Fin n)} (f : (Fin n) → ℕ)
+         → IsSorted _<Fin_ xs
+         → xs ⊆List ys
+         → sum (List-map f xs) ≤ sum (List-map f ys)
+ sum-⊆-≤ {_} {[]} _ _ _ = z≤n
+ sum-⊆-≤ {_} {x ∷ xs} f (x< ∷ sxs) xxs⊆ys
+   rewrite sumListMap f (xxs⊆ys (here refl))
+   = let x∉xs = h∉t <⇒≢Fin <-trans (x< ∷ sxs)
+         xs⊆ys = xs-⊆List-ysʳ xxs⊆ys
+         xs⊆ys-x = ⊆List-Elim (xxs⊆ys (here refl)) x∉xs xs⊆ys
+     in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs xs⊆ys-x)
 
  ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
              → x ∉ xs → ys ⊆List xs
