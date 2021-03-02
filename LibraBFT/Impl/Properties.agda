@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Concrete.System.Parameters
 
@@ -17,7 +16,6 @@ open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System impl-sps-avp
 
 module LibraBFT.Impl.Properties where
-
   theImplObligations : ImplObligations
   theImplObligations = record { sps-cor = impl-sps-avp
                               ; vo₁     = VO.vo₁

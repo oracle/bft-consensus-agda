@@ -6,7 +6,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Abstract.Types
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Consensus.Types
