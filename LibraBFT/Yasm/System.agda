@@ -1,19 +1,12 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Abstract.Types -- TODO-2: remove this, see comment below
-
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs) renaming (lookup'' to EC-lookup)
-import LibraBFT.Yasm.AvailableEpochs as AE
-
-open import LibraBFT.Yasm.Base
+import      LibraBFT.Yasm.Base as LYB
 
 -- This module defines a model of a distributed system, parameterized by
 -- SystemParameters, which establishes various application-dependent types,
@@ -25,22 +18,21 @@ open import LibraBFT.Yasm.Base
 -- an "honest" public key.  The module also contains some structures for
 -- proving properties of executions of the modeled system.
 
-module LibraBFT.Yasm.System (parms : SystemParameters) where
+module LibraBFT.Yasm.System
+   (NodeId      : Set)
+   (ℓ-EC        : Level)
+   (EpochConfig : Set ℓ-EC)
+   (epochId     : EpochConfig → EpochId)
+   (authorsN    : EpochConfig → ℕ)
+   (parms : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
+ where
+ open import LibraBFT.Yasm.Base            NodeId ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
+             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
+ import LibraBFT.Yasm.AvailableEpochs      NodeId ℓ-EC EpochConfig epochId authorsN as AE
+
  open SystemParameters parms
-
- -- TODO-2: The System model currently depends on a specific EpochConfig
- -- type, which is imported from LibraBFT-specific types.  However, the
- -- system model should be entirely application-independent.  Therefore, we
- -- should factor EpochConfig out of Yasm, and have the SystemParameters
- -- include an EpochConfig type and a way to query whether a given peer is
- -- a member of the represented epoch, and if so, with what associated PK.
- open EpochConfig
-
- PeerId : Set -- TODO-2: When we factor EpochConfig out of here (see
-              -- comment above), PeerId will be a parameter to
-              -- SystemParameters; for now, it's NodeId to make it
-              -- compatible with everything else.
- PeerId = NodeId
+ open import LibraBFT.Base.PKCS
 
  SenderMsgPair : Set
  SenderMsgPair = PeerId × Msg
@@ -165,7 +157,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
  --
  -- A system consists in a partial map from PeerId to PeerState, a pool
  -- of sent messages and a number of available epochs.
- record SystemState (e : ℕ) : Set₁ where
+ record SystemState (e : ℕ) : Set ℓ-EC where
    field
      peerStates  : Map PeerId PeerState
      msgPool     : SentMessages          -- All messages ever sent
@@ -242,7 +234,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
- data Step : ∀{e e'} → SystemState e → SystemState e' → Set₁ where
+ data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
               → (𝓔 : EpochConfigFor e)
               -- TODO-3: Eventually, we'll condition this step to only be
@@ -273,7 +265,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
 
  -- * Reflexive-Transitive Closure
 
- data Step* : ∀{e e'} → SystemState e → SystemState e' → Set₁ where
+ data Step* : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-0 : ∀{e}{pre : SystemState e}
           → Step* pre pre
 
@@ -282,7 +274,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
           → Step pre post
           → Step* fst post
 
- ReachableSystemState : ∀{e} → SystemState e → Set₁
+ ReachableSystemState : ∀{e} → SystemState e → Set ℓ-EC
  ReachableSystemState = Step* initialState
 
  Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
@@ -314,8 +306,8 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
- SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set₁) → Set₂
- SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set₁
+ SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC) → Set (ℓ+1 ℓ-EC)
+ SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set ℓ-EC
 
  -- Just like Data.List.Any maps a predicate over elements to a predicate over lists,
  -- Any-step maps a relation over steps to a relation over steps in a trace.
@@ -332,7 +324,7 @@ module LibraBFT.Yasm.System (parms : SystemParameters) where
              → Any-Step P (step-s cont this)
 
  Any-Step-elim
-   : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set₁}
+   : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set ℓ-EC}
    → {r : Step* st₀ st₁}
    → (P⇒Q : ∀{d d'}{s : SystemState d}{s' : SystemState d'}{st : Step s s'}
           → P st → Step* s' st₁ → Q)

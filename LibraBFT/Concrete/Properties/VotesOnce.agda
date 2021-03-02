@@ -10,20 +10,17 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types hiding (EpochConfigFor)
 open EpochConfig
 
 open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 
 open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs ; lookup'; lookup'')
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over

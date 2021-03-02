@@ -1,19 +1,24 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types
+import      Data.Vec.Relation.Unary.All as Vec-All
+import      Data.Fin                    as Fin
 
 -- This module defines the EpochConfigs available in the system, along
 -- with a function to add a new EpochConfig and some properties that
 -- facilitate proofs across state transitions that add an EpochConfig.
 
-module LibraBFT.Yasm.AvailableEpochs where
-
- import Data.Vec.Relation.Unary.All as Vec-All
- import Data.Fin                    as Fin
+module LibraBFT.Yasm.AvailableEpochs
+   (NodeId      : Set)
+   (ℓ-EC        : Level)
+   (EpochConfig : Set ℓ-EC)
+   (epochId     : EpochConfig → ℕ)
+   (authorsN    : EpochConfig → ℕ)
+ where
+ open import LibraBFT.Yasm.Base NodeId ℓ-EC EpochConfig epochId authorsN
 
  fin-lower-toℕ : ∀{e}(i : Fin (suc e))(prf : e ≢ toℕ i) → toℕ (Fin.lower₁ i prf) ≡ toℕ i
  fin-lower-toℕ {zero} zero prf = ⊥-elim (prf refl)
@@ -50,7 +55,7 @@ module LibraBFT.Yasm.AvailableEpochs where
 
  -- Available epochs consist of a vector of EpochConfigs with
  -- the correct epoch ids.
- AvailableEpochs : ℕ → Set₁
+ AvailableEpochs : ℕ → Set ℓ-EC
  AvailableEpochs = Vec-All (EpochConfigFor ∘ toℕ) ∘ Vec-allFin
 
  lookup : ∀{e} → AvailableEpochs e → (ix : Fin e) → EpochConfigFor (toℕ ix)
