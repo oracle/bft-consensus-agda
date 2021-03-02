@@ -8,7 +8,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open WithAbsVote
+open        WithAbsVote
 
 module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)

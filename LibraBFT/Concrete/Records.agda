@@ -15,7 +15,7 @@ open import LibraBFT.Impl.Consensus.Types.EpochIndep
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open WithAbsVote
+open        WithAbsVote
 
 -- Here we have the abstraction functions that connect
 -- the datatypes defined in LibraBFT.Impl.Consensus.Types
