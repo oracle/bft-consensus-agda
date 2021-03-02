@@ -1,32 +1,31 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
 open import LibraBFT.Base.PKCS
 
-  -- This module provides a utility function to make it easy to
-  -- provide the bft-lemma for implementations in which the
-  -- participants can have different voting power.
+-- This module provides a utility function to make it easy to
+-- provide the bft-lemma for implementations in which the
+-- participants can have different voting power.
 
-  -- The module is parametrized with the number of participants -
-  -- `authorsN`, and with a function - `votPower` - that assigns to
-  -- each participant its voting power. The parameter `N` corresponds
-  -- to the total voting power of all participants, as required by the
-  -- parameter `totalVotPower` in the inner module. These
-  -- implementations should assume a fixed unknown subset of malicious
-  -- nodes - Byzantine - but should also assume a security threshold
-  -- `bizF`, such that N > 3 * bizF, which should be provided in
-  -- parameter `isBFT`.  Finally, the `bft-assumption` states that the
-  -- combined voting power of Byzantine nodes must not exceed the
-  -- security threshold `bizF`.
+-- The module is parametrized with the number of participants -
+-- `authorsN`, and with a function - `votPower` - that assigns to
+-- each participant its voting power. The parameter `N` corresponds
+-- to the total voting power of all participants, as required by the
+-- parameter `totalVotPower` in the inner module. These
+-- implementations should assume a fixed unknown subset of malicious
+-- nodes - Byzantine - but should also assume a security threshold
+-- `bizF`, such that N > 3 * bizF, which should be provided in
+-- parameter `isBFT`.  Finally, the `bft-assumption` states that the
+-- combined voting power of Byzantine nodes must not exceed the
+-- security threshold `bizF`.
 
-  -- The bft-lemma is the last lemma in this file and proves that in
-  -- the intersection of any quorums, whose combined voting power is
-  -- greater or equal than `N - bizF`, there is an honest Member.
+-- The bft-lemma is the last lemma in this file and proves that in
+-- the intersection of any quorums, whose combined voting power is
+-- greater or equal than `N - bizF`, there is an honest Member.
 
 module LibraBFT.Abstract.BFT
   (authorsN      : ℕ)
@@ -35,10 +34,7 @@ module LibraBFT.Abstract.BFT
   (bizF          : ℕ)
   (isBFT         : totalVotPower ≥ suc (3 * bizF))
   (getPubKey     : Fin authorsN → PK)
-
-
  where
-
 
  -- The set of members of this epoch.
  Member : Set

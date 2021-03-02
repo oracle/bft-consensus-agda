@@ -6,8 +6,8 @@
 -- This is a selection of useful functions and definitions
 -- from the standard library that we tend to use a lot.
 module LibraBFT.Prelude where
+
   open import Level
-    using    (0ℓ; Level; Lift)
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
     public
 

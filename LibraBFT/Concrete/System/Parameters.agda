@@ -10,7 +10,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-open EpochConfig
+open        EpochConfig
 open import LibraBFT.Yasm.Base NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN
 
 -- In this module, we instantiate the system model with parameters to

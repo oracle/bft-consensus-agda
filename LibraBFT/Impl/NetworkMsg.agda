@@ -1,21 +1,18 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Hash
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
-
-open import Optics.All
-
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.Consensus.Types.EpochDep
 open import LibraBFT.Impl.Util.Crypto
 
 -- This module defines the types of messages that the implementation
@@ -24,7 +21,6 @@ open import LibraBFT.Impl.Util.Crypto
 -- NetworkMsgs are signed.
 
 module LibraBFT.Impl.NetworkMsg where
-
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
     V : VoteMsg     → NetworkMsg

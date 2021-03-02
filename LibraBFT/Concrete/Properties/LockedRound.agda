@@ -5,21 +5,16 @@
 -}
 open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Abstract.Types
-open EpochConfig
-
-open import LibraBFT.Impl.NetworkMsg
+open import LibraBFT.Hash
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-
 open import LibraBFT.Concrete.System.Parameters
-open EpochConfig
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module contains placeholders for the future analog of the
@@ -29,7 +24,6 @@ open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN 
 -- simpler VotesOnce property to settle down the structural aspects
 -- before tackling the harder semantic issues.
 module LibraBFT.Concrete.Properties.LockedRound where
-
  -- TODO-3: define the implementation obligation
  ImplObligation₁ : Set
  ImplObligation₁ = Unit
@@ -39,7 +33,6 @@ module LibraBFT.Concrete.Properties.LockedRound where
    (sps-corr : StepPeerState-AllValidParts)
    (Impl-LR1 : ImplObligation₁)
    where
-
   -- Any reachable state satisfies the LR rule for any epoch in the system.
   module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
@@ -47,10 +40,9 @@ module LibraBFT.Concrete.Properties.LockedRound where
 
    -- Bring in IntSystemState
    open import LibraBFT.Concrete.System sps-corr
-   open PerState st r
-   open PerEpoch eid
-
-   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as LR
+   open        PerState st r
+   open        PerEpoch eid
+   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 (ConcreteVoteEvidence 𝓔) as LR
 
    postulate  -- TODO-3: prove it
      lrr : LR.Type IntSystemState

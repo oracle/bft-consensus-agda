@@ -1,17 +1,17 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Lemmas
+open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
-open import LibraBFT.Base.Encode
 open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
-
-open import Optics.All
+open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Base.Types
 
 open import Data.String using (String)
 
@@ -20,9 +20,6 @@ open import Data.String using (String)
 -- a substantial undertaking that should probably be led by someone who can
 -- access our internal implementation.
 module LibraBFT.Impl.Consensus.Types.EpochIndep where
-
-  open import LibraBFT.Abstract.Types public
-
   -- Below here is incremental progress towards something
   -- that will eventually mirror the types in LBFT.Consensus.Types
   -- that /DO NOT/ depend on the set of active authors
@@ -33,9 +30,6 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
 
   AccountAddress : Set
   AccountAddress = Author
-
-  _≟AccountAddress_ : (a₁ a₂ : AccountAddress) → Dec (a₁ ≡ a₂)
-  _≟AccountAddress_ = _≟_
 
   HashValue : Set
   HashValue = Hash

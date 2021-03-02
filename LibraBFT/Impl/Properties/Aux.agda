@@ -4,19 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.Obligations
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Abstract.Types
-open EpochConfig
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
-
-open import LibraBFT.Concrete.Obligations
 
 -- In this module, we will prove a structural property that any new signed message produced by an
 -- honest handler from a reachable state correctly identifies the sender, and is for a valid epoch
@@ -25,10 +21,8 @@ open import LibraBFT.Concrete.Obligations
 -- included below, which we can finish once we do have a compliant implementation.
 
 module LibraBFT.Impl.Properties.Aux where
-
   -- This proof is complete except for pieces that are directly about the handlers.  Our
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
-
   impl-sps-avp : StepPeerState-AllValidParts
   -- In our fake/simple implementation, init and handling V and C msgs do not send any messages
   impl-sps-avp _ hpk (step-init ix eff) m∈outs part⊂m ver        rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)

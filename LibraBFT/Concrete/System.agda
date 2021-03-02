@@ -3,23 +3,19 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Abstract.Types
-
-open import LibraBFT.Impl.NetworkMsg
+open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-
 open import LibraBFT.Concrete.System.Parameters
-open EpochConfig
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module defines an abstract system state given a reachable
@@ -95,17 +91,11 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
     meta-sha256-cr : ¬ (NonInjective-≡ sha256)
 
   module PerEpoch (eid : Fin e) where
-
-   open import LibraBFT.Yasm.AvailableEpochs
-
    𝓔 : EpochConfig
    𝓔 = EC-lookup (availEpochs st) eid
-   open EpochConfig
-
-   open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Concrete.Intermediate 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Concrete.Records 𝓔
-   import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
+   open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
+   open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Concrete.Records                        𝓔
 
    -- * Auxiliary definitions;
    -- TODO-1: simplify and cleanup
@@ -197,8 +187,6 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
        vmFor    : ∃VoteMsgFor v
        nmInOuts : nm vmFor ∈ outs
    open ∃VoteMsgInFor public
-
-   open WithEpochConfig 𝓔
 
    ∈QC⇒sent : ∀{e} {st : SystemState e} {q α}
             → Abs.Q q α-Sent (msgPool st)

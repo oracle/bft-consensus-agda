@@ -5,21 +5,17 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open        WithAbsVote
 
 module LibraBFT.Concrete.Obligations.LockedRound
   (𝓔 : EpochConfig)
-  (UID    : Set)
-  (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
+  (𝓥 : VoteEvidence 𝓔)
   where
-
- open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
-   as StaticAssumptions
- open import LibraBFT.Concrete.Intermediate 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
  ---------------------
  -- * LockedRound * --
@@ -27,7 +23,6 @@ module LibraBFT.Concrete.Obligations.LockedRound
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
-  open WithEpochConfig 𝓔
 
  -- The LockedRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced
@@ -169,7 +164,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
    ...| B←Q refl refl | B←Q refl refl = inj₂ refl
 
   -- Finally, we can prove the locked round rule from the global version;
-  proof : Type → StaticAssumptions.LockedRoundRule InSys
+  proof : Type → LockedRoundRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'

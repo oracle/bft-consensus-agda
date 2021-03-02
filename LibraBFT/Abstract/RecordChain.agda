@@ -1,21 +1,27 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
+
+-- This module defines RecordChains and related types and utility definitions
 
 module LibraBFT.Abstract.RecordChain
-  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
-    where
-
- open import LibraBFT.Abstract.Records          𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends  𝓔 UID _≟UID_ 𝓥
+  (NodeId : Set)
+  (𝓔      : EpochConfig UID NodeId)
+  (𝓥      : VoteEvidence UID NodeId 𝓔)
+  where
+ open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Types           UID        NodeId
+ open        EpochConfig 𝓔
 
  -- One way of looking at a 'RecordChain r' is as a path from the epoch's
  -- initial record (I) to r.  For generality, we express this in two steps.

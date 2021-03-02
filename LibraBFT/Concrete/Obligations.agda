@@ -7,8 +7,8 @@ open import LibraBFT.Prelude
 open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Concrete.Properties.VotesOnce   as VO
 import      LibraBFT.Concrete.Properties.LockedRound as LR
-open import LibraBFT.Abstract.Types
-open EpochConfig
+open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module collects in one place the obligations an
@@ -16,7 +16,6 @@ open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN 
 -- proved in Abstract.Properties.
 
 module LibraBFT.Concrete.Obligations where
-
   record ImplObligations : Set₁ where
     field
       -- Structural obligations:

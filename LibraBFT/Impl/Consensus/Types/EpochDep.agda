@@ -1,20 +1,18 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
+open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Hash
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
-
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types.EpochIndep
-
-open import Optics.All
+open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This module defines the types that depend on an EpochConfig,
 -- but never inspect it. Consequently, we define everyting over
@@ -35,21 +33,10 @@ open import Optics.All
 -- now, this is the easiest way to avoid the issue that making a
 -- module inside Consensus.Types called EpochDep will break
 -- mkLens (not sure why).
+
 module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
-
-  -- Blocks and QCs are identified by hashes. In particular;
-  -- Blocks are identified by their hash and QCs are identified
-  -- by the hash of the block they certify.
-  --
-  -- This really means that two QCs that certify the same block
-  -- are (by definition!!) the same. We capture this in the
-  -- abstract model by using the _≈Rec_ relation.
-  UID :  Set
-  UID = Hash
-
-  _≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁)
-  _≟UID_ = _≟Hash_
+  open WithAbsVote 𝓔
 
   -- A 'ConcreteVoteEvidence' is a piece of information that
   -- captures that the 'vd : AbsVoteData' in question was not /invented/
@@ -59,12 +46,9 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- Moreover, we will also store the RecordChain that leads to the vote;
   -- this requires some mutually-recursive shenanigans, so we first declare
   -- ConcreteVoteEvidence, then import the necessary modules, and then define it.
-  record ConcreteVoteEvidence (vd : AbsVoteData 𝓔 UID) : Set
+  record ConcreteVoteEvidence (vd : AbsVoteData) : Set
 
-  import LibraBFT.Abstract.Records              𝓔 UID _≟UID_ ConcreteVoteEvidence
-    as Abs
-  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ ConcreteVoteEvidence
-  open import LibraBFT.Abstract.RecordChain     𝓔 UID _≟UID_ ConcreteVoteEvidence
+  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (qcVotes; Vote)
 
   data VoteCoherence (v : Vote) (b : Abs.Block) : Set where
     initial  : v ^∙ vParentId    ≡ genesisUID
@@ -114,7 +98,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- A valid vote can be directly mapped to an AbsVoteData. Abstraction of QCs
   -- and blocks will be given in LibraBFT.Concrete.Records, since those are
   -- more involved functions.
-  α-ValidVote : (v : Vote) → Member → AbsVoteData 𝓔 UID
+  α-ValidVote : (v : Vote) → Member → AbsVoteData
   α-ValidVote v mbr = mkAbsVoteData (v ^∙ vProposed ∙ biRound)
                                      mbr
                                      (v ^∙ vProposed ∙ biId)

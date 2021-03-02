@@ -1,11 +1,13 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
 
 -- This module contains properties about RecordChains, culminating in
 -- theorem S5, which is the main per-epoch correctness condition.  The
@@ -18,27 +20,25 @@ open import LibraBFT.Abstract.Types
 -- separating these proofs into abstract and concrete pieces.
 
 module LibraBFT.Abstract.RecordChain.Properties
-  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
-   where
-
- open import LibraBFT.Abstract.System                  𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
-   as Assumptions
-
- open EpochConfig 𝓔
+  (NodeId : Set)
+  (𝓔      : EpochConfig UID NodeId)
+  (𝓥      : VoteEvidence UID NodeId 𝓔)
+  where
+ open import LibraBFT.Abstract.Types                   UID        NodeId 𝓔
+ open import LibraBFT.Abstract.System                  UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
+ open        EpochConfig 𝓔
 
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)
-   (votes-only-once       : Assumptions.VotesOnlyOnceRule InSys)
-   (locked-round-rule     : Assumptions.LockedRoundRule   InSys)
-  where
-
+   (votes-only-once       : VotesOnlyOnceRule InSys)
+   (locked-round-rule     : LockedRoundRule   InSys)
+   where
    open All-InSys-props InSys
 
    ----------------------
