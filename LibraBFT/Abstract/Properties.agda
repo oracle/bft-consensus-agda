@@ -7,7 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
-open WithAbsVote
+open        WithAbsVote
 
 -- For each desired property (VotesOnce and LockedRoundRule), we have a
 -- module containing a Type that defines a property that an implementation
@@ -33,8 +33,7 @@ module LibraBFT.Abstract.Properties
  open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Abstract.System                  UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Abstract.RecordChain.Properties  UID _≟UID_ NodeId 𝓔 𝓥
-
- open EpochConfig 𝓔
+ open        EpochConfig 𝓔
 
  module WithAssumptions {ℓ}
    (InSys                 : Record → Set ℓ)

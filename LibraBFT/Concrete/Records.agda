@@ -25,7 +25,7 @@ open WithAbsVote
 module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
  open import LibraBFT.Impl.Consensus.Types.EpochDep 𝓔
  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (bId; qcVotes; Block)
- open EpochConfig 𝓔
+ open        EpochConfig 𝓔
  --------------------------------
  -- Abstracting Blocks and QCs --
  --------------------------------

@@ -18,7 +18,6 @@ module LibraBFT.Abstract.Types
   (NodeId : Set)
   (𝓔      : EpochConfig UID NodeId)
   where
-
   open EpochConfig 𝓔
 
   -- A member of an epoch is considered "honest" iff its public key is honest.

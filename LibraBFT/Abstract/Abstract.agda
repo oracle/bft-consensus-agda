@@ -5,7 +5,7 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Abstract.Types.EpochConfig
-open WithAbsVote
+open        WithAbsVote
 
 -- This module provides a convenient way for modules in other namespaces to import
 -- everything from Abstract.

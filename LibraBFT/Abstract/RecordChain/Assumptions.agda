@@ -6,7 +6,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types.EpochConfig
-open WithAbsVote
+open        WithAbsVote
 
 -- Here we establish the properties necessary to achieve consensus
 -- just like we see them on paper: stating facts about the state of
@@ -32,8 +32,7 @@ module LibraBFT.Abstract.RecordChain.Assumptions
   open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
   open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
   open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 𝓥
-
-  open EpochConfig 𝓔
+  open        EpochConfig 𝓔
 
   module _ {ℓ}(InSys : Record → Set ℓ) where
 

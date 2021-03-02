@@ -6,9 +6,9 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Base.Types
-open EpochConfig
+open import LibraBFT.Impl.Consensus.Types
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- In this module, we assume that the implementation meets its
@@ -22,10 +22,10 @@ module LibraBFT.Concrete.Properties
          (r : ReachableSystemState st)
          (eid : Fin e)
          where
-    open ImplObligations impl-correct
+    open        ImplObligations impl-correct
     open import LibraBFT.Concrete.System sps-cor
-    open PerState st r
-    open PerEpoch eid
+    open        PerState st r
+    open        PerEpoch eid
 
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)

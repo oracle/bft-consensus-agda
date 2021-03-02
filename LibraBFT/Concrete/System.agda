@@ -15,7 +15,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
-open EpochConfig
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module defines an abstract system state given a reachable
@@ -93,8 +93,6 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
   module PerEpoch (eid : Fin e) where
    𝓔 : EpochConfig
    𝓔 = EC-lookup (availEpochs st) eid
-   open EpochConfig
-
    open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
    open import LibraBFT.Concrete.Records                        𝓔

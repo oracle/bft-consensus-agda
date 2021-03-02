@@ -7,7 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig
-open WithAbsVote
+open        WithAbsVote
 
 -- This module defines abstract records (the initial or "genesis" record, blocks, and quorum
 -- certificates), along with related definitions and properties.
@@ -18,10 +18,9 @@ module LibraBFT.Abstract.Records
     (NodeId : Set)
     (𝓔 : EpochConfig UID NodeId)
     (𝓥 : VoteEvidence UID NodeId 𝓔)
- where
-
+    where
   open import LibraBFT.Abstract.Types UID NodeId
-  open EpochConfig 𝓔
+  open        EpochConfig 𝓔
 
   -- Abstract blocks do /not/ need to carry the state hash. Since the
   -- state hash of a concrete block is supposed to be hashed in the
