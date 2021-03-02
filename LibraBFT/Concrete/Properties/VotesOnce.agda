@@ -8,8 +8,9 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
+
+open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr

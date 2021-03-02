@@ -4,14 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-import LibraBFT.Concrete.Properties.VotesOnce as VO
-import LibraBFT.Concrete.Properties.LockedRound as LR
-
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open EpochConfig
-
 open import LibraBFT.Concrete.System.Parameters
+import      LibraBFT.Concrete.Properties.VotesOnce   as VO
+import      LibraBFT.Concrete.Properties.LockedRound as LR
+open import LibraBFT.Abstract.Types
+open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
+open EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module collects in one place the obligations an

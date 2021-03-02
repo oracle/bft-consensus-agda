@@ -6,11 +6,12 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Abstract.Types
+open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open EpochConfig
 open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
@@ -55,7 +56,7 @@ module LibraBFT.Impl.Properties.Aux where
   ...| yes msg∈ = inj₂ msg∈
   ...| no  msg∉ = inj₁ ((mkValidPartForPK      {! epoch !} -- We will need an invariant that says the epoch
                                                            -- used by a voter is "in range".
-                                               (EC-lookup (availEpochs st) {!!})
+                                               (EC-lookup' (availEpochs st) {!!})
                                                refl
                                                {! !}       -- The implementation will need to check that the voter is a member of
                                                            -- the epoch of the message it's sending.

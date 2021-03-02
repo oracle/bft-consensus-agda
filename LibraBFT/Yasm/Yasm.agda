@@ -20,7 +20,7 @@ module LibraBFT.Yasm.Yasm
    (parms       : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
   where
  open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
-             using (AvailableEpochs) renaming (lookup' to EC-lookup; lookup'' to EC-lookup')                          public
+             using (AvailableEpochs) renaming (lookup' to EC-lookup; lookup'' to EC-lookup')   public
  open import LibraBFT.Yasm.Base       NodeId ℓ-EC EpochConfig epochId authorsN                 public
  open import LibraBFT.Yasm.System     NodeId ℓ-EC EpochConfig epochId authorsN           parms public
  open import LibraBFT.Yasm.Properties NodeId ℓ-EC EpochConfig epochId authorsN getPubKey parms public

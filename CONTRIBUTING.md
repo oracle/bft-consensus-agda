@@ -29,7 +29,7 @@ Only pull requests from committers who can be verified as having signed the OCA 
 
 Please include a copyright notice consistent with other files when you introduce a new file, and edit the copyright notice of any file you change to update the list of years, separated by commas and with a comma after the last year, e.g., Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
-It is not necessary to add your name to copyright notices because you mus sign the Oracle Contributor Agreement before we can accept your contribution.  Arguments against listing all contributors in copyright notices are at the bottom of [this Linux Foundation blog post](https://www.linuxfoundation.org/en/blog/copyright-notices-in-open-source-software-projects).  
+It is not necessary to add your name to copyright notices because you must sign the Oracle Contributor Agreement before we can accept your contribution.  Arguments against listing all contributors in copyright notices are at the bottom of [this Linux Foundation blog post](https://www.linuxfoundation.org/en/blog/copyright-notices-in-open-source-software-projects).  
 
 ### Pull request process
 

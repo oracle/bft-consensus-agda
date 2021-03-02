@@ -11,6 +11,7 @@ open import LibraBFT.Base.Encode
 -- The ground types that are common across Abstract, Concrete and Impl
 -- and some utility types
 module LibraBFT.Base.Types where
+
   EpochId : Set
   EpochId = ℕ
 
