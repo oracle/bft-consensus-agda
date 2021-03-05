@@ -380,28 +380,6 @@ module LibraBFT.Lemmas where
    = cong (f x +_) (sumSort≡ xs f)
 
 
- sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
-            → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
- sumListMap f (here refl)  = refl
- sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
-   rewrite sumListMap f x∈xs
-         | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
-         | +-comm (f x) (f x₁)
-         | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
-
-
- sum-⊆-≤ : ∀ {n} {xs ys : List (Fin n)} (f : (Fin n) → ℕ)
-         → IsSorted _<Fin_ xs
-         → xs ⊆List ys
-         → sum (List-map f xs) ≤ sum (List-map f ys)
- sum-⊆-≤ {_} {[]} _ _ _ = z≤n
- sum-⊆-≤ {_} {x ∷ xs} f (x< ∷ sxs) xxs⊆ys
-   rewrite sumListMap f (xxs⊆ys (here refl))
-   = let x∉xs = h∉t <⇒≢Fin <-trans (x< ∷ sxs)
-         xs⊆ys = xs-⊆List-ysʳ xxs⊆ys
-         xs⊆ys-x = ⊆List-Elim (xxs⊆ys (here refl)) x∉xs xs⊆ys
-     in +-monoʳ-≤ (f x) (sum-⊆-≤ f sxs xs⊆ys-x)
-
  ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
              → x ∉ xs → ys ⊆List xs
              → x ∉ ys
@@ -426,7 +404,6 @@ module LibraBFT.Lemmas where
  ...| inj₂ lookup≡ = inj₂ lookup≡
 
 
-
  allDistinct⇒∉ : ∀ {n} {x} {xs : List (Fin n)}
                → allDistinct (x ∷ xs)
                → x ∉ xs
@@ -435,6 +412,30 @@ module LibraBFT.Lemmas where
  ... | inj₂ x≢x₁ = ⊥-elim (x≢x₁ x≡x₁)
  allDistinct⇒∉ allDist (there x∈xs)
    = allDistinct⇒∉ (allDistinctʳʳ allDist) x∈xs
+
+
+ sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
+            → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
+ sumListMap f (here refl)  = refl
+ sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
+   rewrite sumListMap f x∈xs
+         | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
+         | +-comm (f x) (f x₁)
+         | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
+
+
+ sum-⊆-≤ : ∀ {n} {ys} (xs : List (Fin n)) (f : (Fin n) → ℕ)
+         → allDistinct xs
+         → xs ⊆List ys
+         → sum (List-map f xs) ≤ sum (List-map f ys)
+ sum-⊆-≤ [] f dxs xs⊆ys = z≤n
+ sum-⊆-≤ (x ∷ xs) f dxs xs⊆ys
+    rewrite sumListMap f (xs⊆ys (here refl))
+    = let x∉xs    = allDistinct⇒∉ dxs
+          xs⊆ysT  = xs-⊆List-ysʳ xs⊆ys
+          xs⊆ys-x = ⊆List-Elim (xs⊆ys (here refl)) x∉xs xs⊆ysT
+          disTail = allDistinctTail dxs
+     in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)
 
 
  lookup⇒Any : ∀ {A : Set} {xs : List A} {P : A → Set} (i : Fin (length xs))

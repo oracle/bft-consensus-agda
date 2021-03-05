@@ -36,7 +36,7 @@ module LibraBFT.Prelude where
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose)
-    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
     public
 
   open import Data.List.Relation.Binary.Subset.Propositional
