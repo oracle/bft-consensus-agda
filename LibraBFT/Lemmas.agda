@@ -250,6 +250,9 @@ module LibraBFT.Lemmas where
     with to-witness-lemma (isJust {aMB = just a'} {a} prf) refl
  ...| xxx = just-injective (trans (sym xxx) prf)
 
+ morgan₁ : ∀ {A B : Set} → (¬ A) ⊎ (¬ B) → ¬ (A × B)
+ morgan₁ (inj₁ ¬a) = λ a×b → ¬a (proj₁ a×b)
+ morgan₁ (inj₂ ¬b) = λ a×b → ¬b (proj₂ a×b)
 
  ∸-suc-≤ : ∀ (x w : ℕ) → suc x ∸ w ≤ suc (x ∸ w)
  ∸-suc-≤ x zero = ≤-refl

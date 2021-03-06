@@ -89,11 +89,6 @@ module LibraBFT.Abstract.BFT
    ...| no  _ = y ∷ union xs ys
 
 
-   int-[]≡[] : (xs : List Member) → intersect [] xs ≡ []
-   int-[]≡[] [] = refl
-   int-[]≡[] (x ∷ xs) = int-[]≡[] xs
-
-
    ∈-intersect : ∀ (xs ys : List Member) {α}
                → α ∈ intersect xs ys
                → α ∈ xs × α ∈ ys
@@ -102,11 +97,6 @@ module LibraBFT.Abstract.BFT
    ...| no  y∉xs   | α∈        = ×-map₂ there (∈-intersect xs ys α∈)
    ...| yes y∈xs   | here refl = y∈xs , here refl
    ...| yes y∈xs   | there α∈  = ×-map₂ there (∈-intersect xs ys α∈)
-
-
-   morgan₁ : ∀ {A B : Set} → (¬ A) ⊎ (¬ B) → ¬ (A × B)
-   morgan₁ (inj₁ ¬a) = λ a×b → ¬a (proj₁ a×b)
-   morgan₁ (inj₂ ¬b) = λ a×b → ¬b (proj₂ a×b)
 
 
    x∉⇒x∉intersect : ∀ {x} {xs ys : List Member}
@@ -318,9 +308,7 @@ module LibraBFT.Abstract.BFT
            intDist     = intersectDistinct xs ys all≢xs all≢ys
            honInf      = find-honest {intersect xs ys} intDist f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect xs ys ((proj₁ ∘ proj₂) honInf)
-           α∈xs        = proj₁ h∈∩
-           α∈ys        = proj₂ h∈∩
-       in proj₁ honInf , α∈xs , α∈ys , (proj₂ ∘ proj₂) honInf
+       in proj₁ honInf ,  proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
 
 
 
