@@ -281,19 +281,6 @@ module LibraBFT.Lemmas where
  ...| no  x≢y = x≢y , y∉xs
 
 
- insertSort : ∀ {n} → Fin n → List (Fin n) → List (Fin n)
- insertSort x [] = x ∷ []
- insertSort x (h ∷ t)
-   with x ≤?Fin h
- ...| yes x≤h = x ∷ h ∷ t
- ...| no  x>h = h ∷ insertSort x t
-
-
- sort : ∀ {n} → List (Fin n) → List (Fin n)
- sort [] = []
- sort (x ∷ xs) = insertSort x (sort xs)
-
-
  allDistinctTail : ∀ {A} {x : A} {xs : List A}
                  → allDistinct (x ∷ xs)
                  → allDistinct xs
@@ -301,17 +288,6 @@ module LibraBFT.Lemmas where
    with allDist ((suc i) , (s≤s i<l)) ((suc j) , s≤s j<l)
  ...| inj₁ 1+i≡1+j = inj₁ (cong pred 1+i≡1+j)
  ...| inj₂ lookup≢ = inj₂ lookup≢
-
-
- onHeadInsSort : ∀ {n} {x x₁} {xs : List (Fin n)}
-               → IsSorted _<Fin_ (x₁ ∷ xs)
-               → x₁ <Fin x → x ∉ xs
-               → OnHead _<Fin_ x₁ (insertSort x xs)
- onHeadInsSort {xs = []} (x₂< ∷ []) x₁<x x∉xs = on-∷ x₁<x
- onHeadInsSort {x = x} {xs = x₂ ∷ xs} (on-∷ x₁<x₂ ∷ sxs) x₁<x x∉xs
-    with x ≤?Fin x₂
- ...| yes x≤x₂ = on-∷ x₁<x
- ...| no  x≰x₂ = on-∷ x₁<x₂
 
 
  xs-⊆List-ysʳ : ∀ {A : Set} {x} {xs ys : List A}
@@ -345,42 +321,6 @@ module LibraBFT.Lemmas where
  ... | here refl = here refl
  ... | there x₂∈ys
        = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
-
-
- insSort-⊆ : ∀ {n} {x} (xs ys : List (Fin n))
-           → xs ⊆List ys
-           → insertSort x xs ⊆List (x ∷ ys)
- insSort-⊆ [] _ _ (here refl) = here refl
- insSort-⊆ {x = x} (x₁ ∷ xs) ys xs⊆ys x∈is
-    with x ≤?Fin x₁  | x∈is
- ... | yes x≤x₂      | here refl   = here refl
- ... | yes x≤x₂      | there x∈xs  = there (xs⊆ys x∈xs)
- ... | no x≰x₂       | here refl   = there (xs⊆ys (here refl))
- ... | no x≰x₂       | there x₂∈is = insSort-⊆ xs ys (λ x∈ → xs⊆ys (there x∈)) x₂∈is
-
-
- sort-⊆ : ∀ {n} (xs : List (Fin n))
-        → sort xs ⊆List xs
- sort-⊆ (x₁ ∷ xs) x = insSort-⊆ (sort xs) xs (sort-⊆ xs) x
-
-
- sumInsertSort≡ : ∀ {n} (x : Fin n) (xs : List (Fin n)) (f : Fin n → ℕ)
-                → sum (List-map f (insertSort x xs)) ≡ f x + sum (List-map f xs)
- sumInsertSort≡ x [] f = refl
- sumInsertSort≡ x (x₁ ∷ xs) f
-    with x ≤?Fin x₁
- ...| yes x≤x₂ = refl
- ...| no  x≰x₂ rewrite sumInsertSort≡ x xs f
-                      | sym (+-assoc (f x) (f x₁) (sum (List-map f xs)))
-                      | +-comm (f x) (f x₁)
-                      | +-assoc (f x₁) (f x) (sum (List-map f xs)) = refl
-
-
- sumSort≡ : ∀ {n} (xs : List (Fin n)) (f : Fin n → ℕ)
-          → sum (List-map f xs) ≡ sum (List-map f (sort xs))
- sumSort≡ [] f = refl
- sumSort≡ (x ∷ xs) f rewrite sumInsertSort≡ x (sort xs) f
-   = cong (f x +_) (sumSort≡ xs f)
 
 
  ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
@@ -463,35 +403,3 @@ module LibraBFT.Lemmas where
  ... | inj₂ lkup≢ = inj₂ lkup≢
 
 
- inSort⇒Sort : ∀ {n} {x} {xs : List (Fin n)} → x ∉ xs
-             → IsSorted _<Fin_ xs
-             → IsSorted _<Fin_ (insertSort x xs)
- inSort⇒Sort {_} {_} {[]} _ _ = [] ∷ []
- inSort⇒Sort {_} {x} {x₁ ∷ xs} x∉xs (x₁< ∷ sxs)
-   with x ≤?Fin x₁
- ...| yes x≤x₁
-   = let nx≢nx₁ = ≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))
-         x≢x₁   = contraposition toℕ-injective nx≢nx₁
-     in on-∷ (≤∧≢⇒< x≤x₁ x≢x₁) ∷ x₁< ∷ sxs
- ...| no  x≰x₁
-   = let x∉xxs = proj₂ (y∉xs⇒Allxs≢y x∉xs)
-     in onHeadInsSort (x₁< ∷ sxs) (≰⇒> x≰x₁) x∉xxs ∷ (inSort⇒Sort x∉xxs sxs)
-
-
- allDistict⇒Sorted : ∀ {n} → (xs : List (Fin n)) → allDistinct xs
-                    → IsSorted _<Fin_ (sort xs)
- allDistict⇒Sorted [] _ = []
- allDistict⇒Sorted (x ∷ xs) allDist
-   = let distTail = allDistinctTail allDist
-         sortTail = allDistict⇒Sorted xs distTail
-         x∉xs     = allDistinct⇒∉ allDist
-     in inSort⇒Sort (∉∧⊆List⇒∉ x∉xs (sort-⊆ xs)) sortTail
-
-
- sorted⇒AllDistinct : ∀ {n} {xs : List (Fin n)}
-                    → IsSorted _<Fin_ xs
-                    → allDistinct xs
- sorted⇒AllDistinct (x< ∷ sxs) (i , i<l) (j , j<l)
-   = let x∉xs  = h∉t <⇒≢Fin <-trans (x< ∷ sxs)
-         sTail = sorted⇒AllDistinct sxs
-     in x∉→AllDistinct sTail x∉xs (i , i<l) (j , j<l)
