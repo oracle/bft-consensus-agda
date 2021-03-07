@@ -265,79 +265,44 @@ module LibraBFT.Lemmas where
  m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
 
 
- _∈?_ : ∀ {n} (x : Fin n) → (xs : List (Fin n)) → Dec (Any (x ≡_) xs)
- x ∈? xs = Any-any (x ≟Fin_) xs
+ tail-⊆ : ∀ {A : Set} {x} {xs ys : List A}
+        → (x ∷ xs) ⊆List ys
+        → xs ⊆List ys
+ tail-⊆ xxs⊆ys x∈xs = xxs⊆ys (there x∈xs)
 
-
- y∉xs⇒Allxs≢y : ∀ {n} {xs : List (Fin n)} {x y}
-         → y ∉ (x ∷ xs)
-         → x ≢ y × y ∉ xs
- y∉xs⇒Allxs≢y {_} {xs} {x} {y} y∉
-   with y ∈? xs
- ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
- ...| no  y∉xs
-   with x ≟Fin y
- ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
- ...| no  x≢y = x≢y , y∉xs
-
-
- allDistinctTail : ∀ {A} {x : A} {xs : List A}
+ allDistinctTail : ∀ {A : Set} {x} {xs : List A}
                  → allDistinct (x ∷ xs)
                  → allDistinct xs
- allDistinctTail {_} {x} {xs} allDist (i , i<l) (j , j<l)
-   with allDist ((suc i) , (s≤s i<l)) ((suc j) , s≤s j<l)
+ allDistinctTail allDist (i , i<l) (j , j<l)
+   with allDist (suc i , s≤s i<l) (suc j , s≤s j<l)
  ...| inj₁ 1+i≡1+j = inj₁ (cong pred 1+i≡1+j)
  ...| inj₂ lookup≢ = inj₂ lookup≢
 
 
- xs-⊆List-ysʳ : ∀ {A : Set} {x} {xs ys : List A}
-              → (x ∷ xs) ⊆List ys
-              → xs ⊆List ys
- xs-⊆List-ysʳ xxs⊆ys x∈xs = xxs⊆ys (there x∈xs)
-
-
- ∈-Any-Index-elim :  ∀ {A : Set} {x y} {ys : List A} (x∈ys : x ∈ ys)
+ ∈-Any-Index-elim : ∀ {A : Set} {x y} {ys : List A} (x∈ys : x ∈ ys)
                   → x ≢ y → y ∈ ys
                   → y ∈ ys ─ Any-index x∈ys
  ∈-Any-Index-elim (here refl)  x≢y (here refl)  = ⊥-elim (x≢y refl)
- ∈-Any-Index-elim (here refl)  x≢y (there y∈ys) = y∈ys
- ∈-Any-Index-elim (there x∈ys) x≢y (here refl)  = here refl
+ ∈-Any-Index-elim (here refl)  _   (there y∈ys) = y∈ys
+ ∈-Any-Index-elim (there _)    _   (here refl)  = here refl
  ∈-Any-Index-elim (there x∈ys) x≢y (there y∈ys) = there (∈-Any-Index-elim x∈ys x≢y y∈ys)
 
 
- ⊆List-Elim :  ∀ {n} {x} {xs ys : List (Fin n)} (x∈ys : x ∈ ys)
-                    → x ∉ xs → xs ⊆List ys
-                    → xs ⊆List ys ─ Any-index x∈ys
- ⊆List-Elim {_} {x} {x₁ ∷ xs} {y ∷ ys} (here refl) x∉xs xs∈ys x₂∈xs
-   with xs∈ys x₂∈xs
- ... | here refl  = ⊥-elim (x∉xs x₂∈xs)
- ... | there x∈xs = x∈xs
- ⊆List-Elim {_} {x} {x₁ ∷ xs} {y ∷ ys} (there x∈ys) x∉xs xs∈ys x₂∈xxs
-   with x₂∈xxs
- ... | there x₂∈xs
-       = ⊆List-Elim (there x∈ys) (proj₂ (y∉xs⇒Allxs≢y x∉xs)) (xs-⊆List-ysʳ xs∈ys) x₂∈xs
- ... | here refl
-   with xs∈ys x₂∈xxs
- ... | here refl = here refl
- ... | there x₂∈ys
-       = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
-
-
- ∉∧⊆List⇒∉ : ∀ {n} {x} {xs ys : List (Fin n)}
-             → x ∉ xs → ys ⊆List xs
-             → x ∉ ys
+ ∉∧⊆List⇒∉ : ∀ {A : Set} {x} {xs ys : List A}
+           → x ∉ xs → ys ⊆List xs
+           → x ∉ ys
  ∉∧⊆List⇒∉ x∉xs ys∈xs x∈ys = ⊥-elim (x∉xs (ys∈xs x∈ys))
 
 
- allDistinctʳʳ : ∀ {A} {x x₁ : A} {xs : List A}
-                 → allDistinct (x ∷ x₁ ∷ xs)
-                 → allDistinct (x ∷ xs)
- allDistinctʳʳ allDist (zero , i<l) (zero , j<l) = inj₁ refl
- allDistinctʳʳ {_} {x} {x₁} {xs} allDist (zero , i<l) (suc j , j<l)
+ allDistinctʳʳ : ∀ {A : Set} {x x₁ : A} {xs : List A}
+               → allDistinct (x ∷ x₁ ∷ xs)
+               → allDistinct (x ∷ xs)
+ allDistinctʳʳ _ (zero , _) (zero , _) = inj₁ refl
+ allDistinctʳʳ allDist (zero , i<l) (suc j , j<l)
    with allDist (0 , s≤s z≤n) (suc (suc j) , s≤s j<l)
  ...| inj₂ x≢lookup
       = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
- allDistinctʳʳ {_} {x} {_} {xs} allDist (suc i , i<l) (zero , j<l)
+ allDistinctʳʳ allDist (suc i , i<l) (zero , j<l)
    with allDist (suc (suc i) , s≤s i<l) (0 , s≤s z≤n)
  ...| inj₂ x≢lookup
       = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
@@ -347,7 +312,7 @@ module LibraBFT.Lemmas where
  ...| inj₂ lookup≡ = inj₂ lookup≡
 
 
- allDistinct⇒∉ : ∀ {n} {x} {xs : List (Fin n)}
+ allDistinct⇒∉ : ∀ {A : Set} {x} {xs : List A}
                → allDistinct (x ∷ xs)
                → x ∉ xs
  allDistinct⇒∉ allDist (here x≡x₁)
@@ -359,7 +324,7 @@ module LibraBFT.Lemmas where
 
  sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
             → sum (List-map f xs) ≡ f x + sum (List-map f (xs ─ Any-index x∈xs))
- sumListMap f (here refl)  = refl
+ sumListMap _ (here refl)  = refl
  sumListMap {_} {x} {x₁ ∷ xs} f (there x∈xs)
    rewrite sumListMap f x∈xs
          | sym (+-assoc (f x) (f x₁) (sum (List-map f (xs ─ Any-index x∈xs))))
@@ -367,39 +332,73 @@ module LibraBFT.Lemmas where
          | +-assoc (f x₁) (f x) (sum (List-map f (xs ─ Any-index x∈xs))) = refl
 
 
- sum-⊆-≤ : ∀ {n} {ys} (xs : List (Fin n)) (f : (Fin n) → ℕ)
-         → allDistinct xs
-         → xs ⊆List ys
-         → sum (List-map f xs) ≤ sum (List-map f ys)
- sum-⊆-≤ [] f dxs xs⊆ys = z≤n
- sum-⊆-≤ (x ∷ xs) f dxs xs⊆ys
-    rewrite sumListMap f (xs⊆ys (here refl))
-    = let x∉xs    = allDistinct⇒∉ dxs
-          xs⊆ysT  = xs-⊆List-ysʳ xs⊆ys
-          xs⊆ys-x = ⊆List-Elim (xs⊆ys (here refl)) x∉xs xs⊆ysT
-          disTail = allDistinctTail dxs
-     in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)
-
-
  lookup⇒Any : ∀ {A : Set} {xs : List A} {P : A → Set} (i : Fin (length xs))
             → P (List-lookup xs i) → Any P xs
- lookup⇒Any {xs = x₁ ∷ xs} zero px = here px
- lookup⇒Any {xs = x₁ ∷ xs} (suc i) px = there (lookup⇒Any i px)
+ lookup⇒Any {_} {_ ∷ _} zero    px = here px
+ lookup⇒Any {_} {_ ∷ _} (suc i) px = there (lookup⇒Any i px)
 
 
- x∉→AllDistinct : ∀ {n} {x} {xs : List (Fin n)}
+ x∉→AllDistinct : ∀ {A : Set} {x} {xs : List A}
                 → allDistinct xs
                 → x ∉ xs
                 → allDistinct (x ∷ xs)
- x∉→AllDistinct {xs = []} allDist x∉xs (0 , s≤s z≤n) (0 , s≤s z≤n) = inj₁ refl
- x∉→AllDistinct {_} {x} {x₁ ∷ xs} allDist x∉xs (zero , i<l) (zero , j<l) = inj₁ refl
- x∉→AllDistinct {_} {x} {x₁ ∷ xs} allDist x∉xs (zero , i<l) (suc j , j<l)
+ x∉→AllDistinct _ _ (0 , _) (0 , _) = inj₁ refl
+ x∉→AllDistinct _ x∉xs (0 , _) (suc j , j<l)
    = inj₂ (λ x≡lkp → x∉xs (lookup⇒Any (fromℕ< (≤-pred j<l)) x≡lkp))
- x∉→AllDistinct {_} {x} {x₁ ∷ xs} allDist x∉xs (suc i , i<l) (zero , j<l)
+ x∉→AllDistinct _ x∉xs (suc i , i<l) (0 , _)
    = inj₂ (λ x≡lkp → x∉xs (lookup⇒Any (fromℕ< (≤-pred i<l)) (sym x≡lkp)))
- x∉→AllDistinct {_} {x} {x₁ ∷ xs} allDist x∉xs (suc i , i<l) (suc j , j<l)
+ x∉→AllDistinct allDist x∉xs (suc i , i<l) (suc j , j<l)
    with allDist (i , (≤-pred i<l)) (j , (≤-pred j<l))
- ... | inj₁ i≡j   = inj₁ (cong suc i≡j)
- ... | inj₂ lkup≢ = inj₂ lkup≢
+ ...| inj₁ i≡j   = inj₁ (cong suc i≡j)
+ ...| inj₂ lkup≢ = inj₂ lkup≢
 
 
+ module DecLemmas {A : Set} (_≟D_ : Decidable {A = A} (_≡_)) where
+
+   _∈?_ : ∀ (x : A) → (xs : List A) → Dec (Any (x ≡_) xs)
+   x ∈? xs = Any-any (x ≟D_) xs
+
+
+   y∉xs⇒Allxs≢y : ∀ {xs : List A} {x y}
+                → y ∉ (x ∷ xs)
+                → x ≢ y × y ∉ xs
+   y∉xs⇒Allxs≢y {xs} {x} {y} y∉
+     with y ∈? xs
+   ...| yes y∈xs = ⊥-elim (y∉ (there y∈xs))
+   ...| no  y∉xs
+     with x ≟D y
+   ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
+   ...| no  x≢y = x≢y , y∉xs
+
+
+   ⊆List-Elim :  ∀ {x} {xs ys : List A} (x∈ys : x ∈ ys)
+              → x ∉ xs → xs ⊆List ys
+              → xs ⊆List ys ─ Any-index x∈ys
+   ⊆List-Elim (here refl) x∉xs xs∈ys x₂∈xs
+     with xs∈ys x₂∈xs
+   ...| here refl  = ⊥-elim (x∉xs x₂∈xs)
+   ...| there x∈xs = x∈xs
+   ⊆List-Elim (there x∈ys) x∉xs xs∈ys x₂∈xxs
+     with x₂∈xxs
+   ...| there x₂∈xs
+         = ⊆List-Elim (there x∈ys) (proj₂ (y∉xs⇒Allxs≢y x∉xs)) (tail-⊆ xs∈ys) x₂∈xs
+   ...| here refl
+     with xs∈ys x₂∈xxs
+   ...| here refl = here refl
+   ...| there x₂∈ys
+         = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
+
+
+
+   sum-⊆-≤ : ∀ {ys} (xs : List A) (f : A → ℕ)
+           → allDistinct xs
+           → xs ⊆List ys
+           → sum (List-map f xs) ≤ sum (List-map f ys)
+   sum-⊆-≤ [] _ _ _ = z≤n
+   sum-⊆-≤ (x ∷ xs) f dxs xs⊆ys
+      rewrite sumListMap f (xs⊆ys (here refl))
+      = let x∉xs    = allDistinct⇒∉ dxs
+            xs⊆ysT  = tail-⊆ xs⊆ys
+            xs⊆ys-x = ⊆List-Elim (xs⊆ys (here refl)) x∉xs xs⊆ysT
+            disTail = allDistinctTail dxs
+       in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)

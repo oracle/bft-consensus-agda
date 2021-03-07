@@ -39,7 +39,6 @@ module LibraBFT.Abstract.BFT
 
  where
 
-
  -- The set of members of this epoch.
  Member : Set
  Member = Fin authorsN
@@ -49,6 +48,8 @@ module LibraBFT.Abstract.BFT
 
  CombinedPower : List Member → ℕ
  CombinedPower xs = sum (List-map votPower xs)
+
+ open DecLemmas {A = Member} _≟Fin_
 
  -- The bft-assumption states that the combined voting power of
  -- Byzantine nodes must not exceed the security threshold
@@ -73,7 +74,7 @@ module LibraBFT.Abstract.BFT
    -- TODO-2 : Many of these lemmas can be generalized for any list or any
    -- list of Fin. Perhaps establish a Lemmas.FinProps module.
 
-   intersect : ∀ {n} → List (Fin n) → List (Fin n) → List (Fin n)
+   intersect : List Member → List Member → List Member
    intersect xs [] = []
    intersect xs (y ∷ ys)
      with y ∈? xs
@@ -81,7 +82,7 @@ module LibraBFT.Abstract.BFT
    ...| no  _ = intersect xs ys
 
 
-   union :  ∀ {n} → List (Fin n) → List (Fin n) → List (Fin n)
+   union : List Member → List Member → List Member
    union xs [] = xs
    union xs (y ∷ ys)
      with y ∈? xs
@@ -161,7 +162,7 @@ module LibraBFT.Abstract.BFT
      = votingPower≤N (union xs ys) (unionDistinct xs ys dxs dys)
 
 
-   sumIntersect≤ : ∀ {n} (xs ys : List (Fin n)) (f : Fin n → ℕ)
+   sumIntersect≤ : ∀ (xs ys : List Member) (f : Member → ℕ)
                  → sum (List-map f (intersect xs ys)) ≤ sum (List-map f (xs ++ ys))
    sumIntersect≤ _ [] _ = z≤n
    sumIntersect≤ xs (y ∷ ys) f
@@ -309,6 +310,5 @@ module LibraBFT.Abstract.BFT
            honInf      = find-honest {intersect xs ys} intDist f+1≤|q₁∩q₂|
            h∈∩         = ∈-intersect xs ys ((proj₁ ∘ proj₂) honInf)
        in proj₁ honInf ,  proj₁ h∈∩ , proj₂ h∈∩ , (proj₂ ∘ proj₂) honInf
-
 
 
