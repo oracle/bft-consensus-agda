@@ -55,12 +55,8 @@ module LibraBFT.Abstract.BFT
  -- Byzantine nodes must not exceed the security threshold
  -- `bizF`. Therefore, for any list of distinct participants, the
  -- combined power of the dishonest nodes is less or equal than
- -- `bizF`. To express a list of distinct particpants we used the data
- -- type `IsSorted _<Fin_`, enforcing xs to be sorted according to a
- -- anti-reflexive linear order ensures authors are distinct.
+ -- `bizF`.
 
- -- TODO-1 : Replace `IsSorted _<Fin_ xs` with the type `allDistinct`
- -- in `LibraBFT.Lemmas
 
  module _  (totalVotPower≡  : totalVotPower ≡ CombinedPower (List-tabulate id))
            (bft-assumption : ∀ (xs : List Member)
