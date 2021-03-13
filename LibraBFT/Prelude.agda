@@ -319,3 +319,6 @@ module LibraBFT.Prelude where
   Any-satisfied-∈ (here px) = _ , (px , here refl)
   Any-satisfied-∈ (there p) = let (a , px , prf) = Any-satisfied-∈ p
                                in (a , px , there prf)
+
+  f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
+  f-sum f = sum ∘ List-map f
