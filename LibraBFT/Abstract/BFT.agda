@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
@@ -26,7 +26,7 @@ open import LibraBFT.Base.PKCS
 
   -- The bft-lemma is the last lemma in this file and proves that in
   -- the intersection of any quorums, whose combined voting power is
-  -- greater or equal than `N - bizF`, there is an honest Member.
+  -- greater than or equal to `N - bizF`, there is an honest Member.
 
 module LibraBFT.Abstract.BFT
   (authorsN      : ℕ)
@@ -56,10 +56,8 @@ module LibraBFT.Abstract.BFT
  -- The bft-assumption states that the combined voting power of
  -- Byzantine nodes must not exceed the security threshold
  -- `bizF`. Therefore, for any list of distinct participants, the
- -- combined power of the dishonest nodes is less or equal than
+ -- combined power of the dishonest nodes is less than or equal to
  -- `bizF`.
-
-
  module _  (bft-assumption : ∀ (xs : List Member)
                            → allDistinct xs
                            → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
@@ -107,7 +105,6 @@ module LibraBFT.Abstract.BFT
                        | sym (sum-++-commute (List-map votPower xs) (List-map votPower (y ∷ ys)))
                        | sym (map-++-commute votPower xs (y ∷ ys)) = refl
 
-
    quorumInt>biz : ∀ (xs ys : List Member)
                  → TotalVotPower ∸ bizF ≤ CombinedPower xs
                  → TotalVotPower ∸ bizF ≤ CombinedPower ys
@@ -137,7 +134,6 @@ module LibraBFT.Abstract.BFT
                                | sym (*-distribʳ-∸ x 3 2)
                                | sym (+-suc x 0) = refl
 
-
    partition-hon : ∀ {xs dis hon : List Member} {x : Member}
             → partition Meta-dishonest? xs ≡ (dis , x ∷ hon)
             → x ∈ xs × Meta-Honest-PK (getPubKey x)
@@ -149,7 +145,6 @@ module LibraBFT.Abstract.BFT
    ...| _ , x₂ ∷ _ | [ eq₂ ] rewrite just-injective (cong (head ∘ proj₂) eq₁)
      = ×-map₁ there (partition-hon eq₂)
 
-
    partition-dis : ∀ {xs dis : List Member}
             → partition Meta-dishonest? xs ≡ (dis , [])
             → List-filter Meta-dishonest? xs ≡ xs
@@ -160,7 +155,6 @@ module LibraBFT.Abstract.BFT
    ...| yes _  | _
       with partition Meta-dishonest? xs | inspect (partition Meta-dishonest?) xs
    ...| _ , [] | [ eq₁ ] = cong (x ∷_) (partition-dis {xs} eq₁)
-
 
    -- TODO-1 : An alternative to prove this lemma would be:
    -- - First prove that
@@ -181,7 +175,6 @@ module LibraBFT.Abstract.BFT
                 xsVot≤f = subst (_≤ bizF) (cong CombinedPower (partition-dis {xs} eq)) bft
             in ⊥-elim (<⇒≱ biz< xsVot≤f)
    ...| dis , x ∷ hon | [ eq ] = x , partition-hon eq
-
 
    bft-lemma : {xs ys : List Member}
              → allDistinct xs → allDistinct ys

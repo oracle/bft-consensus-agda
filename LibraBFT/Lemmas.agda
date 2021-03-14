@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
@@ -142,7 +142,6 @@ module LibraBFT.Lemmas where
  IsSorted-map⁻ f .(_ ∷ []) (x ∷ []) = [] ∷ []
  IsSorted-map⁻ f .(_ ∷ _ ∷ _) (on-∷ x ∷ (x₁ ∷ is)) = (on-∷ x) ∷ IsSorted-map⁻ f _ (x₁ ∷ is)
 
-
  transOnHead : ∀ {A} {l : List A} {y x : A} {_<_ : A → A → Set}
               → Transitive _<_
               → OnHead _<_ y l
@@ -172,7 +171,6 @@ module LibraBFT.Lemmas where
         → _≤_ x y
  ≤-head ref≤ trans (here refl) _ = ref≤
  ≤-head ref≤ trans (there y∈) (on-∷ x<x₁ ∷ sl) = trans x<x₁ (≤-head ref≤ trans y∈ sl)
-
 
  -- TODO-1 : Better name and/or replace with library property
  Any-sym : ∀ {a b}{A : Set a}{B : Set b}{tgt : B}{l : List A}{f : A → B}
@@ -264,7 +262,6 @@ module LibraBFT.Lemmas where
  m∸n≤o⇒m∸o≤n zero (suc z) w p≤ rewrite 0∸n≡0 w = z≤n
  m∸n≤o⇒m∸o≤n (suc x) (suc z) w p≤ = ≤-trans (∸-suc-≤ x w) (s≤s (m∸n≤o⇒m∸o≤n x z w p≤))
 
-
  tail-⊆ : ∀ {A : Set} {x} {xs ys : List A}
         → (x ∷ xs) ⊆List ys
         → xs ⊆List ys
@@ -278,7 +275,6 @@ module LibraBFT.Lemmas where
  ...| inj₁ 1+i≡1+j = inj₁ (cong pred 1+i≡1+j)
  ...| inj₂ lookup≢ = inj₂ lookup≢
 
-
  ∈-Any-Index-elim : ∀ {A : Set} {x y} {ys : List A} (x∈ys : x ∈ ys)
                   → x ≢ y → y ∈ ys
                   → y ∈ ys ─ Any-index x∈ys
@@ -287,12 +283,10 @@ module LibraBFT.Lemmas where
  ∈-Any-Index-elim (there _)    _   (here refl)  = here refl
  ∈-Any-Index-elim (there x∈ys) x≢y (there y∈ys) = there (∈-Any-Index-elim x∈ys x≢y y∈ys)
 
-
  ∉∧⊆List⇒∉ : ∀ {A : Set} {x} {xs ys : List A}
            → x ∉ xs → ys ⊆List xs
            → x ∉ ys
  ∉∧⊆List⇒∉ x∉xs ys∈xs x∈ys = ⊥-elim (x∉xs (ys∈xs x∈ys))
-
 
  allDistinctʳʳ : ∀ {A : Set} {x x₁ : A} {xs : List A}
                → allDistinct (x ∷ x₁ ∷ xs)
@@ -311,7 +305,6 @@ module LibraBFT.Lemmas where
  ...| inj₁ si≡sj   = inj₁ (cong pred si≡sj)
  ...| inj₂ lookup≡ = inj₂ lookup≡
 
-
  allDistinct⇒∉ : ∀ {A : Set} {x} {xs : List A}
                → allDistinct (x ∷ xs)
                → x ∉ xs
@@ -320,7 +313,6 @@ module LibraBFT.Lemmas where
  ... | inj₂ x≢x₁ = ⊥-elim (x≢x₁ x≡x₁)
  allDistinct⇒∉ allDist (there x∈xs)
    = allDistinct⇒∉ (allDistinctʳʳ allDist) x∈xs
-
 
  sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
             → f-sum f xs ≡ f x + f-sum f (xs ─ Any-index x∈xs)
@@ -331,12 +323,10 @@ module LibraBFT.Lemmas where
          | +-comm (f x) (f x₁)
          | +-assoc (f x₁) (f x) (f-sum f (xs ─ Any-index x∈xs)) = refl
 
-
  lookup⇒Any : ∀ {A : Set} {xs : List A} {P : A → Set} (i : Fin (length xs))
             → P (List-lookup xs i) → Any P xs
  lookup⇒Any {_} {_ ∷ _} zero    px = here px
  lookup⇒Any {_} {_ ∷ _} (suc i) px = there (lookup⇒Any i px)
-
 
  x∉→AllDistinct : ∀ {A : Set} {x} {xs : List A}
                 → allDistinct xs
@@ -352,12 +342,10 @@ module LibraBFT.Lemmas where
  ...| inj₁ i≡j   = inj₁ (cong suc i≡j)
  ...| inj₂ lkup≢ = inj₂ lkup≢
 
-
  module DecLemmas {A : Set} (_≟D_ : Decidable {A = A} (_≡_)) where
 
    _∈?_ : ∀ (x : A) → (xs : List A) → Dec (Any (x ≡_) xs)
    x ∈? xs = Any-any (x ≟D_) xs
-
 
    y∉xs⇒Allxs≢y : ∀ {xs : List A} {x y}
                 → y ∉ (x ∷ xs)
@@ -369,7 +357,6 @@ module LibraBFT.Lemmas where
      with x ≟D y
    ...| yes x≡y = ⊥-elim (y∉ (here (sym x≡y)))
    ...| no  x≢y = x≢y , y∉xs
-
 
    ⊆List-Elim :  ∀ {x} {xs ys : List A} (x∈ys : x ∈ ys)
               → x ∉ xs → xs ⊆List ys
@@ -388,8 +375,6 @@ module LibraBFT.Lemmas where
    ...| there x₂∈ys
          = there (∈-Any-Index-elim x∈ys (≢-sym (proj₁ (y∉xs⇒Allxs≢y x∉xs))) x₂∈ys)
 
-
-
    sum-⊆-≤ : ∀ {ys} (xs : List A) (f : A → ℕ)
            → allDistinct xs
            → xs ⊆List ys
@@ -403,7 +388,6 @@ module LibraBFT.Lemmas where
             disTail = allDistinctTail dxs
        in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)
 
-
    intersect : List A → List A → List A
    intersect xs [] = []
    intersect xs (y ∷ ys)
@@ -411,14 +395,12 @@ module LibraBFT.Lemmas where
    ...| yes _ = y ∷ intersect xs ys
    ...| no  _ = intersect xs ys
 
-
    union : List A → List A → List A
    union xs [] = xs
    union xs (y ∷ ys)
      with y ∈? xs
    ...| yes _ = union xs ys
    ...| no  _ = y ∷ union xs ys
-
 
    ∈-intersect : ∀ (xs ys : List A) {α}
                → α ∈ intersect xs ys
@@ -429,13 +411,11 @@ module LibraBFT.Lemmas where
    ...| yes y∈xs   | here refl = y∈xs , here refl
    ...| yes y∈xs   | there α∈  = ×-map₂ there (∈-intersect xs ys α∈)
 
-
    x∉⇒x∉intersect : ∀ {x} {xs ys : List A}
                     → x ∉ xs ⊎ x ∉ ys
                     → x ∉ intersect xs ys
    x∉⇒x∉intersect {x} {xs} {ys} x∉ x∈int
      = contraposition (∈-intersect xs ys) (deMorgan x∉) x∈int
-
 
    intersectDistinct : ∀ (xs ys : List A)
                      → allDistinct xs → allDistinct ys
@@ -447,7 +427,6 @@ module LibraBFT.Lemmas where
                        y∉intTail = x∉⇒x∉intersect (inj₂ (allDistinct⇒∉ dys))
                    in x∉→AllDistinct intDTail y∉intTail
    ...| no  y∉xs = intersectDistinct xs ys dxs (allDistinctTail dys)
-
 
    x∉⇒x∉union : ∀ {x} {xs ys : List A}
               → x ∉ xs × x ∉ ys
@@ -494,4 +473,3 @@ module LibraBFT.Lemmas where
                        | sym (sum-++-commute (List-map f xs) (List-map f ys))
                        | sym (map-++-commute f xs ys)
                          = ≤-stepsʳ (f y) (sumIntersect≤ xs ys f)
-
