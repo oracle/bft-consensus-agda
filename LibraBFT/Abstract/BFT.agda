@@ -5,7 +5,6 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
 open import LibraBFT.Base.PKCS
 
   -- This module provides a utility function to make it easy to
@@ -34,8 +33,6 @@ module LibraBFT.Abstract.BFT
   (bizF          : ℕ)
   (isBFT         : f-sum votPower (allFin authorsN) ≥ suc (3 * bizF))
   (getPubKey     : Fin authorsN → PK)
-
-
  where
 
  -- The set of members of this epoch.

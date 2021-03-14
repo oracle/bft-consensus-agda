@@ -1,10 +1,11 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open WithAbsVote
 
 -- This module defines and abstract view if a system, encompassing only a predicate for Records,
 -- another for Votes and a proof that, if a Vote is included in a QC in the system, then and
@@ -15,34 +16,17 @@ open import LibraBFT.Abstract.Types
 -- require only a short suffix of a RecordChain.
 
 module LibraBFT.Abstract.System
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
-   where
+    (NodeId : Set)
+    (𝓔 : EpochConfig UID NodeId)
+    (𝓥 : VoteEvidence UID NodeId 𝓔)
+  where
 
-  open import LibraBFT.Abstract.Records         𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.RecordChain     𝓔 UID _≟UID_ 𝓥
-
-  -- Since the invariants we want to specify (votes-once and locked-round-rule),
-  -- are predicates over a /System State/, we must factor out the necessary
-  -- functionality.
-  --
-  -- An /AbsSystemState/ supports a few different notions; namely,
-  record AbsSystemState (ℓ : Level) : Set (ℓ+1 ℓ) where
-    field
-      -- A notion of membership of records
-      InSys : Record → Set ℓ
-
-      -- A predicate about whether votes have been transfered
-      -- amongst participants
-      HasBeenSent : Vote → Set ℓ
-
-      -- Such that, the votes that belong to honest participants inside a
-      -- QC that exists in the system must have been sent
-      ∈QC⇒HasBeenSent : ∀{q α} → InSys (Q q) → Meta-Honest-Member 𝓔 α
-                      → (va : α ∈QC q) → HasBeenSent (∈QC-Vote q va)
+  open import LibraBFT.Abstract.Types           UID        NodeId 𝓔
+  open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 𝓥
 
   module All-InSys-props {ℓ}(InSys : Record → Set ℓ) where
 
@@ -62,18 +46,17 @@ module LibraBFT.Abstract.System
     All-InSys-step hyp ext r here = r
     All-InSys-step hyp ext r (there .ext r∈rc) = hyp r∈rc
 
-
-  -- We say an /AbsSystemState/ is /Complete/ when we can construct a record chain
+  -- We say an InSys predicate is /Complete/ when we can construct a record chain
   -- from any vote by an honest participant. This essentially says that whenever
   -- an honest participant casts a vote, they have checked that the voted-for
-  -- block is in a RecordChain whose records are all in the system.
-  Complete : ∀{ℓ} → AbsSystemState ℓ → Set ℓ
-  Complete sys = ∀{α q }
-               → Meta-Honest-Member 𝓔 α
-               → (va : α ∈QC q)
-               → InSys (Q q)
-               → ∃[ b ] (B b ← Q q
-                         × Σ (RecordChain (B b))
-                             (λ rc → All-InSys rc))
-    where open AbsSystemState sys
-          open All-InSys-props InSys
+  -- block is in a RecordChain whose records are all in the system.  This notion
+  -- is used to extend correctness conditions on RecordChains to correctness conditions that
+  -- require only a short suffix of a RecordChain.
+  Complete : ∀{ℓ} → (Record → Set ℓ) → Set ℓ
+  Complete ∈sys = ∀{α q}
+                → Meta-Honest-Member α
+                → α ∈QC q
+                → ∈sys (Q q)
+                → ∃[ b ] ( Σ (RecordChain (B b)) All-InSys
+                         × B b ← Q q)
+    where open All-InSys-props ∈sys

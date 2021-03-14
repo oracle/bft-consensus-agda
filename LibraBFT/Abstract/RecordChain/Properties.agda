@@ -1,11 +1,13 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
 
 -- This module contains properties about RecordChains, culminating in
 -- theorem S5, which is the main per-epoch correctness condition.  The
@@ -18,27 +20,25 @@ open import LibraBFT.Abstract.Types
 -- separating these proofs into abstract and concrete pieces.
 
 module LibraBFT.Abstract.RecordChain.Properties
-  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
-   where
-
- open import LibraBFT.Abstract.System                  𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records                 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends         𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain             𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
-   as Assumptions
-
- open EpochConfig 𝓔
+  (NodeId : Set)
+  (𝓔      : EpochConfig UID NodeId)
+  (𝓥      : VoteEvidence UID NodeId 𝓔)
+  where
+ open import LibraBFT.Abstract.Types                   UID        NodeId 𝓔
+ open import LibraBFT.Abstract.System                  UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
+ open        EpochConfig 𝓔
 
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)
-   (votes-only-once       : Assumptions.VotesOnlyOnceRule InSys)
-   (locked-round-rule     : Assumptions.LockedRoundRule   InSys)
-  where
-
+   (votes-only-once       : VotesOnlyOnceRule InSys)
+   (locked-round-rule     : LockedRoundRule   InSys)
+   where
    open All-InSys-props InSys
 
    ----------------------
@@ -59,27 +59,17 @@ module LibraBFT.Abstract.RecordChain.Properties
      with b₀ ≟Block b₁
    ...| yes done = inj₂ done
    ...| no  imp
-     with bft-assumption (qVotes-C2 q₀) (qVotes-C2 q₁)
+     with bft-assumption (qVotes-C1 q₀) (qVotes-C1 q₁)
    ...|  (a , (a∈q₀mem , a∈q₁mem , honest))
      with Any-sym (Any-map⁻ a∈q₀mem) | Any-sym (Any-map⁻ a∈q₁mem)
    ...| a∈q₀ | a∈q₁
-      with All-lookup (qVotes-C4 q₀) (∈QC-Vote-correct q₀ a∈q₀) |
-           All-lookup (qVotes-C4 q₁) (∈QC-Vote-correct q₁ a∈q₁)
+      with All-lookup (qVotes-C3 q₀) (∈QC-Vote-correct q₀ a∈q₀) |
+      All-lookup (qVotes-C3 q₁) (∈QC-Vote-correct q₁ a∈q₁)
    ...| a∈q₀rnd≡ | a∈q₁rnd≡
      with <-cmp (abs-vRound (∈QC-Vote q₀ a∈q₀)) (abs-vRound (∈QC-Vote q₁ a∈q₁))
-   ...| tri< va<va' _ _ = ⊥-elim (<⇒≢ (subst₂ _<_ a∈q₀rnd≡ a∈q₁rnd≡  va<va') refl)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} ex₀ ex₁ (B←Q refl h₀) (B←Q refl h₁) refl
-      | no imp
-      | (a , (a∈q₀mem , a∈q₁mem , honest))
-      | a∈q₀ | a∈q₁
-      | a∈q₀rnd≡ | a∈q₁rnd≡
-      | tri> _ _ va'<va = ⊥-elim (<⇒≢ (subst₂ _≤_ (cong suc a∈q₁rnd≡) a∈q₀rnd≡ va'<va) refl)
-   lemmaS2 {b₀} {b₁} {q₀} {q₁} ex₀ ex₁ (B←Q refl h₀) (B←Q refl h₁) hyp
-      | no imp
-      | (a , (a∈q₀mem , a∈q₁mem , honest))
-      | a∈q₀ | a∈q₁
-      | a∈q₀rnd≡ | a∈q₁rnd≡
-      | tri≈ _ v₀≡v₁ _ =
+   ...| tri< va<va' _ _ = ⊥-elim (<⇒≢ (subst₂ _<_ a∈q₀rnd≡ a∈q₁rnd≡ va<va') refl)
+   ...| tri> _ _ va'<va = ⊥-elim (<⇒≢ (subst₂ _≤_ (cong suc a∈q₁rnd≡) a∈q₀rnd≡ va'<va) refl)
+   ...| tri≈ _ v₀≡v₁ _ =
      let v₀∈q₀ = ∈QC-Vote-correct q₀ a∈q₀
          v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
          ppp   = trans h₀ (trans (vote≡⇒QPrevId≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ (votes-only-once a honest ex₀ ex₁ a∈q₀ a∈q₁ v₀≡v₁))
@@ -96,7 +86,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → round r₂ < getRound q'
            → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
    lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
-     with bft-assumption (qVotes-C2 q₂) (qVotes-C2 q')
+     with bft-assumption (qVotes-C1 q₂) (qVotes-C1 q')
    ...| (a , (a∈q₂mem , a∈q'mem , honest))
         with Any-sym (Any-map⁻ a∈q₂mem) | Any-sym (Any-map⁻ a∈q'mem)
    ...| a∈q₂ | a∈q'
@@ -104,8 +94,8 @@ module LibraBFT.Abstract.RecordChain.Properties
      -- TODO-1: We have done similar reasoning on the order of votes for
      -- lemmaS2. We should factor out a predicate that analyzes the rounds
      -- of QC's and returns us a judgement about the order of the votes.
-     with All-lookup (qVotes-C4 q') (∈QC-Vote-correct q' a∈q') |
-          All-lookup (qVotes-C4 q₂) (∈QC-Vote-correct q₂ a∈q₂)
+     with All-lookup (qVotes-C3 q') (∈QC-Vote-correct q' a∈q') |
+          All-lookup (qVotes-C3 q₂) (∈QC-Vote-correct q₂ a∈q₂)
    ...| a∈q'rnd≡ | a∈q₂rnd≡
      with <-cmp (round r₂) (abs-vRound (∈QC-Vote q' a∈q'))
    ...| tri> _ _ va'<va₂

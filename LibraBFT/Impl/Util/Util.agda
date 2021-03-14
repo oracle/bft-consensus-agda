@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
@@ -11,9 +11,7 @@ open import LibraBFT.Impl.Consensus.Types
 -- to facilitate reasoning about it.
 
 module LibraBFT.Impl.Util.Util where
-
   open import LibraBFT.Impl.Util.RWST public
-
   ----------------
   -- LBFT Monad --
   ----------------
@@ -28,6 +26,7 @@ module LibraBFT.Impl.Util.Util where
   --
   -- This is very convenient to define functions that
   -- do not alter the ec.
+
   LBFT-ec : EpochConfig → Set → Set
   LBFT-ec ec = RWST Unit Output (EventProcessorWithEC ec)
 

@@ -1,11 +1,12 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
 
 -- Here we establish the properties necessary to achieve consensus
 -- just like we see them on paper: stating facts about the state of
@@ -17,19 +18,21 @@ open import LibraBFT.Abstract.Types
 -- The module 'LibraBFT.Abstract.Properties' proves that the invariants
 -- presented here can be obtained from reasoning about sent votes,
 -- which provides a much easier-to-prove interface to an implementation.
+
 module LibraBFT.Abstract.RecordChain.Assumptions
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-    (𝓥      : VoteEvidence 𝓔 UID)
+    (NodeId : Set)
+    (𝓔      : EpochConfig UID NodeId)
+    (𝓥      : VoteEvidence UID NodeId 𝓔)
   where
 
-  open import LibraBFT.Abstract.System           𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records          𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.Records.Extends  𝓔 UID _≟UID_ 𝓥
-  open import LibraBFT.Abstract.RecordChain      𝓔 UID _≟UID_ 𝓥
-
-  open EpochConfig 𝓔
+  open import LibraBFT.Abstract.Types           UID        NodeId 𝓔
+  open import LibraBFT.Abstract.System          UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+  open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 𝓥
+  open        EpochConfig 𝓔
 
   module _ {ℓ}(InSys : Record → Set ℓ) where
 
@@ -38,14 +41,14 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    VotesOnlyOnceRule : Set ℓ
    VotesOnlyOnceRule
       -- Given an honest α
-      = (α : Member) → (hpk : Meta-Honest-Member 𝓔 α)
+      = (α : Member) → Meta-Honest-Member α
       -- For all system states where q and q' exist,
       → ∀{q q'} → (q∈𝓢 : InSys (Q q)) → (q'∈𝓢 : InSys (Q q'))
       -- such that α voted for q and q'; if α says it's the same vote, then it's the same vote.
-      → (va  : α ∈QC q)(va' : α ∈QC q')
-      → abs-vRound (∈QC-Vote q va) ≡ abs-vRound (∈QC-Vote q' va')
+      → (v  : α ∈QC q)(v' : α ∈QC q')
+      → abs-vRound (∈QC-Vote q v) ≡ abs-vRound (∈QC-Vote q' v')
       -----------------
-      → ∈QC-Vote q va ≡ ∈QC-Vote q' va'
+      → ∈QC-Vote q v ≡ ∈QC-Vote q' v'
 
 
   module _ {ℓ}(InSys  : Record → Set ℓ) where
@@ -101,11 +104,11 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    --
    LockedRoundRule : Set ℓ
    LockedRoundRule
-     = ∀(α : Member)(hpk : Meta-Honest-Member 𝓔 α)
+     = ∀(α : Member) → Meta-Honest-Member α
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
      → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
-     → (vα : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
+     → (v : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
      → (rc' : RecordChain (Q q'))
-     → (vα' : α ∈QC q')
-     → abs-vRound (∈QC-Vote q vα) < abs-vRound (∈QC-Vote q' vα')
+     → (v' : α ∈QC q')
+     → abs-vRound (∈QC-Vote q v) < abs-vRound (∈QC-Vote q' v')
      → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')

@@ -1,22 +1,38 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 
-open import LibraBFT.Abstract.Types
-
 -- This module defines the types used to define a SystemModel.
 
-module LibraBFT.Yasm.Base where
+module LibraBFT.Yasm.Base
+  (NodeId      : Set)
+  (ℓ-EC        : Level)
+  (EpochConfig : Set ℓ-EC)
+  (epochId     : EpochConfig → ℕ)
+  (authorsN    : EpochConfig → ℕ)
+ where
+
+ EpochId : Set
+ EpochId = ℕ
+
+ Member : EpochConfig → Set
+ Member = Fin ∘ authorsN
+
+ record EpochConfigFor (eid : EpochId) : Set ℓ-EC where
+   field
+    epochConfig : EpochConfig
+    forEpochId  : epochId epochConfig ≡ eid
 
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
- record SystemParameters : Set₁ where
+ record SystemParameters : Set ((ℓ+1 0ℓ) ℓ⊔ ℓ-EC) where
   constructor mkSysParms
   field
+    PeerId    : Set
     PeerState : Set
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
@@ -31,10 +47,10 @@ module LibraBFT.Yasm.Base where
     part-epoch  : Part → EpochId
 
     -- Initializes a potentially-empty state with an EpochConfig
-    init : NodeId → EpochConfig → Maybe PeerState → PeerState × List Msg
+    init : PeerId → EpochConfig → Maybe PeerState → PeerState × List Msg
 
     -- Handles a message on a previously initialized peer.
-    handle : NodeId → Msg → PeerState → PeerState × List Msg
+    handle : PeerId → Msg → PeerState → PeerState × List Msg
 
     -- TODO-3?: So far, handlers only produce messages to be sent.
     -- It would be reasonable to generalize this to something like

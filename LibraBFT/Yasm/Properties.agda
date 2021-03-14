@@ -1,32 +1,38 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-
-open import LibraBFT.Abstract.Types
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs) renaming (lookup'' to EC-lookup)
-import LibraBFT.Yasm.AvailableEpochs as AE
+import      LibraBFT.Yasm.Base as LYB
 
 -- This module provides some definitions and properties that facilitate
 -- proofs of properties about a distributed system modeled by Yasm.System
 -- paramaterized by some SystemParameters.
 
-module LibraBFT.Yasm.Properties (parms : SystemParameters) where
- open import LibraBFT.Yasm.System parms
- open SystemParameters parms
- open EpochConfig
+module LibraBFT.Yasm.Properties
+   (NodeId      : Set)
+   (ℓ-EC        : Level)
+   (EpochConfig : Set ℓ-EC)
+   (epochId     : EpochConfig → EpochId)
+   (authorsN    : EpochConfig → ℕ)
+   (getPubKey   : (ec : EpochConfig) → LYB.Member NodeId ℓ-EC EpochConfig epochId authorsN ec → PK)
+   (parms       : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
+  where
+ open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
+             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
+ import      LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
+             as AE
+ open import LibraBFT.Yasm.Base            NodeId ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.System NodeId ℓ-EC EpochConfig epochId authorsN parms
+ open LYB.SystemParameters parms
 
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
  -- a member of the associated epoch config, and (iii) has the given PK in that epoch.
- record ValidPartForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) : Set₁ where
+ record ValidPartForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) : Set ℓ-EC where
    constructor mkValidPartForPK
    field
      vp-epoch           : part-epoch part < e
@@ -63,7 +69,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and has
  -- not been included in a previously sent message with the same signature), or (ii) the part been
  -- included in a previously sent message with the same signature.
- StepPeerState-AllValidParts : Set₁
+ StepPeerState-AllValidParts : Set ℓ-EC
  StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
@@ -76,8 +82,8 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
- IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set₁
- IsValidNewPart _ _ (step-epoch _) = Lift (ℓ+1 0ℓ) ⊥
+ IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set ℓ-EC
+ IsValidNewPart _ _ (step-epoch _) = Lift ℓ-EC ⊥
  -- said step is a /step-peer/ and
  IsValidNewPart {pre = pre} sig pk (step-peer pstep)
     -- the part has never been seen before
@@ -100,7 +106,7 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
      unwind : ∀{e}{st : SystemState e}(tr : ReachableSystemState st)
             → ∀{p m σ pk} → Meta-Honest-PK pk
             → p ⊂Msg m → (σ , m) ∈ msgPool st → (ver : WithVerSig pk p)
-            → Any-Step ((IsValidNewPart (ver-signature ver) pk)) tr
+            → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
      unwind (step-s tr (step-epoch _))    hpk p⊂m m∈sm sig
        = step-there (unwind tr hpk p⊂m m∈sm sig)
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
@@ -124,7 +130,6 @@ module LibraBFT.Yasm.Properties (parms : SystemParameters) where
        with sps-avp tr hpk x m∈outs p⊂m sig
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
-     
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
         | inj₁ thisStep
         | step-honest x

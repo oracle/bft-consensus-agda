@@ -1,23 +1,26 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
 
 -- This module defines abstract records (the initial or "genesis" record, blocks, and quorum
 -- certificates), along with related definitions and properties.
 
 module LibraBFT.Abstract.Records
-    (𝓔      : EpochConfig)
     (UID    : Set)
     (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁)) -- Needed to prove ≟Block and ≈?QC
-    (𝓥      : VoteEvidence 𝓔 UID)
- where
-
-  open EpochConfig 𝓔
+    (NodeId : Set)
+    (𝓔 : EpochConfig UID NodeId)
+    (𝓥 : VoteEvidence UID NodeId 𝓔)
+    where
+  open import LibraBFT.Abstract.Types UID NodeId
+  open        EpochConfig 𝓔
 
   -- Abstract blocks do /not/ need to carry the state hash. Since the
   -- state hash of a concrete block is supposed to be hashed in the
@@ -42,7 +45,7 @@ module LibraBFT.Abstract.Records
   -- to the correct parameters; This helps in defining
   -- and manipulating the 𝓥 vote evidence predicate.
   Vote : Set
-  Vote = AbsVoteData 𝓔 UID
+  Vote = AbsVoteData UID NodeId 𝓔
 
   vRound      : Vote → Round
   vRound      = abs-vRound
@@ -69,17 +72,14 @@ module LibraBFT.Abstract.Records
      qRound         : Round
      qCertBlockId   : UID -- this is the id for the block it certifies.
      qVotes         : List Vote
-     -- Here are the coherence conditions. First, 'qVotes' must be sorted,
-     -- which guarantees distinct authors.
-     qVotes-C1      : IsSorted (λ v₀ v₁ → vMember v₀ <Fin vMember v₁) qVotes
-     -- Second, we it must have at least 'QuorumSize' votes, for the given epoch.
-     qVotes-C2      : IsQuorum (List-map vMember qVotes)
-     -- All the votes must vote for the same blockId
-     qVotes-C3      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
+     -- The voters form a quorum
+     qVotes-C1      : IsQuorum (List-map vMember qVotes)
+     -- All votes are for the same blockId
+     qVotes-C2      : All (λ v → vBlockUID v ≡ qCertBlockId) qVotes
      -- Likewise for rounds
-     qVotes-C4      : All (λ v → vRound v ≡ qRound) qVotes
-     -- And we have evidence for all votes.
-     qVotes-C5      : All 𝓥 qVotes
+     qVotes-C3      : All (λ v → vRound v ≡ qRound) qVotes
+     -- And we have evidence for all votes
+     qVotes-C4      : All 𝓥 qVotes
   open QC public
 
   ------------------------
@@ -184,8 +184,8 @@ module LibraBFT.Abstract.Records
              → v ∈ qcVotes q → v ∈ qcVotes q'
              → q ≈QC q'
   ∈QC-Vote-≈ {v} {q} {q'} vq vq'
-    = trans (sym (All-lookup (qVotes-C3 q)  vq))
-                 (All-lookup (qVotes-C3 q') vq')
+    = trans (sym (All-lookup (qVotes-C2 q)  vq))
+                 (All-lookup (qVotes-C2 q') vq')
 
   -- A record is either one of the types introduced above or the initial/genesis record.
   data Record : Set where

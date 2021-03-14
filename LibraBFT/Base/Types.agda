@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
@@ -8,17 +8,23 @@ open import LibraBFT.Hash
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 
--- The ground types over which we build our abstract reasoning
+-- The ground types that are common across Abstract, Concrete and Impl
+-- and some utility types
 module LibraBFT.Base.Types where
-
-  NodeId : Set
-  NodeId = ℕ
 
   EpochId : Set
   EpochId = ℕ
 
   Round : Set
   Round = ℕ
+
+  -- This was intended to be a simple way to flag meta-information without having it
+  -- getting in the way.  It's important to ensure that an implementation does not
+  -- use various information, such as who is honest.  However, we found this got in
+  -- the way too much during development, so for now we get a similar effect by using
+  -- a naming convention and enforcement via grep and eyeballs.  Maybe one day...
+  Meta : ∀{ℓ} → Set ℓ → Set ℓ
+  Meta x = x
 
   -- An EPRound is a 'compound round'; that is,
   -- is a round coupled with an epoch id.  As most of our

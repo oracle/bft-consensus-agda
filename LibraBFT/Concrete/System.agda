@@ -1,29 +1,22 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Hash
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-open import LibraBFT.Abstract.Types
-
-open import LibraBFT.Impl.NetworkMsg
+open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
-
 open import LibraBFT.Concrete.System.Parameters
-
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.AvailableEpochs using (AvailableEpochs ; lookup'; lookup'')
-open import LibraBFT.Yasm.System     ConcSysParms
-open import LibraBFT.Yasm.Properties ConcSysParms
+open        EpochConfig
+open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
 
 -- This module defines an abstract system state given a reachable
 -- concrete system state.
@@ -67,11 +60,11 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
                (sameHonestSig⇒sameVoteData hpk ver (msgSigned msg)
                                            (sym (msgSameSig msg)))
 
- -- We are now ready to define an 'AbsSystemState' view for a concrete
+ -- We are now ready to define an 'IntermediateSystemState' view for a concrete
  -- reachable state.  We will do so by fixing an epoch that exists in
  -- the system, which will enable us to define the abstract
  -- properties. The culminaton of this 'PerEpoch' module is seen in
- -- the 'ConcSysState' "function" at the bottom, which probably the
+ -- the 'IntSystemState' "function" at the bottom, which probably the
  -- best place to start uynderstanding this.  Longer term, we will
  -- also need higher-level, cross-epoch properties.
  module PerState {e}(st : SystemState e)(r : ReachableSystemState st) where
@@ -98,16 +91,11 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
     meta-sha256-cr : ¬ (NonInjective-≡ sha256)
 
   module PerEpoch (eid : Fin e) where
-
-   open import LibraBFT.Yasm.AvailableEpochs
-
    𝓔 : EpochConfig
-   𝓔 = lookup' (availEpochs st) eid
-   open EpochConfig
-
-   open import LibraBFT.Abstract.System 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Concrete.Records 𝓔
-   import LibraBFT.Abstract.Records 𝓔 Hash _≟Hash_ (ConcreteVoteEvidence 𝓔) as Abs
+   𝓔 = EC-lookup (availEpochs st) eid
+   open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
+   open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Concrete.Records                        𝓔
 
    -- * Auxiliary definitions;
    -- TODO-1: simplify and cleanup
@@ -153,7 +141,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
    vote∈QcProps : ∀ {q α st} → (αSent : Abs.Q q α-Sent st) → (α∈q : α Abs.∈QC q)
                 → Vote∈QcProps {q} (qc-α-Sent⇒ αSent) α∈q
    vote∈QcProps {q} {α} αSent va∈q
-      with  All-lookup (Abs.qVotes-C5 q)  (Abs.∈QC-Vote-correct q va∈q)
+      with  All-lookup (Abs.qVotes-C4 q)  (Abs.∈QC-Vote-correct q va∈q)
    ...| ev
       with qc-α-Sent⇒ αSent
    ...| qcp
@@ -172,7 +160,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
        cv            : Vote
        cv∈nm         : cv ⊂Msg nm
        -- And contained a valid vote that, once abstracted, yeilds v.
-       vmsgMember    : Member 𝓔
+       vmsgMember    : EpochConfig.Member 𝓔
        vmsgSigned    : WithVerSig (getPubKey 𝓔 vmsgMember) cv
        vmsg≈v        : α-ValidVote 𝓔 cv vmsgMember ≡ v
        vmsgEpoch     : cv ^∙ vEpoch ≡ epochId 𝓔
@@ -202,7 +190,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
 
    ∈QC⇒sent : ∀{e} {st : SystemState e} {q α}
             → Abs.Q q α-Sent (msgPool st)
-            → Meta-Honest-Member 𝓔 α
+            → Meta-Honest-Member α
             → (vα : α Abs.∈QC q)
             → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
 
@@ -219,8 +207,8 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
                  nm∈st
 
    -- Finally, we can define the abstract system state corresponding to the concrete state st
-   ConcSystemState : AbsSystemState ℓ0
-   ConcSystemState = record
+   IntSystemState : IntermediateSystemState ℓ0
+   IntSystemState = record
      { InSys           = λ { r → r α-Sent (msgPool st) }
      ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
      ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}

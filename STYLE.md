@@ -3,7 +3,27 @@
 ## Coding style conventions
 We are not aware of any official Agda "style guide" or similar; please let us know if you know of one.  Otherwise, please try to be consistent with style used in the repo so far and/or contribute here by helping to establish more detailed guidance.
 
-Please ensure that there are no trailing spaces before creating a pull request; [this script](./Scripts/remove-trailing-whitespace.sh) is useful for this purpose.
+We will maintain style-related conventions here; please try to adhere to them where possible before creating a pull request.
+
+- *Trailing spaces*: ensure that there are none; [this script](./Scripts/remove-trailing-whitespace.sh) is useful for this purpose.
+- *Module structure*: ensure that each module follows this structure and order:
+  - Copyright notice
+  - Pragmas, if any
+  - Imports
+     - In general, list all imports in the earliest place possible.  For example, the top of file should include all imports required by the file's modules except those that must be imported within the module due to a dependence on module parameters or a requirement to open public.
+     - To the extent possible, group related imports together in order.  List common imports such as `LibraBFT.Prelude`, `LibraBFT.Lemmas` and `LibraBFT.Base.Types` first.
+     - When a module must be imported in order to define the module parameters *and* must be imported within the module, if necessary, limit the first import with `using` or using a module qualifier; this helps to avoid conflicts with subset imports within the module.
+  - Comment with overview of the module
+  - Module definition
+- *Syntax conventions*
+  -  Example `with` abstraction (note alignment and no space between `...` and `|`)
+
+    ```
+      Example : ExampleSignature
+      Example x y
+         with ExampleValue
+      ...| ExampleName = ...
+    ```
 
 ## Assumptions, warnings and overrides
 Ultimately, we aim for a clean proof with all assumptions well justified and minimal warnings and overrides thereof.  While this repo is "work in progress", it is natural that we don't always keep everything perfect in this regard.

@@ -1,19 +1,21 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
+open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Abstract.Types
-open import LibraBFT.Impl.Util.Crypto
-
+open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Impl.Consensus.Types.EpochIndep
 open import LibraBFT.Impl.NetworkMsg
-
-open import Optics.All
+open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open        WithAbsVote
 
 -- Here we have the abstraction functions that connect
 -- the datatypes defined in LibraBFT.Impl.Consensus.Types
@@ -21,14 +23,9 @@ open import Optics.All
 -- for a given EpochConfig.
 --
 module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
-
- open import LibraBFT.Impl.Consensus.Types.EpochIndep
  open import LibraBFT.Impl.Consensus.Types.EpochDep 𝓔
-
- import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ ConcreteVoteEvidence as Abs
-
- open EpochConfig 𝓔
-
+ open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (bId; qcVotes; Block)
+ open        EpochConfig 𝓔
  --------------------------------
  -- Abstracting Blocks and QCs --
  --------------------------------
@@ -82,7 +79,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
  voteInEvidence≈rebuiltVote {_} {cqc} {valid} {α , sig , ord} as∈cqc ev refl
    = equivVotes (cong abs-vBlockUID (₋cveIsAbs ev))
                 (cong abs-vRound (₋cveIsAbs ev))
-                (member≡⇒author≡ {𝓔 = 𝓔}
+                (member≡⇒author≡
                   (isJust (₋ivvAuthor (₋cveIsValidVote ev)))
                   (isJust (₋ivvAuthor (All-lookup (₋ivqcVotesValid valid) as∈cqc)))
                   (trans (to-witness-isJust-≡ {prf = ₋ivvAuthor (₋cveIsValidVote ev)})
@@ -95,11 +92,10 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
-   ; qVotes-C1    = {!!} -- this proofs will come from the KV-store module
-   ; qVotes-C2    = {! IsValidQC.₋ivqcIsQuorum valid!}
+   ; qVotes-C1    = {! IsValidQC.₋ivqcIsQuorum valid!}
+   ; qVotes-C2    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
-   ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
-   ; qVotes-C5    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self
+   ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self
    }
 
  -- What does it mean for an (abstract) Block or QC to be represented in a NetworkMsg?

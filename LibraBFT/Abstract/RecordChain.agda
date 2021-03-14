@@ -1,21 +1,27 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Abstract.Types
+open import LibraBFT.Base.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
+
+-- This module defines RecordChains and related types and utility definitions
 
 module LibraBFT.Abstract.RecordChain
-  (𝓔      : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
-    where
-
- open import LibraBFT.Abstract.Records          𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends  𝓔 UID _≟UID_ 𝓥
+  (NodeId : Set)
+  (𝓔      : EpochConfig UID NodeId)
+  (𝓥      : VoteEvidence UID NodeId 𝓔)
+  where
+ open import LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Types           UID        NodeId
+ open        EpochConfig 𝓔
 
  -- One way of looking at a 'RecordChain r' is as a path from the epoch's
  -- initial record (I) to r.  For generality, we express this in two steps.
@@ -28,10 +34,6 @@ module LibraBFT.Abstract.RecordChain
 
  RecordChain : Record → Set
  RecordChain = RecordChainFrom I
-
- -- This is a helpful syntax for talking about record chains
- infix 30 step
- syntax step rc r←r' = rc ↜ r←r'
 
  prevBlock : ∀{q} → RecordChain (Q q) → Block
  prevBlock (step {r = B b} _ (B←Q _ _)) = b
@@ -239,6 +241,10 @@ module LibraBFT.Abstract.RecordChain
  --
  --  B₀ ← C₀ ← B₁ ← C₁ ← ⋯ ← Bₖ ← Cₖ
  --
+ -- such that for each Bᵢ some predicate R is satisfies for Bᵢ and Bᵢ₊₁.
+ -- The first parameter R enables predicate definitions to avoid the need
+ -- to find a predecessor for B₀ (see Contig definition below).
+ --
  -- The 𝕂-chain datatype captures exactly that structure.
  --
  data 𝕂-chain (R : ℕ → Record → Record → Set)
@@ -249,7 +255,7 @@ module LibraBFT.Abstract.RecordChain
            → (prf : R k r (B b))
            → (b←q : B b ← Q q)
            → 𝕂-chain R k rc
-           → 𝕂-chain R (suc k) ((rc ↜ r←b) ↜ b←q)
+           → 𝕂-chain R (suc k) (step (step rc r←b) b←q)
 
  -- Simple 𝕂-chains do not impose any restricton on its records.
  Simple : ℕ → Record → Record → Set
@@ -500,7 +506,7 @@ module LibraBFT.Abstract.RecordChain
                 → v ≡ v'
                 → qCertBlockId q ≡ qCertBlockId q'
  vote≡⇒QPrevId≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
+     with witness v∈q (qVotes-C2 q) | witness v'∈q' (qVotes-C2 q')
  ... | refl | refl = refl
 
  vote≡⇒QRound≡ : {q q' : QC} {v v' : Vote}
@@ -509,7 +515,7 @@ module LibraBFT.Abstract.RecordChain
                → v ≡ v'
                → getRound q ≡ getRound q'
  vote≡⇒QRound≡ {q} {q'} v∈q v'∈q' refl
-     with witness v∈q (qVotes-C4 q) | witness v'∈q' (qVotes-C4 q')
+     with witness v∈q (qVotes-C3 q) | witness v'∈q' (qVotes-C3 q')
  ... | refl | refl = refl
 
  ¬bRound≡0 : ∀{b} → RecordChain (B b) → ¬ (getRound b ≡ 0)

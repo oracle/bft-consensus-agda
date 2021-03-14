@@ -1,12 +1,13 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Abstract.Types
+open import LibraBFT.Abstract.Types.EpochConfig
+open        WithAbsVote
 
 -- For each desired property (VotesOnce and LockedRoundRule), we have a
 -- module containing a Type that defines a property that an implementation
@@ -19,40 +20,28 @@ open import LibraBFT.Abstract.Types
 -- properties.
 
 module LibraBFT.Abstract.Properties
-  (𝓔 : EpochConfig)
   (UID    : Set)
   (_≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁))
-  (𝓥      : VoteEvidence 𝓔 UID)
+  (NodeId : Set)
+  (𝓔  : EpochConfig UID NodeId)
+  (𝓥  : VoteEvidence UID NodeId 𝓔)
   where
 
- open import LibraBFT.Abstract.Records 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.Records.Extends 𝓔 UID _≟UID_ 𝓥
- open import LibraBFT.Abstract.RecordChain 𝓔 UID _≟UID_ 𝓥
- import LibraBFT.Abstract.RecordChain.Assumptions 𝓔 UID _≟UID_ 𝓥
-   as StaticAssumptions
- open import LibraBFT.Abstract.System 𝓔 UID _≟UID_ 𝓥
+ open import LibraBFT.Abstract.Records                 UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.Records.Extends         UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain             UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Assumptions UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.System                  UID _≟UID_ NodeId 𝓔 𝓥
+ open import LibraBFT.Abstract.RecordChain.Properties  UID _≟UID_ NodeId 𝓔 𝓥
+ open        EpochConfig 𝓔
 
- open EpochConfig 𝓔
+ module WithAssumptions {ℓ}
+   (InSys                 : Record → Set ℓ)
+   (votes-only-once       : VotesOnlyOnceRule InSys)
+   (locked-round-rule     : LockedRoundRule   InSys)
+  where
 
- open import LibraBFT.Abstract.Obligations.VotesOnce 𝓔 UID _≟UID_ 𝓥 as VO
- open import LibraBFT.Abstract.Obligations.LockedRound 𝓔 UID _≟UID_ 𝓥 as LR
-
- --------------------------------------------------------------------------------------------
- -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
- --------------------------------------------------------------------------------------------
-
- record ValidSysState {ℓ}(𝓢 : AbsSystemState ℓ) : Set (ℓ+1 ℓ0 ℓ⊔ ℓ) where
-   field
-     vss-votes-once   : VO.Type 𝓢
-     vss-locked-round : LR.Type 𝓢
- open ValidSysState public
-
- -- And a valid system state offers the desired /CommitsDoNotConflict/ property
- -- and variants.
- module _ {ℓ}(𝓢 : AbsSystemState ℓ) (st-valid : ValidSysState 𝓢) where
-   open AbsSystemState 𝓢
    open All-InSys-props InSys
-   import LibraBFT.Abstract.RecordChain.Properties 𝓔 UID _≟UID_ 𝓥 as Props
 
    CommitsDoNotConflict : ∀{q q'}
         → {rc  : RecordChain (Q q)}  → All-InSys rc
@@ -61,14 +50,12 @@ module LibraBFT.Abstract.Properties
         → CommitRule rc  b
         → CommitRule rc' b'
         → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-   CommitsDoNotConflict = Props.WithInvariants.thmS5 InSys
-     (VO.proof 𝓢 (vss-votes-once st-valid))
-     (LR.proof 𝓢 (vss-locked-round st-valid))
+   CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once locked-round-rule
 
-   -- When we are dealing with a /Complete/ AbsSystem, we can go a few steps
+   -- When we are dealing with a /Complete/ InSys predicate, we can go a few steps
    -- further and prove that commits do not conflict even if we have only partial
    -- knowledge about Records represented in the system.
-   module _ (∈QC⇒AllSent : Complete 𝓢) where
+   module _ (∈QC⇒AllSent : Complete InSys) where
 
     -- For a /complete/ system we can go even further; if we have evidence that
     -- only the tip of the record chains is in the system, we can infer
@@ -80,12 +67,12 @@ module LibraBFT.Abstract.Properties
       → CommitRule rc' b'
       → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
-       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
-    ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
+    ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
             RecordChain-irrelevant (step arc' ab←q') (step rc' b←q')
     ...| inj₁ hb     | _       = inj₁ hb
@@ -118,12 +105,12 @@ module LibraBFT.Abstract.Properties
       → NonInjective-≡ bId ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
                            ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
-       with bft-assumption (qVotes-C2 q) (qVotes-C2 q')
+       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'
        with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
-    ...| ab , ab←q , arc , ais | ab' , ab←q' , arc' , ais'
+    ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
        with step arc  ab←q | step arc' ab←q'
     ...| rcq | rcq'
        with crf⇒cr rcf  rcq  crf | crf⇒cr rcf' rcq' crf'

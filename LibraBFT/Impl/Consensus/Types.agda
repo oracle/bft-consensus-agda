@@ -1,17 +1,15 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020 Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
+open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
-
-open import Optics.All
-
+open import LibraBFT.Base.Types
 open import Data.String using (String)
 
 -- This module defines types for an out-of-date implementation, based
@@ -28,11 +26,13 @@ open import Data.String using (String)
 -- defining the epoch config.  However, the separation is not perfect,
 -- so sometimes fields may be modified in EpochIndep even though there
 -- is no epoch change.
-module LibraBFT.Impl.Consensus.Types where
 
-  open import LibraBFT.Impl.NetworkMsg
-  open import LibraBFT.Impl.Consensus.Types.EpochIndep public
-  open import LibraBFT.Impl.Consensus.Types.EpochDep   public
+module LibraBFT.Impl.Consensus.Types where
+  open import LibraBFT.Impl.Base.Types                       public
+  open import LibraBFT.Impl.NetworkMsg                       public
+  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
+  open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
+  open import LibraBFT.Impl.Consensus.Types.EpochDep         public
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
