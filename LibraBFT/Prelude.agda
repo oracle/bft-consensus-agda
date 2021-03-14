@@ -36,8 +36,13 @@ module LibraBFT.Prelude where
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose)
-    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
     public
+
+  open import Data.List.Relation.Binary.Subset.Propositional
+    renaming (_⊆_ to _⊆List_)
+    public
+
 
   open import Data.List.Relation.Unary.Any
     using (Any; here; there)
@@ -130,7 +135,8 @@ module LibraBFT.Prelude where
 
   open import Data.Fin
     using (Fin; suc; zero; fromℕ; fromℕ< ; toℕ ; cast)
-    renaming (_≟_ to _≟Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_; inject₁ to Fin-inject₁; inject+ to Fin-inject+)
+    renaming (_≟_ to _≟Fin_; _≤?_ to _≤?Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_;
+              inject₁ to Fin-inject₁; inject+ to Fin-inject+)
     public
 
   fins : (n : ℕ) → List (Fin n)
@@ -195,7 +201,7 @@ module LibraBFT.Prelude where
   if-dec x then f else g = if-yes x then const f else const g
 
   open import Relation.Nullary.Negation
-    using (contradiction)
+    using (contradiction; contraposition)
     public
 
   open import Relation.Binary
@@ -313,3 +319,6 @@ module LibraBFT.Prelude where
   Any-satisfied-∈ (here px) = _ , (px , here refl)
   Any-satisfied-∈ (there p) = let (a , px , prf) = Any-satisfied-∈ p
                                in (a , px , there prf)
+
+  f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
+  f-sum f = sum ∘ List-map f
