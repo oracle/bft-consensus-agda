@@ -81,11 +81,4 @@ module LibraBFT.Impl.Handle
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
  peerStepWrapper : NodeId → NetworkMsg → EventProcessor → EventProcessor × List NetworkMsg
- peerStepWrapper id msg st
-    -- run the handler
-    with peerStep (id , msg) 0 st
- ...| st' , acts
-    -- extract the messages to be sent
-    with List-map msgToSend acts
-    -- send them and record that they were sent in the peer state
- ...| msgs = record st' {₋epMeta-Msgs = ₋epMeta-Msgs st' ++ msgs } , msgs
+ peerStepWrapper id msg st = ×-map₂ (List-map msgToSend) (peerStep (id , msg) 0 st)

@@ -72,21 +72,27 @@ module LibraBFT.Impl.Consensus.Types where
   -- α-EC will compute this EpochConfig by abstracting away the unecessary
   -- pieces from EventProcessorEC.
   -- TODO-2: update and complete when definitions are updated to more recent version
-  α-EC : Σ EventProcessorEC EventProcessorEC-correct → EpochConfig
+  postulate
+    α-EC : Σ EventProcessorEC EventProcessorEC-correct → EpochConfig
+  {-
   α-EC (epec , ok) =
     let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
         qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in (mkEpochConfig {! someHash?!}
                 (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+  -}
 
-  α-EC-≡ : (epec1  : EventProcessorEC)
-         → (epec2  : EventProcessorEC)
-         → (vals≡  : (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators))
-         → (epoch≡ : (epec1 ^∙ epEpoch)      ≡ (epec2 ^∙ epEpoch))
-         → (epec1-corr : EventProcessorEC-correct epec1)
-         → α-EC (epec1 , epec1-corr) ≡ α-EC (epec2 , EventProcessorEC-correct-≡ epec1 epec2 vals≡ epec1-corr)
+  postulate
+    α-EC-≡ : (epec1  : EventProcessorEC)
+           → (epec2  : EventProcessorEC)
+           → (vals≡  : (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators))
+           → (epoch≡ : (epec1 ^∙ epEpoch)      ≡ (epec2 ^∙ epEpoch))
+           → (epec1-corr : EventProcessorEC-correct epec1)
+           → α-EC (epec1 , epec1-corr) ≡ α-EC (epec2 , EventProcessorEC-correct-≡ epec1 epec2 vals≡ epec1-corr)
+  {-
   α-EC-≡ epec1 epec2 refl refl epec1-corr = refl
+  -}
 
   -- Finally, the EventProcessor is split in two pieces: those
   -- that are used to make an EpochConfig versus those that
@@ -94,7 +100,6 @@ module LibraBFT.Impl.Consensus.Types where
   record EventProcessor : Set where
     constructor mkEventProcessor
     field
-      ₋epMeta-Msgs    : List NetworkMsg  -- List of messages sent by this peer
       ₋epEC           : EventProcessorEC
       ₋epEC-correct   : EventProcessorEC-correct ₋epEC
       ₋epWithEC       : EventProcessorWithEC (α-EC (₋epEC , ₋epEC-correct))
