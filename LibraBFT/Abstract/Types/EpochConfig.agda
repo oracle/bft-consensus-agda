@@ -56,6 +56,17 @@ module LibraBFT.Abstract.Types.EpochConfig
 
   open EpochConfig
 
+  module _ (ec : EpochConfig) where
+    NodeId-PK-OK : PK → NodeId → Set
+    NodeId-PK-OK pk pid = ∃[ m ] (toNodeId ec m ≡ pid × getPubKey ec m ≡ pk)
+
+    NodeId-PK-OK-injective : ∀ {pk pid1 pid2}
+                           → NodeId-PK-OK pk pid1
+                           → NodeId-PK-OK pk pid2
+                           → pid1 ≡ pid2
+    NodeId-PK-OK-injective (m1 , pid1 , pk1) (m2 , pid2 , pk2)
+       rewrite PK-inj ec (trans pk1 (sym pk2)) = trans (sym pid1) pid2
+
   record EpochConfigFor (eid : ℕ) : Set₁ where
     field
      epochConfig : EpochConfig

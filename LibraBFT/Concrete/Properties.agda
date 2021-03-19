@@ -9,7 +9,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
 
 -- In this module, we assume that the implementation meets its
 -- obligations, and use this assumption to prove that, in any reachable

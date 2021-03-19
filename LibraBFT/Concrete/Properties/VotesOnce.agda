@@ -16,7 +16,7 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -43,7 +43,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₁ : Set₁
  ImplObligation₁ =
-   ∀{e pid sndr s' outs pk}{pre : SystemState e}
+   ∀{e pid pid' s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
    → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) s' outs
@@ -53,9 +53,9 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- If v is really new and valid
      -- Note that this does not directly exclude possibility of previous message with
      -- same signature, but sent by someone else.  We could prove it implies it though.
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPK (availEpochs pre) v pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidSenderForPK (availEpochs pre) v pid pk
    -- And if there exists another v' that has been sent before
-   → v' ⊂Msg m' → (sndr , m') ∈ (msgPool pre) → WithVerSig pk v'
+   → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
    -- If v and v' share the same epoch and round
    → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
    → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
@@ -73,11 +73,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidPartForPK (availEpochs pre) v pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidSenderForPK (availEpochs pre) v pid pk
 
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → m' ∈ outs → (sig' : WithVerSig pk v')
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → ValidPartForPK (availEpochs pre) v' pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → ValidSenderForPK (availEpochs pre) v' pid pk
 
    -- If v and v' share the same epoch and round
    → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
@@ -280,7 +280,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
     -- (B) One is new, one is old: use PredStep-wlog-ht'
     PredStep-hh' preach hip ps {v} v⊂m m∈outs v'⊂m' m'∈outs ver ver' hpk e≡ r≡
-       | inj₁ (vValid , vNew) | inj₂ v'Old
+       | inj₁ _ | inj₂ v'Old
       with sameHonestSig⇒sameVoteData hpk ver' (msgSigned v'Old) (sym (msgSameSig v'Old))
     ...| inj₁ abs  = ⊥-elim (meta-sha256-cr abs)
     ...| inj₂ refl
