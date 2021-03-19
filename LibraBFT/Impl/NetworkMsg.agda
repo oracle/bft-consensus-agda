@@ -35,12 +35,12 @@ module LibraBFT.Impl.NetworkMsg where
      withVoteSIHighCC : ∀ {vm : VoteMsg}     → vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈NM (V vm)
      withCommitMsg    : ∀ {cm : CommitMsg}   → cm ^∙ cCert ≡ qc                                  → qc QC∈NM (C cm)
 
-  data _⊂Msg_ : Vote → NetworkMsg → Set where
-    vote∈vm : ∀ {v si}
+  data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
+    vote∈vm : ∀ {si}
             → v ⊂Msg (V (mkVoteMsg v si))
-    vote∈qc : ∀ {v vs} {qc : QuorumCert} {nm}
+    vote∈qc : ∀ {vs} {qc : QuorumCert} {nm}
             → vs ∈ qcVotes qc
-            → v ≈Vote (rebuildVote qc vs)
+            → (rebuildVote qc vs) ≈Vote v
             → qc QC∈NM nm
             → v ⊂Msg nm
 
