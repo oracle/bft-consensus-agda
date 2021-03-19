@@ -70,23 +70,6 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
             ; ₋cveIsAbs       = refl
             }
 
- voteInEvidence≈rebuiltVote
-        : ∀ {vd cqc valid as}
-        → (as∈cqc : Any (_≡_ as) (qcVotes cqc))
-        → (ev : ConcreteVoteEvidence vd)
-        → vd ≡ α-Vote cqc valid as∈cqc
-        → ₋cveVote ev ≈Vote rebuildVote cqc as
- voteInEvidence≈rebuiltVote {_} {cqc} {valid} {α , sig , ord} as∈cqc ev refl
-   = equivVotes (cong abs-vBlockUID (₋cveIsAbs ev))
-                (cong abs-vRound (₋cveIsAbs ev))
-                (member≡⇒author≡
-                  (isJust (₋ivvAuthor (₋cveIsValidVote ev)))
-                  (isJust (₋ivvAuthor (All-lookup (₋ivqcVotesValid valid) as∈cqc)))
-                  (trans (to-witness-isJust-≡ {prf = ₋ivvAuthor (₋cveIsValidVote ev)})
-                         (trans (cong abs-vMember (₋cveIsAbs ev))
-                                (sym (to-witness-isJust-≡ {prf = ₋ivvAuthor (All-lookup (₋ivqcVotesValid valid) as∈cqc)}))))
-                )
-
  α-QC : Σ QuorumCert IsValidQC → Abs.QC
  α-QC (qc , valid) = record
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
