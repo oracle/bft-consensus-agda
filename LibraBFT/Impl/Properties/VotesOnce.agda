@@ -37,7 +37,9 @@ open        Structural impl-sps-avp
 
 module LibraBFT.Impl.Properties.VotesOnce where
 
-  postulate  -- TODO : prove
+  postulate  -- TODO-2: prove.  Note that these are really just properties about the handler,
+             -- but are currently wrapped up into properties about SystemState.  These should
+             -- probably be "unbundled" and move to LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
     newVoteSameEpochGreaterRound : ∀ {e 𝓔s pid pool ms s s' outs v m pk}
                                  → StepPeerState {e} pid 𝓔s pool ms s' outs
                                  → ms ≡ just s
