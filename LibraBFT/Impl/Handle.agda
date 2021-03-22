@@ -70,7 +70,7 @@ module LibraBFT.Impl.Handle
  outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
  runHandler : EventProcessor → LBFT Unit → EventProcessor × List (Action NetworkMsg)
- runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (RWST-run handler unit st))
+ runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.

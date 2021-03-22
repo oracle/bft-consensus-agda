@@ -107,3 +107,22 @@ module LibraBFT.Impl.Consensus.Types where
      -- construction of the EC nor need one, they should be defined in
      -- EventProcessor directly
   open EventProcessor public
+
+  α-EC-EP : EventProcessor → EpochConfig
+  α-EC-EP ep = α-EC ((₋epEC ep) , (₋epEC-correct ep))
+
+  ₋epHighestQC : (ep : EventProcessor) → QuorumCert
+  ₋epHighestQC ep = ₋btHighestQuorumCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
+
+  epHighestQC : Lens EventProcessor QuorumCert
+  epHighestQC = mkLens' ₋epHighestQC
+                        (λ (mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore bsInner))) qc
+                          → mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
+
+  ₋epHighestCommitQC : (ep : EventProcessor) → QuorumCert
+  ₋epHighestCommitQC ep = ₋btHighestCommitCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
+
+  epHighestCommitQC : Lens EventProcessor QuorumCert
+  epHighestCommitQC = mkLens' ₋epHighestCommitQC
+                        (λ (mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore bsInner))) qc
+                          → mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore (record bsInner {₋btHighestCommitCert = qc}))))

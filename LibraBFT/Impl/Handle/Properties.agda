@@ -36,12 +36,50 @@ module LibraBFT.Impl.Handle.Properties
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----
+  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessor}
+                      → send (V vm) ∈ proj₂ (peerStep (pid , P pm) ts st)
+                      → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle (pid , P pm) ts) st)
+  msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
+     with send∈acts
+     -- The fake handler sends only to node 0 (fakeAuthor), so this doesn't
+     -- need to be very general yet.
+     -- TODO-1: generalize this proof so it will work when the set of recipients is
+     -- not hard coded.
 
-  postulate -- TODO-1: prove
-   msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessor}
-                       → send (V vm) ∈ proj₂ (peerStep (pid , P pm) ts st)
-                       → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle (pid , P pm) ts) st)
+     -- The system model allows any message sent to be received by any peer (so the list of
+     -- recipients it essentially ignored), meaning that our safety proofs will be for a slightly
+     -- stronger model.  Progress proofs will require knowledge of recipients, though, so we will
+     -- keep the implementation model faithful to the implementation.
+  ...| here refl = fakeAuthor ∷ [] , here refl
 
-   msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessor}
-                      → m ∈ proj₂ (peerStepWrapper pid nm st)
-                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep (pid , nm) ts st))
+  msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessor}
+                     → m ∈ proj₂ (peerStepWrapper pid nm st)
+                     → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep (pid , nm) ts st))
+  msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
+    with nm
+  ...| C _ = ⊥-elim (¬Any[] m∈outs)
+  ...| V _ = ⊥-elim (¬Any[] m∈outs)
+  ...| P pm
+     with m∈outs
+  ...| here v∈outs
+       with m
+  ...| P _ = ⊥-elim (P≢V v∈outs)
+  ...| C _ = ⊥-elim (C≢V v∈outs)
+  ...| V vm rewrite sym v∈outs = vm , refl , here refl
+
+  ----- Properties that relate handler to system state -----
+
+  postulate -- TODO-2: this will be proved for the implementation, confirming that honest
+            -- participants only store QCs comprising votes that have actually been sent.
+   -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
+   -- Note that some implementations might not ensure this, but LibraBFT does
+   -- because even the leader of the next round sends its own vote to itself,
+   -- as opposed to using it to construct a QC using its own unsent vote.
+   qcVotesSentB4 : ∀{e pid ps vs pk q vm}{st : SystemState e}
+                 → ReachableSystemState st
+                 → Map-lookup pid (peerStates st) ≡ just ps
+                 → q QC∈VoteMsg vm
+                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ epHighestQC) (ps ^∙ epHighestCommitQC)
+                 → vs ∈ qcVotes q
+                 → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+
