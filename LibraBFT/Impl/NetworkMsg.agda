@@ -26,6 +26,15 @@ module LibraBFT.Impl.NetworkMsg where
     V : VoteMsg     → NetworkMsg
     C : CommitMsg   → NetworkMsg
 
+  P≢V : ∀ {p v} → P p ≢ V v
+  P≢V ()
+
+  C≢V : ∀ {c v} → C c ≢ V v
+  C≢V ()
+
+  V-inj : ∀ {vm1 vm2} → V vm1 ≡ V vm2 → vm1 ≡ vm2
+  V-inj refl = refl
+
   -- What does it mean for a (concrete) Vote to be represented in a NetworkMsg?
   data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
      inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm

@@ -421,3 +421,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     -- LogInfo           : InfoLog a          → Output
     SendVote          : VoteMsg → List Author → Output
   open Output public
+
+  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
+  SendVote-inj-v refl = refl
+
+  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
+  SendVote-inj-si refl = refl
