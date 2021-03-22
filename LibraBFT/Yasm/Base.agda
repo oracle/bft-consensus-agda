@@ -9,7 +9,6 @@ open import LibraBFT.Base.PKCS
 -- This module defines the types used to define a SystemModel.
 
 module LibraBFT.Yasm.Base
-  (NodeId      : Set)
   (ℓ-EC        : Level)
   (EpochConfig : Set ℓ-EC)
   (epochId     : EpochConfig → ℕ)

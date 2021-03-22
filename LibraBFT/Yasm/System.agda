@@ -18,19 +18,18 @@ import      LibraBFT.Yasm.Base as LYB
 -- proving properties of executions of the modeled system.
 
 module LibraBFT.Yasm.System
-   (NodeId      : Set)
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
    (epochId     : EpochConfig → EpochId)
    (authorsN    : EpochConfig → ℕ)
-   (parms : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
+   (parms : LYB.SystemParameters ℓ-EC EpochConfig epochId authorsN)
  where
- open import LibraBFT.Yasm.Base            NodeId ℓ-EC EpochConfig epochId authorsN
- open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
-             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
- import LibraBFT.Yasm.AvailableEpochs      NodeId ℓ-EC EpochConfig epochId authorsN as AE
-
+ open import LibraBFT.Yasm.Base            ℓ-EC EpochConfig epochId authorsN
  open SystemParameters parms
+ open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
+ import LibraBFT.Yasm.AvailableEpochs      PeerId ℓ-EC EpochConfig epochId authorsN as AE
+
  open import LibraBFT.Base.PKCS
 
  SenderMsgPair : Set
@@ -194,15 +193,15 @@ module LibraBFT.Yasm.System
    -- of the actual EpochConfig for the epoch being initialized.  Later, we
    -- may move to a more general scheme, enabled by assuming a function
    -- 'render : InitPackage -> EpochConfig'.
-   step-init : ∀{ms s' out}(ix : Fin e)
-             → (s' , out) ≡ init pid (AE.lookup' 𝓔s ix) ms
-             → StepPeerState pid 𝓔s pool ms s' out
+   step-init : ∀{ms s' outs}(ix : Fin e)
+             → (s' , outs) ≡ init pid (AE.lookup' 𝓔s ix) ms
+             → StepPeerState pid 𝓔s pool ms s' outs
 
    -- The peer processes a message in the pool
-   step-msg  : ∀{m ms s s' out}
+   step-msg  : ∀{m ms s s' outs}
              → m ∈ pool
-             → ms ≡ just s → (s' , out) ≡ handle pid (proj₂ m) s
-             → StepPeerState pid 𝓔s pool ms s' out
+             → ms ≡ just s → (s' , outs) ≡ handle pid (proj₂ m) s
+             → StepPeerState pid 𝓔s pool ms s' outs
 
  -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
  data StepPeer {e}(pre : SystemState e) : PeerId → Maybe PeerState → List Msg → Set where
@@ -233,6 +232,12 @@ module LibraBFT.Yasm.System
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
+ postulate
+   cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
+                          → (theStep : StepPeer pre pid st' outs)
+                          → isCheat theStep
+                          → peerStates (StepPeer-post theStep) ≡ peerStates pre
+
  data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
               → (𝓔 : EpochConfigFor e)
@@ -250,6 +255,11 @@ module LibraBFT.Yasm.System
                → (theStep : Step pre post)
                → m ∈ msgPool pre
                → m ∈ msgPool post
+
+   peersRemainInitialized : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {pid}{ppre}
+                          → (theStep : Step pre post)
+                          → Map-lookup pid (peerStates pre) ≡ just ppre
+                          → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
 
  postulate -- not used yet, but some proofs could probably be cleaned up using this,
            -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
@@ -302,6 +312,17 @@ module LibraBFT.Yasm.System
  MsgWithSig∈-Step*-part (step-s tr (step-peer ps)) msig
    = MsgWithSig∈-Step*-part tr msig
 
+ MsgWithSig∈-Step*-sender : ∀{e e' sig pk}{st : SystemState e}{st' : SystemState e'}
+                          → (tr   : Step* st st')
+                          → (msig : MsgWithSig∈ pk sig (msgPool st))
+                          → msgSender msig ≡ msgSender (MsgWithSig∈-Step* tr msig)
+ MsgWithSig∈-Step*-sender step-0        msig = refl
+ MsgWithSig∈-Step*-sender (step-s tr (step-epoch _)) msig
+   = MsgWithSig∈-Step*-sender tr msig
+ MsgWithSig∈-Step*-sender (step-s tr (step-peer ps)) msig
+   = MsgWithSig∈-Step*-sender tr msig
+
+
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
@@ -321,6 +342,14 @@ module LibraBFT.Yasm.System
              → {this : Step pre post}
              → (prf  : Any-Step P cont)
              → Any-Step P (step-s cont this)
+
+ Any-Step-⇒ : ∀ {P Q : SystemStateRel Step}
+            → (∀ {e e'}{pre : SystemState e}{post : SystemState e'} → (x : Step pre post) → P {e} {e'} x → Q {e} {e'} x)
+            → ∀ {e e' fst lst} {tr : Step* {e} {e'} fst lst}
+            → Any-Step P tr
+            → Any-Step Q tr
+ Any-Step-⇒ p⇒q (step-here cont {this} prf) = step-here cont (p⇒q this prf)
+ Any-Step-⇒ p⇒q (step-there anyStep) = step-there (Any-Step-⇒ p⇒q anyStep)
 
  Any-Step-elim
    : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set ℓ-EC}

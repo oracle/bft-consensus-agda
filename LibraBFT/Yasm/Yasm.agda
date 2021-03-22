@@ -11,16 +11,16 @@ import      LibraBFT.Yasm.Base as LYB
 -- This module provides a single import for all Yasm modules
 
 module LibraBFT.Yasm.Yasm
-   (NodeId      : Set)
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
    (epochId     : EpochConfig → EpochId)
    (authorsN    : EpochConfig → ℕ)
-   (getPubKey   : (ec : EpochConfig) → LYB.Member NodeId ℓ-EC EpochConfig epochId authorsN ec → PK)
-   (parms       : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
+   (parms       : LYB.SystemParameters ℓ-EC EpochConfig epochId authorsN)
+   (senderPKOK  : (ec : EpochConfig) → PK → LYB.SystemParameters.PeerId parms → Set)
   where
- open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
-             using (AvailableEpochs) renaming (lookup' to EC-lookup; lookup'' to EC-lookup')   public
- open import LibraBFT.Yasm.Base       NodeId ℓ-EC EpochConfig epochId authorsN                 public
- open import LibraBFT.Yasm.System     NodeId ℓ-EC EpochConfig epochId authorsN           parms public
- open import LibraBFT.Yasm.Properties NodeId ℓ-EC EpochConfig epochId authorsN getPubKey parms public
+ open LYB.SystemParameters parms
+ open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+             using (AvailableEpochs) renaming (lookup' to EC-lookup; lookup'' to EC-lookup') public
+ open import LibraBFT.Yasm.Base       ℓ-EC EpochConfig epochId authorsN                      public
+ open import LibraBFT.Yasm.System     ℓ-EC EpochConfig epochId authorsN parms                public
+ open import LibraBFT.Yasm.Properties ℓ-EC EpochConfig epochId authorsN parms senderPKOK     public

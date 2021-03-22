@@ -13,83 +13,93 @@ import      LibraBFT.Yasm.Base as LYB
 -- paramaterized by some SystemParameters.
 
 module LibraBFT.Yasm.Properties
-   (NodeId      : Set)
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
    (epochId     : EpochConfig → EpochId)
    (authorsN    : EpochConfig → ℕ)
-   (getPubKey   : (ec : EpochConfig) → LYB.Member NodeId ℓ-EC EpochConfig epochId authorsN ec → PK)
-   (parms       : LYB.SystemParameters NodeId ℓ-EC EpochConfig epochId authorsN)
+   (parms       : LYB.SystemParameters ℓ-EC EpochConfig epochId authorsN)
+   -- In addition to the parameters used by the rest of the system model, this module
+   -- needs to relate Members to PKs and PeerIds, so that StepPeerState-AllValidParts
+   -- can be defined.  This enables the application to prove that honest peers sign
+   -- new messages only for their own public key.  The system model does not know that
+   -- directly.
+   (senderPKOK  : (ec : EpochConfig) → PK → LYB.SystemParameters.PeerId parms → Set)
   where
- open import LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
-             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
- import      LibraBFT.Yasm.AvailableEpochs NodeId ℓ-EC EpochConfig epochId authorsN
-             as AE
- open import LibraBFT.Yasm.Base            NodeId ℓ-EC EpochConfig epochId authorsN
- open import LibraBFT.Yasm.System NodeId ℓ-EC EpochConfig epochId authorsN parms
  open LYB.SystemParameters parms
+ open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
+ import      LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+             as AE
+ open import LibraBFT.Yasm.Base   ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.System ℓ-EC EpochConfig epochId authorsN parms
 
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
  -- a member of the associated epoch config, and (iii) has the given PK in that epoch.
- record ValidPartForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(pk : PK) : Set ℓ-EC where
-   constructor mkValidPartForPK
+ record ValidSenderForPK {e}(𝓔s : AvailableEpochs e)(part : Part)(sender : PeerId)(pk : PK) : Set ℓ-EC where
+   constructor mkValidSenderForPK
    field
      vp-epoch           : part-epoch part < e
      vp-ec              : EpochConfig
      vp-ec-≡            : AE.lookup'' 𝓔s vp-epoch ≡ vp-ec
-     vp-member          : Member vp-ec
-     vp-key             : getPubKey vp-ec vp-member ≡ pk
- open ValidPartForPK public
+     vp-sender-ok       : senderPKOK vp-ec pk sender
+ open ValidSenderForPK public
 
  -- A valid part remains valid when new epochs are added
- ValidPartForPK-stable-epoch : ∀{e part pk}{𝓔s : AvailableEpochs e}(𝓔 : EpochConfigFor e)
-                          → ValidPartForPK 𝓔s part pk
-                          → ValidPartForPK (AE.append 𝓔 𝓔s) part pk
- ValidPartForPK-stable-epoch {pk = pk} {𝓔s} 𝓔 (mkValidPartForPK e ec refl emem vpk) = record
+ ValidSenderForPK-stable-epoch : ∀{e part α pk}{𝓔s : AvailableEpochs e}(𝓔 : EpochConfigFor e)
+                               → ValidSenderForPK 𝓔s part α pk
+                               → ValidSenderForPK (AE.append 𝓔 𝓔s) part α pk
+ ValidSenderForPK-stable-epoch {pk = pk} {𝓔s = 𝓔s} 𝓔 (mkValidSenderForPK e ec refl vpk) = record
    { vp-epoch           = ≤-step e
    ; vp-ec              = ec
    ; vp-ec-≡            = AE.lookup''-≤-step-lemma 𝓔s 𝓔 e
-   ; vp-member          = emem
-   ; vp-key             = vpk
+   ; vp-sender-ok       = vpk
    }
 
  -- A valid part remains valid
- ValidPartForPK-stable : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
+ ValidSenderForPK-stable : ∀{e e' α}{st : SystemState e}{st' : SystemState e'}
                     → Step* st st' → ∀{part pk}
-                    → ValidPartForPK (availEpochs st) part pk
-                    → ValidPartForPK (availEpochs st') part pk
- ValidPartForPK-stable step-0 v = v
- ValidPartForPK-stable (step-s st (step-epoch 𝓔)) v
-   = ValidPartForPK-stable-epoch 𝓔 (ValidPartForPK-stable st v)
- ValidPartForPK-stable (step-s st (step-peer _)) v
-   = ValidPartForPK-stable st v
+                    → ValidSenderForPK (availEpochs st) part α pk
+                    → ValidSenderForPK (availEpochs st') part α pk
+ ValidSenderForPK-stable step-0 v = v
+ ValidSenderForPK-stable (step-s st (step-epoch 𝓔)) v
+   = ValidSenderForPK-stable-epoch 𝓔 (ValidSenderForPK-stable st v)
+ ValidSenderForPK-stable (step-s st (step-peer _)) v
+   = ValidSenderForPK-stable st v
+
+ sameEpoch⇒sameEC : ∀ {e p1 p2 α1 α2 pk1 pk2}{𝓔s : AvailableEpochs e}
+                    → (vp1 : ValidSenderForPK 𝓔s p1 α1 pk1)
+                    → (vp2 : ValidSenderForPK 𝓔s p2 α2 pk2)
+                    → part-epoch p1 ≡ part-epoch p2
+                    → vp-ec vp1 ≡ vp-ec vp2
+ sameEpoch⇒sameEC {𝓔s = 𝓔s} vp1 vp2 parts≡ =
+   trans (sym (vp-ec-≡ vp1))
+         (trans (AE.lookup-𝓔s-injective 𝓔s (vp-epoch vp1) (vp-epoch vp2) parts≡)
+                (vp-ec-≡ vp2))
 
  -- We say that an implementation produces only valid parts iff all parts of every message in the
- -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and has
- -- not been included in a previously sent message with the same signature), or (ii) the part been
- -- included in a previously sent message with the same signature.
+ -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and no
+ -- message with the same signature has been sent previously), or (ii) a message has been sent
+ -- with the same signature.
  StepPeerState-AllValidParts : Set ℓ-EC
- StepPeerState-AllValidParts = ∀{e s m part pk outs α}{𝓔s : AvailableEpochs e}{st : SystemState e}
+ StepPeerState-AllValidParts = ∀{e s m part pk outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
    → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) s outs
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
-                                 -- NOTE: this doesn't DIRECTLY imply that nobody else has sent a
-                                 -- message with the same signature just that the author of the part
-                                 -- hasn't.
-   → (ValidPartForPK 𝓔s part pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
+   → (ValidSenderForPK 𝓔s part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
  IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set ℓ-EC
  IsValidNewPart _ _ (step-epoch _) = Lift ℓ-EC ⊥
  -- said step is a /step-peer/ and
- IsValidNewPart {pre = pre} sig pk (step-peer pstep)
+ IsValidNewPart {pre = pre} sig pk (step-peer {pid = pid} pstep)
     -- the part has never been seen before
-    = ¬ (MsgWithSig∈ pk sig (msgPool pre))
+    = ReachableSystemState pre
+    × ¬ (MsgWithSig∈ pk sig (msgPool pre))
     × Σ (MsgWithSig∈ pk sig (msgPool (StepPeer-post pstep)))
-        (λ m → ValidPartForPK (availEpochs pre) (msgPart m) pk)
+        (λ m → ValidSenderForPK (availEpochs pre) (msgPart m) (msgSender m) pk)
 
  -- When we can prove that the implementation provided by 'parms' at the
  -- top of this module satisfies 'StepPeerState-AllValidParts', we can
@@ -135,7 +145,7 @@ module LibraBFT.Yasm.Properties
         | step-honest x
         | (m , refl , m∈outs)
         | inj₁ (valid-part , notBefore) =
-               step-here tr (notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
+               step-here tr (tr , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
                                        , valid-part)
 
      -- Unwind is inconvenient to use by itself because we have to do
@@ -148,17 +158,19 @@ module LibraBFT.Yasm.Properties
                      → Meta-Honest-PK pk
                      → v ⊂Msg nm → (sender , nm) ∈ msgPool st → (ver : WithVerSig pk v)
                      → Σ (MsgWithSig∈ pk (ver-signature ver) (msgPool st))
-                         (λ msg → (ValidPartForPK (availEpochs st) (msgPart msg) pk))
+                         (λ msg → (ValidSenderForPK (availEpochs st) (msgPart msg) (msgSender msg) pk))
      honestPartValid {e} {st} r {pk = pk} hpk v⊂m m∈pool ver
      -- We extract two pieces of important information from the place where the part 'v'
      -- was first sent: (a) there is a message with the same signature /in the current pool/
      -- and (b) its epoch is less than e.
         = Any-Step-elim (λ { {st = step-epoch _} ()
-                           ; {st = step-peer ps} (_ , new , valid) tr
+                           ; {st = step-peer {pid = pid} ps} (_ , _ , new , valid) tr
                              →  MsgWithSig∈-Step* tr new
-                                , ValidPartForPK-stable tr
-                                    (subst (λ P → ValidPartForPK _ P pk)
-                                           (MsgWithSig∈-Step*-part tr new) valid)
+                                , ValidSenderForPK-stable tr (subst (λ P → ValidSenderForPK _ P (msgSender (MsgWithSig∈-Step* tr new)) pk)
+                                                                         (MsgWithSig∈-Step*-part tr new)
+                                                                         (subst (λ sndr → ValidSenderForPK _ _ sndr pk)
+                                                                                (MsgWithSig∈-Step*-sender tr new)
+                                                                                valid))
                            })
                         (unwind r hpk v⊂m m∈pool ver)
 
@@ -174,10 +186,10 @@ module LibraBFT.Yasm.Properties
        -- then either the part is a valid part by α (meaning that α can
        -- sign the part itself) or a message with the same signature has
        -- been sent previously.
-       → ValidPartForPK (availEpochs st) part pk
+       → ValidSenderForPK (availEpochs st) part α pk
        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      ext-unforgeability' (step-s st (step-epoch 𝓔)) m∈sm p⊆m sig hpk
-       = ⊎-map (ValidPartForPK-stable-epoch 𝓔) id (ext-unforgeability' st m∈sm p⊆m sig hpk)
+       = ⊎-map (ValidSenderForPK-stable-epoch 𝓔) id (ext-unforgeability' st m∈sm p⊆m sig hpk)
      ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
        with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> (ext-unforgeability' st furtherBack p⊆m sig hpk)
@@ -189,7 +201,7 @@ module LibraBFT.Yasm.Properties
        with isCheat p⊆m sig
      ...| inj₁ abs    = ⊥-elim (hpk abs)
      ...| inj₂ sentb4 = inj₂ (MsgWithSig∈-++ʳ sentb4)
-     ext-unforgeability' {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+     ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
@@ -231,12 +243,12 @@ module LibraBFT.Yasm.Properties
                             → Meta-Honest-PK pk
                             → MsgWithSig∈ pk sig (msgPool st)
                             → Σ (MsgWithSig∈ pk sig (msgPool st))
-                                λ mws → ValidPartForPK (availEpochs st) (msgPart mws) pk
+                                λ mws → ValidSenderForPK (availEpochs st) (msgPart mws) (msgSender mws) pk
      msgWithSigSentByAuthor step-0 _ ()
      msgWithSigSentByAuthor (step-s {pre = pre} preach (step-epoch 𝓔)) hpk mws
        rewrite step-epoch-does-not-send pre 𝓔
           with msgWithSigSentByAuthor preach hpk mws
-     ...| mws' , vpb =  mws' , ValidPartForPK-stable {st = pre} (step-s step-0 (step-epoch 𝓔)) vpb
+     ...| mws' , vpb =  mws' , ValidSenderForPK-stable {st = pre} (step-s step-0 (step-epoch 𝓔)) vpb
      msgWithSigSentByAuthor {pk = pk} (step-s {pre = pre} preach (step-peer theStep@(step-cheat fm cheatCons))) hpk mws
         with (¬cheatForgeNew theStep refl unit hpk mws)
      ...| mws'

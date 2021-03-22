@@ -12,7 +12,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm NodeId (ℓ+1 0ℓ) EpochConfig epochId authorsN getPubKey ConcSysParms
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
 
 -- In this module, we will prove a structural property that any new signed message produced by an
 -- honest handler from a reachable state correctly identifies the sender, and is for a valid epoch
@@ -51,11 +51,11 @@ module LibraBFT.Impl.Properties.Aux where
      | vote∈vm {v} {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ ((mkValidPartForPK      {! epoch !} -- We will need an invariant that says the epoch
-                                                           -- used by a voter is "in range".
-                                               (EC-lookup' (availEpochs st) {!!})
-                                               refl
-                                               {! !}       -- The implementation will need to check that the voter is a member of
-                                                           -- the epoch of the message it's sending.
-                                               refl)
+  ...| no  msg∉ = inj₁ ((mkValidSenderForPK      {! epoch !} -- We will need an invariant that says the epoch
+                                                             -- used by a voter is "in range".
+                                                 (EC-lookup' (availEpochs st) {!!})
+                                                 refl
+                                                 {! !}       -- The implementation will need to check that the voter is a member of
+                                                             -- the epoch of the message it's sending.
+                                                 )
                         , msg∉)

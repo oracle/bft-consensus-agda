@@ -18,7 +18,7 @@ module LibraBFT.Yasm.AvailableEpochs
    (epochId     : EpochConfig → ℕ)
    (authorsN    : EpochConfig → ℕ)
  where
- open import LibraBFT.Yasm.Base NodeId ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.Base ℓ-EC EpochConfig epochId authorsN
 
  fin-lower-toℕ : ∀{e}(i : Fin (suc e))(prf : e ≢ toℕ i) → toℕ (Fin.lower₁ i prf) ≡ toℕ i
  fin-lower-toℕ {zero} zero prf = ⊥-elim (prf refl)
@@ -66,6 +66,11 @@ module LibraBFT.Yasm.AvailableEpochs
 
  lookup'' : ∀{e m} → AvailableEpochs e → m < e → EpochConfig
  lookup'' 𝓔s ix = lookup' 𝓔s (fromℕ< ix)
+
+ lookup-𝓔s-injective : ∀ {e m1 m2} → (𝓔s : AvailableEpochs e)
+                     → (p1 : m1 < e) → (p2 : m2 < e) → m1 ≡ m2
+                     → lookup'' 𝓔s p1 ≡ lookup'' 𝓔s p2
+ lookup-𝓔s-injective {e} 𝓔s p1 p2 refl = cong (lookup'' 𝓔s) (<-irrelevant p1 p2)
 
  -- The /transpose/ of append is defined by the semantics of a lookup
  -- over an append; the /append/ function below is defined by tabulating this
