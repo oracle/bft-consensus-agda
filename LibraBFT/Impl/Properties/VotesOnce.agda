@@ -4,6 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
+
+-- This module proves the two "VotesOnce" proof obligations for our fake handler
+
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
