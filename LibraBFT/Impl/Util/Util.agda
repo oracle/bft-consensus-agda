@@ -20,6 +20,12 @@ module LibraBFT.Impl.Util.Util where
   LBFT : Set → Set
   LBFT = RWST Unit Output EventProcessor
 
+  LBFT-run : ∀ {A} → LBFT A → EventProcessor → (A × EventProcessor × List Output)
+  LBFT-run m = RWST-run m unit
+
+  LBFT-outs : ∀ {A} → LBFT A → EventProcessor → List Output
+  LBFT-outs m ep = proj₂ (proj₂ (LBFT-run m ep))
+
   -- Local 'LBFT' monad; which operates only over the part of
   -- the state that /depends/ on the ec; not the part
   -- of the state that /defines/ the ec.

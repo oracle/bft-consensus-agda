@@ -167,13 +167,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
                                             -- matter?
              }
 
-  record _≈Vote_ (v1 v2 : Vote) : Set where
-    constructor equivVotes
-    field
-      sameProposed : v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
-      sameRound    : v1 ^∙ vRound      ≡ v2 ^∙ vRound
-      sameAuthor   : v1 ^∙ vAuthor     ≡ v2 ^∙ vAuthor
-  open _≈Vote_ public
+  -- Two votes are equivalent if they are identical except they may differ on timeout signature
+  _≈Vote_ : (v1 v2 : Vote) → Set
+  v1 ≈Vote v2 = v2 ≡ record v1 { ₋vTimeoutSignature = ₋vTimeoutSignature v2 }
 
   qcVotesKV : QuorumCert → KVMap Author Signature
   qcVotesKV = ₋liwsSignatures ∘ ₋qcSignedLedgerInfo
@@ -425,3 +421,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     -- LogInfo           : InfoLog a          → Output
     SendVote          : VoteMsg → List Author → Output
   open Output public
+
+  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
+  SendVote-inj-v refl = refl
+
+  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
+  SendVote-inj-si refl = refl

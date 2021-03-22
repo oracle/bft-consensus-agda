@@ -98,58 +98,6 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
    open import LibraBFT.Concrete.Records                        𝓔
 
    -- * Auxiliary definitions;
-   -- TODO-1: simplify and cleanup
-   record QcPair  (q : Abs.QC) : Set where
-     constructor mkQcPair
-     field
-       cqc    : QuorumCert
-       isv    : IsValidQC 𝓔 cqc
-       q≡αcqc : q ≡ α-QC (cqc , isv)
-   open QcPair
-
-   qc-α-Sent⇒ : ∀ {st q} → (Abs.Q q) α-Sent st
-             → QcPair q
-   qc-α-Sent⇒ (ws _ _ (qc∈NM {cqc} isv _ q≡)) = mkQcPair cqc isv q≡
-
-   record ConcBits {q α} (va∈q : α Abs.∈QC q) (qcp : QcPair q) : Set where
-     constructor mkConcBits
-     field
-       as     : Author × Signature
-       as∈cqc : as ∈ qcVotes (cqc qcp)
-       αVote≡ : Any-lookup va∈q ≡ α-Vote (cqc qcp) (isv qcp) as∈cqc
-   open ConcBits
-
-   qcp⇒concBits : ∀ {q α}
-            → (qcp : QcPair q)
-            → (va∈q : α Abs.∈QC q)
-            → ConcBits va∈q qcp
-   qcp⇒concBits qcp va∈q
-     with All-reduce⁻ {vdq = Any-lookup va∈q} (α-Vote (cqc qcp) (isv qcp)) All-self
-                       (subst (Any-lookup va∈q ∈_) (cong Abs.qVotes (q≡αcqc qcp)) (Any-lookup-correctP va∈q))
-   ...| as , as∈cqc , α≡ = mkConcBits as as∈cqc α≡
-
-   -- This record is highly duplicated; but it does provide a simple way to access
-   -- all the properties from an /honest vote/
-   record Vote∈QcProps {q} (qcp : QcPair q) {α} (α∈q : α Abs.∈QC q) : Set₁ where
-     constructor mkV∈QcP
-     field
-       ev    : ConcreteVoteEvidence 𝓔 (Abs.∈QC-Vote q α∈q)
-       as    : Author × Signature
-       as∈qc : as ∈ qcVotes (cqc qcp)
-       rbld  : ₋cveVote ev ≈Vote rebuildVote (cqc qcp) as
-
-   vote∈QcProps : ∀ {q α st} → (αSent : Abs.Q q α-Sent st) → (α∈q : α Abs.∈QC q)
-                → Vote∈QcProps {q} (qc-α-Sent⇒ αSent) α∈q
-   vote∈QcProps {q} {α} αSent va∈q
-      with  All-lookup (Abs.qVotes-C4 q)  (Abs.∈QC-Vote-correct q va∈q)
-   ...| ev
-      with qc-α-Sent⇒ αSent
-   ...| qcp
-      with qcp⇒concBits qcp va∈q
-   ...| mkConcBits as' as∈cqc αVote≡'
-               = mkV∈QcP ev as' as∈cqc
-                    (voteInEvidence≈rebuiltVote {valid = isv qcp} as∈cqc ev αVote≡')
-
    -- Here we capture the idea that there exists a vote message that
    -- witnesses the existence of a given Abs.Vote
    record ∃VoteMsgFor (v : Abs.Vote) : Set where
@@ -193,15 +141,19 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
             → Meta-Honest-Member α
             → (vα : α Abs.∈QC q)
             → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
-
-   ∈QC⇒sent {e} {st} {α = α} vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm cqc≡)) ha va
-      with vote∈QcProps vsent va
-   ...| mkV∈QcP ev _ as∈qc rbld
-      with vote∈qc as∈qc rbld cqc∈nm
-   ...| v∈nm = mk∃VoteMsgSentFor
+   ∈QC⇒sent {e} {st} {α = α} vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm q≡)) ha va
+     with All-reduce⁻ {vdq = Any-lookup va} (α-Vote cqc valid) All-self
+                      (subst (Any-lookup va ∈_) (cong Abs.qVotes q≡) (Any-lookup-correctP va))
+   ...| as , as∈cqc , α≡
+     with  α-Vote-evidence cqc valid  as∈cqc | inspect
+          (α-Vote-evidence cqc valid) as∈cqc
+   ...| ev | [ refl ]
+      with vote∈qc {vs = as} as∈cqc refl cqc∈nm
+   ...| v∈nm =
+        mk∃VoteMsgSentFor
                  (mk∃VoteMsgFor nm (₋cveVote ev) v∈nm
                                 (₋ivvMember (₋cveIsValidVote ev))
-                                (₋ivvSigned (₋cveIsValidVote ev)) (₋cveIsAbs ev)
+                                (₋ivvSigned (₋cveIsValidVote ev)) (sym α≡)
                                 (₋ivvEpoch (₋cveIsValidVote ev)))
                  sender
                  nm∈st

@@ -26,21 +26,39 @@ module LibraBFT.Impl.NetworkMsg where
     V : VoteMsg     → NetworkMsg
     C : CommitMsg   → NetworkMsg
 
-  -- What does it mean for a (concrete) Vote to be represented in a NetworkMsg?
-  data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
-     inProposal       : ∀ {pm : ProposalMsg} → pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈NM (P pm)
-     inPMSIHighQC     : ∀ {pm : ProposalMsg} → pm ^∙ pmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈NM (P pm)
-     inPMSIHighCC     : ∀ {pm : ProposalMsg} → pm ^∙ pmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈NM (P pm)
-     withVoteSIHighQC : ∀ {vm : VoteMsg}     → vm ^∙ vmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈NM (V vm)
-     withVoteSIHighCC : ∀ {vm : VoteMsg}     → vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈NM (V vm)
-     withCommitMsg    : ∀ {cm : CommitMsg}   → cm ^∙ cCert ≡ qc                                  → qc QC∈NM (C cm)
+  P≢V : ∀ {p v} → P p ≢ V v
+  P≢V ()
 
-  data _⊂Msg_ : Vote → NetworkMsg → Set where
-    vote∈vm : ∀ {v si}
+  C≢V : ∀ {c v} → C c ≢ V v
+  C≢V ()
+
+  V-inj : ∀ {vm1 vm2} → V vm1 ≡ V vm2 → vm1 ≡ vm2
+  V-inj refl = refl
+
+  -- What does it mean for a (concrete) Vote to be represented in a NetworkMsg?
+  data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
+     inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
+     inPMSIHighQC     : pm ^∙ pmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈ProposalMsg pm
+     inPMSIHighCC     : pm ^∙ pmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈ProposalMsg pm
+
+  data _QC∈VoteMsg_ (qc : QuorumCert) (vm : VoteMsg) : Set where
+     withVoteSIHighQC : vm ^∙ vmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈VoteMsg vm
+     withVoteSIHighCC : vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈VoteMsg vm
+
+  data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
+     withCommitMsg    : cm ^∙ cCert ≡ qc                                  → qc QC∈CommitMsg cm
+
+  data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
+    inP : ∀ {pm} → qc QC∈ProposalMsg pm → qc QC∈NM (P pm)
+    inV : ∀ {vm} → qc QC∈VoteMsg     vm → qc QC∈NM (V vm)
+    inC : ∀ {cm} → qc QC∈CommitMsg   cm → qc QC∈NM (C cm)
+
+  data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
+    vote∈vm : ∀ {si}
             → v ⊂Msg (V (mkVoteMsg v si))
-    vote∈qc : ∀ {v vs} {qc : QuorumCert} {nm}
+    vote∈qc : ∀ {vs} {qc : QuorumCert} {nm}
             → vs ∈ qcVotes qc
-            → v ≈Vote (rebuildVote qc vs)
+            → (rebuildVote qc vs) ≈Vote v
             → qc QC∈NM nm
             → v ⊂Msg nm
 
