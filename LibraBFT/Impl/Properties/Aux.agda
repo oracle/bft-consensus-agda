@@ -37,14 +37,13 @@ module LibraBFT.Impl.Properties.Aux where
      with v⊂m
   ...| vote∈qc vs∈qc rbld≈ qc∈m
      with qc∈m
-  ...| withVoteSIHighQC x = {!x!} -- We will prove that votes represented in the SyncInfo of a
-                                  -- proposal message were sent before, so these will both be inj₂.
+  ...| xxx = {!x!}                -- We will prove that votes represented in the SyncInfo of a
+                                  -- proposal message were sent before, so these will be inj₂.
                                   -- This will be based on an invariant of the implementation, for
                                   -- example that the QCs included in the SyncInfo of a VoteMsg have
                                   -- been sent before.  We will need to use hash injectivity and
                                   -- signature injectivity to ensure a different vote was not sent
                                   -- previously with the same signature.
-  ...| withVoteSIHighCC x = {!!}
 
   impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
      | here refl

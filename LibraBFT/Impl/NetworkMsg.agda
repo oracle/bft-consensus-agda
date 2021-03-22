@@ -27,13 +27,22 @@ module LibraBFT.Impl.NetworkMsg where
     C : CommitMsg   → NetworkMsg
 
   -- What does it mean for a (concrete) Vote to be represented in a NetworkMsg?
+  data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
+     inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
+     inPMSIHighQC     : pm ^∙ pmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈ProposalMsg pm
+     inPMSIHighCC     : pm ^∙ pmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈ProposalMsg pm
+
+  data _QC∈VoteMsg_ (qc : QuorumCert) (vm : VoteMsg) : Set where
+     withVoteSIHighQC : vm ^∙ vmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈VoteMsg vm
+     withVoteSIHighCC : vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈VoteMsg vm
+
+  data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
+     withCommitMsg    : cm ^∙ cCert ≡ qc                                  → qc QC∈CommitMsg cm
+
   data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
-     inProposal       : ∀ {pm : ProposalMsg} → pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈NM (P pm)
-     inPMSIHighQC     : ∀ {pm : ProposalMsg} → pm ^∙ pmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈NM (P pm)
-     inPMSIHighCC     : ∀ {pm : ProposalMsg} → pm ^∙ pmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈NM (P pm)
-     withVoteSIHighQC : ∀ {vm : VoteMsg}     → vm ^∙ vmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈NM (V vm)
-     withVoteSIHighCC : ∀ {vm : VoteMsg}     → vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈NM (V vm)
-     withCommitMsg    : ∀ {cm : CommitMsg}   → cm ^∙ cCert ≡ qc                                  → qc QC∈NM (C cm)
+    inP : ∀ {pm} → qc QC∈ProposalMsg pm → qc QC∈NM (P pm)
+    inV : ∀ {vm} → qc QC∈VoteMsg     vm → qc QC∈NM (V vm)
+    inC : ∀ {cm} → qc QC∈CommitMsg   cm → qc QC∈NM (C cm)
 
   data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
     vote∈vm : ∀ {si}
