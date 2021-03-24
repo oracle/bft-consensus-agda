@@ -273,12 +273,16 @@ module LibraBFT.Yasm.System
  ...| yes refl = st , Map-set-correct
  ...| no imp = ppre , trans (sym (Map-set-target-≢ imp)) lkp≡ppre
 
- postulate -- not used yet, but some proofs could probably be cleaned up using this,
-           -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
-   sendMessages-target : ∀ {m : SenderMsgPair} {sm : SentMessages} {ml : List SenderMsgPair}
-                       → ¬ (m ∈ sm)
-                       → m ∈ (ml ++ sm)
-                       → m ∈ ml
+ -- not used yet, but some proofs could probably be cleaned up using this,
+ -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
+ sendMessages-target : ∀ {m : SenderMsgPair} {sm : SentMessages} {ml : List SenderMsgPair}
+                     → ¬ (m ∈ sm)
+                     → m ∈ (ml ++ sm)
+                     → m ∈ ml
+ sendMessages-target {ml = ml} ¬m∈sm m∈++
+   with Any-++⁻ ml m∈++
+ ...| inj₁ m∈ml = m∈ml
+ ...| inj₂ m∈sm = ⊥-elim (¬m∈sm m∈sm)
 
  step-epoch-does-not-send : ∀ {e} (pre : SystemState e) (𝓔 : EpochConfigFor e)
                             → msgPool (pushEpoch 𝓔 pre) ≡ msgPool pre
