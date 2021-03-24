@@ -232,11 +232,12 @@ module LibraBFT.Yasm.System
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
- postulate
-   cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
-                          → (theStep : StepPeer pre pid st' outs)
-                          → isCheat theStep
-                          → peerStates (StepPeer-post theStep) ≡ peerStates pre
+
+ cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
+                        → (theStep : StepPeer pre pid st' outs)
+                        → isCheat theStep
+                        → peerStates (StepPeer-post theStep) ≡ peerStates pre
+ cheatStepDNMPeerStates (step-cheat _ _) _ = Map-set-≡-correct
 
  data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
