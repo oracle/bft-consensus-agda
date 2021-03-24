@@ -251,13 +251,17 @@ module LibraBFT.Yasm.System
              → (pstep : StepPeer pre pid st' outs)
              → Step pre (StepPeer-post pstep)
 
- postulate -- TODO-1: prove it
-   msgs-stable : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {m}
-               → (theStep : Step pre post)
-               → m ∈ msgPool pre
-               → m ∈ msgPool post
 
-   peersRemainInitialized : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {pid}{ppre}
+ msgs-stable : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {m}
+             → (theStep : Step pre post)
+             → m ∈ msgPool pre
+             → m ∈ msgPool post
+ msgs-stable (step-epoch _)   m∈ = m∈
+ msgs-stable (step-peer {pid = pid} {outs = outs} _) m∈ = Any-++ʳ (List-map (pid ,_) outs) m∈
+
+
+ postulate
+   peersRemainInitialized : ∀ {ppre} {pid} {e e'} {pre : SystemState e} {post : SystemState e'}
                           → (theStep : Step pre post)
                           → Map-lookup pid (peerStates pre) ≡ just ppre
                           → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
