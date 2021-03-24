@@ -260,11 +260,18 @@ module LibraBFT.Yasm.System
  msgs-stable (step-peer {pid = pid} {outs = outs} _) m∈ = Any-++ʳ (List-map (pid ,_) outs) m∈
 
 
- postulate
-   peersRemainInitialized : ∀ {ppre} {pid} {e e'} {pre : SystemState e} {post : SystemState e'}
-                          → (theStep : Step pre post)
-                          → Map-lookup pid (peerStates pre) ≡ just ppre
-                          → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
+ peersRemainInitialized : ∀ {ppre} {pid} {e e'} {pre : SystemState e} {post : SystemState e'}
+                        → (theStep : Step pre post)
+                        → Map-lookup pid (peerStates pre) ≡ just ppre
+                        → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
+ peersRemainInitialized {ppre} (step-epoch _) lkp≡ppre = ppre , lkp≡ppre
+ peersRemainInitialized {ppre} {pid} (step-peer step) lkp≡ppre
+   with step
+ ... | step-cheat _ _ = ppre , trans (cong (Map-lookup pid) Map-set-≡-correct) lkp≡ppre
+ ... | step-honest {pidS} {st} {outs} stp
+   with pid ≟Peer pidS
+ ...| yes refl = st , Map-set-correct
+ ...| no imp = ppre , trans (sym (Map-set-target-≢ imp)) lkp≡ppre
 
  postulate -- not used yet, but some proofs could probably be cleaned up using this,
            -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce

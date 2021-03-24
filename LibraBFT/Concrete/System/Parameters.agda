@@ -29,5 +29,6 @@ module LibraBFT.Concrete.System.Parameters where
                  sig-Vote
                  _⊂Msg_
                  (_^∙ vEpoch)
+                 _≟_
                  initialEventProcessorAndMessages
                  peerStepWrapper
