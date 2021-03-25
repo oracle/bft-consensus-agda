@@ -177,9 +177,32 @@ module LibraBFT.Impl.Properties.VotesOnce where
               (r , ¬sentb4 , lvrc@(mkLvrCarrier mws vpk spre spre≡ lvr)) step*
               = LvrCarrier-transp* lvrc step*
 
+  oldVoteRound≤lvr :  ∀ {e pid pk v s}{st : SystemState e}
+         → (r : ReachableSystemState st)
+         → Map-lookup pid (peerStates st) ≡ just s
+         → (sig : WithVerSig pk v)
+         → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+         → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
+         → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
+
+
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
+  vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _
+    = ⊥-elim (¬Any[] m∈outs)
+  vo₁ {_} {pid} {pid'} r (step-msg {nm} m∈pool ms≡ refl) {v} {m} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vpv v'⊂m' m'∈pool sv' ep≡ r≡
+    with nm
+  ...| _ , P pm
+    with m∈outs
+  ...| here refl
+    with v⊂m
+  ... | vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
+                      rv'<rv = oldVoteRound≤lvr r ms≡ sv' m'mwsb {!ep≡!}
+                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
+  ... | vote∈qc x x₁ x₂ = {!!}
+
+{-
   vo₁ r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
   vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡ hndl≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' refl rnds≡
@@ -211,6 +234,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                     -- which contradicts the original assumption that they are equal
                     = ⊥-elim (1+n≰n (≤-trans (≤-reflexive suclvr≡v'rnd)
                                              (≤-trans (≤-reflexive rnds≡) v'rnd≤lvr)))
+-}
 
   vo₂ : VO.ImplObligation₂
   vo₂ _ (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
