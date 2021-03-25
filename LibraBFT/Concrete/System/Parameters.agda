@@ -23,12 +23,12 @@ module LibraBFT.Concrete.System.Parameters where
  ConcSysParms : SystemParameters
  ConcSysParms = mkSysParms
                  NodeId
+                 _≟_
                  EventProcessor
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
                  (_^∙ vEpoch)
-                 _≟_
                  initialEventProcessorAndMessages
                  peerStepWrapper
