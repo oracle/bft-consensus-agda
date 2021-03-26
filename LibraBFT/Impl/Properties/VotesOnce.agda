@@ -183,23 +183,50 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                → v ⊂Msg m → (pid' , m) ∈ (msgPool st)
                                → ValidSenderForPK (availEpochs st) v pid pk
 
-  oldVoteRound≤lvr :  ∀ {e pid pid' pk v m s}{st : SystemState e}
+  honMsg∈pool⇒pkOwner : ∀ {e pid pid' pk v m}{st : SystemState e}
+                      → (r : ReachableSystemState st)
+                      → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                      → v ⊂Msg m → (pid' , m) ∈ (msgPool st)
+                      → ValidSenderForPK (availEpochs st) v pid pk
+                      → (pid , m) ∈ (msgPool st)
+
+
+
+  oldVoteRound≤lvr₁ :  ∀ {e pid pk v m s}{st : SystemState e}
+                    → (r : ReachableSystemState st)
+                    → Map-lookup pid (peerStates st) ≡ just s
+                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                    → v ⊂Msg m →  (pid , m) ∈ (msgPool st)
+                    → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
+                    → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
+
+{-
+  oldVoteRound≤lvr :  ∀ {e pid pk v s}{st : SystemState e}
          → (r : ReachableSystemState st)
          → Map-lookup pid (peerStates st) ≡ just s
          → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-         → v ⊂Msg m → (pid' , m) ∈ (msgPool st)
+         → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
          → ValidSenderForPK (availEpochs st) v pid pk
          → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
          → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
-  oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡
-    = let validSender = honMsg∈pool⇒ValidSenderForPK r pkH sig v⊂m m∈pool
-      in oldVoteRound≤lvr r lkp≡s pkH sig v⊂m m∈pool validSender ep≡
-  oldVoteRound≤lvr (step-s r (step-peer (step-honest x))) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡ = {!!}
-  oldVoteRound≤lvr step@(step-s r (step-peer (step-cheat fm cheat))) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡
-    rewrite cheatStepDNMPeerStates (step-cheat fm cheat) unit
-    with ¬cheatForgeNew (step-cheat fm cheat) refl unit pkH
-                        (ext-unforgeability step m∈pool v⊂m sig pkH)
-  ...| m∈poolpre = oldVoteRound≤lvr r lkp≡s pkH {!!} {!!} (msg∈pool m∈poolpre) vspkv ep≡
+  oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig msv vspkv ep≡
+    = let validSender = honMsg∈pool⇒ValidSenderForPK r pkH sig {!msg⊆ msv!} (msg∈pool msv)
+      in oldVoteRound≤lvr r lkp≡s pkH sig msv validSender ep≡
+  oldVoteRound≤lvr (step-s r (step-peer cheat@(step-cheat fm ch))) lkp≡s pkH sig msv vspkv ep≡
+     with ¬cheatForgeNew cheat refl unit pkH msv
+  ...| msb4
+     with msgSameSig msb4
+  ...| refl
+    rewrite cheatStepDNMPeerStates cheat unit
+    = oldVoteRound≤lvr r lkp≡s pkH sig msb4 vspkv ep≡
+
+  oldVoteRound≤lvr (step-s r (step-peer (step-honest {pid} {st} {outs} x))) lkp≡s pkH sig msv vspkv ep≡
+    with Any-++⁻ (List-map (pid ,_) outs) (msg∈pool msv)
+  ... | inj₁ x₁ = {!!}
+  ... | inj₂ msb4
+    with msgSameSig (MsgWithSig∈-transp msv msb4)
+  ...| refl = oldVoteRound≤lvr r {!lkp≡s!} {!!} {!!} {!!} {!!} {!!}
+-}
 
 
   vo₁ : VO.ImplObligation₁
@@ -213,12 +240,13 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| here refl
     with v⊂m
   ... | vote∈vm = let vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
-                      rv'<rv = oldVoteRound≤lvr r ms≡ pkH sv' v'⊂m' m'∈pool vspkv' {!!}
+                      vsb4   = honMsg∈pool⇒pkOwner r pkH sv' v'⊂m' m'∈pool vspkv'
+                      rv'<rv = oldVoteRound≤lvr₁ r ms≡ pkH sv' v'⊂m' vsb4 {!ep≡!}
                   in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ... | vote∈qc vs∈qc v≈rbld (inV qc∈m)
      rewrite cong ₋vSignature v≈rbld
     = ⊥-elim (¬msb (qcVotesSentB4 r ms≡ qc∈m refl vs∈qc))
-
+ 
 {-
   vo₁ r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
   vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡ hndl≡)

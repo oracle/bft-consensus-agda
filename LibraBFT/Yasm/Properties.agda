@@ -244,7 +244,6 @@ module LibraBFT.Yasm.Properties
      ...| inj₁ dis = ⊥-elim (hpk dis)
      ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
-     cheatCantForge : 
 
 
      msgWithSigSentByAuthor : ∀ {e pk sig}{st : SystemState e}
