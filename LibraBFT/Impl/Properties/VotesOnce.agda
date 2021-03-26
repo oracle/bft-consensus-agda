@@ -63,7 +63,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                         → Map-lookup pid (peerStates post) ≡ just ppost
                         → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
                         → (₋epEC ppre) ^∙ epLastVotedRound ≤ (₋epEC ppost) ^∙ epLastVotedRound
-
+{-
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
@@ -175,32 +175,49 @@ module LibraBFT.Impl.Properties.VotesOnce where
   fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
   fSE⇒rnd≤lvr {v' = v'} {pk} hpk {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)}
               (r , ¬sentb4 , lvrc@(mkLvrCarrier mws vpk spre spre≡ lvr)) step*
-              = LvrCarrier-transp* lvrc step*
+              = LvrCarrier-transp* lvrc step* -}
 
-  oldVoteRound≤lvr :  ∀ {e pid pk v s}{st : SystemState e}
+  honMsg∈pool⇒ValidSenderForPK :  ∀ {e pid pid' pk v m}{st : SystemState e}
+                               → (r : ReachableSystemState st)
+                               → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                               → v ⊂Msg m → (pid' , m) ∈ (msgPool st)
+                               → ValidSenderForPK (availEpochs st) v pid pk
+
+  oldVoteRound≤lvr :  ∀ {e pid pid' pk v m s}{st : SystemState e}
          → (r : ReachableSystemState st)
          → Map-lookup pid (peerStates st) ≡ just s
-         → (sig : WithVerSig pk v)
-         → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+         → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+         → v ⊂Msg m → (pid' , m) ∈ (msgPool st)
+         → ValidSenderForPK (availEpochs st) v pid pk
          → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
          → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
+  oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡
+    = let validSender = honMsg∈pool⇒ValidSenderForPK r pkH sig v⊂m m∈pool
+      in oldVoteRound≤lvr r lkp≡s pkH sig v⊂m m∈pool validSender ep≡
+  oldVoteRound≤lvr (step-s r (step-peer (step-honest x))) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡ = {!!}
+  oldVoteRound≤lvr step@(step-s r (step-peer (step-cheat fm cheat))) lkp≡s pkH sig v⊂m m∈pool vspkv ep≡
+    rewrite cheatStepDNMPeerStates (step-cheat fm cheat) unit
+    with ¬cheatForgeNew (step-cheat fm cheat) refl unit pkH
+                        (ext-unforgeability step m∈pool v⊂m sig pkH)
+  ...| m∈poolpre = oldVoteRound≤lvr r lkp≡s pkH {!!} {!!} (msg∈pool m∈poolpre) vspkv ep≡
 
 
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
-  vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _
-    = ⊥-elim (¬Any[] m∈outs)
-  vo₁ {_} {pid} {pid'} r (step-msg {nm} m∈pool ms≡ refl) {v} {m} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vpv v'⊂m' m'∈pool sv' ep≡ r≡
+  vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
+  vo₁ r (step-msg {nm} m∈pool ms≡ refl) pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
     with nm
   ...| _ , P pm
     with m∈outs
   ...| here refl
     with v⊂m
-  ... | vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
-                      rv'<rv = oldVoteRound≤lvr r ms≡ sv' m'mwsb {!ep≡!}
+  ... | vote∈vm = let vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
+                      rv'<rv = oldVoteRound≤lvr r ms≡ pkH sv' v'⊂m' m'∈pool vspkv' {!!}
                   in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
-  ... | vote∈qc x x₁ x₂ = {!!}
+  ... | vote∈qc vs∈qc v≈rbld (inV qc∈m)
+     rewrite cong ₋vSignature v≈rbld
+    = ⊥-elim (¬msb (qcVotesSentB4 r ms≡ qc∈m refl vs∈qc))
 
 {-
   vo₁ r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
