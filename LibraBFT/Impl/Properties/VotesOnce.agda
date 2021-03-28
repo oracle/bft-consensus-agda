@@ -56,6 +56,12 @@ module LibraBFT.Impl.Properties.VotesOnce where
                         → Map-lookup pid (peerStates post) ≡ just ppost
                         → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
 
+    epoch≡stepPeer : ∀ {e}{st : SystemState e}{pid s}
+                   → ReachableSystemState st
+                   → Map-lookup pid (peerStates st) ≡ just s
+                   → (₋epEC s) ^∙ epEpoch ≡ epochId (α-EC (₋epEC s , ₋epEC-correct s))
+
+
     -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
     lastVoteRound-mono' : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}{ppre ppost}
                         → Step pre post -- Might or might not be a step by pid
@@ -191,16 +197,48 @@ module LibraBFT.Impl.Properties.VotesOnce where
                       → (pid , m) ∈ (msgPool st)
 
 
-
-  oldVoteRound≤lvr₁ :  ∀ {e pid pk v m s}{st : SystemState e}
+{-
+  oldVoteRound≤lvr :  ∀ {e pid pid' pk v m s}{st : SystemState e}
                     → (r : ReachableSystemState st)
                     → Map-lookup pid (peerStates st) ≡ just s
                     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                    → v ⊂Msg m →  (pid , m) ∈ (msgPool st)
+                    → v ⊂Msg m →  (pid' , m) ∈ (msgPool st)
                     → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
                     → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
+  oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig v⊂m m∈pool ep≡ = {!!}
+  oldVoteRound≤lvr {pid = pid} {v = v} {m = m} (step-s r (step-peer cheat@(step-cheat _ _))) lkp≡s pkH sig v⊂m m∈pool ep≡
+    with ¬cheatForgeNew cheat refl unit pkH (mkMsgWithSig∈ m v v⊂m pid m∈pool sig refl)
+  ...| msb4
+    with msgSameSig msb4
+  ...| refl
+   rewrite cheatStepDNMPeerStates cheat unit
+   = let m∈ = msg∈pool msb4
+         m∈poolb4 = honMsg∈pool⇒pkOwner r pkH (msgSigned msb4) (msg⊆ msb4) (msg∈pool msb4)
+     in oldVoteRound≤lvr r lkp≡s pkH sig {!!} {!m∈poolb4!} {!!}
+  oldVoteRound≤lvr (step-s r (step-peer (step-honest {pid} {st} {outs} x))) lkp≡s pkH sig v⊂m m∈pool ep≡ = {!!}
+-}
 
-{-
+  pid≢⇒msgSent4 : ∀ {e pid pk v} {pid' s' outs}{st : SystemState e}
+                → (r : ReachableSystemState st)
+                → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
+                                       (Map-lookup pid' (peerStates st)) s' outs)
+                → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                → MsgWithSig∈ pk (ver-signature sig)
+                              (msgPool (StepPeer-post (step-honest stP)))
+                → ValidSenderForPK (availEpochs st) v pid pk
+                → pid ≢ pid'
+                → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+
+  pid≢DNMState : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
+               → (r : ReachableSystemState st)
+               → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
+                                      (Map-lookup pid' (peerStates st)) s' outs)
+               → pid ≢ pid'
+               → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
+               → Map-lookup pid (peerStates st) ≡ just s
+
+
+
   oldVoteRound≤lvr :  ∀ {e pid pk v s}{st : SystemState e}
          → (r : ReachableSystemState st)
          → Map-lookup pid (peerStates st) ≡ just s
@@ -220,28 +258,44 @@ module LibraBFT.Impl.Properties.VotesOnce where
     rewrite cheatStepDNMPeerStates cheat unit
     = oldVoteRound≤lvr r lkp≡s pkH sig msb4 vspkv ep≡
 
-  oldVoteRound≤lvr (step-s r (step-peer (step-honest {pid} {st} {outs} x))) lkp≡s pkH sig msv vspkv ep≡
-    with Any-++⁻ (List-map (pid ,_) outs) (msg∈pool msv)
-  ... | inj₁ x₁ = {!!}
+  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+    with pid ≟ pid'
+  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+     | no imp =  let ms≡pre = pid≢DNMState r stP imp lkp≡s
+                     mwssb4 = pid≢⇒msgSent4 r stP pkH sig msv vspkv imp
+                    in oldVoteRound≤lvr r ms≡pre pkH sig mwssb4 vspkv ep≡
+  ...| yes refl
+    with stP
+  ... | step-init ix x
+    with Any-++⁻ (List-map (pid' ,_) outs) (msg∈pool msv)
+  ...| xx = {!!}
+  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+      | yes refl
+      | step-msg x x₁ x₂ = {!!}
+{-
+    with Any-++⁻ (List-map (pid' ,_) outs) (msg∈pool msv)
+  ... | inj₁ m∈pool = {!!}
   ... | inj₂ msb4
     with msgSameSig (MsgWithSig∈-transp msv msb4)
-  ...| refl = oldVoteRound≤lvr r {!lkp≡s!} {!!} {!!} {!!} {!!} {!!}
--}
+  ...| refl = oldVoteRound≤lvr r {!!} pkH sig (MsgWithSig∈-transp msv msb4) vspkv ep≡ -}
+
 
 
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
   vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
-  vo₁ r (step-msg {nm} m∈pool ms≡ refl) pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
+  vo₁ {pid' = pid'} r (step-msg {_ , nm} {ms} {s} m∈pool ms≡ hndl≡) {v} {m} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
+    rewrite cong proj₂ hndl≡
     with nm
-  ...| _ , P pm
+  ...| P pm
     with m∈outs
   ...| here refl
     with v⊂m
-  ... | vote∈vm = let vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
-                      vsb4   = honMsg∈pool⇒pkOwner r pkH sv' v'⊂m' m'∈pool vspkv'
-                      rv'<rv = oldVoteRound≤lvr₁ r ms≡ pkH sv' v'⊂m' vsb4 {!ep≡!}
+  ... | vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
+                      vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
+                      ep≡stP = trans (epoch≡stepPeer r ms≡) ep≡
+                      rv'<rv = oldVoteRound≤lvr r ms≡ pkH sv' m'mwsb vspkv' ep≡stP
                   in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ... | vote∈qc vs∈qc v≈rbld (inV qc∈m)
      rewrite cong ₋vSignature v≈rbld
