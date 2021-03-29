@@ -61,8 +61,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
                    → Map-lookup pid (peerStates st) ≡ just s
                    → (₋epEC s) ^∙ epEpoch ≡ epochId (α-EC (₋epEC s , ₋epEC-correct s))
 
-
-
     -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
     lastVoteRound-mono' : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}{ppre ppost}
                         → Step pre post -- Might or might not be a step by pid
@@ -70,156 +68,39 @@ module LibraBFT.Impl.Properties.VotesOnce where
                         → Map-lookup pid (peerStates post) ≡ just ppost
                         → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
                         → (₋epEC ppre) ^∙ epLastVotedRound ≤ (₋epEC ppost) ^∙ epLastVotedRound
-{-
-  -- This is the information we can establish about the state after the first time a signature is
-  -- sent, and that we can carry forward to subsequent states, so we can use it to prove
-  -- VO.ImplObligation₁.
-  -- TODO-2: Only lvrcLvr is specific to the property we are proving here, so much of this
-  -- can be refactored into Yasm.Properties, paramerized by a predicate over Part and PeerState,
-  -- along with a proof that every honest peer step preserves it.  This will provide useful
-  -- infrastructure for proving other properties.
-  record LvrCarrier (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set₁ where
-    constructor mkLvrCarrier
-    field
-      lvrcSent    : MsgWithSig∈ pk sig (msgPool st)
-      lvrcValid   : ValidSenderForPK (availEpochs st) (msgPart lvrcSent) (msgSender lvrcSent) pk
-      lvrcSndrSt  : EventProcessor
-      lvrcSndrSt≡ : Map-lookup (msgSender lvrcSent) (peerStates st) ≡ just lvrcSndrSt
-      lvrcLvr     : (msgPart lvrcSent) ^∙ vRound ≤ (₋epEC lvrcSndrSt) ^∙ epLastVotedRound
-  open LvrCarrier
 
-  firstSendEstablishes : ∀ {e} → Vote → PK → SystemState e → SystemStateRel Step
-  firstSendEstablishes _ _ _ (step-epoch _)               = Lift (ℓ+1 0ℓ) ⊥
-  firstSendEstablishes _ _ _ (step-peer (step-cheat _ _)) = Lift (ℓ+1 0ℓ) ⊥
-  firstSendEstablishes {e} v' pk origSt sysStep@(step-peer {e'} {pid'} {pre = pre} pstep@(step-honest _)) =
-                         ( ReachableSystemState pre
-                         × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                         × LvrCarrier pk (signature v' unit) origSt
-                         )
+    honMsg∈pool⇒ValidSenderForPK :  ∀ {e pid pk v}{st : SystemState e}
+                                 → (r : ReachableSystemState st)
+                                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                                 → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                                 → ValidSenderForPK (availEpochs st) v pid pk
 
-  isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
-                     → Meta-Honest-PK pk
-                     → IsValidNewPart (₋vSignature v') pk theStep
-                     → firstSendEstablishes v' pk post theStep
-  isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
-     with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
-     -- TODO-1 : DRY fail, see proof of unwind, refactor?
-  ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
-  ...| inj₁ thisStep
-     with pstep
-  ...| step-cheat fm isCheat
-     with thisStep
-  ...| here refl
-     with isCheat (msg⊆ mws) (msgSigned mws)
-  ...| inj₁ dis = ⊥-elim (hpk dis)
-  ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
+    pid≢⇒msgSent4 : ∀ {e pid pk v} {pid' s' outs}{st : SystemState e}
+                  → (r : ReachableSystemState st)
+                  → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
+                                         (Map-lookup pid' (peerStates st)) s' outs)
+                  → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                  → MsgWithSig∈ pk (ver-signature sig)
+                                (msgPool (StepPeer-post (step-honest stP)))
+                  → ValidSenderForPK (availEpochs st) v pid pk
+                  → pid ≢ pid'
+                  → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
 
-  isValidNewPart⇒fSE {e' = e'}{pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
-     | inj₁ thisStep
-     | step-honest x
-     with Any-satisfied-∈ (Any-map⁻ thisStep)
-  ...| nm , refl , nm∈outs
-     with impl-sps-avp {m = msgWhole mws} r hpk x nm∈outs (msg⊆ mws) (msgSigned mws)
-  ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ (vpk' , _)
-     with x
-  ...| step-init _ refl = ⊥-elim (¬Any[] nm∈outs)
-  ...| step-msg {s' = st} m∈pool ms≡ handle≡
-     with sameEpoch⇒sameEC vpk vpk' refl
-  ...| refl
-     with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws)
-                                       (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre))
-                                              (sym (msgSameSig mws))
-                                              ¬sentb4)
-  ...| _ , refl , newlvr = r , ¬sentb4
-                         , (mkLvrCarrier mws vpk st Map-set-correct (≤-reflexive newlvr))
-
-  LvrCarrier-transp : ∀ {e e' e'' pk sig} {orig : SystemState e} {pre : SystemState e'}{post : SystemState e''}
-                     → (theStep : Step pre post)
-                     → LvrCarrier pk sig pre
-                     → LvrCarrier pk sig post
-  LvrCarrier-transp {e} {pre = pre} {post} (step-epoch ec) (mkLvrCarrier mws vpk spre spre≡ lvr) =
-    mkLvrCarrier mws (ValidSenderForPK-stable-epoch ec vpk) spre spre≡ lvr
-  LvrCarrier-transp {e' = e'} {pre = pre} {post} sp@(step-peer {pid = pid} {st'} {pre = .pre} sps) (mkLvrCarrier mws vpk spre spre≡ lvr)
-     with sps
-  ...| step-cheat fm isch rewrite cheatStepDNMPeerStates (step-cheat {pre = pre} fm isch) unit =
-                  mkLvrCarrier (MsgWithSig∈-++ʳ mws) vpk spre spre≡ (≤-trans lvr (≤-reflexive refl)) -- PeerStates not changed by cheat steps
-  ...| step-honest (step-init _ handle≡) = {!!}
-                                         -- We cannot prove this yet because
-                                         -- initialEventProcessorAndMessages is faked for now.  We
-                                         -- need to establish rules for what initialization by a
-                                         -- peer pid does.  It must ensure that if pid's new
-                                         -- peerState is for epoch e and has lastVotedRound = r,
-                                         -- then pid has not previously sent any messages containing
-                                         -- votes for the epoch e and for a round higher than r.
-
-  ...| theStep@(step-honest {pid} msgStep@(step-msg {s = s} {s' = s'}{outs = outs} m∈pool ps≡pre handler≡))
-     -- If the epoch doesn't change (which it never does, so far), then the lastVotedRound is
-     -- monotonically nondecreasing for each honest peer step.
-     with Map-lookup (msgSender mws) (peerStates pre) | inspect (Map-lookup (msgSender mws)) (peerStates pre)
-  ...| nothing    | _ = ⊥-elim (maybe-⊥ spre≡ refl)
-  ...| just spre' | [ R ] rewrite just-injective spre≡
-     with peersRemainInitialized (step-peer theStep) R
-  ...| spost , spost≡
-     with lastVoteRound-mono' (step-peer theStep) R spost≡
-  ...| lvrmono = mkLvrCarrier (MsgWithSig∈-++ʳ mws) vpk spost spost≡
-                              (≤-trans lvr (lvrmono (noEpochChangeYet (step-peer theStep) R spost≡)))
-
-  LvrCarrier-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
-                     → LvrCarrier pk sig start
-                     → (step* : Step* start final)
-                     → LvrCarrier pk sig final
-  LvrCarrier-transp* lvrc step-0 = lvrc
-  LvrCarrier-transp* {start = start} lvrc (step-s s* s) = LvrCarrier-transp {orig = start} s (LvrCarrier-transp* lvrc s*)
-
-  fSE⇒rnd≤lvr : ∀ {v' pk e'}
-              → {final : SystemState e'}
-              → Meta-Honest-PK pk
-              → ∀ {d d'}{pre : SystemState d} {post : SystemState d'}{theStep : Step pre post}
-              → firstSendEstablishes v' pk post theStep
-              → (step* : Step* post final)
-              → LvrCarrier pk (signature v' unit) final
-  fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
-  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)}
-              (r , ¬sentb4 , lvrc@(mkLvrCarrier mws vpk spre spre≡ lvr)) step*
-              = LvrCarrier-transp* lvrc step* -}
-
-  honMsg∈pool⇒ValidSenderForPK :  ∀ {e pid pk v m}{st : SystemState e}
-                               → (r : ReachableSystemState st)
-                               → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                               → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                               → ValidSenderForPK (availEpochs st) v pid pk
+    pid≢DNMState : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
+                 → (r : ReachableSystemState st)
+                 → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
+                                        (Map-lookup pid' (peerStates st)) s' outs)
+                 → pid ≢ pid'
+                 → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
+                 → Map-lookup pid (peerStates st) ≡ just s
 
 
-  pid≢⇒msgSent4 : ∀ {e pid pk v} {pid' s' outs}{st : SystemState e}
-                → (r : ReachableSystemState st)
-                → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                       (Map-lookup pid' (peerStates st)) s' outs)
-                → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                → MsgWithSig∈ pk (ver-signature sig)
-                              (msgPool (StepPeer-post (step-honest stP)))
-                → ValidSenderForPK (availEpochs st) v pid pk
-                → pid ≢ pid'
-                → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-
-
-  pid≢DNMState : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
-               → (r : ReachableSystemState st)
-               → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                      (Map-lookup pid' (peerStates st)) s' outs)
-               → pid ≢ pid'
-               → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
-               → Map-lookup pid (peerStates st) ≡ just s
-
-
-  eventProcessorPostSt : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
-                       → (r : ReachableSystemState st)
-                       → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                      (Map-lookup pid' (peerStates st)) s' outs)
-                       → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
-                       → s ≡ s'
-
-
+    eventProcessorPostSt : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
+                         → (r : ReachableSystemState st)
+                         → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
+                                        (Map-lookup pid' (peerStates st)) s' outs)
+                         → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just   s
+                         → s ≡ s'
 
   oldVoteRound≤lvr :  ∀ {e pid pk v s}{pre : SystemState e}
          → (r : ReachableSystemState pre)
@@ -230,7 +111,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
          → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
          → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
   oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig msv vspkv ep≡
-      = oldVoteRound≤lvr r lkp≡s pkH sig msv {!!} ep≡
+      = let vspkvPre = honMsg∈pool⇒ValidSenderForPK r pkH sig msv
+        in oldVoteRound≤lvr r lkp≡s pkH sig msv vspkvPre ep≡
   oldVoteRound≤lvr (step-s r (step-peer cheat@(step-cheat fm ch))) lkp≡s pkH sig msv vspkv ep≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4
@@ -238,7 +120,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| refl
     rewrite cheatStepDNMPeerStates cheat unit
     = oldVoteRound≤lvr r lkp≡s pkH sig msb4 vspkv ep≡
-
   oldVoteRound≤lvr {pid = pid} {pre = pre} (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
     with pid ≟ pid'
   ...| no imp =  let ms≡pre = pid≢DNMState r stP imp lkp≡s
