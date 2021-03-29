@@ -61,6 +61,12 @@ module LibraBFT.Impl.Properties.VotesOnce where
                    → Map-lookup pid (peerStates st) ≡ just s
                    → (₋epEC s) ^∙ epEpoch ≡ epochId (α-EC (₋epEC s , ₋epEC-correct s))
 
+    newVoteGreaterRound : ∀ {e 𝓔s pid pool ms s s' outs v m pk}
+                        → StepPeerState {e} pid 𝓔s pool ms s' outs
+                        → ms ≡ just s
+                        → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                        → (v ^∙ vRound) ≡ suc ((₋epEC s) ^∙ epLastVotedRound)
+
 
     -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
     lastVoteRound-mono' : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}{ppre ppost}
@@ -239,17 +245,16 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
 
 
-  oldVoteRound≤lvr :  ∀ {e pid pk v s}{st : SystemState e}
-         → (r : ReachableSystemState st)
-         → Map-lookup pid (peerStates st) ≡ just s
+  oldVoteRound≤lvr :  ∀ {e pid pk v s}{pre : SystemState e}
+         → (r : ReachableSystemState pre)
+         → Map-lookup pid (peerStates pre) ≡ just s
          → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-         → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-         → ValidSenderForPK (availEpochs st) v pid pk
+         → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+         → ValidSenderForPK (availEpochs pre) v pid pk
          → (₋epEC s) ^∙ epEpoch ≡ (v ^∙ vEpoch)
          → v ^∙ vRound ≤ (₋epEC s) ^∙ epLastVotedRound
   oldVoteRound≤lvr (step-s {e} {e'} {e''} r (step-epoch _)) lkp≡s pkH sig msv vspkv ep≡
-    = let validSender = honMsg∈pool⇒ValidSenderForPK r pkH sig {!msg⊆ msv!} (msg∈pool msv)
-      in oldVoteRound≤lvr r lkp≡s pkH sig msv validSender ep≡
+      = oldVoteRound≤lvr r lkp≡s pkH sig msv {!!} ep≡
   oldVoteRound≤lvr (step-s r (step-peer cheat@(step-cheat fm ch))) lkp≡s pkH sig msv vspkv ep≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4
@@ -258,26 +263,33 @@ module LibraBFT.Impl.Properties.VotesOnce where
     rewrite cheatStepDNMPeerStates cheat unit
     = oldVoteRound≤lvr r lkp≡s pkH sig msb4 vspkv ep≡
 
-  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+  oldVoteRound≤lvr {pid = pid} {pre = pre} (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
     with pid ≟ pid'
-  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
-     | no imp =  let ms≡pre = pid≢DNMState r stP imp lkp≡s
+  ...| no imp =  let ms≡pre = pid≢DNMState r stP imp lkp≡s
                      mwssb4 = pid≢⇒msgSent4 r stP pkH sig msv vspkv imp
                     in oldVoteRound≤lvr r ms≡pre pkH sig mwssb4 vspkv ep≡
   ...| yes refl
-    with stP
-  ... | step-init ix x
-    with Any-++⁻ (List-map (pid' ,_) outs) (msg∈pool msv)
-  ...| xx = {!!}
-  oldVoteRound≤lvr {pid = pid} (step-s r (step-peer (step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
-      | yes refl
-      | step-msg x x₁ x₂ = {!!}
-{-
-    with Any-++⁻ (List-map (pid' ,_) outs) (msg∈pool msv)
-  ... | inj₁ m∈pool = {!!}
-  ... | inj₂ msb4
-    with msgSameSig (MsgWithSig∈-transp msv msb4)
-  ...| refl = oldVoteRound≤lvr r {!!} pkH sig (MsgWithSig∈-transp msv msb4) vspkv ep≡ -}
+     with stP
+  ...| step-init _ refl = {!!} --oldVoteRound≤lvr r {!lkp≡s!} pkH sig msv vspkv {!!}
+                            -- We cannot prove this yet because
+                            -- initialEventProcessorAndMessages is faked for now.  We
+                            -- need to establish rules for what initialization by a
+                            -- peer pid does.  It must ensure that if pid's new
+                            -- peerState is for epoch e and has lastVotedRound = r,
+                            -- then pid has not previously sent any messages containing
+                            -- votes for the epoch e and for a round higher than r
+  ...| step-msg {_ , nm} {ms} {s} {s'} m∈pool ms≡ handle≡
+      with Any-++⁻ (List-map (pid' ,_) outs) (msg∈pool msv)
+  ...| inj₁ m∈outs = {!!}
+  ...| inj₂ msb4
+    with MsgWithSig∈-transp msv msb4
+  ...| mwssb4
+    with sameHonestSig⇒sameVoteData pkH sig (msgSigned mwssb4) (sym (msgSameSig mwssb4))
+  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre (step-s r step) hb)
+  ...| inj₂ refl = let ep≡stP  = noEpochChangeYet step ms≡ lkp≡s
+                       ep≡Vote = trans ep≡stP ep≡
+                       lvr≤ = lastVoteRound-mono' step ms≡ lkp≡s ep≡stP
+                   in ≤-trans (oldVoteRound≤lvr r ms≡ pkH sig mwssb4 vspkv ep≡Vote) lvr≤
 
 
 
