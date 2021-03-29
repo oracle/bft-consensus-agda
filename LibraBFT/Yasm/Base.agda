@@ -32,6 +32,7 @@ module LibraBFT.Yasm.Base
   constructor mkSysParms
   field
     PeerId    : Set
+    _≟PeerId_ : (p1 p2 : PeerId) → Dec (p1 ≡ p2)
     PeerState : Set
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
