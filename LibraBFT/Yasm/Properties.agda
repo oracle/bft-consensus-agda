@@ -283,7 +283,7 @@ module LibraBFT.Yasm.Properties
   record PropCarrier (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set (ℓ-EC ℓ⊔ (ℓ+1 0ℓ)) where
     constructor mkCarrier
     field
-      carrStReach : ReachableSystemState st
+      carrStReach : ReachableSystemState st -- Enables use of invariants when proving that steps preserve carrProp
       carrSent    : MsgWithSig∈ pk sig (msgPool st)
       carrValid   : ValidSenderForPK (availEpochs st) (msgPart carrSent) (msgSender carrSent) pk
       carrSndrSt  : Maybe PeerState

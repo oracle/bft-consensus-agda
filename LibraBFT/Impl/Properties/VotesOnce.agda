@@ -67,11 +67,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
-  -- TODO-2: Only lvrcLvr is specific to the property we are proving here, so much of this
-  -- can be refactored into Yasm.Properties, paramerized by a predicate over Part and PeerState,
-  -- along with a proof that every honest peer step preserves it.  This will provide useful
-  -- infrastructure for proving other properties.
-
   LvrProp : CarrierProp
   LvrProp v mep = ∃[ ep ]( mep ≡ just ep
                          × (  v ^∙ vEpoch ≢ (₋epEC ep) ^∙ epEpoch
@@ -91,9 +86,10 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → Meta-Honest-PK pk
                      → (ivnp : IsValidNewPart (₋vSignature v') pk theStep)
                      → firstSendEstablishes v' pk pre theStep
-  isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
-     with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
-     -- TODO-1 : DRY fail, see proof of unwind, refactor?
+  isValidNewPart⇒fSE {theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
+     with Any-++⁻ (List-map (β ,_) outs) (msg∈pool mws)
+     -- TODO-1 : Much of this proof is not specific to the particular property being proved, and could be
+     -- refactored into Yasm.Properties.  See proof of unwind and refactor to avoid redundancy?
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
      with pstep
@@ -104,7 +100,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ dis = ⊥-elim (hpk dis)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
 
-  isValidNewPart⇒fSE {e' = e'}{pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
+  isValidNewPart⇒fSE {pk = pk}{pre = pre}{theStep = step-peer pstep} hpk (r , ¬sentb4 , mws , vpk)
      | inj₁ thisStep
      | step-honest hstep
      with Any-satisfied-∈ (Any-map⁻ thisStep)
@@ -156,30 +152,22 @@ module LibraBFT.Impl.Properties.VotesOnce where
      , refl
      , inj₂ (stepDNMepoch , ≤-trans rnd≤ppre (es≡⇒lvr≤ stepDNMepoch))
 
-  LvrCarrier-transp : ∀ {e' e'' pk sig} {pre : SystemState e'}{post : SystemState e''}
-                     → (theStep : Step pre post)
-                     → LvrCarrier pk sig pre
-                     → LvrCarrier pk sig post
-  LvrCarrier-transp {e'} {e''} {pk} {sig} {pre = pre} {post} = (Carrier-transp LvrProp) ImplPreservesLvr
-
   LvrCarrier-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
                      → LvrCarrier pk sig start
                      → (step* : Step* start final)
                      → LvrCarrier pk sig final
   LvrCarrier-transp* lvrc step-0 = lvrc
-  LvrCarrier-transp* {start = start} lvrc (step-s s* s) = LvrCarrier-transp s (LvrCarrier-transp* lvrc s*)
+  LvrCarrier-transp* lvrc (step-s s* s) = Carrier-transp LvrProp ImplPreservesLvr s (LvrCarrier-transp* lvrc s*)
 
   fSE⇒rnd≤lvr : ∀ {v' pk e'}
               → {final : SystemState e'}
               → Meta-Honest-PK pk
               → ∀ {d d'}{pre : SystemState d}{post : SystemState d'}{theStep : Step pre post}
               → firstSendEstablishes v' pk post theStep
-              → (step* : Step* post final)
+              → Step* post final
               → LvrCarrier pk (signature v' unit) final
   fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
-  fSE⇒rnd≤lvr {v' = v'} {pk} hpk {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)}
-              (r , ¬sentb4 , lvrc@(mkCarrier r' mws vpk spre spre≡ lvr)) step*
-              = LvrCarrier-transp* lvrc step*
+  fSE⇒rnd≤lvr hpk {theStep = step-peer (step-honest _)} (_ , _ , lvrc) step* = LvrCarrier-transp* lvrc step*
 
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
@@ -223,7 +211,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   vo₂ : VO.ImplObligation₂
   vo₂ _ (step-init _) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
-  vo₂ {pk = pk} {st} r (step-msg {pid , nm} {s = ps} _ ps≡) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
+  vo₂ r (step-msg {pid , nm} {s = ps} _ ps≡) {m = m} {m' = m'}
+      hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
     with nm
   ...| P msg
     with msgsToSendWereSent {pid} {0} {P msg} {m} {ps} m∈outs
