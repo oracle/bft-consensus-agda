@@ -72,16 +72,13 @@ module LibraBFT.Impl.Consensus.Types where
   -- α-EC will compute this EpochConfig by abstracting away the unecessary
   -- pieces from EventProcessorEC.
   -- TODO-2: update and complete when definitions are updated to more recent version
-  postulate
-    α-EC : Σ EventProcessorEC EventProcessorEC-correct → EpochConfig
-  {-
+  α-EC : Σ EventProcessorEC EventProcessorEC-correct → EpochConfig
   α-EC (epec , ok) =
     let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
         qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in (mkEpochConfig {! someHash?!}
                 (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
-  -}
 
   postulate
     α-EC-≡ : (epec1  : EventProcessorEC)
