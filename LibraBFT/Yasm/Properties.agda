@@ -85,7 +85,7 @@ module LibraBFT.Yasm.Properties
  StepPeerState-AllValidParts = ∀{e s m part pk outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) s outs
+   → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) (s , outs)
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
    → (ValidSenderForPK 𝓔s part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)

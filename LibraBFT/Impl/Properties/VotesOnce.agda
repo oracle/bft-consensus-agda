@@ -41,8 +41,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
              -- but are currently wrapped up into properties about SystemState.  These should
              -- probably be "unbundled" and move to LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
     newVoteSameEpochGreaterRound : ∀ {e 𝓔s pid pool ms s s' outs v m pk}
-                                 → StepPeerState {e} pid 𝓔s pool ms s' outs
-                                 → ms ≡ just s
+                                 → StepPeerState {e} pid 𝓔s pool ms (s' , outs)
+                                 → just s ≡ ms
                                  → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                  → ¬ MsgWithSig∈ pk (ver-signature sig) pool
                                  → (v ^∙ vEpoch) ≡ (₋epEC s) ^∙ epEpoch
