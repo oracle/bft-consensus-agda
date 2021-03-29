@@ -23,6 +23,7 @@ open import LibraBFT.Impl.Handle                                          sha256
 open import LibraBFT.Impl.Handle.Properties                               sha256 sha256-cr
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
+open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System impl-sps-avp
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
@@ -50,19 +51,19 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                  × (v ^∙ vRound) ≡ ((₋epEC s') ^∙ epLastVotedRound)     -- Last voted round is round of new vote
 
     -- Always true, so far, as no epoch changes.
-    noEpochChangeYet : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}{ppre ppost}
-                        → Step pre post -- Might or might not be a step by pid
-                        → Map-lookup pid (peerStates pre)  ≡ just ppre
-                        → Map-lookup pid (peerStates post) ≡ just ppost
-                        → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
+    noEpochChangeYet : ∀ {e}{pre : SystemState e}{pid}{ppre ppost msgs}
+                     → ReachableSystemState pre
+                     → StepPeerState pid (availEpochs pre) (msgPool pre) (just ppre) (ppost , msgs)
+                     → just ppre ≡ Map-lookup pid (peerStates pre)
+                     → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
 
     -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
-    lastVoteRound-mono' : ∀ {e e'}{pre : SystemState e}{post : SystemState e'}{pid}{ppre ppost}
-                        → Step pre post -- Might or might not be a step by pid
-                        → Map-lookup pid (peerStates pre)  ≡ just ppre
-                        → Map-lookup pid (peerStates post) ≡ just ppost
-                        → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
-                        → (₋epEC ppre) ^∙ epLastVotedRound ≤ (₋epEC ppost) ^∙ epLastVotedRound
+    lastVoteRound-mono : ∀ {e}{pre : SystemState e}{pid}{ppre ppost msgs}
+                       → ReachableSystemState pre
+                       → just ppre ≡ Map-lookup pid (peerStates pre)
+                       → StepPeerState pid (availEpochs pre) (msgPool pre) (just ppre) (ppost , msgs)
+                       → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
+                       → (₋epEC ppre) ^∙ epLastVotedRound ≤ (₋epEC ppost) ^∙ epLastVotedRound
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
@@ -71,29 +72,26 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- can be refactored into Yasm.Properties, paramerized by a predicate over Part and PeerState,
   -- along with a proof that every honest peer step preserves it.  This will provide useful
   -- infrastructure for proving other properties.
-  record LvrCarrier (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set₁ where
-    constructor mkLvrCarrier
-    field
-      lvrcSent    : MsgWithSig∈ pk sig (msgPool st)
-      lvrcValid   : ValidSenderForPK (availEpochs st) (msgPart lvrcSent) (msgSender lvrcSent) pk
-      lvrcSndrSt  : EventProcessor
-      lvrcSndrSt≡ : Map-lookup (msgSender lvrcSent) (peerStates st) ≡ just lvrcSndrSt
-      lvrcLvr     : (msgPart lvrcSent) ^∙ vRound ≤ (₋epEC lvrcSndrSt) ^∙ epLastVotedRound
-  open LvrCarrier
 
-  firstSendEstablishes : ∀ {e} → Vote → PK → SystemState e → SystemStateRel Step
+  LvrProp : CarrierProp
+  LvrProp v mep = ∃[ ep ]( mep ≡ just ep
+                         × (  v ^∙ vEpoch ≢ (₋epEC ep) ^∙ epEpoch
+                           ⊎ (v ^∙ vEpoch ≡ (₋epEC ep) ^∙ epEpoch × v ^∙ vRound ≤ (₋epEC ep) ^∙ epLastVotedRound)))
+
+  LvrCarrier = PropCarrier LvrProp
+ 
+  firstSendEstablishes : ∀ {e} → Vote → PK → (origSt : SystemState e) → SystemStateRel Step
   firstSendEstablishes _ _ _ (step-epoch _)               = Lift (ℓ+1 0ℓ) ⊥
   firstSendEstablishes _ _ _ (step-peer (step-cheat _ _)) = Lift (ℓ+1 0ℓ) ⊥
   firstSendEstablishes {e} v' pk origSt sysStep@(step-peer {e'} {pid'} {pre = pre} pstep@(step-honest _)) =
                          ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                         × LvrCarrier pk (signature v' unit) origSt
+                         × LvrCarrier pk (₋vSignature v') (StepPeer-post pstep)
                          )
-
   isValidNewPart⇒fSE : ∀ {e e' pk v'}{pre : SystemState e} {post : SystemState e'} {theStep : Step pre post}
                      → Meta-Honest-PK pk
-                     → IsValidNewPart (₋vSignature v') pk theStep
-                     → firstSendEstablishes v' pk post theStep
+                     → (ivnp : IsValidNewPart (₋vSignature v') pk theStep)
+                     → firstSendEstablishes v' pk pre theStep
   isValidNewPart⇒fSE {pre = pre}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
      with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} (msg∈pool mws)
      -- TODO-1 : DRY fail, see proof of unwind, refactor?
@@ -109,92 +107,99 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   isValidNewPart⇒fSE {e' = e'}{pk}{v'}{pre}{post}{theStep = step-peer {pid = β} {outs = outs} pstep} hpk (r , ¬sentb4 , mws , vpk)
      | inj₁ thisStep
-     | step-honest x
+     | step-honest hstep
      with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs
-     with impl-sps-avp {m = msgWhole mws} r hpk x nm∈outs (msg⊆ mws) (msgSigned mws)
+     with impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
   ...| inj₁ (vpk' , _)
-     with x
-  ...| step-init _ refl = ⊥-elim (¬Any[] nm∈outs)
-  ...| step-msg {s' = st} m∈pool ms≡ handle≡
+     with hstep
+  ...| step-init _ = ⊥-elim (¬Any[] nm∈outs)
+  ...| step-msg {m} {s = s} m∈pool ms≡
      with sameEpoch⇒sameEC vpk vpk' refl
   ...| refl
-     with newVoteSameEpochGreaterRound x ms≡ (msg⊆ mws) nm∈outs (msgSigned mws)
+     with newVoteSameEpochGreaterRound hstep ms≡ (msg⊆ mws) nm∈outs (msgSigned mws)
                                        (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre))
                                               (sym (msgSameSig mws))
                                               ¬sentb4)
-  ...| _ , refl , newlvr = r , ¬sentb4
-                         , (mkLvrCarrier mws vpk st Map-set-correct (≤-reflexive newlvr))
+  ...| refl , refl , newlvr
+     with LBFT-post (handle m 0) s | inspect (LBFT-post (handle m 0)) s
+  ...| ps' | [ refl ] rewrite sym ms≡ = r , ¬sentb4 , mkCarrier (step-s r (step-peer pstep)) mws vpk
+                                                (just ps')
+                                                Map-set-correct
+                                                (ps' , refl , inj₂ (noEpochChangeYet r hstep ms≡ , ≤-reflexive newlvr))
 
-  LvrCarrier-transp : ∀ {e e' e'' pk sig} {orig : SystemState e} {pre : SystemState e'}{post : SystemState e''}
+  ImplPreservesLvr : PeerStepPreserves LvrProp
+  ImplPreservesLvr r _ (step-init ix) = magic
+    where postulate  -- TODO-2: temporary until real initialisation is modeled
+            -- We don't have a real model for the initial peer state, so here we just postulate.
+            -- Eventually, we'll prove something like a peer doesn't initialize to an epoch for which
+            -- it has already sent votes.
+            magic : LvrProp v (just fakeEP)
+  ImplPreservesLvr {pre = pre} r prop (step-msg {m} {s} m∈pool ms≡justs)
+     with carrProp prop
+  ...| (ppre' , ppre≡ , preprop)
+     with just-injective (trans ms≡justs (trans (carrSndrSt≡ prop) ppre≡))
+  ...| refl
+     with noEpochChangeYet r (step-msg m∈pool refl) ms≡justs
+  ...| stepDNMepoch
+     with preprop
+  ...| inj₁ diffEpoch = LBFT-post (handle m 0) ppre' , refl , inj₁ λ x → diffEpoch (trans x (sym stepDNMepoch))
+  ...| inj₂ (sameEpoch , rnd≤ppre)
+     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋epEC ppre') ^∙ epEpoch
+  ...| no neq = LBFT-post (handle m 0) ppre'
+              , refl
+              , ⊥-elim (neq sameEpoch)
+  ...| yes refl
+     with lastVoteRound-mono {ppre = ppre'} r ms≡justs (step-msg m∈pool refl)
+  ...| es≡⇒lvr≤
+     = LBFT-post (handle m 0) ppre'
+     , refl
+     , inj₂ (stepDNMepoch , ≤-trans rnd≤ppre (es≡⇒lvr≤ stepDNMepoch))
+
+  LvrCarrier-transp : ∀ {e' e'' pk sig} {pre : SystemState e'}{post : SystemState e''}
                      → (theStep : Step pre post)
                      → LvrCarrier pk sig pre
                      → LvrCarrier pk sig post
-  LvrCarrier-transp {e} {pre = pre} {post} (step-epoch ec) (mkLvrCarrier mws vpk spre spre≡ lvr) =
-    mkLvrCarrier mws (ValidSenderForPK-stable-epoch ec vpk) spre spre≡ lvr
-  LvrCarrier-transp {e' = e'} {pre = pre} {post} sp@(step-peer {pid = pid} {st'} {pre = .pre} sps) (mkLvrCarrier mws vpk spre spre≡ lvr)
-     with sps
-  ...| step-cheat fm isch rewrite cheatStepDNMPeerStates (step-cheat {pre = pre} fm isch) unit =
-                  mkLvrCarrier (MsgWithSig∈-++ʳ mws) vpk spre spre≡ (≤-trans lvr (≤-reflexive refl)) -- PeerStates not changed by cheat steps
-  ...| step-honest (step-init _ handle≡) = {!!}
-                                         -- We cannot prove this yet because
-                                         -- initialEventProcessorAndMessages is faked for now.  We
-                                         -- need to establish rules for what initialization by a
-                                         -- peer pid does.  It must ensure that if pid's new
-                                         -- peerState is for epoch e and has lastVotedRound = r,
-                                         -- then pid has not previously sent any messages containing
-                                         -- votes for the epoch e and for a round higher than r.
-
-  ...| theStep@(step-honest {pid} msgStep@(step-msg {s = s} {s' = s'}{outs = outs} m∈pool ps≡pre handler≡))
-     -- If the epoch doesn't change (which it never does, so far), then the lastVotedRound is
-     -- monotonically nondecreasing for each honest peer step.
-     with Map-lookup (msgSender mws) (peerStates pre) | inspect (Map-lookup (msgSender mws)) (peerStates pre)
-  ...| nothing    | _ = ⊥-elim (maybe-⊥ spre≡ refl)
-  ...| just spre' | [ R ] rewrite just-injective spre≡
-     with peersRemainInitialized (step-peer theStep) R
-  ...| spost , spost≡
-     with lastVoteRound-mono' (step-peer theStep) R spost≡
-  ...| lvrmono = mkLvrCarrier (MsgWithSig∈-++ʳ mws) vpk spost spost≡
-                              (≤-trans lvr (lvrmono (noEpochChangeYet (step-peer theStep) R spost≡)))
+  LvrCarrier-transp {e'} {e''} {pk} {sig} {pre = pre} {post} = (Carrier-transp LvrProp) ImplPreservesLvr
 
   LvrCarrier-transp* : ∀ {e e' pk sig} {start : SystemState e}{final : SystemState e'}
                      → LvrCarrier pk sig start
                      → (step* : Step* start final)
                      → LvrCarrier pk sig final
   LvrCarrier-transp* lvrc step-0 = lvrc
-  LvrCarrier-transp* {start = start} lvrc (step-s s* s) = LvrCarrier-transp {orig = start} s (LvrCarrier-transp* lvrc s*)
+  LvrCarrier-transp* {start = start} lvrc (step-s s* s) = LvrCarrier-transp s (LvrCarrier-transp* lvrc s*)
 
   fSE⇒rnd≤lvr : ∀ {v' pk e'}
               → {final : SystemState e'}
               → Meta-Honest-PK pk
-              → ∀ {d d'}{pre : SystemState d} {post : SystemState d'}{theStep : Step pre post}
+              → ∀ {d d'}{pre : SystemState d}{post : SystemState d'}{theStep : Step pre post}
               → firstSendEstablishes v' pk post theStep
               → (step* : Step* post final)
               → LvrCarrier pk (signature v' unit) final
   fSE⇒rnd≤lvr _ {theStep = step-epoch _} ()
   fSE⇒rnd≤lvr {v' = v'} {pk} hpk {pre = pre} {post} {theStep = step-peer {pid = β} {outs = outs} (step-honest sps)}
-              (r , ¬sentb4 , lvrc@(mkLvrCarrier mws vpk spre spre≡ lvr)) step*
+              (r , ¬sentb4 , lvrc@(mkCarrier r' mws vpk spre spre≡ lvr)) step*
               = LvrCarrier-transp* lvrc step*
 
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
-  vo₁ r (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡ hndl≡)
+  vo₁ r (step-init _) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
+  vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' refl rnds≡
-       with newVoteSameEpochGreaterRound {e} {availEpochs pre} {pid}
-                                          (step-msg m∈pool ps≡ hndl≡) ps≡ v⊂m m∈outs sig ¬sentb4
+     with newVoteSameEpochGreaterRound {e} {availEpochs pre} {pid}
+                                       (step-msg m∈pool ps≡) ps≡ v⊂m m∈outs sig ¬sentb4
   ...| eIds≡' , suclvr≡v'rnd , _
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
      -- prove that going from the poststate of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of the peer that
      -- sent v'
-     with Any-Step-elim {Q = LvrCarrier pk (ver-signature sig') pre}
+     with Any-Step-elim {Q = LvrCarrier pk (₋vSignature v') pre}
                         (fSE⇒rnd≤lvr {v'} hpk)
-                        (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE hpk ivnp)
+                        (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE {v' = v'} hpk ivnp)
                                     (unwind r hpk v'⊂m' m'∈pool sig'))
-  ...| mkLvrCarrier mws vpf' sndrst sndrst≡ v'rnd≤lvr
+  ...| mkCarrier r' mws vpf' sndrst sndrst≡ (_ , ps≡' , preprop)
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with sameHonestSig⇒sameVoteData hpk (msgSigned mws) sig' (msgSameSig mws)
@@ -205,17 +210,21 @@ module LibraBFT.Impl.Properties.VotesOnce where
                     -- Both peers are allowed to sign for the same PK, so they are the same peer
   ...| refl rewrite NodeId-PK-OK-injective (vp-ec vpb) (vp-sender-ok vpb) (vp-sender-ok vpf') |
                     -- So their peer states are the same
-                    just-injective (trans (sym ps≡) sndrst≡)
+                    sym (just-injective (trans (trans ps≡ sndrst≡) ps≡'))
+     with noEpochChangeYet r' (step-msg m∈pool refl) ps≡
+  ...| stepDNMepoch
+     with preprop
+  ...| inj₁ diffEpoch = ⊥-elim (diffEpoch eIds≡')
+  ...| inj₂ (sameEpoch , v'rnd≤lvr)
                     -- So we have proved both that the round of v' is ≤ the lastVotedRound of
                     -- the peer's state and that the round of v' is one greater than that value,
-                    -- which contradicts the original assumption that they are equal
+                    -- which leads to a contradiction
                     = ⊥-elim (1+n≰n (≤-trans (≤-reflexive suclvr≡v'rnd)
                                              (≤-trans (≤-reflexive rnds≡) v'rnd≤lvr)))
 
   vo₂ : VO.ImplObligation₂
-  vo₂ _ (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₂ {pk = pk} {st} r (step-msg {pid , nm} {s = ps} _ ps≡ hndl≡) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
-     rewrite cong proj₂ hndl≡
+  vo₂ _ (step-init _) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
+  vo₂ {pk = pk} {st} r (step-msg {pid , nm} {s = ps} _ ps≡) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
     with nm
   ...| P msg
     with msgsToSendWereSent {pid} {0} {P msg} {m} {ps} m∈outs
