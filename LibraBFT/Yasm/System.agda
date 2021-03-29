@@ -231,11 +231,12 @@ module LibraBFT.Yasm.System
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
- postulate
-   cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
-                          → (theStep : StepPeer pre pid st' outs)
-                          → isCheat theStep
-                          → peerStates (StepPeer-post theStep) ≡ peerStates pre
+
+ cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
+                        → (theStep : StepPeer pre pid st' outs)
+                        → isCheat theStep
+                        → peerStates (StepPeer-post theStep) ≡ peerStates pre
+ cheatStepDNMPeerStates (step-cheat _ _) _ = Map-set-≡-correct
 
  data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
@@ -249,23 +250,38 @@ module LibraBFT.Yasm.System
              → (pstep : StepPeer pre pid st' outs)
              → Step pre (StepPeer-post pstep)
 
- postulate -- TODO-1: prove it
-   msgs-stable : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {m}
-               → (theStep : Step pre post)
-               → m ∈ msgPool pre
-               → m ∈ msgPool post
 
-   peersRemainInitialized : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {pid}{ppre}
-                          → (theStep : Step pre post)
-                          → Map-lookup pid (peerStates pre) ≡ just ppre
-                          → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
+ msgs-stable : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {m}
+             → (theStep : Step pre post)
+             → m ∈ msgPool pre
+             → m ∈ msgPool post
+ msgs-stable (step-epoch _) m∈ = m∈
+ msgs-stable (step-peer {pid = pid} {outs = outs} _) m∈ = Any-++ʳ (List-map (pid ,_) outs) m∈
 
- postulate -- not used yet, but some proofs could probably be cleaned up using this,
-           -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
-   sendMessages-target : ∀ {m : SenderMsgPair} {sm : SentMessages} {ml : List SenderMsgPair}
-                       → ¬ (m ∈ sm)
-                       → m ∈ (ml ++ sm)
-                       → m ∈ ml
+
+ peersRemainInitialized : ∀ {ppre} {pid} {e e'} {pre : SystemState e} {post : SystemState e'}
+                        → (theStep : Step pre post)
+                        → Map-lookup pid (peerStates pre) ≡ just ppre
+                        → ∃[ ppost ] (Map-lookup pid (peerStates post) ≡ just ppost)
+ peersRemainInitialized {ppre} (step-epoch _) lkp≡ppre = ppre , lkp≡ppre
+ peersRemainInitialized {ppre} {pid} (step-peer step) lkp≡ppre
+   with step
+ ... | step-cheat _ _ = ppre , trans (cong (Map-lookup pid) Map-set-≡-correct) lkp≡ppre
+ ... | step-honest {pidS} {st} {outs} stp
+   with pid ≟PeerId pidS
+ ...| yes refl = st , Map-set-correct
+ ...| no imp = ppre , trans (sym (Map-set-target-≢ imp)) lkp≡ppre
+
+ -- not used yet, but some proofs could probably be cleaned up using this,
+ -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
+ sendMessages-target : ∀ {m : SenderMsgPair} {sm : SentMessages} {ml : List SenderMsgPair}
+                     → ¬ (m ∈ sm)
+                     → m ∈ (ml ++ sm)
+                     → m ∈ ml
+ sendMessages-target {ml = ml} ¬m∈sm m∈++
+   with Any-++⁻ ml m∈++
+ ...| inj₁ m∈ml = m∈ml
+ ...| inj₂ m∈sm = ⊥-elim (¬m∈sm m∈sm)
 
  step-epoch-does-not-send : ∀ {e} (pre : SystemState e) (𝓔 : EpochConfigFor e)
                             → msgPool (pushEpoch 𝓔 pre) ≡ msgPool pre
