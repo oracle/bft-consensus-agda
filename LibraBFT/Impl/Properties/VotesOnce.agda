@@ -86,21 +86,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
                   → pid ≢ pid'
                   → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
 
-    pid≢DNMState : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
-                 → (r : ReachableSystemState st)
-                 → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                        (Map-lookup pid' (peerStates st)) s' outs)
-                 → pid ≢ pid'
-                 → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
-                 → Map-lookup pid (peerStates st) ≡ just s
-
-
-    eventProcessorPostSt : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
-                         → (r : ReachableSystemState st)
-                         → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                        (Map-lookup pid' (peerStates st)) s' outs)
-                         → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just   s
-                         → s ≡ s'
 
   oldVoteRound≤lvr :  ∀ {e pid pk v s}{pre : SystemState e}
          → (r : ReachableSystemState pre)
