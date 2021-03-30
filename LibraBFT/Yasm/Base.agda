@@ -32,6 +32,7 @@ module LibraBFT.Yasm.Base
   constructor mkSysParms
   field
     PeerId    : Set
+    _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
     PeerState : Set
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
@@ -44,9 +45,6 @@ module LibraBFT.Yasm.Base
 
     -- Finally, messages must carry an epoch id and might have an author
     part-epoch  : Part → EpochId
-
-    -- A decidable over PeerId's
-    _≟Peer_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
 
     -- Initializes a potentially-empty state with an EpochConfig
     init : PeerId → EpochConfig → Maybe PeerState → PeerState × List Msg
