@@ -37,8 +37,8 @@ module LibraBFT.Impl.Handle
      → EventProcessor × List NetworkMsg
  initialEventProcessorAndMessages a _ _ = fakeEP , []
 
- handle : NodeId × NetworkMsg → Instant → LBFT Unit
- handle (sender , msg) now
+ handle : NodeId → NetworkMsg → Instant → LBFT Unit
+ handle _self msg now
     with msg
  ...| P p = processProposalMsg now p
  ...| V v = processVote now v
@@ -79,11 +79,11 @@ module LibraBFT.Impl.Handle
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId × NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
- peerStep msg ts st = runHandler st (handle msg ts)
+ peerStep : NodeId → NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
+ peerStep id msg ts st = runHandler st (handle id msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
  peerStepWrapper : NodeId → NetworkMsg → EventProcessor → EventProcessor × List NetworkMsg
- peerStepWrapper id msg st = ×-map₂ (List-map msgToSend) (peerStep (id , msg) 0 st)
+ peerStepWrapper id msg st = ×-map₂ (List-map msgToSend) (peerStep id msg 0 st)
