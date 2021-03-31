@@ -76,6 +76,7 @@ module LibraBFT.Impl.Handle.Properties
    -- as opposed to using it to construct a QC using its own unsent vote.
    qcVotesSentB4 : ∀{e pid ps vs pk q vm}{st : SystemState e}
                  → ReachableSystemState st
+                 → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
                  → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ epHighestQC) (ps ^∙ epHighestCommitQC)

@@ -241,6 +241,10 @@ module LibraBFT.Yasm.System
    ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
    }
 
+ StepPeer-post-lemma : ∀{e pid st' outs}{pre : SystemState e}
+               → (pstep : StepPeer pre pid st' outs)
+               → st' ≡ peerStates (StepPeer-post pstep) pid
+ StepPeer-post-lemma pstep = sym override-target-≡
 
  cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
                         → (theStep : StepPeer pre pid st' outs)
