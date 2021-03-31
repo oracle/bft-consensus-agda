@@ -24,7 +24,8 @@ module Util.FunctionOverride
 
   syntax override m p v = ⟦ m , p ← v ⟧
 
-  postulate
+  postulate -- valid assumption
+    -- TODO-2: Eliminate postulate using https://github.com/agda/cubical
     funext : Extensionality ℓ₁ ℓ₂
 
   override-target-≡ : ∀ {a : A}{b : B}{f}
