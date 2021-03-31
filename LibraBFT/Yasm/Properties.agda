@@ -33,6 +33,7 @@ module LibraBFT.Yasm.Properties
              as AE
  open import LibraBFT.Yasm.Base   ℓ-EC EpochConfig epochId authorsN
  open import LibraBFT.Yasm.System ℓ-EC EpochConfig epochId authorsN parms
+ open import Util.FunctionOverride PeerId _≟PeerId_
 
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
