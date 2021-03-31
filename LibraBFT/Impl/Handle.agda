@@ -24,13 +24,18 @@ module LibraBFT.Impl.Handle
  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
  open RWST-do
 
+ -- This represents an uninitialised EventProcessor, about which we know nothing, which we use as
+ -- the initial EventProcessor for every peer until it is initialised.
  postulate
    fakeEP : EventProcessor
 
+ -- Eventually, the initialization should establish some properties we care about, but for now we
+ -- just initialise again to fakeEP, which means we cannot prove the base case for various
+ -- properties, e.g., in Impl.Properties.VotesOnce
  initialEventProcessorAndMessages
-     : (a : Author) → EpochConfig → Maybe EventProcessor
+     : (a : Author) → EpochConfig → EventProcessor
      → EventProcessor × List NetworkMsg
- initialEventProcessorAndMessages a _ mep = fakeEP , []
+ initialEventProcessorAndMessages a _ _ = fakeEP , []
 
  handle : NodeId × NetworkMsg → Instant → LBFT Unit
  handle (sender , msg) now

@@ -43,10 +43,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₁ : Set₁
  ImplObligation₁ =
-   ∀{e pid pid' s' outs pk}{pre : SystemState e}
+   ∀{e pid pid' inits' s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
+   → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -65,10 +65,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₂ : Set₁
  ImplObligation₂ =
-   ∀{e pid s' outs pk}{pre : SystemState e}
+   ∀{e pid inits' s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
+   → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -189,10 +189,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     -- step is at most replaying these votes, not producing them. Producing them would
     -- require the cheater to forge a signature. This is the purpose of the isCheat constraint.
 
-    PredStep-wlog-ht' : ∀{e pid pid' s' outs pk}{pre : SystemState e}
+    PredStep-wlog-ht' : ∀{e pid pid' inits' s' outs pk}{pre : SystemState e}
             → ReachableSystemState pre
             → Pred pre
-            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
+            → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
             → ∀{v m v' m'}
             → v  ⊂Msg m  → m ∈ outs
             → v' ⊂Msg m' → (pid' , m') ∈ msgPool pre
@@ -261,9 +261,9 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
     -- Analogous to PredStep-wlog-ht', but here we must reason about two messages that are in the
     -- outputs of a step.
-    PredStep-hh' : ∀{e pid s' outs pk}{pre : SystemState e}
+    PredStep-hh' : ∀{e pid inits' s' outs pk}{pre : SystemState e}
             → ReachableSystemState pre → Pred pre
-            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
+            → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
             → ∀{v m v' m'}
             → v  ⊂Msg m  → m  ∈ outs
             → v' ⊂Msg m' → m' ∈ outs
