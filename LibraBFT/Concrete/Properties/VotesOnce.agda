@@ -46,7 +46,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    ∀{e pid pid' s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) s' outs
+   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -68,7 +68,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    ∀{e pid s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) s' outs
+   → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -192,7 +192,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     PredStep-wlog-ht' : ∀{e pid pid' s' outs pk}{pre : SystemState e}
             → ReachableSystemState pre
             → Pred pre
-            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) s' outs
+            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
             → ∀{v m v' m'}
             → v  ⊂Msg m  → m ∈ outs
             → v' ⊂Msg m' → (pid' , m') ∈ msgPool pre
@@ -263,7 +263,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     -- outputs of a step.
     PredStep-hh' : ∀{e pid s' outs pk}{pre : SystemState e}
             → ReachableSystemState pre → Pred pre
-            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) s' outs
+            → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
             → ∀{v m v' m'}
             → v  ⊂Msg m  → m  ∈ outs
             → v' ⊂Msg m' → m' ∈ outs

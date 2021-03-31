@@ -188,26 +188,25 @@ module LibraBFT.Yasm.System
 
  -- The pre and post states of Honest peers are related iff
  data StepPeerState {e}(pid : PeerId)(𝓔s : AvailableEpochs e)(pool : SentMessages)
-          : Maybe PeerState → PeerState → List Msg → Set where
+                       (ms : Maybe PeerState) : (PeerState × List Msg) → Set where
    -- The peer receives an "initialization package"; for now, this consists
    -- of the actual EpochConfig for the epoch being initialized.  Later, we
    -- may move to a more general scheme, enabled by assuming a function
    -- 'render : InitPackage -> EpochConfig'.
-   step-init : ∀{ms s' outs}(ix : Fin e)
-             → (s' , outs) ≡ init pid (AE.lookup' 𝓔s ix) ms
-             → StepPeerState pid 𝓔s pool ms s' outs
+   step-init : ∀ (ix : Fin e)
+             → StepPeerState pid 𝓔s pool ms (init pid (AE.lookup' 𝓔s ix) ms)
 
    -- The peer processes a message in the pool
-   step-msg  : ∀{m ms s s' outs}
+   step-msg  : ∀{m s}
              → m ∈ pool
-             → ms ≡ just s → (s' , outs) ≡ handle pid (proj₂ m) s
-             → StepPeerState pid 𝓔s pool ms s' outs
+             → just s ≡ ms
+             → StepPeerState pid 𝓔s pool ms (handle pid (proj₂ m) s)
 
  -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
  data StepPeer {e}(pre : SystemState e) : PeerId → Maybe PeerState → List Msg → Set where
    -- it can be obtained by a handle or init call.
    step-honest : ∀{pid st outs}
-               → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) st outs
+               → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (st , outs)
                → StepPeer pre pid (just st) outs
 
    -- or the peer decides to cheat.  CheatMsgConstraint ensures it cannot

@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 import      LibraBFT.Yasm.Base as LYB
@@ -85,7 +86,7 @@ module LibraBFT.Yasm.Properties
  StepPeerState-AllValidParts = ∀{e s m part pk outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) s outs
+   → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) (s , outs)
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
    → (ValidSenderForPK 𝓔s part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
@@ -269,3 +270,54 @@ module LibraBFT.Yasm.Properties
      ...| inj₂ mws'
         with msgWithSigSentByAuthor preach hpk mws'
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , vpb''
+
+
+ -- This could potentially be more general, for example covering the whole SystemState, rather than
+ -- just one peer's state.  However, this would put more burden on the user and is not required so
+ -- far.
+ CarrierProp : Set₁
+ CarrierProp = Part → Maybe PeerState → Set
+
+ module _ (P   : CarrierProp) where
+
+  record PropCarrier (pk : PK) (sig : Signature) {e} (st : SystemState e) : Set (ℓ-EC ℓ⊔ (ℓ+1 0ℓ)) where
+    constructor mkCarrier
+    field
+      carrStReach : ReachableSystemState st -- Enables use of invariants when proving that steps preserve carrProp
+      carrSent    : MsgWithSig∈ pk sig (msgPool st)
+      carrValid   : ValidSenderForPK (availEpochs st) (msgPart carrSent) (msgSender carrSent) pk
+      carrSndrSt  : Maybe PeerState
+      carrSndrSt≡ : Map-lookup (msgSender carrSent) (peerStates st) ≡ carrSndrSt
+      carrProp    : P (msgPart carrSent) (carrSndrSt)
+  open PropCarrier public
+
+  PeerStepPreserves : Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
+  PeerStepPreserves = ∀ {e ps' outs pk sig}{pre : SystemState e}
+                      → (r : ReachableSystemState pre)
+                      → (pc : PropCarrier pk sig {e} pre)
+                      → (sps : StepPeerState {e} (msgSender (carrSent pc))
+                                                 (availEpochs pre)
+                                                 (msgPool pre)
+                                                 (Map-lookup (msgSender (carrSent pc)) (peerStates pre))
+                                                 (ps' , outs))
+                      → P (msgPart (carrSent pc)) (just ps')
+
+  module _ (PSP : PeerStepPreserves) where
+
+    Carrier-transp : ∀ {e' e'' pk sig} {pre : SystemState e'}{post : SystemState e''}
+                   → (theStep : Step pre post)
+                   → PropCarrier pk sig pre
+                   → PropCarrier pk sig post
+    Carrier-transp {pre = pre} {post} (step-epoch ec) (mkCarrier r mws vpk spre spre≡ lvr) =
+       mkCarrier (step-s r (step-epoch ec)) mws (ValidSenderForPK-stable-epoch ec vpk) spre spre≡ lvr
+    Carrier-transp {e' = e'} {pre = pre} {post} theStep@(step-peer {pid = pid} {st'} {pre = .pre} sps) pc@(mkCarrier r mws vpk spre spre≡ prop)
+       with step-s r theStep
+    ...| postReach
+       with sps
+    ...| step-cheat fm isch = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk spre (subst (λ x → Map-lookup (msgSender mws) x ≡ spre) (sym Map-set-≡-correct) spre≡) prop
+    -- PeerStates not changed by cheat steps
+    ...| step-honest {st = st} sps'
+       with msgSender mws ≟PeerId pid
+    ...| no neq = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk spre (subst (_≡ spre) (Map-set-target-≢ neq) spre≡) prop
+    ...| yes refl = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk (just st) Map-set-correct
+                              (PSP r pc sps')

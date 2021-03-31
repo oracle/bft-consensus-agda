@@ -11,6 +11,9 @@ module LibraBFT.Impl.Base.Types where
   NodeId : Set
   NodeId = ℕ
 
+  _≟NodeId_ : (n1 n2 : NodeId) → Dec (n1 ≡ n2)
+  _≟NodeId_ = _≟ℕ_
+
   UID : Set
   UID = Hash
 

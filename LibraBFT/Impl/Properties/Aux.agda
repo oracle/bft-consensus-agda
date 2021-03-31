@@ -25,15 +25,15 @@ module LibraBFT.Impl.Properties.Aux where
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
   impl-sps-avp : StepPeerState-AllValidParts
   -- In our fake/simple implementation, init and handling V and C msgs do not send any messages
-  impl-sps-avp _ hpk (step-init ix eff) m∈outs part⊂m ver        rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
-  impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
-  impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _ eff) m∈outs _ _ rewrite (cong proj₂ eff) = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-init ix) m∈outs part⊂m ver      = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
   -- These aren't true yet, because processProposalMsgM sends fake votes that don't follow the rules for ValidPartForPK
-  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
+  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver
      with m∈outs
      -- Handler sends at most one vote, so it can't be "there"
-  ...| there {xs = xs} imp rewrite proj₂ (∷-injective (cong proj₂ eff)) = ⊥-elim (¬Any[] imp)
-  ...| here refl rewrite proj₁ (∷-injective (cong proj₂ eff))
+  ...| there {xs = xs} imp = ⊥-elim (¬Any[] imp)
+  ...| here refl
      with v⊂m
   ...| vote∈qc vs∈qc rbld≈ qc∈m
      with qc∈m
@@ -45,7 +45,7 @@ module LibraBFT.Impl.Properties.Aux where
                                   -- signature injectivity to ensure a different vote was not sent
                                   -- previously with the same signature.
 
-  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡ eff) m∈outs v⊂m ver
+  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver
      | here refl
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}

@@ -23,6 +23,9 @@ module LibraBFT.Impl.Util.Util where
   LBFT-run : ∀ {A} → LBFT A → EventProcessor → (A × EventProcessor × List Output)
   LBFT-run m = RWST-run m unit
 
+  LBFT-post : ∀ {A} → LBFT A → EventProcessor → EventProcessor
+  LBFT-post m ep = proj₁ (proj₂ (LBFT-run m ep))
+
   LBFT-outs : ∀ {A} → LBFT A → EventProcessor → List Output
   LBFT-outs m ep = proj₂ (proj₂ (LBFT-run m ep))
 
