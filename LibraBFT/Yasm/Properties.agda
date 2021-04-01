@@ -272,6 +272,26 @@ module LibraBFT.Yasm.Properties
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , vpb''
 
 
+     newMsg⊎msgSent4 :  ∀ {e pk v m pid sndr s' outs} {st : SystemState e}
+                   → (r : ReachableSystemState st)
+                   → (stP : StepPeerState pid (availEpochs st) (msgPool st)
+                                          (Map-lookup pid (peerStates st)) (s' , outs))
+                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                   → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post (step-honest stP))
+                   → (m ∈ outs × ValidSenderForPK (availEpochs st) v pid pk
+                      × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
+                     ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     newMsg⊎msgSent4 {_} {pk} {v} {m} {pid} {sndr} {outs = outs} r stP pkH sig v⊂m m∈post
+       with Any-++⁻ (List-map (pid ,_) outs) m∈post
+     ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
+     ...| inj₁ nm∈outs
+       with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
+     ...| m∈outs
+       with sps-avp r pkH stP m∈outs v⊂m sig
+     ... | inj₁ newVote = inj₁ (m∈outs , newVote)
+     ... | inj₂ msb4    = inj₂ msb4
+
+
  -- This could potentially be more general, for example covering the whole SystemState, rather than
  -- just one peer's state.  However, this would put more burden on the user and is not required so
  -- far.
