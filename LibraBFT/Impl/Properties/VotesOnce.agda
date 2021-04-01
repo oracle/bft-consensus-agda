@@ -207,9 +207,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
-  vo₁ r (step-init _) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
+  vo₁ r (step-init _) _ _ m∈outs _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
   vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡)
-      {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' refl rnds≡
+      {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb sig' msv' refl rnds≡
      with newVoteSameEpochGreaterRound {e} {pre} {pid = pid} r
                                        (step-msg m∈pool ps≡) ps≡ v⊂m m∈outs sig ¬sentb4
   ...| eIds≡' , suclvr≡v'rnd , _
@@ -217,10 +217,13 @@ module LibraBFT.Impl.Properties.VotesOnce where
      -- prove that going from the poststate of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of the peer that
      -- sent v'
+      with sameHonestSig⇒sameVoteData hpk (msgSigned msv') sig' (msgSameSig msv')
+  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
+  ...| inj₂ refl
      with Any-Step-elim {Q = LvrCarrier pk (₋vSignature v') pre}
                         (fSE⇒rnd≤lvr {v'} hpk)
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE {v' = v'} hpk ivnp)
-                                    (unwind r hpk v'⊂m' m'∈pool sig'))
+                                    (unwind r hpk {!msg⊆ msv'!} {!!} {!sig!}))
   ...| mkCarrier r' mws vpf' sndrst sndrst≡ (_ , ps≡' , preprop)
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
