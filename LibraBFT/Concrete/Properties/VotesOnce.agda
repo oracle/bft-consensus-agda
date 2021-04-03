@@ -95,7 +95,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
   module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
-   -- Bring in 'unwind', 'ext-unforgeability' and friends
+
    open Structural sps-corr
 
    -- Bring in IntSystemState
@@ -113,14 +113,19 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     -- From this point onwards, it might be easier to read this proof starting at 'voo'
     -- at the end of the file. Next, we provide an overview the proof.
     --
-    -- We wish to prove that, for any two votes v and v' cast by an honest α in the message pool of
-    -- a state st, if v and v' have equal rounds and epochs, then they vote for the same block. As
-    -- The base case and the case for a new epoch in the system are trivial.
-
-    -- Regarding the PeerStep case. The induction hypothesis tells us that the property holds in the pre-state.  Next, we reason
-    -- about the post-state.  We start by analyzing whether v and v' have been sent as outputs of
-    -- the PeerStep under scrutiny or were already in the pool before (captured by the PredStep
-    -- function).  There are four possibilities:
+    -- We wish to prove that, for any two votes v and v' cast by an honest α in the message
+    -- pool of a state st, if v and v' have equal rounds and epochs, then they vote for the
+    -- same block.
+    --
+    -- The base case and the case for a new epoch in the system are trivial. For the base case
+    -- we get to a contradiction because it's not possible to have any message in the msgpool.
+    --
+    -- Regarding the PeerStep case. The induction hypothesis tells us that the property holds
+    -- in the pre-state.  Next, we reason about the post-state.  We start by analyzing whether
+    -- v and v' have been sent as outputs of the PeerStep under scrutiny or were already in
+    -- the pool before.
+    --
+    -- There are four possibilities:
     --
     --   i) v and v' were aleady present in the msgPool before: use induction hypothesis.
     --  ii) v and v' are both in the output produced by the PeerStep under scrutiny.
@@ -133,7 +138,8 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     -- signature was sent before.
     --
     -- Case (i) is trivial; cases (iii) and (iv) are symmetric and reduce to an implementation
-    -- obligation (Impl-VO1) and case (ii) reduces to a different implementation obligation (Impl-VO2).
+    -- obligation (Impl-VO1) and case (ii) reduces to a different implementation obligation
+    -- (Impl-VO2).
 
 
     VotesOnceProof :
@@ -183,8 +189,6 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     ...| inj₂ refl
       = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk
                       (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (sym ep≡) (sym r≡))
-
-
 
    voo : VO.Type IntSystemState
    voo hpk refl sv refl sv' round≡
