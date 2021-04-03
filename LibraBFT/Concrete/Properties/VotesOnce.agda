@@ -56,7 +56,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidSenderForPK (availEpochs pre) v pid pk
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
-   -- If v and v' share the same epoch and iround
+   -- If v and v' share the same epoch and round
    → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
    → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
    ----------------------------------------------------------
