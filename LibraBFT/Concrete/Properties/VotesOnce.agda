@@ -43,11 +43,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₁ : Set₁
  ImplObligation₁ =
-   ∀{e pid s' outs pk}{pre : SystemState e}
+   ∀{e pid pid' s' outs pk}{pre : SystemState e}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
    → StepPeerState pid (availEpochs pre) (msgPool pre) (Map-lookup pid (peerStates pre)) (s' , outs)
-   → ∀{v m v'} → Meta-Honest-PK pk
+   → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
@@ -55,9 +55,8 @@ module LibraBFT.Concrete.Properties.VotesOnce where
      -- same signature, but sent by someone else.  We could prove it implies it though.
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → ValidSenderForPK (availEpochs pre) v pid pk
    -- And if there exists another v' that has been sent before
-   → (sig' : WithVerSig pk v')
-   → MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
-   -- If v and v' share the same epoch and round
+   → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
+   -- If v and v' share the same epoch and iround
    → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
    → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
    ----------------------------------------------------------
@@ -156,7 +155,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     ...| refl | refl = VotesOnceProof r pkH vv msb4 vv' m'sb4 ep≡ r≡
     VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' ep≡ r≡
         with  msgSameSig msv | msgSameSig msv'
-    ...| refl | refl
+    ...| refl       | refl
        with sameHonestSig⇒sameVoteData pkH (msgSigned msv) vv (msgSameSig msv)
           | sameHonestSig⇒sameVoteData pkH (msgSigned msv') vv' (msgSameSig msv')
     ...| inj₁ hb    | _         = ⊥-elim (meta-sha256-cr hb)
@@ -170,11 +169,21 @@ module LibraBFT.Concrete.Properties.VotesOnce where
       = Impl-VO2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
                  (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk ep≡ r≡
     ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
-      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv)
-                    newV vspk vv' m'sb4 ep≡ r≡
-    ...| inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
-         = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv')
-                         newV' v'spk vv msb4 (sym ep≡) (sym r≡))
+       with sameHonestSig⇒sameVoteData pkH (msgSigned m'sb4) vv' (msgSameSig m'sb4)
+    ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ refl
+      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
+                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) ep≡ r≡
+    VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' ep≡ r≡
+       | refl       | refl
+       | inj₂ refl  | inj₂ refl
+       | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
+      with sameHonestSig⇒sameVoteData pkH (msgSigned msb4) vv (msgSameSig msb4)
+    ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ refl
+      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk
+                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (sym ep≡) (sym r≡))
+
 
 
    voo : VO.Type IntSystemState
