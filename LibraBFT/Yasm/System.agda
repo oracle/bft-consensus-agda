@@ -354,7 +354,7 @@ module LibraBFT.Yasm.System
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
- SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set (ℓ-EC)) → Set (ℓ+1 ℓ0 ℓ⊔ ℓ+1 ℓ-EC)
+ SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC) → Set (ℓ+1 ℓ-EC)
  SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set ℓ-EC
 
  -- Just like Data.List.Any maps a predicate over elements to a predicate over lists,
