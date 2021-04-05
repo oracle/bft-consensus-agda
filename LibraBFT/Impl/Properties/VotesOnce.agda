@@ -77,8 +77,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                    → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
                    → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
   noEpochChangeYet _ ppre≡ (step-init ix) = {!!}
-  noEpochChangeYet _ ppre≡ (step-msg {(_ , m)} _ ms≡)
-     rewrite ms≡
+  noEpochChangeYet _ ppre≡ (step-msg {(_ , m)} _ _)
      with m
   ...| P p = refl
   ...| V v = refl
