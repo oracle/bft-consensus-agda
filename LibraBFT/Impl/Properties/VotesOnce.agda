@@ -105,7 +105,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| refl
     rewrite cheatStepDNMPeerStates cheat unit
     = oldVoteRound≤lvr r lkp≡s pkH sig msb4 vspkv ep≡
-  oldVoteRound≤lvr {pid = pid} {pre = pre} (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+  oldVoteRound≤lvr {pid = pid} {pre = pre}
+                   (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP)))
+                   lkp≡s pkH sig msv vspkv ep≡
     with pid ≟ pid'
   ...| no imp =  let ms≡pre = pid≢DNMState r stP imp lkp≡s
                      mwssb4 = pid≢⇒msgSent4 r stP pkH sig msv vspkv imp
@@ -131,7 +133,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
                        ep≡Vote = trans ep≡stP ep≡
                        lvr≤ = lastVoteRound-mono' step ms≡ lkp≡s ep≡stP
                    in ≤-trans (oldVoteRound≤lvr r ms≡ pkH sig mwssb4 vspkv ep≡Vote) lvr≤
-  oldVoteRound≤lvr {pid = pid} {s = s} {pre = pre} (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP))) lkp≡s pkH sig msv vspkv ep≡
+  oldVoteRound≤lvr {pid = pid} {s = s} {pre = pre}
+                   (step-s r step@(step-peer stPeer@(step-honest {pid'} {st} {outs} stP)))
+                   lkp≡s pkH sig msv vspkv ep≡
      | yes refl
      | step-msg {nm} {ms} {s₁} {s'} m∈pool ms≡ handle≡
      | inj₁ nm∈outs
