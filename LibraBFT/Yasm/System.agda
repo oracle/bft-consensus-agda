@@ -161,7 +161,7 @@ module LibraBFT.Yasm.System
  --
  -- A system consists in a partial map from PeerId to PeerState, a pool
  -- of sent messages and a number of available epochs.
- record SystemState (e : ℕ) : Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC) where
+ record SystemState (e : ℕ) : Set ℓ-EC where
    field
      peerStates  : PeerId → PeerState
      initialised : PeerId → InitStatus
@@ -252,7 +252,7 @@ module LibraBFT.Yasm.System
                         → peerStates (StepPeer-post theStep) ≡ peerStates pre
  cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _ = override≡Correct {f = peerStates pre} {pid}
 
- data Step : ∀{e e'} → SystemState e → SystemState e' → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC) where
+ data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
               → (𝓔 : EpochConfigFor e)
               -- TODO-3: Eventually, we'll condition this step to only be
@@ -302,7 +302,7 @@ module LibraBFT.Yasm.System
 
  -- * Reflexive-Transitive Closure
 
- data Step* : ∀{e e'} → SystemState e → SystemState e' → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC) where
+ data Step* : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-0 : ∀{e}{pre : SystemState e}
           → Step* pre pre
 
@@ -311,7 +311,7 @@ module LibraBFT.Yasm.System
           → Step pre post
           → Step* fst post
 
- ReachableSystemState : ∀{e} → SystemState e → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
+ ReachableSystemState : ∀{e} → SystemState e → Set ℓ-EC
  ReachableSystemState = Step* initialState
 
  Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
@@ -354,8 +354,8 @@ module LibraBFT.Yasm.System
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
- SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)) → Set (ℓ+1 (ℓ+1 ℓ0) ℓ⊔ ℓ+1 ℓ-EC)
- SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
+ SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set (ℓ-EC)) → Set (ℓ+1 ℓ0 ℓ⊔ ℓ+1 ℓ-EC)
+ SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set ℓ-EC
 
  -- Just like Data.List.Any maps a predicate over elements to a predicate over lists,
  -- Any-step maps a relation over steps to a relation over steps in a trace.

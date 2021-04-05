@@ -83,7 +83,7 @@ module LibraBFT.Yasm.Properties
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and no
  -- message with the same signature has been sent previously), or (ii) a message has been sent
  -- with the same signature.
- StepPeerState-AllValidParts : Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
+ StepPeerState-AllValidParts : Set ℓ-EC
  StepPeerState-AllValidParts = ∀{e s m part pk initd' outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
@@ -93,8 +93,8 @@ module LibraBFT.Yasm.Properties
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
- IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
- IsValidNewPart _ _ (step-epoch _) = Lift (ℓ+1 ℓ0 ℓ⊔ ℓ-EC) ⊥
+ IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set ℓ-EC
+ IsValidNewPart _ _ (step-epoch _) = Lift (ℓ-EC) ⊥
  -- said step is a /step-peer/ and
  IsValidNewPart {pre = pre} sig pk (step-peer {pid = pid} pstep)
     -- the part has never been seen before

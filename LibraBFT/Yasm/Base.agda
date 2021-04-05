@@ -28,7 +28,7 @@ module LibraBFT.Yasm.Base
 
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
- record SystemParameters : Set ((ℓ+1 0ℓ) ℓ⊔ ℓ-EC) where
+ record SystemParameters : Set (ℓ+1 0ℓ ℓ⊔ ℓ-EC) where
   constructor mkSysParms
   field
     PeerId    : Set
