@@ -24,16 +24,21 @@ module LibraBFT.Impl.Handle
  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
  open RWST-do
 
+ -- This represents an uninitialised EventProcessor, about which we know nothing, which we use as
+ -- the initial EventProcessor for every peer until it is initialised.
  postulate
    fakeEP : EventProcessor
 
+ -- Eventually, the initialization should establish some properties we care about, but for now we
+ -- just initialise again to fakeEP, which means we cannot prove the base case for various
+ -- properties, e.g., in Impl.Properties.VotesOnce
  initialEventProcessorAndMessages
-     : (a : Author) → EpochConfig → Maybe EventProcessor
+     : (a : Author) → EpochConfig → EventProcessor
      → EventProcessor × List NetworkMsg
- initialEventProcessorAndMessages a _ mep = fakeEP , []
+ initialEventProcessorAndMessages a _ _ = fakeEP , []
 
- handle : NodeId × NetworkMsg → Instant → LBFT Unit
- handle (sender , msg) now
+ handle : NodeId → NetworkMsg → Instant → LBFT Unit
+ handle _self msg now
     with msg
  ...| P p = processProposalMsg now p
  ...| V v = processVote now v
@@ -74,11 +79,11 @@ module LibraBFT.Impl.Handle
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId × NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
- peerStep msg ts st = runHandler st (handle msg ts)
+ peerStep : NodeId → NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
+ peerStep nid msg ts st = runHandler st (handle nid msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
  peerStepWrapper : NodeId → NetworkMsg → EventProcessor → EventProcessor × List NetworkMsg
- peerStepWrapper id msg st = ×-map₂ (List-map msgToSend) (peerStep (id , msg) 0 st)
+ peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)

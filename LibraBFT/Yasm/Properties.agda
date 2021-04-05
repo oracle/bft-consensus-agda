@@ -33,6 +33,7 @@ module LibraBFT.Yasm.Properties
              as AE
  open import LibraBFT.Yasm.Base   ℓ-EC EpochConfig epochId authorsN
  open import LibraBFT.Yasm.System ℓ-EC EpochConfig epochId authorsN parms
+ open import Util.FunctionOverride PeerId _≟PeerId_
 
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
@@ -83,17 +84,17 @@ module LibraBFT.Yasm.Properties
  -- message with the same signature has been sent previously), or (ii) a message has been sent
  -- with the same signature.
  StepPeerState-AllValidParts : Set ℓ-EC
- StepPeerState-AllValidParts = ∀{e s m part pk outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
+ StepPeerState-AllValidParts = ∀{e s m part pk initd' outs}{α}{𝓔s : AvailableEpochs e}{st : SystemState e}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → StepPeerState α 𝓔s (msgPool st) (Map-lookup α (peerStates st)) (s , outs)
+   → StepPeerState α 𝓔s (msgPool st) (initialised st) (peerStates st α) initd' (s , outs)
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
    → (ValidSenderForPK 𝓔s part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
  IsValidNewPart : ∀{e e'}{pre : SystemState e}{post : SystemState e'} → Signature → PK → Step pre post → Set ℓ-EC
- IsValidNewPart _ _ (step-epoch _) = Lift ℓ-EC ⊥
+ IsValidNewPart _ _ (step-epoch _) = Lift (ℓ-EC) ⊥
  -- said step is a /step-peer/ and
  IsValidNewPart {pre = pre} sig pk (step-peer {pid = pid} pstep)
     -- the part has never been seen before
@@ -276,7 +277,7 @@ module LibraBFT.Yasm.Properties
  -- just one peer's state.  However, this would put more burden on the user and is not required so
  -- far.
  CarrierProp : Set₁
- CarrierProp = Part → Maybe PeerState → Set
+ CarrierProp = Part → PeerState → Set
 
  module _ (P   : CarrierProp) where
 
@@ -286,21 +287,21 @@ module LibraBFT.Yasm.Properties
       carrStReach : ReachableSystemState st -- Enables use of invariants when proving that steps preserve carrProp
       carrSent    : MsgWithSig∈ pk sig (msgPool st)
       carrValid   : ValidSenderForPK (availEpochs st) (msgPart carrSent) (msgSender carrSent) pk
-      carrSndrSt  : Maybe PeerState
-      carrSndrSt≡ : Map-lookup (msgSender carrSent) (peerStates st) ≡ carrSndrSt
-      carrProp    : P (msgPart carrSent) (carrSndrSt)
+      carrProp    : P (msgPart carrSent) (peerStates st (msgSender carrSent))
   open PropCarrier public
 
   PeerStepPreserves : Set (ℓ+1 ℓ0 ℓ⊔ ℓ-EC)
-  PeerStepPreserves = ∀ {e ps' outs pk sig}{pre : SystemState e}
+  PeerStepPreserves = ∀ {e initd' ps' outs pk sig}{pre : SystemState e}
                       → (r : ReachableSystemState pre)
                       → (pc : PropCarrier pk sig {e} pre)
                       → (sps : StepPeerState {e} (msgSender (carrSent pc))
                                                  (availEpochs pre)
                                                  (msgPool pre)
-                                                 (Map-lookup (msgSender (carrSent pc)) (peerStates pre))
+                                                 (initialised pre)
+                                                 (peerStates pre (msgSender (carrSent pc)))
+                                                 initd'
                                                  (ps' , outs))
-                      → P (msgPart (carrSent pc)) (just ps')
+                      → P (msgPart (carrSent pc)) ps'
 
   module _ (PSP : PeerStepPreserves) where
 
@@ -308,16 +309,18 @@ module LibraBFT.Yasm.Properties
                    → (theStep : Step pre post)
                    → PropCarrier pk sig pre
                    → PropCarrier pk sig post
-    Carrier-transp {pre = pre} {post} (step-epoch ec) (mkCarrier r mws vpk spre spre≡ lvr) =
-       mkCarrier (step-s r (step-epoch ec)) mws (ValidSenderForPK-stable-epoch ec vpk) spre spre≡ lvr
-    Carrier-transp {e' = e'} {pre = pre} {post} theStep@(step-peer {pid = pid} {st'} {pre = .pre} sps) pc@(mkCarrier r mws vpk spre spre≡ prop)
+    Carrier-transp {pre = pre} {post} (step-epoch ec) (mkCarrier r mws vpk lvr) =
+       mkCarrier (step-s r (step-epoch ec)) mws (ValidSenderForPK-stable-epoch ec vpk) lvr
+    Carrier-transp {e' = e'} {pre = pre} {post} theStep@(step-peer {pid = pid} {st'} {pre = .pre} sps) pc@(mkCarrier r mws vpk prop)
        with step-s r theStep
     ...| postReach
        with sps
-    ...| step-cheat fm isch = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk spre (subst (λ x → Map-lookup (msgSender mws) x ≡ spre) (sym Map-set-≡-correct) spre≡) prop
+    ...| step-cheat fm isch = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
+           (subst (λ ps → P (msgPart mws) (ps (msgSender mws))) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat fm isch) unit)) prop)
     -- PeerStates not changed by cheat steps
     ...| step-honest {st = st} sps'
        with msgSender mws ≟PeerId pid
-    ...| no neq = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk spre (subst (_≡ spre) (Map-set-target-≢ neq) spre≡) prop
-    ...| yes refl = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk (just st) Map-set-correct
-                              (PSP r pc sps')
+    ...| no neq   = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
+                              (subst (λ ps → P (msgPart mws) ps) (override-target-≢ {f = peerStates pre} neq) prop)
+    ...| yes refl = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
+                              (subst (λ ps → P (msgPart mws) ps) (sym override-target-≡) (PSP r pc sps'))

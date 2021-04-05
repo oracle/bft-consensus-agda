@@ -36,8 +36,8 @@ module LibraBFT.Impl.Handle.Properties
 
   ----- Properties that bridge the system model gap to the handler -----
   msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessor}
-                      → send (V vm) ∈ proj₂ (peerStep (pid , P pm) ts st)
-                      → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle (pid , P pm) ts) st)
+                      → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
+                      → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
      with send∈acts
      -- The fake handler sends only to node 0 (fakeAuthor), so this doesn't
@@ -53,7 +53,7 @@ module LibraBFT.Impl.Handle.Properties
 
   msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessor}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
-                     → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep (pid , nm) ts st))
+                     → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
     with nm
   ...| C _ = ⊥-elim (¬Any[] m∈outs)
@@ -76,7 +76,8 @@ module LibraBFT.Impl.Handle.Properties
    -- as opposed to using it to construct a QC using its own unsent vote.
    qcVotesSentB4 : ∀{e pid ps vs pk q vm}{st : SystemState e}
                  → ReachableSystemState st
-                 → just ps ≡ Map-lookup pid (peerStates st)
+                 → initialised st pid ≡ initd
+                 → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
                  → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ epHighestQC) (ps ^∙ epHighestCommitQC)
                  → vs ∈ qcVotes q
