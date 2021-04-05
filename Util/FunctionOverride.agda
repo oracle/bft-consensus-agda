@@ -18,7 +18,7 @@ module Util.FunctionOverride
 
   override : (A → B) → A → B → (A → B)
   override f p v x
-    with p ≟A x
+     with p ≟A x
   ...| yes refl = v
   ...| no  neq  = f x
 
@@ -47,7 +47,7 @@ module Util.FunctionOverride
               → (p a : A)
               → override f p (f p) a ≡ f a
   overrideAux p a
-    with p ≟A a
+     with p ≟A a
   ...| no neq   = refl
   ...| yes refl = refl
 

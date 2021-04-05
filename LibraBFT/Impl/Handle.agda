@@ -80,10 +80,10 @@ module LibraBFT.Impl.Handle
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
  peerStep : NodeId → NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
- peerStep id msg ts st = runHandler st (handle id msg ts)
+ peerStep nid msg ts st = runHandler st (handle nid msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
  peerStepWrapper : NodeId → NetworkMsg → EventProcessor → EventProcessor × List NetworkMsg
- peerStepWrapper id msg st = ×-map₂ (List-map msgToSend) (peerStep id msg 0 st)
+ peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)

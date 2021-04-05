@@ -149,8 +149,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| refl
      with newVoteSameEpochGreaterRound r hstep (msg⊆ mws) nm∈outs (msgSigned mws)
                                        (subst (λ sig → ¬ MsgWithSig∈ pk sig (msgPool pre))
-                                               (sym (msgSameSig mws))
-                                               ¬sentb4)
+                                              (sym (msgSameSig mws))
+                                              ¬sentb4)
   ...| refl , refl , newlvr
      with noEpochChangeYet {ppre = peerStates pre β} r refl hstep
   ...| eids≡

@@ -320,7 +320,7 @@ module LibraBFT.Yasm.Properties
     -- PeerStates not changed by cheat steps
     ...| step-honest {st = st} sps'
        with msgSender mws ≟PeerId pid
-    ...| no neq = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
-                            (subst (λ ps → P (msgPart mws) ps) (override-target-≢ {f = peerStates pre} neq) prop)
+    ...| no neq   = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
+                              (subst (λ ps → P (msgPart mws) ps) (override-target-≢ {f = peerStates pre} neq) prop)
     ...| yes refl = mkCarrier postReach (MsgWithSig∈-++ʳ mws) vpk
                               (subst (λ ps → P (msgPart mws) ps) (sym override-target-≡) (PSP r pc sps'))
