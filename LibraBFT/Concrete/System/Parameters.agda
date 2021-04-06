@@ -25,6 +25,7 @@ module LibraBFT.Concrete.System.Parameters where
                  NodeId
                  _≟NodeId_
                  EventProcessor
+                 fakeEP
                  NetworkMsg
                  Vote
                  sig-Vote

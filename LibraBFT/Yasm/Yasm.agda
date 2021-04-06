@@ -24,3 +24,4 @@ module LibraBFT.Yasm.Yasm
  open import LibraBFT.Yasm.Base       ℓ-EC EpochConfig epochId authorsN                      public
  open import LibraBFT.Yasm.System     ℓ-EC EpochConfig epochId authorsN parms                public
  open import LibraBFT.Yasm.Properties ℓ-EC EpochConfig epochId authorsN parms senderPKOK     public
+ open import Util.FunctionOverride    PeerId _≟PeerId_                                       public
