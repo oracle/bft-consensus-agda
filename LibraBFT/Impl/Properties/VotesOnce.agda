@@ -200,7 +200,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   vo₁ : VO.ImplObligation₁
   -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
   -- probably not containing Votes?
-  vo₁ r (step-init _) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
+  vo₁ r (step-init _) _ _ m∈outs = ⊥-elim (¬Any[] m∈outs)
   vo₁ {e} {pid} {pk = pk} {pre = pre} r (step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' refl rnds≡
      with newVoteSameEpochGreaterRound {e} {pre} {pid = pid} r

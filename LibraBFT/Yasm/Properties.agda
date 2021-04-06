@@ -273,6 +273,32 @@ module LibraBFT.Yasm.Properties
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , vpb''
 
 
+     newMsg⊎msgSentB4 :  ∀ {e pk v m pid sndr st' outs} {st : SystemState e}
+                   → (r : ReachableSystemState st)
+                   → (stP : StepPeer st pid st' outs)
+                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                   → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post stP)
+                   → (m ∈ outs × ValidSenderForPK (availEpochs st) v pid pk
+                      × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
+                     ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     newMsg⊎msgSentB4 {e} {pk} {v} {m} {pid} {sndr} {_} {outs} {st} r stP pkH sig v⊂m m∈post
+        with Any-++⁻ (List-map (pid ,_) outs) m∈post
+     ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
+     ...| inj₁ nm∈outs
+        with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
+     ...| m∈outs
+        with stP
+     ...| step-honest stH
+        with sps-avp r pkH stH m∈outs v⊂m sig
+     ...| inj₁ newVote = inj₁ (m∈outs , newVote)
+     ...| inj₂ msb4    = inj₂ msb4
+     newMsg⊎msgSentB4 {e} {pk} {v} {m} {pid} {sndr} {_} {outs} {st} r stP pkH sig v⊂m m∈post
+        | inj₁ nm∈outs
+        | here refl
+        | step-cheat fm ic
+          = let mws = mkMsgWithSig∈ m v v⊂m pid (here refl) sig refl
+            in inj₂ (¬cheatForgeNew {st = st} (step-cheat fm ic) refl unit pkH mws)
+
  -- This could potentially be more general, for example covering the whole SystemState, rather than
  -- just one peer's state.  However, this would put more burden on the user and is not required so
  -- far.
