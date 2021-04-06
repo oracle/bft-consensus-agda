@@ -155,20 +155,20 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     VotesOnceProof (step-s r (step-epoch _)) pkH vv msv vv' msv' ep≡ r≡
       = VotesOnceProof r pkH vv msv vv' msv' ep≡ r≡
     VotesOnceProof (step-s r (step-peer cheat@(step-cheat f c))) pkH vv msv vv' msv' ep≡ r≡
-      with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
+       with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
     ...| msb4 | m'sb4
-      with  msgSameSig msb4 | msgSameSig m'sb4
+       with  msgSameSig msb4 | msgSameSig m'sb4
     ...| refl | refl = VotesOnceProof r pkH vv msb4 vv' m'sb4 ep≡ r≡
     VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' ep≡ r≡
-        with  msgSameSig msv | msgSameSig msv'
+       with  msgSameSig msv | msgSameSig msv'
     ...| refl       | refl
        with sameHonestSig⇒sameVoteData pkH (msgSigned msv) vv (msgSameSig msv)
           | sameHonestSig⇒sameVoteData pkH (msgSigned msv') vv' (msgSameSig msv')
     ...| inj₁ hb    | _         = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl  | inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl  | inj₂ refl
-      with newMsg⊎msgSent4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-         | newMsg⊎msgSent4 r stPeer pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
+       with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
+         | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
     ...| inj₂ msb4                   | inj₂ m'sb4
          = VotesOnceProof r pkH vv msb4 vv' m'sb4 ep≡ r≡
     ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
@@ -184,7 +184,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        | refl       | refl
        | inj₂ refl  | inj₂ refl
        | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
-      with sameHonestSig⇒sameVoteData pkH (msgSigned msb4) vv (msgSameSig msb4)
+       with sameHonestSig⇒sameVoteData pkH (msgSigned msb4) vv (msgSameSig msb4)
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
       = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk

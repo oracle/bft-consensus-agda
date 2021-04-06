@@ -272,7 +272,7 @@ module LibraBFT.Yasm.Properties
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , vpb''
 
 
-     newMsg⊎msgSent4 :  ∀ {e pk v m pid sndr s' outs} {st : SystemState e}
+     newMsg⊎msgSentB4 :  ∀ {e pk v m pid sndr s' outs} {st : SystemState e}
                    → (r : ReachableSystemState st)
                    → (stP : StepPeerState pid (availEpochs st) (msgPool st)
                                           (Map-lookup pid (peerStates st)) (s' , outs))
@@ -281,15 +281,15 @@ module LibraBFT.Yasm.Properties
                    → (m ∈ outs × ValidSenderForPK (availEpochs st) v pid pk
                       × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                      ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-     newMsg⊎msgSent4 {_} {pk} {v} {m} {pid} {sndr} {outs = outs} r stP pkH sig v⊂m m∈post
-       with Any-++⁻ (List-map (pid ,_) outs) m∈post
+     newMsg⊎msgSentB4 {_} {pk} {v} {m} {pid} {sndr} {outs = outs} r stP pkH sig v⊂m m∈post
+        with Any-++⁻ (List-map (pid ,_) outs) m∈post
      ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
      ...| inj₁ nm∈outs
-       with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
+        with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
      ...| m∈outs
-       with sps-avp r pkH stP m∈outs v⊂m sig
-     ... | inj₁ newVote = inj₁ (m∈outs , newVote)
-     ... | inj₂ msb4    = inj₂ msb4
+        with sps-avp r pkH stP m∈outs v⊂m sig
+     ...| inj₁ newVote = inj₁ (m∈outs , newVote)
+     ...| inj₂ msb4    = inj₂ msb4
 
 
  -- This could potentially be more general, for example covering the whole SystemState, rather than
