@@ -28,12 +28,13 @@ module LibraBFT.Yasm.Base
 
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
- record SystemParameters : Set ((ℓ+1 0ℓ) ℓ⊔ ℓ-EC) where
+ record SystemParameters : Set (ℓ+1 0ℓ ℓ⊔ ℓ-EC) where
   constructor mkSysParms
   field
     PeerId    : Set
     _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
     PeerState : Set
+    initPS    : PeerState  -- Represents an uninitialised PeerState, about which we know nothing whatsoever
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
 
@@ -47,7 +48,7 @@ module LibraBFT.Yasm.Base
     part-epoch  : Part → EpochId
 
     -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → EpochConfig → Maybe PeerState → PeerState × List Msg
+    init : PeerId → EpochConfig → PeerState → PeerState × List Msg
 
     -- Handles a message on a previously initialized peer.
     handle : PeerId → Msg → PeerState → PeerState × List Msg
@@ -70,45 +71,3 @@ module LibraBFT.Yasm.Base
     -- > libraHandle _ (Crashed , l , s) = Crashed , s , [] -- i.e., crashed peers never send messages
     -- >
     -- > handle = filter isSend ∘ libraHandle
-
- -- We also require a standard key-value store interface, along with its
- -- functionality and various properties about it.  Most of the properties
- -- are not currently used, but they are included here based on our
- -- experience in other work, as we think many of them will be needed when
- -- reasoning about an actual LibraBFT implementation.
-
- -- Although we believe the assumptions here are reasonable, it is always
- -- possible that we made a mistake in postulating one of the properties,
- -- making it impossible to implement.  Thus, it would a useful contribution
- -- to:
- --
- -- TODO-1: construct an actual implementation and provide and prove the
- -- necessary properties to satisfy the requirements of this module
- --
- -- Note that this would require some work, but should be relatively
- -- straightforward and requires only "local" changes.
-
- postulate
-   Map        : Set → Set → Set
-   Map-empty  : ∀{k v} → Map k v
-   Map-lookup : ∀{k v} → k → Map k v → Maybe v
-   Map-insert : ∀{k v} → k → v → Map k v → Map k v
-   Map-set    : ∀{k v} → k → Maybe v → Map k v → Map k v
-
-   -- It must satisfy the following properties
-   Map-insert-correct  : ∀ {K V : Set}{k : K}{v : V}{m : Map K V}
-                       → Map-lookup k (Map-insert k v m) ≡ just v
-
-   Map-insert-target-≢ : ∀ {K V : Set}{k k' : K}{v : V}{m}
-                       → k' ≢ k
-                       → Map-lookup k' m ≡ Map-lookup k' (Map-insert k v m)
-
-   Map-set-correct     : ∀ {K V : Set}{k : K}{mv : Maybe V}{m : Map K V}
-                       → Map-lookup k (Map-set k mv m) ≡ mv
-
-   Map-set-target-≢    : ∀ {K V : Set}{k k' : K}{mv : Maybe V}{m}
-                       → k' ≢ k
-                       → Map-lookup k' m ≡ Map-lookup k' (Map-set k mv m)
-
-   Map-set-≡-correct   : ∀ {K V : Set}{k : K}{m : Map K V}
-                       → Map-set k (Map-lookup k m) m ≡ m

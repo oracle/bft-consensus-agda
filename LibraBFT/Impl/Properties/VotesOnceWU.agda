@@ -35,7 +35,9 @@ open        Structural impl-sps-avp
 -- implementation (or some variant on it) and streamline the proof before we proceed to tacke more
 -- ambitious properties.
 
-module LibraBFT.Impl.Properties.VotesOnce where
+module LibraBFT.Impl.Properties.VotesOnceWU where
+
+{-
 
   postulate  -- TODO-2: prove.  Note that these are really just properties about the handler,
              -- but are currently wrapped up into properties about SystemState.  These should
@@ -161,6 +163,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
 
   vo₁ : VO.ImplObligation₁
+
   vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
   vo₁ {pid' = pid'} r (step-msg {_ , nm} {ms} {s} m∈pool ms≡ hndl≡) {v} {m} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
     rewrite cong proj₂ hndl≡
@@ -180,6 +183,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
 
   vo₂ : VO.ImplObligation₂
+
   vo₂ _ (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
   vo₂ {pk = pk} {st} r (step-msg {pid , nm} {s = ps} _ ps≡ hndl≡) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
      rewrite cong proj₂ hndl≡
@@ -214,4 +218,5 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m)
                   rewrite cong ₋vSignature v≈rbld
                         | procPMCerts≡ {0} {msg} {ps} {vm} v∈outs
-     = ⊥-elim (v'new (qcVotesSentB4 r ps≡ qc∈m refl vs∈qc))
+     = ⊥-elim (v'new (qcVotesSentB4 r ps≡ qc∈m refl vs∈qc)) 
+-}

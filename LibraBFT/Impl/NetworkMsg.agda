@@ -58,7 +58,7 @@ module LibraBFT.Impl.NetworkMsg where
             → v ⊂Msg (V (mkVoteMsg v si))
     vote∈qc : ∀ {vs} {qc : QuorumCert} {nm}
             → vs ∈ qcVotes qc
-            → (rebuildVote qc vs) ≈Vote v
+            → rebuildVote qc vs ≈Vote v
             → qc QC∈NM nm
             → v ⊂Msg nm
 
