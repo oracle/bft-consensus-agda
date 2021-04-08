@@ -88,6 +88,7 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
                   → pid ≢ pid'
                   → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
 
+initialised pre pid ≡ initd
 
   oldVoteRound≤lvr :  ∀ {e pid pk v s}{pre : SystemState e}
          → (r : ReachableSystemState pre)
@@ -160,28 +161,41 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
                        lvr≤ = lastVoteRound-mono' step ms≡ lkp≡s ep≡stP
                    in ≤-trans (oldVoteRound≤lvr r ms≡ pkH sig mwssb4 vspkv ep≡Vote) lvr≤
 
+-}
+
+  oldVoteRound≤lvr :  ∀ {e pid pk v}{pre : SystemState e}
+                   → (r : ReachableSystemState pre)
+                   → initialised pre pid ≡ initd
+                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                   → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+                   → ValidSenderForPK (availEpochs pre) v pid pk
+                   → (₋epEC (peerStates pre pid)) ^∙ epEpoch ≡ (v ^∙ vEpoch)
+                   → v ^∙ vRound ≤ (₋epEC (peerStates pre pid)) ^∙ epLastVotedRound
+  oldVoteRound≤lvr (step-s r (step-epoch _)) pidIn pkH sig msv vspk ep≡ = {!!}
+  oldVoteRound≤lvr {_} {pid'} (step-s r (step-peer {pid = pid} cheat@(step-cheat f c))) pidIn pkH sig msv vspk ep≡
+     with ¬cheatForgeNew cheat refl unit pkH msv
+  ...| msb4
+     rewrite cheatStepDNMPeerStates₁ {pid = pid} {pid' = pid'} cheat unit
+       = oldVoteRound≤lvr r pidIn pkH sig msb4 vspk ep≡
+  oldVoteRound≤lvr (step-s r (step-peer (step-honest st))) pidIn pkH sig msv vspk ep≡ = {!!}
+
 
 
   vo₁ : VO.ImplObligation₁
-
-  vo₁ r (step-init _ refl) _ _ m∈outs _ _ _ _ _ _ _ _ = ⊥-elim (¬Any[] m∈outs)
-  vo₁ {pid' = pid'} r (step-msg {_ , nm} {ms} {s} m∈pool ms≡ hndl≡) {v} {m} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
-    rewrite cong proj₂ hndl≡
-    with nm
+  vo₁ {pid' = pid'} r (step-msg {_ , nm} m∈ psI) {_} {_} {v'} {m'} pkH v⊂m m∈outs sv ¬msb vspkv v'⊂m' m'∈pool sv' ep≡ r≡
+     with nm
   ...| P pm
-    with m∈outs
+     with m∈outs
   ...| here refl
-    with v⊂m
-  ... | vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
-                      vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
-                      ep≡stP = trans (epoch≡stepPeer r ms≡) ep≡
-                      rv'<rv = oldVoteRound≤lvr r ms≡ pkH sv' m'mwsb vspkv' ep≡stP
-                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
-  ... | vote∈qc vs∈qc v≈rbld (inV qc∈m)
-     rewrite cong ₋vSignature v≈rbld
-    = ⊥-elim (¬msb (qcVotesSentB4 r ms≡ qc∈m refl vs∈qc))
+     with v⊂m
+  ...| vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
+                     vspkv' = ValidSenderForPK⇒ep≡ sv sv' ep≡ vspkv
+                     rv'<rv = oldVoteRound≤lvr r psI pkH sv' m'mwsb vspkv' ep≡
+                 in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
+       = ⊥-elim (¬msb (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
 
-
+{-
   vo₂ : VO.ImplObligation₂
 
   vo₂ _ (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
