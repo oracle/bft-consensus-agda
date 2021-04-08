@@ -320,30 +320,13 @@ module LibraBFT.Yasm.System
  ReachableSystemState : ∀{e} → SystemState e → Set ℓ-EC
  ReachableSystemState = Step* initialState
 
-{-
-
- pid≢DNMState : ∀ {e pid s} {pid' s' outs}{st : SystemState e}
-              → (r : ReachableSystemState st)
-              → (stP : StepPeerState pid' (availEpochs st) (msgPool st)
-                                     (Map-lookup pid' (peerStates st)) s' outs)
-              → pid ≢ pid'
-              → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
-              → Map-lookup pid (peerStates st) ≡ just s
- pid≢DNMState _ _ pid≢ lkp≡s = trans (Map-set-target-≢ pid≢) lkp≡s
-
-
-
- eventProcessorPostSt : ∀ {pid s' s outs} {e} {st : SystemState e}
+ eventProcessorPostSt : ∀ {pid s' s outs init'} {e} {st : SystemState e}
                       → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (availEpochs st) (msgPool st)
-                                             (Map-lookup pid (peerStates st)) s' outs)
-                      → Map-lookup pid (peerStates (StepPeer-post (step-honest stP))) ≡ just s
+                      → (stP : StepPeerState pid (availEpochs st) (msgPool st) (initialised st)
+                                             (peerStates st pid) init' (s' , outs))
+                      → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
                       → s ≡ s'
- eventProcessorPostSt {pid'} {s'} {st = st} _ _ lkp≡s
-   rewrite Map-set-correct {k = pid'} {mv = just s'} {m = peerStates st}
-   with lkp≡s
- ... | refl = refl
--}
+ eventProcessorPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
             → Step* st st' → e ≤ e'
