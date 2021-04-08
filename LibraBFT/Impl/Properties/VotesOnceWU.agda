@@ -10,18 +10,13 @@
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
-open import LibraBFT.Impl.Base.Types
 
 open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor.Properties  sha256 sha256-cr
-open import LibraBFT.Impl.Handle                                          sha256 sha256-cr
 open import LibraBFT.Impl.Handle.Properties                               sha256 sha256-cr
-open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Concrete.System impl-sps-avp
 open import LibraBFT.Concrete.System.Parameters
