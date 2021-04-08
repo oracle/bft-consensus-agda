@@ -77,7 +77,7 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
      with NodeId-PK-OK-injective (vp-ec vspk) (vp-sender-ok vspk) (vp-sender-ok vspkN)
   ...| refl rewrite eventProcessorPostSt r stPeer refl
        = let nvr = newVoteSameEpochGreaterRound r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV
-              in ≡⇒≤ ((proj₂ ∘ proj₂) nvr)
+         in ≡⇒≤ ((proj₂ ∘ proj₂) nvr)
 
 
   votesOnce₁ : VO.ImplObligation₁
@@ -91,42 +91,17 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
        = ⊥-elim (¬msb (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
 
-{-
-  vo₂ : VO.ImplObligation₂
 
-  vo₂ _ (step-init _ eff) _ _ m∈outs _ _ _ _ _ _ _ _ rewrite cong proj₂ eff = ⊥-elim (¬Any[] m∈outs)
-  vo₂ {pk = pk} {st} r (step-msg {pid , nm} {s = ps} _ ps≡ hndl≡) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig vnew vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
-     rewrite cong proj₂ hndl≡
-    with nm
-  ...| P msg
-    with msgsToSendWereSent {pid} {0} {P msg} {m} {ps} m∈outs
-  ...| vm , refl , vmSent
-    with msgsToSendWereSent1 {pid} {0} {msg} {vm} {ps} vmSent
-  ...| _ , v∈outs
-     rewrite SendVote-inj-v  (Any-singleton⁻ v∈outs)
-           | SendVote-inj-si (Any-singleton⁻ v∈outs)
-    with v⊂m
-       -- Rebuilding keeps the same signature, and the SyncInfo included with the
-       -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
-       -- those QCS have signatures that have been sent before, contradicting the
-       -- assumption that v's signature has not been sent before.
-  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {msg} {ps} {vm} v∈outs
-     = ⊥-elim (vnew (qcVotesSentB4 r ps≡ qc∈m refl vs∈qc))
-  ...| vote∈vm {si}
-     with m'
-  ...| P _ = ⊥-elim (P≢V (Any-singleton⁻ m'∈outs))
-  ...| C _ = ⊥-elim (C≢V (Any-singleton⁻ m'∈outs))
-  ...| V vm'
-       -- Because the handler sends only one message, the two VoteMsgs vm and vm' are the same
-     rewrite V-inj (trans (Any-singleton⁻ m'∈outs) (sym (Any-singleton⁻ m∈outs)))
-     with v'⊂m'
-       -- Both votes are the vote in the (single) VoteMsg, so their biIds must be the same
-  ...| vote∈vm = refl
-       -- Here we use the same reasoning as above to show that v' is not new
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {msg} {ps} {vm} v∈outs
-     = ⊥-elim (v'new (qcVotesSentB4 r ps≡ qc∈m refl vs∈qc)) 
--}
+  votesOnce₂ : VO.ImplObligation₂
+  votesOnce₂ {pk = pk} {st} r (step-msg {_ , P m} _ psI) hpk v⊂m m∈outs sig vnew
+             vpk v'⊂m' m'∈outs sig' v'new vpk' es≡ rnds≡
+     with m∈outs | m'∈outs
+  ...| here refl | here refl
+     with v⊂m                          | v'⊂m'
+  ...| vote∈vm                         | vote∈vm = refl
+  ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inV qc∈m')
+       rewrite cong ₋vSignature v≈rbld'
+       = ⊥-elim (v'new (qcVotesSentB4 r psI refl qc∈m' refl vs∈qc'))
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) | _
+       rewrite cong ₋vSignature v≈rbld
+       = ⊥-elim (vnew (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
