@@ -78,6 +78,8 @@ module LibraBFT.Yasm.Properties
    trans (sym (vp-ec-≡ vp1))
          (trans (AE.lookup-𝓔s-injective 𝓔s (vp-epoch vp1) (vp-epoch vp2) parts≡)
                 (vp-ec-≡ vp2))
+
+ -- TODO-1 : prove it
  postulate
    ValidSenderForPK⇒ep≡ : ∀ {e p1 p2 α1 pk} {𝓔s : AvailableEpochs e}
                         → WithVerSig pk p1 → WithVerSig pk p2

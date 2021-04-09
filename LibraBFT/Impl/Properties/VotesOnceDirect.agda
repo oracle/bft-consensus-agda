@@ -31,7 +31,7 @@ open import LibraBFT.Impl.Properties.VotesOnce
 -- implementation (or some variant on it) and streamline the proof before we proceed to tacke more
 -- ambitious properties.
 
-module LibraBFT.Impl.Properties.VotesOnceWU where
+module LibraBFT.Impl.Properties.VotesOnceDirect where
 
   oldVoteRound≤lvr :  ∀ {e pid pk v}{pre : SystemState e}
                    → (r : ReachableSystemState pre)
@@ -42,7 +42,7 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
                    → (₋epEC (peerStates pre pid)) ^∙ epEpoch ≡ (v ^∙ vEpoch)
                    → v ^∙ vRound ≤ (₋epEC (peerStates pre pid)) ^∙ epLastVotedRound
   oldVoteRound≤lvr (step-s r (step-epoch _)) pidIn pkH sig msv vspk ep≡ = {!!}
-  oldVoteRound≤lvr {pid = pid'} (step-s r (step-peer {pid = pid} cheat@(step-cheat f c)))
+  oldVoteRound≤lvr {pid = pid'} {pre = pre} (step-s r (step-peer {pid = pid} cheat@(step-cheat f c)))
                     pidIn pkH sig msv vspk ep≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4
@@ -67,7 +67,8 @@ module LibraBFT.Impl.Properties.VotesOnceWU where
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
   ...| inj₂ refl
      with sameEpoch⇒sameEC vspk vspkN refl
-          -- Both peers are allowed to sign for the same PK, so they are the same peer
+          -- Both peers are allowed to sign for the same PK in the same epoch,
+          -- so they are the same peer
   ...| refl
      with NodeId-PK-OK-injective (vp-ec vspk) (vp-sender-ok vspk) (vp-sender-ok vspkN)
   ...| refl rewrite eventProcessorPostSt r stPeer refl

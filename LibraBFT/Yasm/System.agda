@@ -250,13 +250,15 @@ module LibraBFT.Yasm.System
                         → (theStep : StepPeer pre pid st' outs)
                         → isCheat theStep
                         → peerStates (StepPeer-post theStep) ≡ peerStates pre
- cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _ = override≡Correct {f = peerStates pre} {pid}
+ cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _
+   = overrideSameVal-correct-ext {f = peerStates pre} {pid}
 
  cheatStepDNMPeerStates₁ : ∀{e pid pid' st' outs}{pre : SystemState e}
                         → (theStep : StepPeer pre pid st' outs)
                         → isCheat theStep
                         → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
- cheatStepDNMPeerStates₁ {_} {pid} {pid'} (step-cheat fm x₁) x = overrideAux pid pid'
+ cheatStepDNMPeerStates₁ {_} {pid} {pid'} (step-cheat fm x₁) x
+   = overrideSameVal-correct pid pid'
 
  data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
