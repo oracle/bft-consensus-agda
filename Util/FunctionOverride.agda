@@ -43,13 +43,13 @@ module Util.FunctionOverride
   ...| yes refl = ⊥-elim (neq refl)
   ...| no  _    = refl
 
-  overrideAux : ∀ {f : A → B}
+  overrideSameVal-correct : ∀ {f : A → B}
               → (p a : A)
               → override f p (f p) a ≡ f a
-  overrideAux p a
+  overrideSameVal-correct p a
      with p ≟A a
   ...| no neq   = refl
   ...| yes refl = refl
 
-  override≡Correct : ∀ {f : A → B}{p : A} → override f p (f p) ≡ f
-  override≡Correct {p = p} = funext (overrideAux p)
+  overrideSameVal-correct-ext : ∀ {f : A → B}{p : A} → override f p (f p) ≡ f
+  overrideSameVal-correct-ext {p = p} = funext (overrideSameVal-correct p)

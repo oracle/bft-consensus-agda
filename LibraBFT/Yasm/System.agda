@@ -250,7 +250,15 @@ module LibraBFT.Yasm.System
                         → (theStep : StepPeer pre pid st' outs)
                         → isCheat theStep
                         → peerStates (StepPeer-post theStep) ≡ peerStates pre
- cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _ = override≡Correct {f = peerStates pre} {pid}
+ cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _
+   = overrideSameVal-correct-ext {f = peerStates pre} {pid}
+
+ cheatStepDNMPeerStates₁ : ∀{e pid pid' st' outs}{pre : SystemState e}
+                        → (theStep : StepPeer pre pid st' outs)
+                        → isCheat theStep
+                        → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
+ cheatStepDNMPeerStates₁ {_} {pid} {pid'} (step-cheat fm x₁) x
+   = overrideSameVal-correct pid pid'
 
  data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
    step-epoch : ∀{e}{pre : SystemState e}
@@ -313,6 +321,14 @@ module LibraBFT.Yasm.System
 
  ReachableSystemState : ∀{e} → SystemState e → Set ℓ-EC
  ReachableSystemState = Step* initialState
+
+ eventProcessorPostSt : ∀ {pid s' s outs init'} {e} {st : SystemState e}
+                      → (r : ReachableSystemState st)
+                      → (stP : StepPeerState pid (availEpochs st) (msgPool st) (initialised st)
+                                             (peerStates st pid) init' (s' , outs))
+                      → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
+                      → s ≡ s'
+ eventProcessorPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
             → Step* st st' → e ≤ e'

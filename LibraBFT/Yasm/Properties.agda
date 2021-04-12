@@ -79,6 +79,14 @@ module LibraBFT.Yasm.Properties
          (trans (AE.lookup-𝓔s-injective 𝓔s (vp-epoch vp1) (vp-epoch vp2) parts≡)
                 (vp-ec-≡ vp2))
 
+ -- TODO-1 : prove it
+ postulate
+   ValidSenderForPK⇒ep≡ : ∀ {e p1 p2 α1 pk} {𝓔s : AvailableEpochs e}
+                        → WithVerSig pk p1 → WithVerSig pk p2
+                        → part-epoch p1 ≡ part-epoch p2
+                        → ValidSenderForPK 𝓔s p1 α1 pk
+                        → ValidSenderForPK 𝓔s p2 α1 pk
+
  -- We say that an implementation produces only valid parts iff all parts of every message in the
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and no
  -- message with the same signature has been sent previously), or (ii) a message has been sent
@@ -239,6 +247,8 @@ module LibraBFT.Yasm.Properties
         with isCheat (subst (msgPart mws ⊂Msg_) (cong proj₂ m∈pool) (msg⊆ mws)) (msgSigned mws)
      ...| inj₁ dis = ⊥-elim (hpk dis)
      ...| inj₂ mws' rewrite msgSameSig mws = mws'
+
+
 
      msgWithSigSentByAuthor : ∀ {e pk sig}{st : SystemState e}
                             → ReachableSystemState st
