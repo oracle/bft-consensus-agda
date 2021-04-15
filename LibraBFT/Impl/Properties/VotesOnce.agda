@@ -16,7 +16,7 @@ open import LibraBFT.Base.PKCS
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
 open import LibraBFT.Impl.Base.Types
 
-open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
+open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor.Properties  sha256 sha256-cr
 open import LibraBFT.Impl.Handle                                          sha256 sha256-cr
@@ -24,11 +24,13 @@ open import LibraBFT.Impl.Handle.Properties                               sha256
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Impl.Util.Util
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
+open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments
@@ -40,9 +42,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   -- TODO-1: It seems that vo₂ should be proved via a couple of invocations of this property;
   -- the proofs are quite similar.
-  newVoteSameEpochGreaterRound : ∀ {e}{pre : SystemState e}{pid initd' s' outs v m pk}
+  newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid initd' s' outs v m pk}
                                → ReachableSystemState pre
-                               → StepPeerState {e} pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) initd' (s' , outs)
+                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) initd' (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                                → (v ^∙ vEpoch) ≡ (₋epEC (peerStates pre pid)) ^∙ epEpoch
@@ -84,7 +86,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| C c = refl
 
   -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
-  lastVoteRound-mono : ∀ {e}{pre : SystemState e}{pid}{initd' ppre ppost msgs}
+  lastVoteRound-mono : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)

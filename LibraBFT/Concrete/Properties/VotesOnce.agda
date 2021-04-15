@@ -11,12 +11,13 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Impl.Base.Types
 
 open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
+open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Concrete.System
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -41,12 +42,12 @@ module LibraBFT.Concrete.Properties.VotesOnce where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set₁
+ ImplObligation₁ : Set (ℓ+1 ℓ-EventProcessorAndMeta)
  ImplObligation₁ =
-   ∀{e pid pid' inits' s' outs pk}{pre : SystemState e}
+   ∀{pid pid' inits' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
+   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -63,12 +64,12 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- Then an honest implemenation promises v and v' vote for the same blockId.
    → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
 
- ImplObligation₂ : Set₁
+ ImplObligation₂ : Set (ℓ+1 ℓ-EventProcessorAndMeta)
  ImplObligation₂ =
-   ∀{e pid inits' s' outs pk}{pre : SystemState e}
+   ∀{pid inits' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
+   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -94,14 +95,13 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
-  module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
+  module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
 
    open Structural sps-corr
-
    -- Bring in IntSystemState
-   open import LibraBFT.Concrete.System sps-corr
+   open WithSPS sps-corr
    open PerState st r
-   open PerEpoch eid
+   open PerEpoch 𝓔
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 
@@ -143,7 +143,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
 
     VotesOnceProof :
-       ∀ {v v' e pk} {st : SystemState e}
+       ∀ {v v' pk} {st : SystemState}
        → ReachableSystemState st
        → Meta-Honest-PK pk
        → (vv  : WithVerSig pk v)  → MsgWithSig∈ pk (ver-signature vv) (msgPool st)
@@ -152,8 +152,6 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
     VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
-    VotesOnceProof (step-s r (step-epoch _)) pkH vv msv vv' msv' ep≡ r≡
-      = VotesOnceProof r pkH vv msv vv' msv' ep≡ r≡
     VotesOnceProof (step-s r (step-peer cheat@(step-cheat f c))) pkH vv msv vv' msv' ep≡ r≡
        with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
     ...| msb4 | m'sb4

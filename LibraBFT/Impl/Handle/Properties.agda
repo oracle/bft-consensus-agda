@@ -21,11 +21,13 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
 open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should be in this file?
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
+open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
+
 
 module LibraBFT.Impl.Handle.Properties
   (hash    : BitString → Hash)
@@ -74,7 +76,7 @@ module LibraBFT.Impl.Handle.Properties
    -- Note that some implementations might not ensure this, but LibraBFT does
    -- because even the leader of the next round sends its own vote to itself,
    -- as opposed to using it to construct a QC using its own unsent vote.
-   qcVotesSentB4 : ∀{e pid ps vs pk q vm}{st : SystemState e}
+   qcVotesSentB4 : ∀{pid ps vs pk q vm}{st : SystemState}
                  → ReachableSystemState st
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid

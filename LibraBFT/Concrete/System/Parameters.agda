@@ -11,7 +11,7 @@ open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open        EpochConfig
-open import LibraBFT.Yasm.Base (ℓ+1 0ℓ) EpochConfig epochId authorsN
+open import LibraBFT.Yasm.Base ℓ-EC
 
 -- In this module, we instantiate the system model with parameters to
 -- model a system using the simple implementation model we have so

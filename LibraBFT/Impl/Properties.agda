@@ -13,7 +13,7 @@ open import LibraBFT.Impl.Properties.Aux
 import      LibraBFT.Impl.Properties.VotesOnce   as VO
 import      LibraBFT.Impl.Properties.LockedRound as LR
 open import LibraBFT.Concrete.Obligations
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 
 module LibraBFT.Impl.Properties where
   theImplObligations : ImplObligations

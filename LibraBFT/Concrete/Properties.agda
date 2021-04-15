@@ -9,7 +9,8 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Concrete.System
+open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we assume that the implementation meets its
 -- obligations, and use this assumption to prove that, in any reachable
@@ -18,14 +19,14 @@ open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSys
 -- properties later.
 module LibraBFT.Concrete.Properties
          (impl-correct : ImplObligations)
-         {e}(st : SystemState e)
+         (st : SystemState)
          (r : ReachableSystemState st)
-         (eid : Fin e)
+         (𝓔 : EpochConfig)
          where
     open        ImplObligations impl-correct
-    open import LibraBFT.Concrete.System sps-cor
+    open        WithSPS sps-cor
     open        PerState st r
-    open        PerEpoch eid
+    open        PerEpoch 𝓔
 
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
@@ -54,8 +55,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState IntSystemState
     validState = record
-      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid
-      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r eid
+      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
+      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r 𝓔
       }
 
     open IntermediateSystemState IntSystemState
