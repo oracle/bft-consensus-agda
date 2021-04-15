@@ -11,14 +11,14 @@ import      Data.Fin                    as Fin
 -- with a function to add a new EpochConfig and some properties that
 -- facilitate proofs across state transitions that add an EpochConfig.
 
-module LibraBFT.Yasm.AvailableEpochs
+open import LibraBFT.Base.Types
+
+module LibraBFT.Abstract.Util.AvailableEpochs
    (NodeId      : Set)
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
-   (epochId     : EpochConfig → ℕ)
-   (authorsN    : EpochConfig → ℕ)
+   (epochId     : EpochConfig → EpochId)
  where
- open import LibraBFT.Yasm.Base ℓ-EC EpochConfig epochId authorsN
 
  fin-lower-toℕ : ∀{e}(i : Fin (suc e))(prf : e ≢ toℕ i) → toℕ (Fin.lower₁ i prf) ≡ toℕ i
  fin-lower-toℕ {zero} zero prf = ⊥-elim (prf refl)
@@ -52,6 +52,12 @@ module LibraBFT.Yasm.AvailableEpochs
             → (prf : a₀ ≡ a₁)(x : P a₁)
             → subst P prf (subst P (sym prf) x) ≡ x
  subst-elim _ refl x = refl
+
+ record EpochConfigFor (eid : EpochId) : Set ℓ-EC where
+   constructor mkEpochConfigFor
+   field
+    epochConfig : EpochConfig
+    forEpochId  : epochId epochConfig ≡ suc eid
 
  -- Available epochs consist of a vector of EpochConfigs with
  -- the correct epoch ids.

@@ -18,12 +18,15 @@ module LibraBFT.Abstract.Types.EpochConfig
 
   open import LibraBFT.Base.Types
 
+  ℓ-EC : Level
+  ℓ-EC = ℓ+1 0ℓ
+
   -- An epoch-configuration carries only simple data about the epoch; the complicated
   -- parts will be provided by the System, defined below.
   --
   -- The reason for the separation is that we should be able to provide
   -- an EpochConfig from a single peer state.
-  record EpochConfig : Set₁ where
+  record EpochConfig : Set ℓ-EC where
     constructor mkEpochConfig
     field
       genesisUID : UID
@@ -56,6 +59,12 @@ module LibraBFT.Abstract.Types.EpochConfig
 
   open EpochConfig
 
+  PK-inj-same-ECs : ∀ {𝓔₁ 𝓔₂ : EpochConfig}{mbr₁ mbr₂}
+                  → 𝓔₁ ≡ 𝓔₂
+                  → getPubKey 𝓔₁ mbr₁ ≡ getPubKey 𝓔₂ mbr₂
+                  → toNodeId 𝓔₁ mbr₁ ≡ toNodeId 𝓔₂ mbr₂
+  PK-inj-same-ECs {𝓔₁} refl pks≡ = cong (toNodeId 𝓔₁) (PK-inj 𝓔₁ pks≡)
+
   module _ (ec : EpochConfig) where
     NodeId-PK-OK : PK → NodeId → Set
     NodeId-PK-OK pk pid = ∃[ m ] (toNodeId ec m ≡ pid × getPubKey ec m ≡ pk)
@@ -66,11 +75,6 @@ module LibraBFT.Abstract.Types.EpochConfig
                            → pid1 ≡ pid2
     NodeId-PK-OK-injective (m1 , pid1 , pk1) (m2 , pid2 , pk2)
        rewrite PK-inj ec (trans pk1 (sym pk2)) = trans (sym pid1) pid2
-
-  record EpochConfigFor (eid : ℕ) : Set₁ where
-    field
-     epochConfig : EpochConfig
-     forEpochId  : epochId epochConfig ≡ eid
 
   module WithAbsVote (𝓔 : EpochConfig) where
     -- The abstract model is connected to the implementaton by means of

@@ -8,32 +8,19 @@ open import LibraBFT.Base.PKCS
 
 -- This module defines the types used to define a SystemModel.
 
-module LibraBFT.Yasm.Base
-  (ℓ-EC        : Level)
-  (EpochConfig : Set ℓ-EC)
-  (epochId     : EpochConfig → ℕ)
-  (authorsN    : EpochConfig → ℕ)
- where
-
- EpochId : Set
- EpochId = ℕ
-
- Member : EpochConfig → Set
- Member = Fin ∘ authorsN
-
- record EpochConfigFor (eid : EpochId) : Set ℓ-EC where
-   field
-    epochConfig : EpochConfig
-    forEpochId  : epochId epochConfig ≡ eid
+module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
 
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
- record SystemParameters : Set (ℓ+1 0ℓ ℓ⊔ ℓ-EC) where
+ record SystemParameters : Set (ℓ+1 ℓ-PeerState) where
   constructor mkSysParms
   field
     PeerId    : Set
     _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
-    PeerState : Set
+    Genesis   : Set
+    genInfo   : Genesis    -- The same genesis information is given to any uninitialised peer before
+                           -- it can handle any messages.
+    PeerState : Set ℓ-PeerState
     initPS    : PeerState  -- Represents an uninitialised PeerState, about which we know nothing whatsoever
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
@@ -44,11 +31,8 @@ module LibraBFT.Yasm.Base
     -- A relation specifying what Parts are included in a Msg.
     _⊂Msg_       : Part → Msg → Set
 
-    -- Finally, messages must carry an epoch id and might have an author
-    part-epoch  : Part → EpochId
-
     -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → EpochConfig → PeerState → PeerState × List Msg
+    init : PeerId → Genesis → PeerState × List Msg
 
     -- Handles a message on a previously initialized peer.
     handle : PeerId → Msg → PeerState → PeerState × List Msg
