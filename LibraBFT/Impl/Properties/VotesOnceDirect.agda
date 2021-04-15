@@ -41,27 +41,27 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → ValidSenderForPK (availEpochs pre) v pid pk
                    → (₋rmEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                    → v ^∙ vRound ≤ (₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound
-  oldVoteRound≤lvr (step-s r (step-epoch _)) pidIn pkH sig msv vspk rm≡ = {!!}
+  oldVoteRound≤lvr (step-s r (step-epoch _)) pidIn pkH sig msv vspk eid≡ = {!!}
   oldVoteRound≤lvr {pid = pid'} {pre = pre} (step-s r (step-peer {pid = pid} cheat@(step-cheat f c)))
-                    pidIn pkH sig msv vspk rm≡
+                    pidIn pkH sig msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4
      rewrite cheatStepDNMPeerStates₁ {pid = pid} {pid' = pid'} cheat unit
-       = oldVoteRound≤lvr r pidIn pkH sig msb4 vspk rm≡
+       = oldVoteRound≤lvr r pidIn pkH sig msb4 vspk eid≡
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s r (step-peer {pid = pid} stHon@(step-honest stPeer)))
-                   pidIn pkH sig msv vspk rm≡
+                   pidIn pkH sig msv vspk eid≡
      with newMsg⊎msgSentB4 r stHon pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
   ...| inj₂ msb4 rewrite msgSameSig msv
      with pid ≟ pid'
-  ...| no imp = oldVoteRound≤lvr r pidIn pkH sig msb4 vspk rm≡
-  ...| yes refl = let rm≡st = noEpochChangeYet r refl stPeer
-                      lvr≤  = lastVoteRound-mono r refl stPeer rm≡st
-                      rm≡v  = trans rm≡st rm≡
-                  in ≤-trans (oldVoteRound≤lvr r pidIn pkH sig msb4 vspk rm≡v) lvr≤
+  ...| no imp = oldVoteRound≤lvr r pidIn pkH sig msb4 vspk eid≡
+  ...| yes refl = let eid≡st = noEpochChangeYet r refl stPeer
+                      lvr≤  = lastVoteRound-mono r refl stPeer eid≡st
+                      eid≡v  = trans eid≡st eid≡
+                  in ≤-trans (oldVoteRound≤lvr r pidIn pkH sig msb4 vspk eid≡v) lvr≤
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s r (step-peer {pid = pid} stHon@(step-honest stPeer)))
-                   pidIn pkH sig msv vspk rm≡
+                   pidIn pkH sig msv vspk eid≡
      | inj₁ (m∈outs , vspkN , newV)
      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
@@ -78,11 +78,11 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
 
   votesOnce₁ : VO.ImplObligation₁
   votesOnce₁ {pid' = pid'} r (step-msg {_ , P m} _ psI) {v' = v'} {m' = m'}
-             pkH v⊂m (here refl) sv ¬msb vspkv v'⊂m' m'∈pool sv' rm≡ r≡
+             pkH v⊂m (here refl) sv ¬msb vspkv v'⊂m' m'∈pool sv' eid≡ r≡
      with v⊂m
   ...| vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
-                     vspkv' = ValidSenderForPK⇒ep≡ sv sv' rm≡ vspkv
-                     rv'<rv = oldVoteRound≤lvr r psI pkH sv' m'mwsb vspkv' rm≡
+                     vspkv' = ValidSenderForPK⇒ep≡ sv sv' eid≡ vspkv
+                     rv'<rv = oldVoteRound≤lvr r psI pkH sv' m'mwsb vspkv' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
        = ⊥-elim (¬msb (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
