@@ -70,21 +70,21 @@ module LibraBFT.Impl.Handle.Properties
 
   ----- Properties that relate handler to system state -----
 
-  data PeerKnowsVPF (st : SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-EC where
+  data PeerKnowsPCS4 (st : SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-EC where
     inPre  : initialised st pid ≡ initd
            → PeerCanSignForPK (peerStates st pid) v pid pk
-           → PeerKnowsVPF st v pid pk
+           → PeerKnowsPCS4 st v pid pk
     inPost : ∀ {initd' s outs}
            → initialised st pid ≡ initd
            → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) initd' (s , outs)
            → PeerCanSignForPK s v pid pk
-           → PeerKnowsVPF st v pid pk
+           → PeerKnowsPCS4 st v pid pk
 
-  𝓔ofPeerKnowsVPF : ∀ {st v pid pk}
-                  → PeerKnowsVPF st v pid pk
+  𝓔ofPeerKnowsPCS4 : ∀ {st v pid pk}
+                  → PeerKnowsPCS4 st v pid pk
                   → EpochConfig
-  𝓔ofPeerKnowsVPF (inPre  _ pcsf)   = PeerCanSignForPK.𝓔 pcsf
-  𝓔ofPeerKnowsVPF (inPost _ _ pcsf) = PeerCanSignForPK.𝓔 pcsf
+  𝓔ofPeerKnowsPCS4 (inPre  _ pcsf)   = PeerCanSignForPK.𝓔 pcsf
+  𝓔ofPeerKnowsPCS4 (inPost _ _ pcsf) = PeerCanSignForPK.𝓔 pcsf
 
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
@@ -108,9 +108,9 @@ module LibraBFT.Impl.Handle.Properties
    availEpochsConsistent :
        ∀{pid pid' v v' pk}{st : SystemState}
      → ReachableSystemState st
-     → (pkvpf  : PeerKnowsVPF st v  pid  pk)
-     → (pkvpf' : PeerKnowsVPF st v' pid' pk)
-     → 𝓔ofPeerKnowsVPF pkvpf ≡ 𝓔ofPeerKnowsVPF pkvpf'
+     → (pkvpf  : PeerKnowsPCS4 st v  pid  pk)
+     → (pkvpf' : PeerKnowsPCS4 st v' pid' pk)
+     → 𝓔ofPeerKnowsPCS4 pkvpf ≡ 𝓔ofPeerKnowsPCS4 pkvpf'
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
