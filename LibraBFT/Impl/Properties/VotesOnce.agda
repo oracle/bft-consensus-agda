@@ -101,8 +101,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   firstSendEstablishes   v' pk origSt sysStep@(step-peer {pid'} {pre = pre} pstep@(step-honest _)) =
                          ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                         × LvrCarrier pk (₋vSignature v') (StepPeer-post pstep)   -- <------ Make it record that msgSender (carrSent lvr carriers ≡ ?...
-                                                                                  -- <------ or was this the thing I decided to do after the  "rewind"
+                         × LvrCarrier pk (₋vSignature v') (StepPeer-post pstep)
                          )
   open PeerCanSignForPK
 
