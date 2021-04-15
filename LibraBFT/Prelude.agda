@@ -11,6 +11,9 @@ module LibraBFT.Prelude where
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
     public
 
+  1ℓ : Level
+  1ℓ = ℓ+1 0ℓ
+
   open import Agda.Builtin.Unit
     public
 

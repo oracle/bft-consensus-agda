@@ -24,12 +24,13 @@ module LibraBFT.Concrete.System.Parameters where
  ConcSysParms = mkSysParms
                  NodeId
                  _≟NodeId_
-                 EventProcessor
-                 fakeEP
+                 GenesisInfo
+                 genInfo
+                 EventProcessorAndMeta
+                 initMetaEP
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
-                 (_^∙ vEpoch)
                  initialEventProcessorAndMessages
                  peerStepWrapper

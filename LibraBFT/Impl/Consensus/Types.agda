@@ -38,7 +38,7 @@ module LibraBFT.Impl.Consensus.Types where
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record EventProcessorEC : Set where
-    constructor mkEventProcessorPreEC
+    constructor mkEventProcessorEC
     field
       ₋epSafetyRules  : SafetyRules
       ₋epValidators   : ValidatorVerifier
@@ -81,7 +81,7 @@ module LibraBFT.Impl.Consensus.Types where
      in (mkEpochConfig {! someHash?!}
                 (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
-  postulate
+  postulate -- TODO-2: uncomment proof once α-EC is completed
     α-EC-≡ : (epec1  : EventProcessorEC)
            → (epec2  : EventProcessorEC)
            → (vals≡  : (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators))
@@ -105,6 +105,20 @@ module LibraBFT.Impl.Consensus.Types where
      -- construction of the EC nor need one, they should be defined in
      -- EventProcessor directly
   open EventProcessor public
+
+  record EventProcessorAndMeta : Set ℓ-EC where
+    constructor mkEventProcessorAndMeta
+    field
+      ₋epamEP              : EventProcessor
+      ₋epamMetaNumEpochs   : ℕ -- Maybe unnecessary?  Use "current" epoch (₋epamEP ^∙ epEpoch)?
+      ₋epamMetaAvailEpochs : AvailableEpochs ₋epamMetaNumEpochs
+  open EventProcessorAndMeta public
+
+  ₋epamEC : EventProcessorAndMeta → EventProcessorEC
+  ₋epamEC = ₋epEC ∘ ₋epamEP
+
+  ℓ-EventProcessorAndMeta : Level
+  ℓ-EventProcessorAndMeta = ℓ-EC
 
   α-EC-EP : EventProcessor → EpochConfig
   α-EC-EP ep = α-EC ((₋epEC ep) , (₋epEC-correct ep))

@@ -37,7 +37,7 @@ module LibraBFT.Impl.Handle.Properties
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----
-  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessor}
+  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessorAndMeta}
                       → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
                       → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
@@ -53,7 +53,7 @@ module LibraBFT.Impl.Handle.Properties
      -- keep the implementation model faithful to the implementation.
   ...| here refl = fakeAuthor ∷ [] , here refl
 
-  msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessor}
+  msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessorAndMeta}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
@@ -81,7 +81,7 @@ module LibraBFT.Impl.Handle.Properties
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ epHighestQC) (ps ^∙ epHighestCommitQC)
+                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epamEP ps ^∙ epHighestQC) (₋epamEP ps ^∙ epHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 

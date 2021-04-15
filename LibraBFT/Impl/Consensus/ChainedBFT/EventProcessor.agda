@@ -41,20 +41,21 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
   fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
   fakeLedgerInfo bi pm = mkLedgerInfo bi (pm ^∙ pmProposal ∙ bId)
 
-  postulate
+  postulate -- TODO-1: these are temporary scaffolding for the fake implementation
     fakeSK  : SK
     fakeSig : Signature
 
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
-    st ← get
-    let 𝓔  = α-EC ((₋epEC st) , (₋epEC-correct st))
-        ix = EpochConfig.epochId 𝓔
+    stam ← get
+    let st = ₋epamEP stam
+        𝓔  = α-EC ((₋epEC st) , (₋epEC-correct st))
         ep  = ₋epEC st
         epw = ₋epWithEC st
         epc = ₋epEC-correct st
         bt = epw ^∙ (lBlockTree 𝓔)
         nr = suc ((₋epEC st) ^∙ epLastVotedRound)
+        ix = ep ^∙ epEpoch
         uv = mkVote (mkVoteData (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor
                     (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
@@ -68,7 +69,7 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
                         ; ₋epEC-correct = epc2
                         ; ₋epWithEC     = subst EventProcessorWithEC (α-EC-≡ ep ep' refl refl epc) epw
                         }
-    put st'
+    put (record stam {₋epamEP = st'})
     tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))
     pure unit
 
