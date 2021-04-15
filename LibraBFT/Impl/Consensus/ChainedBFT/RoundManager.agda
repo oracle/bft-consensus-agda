@@ -48,13 +48,13 @@ module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
     st ← get
-    let 𝓔  = α-EC ((₋epEC st) , (₋epEC-correct st))
+    let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
         ix = EpochConfig.epochId 𝓔
-        ep  = ₋epEC st
-        epw = ₋epWithEC st
-        epc = ₋epEC-correct st
-        bt = epw ^∙ (lBlockTree 𝓔)
-        nr = suc ((₋epEC st) ^∙ epLastVotedRound)
+        rm  = ₋rmEC st
+        rmw = ₋rmWithEC st
+        rmc = ₋rmEC-correct st
+        bt = rmw ^∙ (lBlockTree 𝓔)
+        nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
         uv = mkVote (mkVoteData (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor
                     (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
@@ -62,11 +62,11 @@ module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager
                     (₋bSignature (₋pmProposal pm))
         sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
         si = mkSyncInfo (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
-        ep' = ep [ epLastVotedRound := nr ]
-        epc2 = RoundManagerEC-correct-≡ (₋epEC st) ep' refl epc
-        st' = record st { ₋epEC         = ep'
-                        ; ₋epEC-correct = epc2
-                        ; ₋epWithEC     = subst RoundManagerWithEC (α-EC-≡ ep ep' refl refl epc) epw
+        rm' = rm [ rmLastVotedRound := nr ]
+        rmc2 = RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc
+        st' = record st { ₋rmEC         = rm'
+                        ; ₋rmEC-correct = rmc2
+                        ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
                         }
     put st'
     tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))

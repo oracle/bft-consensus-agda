@@ -43,9 +43,9 @@ module LibraBFT.Impl.Util.Util where
   -- define the epoch config is easy
   liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
   liftEC f = rwst λ _ st
-    → let ec                 = α-EC (₋epEC st , ₋epEC-correct st)
-          res , stec' , acts = RWST-run (f ec) unit (₋epWithEC st)
-       in res , record st { ₋epWithEC = stec' } , acts
+    → let ec                 = α-EC (₋rmEC st , ₋rmEC-correct st)
+          res , stec' , acts = RWST-run (f ec) unit (₋rmWithEC st)
+       in res , record st { ₋rmWithEC = stec' } , acts
 
   -- Type that captures a proof that a computation in the LBFT monad
   -- satisfies a given contract.
@@ -54,4 +54,4 @@ module LibraBFT.Impl.Util.Util where
                 → (RoundManager → Set)
                 → Set
   LBFT-Contract f Pre Post =
-    ∀ ep → Pre ep × Post (proj₁ (proj₂ (RWST-run f unit ep)))
+    ∀ rm → Pre rm × Post (proj₁ (proj₂ (RWST-run f unit rm)))

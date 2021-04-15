@@ -39,56 +39,56 @@ module LibraBFT.Impl.Consensus.Types where
   record RoundManagerEC : Set where
     constructor mkRoundManagerPreEC
     field
-      ₋epSafetyRules  : SafetyRules
-      ₋epValidators   : ValidatorVerifier
+      ₋rmSafetyRules  : SafetyRules
+      ₋rmValidators   : ValidatorVerifier
   open RoundManagerEC public
-  unquoteDecl epSafetyRules epValidators = mkLens (quote RoundManagerEC)
-    (epSafetyRules ∷ epValidators ∷ [])
+  unquoteDecl rmSafetyRules rmValidators = mkLens (quote RoundManagerEC)
+    (rmSafetyRules ∷ rmValidators ∷ [])
 
-  epEpoch : Lens RoundManagerEC EpochId
-  epEpoch = epSafetyRules ∙ srPersistentStorage ∙ psEpoch
+  rmEpoch : Lens RoundManagerEC EpochId
+  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ psEpoch
 
-  epLastVotedRound : Lens RoundManagerEC Round
-  epLastVotedRound = epSafetyRules ∙ srPersistentStorage ∙ psLastVotedRound
+  rmLastVotedRound : Lens RoundManagerEC Round
+  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ psLastVotedRound
 
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over
   -- 'RoundManagerEC'.
   RoundManagerEC-correct : RoundManagerEC → Set
-  RoundManagerEC-correct epec =
-    let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
-        qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
+  RoundManagerEC-correct rmec =
+    let numAuthors = kvm-size (rmec ^∙ rmValidators ∙ vvAddressToValidatorInfo)
+        qsize      = rmec ^∙ rmValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors
 
-  RoundManagerEC-correct-≡ : (epec1 : RoundManagerEC)
-                             → (epec2 : RoundManagerEC)
-                             → (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators)
-                             → RoundManagerEC-correct epec1
-                             → RoundManagerEC-correct epec2
-  RoundManagerEC-correct-≡ epec1 epec2 refl = id
+  RoundManagerEC-correct-≡ : (rmec1 : RoundManagerEC)
+                             → (rmec2 : RoundManagerEC)
+                             → (rmec1 ^∙ rmValidators) ≡ (rmec2 ^∙ rmValidators)
+                             → RoundManagerEC-correct rmec1
+                             → RoundManagerEC-correct rmec2
+  RoundManagerEC-correct-≡ rmec1 rmec2 refl = id
 
   -- Given a well-formed set of definitions that defines an EpochConfig,
   -- α-EC will compute this EpochConfig by abstracting away the unecessary
   -- pieces from RoundManagerEC.
   -- TODO-2: update and complete when definitions are updated to more recent version
   α-EC : Σ RoundManagerEC RoundManagerEC-correct → EpochConfig
-  α-EC (epec , ok) =
-    let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
-        qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
+  α-EC (rmec , ok) =
+    let numAuthors = kvm-size (rmec ^∙ rmValidators ∙ vvAddressToValidatorInfo)
+        qsize      = rmec ^∙ rmValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in (mkEpochConfig {! someHash?!}
-                (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+                (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
   postulate
-    α-EC-≡ : (epec1  : RoundManagerEC)
-           → (epec2  : RoundManagerEC)
-           → (vals≡  : (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators))
-           → (epoch≡ : (epec1 ^∙ epEpoch)      ≡ (epec2 ^∙ epEpoch))
-           → (epec1-corr : RoundManagerEC-correct epec1)
-           → α-EC (epec1 , epec1-corr) ≡ α-EC (epec2 , RoundManagerEC-correct-≡ epec1 epec2 vals≡ epec1-corr)
+    α-EC-≡ : (rmec1  : RoundManagerEC)
+           → (rmec2  : RoundManagerEC)
+           → (vals≡  : (rmec1 ^∙ rmValidators) ≡ (rmec2 ^∙ rmValidators))
+           → (rmoch≡ : (rmec1 ^∙ rmEpoch)      ≡ (rmec2 ^∙ rmEpoch))
+           → (rmec1-corr : RoundManagerEC-correct rmec1)
+           → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManagerEC-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
   {-
-  α-EC-≡ epec1 epec2 refl refl epec1-corr = refl
+  α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
   -- Finally, the RoundManager is split in two pieces: those
@@ -97,29 +97,29 @@ module LibraBFT.Impl.Consensus.Types where
   record RoundManager : Set where
     constructor mkRoundManager
     field
-      ₋epEC           : RoundManagerEC
-      ₋epEC-correct   : RoundManagerEC-correct ₋epEC
-      ₋epWithEC       : RoundManagerWithEC (α-EC (₋epEC , ₋epEC-correct))
+      ₋rmEC           : RoundManagerEC
+      ₋rmEC-correct   : RoundManagerEC-correct ₋rmEC
+      ₋rmWithEC       : RoundManagerWithEC (α-EC (₋rmEC , ₋rmEC-correct))
      -- If we want to add pieces that neither contribute to the
      -- construction of the EC nor need one, they should be defined in
      -- RoundManager directly
   open RoundManager public
 
   α-EC-EP : RoundManager → EpochConfig
-  α-EC-EP ep = α-EC ((₋epEC ep) , (₋epEC-correct ep))
+  α-EC-EP rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
-  ₋epHighestQC : (ep : RoundManager) → QuorumCert
-  ₋epHighestQC ep = ₋btHighestQuorumCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
+  ₋rmHighestQC : (rm : RoundManager) → QuorumCert
+  ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-EP rm)))
 
-  epHighestQC : Lens RoundManager QuorumCert
-  epHighestQC = mkLens' ₋epHighestQC
+  rmHighestQC : Lens RoundManager QuorumCert
+  rmHighestQC = mkLens' ₋rmHighestQC
                         (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
                           → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
 
-  ₋epHighestCommitQC : (ep : RoundManager) → QuorumCert
-  ₋epHighestCommitQC ep = ₋btHighestCommitCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
+  ₋rmHighestCommitQC : (rm : RoundManager) → QuorumCert
+  ₋rmHighestCommitQC rm = ₋btHighestCommitCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-EP rm)))
 
-  epHighestCommitQC : Lens RoundManager QuorumCert
-  epHighestCommitQC = mkLens' ₋epHighestCommitQC
+  rmHighestCommitQC : Lens RoundManager QuorumCert
+  rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
                         (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
                           → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestCommitCert = qc}))))

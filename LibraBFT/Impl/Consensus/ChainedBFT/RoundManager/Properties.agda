@@ -26,6 +26,6 @@ module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager.Properties
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-               → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epHighestQC pre) (₋epHighestCommitQC pre)
+               → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋rmHighestQC pre) (₋rmHighestCommitQC pre)
   procPMCerts≡ (there x)   = ⊥-elim (¬Any[] x)  -- processProposalMsg sends only one vote
   procPMCerts≡ (here refl) = refl

@@ -65,9 +65,9 @@ module LibraBFT.Impl.Handle
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
  outputToActions : RoundManager → Output → List (Action NetworkMsg)
- outputToActions ep (BroadcastProposal p) = List-map (const (Action.send (P p)))
+ outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋epValidators (₋epEC ep)))))
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 

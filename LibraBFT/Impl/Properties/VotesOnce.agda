@@ -45,9 +45,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                → StepPeerState {e} pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) initd' (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → (v ^∙ vEpoch) ≡ (₋epEC (peerStates pre pid)) ^∙ epEpoch
-                               × suc ((₋epEC (peerStates pre pid)) ^∙ epLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
-                               × (v ^∙ vRound) ≡ ((₋epEC s') ^∙ epLastVotedRound)     -- Last voted round is round of new vote
+                               → (v ^∙ vEpoch) ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
+                               × (v ^∙ vRound) ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound _ (step-init _) v⊂m m∈outs sig = ⊥-elim (¬Any[] m∈outs)
   newVoteSameEpochGreaterRound {pre = pre} {pid} {m = m} r (step-msg {(_ , nm)} msg∈pool pinit) v⊂m m∈outs sig vnew
      rewrite pinit
@@ -75,7 +75,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                    → ReachableSystemState pre
                    → ppre ≡ peerStates pre pid
                    → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
-                   → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
+                   → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
   noEpochChangeYet _ ppre≡ (step-init ix) = {!!}
   noEpochChangeYet _ ppre≡ (step-msg {(_ , m)} _ _)
      with m
@@ -88,8 +88,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
-                     → (₋epEC ppre) ^∙ epEpoch ≡ (₋epEC ppost) ^∙ epEpoch
-                     → (₋epEC ppre) ^∙ epLastVotedRound ≤ (₋epEC ppost) ^∙ epLastVotedRound
+                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
   lastVoteRound-mono _ ppre≡ (step-init ix) _ = {!!}
   lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _)
      with m
@@ -101,8 +101,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
   LvrProp : CarrierProp
-  LvrProp v ep = (  v ^∙ vEpoch ≢ (₋epEC ep) ^∙ epEpoch
-                 ⊎ (v ^∙ vEpoch ≡ (₋epEC ep) ^∙ epEpoch × v ^∙ vRound ≤ (₋epEC ep) ^∙ epLastVotedRound))
+  LvrProp v rm = (  v ^∙ vEpoch ≢ (₋rmEC rm) ^∙ rmEpoch
+                 ⊎ (v ^∙ vEpoch ≡ (₋rmEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (₋rmEC rm) ^∙ rmLastVotedRound))
 
   LvrCarrier = PropCarrier LvrProp
  
@@ -157,8 +157,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| post≡ = r , ¬sentb4 , mkCarrier (step-s r (step-peer pstep)) mws vpk
                                        (inj₂ ( trans  eids≡ (auxEid post≡)
                                              , ≤-reflexive (trans newlvr (auxLvr post≡))))
-                                       where auxEid = cong (_^∙ epEpoch ∘ ₋epEC)
-                                             auxLvr = cong (_^∙ epLastVotedRound ∘ ₋epEC)
+                                       where auxEid = cong (_^∙ rmEpoch ∘ ₋rmEC)
+                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ ₋rmEC)
 
   ImplPreservesLvr : PeerStepPreserves LvrProp
   -- We don't have a real model for the initial peer state, so we can't prove this case yet.
@@ -173,7 +173,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with preprop
   ...| inj₁ diffEpoch = inj₁ λ x → diffEpoch (trans x (sym stepDNMepoch))
   ...| inj₂ (sameEpoch , rnd≤ppre)
-     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋epEC (peerStates pre (msgSender (carrSent prop)))) ^∙ epEpoch
+     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋rmEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
   ...| no neq = ⊥-elim (neq sameEpoch)
   ...| yes refl
      with lastVoteRound-mono r refl (step-msg m∈pool inited)
