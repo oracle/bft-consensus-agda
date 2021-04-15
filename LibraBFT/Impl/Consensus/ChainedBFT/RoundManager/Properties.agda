@@ -16,12 +16,12 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
-module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor.Properties
+module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager.Properties
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
 
-  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+  open import LibraBFT.Impl.Consensus.ChainedBFT.RoundManager hash hash-cr
 
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state
   procPMCerts≡ : ∀ {ts pm pre vm αs}

@@ -18,11 +18,11 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This is a minimal/fake example handler that obeys the VotesOnce rule, enabling us to start
 -- exploring how we express the algorithm and prove properties about it.  It simply sends a vote for
--- 1 + its LatestVotedRound, and increments its LatestVotedRound.  It is called EventProcessor for
+-- 1 + its LatestVotedRound, and increments its LatestVotedRound.  It is called RoundManager for
 -- historical reasons, because this what a previous version of LibraBFT called its main handler;
 -- this will be updated when we move towards modeling a more recent implementation.
 
-module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
+module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
@@ -63,10 +63,10 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
         sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
         si = mkSyncInfo (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         ep' = ep [ epLastVotedRound := nr ]
-        epc2 = EventProcessorEC-correct-≡ (₋epEC st) ep' refl epc
+        epc2 = RoundManagerEC-correct-≡ (₋epEC st) ep' refl epc
         st' = record st { ₋epEC         = ep'
                         ; ₋epEC-correct = epc2
-                        ; ₋epWithEC     = subst EventProcessorWithEC (α-EC-≡ ep ep' refl refl epc) epw
+                        ; ₋epWithEC     = subst RoundManagerWithEC (α-EC-≡ ep ep' refl refl epc) epw
                         }
     put st'
     tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))

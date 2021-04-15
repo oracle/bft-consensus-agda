@@ -16,7 +16,7 @@ open import Data.String using (String)
 -- on a previous version of LibraBFT.  It will be updated to model a
 -- more recent version in future.
 --
--- One important trick here is that the EventProcessor type separayes
+-- One important trick here is that the RoundManager type separayes
 -- types that /define/ the EpochConfig and types that /use/ the
 -- /EpochConfig/. The advantage of doing this separation can be seen
 -- in Util.Util.liftEC, where we define a lifting of a function that
@@ -36,43 +36,43 @@ module LibraBFT.Impl.Consensus.Types where
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
-  record EventProcessorEC : Set where
-    constructor mkEventProcessorPreEC
+  record RoundManagerEC : Set where
+    constructor mkRoundManagerPreEC
     field
       ₋epSafetyRules  : SafetyRules
       ₋epValidators   : ValidatorVerifier
-  open EventProcessorEC public
-  unquoteDecl epSafetyRules epValidators = mkLens (quote EventProcessorEC)
+  open RoundManagerEC public
+  unquoteDecl epSafetyRules epValidators = mkLens (quote RoundManagerEC)
     (epSafetyRules ∷ epValidators ∷ [])
 
-  epEpoch : Lens EventProcessorEC EpochId
+  epEpoch : Lens RoundManagerEC EpochId
   epEpoch = epSafetyRules ∙ srPersistentStorage ∙ psEpoch
 
-  epLastVotedRound : Lens EventProcessorEC Round
+  epLastVotedRound : Lens RoundManagerEC Round
   epLastVotedRound = epSafetyRules ∙ srPersistentStorage ∙ psLastVotedRound
 
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over
-  -- 'EventProcessorEC'.
-  EventProcessorEC-correct : EventProcessorEC → Set
-  EventProcessorEC-correct epec =
+  -- 'RoundManagerEC'.
+  RoundManagerEC-correct : RoundManagerEC → Set
+  RoundManagerEC-correct epec =
     let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
         qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors
 
-  EventProcessorEC-correct-≡ : (epec1 : EventProcessorEC)
-                             → (epec2 : EventProcessorEC)
+  RoundManagerEC-correct-≡ : (epec1 : RoundManagerEC)
+                             → (epec2 : RoundManagerEC)
                              → (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators)
-                             → EventProcessorEC-correct epec1
-                             → EventProcessorEC-correct epec2
-  EventProcessorEC-correct-≡ epec1 epec2 refl = id
+                             → RoundManagerEC-correct epec1
+                             → RoundManagerEC-correct epec2
+  RoundManagerEC-correct-≡ epec1 epec2 refl = id
 
   -- Given a well-formed set of definitions that defines an EpochConfig,
   -- α-EC will compute this EpochConfig by abstracting away the unecessary
-  -- pieces from EventProcessorEC.
+  -- pieces from RoundManagerEC.
   -- TODO-2: update and complete when definitions are updated to more recent version
-  α-EC : Σ EventProcessorEC EventProcessorEC-correct → EpochConfig
+  α-EC : Σ RoundManagerEC RoundManagerEC-correct → EpochConfig
   α-EC (epec , ok) =
     let numAuthors = kvm-size (epec ^∙ epValidators ∙ vvAddressToValidatorInfo)
         qsize      = epec ^∙ epValidators ∙ vvQuorumVotingPower
@@ -81,45 +81,45 @@ module LibraBFT.Impl.Consensus.Types where
                 (epec ^∙ epEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
   postulate
-    α-EC-≡ : (epec1  : EventProcessorEC)
-           → (epec2  : EventProcessorEC)
+    α-EC-≡ : (epec1  : RoundManagerEC)
+           → (epec2  : RoundManagerEC)
            → (vals≡  : (epec1 ^∙ epValidators) ≡ (epec2 ^∙ epValidators))
            → (epoch≡ : (epec1 ^∙ epEpoch)      ≡ (epec2 ^∙ epEpoch))
-           → (epec1-corr : EventProcessorEC-correct epec1)
-           → α-EC (epec1 , epec1-corr) ≡ α-EC (epec2 , EventProcessorEC-correct-≡ epec1 epec2 vals≡ epec1-corr)
+           → (epec1-corr : RoundManagerEC-correct epec1)
+           → α-EC (epec1 , epec1-corr) ≡ α-EC (epec2 , RoundManagerEC-correct-≡ epec1 epec2 vals≡ epec1-corr)
   {-
   α-EC-≡ epec1 epec2 refl refl epec1-corr = refl
   -}
 
-  -- Finally, the EventProcessor is split in two pieces: those
+  -- Finally, the RoundManager is split in two pieces: those
   -- that are used to make an EpochConfig versus those that
   -- use an EpochConfig.
-  record EventProcessor : Set where
-    constructor mkEventProcessor
+  record RoundManager : Set where
+    constructor mkRoundManager
     field
-      ₋epEC           : EventProcessorEC
-      ₋epEC-correct   : EventProcessorEC-correct ₋epEC
-      ₋epWithEC       : EventProcessorWithEC (α-EC (₋epEC , ₋epEC-correct))
+      ₋epEC           : RoundManagerEC
+      ₋epEC-correct   : RoundManagerEC-correct ₋epEC
+      ₋epWithEC       : RoundManagerWithEC (α-EC (₋epEC , ₋epEC-correct))
      -- If we want to add pieces that neither contribute to the
      -- construction of the EC nor need one, they should be defined in
-     -- EventProcessor directly
-  open EventProcessor public
+     -- RoundManager directly
+  open RoundManager public
 
-  α-EC-EP : EventProcessor → EpochConfig
+  α-EC-EP : RoundManager → EpochConfig
   α-EC-EP ep = α-EC ((₋epEC ep) , (₋epEC-correct ep))
 
-  ₋epHighestQC : (ep : EventProcessor) → QuorumCert
+  ₋epHighestQC : (ep : RoundManager) → QuorumCert
   ₋epHighestQC ep = ₋btHighestQuorumCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
 
-  epHighestQC : Lens EventProcessor QuorumCert
+  epHighestQC : Lens RoundManager QuorumCert
   epHighestQC = mkLens' ₋epHighestQC
-                        (λ (mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore bsInner))) qc
-                          → mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
+                        (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
+                          → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
 
-  ₋epHighestCommitQC : (ep : EventProcessor) → QuorumCert
+  ₋epHighestCommitQC : (ep : RoundManager) → QuorumCert
   ₋epHighestCommitQC ep = ₋btHighestCommitCert ((₋epWithEC ep) ^∙ (lBlockTree (α-EC-EP ep)))
 
-  epHighestCommitQC : Lens EventProcessor QuorumCert
+  epHighestCommitQC : Lens RoundManager QuorumCert
   epHighestCommitQC = mkLens' ₋epHighestCommitQC
-                        (λ (mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore bsInner))) qc
-                          → mkEventProcessor ec ecc (mkEventProcessorWithEC (mkBlockStore (record bsInner {₋btHighestCommitCert = qc}))))
+                        (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
+                          → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestCommitCert = qc}))))

@@ -24,12 +24,12 @@ module LibraBFT.Concrete.System.Parameters where
  ConcSysParms = mkSysParms
                  NodeId
                  _≟NodeId_
-                 EventProcessor
+                 RoundManager
                  fakeEP
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
                  (_^∙ vEpoch)
-                 initialEventProcessorAndMessages
+                 initialRoundManagerAndMessages
                  peerStepWrapper

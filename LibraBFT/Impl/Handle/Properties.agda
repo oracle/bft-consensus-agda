@@ -31,11 +31,11 @@ module LibraBFT.Impl.Handle.Properties
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
-  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+  open import LibraBFT.Impl.Consensus.ChainedBFT.RoundManager hash hash-cr
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----
-  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessor}
+  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManager}
                       → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
                       → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
@@ -51,7 +51,7 @@ module LibraBFT.Impl.Handle.Properties
      -- keep the implementation model faithful to the implementation.
   ...| here refl = fakeAuthor ∷ [] , here refl
 
-  msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessor}
+  msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManager}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
