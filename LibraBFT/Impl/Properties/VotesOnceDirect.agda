@@ -81,7 +81,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
              pkH v⊂m (here refl) sv ¬msb vspkv v'⊂m' m'∈pool sv' rm≡ r≡
      with v⊂m
   ...| vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
-                     vspkv' = ValidSenderForPK⇒rm≡ sv sv' rm≡ vspkv
+                     vspkv' = ValidSenderForPK⇒ep≡ sv sv' rm≡ vspkv
                      rv'<rv = oldVoteRound≤lvr r psI pkH sv' m'mwsb vspkv' rm≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld

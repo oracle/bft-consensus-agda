@@ -81,7 +81,7 @@ module LibraBFT.Yasm.Properties
 
  -- TODO-1 : prove it
  postulate
-   ValidSenderForPK⇒rm≡ : ∀ {e p1 p2 α1 pk} {𝓔s : AvailableEpochs e}
+   ValidSenderForPK⇒ep≡ : ∀ {e p1 p2 α1 pk} {𝓔s : AvailableEpochs e}
                         → WithVerSig pk p1 → WithVerSig pk p2
                         → part-epoch p1 ≡ part-epoch p2
                         → ValidSenderForPK 𝓔s p1 α1 pk
