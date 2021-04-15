@@ -58,11 +58,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
    -- If v and v' share the same epoch and round
-   → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
-   → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙ vRound ≡ v' ^∙ vRound
    ----------------------------------------------------------
    -- Then an honest implemenation promises v and v' vote for the same blockId.
-   → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
+   → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
  ImplObligation₂ : Set (ℓ+1 ℓ-EventProcessorAndMeta)
  ImplObligation₂ =
@@ -81,11 +81,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK s' v' pid pk
 
    -- If v and v' share the same epoch and round
-   → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
-   → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙ vRound ≡ v' ^∙ vRound
    ----------------------------------------------------------
    -- Then, an honest implemenation promises v and v' vote for the same blockId.
-   → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
+   → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
  -- Next, we prove that, given the necessary obligations,
  module Proof

@@ -218,14 +218,15 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| vm , refl , send∈
      with msgsToSendWereSent1 {pid} {0} {pm} {vm} {peerStates pre pid} send∈
   ...| recips , SendVote∈
-     with voteForCurrentEpoch {0} {pm} {peerStates pre pid} {vm} {recips} SendVote∈
-  ...| yyy
      -- We know that *after* the step, pid can sign v (vpb is about pid's post-state).  For v', we
-     -- know it about the peerState of (msgSender carrSent) in state "pre".
+     -- know it about the peerState of (msgSender carrSent) in state "pre".  Because EpochConfigs
+     -- represented in peer states are consistent with each other (i.e., two peers that have
+     -- EpochConfigs for the same epoch have the same EpochConfigs for that epoch), we can use
+     -- PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
      with availEpochsConsistent {pid} {msgSender mws} r (inPost pidini sm vpb) (inPre ini vpf')
   ...| 𝓔s≡ = ⊥-elim (neq (trans (trans (sym (nid≡ vpf'))
-                                        (PK-inj-same-ECs (sym 𝓔s≡) (trans (pk≡ vpf')
-                                                              (sym (pk≡ vpb)))))
+                                        (PK-inj-same-ECs (sym 𝓔s≡)
+                                                         (trans (pk≡ vpf') (sym (pk≡ vpb)))))
                                  (nid≡ vpb)))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)

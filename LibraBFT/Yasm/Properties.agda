@@ -179,8 +179,8 @@ module LibraBFT.Yasm.Properties
      -- was first sent: (a) there is a message with the same signature /in the current pool/
      -- and (b) its epoch is less than e.
         = Any-Step-elim (λ { {st = step-peer {pid = pid} (step-honest sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
-                             → mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid 
-                           ;{st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} fm sps)} (preReach , ¬sentb4 , new , refl , valid) tr
+                             → mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid
+                           ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} fm sps)} (preReach , ¬sentb4 , new , refl , valid) tr
                             → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat fm sps) refl unit hpk new))
                         })
                         (unwind r hpk v⊂m m∈pool ver)
