@@ -23,9 +23,14 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor.Properties
 
   open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
 
+  voteForCurrentEpoch : ∀ {ts pm pre vm αs}
+                      → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
+                      → (₋epamEC pre) ^∙ epEpoch ≡ vm ^∙ vmVote ∙ vEpoch
+  voteForCurrentEpoch (here refl) = refl
+
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-               → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epHighestQC pre) (₋epHighestCommitQC pre)
+               → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epHighestQC (₋epamEP pre)) (₋epHighestCommitQC (₋epamEP pre))
   procPMCerts≡ (there x)   = ⊥-elim (¬Any[] x)  -- processProposalMsg sends only one vote
   procPMCerts≡ (here refl) = refl

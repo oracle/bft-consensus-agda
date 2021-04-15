@@ -70,6 +70,22 @@ module LibraBFT.Impl.Handle.Properties
 
   ----- Properties that relate handler to system state -----
 
+  data PeerKnowsVPF (st : SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-EC where
+    inPre  : initialised st pid ≡ initd
+           → PeerCanSignForPK (peerStates st pid) v pid pk
+           → PeerKnowsVPF st v pid pk
+    inPost : ∀ {initd' s outs}
+           → initialised st pid ≡ initd
+           → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) initd' (s , outs)
+           → PeerCanSignForPK s v pid pk
+           → PeerKnowsVPF st v pid pk
+
+  𝓔ofPeerKnowsVPF : ∀ {st v pid pk}
+                  → PeerKnowsVPF st v pid pk
+                  → EpochConfig
+  𝓔ofPeerKnowsVPF (inPre  _ pcsf)   = PeerCanSignForPK.𝓔 pcsf
+  𝓔ofPeerKnowsVPF (inPost _ _ pcsf) = PeerCanSignForPK.𝓔 pcsf
+
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
    -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
@@ -84,4 +100,35 @@ module LibraBFT.Impl.Handle.Properties
                  → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epamEP ps ^∙ epHighestQC) (₋epamEP ps ^∙ epHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+
+   -- We should be able to prove this easily now, because we don't yet do epoch changes,
+   -- so only the initial EC is relevant.  Later, this will require us to use the fact that
+   -- epoch changes require proof of committing an epoch-changing transaction (note that cheat
+   -- steps do not modify meta data such as ₋epamMetaAvailepochs).
+   availEpochsConsistent :
+       ∀{pid pid' v v' pk}{st : SystemState}
+     → ReachableSystemState st
+     → (pkvpf  : PeerKnowsVPF st v  pid  pk)
+     → (pkvpf' : PeerKnowsVPF st v' pid' pk)
+     → 𝓔ofPeerKnowsVPF pkvpf ≡ 𝓔ofPeerKnowsVPF pkvpf'
+
+  -- Always true, so far, as no epoch changes.
+  noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
+                     → ReachableSystemState pre
+                     → ppre ≡ peerStates pre pid
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
+                     → initialised pre pid ≡ initd
+                     → (₋epamEC ppre) ^∙ epEpoch ≡ (₋epamEC ppost) ^∙ epEpoch
+  noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
+  noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
+     with m
+  ...| P p = refl
+  ...| V v = refl
+  ...| C c = refl
+
+  postulate -- Not used yet, prove if needed
+    eIdInRange : ∀{pid}{st : SystemState}
+             → ReachableSystemState st
+             → initialised st pid ≡ initd
+             → ₋epamEC (peerStates st pid) ^∙ epEpoch < ₋epamMetaNumEpochs (peerStates st pid)
 
