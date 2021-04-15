@@ -105,11 +105,11 @@ module LibraBFT.Impl.Consensus.Types where
      -- RoundManager directly
   open RoundManager public
 
-  α-EC-EP : RoundManager → EpochConfig
-  α-EC-EP rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
+  α-EC-RM : RoundManager → EpochConfig
+  α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
   ₋rmHighestQC : (rm : RoundManager) → QuorumCert
-  ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-EP rm)))
+  ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
   rmHighestQC : Lens RoundManager QuorumCert
   rmHighestQC = mkLens' ₋rmHighestQC
@@ -117,7 +117,7 @@ module LibraBFT.Impl.Consensus.Types where
                           → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
 
   ₋rmHighestCommitQC : (rm : RoundManager) → QuorumCert
-  ₋rmHighestCommitQC rm = ₋btHighestCommitCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-EP rm)))
+  ₋rmHighestCommitQC rm = ₋btHighestCommitCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
   rmHighestCommitQC : Lens RoundManager QuorumCert
   rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
