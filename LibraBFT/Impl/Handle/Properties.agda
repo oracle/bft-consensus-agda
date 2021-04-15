@@ -31,7 +31,7 @@ module LibraBFT.Impl.Handle.Properties
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
-  open import LibraBFT.Impl.Consensus.ChainedBFT.RoundManager hash hash-cr
+  open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----

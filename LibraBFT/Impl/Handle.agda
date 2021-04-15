@@ -21,7 +21,7 @@ module LibraBFT.Impl.Handle
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
- open import LibraBFT.Impl.Consensus.ChainedBFT.RoundManager hash hash-cr
+ open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
  open RWST-do
 
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as

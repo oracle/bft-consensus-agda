@@ -22,7 +22,7 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- historical reasons, because this what a previous version of LibraBFT called its main handler;
 -- this will be updated when we move towards modeling a more recent implementation.
 
-module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager
+module LibraBFT.Impl.Consensus.RoundManager
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
