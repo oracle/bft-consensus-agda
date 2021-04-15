@@ -21,21 +21,21 @@ module LibraBFT.Impl.Handle
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
- open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+ open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
  open RWST-do
 
- -- This represents an uninitialised EventProcessor, about which we know nothing, which we use as
- -- the initial EventProcessor for every peer until it is initialised.
+ -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
+ -- the initial RoundManager for every peer until it is initialised.
  postulate
-   fakeEP : EventProcessor
+   fakeRM : RoundManager
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
- -- just initialise again to fakeEP, which means we cannot prove the base case for various
+ -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
- initialEventProcessorAndMessages
-     : (a : Author) → EpochConfig → EventProcessor
-     → EventProcessor × List NetworkMsg
- initialEventProcessorAndMessages a _ _ = fakeEP , []
+ initialRoundManagerAndMessages
+     : (a : Author) → EpochConfig → RoundManager
+     → RoundManager × List NetworkMsg
+ initialRoundManagerAndMessages a _ _ = fakeRM , []
 
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
@@ -64,26 +64,26 @@ module LibraBFT.Impl.Handle
  -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
- outputToActions : EventProcessor → Output → List (Action NetworkMsg)
- outputToActions ep (BroadcastProposal p) = List-map (const (Action.send (P p)))
+ outputToActions : RoundManager → Output → List (Action NetworkMsg)
+ outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋epValidators (₋epEC ep)))))
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
  outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
  outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
- runHandler : EventProcessor → LBFT Unit → EventProcessor × List (Action NetworkMsg)
+ runHandler : RoundManager → LBFT Unit → RoundManager × List (Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId → NetworkMsg → Instant → EventProcessor → EventProcessor × List (Action NetworkMsg)
+ peerStep : NodeId → NetworkMsg → Instant → RoundManager → RoundManager × List (Action NetworkMsg)
  peerStep nid msg ts st = runHandler st (handle nid msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
- peerStepWrapper : NodeId → NetworkMsg → EventProcessor → EventProcessor × List NetworkMsg
+ peerStepWrapper : NodeId → NetworkMsg → RoundManager → RoundManager × List NetworkMsg
  peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)

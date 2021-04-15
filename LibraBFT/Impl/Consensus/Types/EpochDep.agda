@@ -172,17 +172,17 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
 
-  -- These are the parts of the EventProcessor that depend on an
+  -- These are the parts of the RoundManager that depend on an
   -- EpochConfig. We do not particularly care which EpochConfig
   -- they care about yet.
   --
-  record EventProcessorWithEC : Set where
-    constructor mkEventProcessorWithEC
+  record RoundManagerWithEC : Set where
+    constructor mkRoundManagerWithEC
     field
       ₋epBlockStore   : BlockStore
-  open EventProcessorWithEC public
-  unquoteDecl epBlockStore = mkLens (quote EventProcessorWithEC)
+  open RoundManagerWithEC public
+  unquoteDecl epBlockStore = mkLens (quote RoundManagerWithEC)
     (epBlockStore ∷ [])
 
-  lBlockTree : Lens EventProcessorWithEC BlockTree
+  lBlockTree : Lens RoundManagerWithEC BlockTree
   lBlockTree = epBlockStore ∙ bsInner

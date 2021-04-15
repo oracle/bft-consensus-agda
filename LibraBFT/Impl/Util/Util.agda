@@ -18,15 +18,15 @@ module LibraBFT.Impl.Util.Util where
 
   -- Global 'LBFT'; works over the whole state.
   LBFT : Set → Set
-  LBFT = RWST Unit Output EventProcessor
+  LBFT = RWST Unit Output RoundManager
 
-  LBFT-run : ∀ {A} → LBFT A → EventProcessor → (A × EventProcessor × List Output)
+  LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
 
-  LBFT-post : ∀ {A} → LBFT A → EventProcessor → EventProcessor
+  LBFT-post : ∀ {A} → LBFT A → RoundManager → RoundManager
   LBFT-post m ep = proj₁ (proj₂ (LBFT-run m ep))
 
-  LBFT-outs : ∀ {A} → LBFT A → EventProcessor → List Output
+  LBFT-outs : ∀ {A} → LBFT A → RoundManager → List Output
   LBFT-outs m ep = proj₂ (proj₂ (LBFT-run m ep))
 
   -- Local 'LBFT' monad; which operates only over the part of
@@ -37,21 +37,21 @@ module LibraBFT.Impl.Util.Util where
   -- do not alter the ec.
 
   LBFT-ec : EpochConfig → Set → Set
-  LBFT-ec ec = RWST Unit Output (EventProcessorWithEC ec)
+  LBFT-ec ec = RWST Unit Output (RoundManagerWithEC ec)
 
   -- Lifting a function that does not alter the pieces that
   -- define the epoch config is easy
   liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
   liftEC f = rwst λ _ st
-    → let ec                 = α-EC (₋epEC st , ₋epEC-correct st)
-          res , stec' , acts = RWST-run (f ec) unit (₋epWithEC st)
-       in res , record st { ₋epWithEC = stec' } , acts
+    → let ec                 = α-EC (₋rmEC st , ₋rmEC-correct st)
+          res , stec' , acts = RWST-run (f ec) unit (₋rmWithEC st)
+       in res , record st { ₋rmWithEC = stec' } , acts
 
   -- Type that captures a proof that a computation in the LBFT monad
   -- satisfies a given contract.
   LBFT-Contract : ∀{A} → LBFT A
-                → (EventProcessor → Set)
-                → (EventProcessor → Set)
+                → (RoundManager → Set)
+                → (RoundManager → Set)
                 → Set
   LBFT-Contract f Pre Post =
-    ∀ ep → Pre ep × Post (proj₁ (proj₂ (RWST-run f unit ep)))
+    ∀ rm → Pre rm × Post (proj₁ (proj₂ (RWST-run f unit rm)))
