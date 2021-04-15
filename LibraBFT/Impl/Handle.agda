@@ -27,15 +27,15 @@ module LibraBFT.Impl.Handle
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
  -- the initial RoundManager for every peer until it is initialised.
  postulate
-   fakeEP : RoundManager
+   fakeRM : RoundManager
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
- -- just initialise again to fakeEP, which means we cannot prove the base case for various
+ -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
  initialRoundManagerAndMessages
      : (a : Author) → EpochConfig → RoundManager
      → RoundManager × List NetworkMsg
- initialRoundManagerAndMessages a _ _ = fakeEP , []
+ initialRoundManagerAndMessages a _ _ = fakeRM , []
 
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now

@@ -25,7 +25,7 @@ module LibraBFT.Concrete.System.Parameters where
                  NodeId
                  _≟NodeId_
                  RoundManager
-                 fakeEP
+                 fakeRM
                  NetworkMsg
                  Vote
                  sig-Vote
