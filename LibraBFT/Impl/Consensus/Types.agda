@@ -110,7 +110,7 @@ module LibraBFT.Impl.Consensus.Types where
     constructor mkEventProcessorAndMeta
     field
       ₋epamEP              : EventProcessor
-      ₋epamMetaNumEpochs   : ℕ -- Maybe unnecessary?  Use "current" epoch (₋epamEP ^∙ epEpoch)?
+      ₋epamMetaNumEpochs   : ℕ
       ₋epamMetaAvailEpochs : AvailableEpochs ₋epamMetaNumEpochs
   open EventProcessorAndMeta public
 
