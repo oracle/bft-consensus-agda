@@ -16,7 +16,7 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
-module LibraBFT.Impl.Consensus.ChainedBFT.RoundManager.Properties
+module LibraBFT.Impl.Consensus.RoundManager.Properties
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
