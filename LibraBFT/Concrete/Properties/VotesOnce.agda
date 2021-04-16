@@ -152,7 +152,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
     VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
-    VotesOnceProof (step-s r (step-peer cheat@(step-cheat f c))) pkH vv msv vv' msv' eid≡ r≡
+    VotesOnceProof (step-s r (step-peer cheat@(step-cheat c))) pkH vv msv vv' msv' eid≡ r≡
        with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
     ...| msb4 | m'sb4
        with  msgSameSig msb4 | msgSameSig m'sb4

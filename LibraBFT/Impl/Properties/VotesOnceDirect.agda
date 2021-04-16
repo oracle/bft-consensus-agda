@@ -98,7 +98,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK (peerStates pre pid) v pid pk
                    → (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                    → v ^∙ vRound ≤ (₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound
-  oldVoteRound≤lvr {pid = pid'} {pre = pre} (step-s {pre = prev} r (step-peer {pid = pid} cheat@(step-cheat f c)))
+  oldVoteRound≤lvr {pid = pid'} {pre = pre} (step-s {pre = prev} r (step-peer {pid = pid} cheat@(step-cheat c)))
                     pidIn pkH sig msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4

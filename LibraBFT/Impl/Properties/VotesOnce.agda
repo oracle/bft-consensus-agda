@@ -100,7 +100,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   LvrCarrier = PropCarrier LvrProp
 
   firstSendEstablishes : Vote → PK → (origSt : SystemState) → SystemStateRel Step
-  firstSendEstablishes _ _ _ (step-peer (step-cheat _ _)) = Lift (ℓ+1 ℓ-RoundManagerAndMeta) ⊥
+  firstSendEstablishes _ _ _ (step-peer (step-cheat _)) = Lift (ℓ+1 ℓ-RoundManagerAndMeta) ⊥
   firstSendEstablishes   v' pk origSt sysStep@(step-peer {pid'} {pre = pre} pstep@(step-honest _)) =
                          ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
@@ -119,7 +119,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
   ...| inj₁ thisStep
      with pstep
-  ...| step-cheat fm isCheat
+  ...| step-cheat isCheat
      with thisStep
   ...| here refl
      with isCheat (msg⊆ mws) (msgSigned mws)

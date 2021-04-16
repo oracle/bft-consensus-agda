@@ -43,11 +43,11 @@ module LibraBFT.Yasm.Properties
                 → Meta-Honest-PK pk
                 → MsgWithSig∈ pk vsig ((pid , m) ∷ msgPool st)
                 → MsgWithSig∈ pk vsig (msgPool st)
- ¬cheatForgeNew sc@(step-cheat fm isCheat) refl _ hpk mws
+ ¬cheatForgeNew sc@(step-cheat isch) refl _ hpk mws
     with msg∈pool mws
  ...| there m∈pool = mkMsgWithSig∈ (msgWhole mws) (msgPart mws) (msg⊆ mws) (msgSender mws) m∈pool (msgSigned mws) (msgSameSig mws)
  ...| here m∈pool
-    with isCheat (subst (msgPart mws ⊂Msg_) (cong proj₂ m∈pool) (msg⊆ mws)) (msgSigned mws)
+    with isch (subst (msgPart mws ⊂Msg_) (cong proj₂ m∈pool) (msg⊆ mws)) (msgSigned mws)
  ...| inj₁ dis = ⊥-elim (hpk dis)
  ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
@@ -65,9 +65,9 @@ module LibraBFT.Yasm.Properties
                                        (Step*-trans r st''reach) sps (Step*-initdStable st''reach ini)
                                        (ValidSenderForPK-stable-sys r st''reach ini v)
  ...| no  neq  rewrite override-target-≢ {b = st'} {f = peerStates st''} neq = ValidSenderForPK-stable-sys r st''reach ini v
- ValidSenderForPK-stable-sys {pre} r (step-s {pre = st''} st''reach (step-peer {pid} {st' = st'} (step-cheat fm isch))) {α = α} ini v =
+ ValidSenderForPK-stable-sys {pre} r (step-s {pre = st''} st''reach (step-peer {pid} {st' = st'} (step-cheat {m = m} isch))) {α = α} ini v =
                              subst (λ ps → ValidSenderForPK (ps α) _ _ _)
-                                   (sym (cheatStepDNMPeerStates {pre = st''} (step-cheat fm isch) unit))
+                                   (sym (cheatStepDNMPeerStates {pre = st''} (step-cheat {m = m} isch) unit))
                                    (ValidSenderForPK-stable-sys r st''reach ini v)
 
  override-elim-ValidSenderForPK : ∀ {ps part pid pk f}
@@ -141,7 +141,7 @@ module LibraBFT.Yasm.Properties
      ...| inj₂ furtherBack = step-there (unwind tr hpk p⊂m furtherBack sig)
      ...| inj₁ thisStep
        with sp
-     ...| step-cheat fm isCheat
+     ...| step-cheat isCheat
        with thisStep
      ...| here refl
        with isCheat p⊂m sig
@@ -180,8 +180,8 @@ module LibraBFT.Yasm.Properties
      -- and (b) its epoch is less than e.
         = Any-Step-elim (λ { {st = step-peer {pid = pid} (step-honest sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
                              → mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid
-                           ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} fm sps)} (preReach , ¬sentb4 , new , refl , valid) tr
-                            → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat fm sps) refl unit hpk new))
+                           ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} sps)} (preReach , ¬sentb4 , new , refl , valid) tr
+                            → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new))
                         })
                         (unwind r hpk v⊂m m∈pool ver)
 
@@ -207,9 +207,9 @@ module LibraBFT.Yasm.Properties
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {_} {outs} {st} r stP pkH sig v⊂m m∈post
         | inj₁ nm∈outs
         | here refl
-        | step-cheat fm ic
+        | step-cheat ic
           = let mws = mkMsgWithSig∈ m v v⊂m pid (here refl) sig refl
-            in inj₂ (¬cheatForgeNew {st = st} (step-cheat fm ic) refl unit pkH mws)
+            in inj₂ (¬cheatForgeNew {st = st} (step-cheat ic) refl unit pkH mws)
 
  -- This could potentially be more general, for example covering the whole SystemState, rather than
   -- just one peer's state.  However, this would put more burden on the user and is not required so
@@ -251,9 +251,9 @@ module LibraBFT.Yasm.Properties
        with step-s r theStep
     ...| postReach
        with sps
-    ...| sch@(step-cheat fm isch) = mkCarrier postReach (MsgWithSig∈-++ʳ mws) (trans (cong (λ f → f (msgSender mws)) (cheatStepDNMInitialised sch unit)) ini)      -- PeerStates not changed by cheat steps
-           (subst (λ ps → ValidSenderForPK ps _ _ _) (cong (λ f → f (msgSender mws)) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat fm isch) unit))) vpk)
-           (subst (λ ps → P (msgPart mws) (ps (msgSender mws))) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat fm isch) unit)) prop)
+    ...| sch@(step-cheat isch) = mkCarrier postReach (MsgWithSig∈-++ʳ mws) (trans (cong (λ f → f (msgSender mws)) (cheatStepDNMInitialised sch unit)) ini)      -- PeerStates not changed by cheat steps
+           (subst (λ ps → ValidSenderForPK ps _ _ _) (cong (λ f → f (msgSender mws)) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat isch) unit))) vpk)
+           (subst (λ ps → P (msgPart mws) (ps (msgSender mws))) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat isch) unit)) prop)
     ...| step-honest {st = st} sps'
        with msgSender mws ≟PeerId pid
     ...| no neq   = mkCarrier postReach (MsgWithSig∈-++ʳ mws) (trans (sym (override-target-≢ neq)) ini)
