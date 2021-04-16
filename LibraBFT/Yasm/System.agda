@@ -316,7 +316,7 @@ module LibraBFT.Yasm.System
                       → (stP : StepPeerState pid (msgPool st) (initialised st)
                                              (peerStates st pid) init' (s' , outs))
                       → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
-                     → s ≡ s'
+                      → s ≡ s'
  eventProcessorPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-trans : ∀ {st st' st''}

@@ -85,7 +85,7 @@ module LibraBFT.Impl.Consensus.Types where
     α-EC-≡ : (rmec1  : RoundManagerEC)
            → (rmec2  : RoundManagerEC)
            → (vals≡  : rmec1 ^∙ rmValidators ≡ rmec2 ^∙ rmValidators)
-           → rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
+           →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
            → (rmec1-corr : RoundManagerEC-correct rmec1)
            → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManagerEC-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
   {-

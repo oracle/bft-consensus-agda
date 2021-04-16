@@ -40,16 +40,19 @@ open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig Epo
 
 module LibraBFT.Impl.Properties.VotesOnce where
 
-  -- TODO-1: It seems that vo₂ should be proved via a couple of invocations of this property;
-  -- the proofs are quite similar.
+  -- TODO-2: newVoteSameEpochGreaterRound and lastVoteround-mono probably belong in
+  -- Impl.Handle.Properties, but cannot just be moved there because of inconsistencies in how we
+  -- specify hash and hash-cr.  Many modules receive these as module parameters, but in some cases
+  -- they are "hard coded" as sha256[-cr].  We need to decide on a consistent approach and implement
+  -- it.
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid initd' s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) initd' (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → (v ^∙ vEpoch) ≡ (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ (v ^∙ vRound)  -- New vote for higher round than last voted
-                               × (v ^∙ vRound) ≡ ((₋rmamEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+                               → v ^∙ vEpoch ≡ (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
+                               × v ^∙ vRound ≡ ((₋rmamEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound _ (step-init _) v⊂m m∈outs sig = ⊥-elim (¬Any[] m∈outs)
   newVoteSameEpochGreaterRound {pre = pre} {pid} {m = m} r (step-msg {(_ , nm)} msg∈pool pinit) v⊂m m∈outs sig vnew
      rewrite pinit
