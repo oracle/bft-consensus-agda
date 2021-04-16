@@ -261,7 +261,12 @@ module LibraBFT.Yasm.System
  cheatStepDNMPeerStates₁ {pid} {pid'} (step-cheat _) x = overrideSameVal-correct pid pid'
 
  data Step : SystemState → SystemState → Set (ℓ+1 ℓ-PeerState) where
-   step-peer : ∀{pid st' outs}{pre : SystemState}  -- TODO: eliminate if we're getting rid of epochs, merge with StepPeer
+   -- TO-NOT-DO: it is tempting to merge this and StepPeer, now that step-peer
+   -- is the only constructor here.  I started to do so, but it propagates many
+   -- changes throughout the repo, and it's possible we will in future add steps
+   -- not performed by a specific peer (for example, if we model some notion of
+   -- time to prove liveness properties).
+   step-peer : ∀{pid st' outs}{pre : SystemState}
              → (pstep : StepPeer pre pid st' outs)
              → Step pre (StepPeer-post pstep)
 
