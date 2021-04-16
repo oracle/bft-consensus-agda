@@ -45,9 +45,9 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- specify hash and hash-cr.  Many modules receive these as module parameters, but in some cases
   -- they are "hard coded" as sha256[-cr].  We need to decide on a consistent approach and implement
   -- it.
-  newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid initd' s' outs v m pk}
+  newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
-                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) initd' (s' , outs)
+                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                                → v ^∙ vEpoch ≡ (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch
@@ -76,10 +76,10 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| vote∈vm {si} = refl , refl , refl
 
   -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
-  lastVoteRound-mono : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
+  lastVoteRound-mono : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
-                     → StepPeerState pid (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
                      → (₋rmamEC ppre) ^∙ rmEpoch ≡ (₋rmamEC ppost) ^∙ rmEpoch
                      → (₋rmamEC ppre) ^∙ rmLastVotedRound ≤ (₋rmamEC ppost) ^∙ rmLastVotedRound
@@ -128,7 +128,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   isValidNewPart⇒fSE {pk = pk}{pre = pre}{theStep = step-peer {β} {postst} {outs} {.pre} pstep} hpk (r , ¬sentb4 , mws , refl , zefl , vpk)
      | inj₁ thisStep
-     | step-honest {.β} {postst} {outs} {init'} hstep
+     | step-honest {.β} hstep
      with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs
      with hstep

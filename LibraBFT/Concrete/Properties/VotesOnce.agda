@@ -44,10 +44,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₁ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
  ImplObligation₁ =
-   ∀{pid pid' inits' s' outs pk}{pre : SystemState}
+   ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
+   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
@@ -66,10 +66,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  ImplObligation₂ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
  ImplObligation₂ =
-   ∀{pid inits' s' outs pk}{pre : SystemState}
+   ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) inits' (s' , outs)
+   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)

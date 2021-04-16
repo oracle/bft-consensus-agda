@@ -80,10 +80,10 @@ module LibraBFT.Yasm.Properties
  -- message with the same signature has been sent previously), or (ii) a message has been sent
  -- with the same signature.
  StepPeerState-AllValidParts : Set (ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
- StepPeerState-AllValidParts = ∀{s m part pk initd' outs}{α}{st : SystemState}
+ StepPeerState-AllValidParts = ∀{s m part pk outs}{α}{st : SystemState}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → StepPeerState α (msgPool st) (initialised st) (peerStates st α) initd' (s , outs)
+   → StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs)
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
      -- Note that we require that α can send for the PK according to the α's *new* state.  This
      -- allows sufficient generality to ensure that a peer can sign and send a message for an epoch
@@ -230,14 +230,13 @@ module LibraBFT.Yasm.Properties
   open PropCarrier public
 
   PeerStepPreserves : Set (ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
-  PeerStepPreserves = ∀ {initd' ps' outs pk sig}{pre : SystemState}
+  PeerStepPreserves = ∀ {ps' outs pk sig}{pre : SystemState}
                       → (r : ReachableSystemState pre)
                       → (pc : PropCarrier pk sig pre)
                       → (sps : StepPeerState     (msgSender (carrSent pc))
                                                  (msgPool pre)
                                                  (initialised pre)
                                                  (peerStates pre (msgSender (carrSent pc)))
-                                                 initd'
                                                  (ps' , outs))
                       → P (msgPart (carrSent pc)) ps'
 

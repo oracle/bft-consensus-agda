@@ -66,9 +66,9 @@ module LibraBFT.Concrete.System where
  PeerCanSignForPKAux (mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡) refl refl = mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡
 
  -- Not yet used; see TODO comment above
- noEpochChangeSPS : ∀ {st pid inits' ps' msgs}
+ noEpochChangeSPS : ∀ {st pid ps' msgs}
                   → LYS.initialised st pid ≡ LYS.initd
-                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) inits' (ps' , msgs)
+                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
                   → ₋rmamMetaNumEpochs (LYS.peerStates st pid) ≡ ₋rmamMetaNumEpochs ps'
  noEpochChangeSPS ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
  noEpochChangeSPS _ (LYS.step-msg {_ , P x} m∈pool ini) = refl

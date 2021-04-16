@@ -186,22 +186,22 @@ module LibraBFT.Yasm.System
  -- The pre and post states of Honest peers are related iff
  data StepPeerState (pid : PeerId)(pool : SentMessages)
                     (peerInits : PeerId → InitStatus) (ps : PeerState) :
-                    (PeerId → InitStatus) → (PeerState × List Msg) → Set where
+                    (PeerState × List Msg) → Set where
    -- An uninitialized peer can be initialized
    step-init : peerInits pid ≡ uninitd
-             → StepPeerState pid pool peerInits ps ⟦ peerInits , pid ← initd ⟧ (init pid genInfo)
+             → StepPeerState pid pool peerInits ps (init pid genInfo)
 
    -- The peer processes a message in the pool
    step-msg  : ∀{m}
              → m ∈ pool
              → peerInits pid ≡ initd
-             → StepPeerState pid pool peerInits ps peerInits (handle pid (proj₂ m) ps)
+             → StepPeerState pid pool peerInits ps (handle pid (proj₂ m) ps)
 
  -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
  data StepPeer (pre : SystemState) : PeerId → PeerState → List Msg → Set ℓ-PeerState where
    -- it can be obtained by a handle or init call.
-   step-honest : ∀{pid st outs init'}
-               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) init' (st , outs)
+   step-honest : ∀{pid st outs}
+               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (st , outs)
                → StepPeer pre pid st outs
 
    -- or the peer decides to cheat.  CheatMsgConstraint ensures it cannot
@@ -237,8 +237,8 @@ module LibraBFT.Yasm.System
                → st' ≡ peerStates (StepPeer-post pstep) pid
  StepPeer-post-lemma pstep = sym override-target-≡
 
- StepPeer-post-lemma2 : ∀{pid}{pre : SystemState}{init' st outs}
-                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) init' (st , outs))
+ StepPeer-post-lemma2 : ∀{pid}{pre : SystemState}{st outs}
+                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (st , outs))
                       → initialised (StepPeer-post {pid} {st} {outs} {pre} (step-honest sps)) pid ≡ initd
  StepPeer-post-lemma2 {pre = pre} _ = override-target-≡
 
@@ -314,10 +314,10 @@ module LibraBFT.Yasm.System
  ReachableSystemState : SystemState → Set (ℓ+1 ℓ-PeerState)
  ReachableSystemState = Step* initialState
 
- eventProcessorPostSt : ∀ {pid s' s outs init'} {st : SystemState}
+ eventProcessorPostSt : ∀ {pid s' s outs} {st : SystemState}
                       → (r : ReachableSystemState st)
                       → (stP : StepPeerState pid (msgPool st) (initialised st)
-                                             (peerStates st pid) init' (s' , outs))
+                                             (peerStates st pid) (s' , outs))
                       → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
                       → s ≡ s'
  eventProcessorPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
@@ -409,9 +409,9 @@ module LibraBFT.Yasm.System
  ValidSenderForPK-type = PeerState → Part → PeerId → PK → Set ℓ-VSFP
 
  ValidSenderForPK-stable-type : ValidSenderForPK-type → Set (ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
- ValidSenderForPK-stable-type vs4pk = ∀ {st part pk}{pid inits' ps' msgs}
+ ValidSenderForPK-stable-type vs4pk = ∀ {st part pk}{pid ps' msgs}
                                       → ReachableSystemState st
-                                      → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) inits' (ps' , msgs)
+                                      → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (ps' , msgs)
                                       → initialised st pid ≡ initd
                                       → vs4pk (peerStates st pid) part pid pk
                                       → vs4pk ps'                 part pid pk

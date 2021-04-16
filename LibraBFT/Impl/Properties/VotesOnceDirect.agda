@@ -75,10 +75,10 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
 
   -- TODO-2 : This became obsolete, but is restored here as it is used below.  It should go
   -- somewhere else.  Handle.Properties?
-  noEpochChangeYet : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
+  noEpochChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
                    → ReachableSystemState pre
                    → ppre ≡ peerStates pre pid
-                   → StepPeerState pid (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
+                   → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                    → initialised pre pid ≡ initd
                    → (eInRange : (₋rmamEC ppost) ^∙ rmEpoch < ₋rmamMetaNumEpochs ppost)
                    → Σ (₋rmamMetaNumEpochs ppost ≡ ₋rmamMetaNumEpochs ppre) λ num𝓔s≡ →

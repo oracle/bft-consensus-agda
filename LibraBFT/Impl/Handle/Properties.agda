@@ -74,9 +74,9 @@ module LibraBFT.Impl.Handle.Properties
     inPre  : initialised st pid ≡ initd
            → PeerCanSignForPK (peerStates st pid) v pid pk
            → PeerKnowsPCS4 st v pid pk
-    inPost : ∀ {initd' s outs}
+    inPost : ∀ {s outs}
            → initialised st pid ≡ initd
-           → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) initd' (s , outs)
+           → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s , outs)
            → PeerCanSignForPK s v pid pk
            → PeerKnowsPCS4 st v pid pk
 
@@ -113,10 +113,10 @@ module LibraBFT.Impl.Handle.Properties
      → 𝓔ofPeerKnowsPCS4 pkvpf ≡ 𝓔ofPeerKnowsPCS4 pkvpf'
 
   -- Always true, so far, as no epoch changes.
-  noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{initd' ppre ppost msgs}
+  noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
-                     → StepPeerState pid (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
                      → (₋rmamEC ppre) ^∙ rmEpoch ≡ (₋rmamEC ppost) ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
