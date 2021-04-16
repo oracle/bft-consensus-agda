@@ -18,11 +18,11 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This is a minimal/fake example handler that obeys the VotesOnce rule, enabling us to start
 -- exploring how we express the algorithm and prove properties about it.  It simply sends a vote for
--- 1 + its LatestVotedRound, and increments its LatestVotedRound.  It is called EventProcessor for
+-- 1 + its LatestVotedRound, and increments its LatestVotedRound.  It is called RoundManager for
 -- historical reasons, because this what a previous version of LibraBFT called its main handler;
 -- this will be updated when we move towards modeling a more recent implementation.
 
-module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
+module LibraBFT.Impl.Consensus.RoundManager
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
@@ -48,14 +48,14 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
     stam ← get
-    let st = ₋epamEP stam
-        𝓔  = α-EC ((₋epEC st) , (₋epEC-correct st))
-        ep  = ₋epEC st
-        epw = ₋epWithEC st
-        epc = ₋epEC-correct st
-        bt = epw ^∙ (lBlockTree 𝓔)
-        nr = suc ((₋epEC st) ^∙ epLastVotedRound)
-        ix = ep ^∙ epEpoch
+    let st = ₋rmamRM stam
+        𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
+        rm  = ₋rmEC st
+        rmw = ₋rmWithEC st
+        rmc = ₋rmEC-correct st
+        bt = rmw ^∙ (lBlockTree 𝓔)
+        nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
+        ix = rm ^∙ rmEpoch
         uv = mkVote (mkVoteData (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor
                     (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
@@ -63,13 +63,13 @@ module LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor
                     (₋bSignature (₋pmProposal pm))
         sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
         si = mkSyncInfo (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
-        ep' = ep [ epLastVotedRound := nr ]
-        epc2 = EventProcessorEC-correct-≡ (₋epEC st) ep' refl epc
-        st' = record st { ₋epEC         = ep'
-                        ; ₋epEC-correct = epc2
-                        ; ₋epWithEC     = subst EventProcessorWithEC (α-EC-≡ ep ep' refl refl epc) epw
+        rm' = rm [ rmLastVotedRound := nr ]
+        rmc2 = RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc
+        st' = record st { ₋rmEC         = rm'
+                        ; ₋rmEC-correct = rmc2
+                        ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
                         }
-    put (record stam {₋epamEP = st'})
+    put (record stam {₋rmamRM = st'})
     tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))
     pure unit
 

@@ -26,11 +26,11 @@ module LibraBFT.Concrete.System.Parameters where
                  _≟NodeId_
                  GenesisInfo
                  genInfo
-                 EventProcessorAndMeta
-                 initMetaEP
+                 RoundManagerAndMeta
+                 initMetaRM
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
-                 initialEventProcessorAndMessages
+                 initialRoundManagerAndMessages
                  peerStepWrapper

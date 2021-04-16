@@ -23,7 +23,7 @@ module LibraBFT.Impl.Handle
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
- open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+ open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
  open RWST-do
 
  open EpochConfig
@@ -40,12 +40,13 @@ module LibraBFT.Impl.Handle
    -- We postulate the existence of GenesisInfo known to all
    genInfo : GenesisInfo
 
- postulate -- TODO-1: reasonable assumption that some EventProcessor exists, though we could prove
-           -- it by construction; eventually we will construct an entire EventProcessorAndMeta, so
+ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
+           -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
            -- this won't be needed
-   -- This represents an uninitialised EventProcessor, about which we know nothing, which we use as
-   -- the initial EventProcessor for every peer until it is initialised.
-   fakeEP  : EventProcessor
+
+ -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
+ -- the initial RoundManager for every peer until it is initialised.
+   fakeRM : RoundManager
 
  postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
    initVV  : GenesisInfo → ValidatorVerifier
@@ -54,25 +55,25 @@ module LibraBFT.Impl.Handle
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ psEpoch) (const 1)
                 (over (srPersistentStorage ∙ psLastVotedRound) (const 0)
-                      (₋epSafetyRules (₋epEC fakeEP)))
+                      (₋rmSafetyRules (₋rmEC fakeRM)))
 
- initEPEC : EventProcessorEC
- initEPEC = mkEventProcessorEC initSR (initVV genInfo)
+ initRMEC : RoundManagerEC
+ initRMEC = mkRoundManagerEC initSR (initVV genInfo)
 
- postulate -- TODO-2 : prove these once initEPEC is defined directly
+ postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epochId (init-EC genInfo) ≡ 1
-   initEPEC-correct : EventProcessorEC-correct initEPEC
+   initRMEC-correct : RoundManagerEC-correct initRMEC
 
- initMetaEP : EventProcessorAndMeta
- initMetaEP = mkEventProcessorAndMeta fakeEP 1 (append (mkEpochConfigFor (init-EC genInfo) init-EC-epoch-1) [])
+ initMetaRM : RoundManagerAndMeta
+ initMetaRM = mkRoundManagerAndMeta fakeRM 1 (append (mkEpochConfigFor (init-EC genInfo) init-EC-epoch-1) [])
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
- -- just initialise again to fakeEP, which means we cannot prove the base case for various
+ -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
- initialEventProcessorAndMessages
+ initialRoundManagerAndMessages
      : (a : Author) → GenesisInfo
-     → EventProcessorAndMeta × List NetworkMsg
- initialEventProcessorAndMessages a _ = initMetaEP , []
+     → RoundManagerAndMeta × List NetworkMsg
+ initialRoundManagerAndMessages a _ = initMetaRM , []
 
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
@@ -101,26 +102,26 @@ module LibraBFT.Impl.Handle
  -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
- outputToActions : EventProcessorAndMeta → Output → List (Action NetworkMsg)
- outputToActions epam (BroadcastProposal p) = List-map (const (Action.send (P p)))
+ outputToActions : RoundManagerAndMeta → Output → List (Action NetworkMsg)
+ outputToActions rmam (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                        (List-map proj₁
-                                                                 (kvm-toList (:vvAddressToValidatorInfo (₋epValidators (₋epEC (₋epamEP epam))))))
+                                                                 (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC (₋rmamRM rmam))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
  outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
  outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
- runHandler : EventProcessorAndMeta → LBFT Unit → EventProcessorAndMeta × List (Action NetworkMsg)
+ runHandler : RoundManagerAndMeta → LBFT Unit → RoundManagerAndMeta × List (Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId → NetworkMsg → Instant → EventProcessorAndMeta → EventProcessorAndMeta × List (Action NetworkMsg)
+ peerStep : NodeId → NetworkMsg → Instant → RoundManagerAndMeta → RoundManagerAndMeta × List (Action NetworkMsg)
  peerStep nid msg ts st = runHandler st (handle nid msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
- peerStepWrapper : NodeId → NetworkMsg → EventProcessorAndMeta → EventProcessorAndMeta × List NetworkMsg
+ peerStepWrapper : NodeId → NetworkMsg → RoundManagerAndMeta → RoundManagerAndMeta × List NetworkMsg
  peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)

@@ -11,14 +11,14 @@ open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Concrete.Properties.VotesOnce   as VO
 import      LibraBFT.Concrete.Properties.LockedRound as LR
 
-open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module collects in one place the obligations an
 -- implementation must meet in order to enjoy the properties
 -- proved in Abstract.Properties.
 
 module LibraBFT.Concrete.Obligations where
-  record ImplObligations : Set (ℓ+1 ℓ-EventProcessorAndMeta) where
+  record ImplObligations : Set (ℓ+1 ℓ-RoundManagerAndMeta) where
     field
       -- Structural obligations:
       sps-cor : StepPeerState-AllValidParts

@@ -17,7 +17,7 @@ open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set (ℓ+1 ℓ-EventProcessorAndMeta)
+ ImplObligation₁ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
  ImplObligation₁ =
    ∀{pid pid' inits' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
@@ -64,7 +64,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- Then an honest implemenation promises v and v' vote for the same blockId.
    → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
- ImplObligation₂ : Set (ℓ+1 ℓ-EventProcessorAndMeta)
+ ImplObligation₂ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
  ImplObligation₂ =
    ∀{pid inits' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
@@ -152,12 +152,12 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
     VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
-    VotesOnceProof (step-s r (step-peer cheat@(step-cheat f c))) pkH vv msv vv' msv' ep≡ r≡
+    VotesOnceProof (step-s r (step-peer cheat@(step-cheat f c))) pkH vv msv vv' msv' eid≡ r≡
        with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
     ...| msb4 | m'sb4
        with  msgSameSig msb4 | msgSameSig m'sb4
-    ...| refl | refl = VotesOnceProof r pkH vv msb4 vv' m'sb4 ep≡ r≡
-    VotesOnceProof (step-s r (step-peer stHon@(step-honest stPeer))) pkH vv msv vv' msv' ep≡ r≡
+    ...| refl | refl = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
+    VotesOnceProof (step-s r (step-peer stHon@(step-honest stPeer))) pkH vv msv vv' msv' eid≡ r≡
        with  msgSameSig msv | msgSameSig msv'
     ...| refl       | refl
        with sameHonestSig⇒sameVoteData pkH (msgSigned msv) vv (msgSameSig msv)
@@ -168,17 +168,17 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        with newMsg⊎msgSentB4 r stHon pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
           | newMsg⊎msgSentB4 r stHon pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
     ...| inj₂ msb4                   | inj₂ m'sb4
-         = VotesOnceProof r pkH vv msb4 vv' m'sb4 ep≡ r≡
+         = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
     ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
       = Impl-VO2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
-                 (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk ep≡ r≡
+                 (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk eid≡ r≡
     ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
        with sameHonestSig⇒sameVoteData pkH (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
       = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
-                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) ep≡ r≡
-    VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' ep≡ r≡
+                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) eid≡ r≡
+    VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' eid≡ r≡
        | refl       | refl
        | inj₂ refl  | inj₂ refl
        | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
@@ -186,7 +186,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
       = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk
-                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (sym ep≡) (sym r≡))
+                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (sym eid≡) (sym r≡))
 
    voo : VO.Type IntSystemState
    voo hpk refl sv refl sv' round≡

@@ -24,10 +24,10 @@ open        EpochConfig
 module LibraBFT.Concrete.System where
 
  ℓ-VSFP : Level
- ℓ-VSFP = 1ℓ ℓ⊔ ℓ-EventProcessorAndMeta
+ ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManagerAndMeta
 
  open import LibraBFT.Yasm.Base
- import      LibraBFT.Yasm.System ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms as LYS
+ import      LibraBFT.Yasm.System ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms as LYS
  open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig epochId renaming (lookup'' to AE-lookup)
 
  -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in an EpochConfig
@@ -35,12 +35,12 @@ module LibraBFT.Concrete.System where
  -- EpochConfigs known about by different peers are the same (everyone has the same initial
  -- EpochConfig for now, and later we will add EpochConfigs only by committing epoch-changing
  -- transactions.
- record PeerCanSignForPK (epam : EventProcessorAndMeta) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
+ record PeerCanSignForPK (rmam : RoundManagerAndMeta) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
    constructor mkPCS4PK
    field
-     eInRange : v ^∙ vEpoch < ₋epamMetaNumEpochs epam
+     eInRange : v ^∙ vEpoch < ₋rmamMetaNumEpochs rmam
      𝓔        : EpochConfig
-     𝓔≡       : 𝓔 ≡ AE-lookup (₋epamMetaAvailEpochs epam) eInRange
+     𝓔≡       : 𝓔 ≡ AE-lookup (₋rmamMetaAvailEpochs rmam) eInRange
      mbr      : Member 𝓔
      nid≡     : toNodeId  𝓔 mbr ≡ pid
      pk≡      : getPubKey 𝓔 mbr ≡ pk
@@ -52,25 +52,25 @@ module LibraBFT.Concrete.System where
    -- Note that the handler does not change the number of EpochConfigs or available EpochConfigs
    -- yet; this will become more challenging in future when we model epoch changes.  One easy
    -- property noEpochChangeSPS is proved below.
-   PeerCanSignForPKBogus1 : ∀ {epam1 epam2 : EventProcessorAndMeta}
-                        → ₋epamMetaNumEpochs epam2 ≡ ₋epamMetaNumEpochs epam1
+   PeerCanSignForPKBogus1 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
+                        → ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1
 
-   PeerCanSignForPKBogus2 : ∀ {epam1 epam2 : EventProcessorAndMeta}
-                        → (num𝓔s≡ : ₋epamMetaNumEpochs epam2 ≡ ₋epamMetaNumEpochs epam1)
-                        → ₋epamMetaAvailEpochs epam1 ≡ subst AvailableEpochs num𝓔s≡ (₋epamMetaAvailEpochs epam2)
+   PeerCanSignForPKBogus2 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
+                        → (num𝓔s≡ : ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1)
+                        → ₋rmamMetaAvailEpochs rmam1 ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs rmam2)
 
- PeerCanSignForPKAux : ∀ {epam1 epam2 : EventProcessorAndMeta}{v pid pk}
-                     → PeerCanSignForPK epam1 v pid pk
-                     → (num𝓔s≡ : ₋epamMetaNumEpochs epam2 ≡ ₋epamMetaNumEpochs epam1)
-                     → ₋epamMetaAvailEpochs epam1 ≡ subst AvailableEpochs num𝓔s≡ (₋epamMetaAvailEpochs epam2)
-                     → PeerCanSignForPK epam2 v pid pk
+ PeerCanSignForPKAux : ∀ {rmam1 rmam2 : RoundManagerAndMeta}{v pid pk}
+                     → PeerCanSignForPK rmam1 v pid pk
+                     → (num𝓔s≡ : ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1)
+                     → ₋rmamMetaAvailEpochs rmam1 ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs rmam2)
+                     → PeerCanSignForPK rmam2 v pid pk
  PeerCanSignForPKAux (mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡) refl refl = mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡
 
  -- Not yet used; see TODO comment above
  noEpochChangeSPS : ∀ {st pid inits' ps' msgs}
                   → LYS.initialised st pid ≡ LYS.initd
                   → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) inits' (ps' , msgs)
-                  → ₋epamMetaNumEpochs (LYS.peerStates st pid) ≡ ₋epamMetaNumEpochs ps'
+                  → ₋rmamMetaNumEpochs (LYS.peerStates st pid) ≡ ₋rmamMetaNumEpochs ps'
  noEpochChangeSPS ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
  noEpochChangeSPS _ (LYS.step-msg {_ , P x} m∈pool ini) = refl
  noEpochChangeSPS _ (LYS.step-msg {_ , V x} m∈pool ini) = refl
@@ -91,7 +91,7 @@ module LibraBFT.Concrete.System where
                                                                                              {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))}
                                                                                              PeerCanSignForPKBogus1)
 
- open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK
                                                                            (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
  -- An implementation must prove that, if one of its handlers sends a

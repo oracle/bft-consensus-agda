@@ -24,7 +24,7 @@ open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-EventProcessorAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
@@ -33,11 +33,11 @@ module LibraBFT.Impl.Handle.Properties
   (hash    : BitString → Hash)
   (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
   where
-  open import LibraBFT.Impl.Consensus.ChainedBFT.EventProcessor hash hash-cr
+  open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----
-  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : EventProcessorAndMeta}
+  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManagerAndMeta}
                       → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
                       → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
@@ -53,7 +53,7 @@ module LibraBFT.Impl.Handle.Properties
      -- keep the implementation model faithful to the implementation.
   ...| here refl = fakeAuthor ∷ [] , here refl
 
-  msgsToSendWereSent : ∀ {pid ts nm m} {st : EventProcessorAndMeta}
+  msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManagerAndMeta}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
@@ -97,7 +97,7 @@ module LibraBFT.Impl.Handle.Properties
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋epamEP ps ^∙ epHighestQC) (₋epamEP ps ^∙ epHighestCommitQC)
+                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋rmamRM ps ^∙ rmHighestQC) (₋rmamRM ps ^∙ rmHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
@@ -118,7 +118,7 @@ module LibraBFT.Impl.Handle.Properties
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre initd' (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋epamEC ppre) ^∙ epEpoch ≡ (₋epamEC ppost) ^∙ epEpoch
+                     → (₋rmamEC ppre) ^∙ rmEpoch ≡ (₋rmamEC ppost) ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
      with m
@@ -130,5 +130,5 @@ module LibraBFT.Impl.Handle.Properties
     eIdInRange : ∀{pid}{st : SystemState}
              → ReachableSystemState st
              → initialised st pid ≡ initd
-             → ₋epamEC (peerStates st pid) ^∙ epEpoch < ₋epamMetaNumEpochs (peerStates st pid)
+             → ₋rmamEC (peerStates st pid) ^∙ rmEpoch < ₋rmamMetaNumEpochs (peerStates st pid)
 
