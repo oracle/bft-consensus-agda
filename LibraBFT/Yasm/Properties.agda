@@ -185,31 +185,23 @@ module LibraBFT.Yasm.Properties
                         })
                         (unwind r hpk v⊂m m∈pool ver)
 
-     newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr st' outs} {st : SystemState}
+     newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                    → (r : ReachableSystemState st)
-                   → (stP : StepPeer st pid st' outs)
+                   → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                   → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post stP)
-                   → (m ∈ outs × ValidSenderForPK st' v pid pk
+                   → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
+                   → (m ∈ outs × ValidSenderForPK s' v pid pk
                       × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                      ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-     newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {_} {outs} {st} r stP pkH sig v⊂m m∈post
+     newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig v⊂m m∈post
         with Any-++⁻ (List-map (pid ,_) outs) m∈post
      ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
      ...| inj₁ nm∈outs
         with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
      ...| m∈outs
-        with stP
-     ...| step-honest stH
-        with sps-avp r pkH stH m∈outs v⊂m sig
+        with sps-avp r pkH stP m∈outs v⊂m sig
      ...| inj₁ newVote = inj₁ (m∈outs , newVote)
      ...| inj₂ msb4    = inj₂ msb4
-     newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {_} {outs} {st} r stP pkH sig v⊂m m∈post
-        | inj₁ nm∈outs
-        | here refl
-        | step-cheat ic
-          = let mws = mkMsgWithSig∈ m v v⊂m pid (here refl) sig refl
-            in inj₂ (¬cheatForgeNew {st = st} (step-cheat ic) refl unit pkH mws)
 
  -- This could potentially be more general, for example covering the whole SystemState, rather than
   -- just one peer's state.  However, this would put more burden on the user and is not required so
