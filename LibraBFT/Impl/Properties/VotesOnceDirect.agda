@@ -81,25 +81,52 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                                → v ^∙ vEpoch ≡ (₋rmamEC s') ^∙ rmEpoch
                                → v ^∙ vRound ≡ (₋rmamEC s') ^∙ rmLastVotedRound
- {- newVoteEpoch≡⇒GreaterRound _ (step-init _) v⊂m m∈outs sig = ⊥-elim (¬Any[] m∈outs)
-  newVoteEpoch≡⇒GreaterRound {pre = pre} {pid} {m = m} r (step-msg {_ , P pm} _ pinit)
-                                 v⊂m (here refl) sig vnew ep≡
+  newVoteEpoch≡⇒GreaterRound r (step-msg {_ , P pm} _ pinit) v⊂m (here refl) sig vnew ep≡
      with v⊂m
   ...| vote∈vm = refl
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
-       = ⊥-elim (vnew (qcVotesSentB4 r pinit refl qc∈m refl vs∈qc))-}
+       = ⊥-elim (vnew (qcVotesSentB4 r pinit refl qc∈m refl vs∈qc))
 
+  uninit⇒¬msb4 : ∀ {pid pk}{st : SystemState}
+                 → ReachableSystemState st
+                 → initialised st pid ≡ uninitd
+                 → ∀ {v} → PeerCanSignForPK (peerStates st pid) v pid pk
+                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                 → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
 
-  -- TODO-2 : This became obsolete, but is restored here as it is used below.  It should go
-  -- somewhere else.  Handle.Properties?
-  noEpochChangeYet : ∀ {pid s' outs v pk}{st : SystemState}
+  peerCanSignPreSt : ∀ {pid s' outs v pk}{st : SystemState}
+                     → ReachableSystemState st
+                     → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
+                     → PeerCanSignForPK s' v pid pk
+                     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                     → PeerCanSignForPK (peerStates st pid) v pid pk
+
+  msg∈pool⇒initd : ∀ {pid s' outs pk v}{st : SystemState}
+                   → ReachableSystemState st
+                   → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
+                   → PeerCanSignForPK s' v pid pk
+                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                   → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                   → initialised st pid ≡ initd
+  msg∈pool⇒initd r step@(step-init uninitP) pcs pkH sig msb
+    = ⊥-elim (uninit⇒¬msb4 r uninitP (peerCanSignPreSt r step pcs pkH sig msb) pkH sig msb)
+  msg∈pool⇒initd _ (step-msg _ initP) _ _ _ _ = initP
+
+  -- This proof hold for now because there is no epoch changes yet, maybe we could generalize it
+  -- to prove it even when there is epoch changes
+  noEpochChange : ∀ {pid s' outs}{st : SystemState}
                     → ReachableSystemState st
                     → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                    → PeerCanSignForPK s' v pid pk
-                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                    → (₋rmamEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                    → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                    → initialised st pid ≡ initd
+                    → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (₋rmamEC s') ^∙ rmEpoch
+  noEpochChange _ (step-init uninit) initP = let uninit≡init = trans (sym uninit) initP
+                                             in contradiction uninit≡init λ {()}
+  noEpochChange _ (step-msg {nm} _ _) _
+    with nm
+  ... | _ , P m = refl
+  ... | _ , V m = refl
+  ... | _ , C m = refl
 
 
   peerCanSign-Ep≡ : ∀ {pid s' outs v v' pk}{st : SystemState}
@@ -109,69 +136,54 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                     → PeerCanSignForPK s' v' pid pk
 
-  peerCanSignPreSt : ∀ {pid s' outs v pk}{st : SystemState}
-                     → ReachableSystemState st
-                     → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                     → PeerCanSignForPK s' v pid pk
-                     → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                     → PeerCanSignForPK (peerStates st pid) v pid pk
 
-  msg∈pool⇒initd : ∀ {pid s' outs pk v}{st : SystemState}
-                   → (r : ReachableSystemState st)
-                   → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                   → PeerCanSignForPK s' v pid pk
-                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                   → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                   → initialised st pid ≡ initd
-
-
-  signPK-Inj :  ∀ {pid pid' s' outs pk v v'}{st : SystemState}
-                → ReachableSystemState st
-                → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                → Meta-Honest-PK pk
-                → PeerCanSignForPK (peerStates st pid') v' pid' pk
-                → PeerCanSignForPK s' v pid pk
-                → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-                → pid ≡ pid'
+  peerCanSignPK-Inj :  ∀ {pid pid' s' outs pk v v'}{st : SystemState}
+                    → ReachableSystemState st
+                    → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
+                    → Meta-Honest-PK pk
+                    → PeerCanSignForPK (peerStates st pid') v' pid' pk
+                    → PeerCanSignForPK s' v pid pk
+                    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+                    → pid ≡ pid'
 
 
   oldVoteRound≤lvr :  ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
-                   -- → initialised pre pid ≡ initd
+                   → initialised pre pid ≡ initd
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK (peerStates pre pid) v pid pk
                    → (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                    → v ^∙ vRound ≤ (₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound
   oldVoteRound≤lvr {pid = pid'} {pre = pre} (step-s {pre = prev} r (step-peer {pid = pid} cheat@(step-cheat c)))
-                    pkH sig msv vspk eid≡
+                    initP pkH sig msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4
      rewrite cheatStepDNMPeerStates₁ {pid = pid} {pid' = pid'} cheat unit
-       = oldVoteRound≤lvr r pkH sig msb4 vspk eid≡
+       = oldVoteRound≤lvr r {!!} pkH sig msb4 vspk eid≡
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s {pre = prev} r (step-peer {pid = pid} (step-honest stPeer)))
-                   pkH sig msv vspk eid≡
+                   initP pkH sig msv vspk eid≡
      with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
   ...| inj₂ msb4 rewrite msgSameSig msv
      with pid ≟ pid'
-  ...| no  pid≢ = oldVoteRound≤lvr r pkH sig msb4 vspk eid≡
-  ...| yes refl = let  ep≡   = noEpochChangeYet r stPeer vspk pkH sig msb4 eid≡
-                       initP = msg∈pool⇒initd r stPeer vspk pkH sig msb4
-                       lvr≤  = lastVoteRound-mono r refl stPeer initP (trans ep≡ (sym eid≡))
-                       canSign = peerCanSignPreSt r stPeer vspk ep≡
-                   in ≤-trans (oldVoteRound≤lvr r pkH sig msb4 canSign ep≡) lvr≤
+  ...| no  pid≢ = oldVoteRound≤lvr r {!!} pkH sig msb4 vspk eid≡
+  ...| yes refl = let  initP = msg∈pool⇒initd r stPeer vspk pkH sig msb4
+                       ep≡   = noEpochChange r stPeer initP
+                       canSign = peerCanSignPreSt r stPeer vspk pkH sig msb4
+                       lvr≤  = lastVoteRound-mono r refl stPeer initP ep≡
+                   in ≤-trans (oldVoteRound≤lvr r {!ini!} pkH sig msb4 canSign (trans ep≡ eid≡)) lvr≤
 
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s {pre = prev} r stepPeer@(step-peer {pid} {st'} (step-honest stPeer)))
-                   pkH sig msv vspk eid≡
+                   initP pkH sig msv vspk eid≡
      | inj₁ (m∈outs , vspkN , newV)
      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
   ...| inj₂ refl
      with pid ≟ pid'
   ...| yes refl = ≡⇒≤ (newVoteEpoch≡⇒GreaterRound r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV (sym eid≡))
-  ...| no  pid≢ = ⊥-elim (pid≢ (signPK-Inj r stPeer pkH vspk vspkN refl))
+  ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj r stPeer pkH vspk vspkN refl))
 
 
   votesOnce₁ : VO.ImplObligation₁
@@ -179,8 +191,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
              pkH v⊂m (here refl) sv ¬msb vspkv v'⊂m' m'∈pool sv' eid≡ r≡
      with v⊂m
   ...| vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
-                     vspkv' = peerCanSignPreSt r step (peerCanSign-Ep≡ r step vspkv eid≡) eid≡
-                     rv'<rv = oldVoteRound≤lvr r pkH sv' m'mwsb vspkv' eid≡
+                     vspkv' = peerCanSignPreSt r step (peerCanSign-Ep≡ r step vspkv eid≡) pkH sv' m'mwsb
+                     rv'<rv = oldVoteRound≤lvr r {!!} pkH sv' m'mwsb vspkv' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
        = ⊥-elim (¬msb (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
