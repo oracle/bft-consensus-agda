@@ -36,10 +36,10 @@ module LibraBFT.Impl.Consensus.RoundManager
   fakeAuthor = 0
 
   fakeBlockInfo : EpochId → Round → ProposalMsg → BlockInfo
-  fakeBlockInfo eid rnd pm = mkBlockInfo eid rnd (pm ^∙ pmProposal ∙ bId)
+  fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId)
 
   fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
-  fakeLedgerInfo bi pm = mkLedgerInfo bi (pm ^∙ pmProposal ∙ bId)
+  fakeLedgerInfo bi pm = LedgerInfo∙new bi (pm ^∙ pmProposal ∙ bId)
 
   postulate
     fakeSK  : SK
@@ -55,13 +55,14 @@ module LibraBFT.Impl.Consensus.RoundManager
         rmc = ₋rmEC-correct st
         bt = rmw ^∙ (lBlockTree 𝓔)
         nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
-        uv = mkVote (mkVoteData (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
+        uv = Vote∙new
+                    (VoteData∙new (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor
                     (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
                     fakeSig
                     (₋bSignature (₋pmProposal pm))
         sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
-        si = mkSyncInfo (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
+        si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         rm' = rm [ rmLastVotedRound := nr ]
         rmc2 = RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc
         st' = record st { ₋rmEC         = rm'
@@ -69,7 +70,7 @@ module LibraBFT.Impl.Consensus.RoundManager
                         ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
                         }
     put st'
-    tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))
+    tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
     pure unit
 
   processVote : Instant → VoteMsg → LBFT Unit

@@ -46,10 +46,10 @@ module LibraBFT.Impl.Consensus.Types where
     (rmSafetyRules ∷ rmValidators ∷ [])
 
   rmEpoch : Lens RoundManagerEC EpochId
-  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ psEpoch
+  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
 
   rmLastVotedRound : Lens RoundManagerEC Round
-  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ psLastVotedRound
+  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
 
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over

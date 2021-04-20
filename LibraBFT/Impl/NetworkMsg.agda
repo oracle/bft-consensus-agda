@@ -55,7 +55,7 @@ module LibraBFT.Impl.NetworkMsg where
 
   data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
     vote∈vm : ∀ {si}
-            → v ⊂Msg (V (mkVoteMsg v si))
+            → v ⊂Msg (V (VoteMsg∙new v si))
     vote∈qc : ∀ {vs} {qc : QuorumCert} {nm}
             → vs ∈ qcVotes qc
             → rebuildVote qc vs ≈Vote v
@@ -64,7 +64,7 @@ module LibraBFT.Impl.NetworkMsg where
 
   getEpoch : NetworkMsg → EpochId
   getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
-  getEpoch (V (mkVoteMsg v _)) = v ^∙ vEpoch
+  getEpoch (V (VoteMsg∙new v _)) = v ^∙ vEpoch
   getEpoch (C c) = c ^∙ cEpochId
 
   -- Get the message's author, if it has one.  Note that ProposalMsgs don't necessarily have
@@ -86,7 +86,7 @@ module LibraBFT.Impl.NetworkMsg where
   Signed-pi-CommitMsg : (c : CommitMsg)
                       → (is1 is2 : (Is-just ∘ ₋cSigMB) c)
                       → is1 ≡ is2
-  Signed-pi-CommitMsg (mkCommitMsg _ _ _ _ .(just _)) (just _) (just _) = cong just refl
+  Signed-pi-CommitMsg (CommitMsg∙new _ _ _ _ .(just _)) (just _) (just _) = cong just refl
 
   instance
    -- A proposal message might carry a signature inside the block it

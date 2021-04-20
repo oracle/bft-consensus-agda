@@ -79,7 +79,7 @@ module LibraBFT.Impl.Handle.Properties
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
+                 → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
