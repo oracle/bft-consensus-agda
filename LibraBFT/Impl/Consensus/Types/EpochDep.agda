@@ -73,7 +73,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   --  iv) Coherence of 'vdParent' field with the above record chain.
   --
   record IsValidVote (v : Vote) : Set where
-    constructor mkIsValidVote
+    constructor IsValidVote∙new
     inductive
     field
       ₋ivvMember   : Member
@@ -99,9 +99,9 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- and blocks will be given in LibraBFT.Concrete.Records, since those are
   -- more involved functions.
   α-ValidVote : (v : Vote) → Member → AbsVoteData
-  α-ValidVote v mbr = mkAbsVoteData (v ^∙ vProposed ∙ biRound)
-                                     mbr
-                                     (v ^∙ vProposed ∙ biId)
+  α-ValidVote v mbr = AbsVoteData∙new (v ^∙ vProposed ∙ biRound)
+                                      mbr
+                                      (v ^∙ vProposed ∙ biId)
 
   -- α-ValidVote is the same for two votes that have the same vAuthor, vdProposed and vOrder
   α-ValidVote-≡ : ∀ {cv v'} {m : Member}
@@ -113,7 +113,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- Finally; evidence for some abstract vote consists of a concrete valid vote
   -- that is coherent with the abstract vote data.
   record ConcreteVoteEvidence vd where
-    constructor mkCVE
+    constructor CVE∙new
     inductive
     field
       ₋cveVote        : Vote
@@ -142,7 +142,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- A block tree depends on a epoch config but works regardlesss of which
   -- EpochConfig we have.
   record BlockTree : Set where
-    constructor mkBlockTree
+    constructor BlockTree∙new
     field
       ₋btIdToBlock               : KVMap HashValue LinkableBlock
       ₋btRootId                  : HashValue
@@ -163,7 +163,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
               btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
   record BlockStore : Set where
-    constructor mkBlockStore
+    constructor BlockStore∙new
     field
       ₋bsInner         : BlockTree
       -- bsStateComputer : StateComputer
@@ -177,7 +177,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- they care about yet.
   --
   record RoundManagerWithEC : Set where
-    constructor mkRoundManagerWithEC
+    constructor RoundManagerWithEC∙new
     field
       ₋epBlockStore   : BlockStore
   open RoundManagerWithEC public
