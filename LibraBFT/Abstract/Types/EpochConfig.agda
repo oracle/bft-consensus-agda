@@ -27,7 +27,7 @@ module LibraBFT.Abstract.Types.EpochConfig
     constructor mkEpochConfig
     field
       genesisUID : UID
-      epochId   : EpochId
+      epoch      : Epoch
       authorsN  : ℕ
 
     -- The set of members of this epoch.
@@ -70,7 +70,7 @@ module LibraBFT.Abstract.Types.EpochConfig
   record EpochConfigFor (eid : ℕ) : Set₁ where
     field
      epochConfig : EpochConfig
-     forEpochId  : epochId epochConfig ≡ eid
+     forEpoch    : epoch epochConfig ≡ eid
 
   module WithAbsVote (𝓔 : EpochConfig) where
     -- The abstract model is connected to the implementaton by means of

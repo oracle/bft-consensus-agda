@@ -15,10 +15,10 @@ module LibraBFT.Yasm.AvailableEpochs
    (NodeId      : Set)
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
-   (epochId     : EpochConfig → ℕ)
+   (epoch       : EpochConfig → ℕ)
    (authorsN    : EpochConfig → ℕ)
  where
- open import LibraBFT.Yasm.Base ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.Base ℓ-EC EpochConfig epoch authorsN
 
  fin-lower-toℕ : ∀{e}(i : Fin (suc e))(prf : e ≢ toℕ i) → toℕ (Fin.lower₁ i prf) ≡ toℕ i
  fin-lower-toℕ {zero} zero prf = ⊥-elim (prf refl)

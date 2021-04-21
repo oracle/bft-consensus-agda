@@ -45,7 +45,7 @@ module LibraBFT.Impl.Consensus.Types where
   unquoteDecl rmSafetyRules rmValidators = mkLens (quote RoundManagerEC)
     (rmSafetyRules ∷ rmValidators ∷ [])
 
-  rmEpoch : Lens RoundManagerEC EpochId
+  rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
 
   rmLastVotedRound : Lens RoundManagerEC Round

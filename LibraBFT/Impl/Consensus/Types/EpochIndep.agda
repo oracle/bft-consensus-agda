@@ -47,7 +47,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
-      ₋biEpoch : EpochId
+      ₋biEpoch : Epoch
       ₋biRound : Round
       ₋biId    : HashValue
       -- This has more fields...
@@ -136,7 +136,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   vProposedId : Lens Vote Hash
   vProposedId = vVoteData ∙ vdProposed ∙ biId
 
-  vEpoch : Lens Vote EpochId
+  vEpoch : Lens Vote Epoch
   vEpoch = vVoteData ∙ vdProposed ∙ biEpoch
 
   vRound : Lens Vote Round
@@ -202,7 +202,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record BlockData : Set where
     constructor BlockData∙new
     field
-      ₋bdEpoch      : EpochId
+      ₋bdEpoch      : Epoch
       ₋bdRound      : Round
       -- QUESTION: How do we represent a block that extends the
       -- genesis block, which doesn't come with a QC.  Maybe the
@@ -303,14 +303,14 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record CommitMsg : Set where
     constructor CommitMsg∙new
     field
-      ₋cEpochId : EpochId
+      ₋cEpoch   : Epoch
       ₋cAuthor  : NodeId
       ₋cRound   : Round
       ₋cCert    : QuorumCert  -- We assume for now that a CommitMsg contains the QuorumCert of the head of the 3-chain
       ₋cSigMB   : Maybe Signature
   open CommitMsg public
-  unquoteDecl cEpochId   cAuthor   cRound   cCert   cSigMB = mkLens (quote CommitMsg)
-             (cEpochId ∷ cAuthor ∷ cRound ∷ cCert ∷ cSigMB ∷ [])
+  unquoteDecl cEpoch   cAuthor   cRound   cCert   cSigMB = mkLens (quote CommitMsg)
+             (cEpoch ∷ cAuthor ∷ cRound ∷ cCert ∷ cSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
   record LastVoteInfo : Set where
@@ -377,7 +377,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record SafetyData : Set where
     constructor SafetyData∙new
     field
-      :sdEpoch          : EpochId
+      :sdEpoch          : Epoch
       :sdLastVotedRound : Round
       :sdPreferredRound : Round
       :sdLastVote       : Maybe Vote

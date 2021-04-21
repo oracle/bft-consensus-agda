@@ -62,10 +62,10 @@ module LibraBFT.Impl.NetworkMsg where
             → qc QC∈NM nm
             → v ⊂Msg nm
 
-  getEpoch : NetworkMsg → EpochId
+  getEpoch : NetworkMsg → Epoch
   getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
   getEpoch (V (VoteMsg∙new v _)) = v ^∙ vEpoch
-  getEpoch (C c) = c ^∙ cEpochId
+  getEpoch (C c) = c ^∙ cEpoch
 
   -- Get the message's author, if it has one.  Note that ProposalMsgs don't necessarily have
   -- authors; we care about the (honesty of) the author only for Proposals, not NilBlocks and
@@ -115,7 +115,7 @@ module LibraBFT.Impl.NetworkMsg where
       ; Signed-pi      = Signed-pi-CommitMsg
       ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (c ^∙ cSigMB)
       ; signature      = λ { _ prf → to-witness prf }
-      ; signableFields = λ c → concat ( encode  (c ^∙ cEpochId)
+      ; signableFields = λ c → concat ( encode  (c ^∙ cEpoch)
                                       ∷ encode  (c ^∙ cAuthor)
                                       ∷ encode  (c ^∙ cRound)
                                       ∷ encode  (c ^∙ cCert)

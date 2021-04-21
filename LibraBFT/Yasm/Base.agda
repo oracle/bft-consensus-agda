@@ -11,20 +11,20 @@ open import LibraBFT.Base.PKCS
 module LibraBFT.Yasm.Base
   (ℓ-EC        : Level)
   (EpochConfig : Set ℓ-EC)
-  (epochId     : EpochConfig → ℕ)
+  (epoch       : EpochConfig → ℕ)
   (authorsN    : EpochConfig → ℕ)
  where
 
- EpochId : Set
- EpochId = ℕ
+ Epoch : Set
+ Epoch = ℕ
 
  Member : EpochConfig → Set
  Member = Fin ∘ authorsN
 
- record EpochConfigFor (eid : EpochId) : Set ℓ-EC where
+ record EpochConfigFor (eid : Epoch) : Set ℓ-EC where
    field
     epochConfig : EpochConfig
-    forEpochId  : epochId epochConfig ≡ eid
+    forEpoch    : epoch epochConfig ≡ eid
 
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
@@ -45,7 +45,7 @@ module LibraBFT.Yasm.Base
     _⊂Msg_       : Part → Msg → Set
 
     -- Finally, messages must carry an epoch id and might have an author
-    part-epoch  : Part → EpochId
+    part-epoch  : Part → Epoch
 
     -- Initializes a potentially-empty state with an EpochConfig
     init : PeerId → EpochConfig → PeerState → PeerState × List Msg

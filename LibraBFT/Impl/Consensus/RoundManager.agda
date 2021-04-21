@@ -35,7 +35,7 @@ module LibraBFT.Impl.Consensus.RoundManager
   fakeAuthor : Author
   fakeAuthor = 0
 
-  fakeBlockInfo : EpochId → Round → ProposalMsg → BlockInfo
+  fakeBlockInfo : Epoch → Round → ProposalMsg → BlockInfo
   fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId)
 
   fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
@@ -49,7 +49,7 @@ module LibraBFT.Impl.Consensus.RoundManager
   processProposalMsg inst pm = do
     st ← get
     let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
-        ix = EpochConfig.epochId 𝓔
+        ix = EpochConfig.epoch 𝓔
         rm  = ₋rmEC st
         rmw = ₋rmWithEC st
         rmc = ₋rmEC-correct st

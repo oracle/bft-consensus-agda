@@ -91,8 +91,8 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
       ₋ivvCoherent : VoteCoherence v ₋ivvBlock
 
       -- Finally, the vote is for the correct epoch
-      ₋ivvEpoch    : v ^∙ vEpoch ≡ epochId
-      ₋ivvEpoch2   : v ^∙ vParent ∙ biEpoch ≡ epochId  -- Not needed?
+      ₋ivvEpoch    : v ^∙ vEpoch ≡ epoch
+      ₋ivvEpoch2   : v ^∙ vParent ∙ biEpoch ≡ epoch  -- Not needed?
   open IsValidVote public
 
   -- A valid vote can be directly mapped to an AbsVoteData. Abstraction of QCs

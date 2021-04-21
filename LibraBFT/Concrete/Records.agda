@@ -98,4 +98,4 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
  -- sm.
  data _α-Sent_ (r : Abs.Record) (sm : List (NodeId × NetworkMsg)) : Set where
    i  : r ≡ Abs.I → r α-Sent sm
-   ws : ∀ {p nm} → getEpoch nm ≡ epochId → (p , nm) ∈ sm → r α-∈NM nm → r α-Sent sm
+   ws : ∀ {p nm} → getEpoch nm ≡ epoch → (p , nm) ∈ sm → r α-∈NM nm → r α-Sent sm
