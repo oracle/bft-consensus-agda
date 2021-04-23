@@ -254,11 +254,23 @@ module LibraBFT.Yasm.System
                         → initialised (StepPeer-post theStep) ≡ initialised pre
  cheatStepDNMInitialised {pid = pid} {pre = pre} (step-cheat _) _ = overrideSameVal-correct-ext
 
+ cheatStepDNMInitialised₁ : ∀{pid pid' st' outs}{pre : SystemState}
+                        → (theStep : StepPeer pre pid st' outs)
+                        → isCheat theStep
+                        → initialised (StepPeer-post theStep) pid' ≡ initialised pre pid'
+ cheatStepDNMInitialised₁ {pid} {pid'} {pre = pre} (step-cheat _) _ = overrideSameVal-correct pid pid'
+
  cheatStepDNMPeerStates₁ : ∀{pid pid' st' outs}{pre : SystemState}
                          → (theStep : StepPeer pre pid st' outs)
                          → isCheat theStep
                          → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
  cheatStepDNMPeerStates₁ {pid} {pid'} (step-cheat _) x = overrideSameVal-correct pid pid'
+
+ pids≢StepDNMPeerStates :  ∀{pid pid' s' outs}{pre : SystemState}
+                         → (sps : StepPeerState pid' (msgPool pre) (initialised pre) (peerStates pre pid') (s' , outs))
+                         → pid ≢ pid'
+                         → peerStates pre pid ≡ peerStates (StepPeer-post {pid'} {s'} {outs} {pre} (step-honest sps)) pid
+ pids≢StepDNMPeerStates sps pids≢ = override-target-≢ pids≢
 
  data Step : SystemState → SystemState → Set (ℓ+1 ℓ-PeerState) where
    -- TO-NOT-DO: it is tempting to merge this and StepPeer, now that step-peer
