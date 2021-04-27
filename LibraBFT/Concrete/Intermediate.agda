@@ -29,7 +29,7 @@ module LibraBFT.Concrete.Intermediate
    where
    open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
 
-   -- Since the invariants we want to specify (votes-once and locked-round-rule),
+   -- Since the invariants we want to specify (votes-once and preferred-round-rule),
    -- are predicates over a /System State/, we must factor out the necessary
    -- functionality.
    --
