@@ -11,7 +11,7 @@ open import LibraBFT.Concrete.System.Parameters
 -- "implementation" into the structure required by Concrete.Properties.
 open import LibraBFT.Impl.Properties.Aux
 import      LibraBFT.Impl.Properties.VotesOnce   as VO
-import      LibraBFT.Impl.Properties.LockedRound as LR
+import      LibraBFT.Impl.Properties.PreferredRound as PR
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System impl-sps-avp
 
@@ -20,4 +20,4 @@ module LibraBFT.Impl.Properties where
   theImplObligations = record { sps-cor = impl-sps-avp
                               ; vo₁     = VO.vo₁
                               ; vo₂     = VO.vo₂
-                              ; lr₁     = LR.lr₁ }
+                              ; pr₁     = PR.pr₁ }

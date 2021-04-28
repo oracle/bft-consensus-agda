@@ -16,7 +16,7 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
 
 -- This module defines an abstract system state given a reachable
 -- concrete system state.
@@ -24,7 +24,7 @@ open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSys
 -- An implementation must prove that, if one of its handlers sends a
 -- message that contains a vote and is signed by a public key pk, then
 -- either the vote's author is the peer executing the handler, the
--- epochId is in range, the peer is a member of the epoch, and its key
+-- epoch is in range, the peer is a member of the epoch, and its key
 -- in that epoch is pk; or, a message with the same signature has been
 -- sent before.  This is represented by StepPeerState-AllValidParts.
 module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
@@ -111,7 +111,7 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
        vmsgMember    : EpochConfig.Member 𝓔
        vmsgSigned    : WithVerSig (getPubKey 𝓔 vmsgMember) cv
        vmsg≈v        : α-ValidVote 𝓔 cv vmsgMember ≡ v
-       vmsgEpoch     : cv ^∙ vEpoch ≡ epochId 𝓔
+       vmsgEpoch     : cv ^∙ vEpoch ≡ epoch 𝓔
    open ∃VoteMsgFor public
 
    record ∃VoteMsgSentFor (sm : SentMessages)(v : Abs.Vote) : Set where

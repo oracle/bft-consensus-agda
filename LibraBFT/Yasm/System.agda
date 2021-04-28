@@ -20,20 +20,20 @@ import      LibraBFT.Yasm.Base as LYB
 module LibraBFT.Yasm.System
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
-   (epochId     : EpochConfig → EpochId)
+   (epoch       : EpochConfig → Epoch)
    (authorsN    : EpochConfig → ℕ)
-   (parms : LYB.SystemParameters ℓ-EC EpochConfig epochId authorsN)
+   (parms : LYB.SystemParameters ℓ-EC EpochConfig epoch authorsN)
  where
 
  data InitStatus : Set where
    uninitd : InitStatus
    initd   : InitStatus
 
- open import LibraBFT.Yasm.Base            ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.Base            ℓ-EC EpochConfig epoch authorsN
  open SystemParameters parms
- open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epoch authorsN
              using (AvailableEpochs) renaming (lookup'' to EC-lookup)
- import LibraBFT.Yasm.AvailableEpochs      PeerId ℓ-EC EpochConfig epochId authorsN as AE
+ import LibraBFT.Yasm.AvailableEpochs      PeerId ℓ-EC EpochConfig epoch authorsN as AE
  open import Util.FunctionOverride PeerId _≟PeerId_
 
  open import LibraBFT.Base.PKCS

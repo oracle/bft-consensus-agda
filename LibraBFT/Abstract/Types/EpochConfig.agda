@@ -24,10 +24,10 @@ module LibraBFT.Abstract.Types.EpochConfig
   -- The reason for the separation is that we should be able to provide
   -- an EpochConfig from a single peer state.
   record EpochConfig : Set₁ where
-    constructor mkEpochConfig
+    constructor EpochConfig∙new
     field
       genesisUID : UID
-      epochId   : EpochId
+      epoch      : Epoch
       authorsN  : ℕ
 
     -- The set of members of this epoch.
@@ -70,7 +70,7 @@ module LibraBFT.Abstract.Types.EpochConfig
   record EpochConfigFor (eid : ℕ) : Set₁ where
     field
      epochConfig : EpochConfig
-     forEpochId  : epochId epochConfig ≡ eid
+     forEpoch    : epoch epochConfig ≡ eid
 
   module WithAbsVote (𝓔 : EpochConfig) where
     -- The abstract model is connected to the implementaton by means of
@@ -83,7 +83,7 @@ module LibraBFT.Abstract.Types.EpochConfig
     -- be something that states that we have a signature from the specified
     -- author voting for the specified block.
     record AbsVoteData : Set where
-      constructor mkAbsVoteData
+      constructor AbsVoteData∙new
       field
         abs-vRound     : Round
         abs-vMember    : EpochConfig.Member 𝓔
@@ -94,7 +94,7 @@ module LibraBFT.Abstract.Types.EpochConfig
                   → r1 ≡ r2
                   → m1 ≡ m2
                   → b1 ≡ b2
-                  → mkAbsVoteData r1 m1 b1 ≡ mkAbsVoteData r2 m2 b2
+                  → AbsVoteData∙new r1 m1 b1 ≡ AbsVoteData∙new r2 m2 b2
     AbsVoteData-η refl refl refl = refl
 
     VoteEvidence : Set₁

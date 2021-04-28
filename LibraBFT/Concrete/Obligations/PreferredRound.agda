@@ -10,7 +10,7 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        WithAbsVote
 
-module LibraBFT.Concrete.Obligations.LockedRound
+module LibraBFT.Concrete.Obligations.PreferredRound
   (𝓔 : EpochConfig)
   (𝓥 : VoteEvidence 𝓔)
   where
@@ -18,13 +18,13 @@ module LibraBFT.Concrete.Obligations.LockedRound
  open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
  ---------------------
- -- * LockedRound * --
+ -- * PreferredRound * --
  ---------------------
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
 
- -- The LockedRound rule is a little more involved to be expressed in terms
+ -- The PreferredRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced
  -- next.
 
@@ -67,7 +67,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
   Cand-3-chain-head-round c3cand =
     getRound (kchainBlock (suc zero) (is-2chain c3cand))
 
-  -- The locked round rule states a fact about the /previous round/
+  -- The preferred round rule states a fact about the /previous round/
   -- of a vote; that is, the round of the parent of the block
   -- being voted for; the implementation will have to
   -- show it can construct this parent.
@@ -87,7 +87,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
       vpMaybeBlock : VoteParentData-BlockExt vpParent
   open VoteParentData public
 
-  -- The setup for LockedRoundRule is like thta for VotesOnce.
+  -- The setup for PreferredRoundRule is like thta for VotesOnce.
   -- Given two votes by an honest author α:
   Type : Set ℓ
   Type = ∀{α v v'}
@@ -100,7 +100,7 @@ module LibraBFT.Concrete.Obligations.LockedRound
        -- and the round of v is lower than that of v',
        → vRound v < vRound v'
        ------------------------------
-       -- then α obeyed the locked round rule:
+       -- then α obeyed the preferred round rule:
        → Σ (VoteParentData v')
            (λ vp → Cand-3-chain-head-round c2 ≤ round (vpParent vp))
 
@@ -163,8 +163,8 @@ module LibraBFT.Concrete.Obligations.LockedRound
      with bP←qP | b←q
    ...| B←Q refl refl | B←Q refl refl = inj₂ refl
 
-  -- Finally, we can prove the locked round rule from the global version;
-  proof : Type → LockedRoundRule InSys
+  -- Finally, we can prove the preferred round rule from the global version;
+  proof : Type → PreferredRoundRule InSys
   proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'

@@ -24,7 +24,7 @@ open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should
 open import LibraBFT.Concrete.System impl-sps-avp
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
 open        Structural impl-sps-avp
 
 module LibraBFT.Impl.Handle.Properties
@@ -79,7 +79,7 @@ module LibraBFT.Impl.Handle.Properties
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
+                 → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 

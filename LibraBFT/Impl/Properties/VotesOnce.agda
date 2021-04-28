@@ -27,7 +27,7 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System impl-sps-avp
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epochId authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
 open        Structural impl-sps-avp
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
@@ -220,7 +220,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with sameHonestSig⇒sameVoteData hpk (msgSigned mws) sig' (msgSameSig mws)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
   ...| inj₂ refl
-     -- Both votes have the same epochID, therefore same EpochConfig
+     -- Both votes have the same epoch, therefore same EpochConfig
      with sameEpoch⇒sameEC vpb vpf' refl
                     -- Both peers are allowed to sign for the same PK, so they are the same peer
   ...| refl rewrite NodeId-PK-OK-injective (vp-ec vpb) (vp-sender-ok vpb) (vp-sender-ok vpf')

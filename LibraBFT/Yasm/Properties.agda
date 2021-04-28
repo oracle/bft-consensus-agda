@@ -16,9 +16,9 @@ import      LibraBFT.Yasm.Base as LYB
 module LibraBFT.Yasm.Properties
    (ℓ-EC        : Level)
    (EpochConfig : Set ℓ-EC)
-   (epochId     : EpochConfig → EpochId)
+   (epoch       : EpochConfig → Epoch)
    (authorsN    : EpochConfig → ℕ)
-   (parms       : LYB.SystemParameters ℓ-EC EpochConfig epochId authorsN)
+   (parms       : LYB.SystemParameters ℓ-EC EpochConfig epoch authorsN)
    -- In addition to the parameters used by the rest of the system model, this module
    -- needs to relate Members to PKs and PeerIds, so that StepPeerState-AllValidParts
    -- can be defined.  This enables the application to prove that honest peers sign
@@ -27,12 +27,12 @@ module LibraBFT.Yasm.Properties
    (senderPKOK  : (ec : EpochConfig) → PK → LYB.SystemParameters.PeerId parms → Set)
   where
  open LYB.SystemParameters parms
- open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+ open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epoch authorsN
              using (AvailableEpochs) renaming (lookup'' to EC-lookup)
- import      LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epochId authorsN
+ import      LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epoch authorsN
              as AE
- open import LibraBFT.Yasm.Base   ℓ-EC EpochConfig epochId authorsN
- open import LibraBFT.Yasm.System ℓ-EC EpochConfig epochId authorsN parms
+ open import LibraBFT.Yasm.Base   ℓ-EC EpochConfig epoch authorsN
+ open import LibraBFT.Yasm.System ℓ-EC EpochConfig epoch authorsN parms
  open import Util.FunctionOverride PeerId _≟PeerId_
 
  -- A ValidPartForPK collects the assumptions about what a /part/ in the outputs of an honest verifier

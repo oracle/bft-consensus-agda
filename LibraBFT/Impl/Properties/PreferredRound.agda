@@ -4,13 +4,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-import      LibraBFT.Concrete.Properties.LockedRound as LR
+import      LibraBFT.Concrete.Properties.PreferredRound as PR
 
 open import LibraBFT.Concrete.Obligations
 
--- In this module, we (will) prove the implementation obligation for the LockedRound rule.
+-- In this module, we (will) prove the implementation obligation for the PreferredRound rule.
 
-module LibraBFT.Impl.Properties.LockedRound where
+module LibraBFT.Impl.Properties.PreferredRound where
 
   postulate  -- TODO-3 : prove.  Note that this is a substantial
              -- undertaking that should not be started before we have
@@ -19,4 +19,4 @@ module LibraBFT.Impl.Properties.LockedRound where
              -- implementation (perhaps some incremental extension of
              -- our current fake/simple implementaion) that we can
              -- reasonably hope actually ensures the property!
-    lr₁ : LR.ImplObligation₁
+    pr₁ : PR.ImplObligation₁
