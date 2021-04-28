@@ -257,7 +257,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
              (siHighestQuorumCert ∷ siHighestCommitCert ∷ [])
   postulate instance enc-SyncInfo : Encoder SyncInfo
 
-  {- TODO-HC how do if-then-else and equality check?
+  {- TODO-1 how do if-then-else and equality check?
   SyncInfo∙new : QuorumCert → QuorumCert → SyncInfo
   SyncInfo∙new highestQuorumCert highestCommitCert =
     record { ₋siHighestQuorumCert = highestQuorumCert
