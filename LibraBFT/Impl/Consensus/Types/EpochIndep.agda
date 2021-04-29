@@ -255,7 +255,8 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bRound =  bBlockData ∙ bdRound
 
   record SyncInfo : Set where
-    constructor mkSyncInfo
+    constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
+                           -- constructor SyncInfo∙new is below
     field
       ₋siHighestQuorumCert  : QuorumCert
       ₋siHighestCommitCert  : Maybe QuorumCert
