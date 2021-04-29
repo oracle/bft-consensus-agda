@@ -71,7 +71,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
           -- so they are the same peer
   ...| refl
      with NodeId-PK-OK-injective (vp-ec vspk) (vp-sender-ok vspk) (vp-sender-ok vspkN)
-  ...| refl rewrite eventProcessorPostSt r stPeer refl
+  ...| refl rewrite roundManagerPostSt r stPeer refl
        = let nvr = newVoteSameEpochGreaterRound r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV
          in ≡⇒≤ ((proj₂ ∘ proj₂) nvr)
 
