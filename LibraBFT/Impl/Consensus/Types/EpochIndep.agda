@@ -274,7 +274,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
                                     then nothing else (just highestCommitCert) }
 
   siHighestCommitCert : Lens SyncInfo QuorumCert
-  siHighestCommitCert = mkLens' (λ x → maybe id (x ^∙ siHighestQuorumCert) (₋siHighestCommitCert x))
+  siHighestCommitCert = mkLens' (λ x → fromMaybe (x ^∙ siHighestQuorumCert) (₋siHighestCommitCert x))
                                 (λ x si → record x { ₋siHighestCommitCert = just si })
 
   ----------------------
