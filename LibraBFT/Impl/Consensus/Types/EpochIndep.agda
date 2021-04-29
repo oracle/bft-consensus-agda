@@ -152,6 +152,14 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
   postulate instance enc-QuorumCert : Encoder QuorumCert
 
+  -- Because QuorumCert has an injective encoding (postulated, for now),
+  -- we can use it to determine equality of QuorumCerts.
+  _≟QC_ : (q1 q2 : QuorumCert) → Dec (q1 ≡ q2)
+  _≟QC_ = ≡-Encoder enc-QuorumCert
+
+  _QCBoolEq_ : QuorumCert → QuorumCert → Bool
+  _QCBoolEq_ q1 q2 = does (q1 ≟QC q2)
+
   qcCertifiedBlock : Lens QuorumCert BlockInfo
   qcCertifiedBlock = qcVoteData ∙ vdProposed
 
@@ -247,26 +255,28 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bRound =  bBlockData ∙ bdRound
 
   record SyncInfo : Set where
-    constructor SyncInfo∙new
+    constructor mkSyncInfo
     field
       ₋siHighestQuorumCert  : QuorumCert
-      ₋siHighestCommitCert  : QuorumCert
+      ₋siHighestCommitCert  : Maybe QuorumCert
       -- ₋siHighestTimeoutCert : Mabe TimeoutCert -- Not used yet.
   open SyncInfo public
-  unquoteDecl siHighestQuorumCert   siHighestCommitCert = mkLens (quote SyncInfo)
-             (siHighestQuorumCert ∷ siHighestCommitCert ∷ [])
+  -- Note that we do not automatically derive a lens for siHighestCommitCert;
+  -- it is defined manually below.
+  unquoteDecl siHighestQuorumCert   = mkLens (quote SyncInfo)
+             (siHighestQuorumCert ∷ [])
   postulate instance enc-SyncInfo : Encoder SyncInfo
 
-  {- TODO-1 how do if-then-else and equality check?
   SyncInfo∙new : QuorumCert → QuorumCert → SyncInfo
   SyncInfo∙new highestQuorumCert highestCommitCert =
     record { ₋siHighestQuorumCert = highestQuorumCert
-           ; ₋siHighestCommitCert = if highestQuorumCert = highestCommitCert
-                                    then nothing else just highestCommitCert }
+           ; ₋siHighestCommitCert = if highestQuorumCert QCBoolEq highestCommitCert
+                                    then nothing else (just highestCommitCert) }
 
-  siHighestCommitCert :: GetterNoFunctor SyncInfo QuorumCert
-  siHighestCommitCert  = to (\x -> fromMaybe (x^.siHighestQuorumCert) (x^.sixxxHighestCommitCert))
-  -}
+  siHighestCommitCert : Lens SyncInfo QuorumCert
+  siHighestCommitCert = mkLens' (λ x → maybe id (x ^∙ siHighestQuorumCert) (₋siHighestCommitCert x))
+                                (λ x si → record x { ₋siHighestCommitCert = just si })
+
   ----------------------
   -- Network Messages --
   ----------------------
