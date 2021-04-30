@@ -54,7 +54,8 @@ import      LibraBFT.Concrete.Properties.VotesOnce as VO
 
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle.Properties sha256 sha256-cr
+open import LibraBFT.Impl.Consensus.RoundManager.Properties sha256 sha256-cr
+open import LibraBFT.Impl.Handle.Properties                 sha256 sha256-cr
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -114,13 +115,6 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK s' v' pid pk
   peerCanSignEp≡ pcsv refl = mkPCS4PK (eInRange pcsv) (𝓔 pcsv) (𝓔≡ pcsv) (mbr pcsv) (nid≡ pcsv) (pk≡ pcsv)
 
-  peerCanSignPK-PostSt :  ∀ {pid pid' s' outs pk v}{st : SystemState}
-                       → ReachableSystemState st
-                       → (stP : StepPeer st pid s' outs)
-                       → Meta-Honest-PK pk
-                       → PeerCanSignForPK (peerStates st pid') v pid' pk
-                       → PeerCanSignForPK (peerStates (StepPeer-post stP) pid') v pid' pk
-
   peerCanSignPK-Inj :  ∀ {pid pid' s' outs pk v v'}{st : SystemState}
                     → ReachableSystemState st
                     → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
@@ -162,22 +156,6 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| msb4 rewrite cheatStepDNMPeerStates₁ {pid} {pid'} cheat unit
        = peersRemainInitialized (step-peer cheat) (msg∈pool⇒initd r pcs pkH sig msb4)
 
-
-  -- This proof holds for now because there is no epoch changes yet
-  -- TODO: generalize it to prove it even when there is epoch changes
-  noEpochChange : ∀ {pid s' outs}{st : SystemState}
-                    → ReachableSystemState st
-                    → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                    → initialised st pid ≡ initd
-                    → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (₋rmamEC s') ^∙ rmEpoch
-  noEpochChange _ (step-init uninit) initP = let uninit≡init = trans (sym uninit) initP
-                                             in contradiction uninit≡init λ {()}
-  noEpochChange _ (step-msg {nm} _ _) _
-    with nm
-  ... | _ , P m = refl
-  ... | _ , V m = refl
-  ... | _ , C m = refl
-
   noEpochChangeYet : ∀ {pid s' outs v pk}{st : SystemState}
                      → ReachableSystemState st
                      → (stP : StepPeer st pid s' outs)
@@ -212,7 +190,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| yes refl = let  pcs = peerCanSignSameS vspk (sym (StepPeer-post-lemma stepPeer))
                        canSign = peerCanSign-Msb4 r stepPeer pcs pkH sig msb4
                        initP = msg∈pool⇒initd r canSign pkH sig msb4
-                       ep≡   = noEpochChange r stPeer initP
+                       ep≡   = noEpochIdChangeYet r refl stPeer initP
                        lvr≤  = lastVoteRound-mono r refl stPeer initP ep≡
                    in ≤-trans (oldVoteRound≤lvr r pkH sig msb4 canSign (trans ep≡ eid≡)) lvr≤
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
