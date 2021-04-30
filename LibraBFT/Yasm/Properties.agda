@@ -186,13 +186,13 @@ module LibraBFT.Yasm.Properties
                         (unwind r hpk v⊂m m∈pool ver)
 
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
-                   → (r : ReachableSystemState st)
-                   → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                   → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                   → (m ∈ outs × ValidSenderForPK s' v pid pk
-                      × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
-                     ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                      → (r : ReachableSystemState st)
+                      → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
+                      → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                      → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
+                      → ( m ∈ outs × ValidSenderForPK s' v pid pk
+                        × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
+                        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig v⊂m m∈post
         with Any-++⁻ (List-map (pid ,_) outs) m∈post
      ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
