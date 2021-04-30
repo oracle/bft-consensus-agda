@@ -165,8 +165,8 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     ...| inj₁ hb    | _         = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl  | inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl  | inj₂ refl
-       with newMsg⊎msgSentB4 r stHon pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-          | newMsg⊎msgSentB4 r stHon pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
+       with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
+          | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
     ...| inj₂ msb4                   | inj₂ m'sb4
          = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
     ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
