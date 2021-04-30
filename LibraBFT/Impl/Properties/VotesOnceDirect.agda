@@ -115,6 +115,19 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK s' v' pid pk
   peerCanSignEp≡ pcsv refl = mkPCS4PK (eInRange pcsv) (𝓔 pcsv) (𝓔≡ pcsv) (mbr pcsv) (nid≡ pcsv) (pk≡ pcsv)
 
+
+  -- This property does not hold!  The problem is that there is nothing constraining peerStates st
+  -- pid': pid' might be uninitialised, in which case PeerCanSignForPK (peerStates st pid') v' pid'
+  -- pk does not tell us anything. We cannot add a hypothesis that initialised st pid' ≡ initd,
+  -- because that's what we're trying to prove in one of the places this is used (note that pid in
+  -- msg∈pool⇒initd corresponds to pid' here).
+
+  -- I think we are running into exactly the thing that unwind helps with: it takes us back to the
+  -- the transition that first sends a signature, where we know it hasn't been sent before, and must be
+  -- sent my a step-msg, which only occurs if the sender is initialised, which we then carry forward
+  -- (see carrInit in Yasm.Properties).  That's not to say we can't succeed without unwind, of course,
+  -- but this challenge highlights the difference well.
+
   peerCanSignPK-Inj :  ∀ {pid pid' s' outs pk v v'}{st : SystemState}
                     → ReachableSystemState st
                     → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
@@ -126,8 +139,14 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   peerCanSignPK-Inj {pid} {pid'} {v = v} r stP pkH pcsv'Pre pcsvPost refl
     with pid ≟ pid'
   ...| yes refl = refl
-  ...| no pids≢ = ⊥-elim (pids≢ (PK-inj-same-ECs {!!} (trans (pk≡ pcsv'Pre) (sym (pk≡ pcsvPost)))))
-
+  ...| no pids≢
+     with stP
+  ... | step-init uni = ⊥-elim (uninitd≢initd (trans (sym uni) {! !}))
+  ... | step-msg _ ini
+     with availEpochsConsistent r (inPre {! !} pcsv'Pre) (inPost ini stP pcsvPost)
+  ...| refl = ⊥-elim (pids≢ (NodeId-PK-OK-injective (𝓔 pcsvPost)
+                                                    (PCS4PK⇒NodeId-PK-OK pcsvPost)
+                                                    (PCS4PK⇒NodeId-PK-OK pcsv'Pre)))
 
   msg∈pool⇒initd : ∀ {pid pk v}{st : SystemState}
                    → ReachableSystemState st
