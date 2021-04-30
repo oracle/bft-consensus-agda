@@ -156,6 +156,12 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| msb4 rewrite cheatStepDNMPeerStates₁ {pid} {pid'} cheat unit
        = peersRemainInitialized (step-peer cheat) (msg∈pool⇒initd r pcs pkH sig msb4)
 
+  -- NOTE: this property isn't used (yet?).  It is proved except for one hole, where we know that PCS4PK
+  -- holds in the post-state, but we need to know it holds in the prestate.  But this might not be true
+  -- if stP is step-init and establishes PCS4PK.  Given that we're not using this yet, I suggest we
+  -- leave this for now and concentrate on proving the properties we need in the short term.  (My
+  -- understanding is that this property is intended as something that will hold more generally when
+  -- we do implement epoch changes.)
   noEpochChangeYet : ∀ {pid s' outs v pk}{st : SystemState}
                      → ReachableSystemState st
                      → (stP : StepPeer st pid s' outs)
@@ -164,9 +170,10 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                      → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                      → (₋rmamEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                      → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-  noEpochChangeYet r (step-honest x) pcsv pkH sig msv eid≡ = {!!}
-  noEpochChangeYet r cheat@(step-cheat c) pcsv pkH sig msv eid≡ = {!!}
-
+  noEpochChangeYet r (step-honest (step-init uni)) pcsv pkH sig msv eid≡ = ⊥-elim (uninitd≢initd (trans (sym uni) (msg∈pool⇒initd r {! pcsv!} pkH sig msv)))
+  noEpochChangeYet {pid} {v = v} {st = st} r (step-honest sm@(step-msg  _ ini)) pcsv pkH sig msv eid≡ rewrite noEpochIdChangeYet r refl sm ini = eid≡
+  noEpochChangeYet {pid'} r cheat@(step-cheat {pid} c) pcsv pkH sig msv eid≡
+                     rewrite sym (cheatStepDNMPeerStates₁ {pid} {pid'} cheat unit) = eid≡
 
   oldVoteRound≤lvr :  ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
