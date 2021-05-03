@@ -96,6 +96,37 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK s' v pid pk
   peerCanSignSameS pcs refl = pcs
 
+  -- NOTE: the (ab)use of the temporary "bogus" properties (now eliminated) in the "proof" of
+  -- peerCansign-msb4 below hides a significant issue.  Those properties were originally used in a
+  -- context in which the peer has been initialised to show that a step by the peer does not
+  -- change its number of epoch configs or actual epoch configs.  The usage here attempts to use
+  -- those properties to reason "backwards" across a step, with no guarantee that the peer was
+  -- initialised in the prestate.  Thus, the properties that have replaced the bogus ones and have
+  -- been proved (noEpochChangeSPS₁ and noEpochChangeSPS₂) do not work here.
+
+  -- The key reason that this property holds is the MsgWithSig∈, which says that *some* peer has
+  -- sent a message with the same signature in the prestate.  But this does not (directly) imply
+  -- that pid sent it.  Another peer might have observed the signature being sent previously and
+  -- resend it.  The whole point of unwind is to go back to the *first* time the signature was sent,
+  -- at which point we can capture that (because pk is honest), the sender must be valid to sign for
+  -- that pk in that epoch, and then we can use injectivity of PKs to conclude that this sender was
+  -- pid (see line 229-233 in VotesOnce.agda).
+
+  -- I think it's possible to capture everything we need in a property that can be proved directly
+  -- by induction (as opposed to using unwind), but I also think this exercise has shown that it
+  -- will involve much of the same complexity, and perhaps be more difficult overall.  Maybe
+  -- something like the following could be proved inductively, and then used together with
+  -- injectivity properties as mentioned above to determine that the two pids are the same.
+
+  postulate
+   MsgWithSig⇒ValidSenderInitialised :
+     ∀ {st pk v}
+     → ReachableSystemState st
+     → Meta-Honest-PK pk
+     → MsgWithSig∈ pk (₋vSignature v) (msgPool st)
+     → ∃[ pid ] ( initialised st pid ≡ initd
+                × PeerCanSignForPK (peerStates st pid) v pid pk )
+
 
   peerCanSign-Msb4 : ∀ {pid v s' outs pk}{st : SystemState}
                     → ReachableSystemState st
@@ -105,8 +136,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                     → PeerCanSignForPK (peerStates st pid) v pid pk
   peerCanSign-Msb4 {pid} {st = st} r stP pcsv pkH sig msv
-    = let rnam≡ = PeerCanSignForPKBogus1 {peerStates (StepPeer-post stP) pid} {peerStates st pid}
-          acEp≡ = PeerCanSignForPKBogus2 {peerStates (StepPeer-post stP) pid} {peerStates st pid} rnam≡
+    = let rnam≡ = {!!} -- PeerCanSignForPKBogus1 {peerStates (StepPeer-post stP) pid} {peerStates st pid}
+          acEp≡ = {!!} -- PeerCanSignForPKBogus2 {peerStates (StepPeer-post stP) pid} {peerStates st pid} rnam≡
       in PeerCanSignForPKAux pcsv rnam≡ acEp≡
 
   peerCanSignEp≡ : ∀ {pid v v' pk s'}
