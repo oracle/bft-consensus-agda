@@ -314,14 +314,14 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record CommitMsg : Set where
     constructor CommitMsg∙new
     field
-      ₋cEpoch   : Epoch
-      ₋cAuthor  : NodeId
-      ₋cRound   : Round
-      ₋cCert    : QuorumCert  -- We assume for now that a CommitMsg contains the QuorumCert of the head of the 3-chain
-      ₋cSigMB   : Maybe Signature
+      ₋cmEpoch   : Epoch
+      ₋cmAuthor  : NodeId
+      ₋cmRound   : Round
+      ₋cmCert    : QuorumCert  -- We assume for now that a CommitMsg contains the QuorumCert of the head of the 3-chain
+      ₋cmSigMB   : Maybe Signature
   open CommitMsg public
-  unquoteDecl cEpoch   cAuthor   cRound   cCert   cSigMB = mkLens (quote CommitMsg)
-             (cEpoch ∷ cAuthor ∷ cRound ∷ cCert ∷ cSigMB ∷ [])
+  unquoteDecl cmEpoch   cmAuthor   cmRound   cmCert   cmSigMB = mkLens (quote CommitMsg)
+             (cmEpoch ∷ cmAuthor ∷ cmRound ∷ cmCert ∷ cmSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
   record LastVoteInfo : Set where
