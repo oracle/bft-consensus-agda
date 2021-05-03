@@ -43,7 +43,10 @@ module LibraBFT.Concrete.System where
      mbr      : Member 𝓔
      nid≡     : toNodeId  𝓔 mbr ≡ pid
      pk≡      : getPubKey 𝓔 mbr ≡ pk
+ open PeerCanSignForPK
 
+ PCS4PK⇒NodeId-PK-OK : ∀ {rmam v pid pk} → (pcs : PeerCanSignForPK rmam v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
+ PCS4PK⇒NodeId-PK-OK (mkPCS4PK _ _ _ mbr n≡ pk≡) = mbr , n≡ , pk≡
 
  postulate -- TODO-1: Eliminate bogus placeholders These are bogus placeholders representing the
    -- fact that we don't yet add any EpochConfigs after initialization.  TODO-1: more specific (and

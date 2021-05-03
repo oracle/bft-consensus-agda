@@ -54,7 +54,8 @@ import      LibraBFT.Concrete.Properties.VotesOnce as VO
 
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle.Properties sha256 sha256-cr
+open import LibraBFT.Impl.Consensus.RoundManager.Properties sha256 sha256-cr
+open import LibraBFT.Impl.Handle.Properties                 sha256 sha256-cr
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -114,12 +115,25 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK s' v' pid pk
   peerCanSignEp≡ pcsv refl = mkPCS4PK (eInRange pcsv) (𝓔 pcsv) (𝓔≡ pcsv) (mbr pcsv) (nid≡ pcsv) (pk≡ pcsv)
 
+
   peerCanSignPK-PostSt :  ∀ {pid pid' s' outs pk v}{st : SystemState}
                        → ReachableSystemState st
                        → (stP : StepPeer st pid s' outs)
                        → Meta-Honest-PK pk
                        → PeerCanSignForPK (peerStates st pid') v pid' pk
                        → PeerCanSignForPK (peerStates (StepPeer-post stP) pid') v pid' pk
+
+  -- This property does not hold!  The problem is that there is nothing constraining peerStates st
+  -- pid': pid' might be uninitialised, in which case PeerCanSignForPK (peerStates st pid') v' pid'
+  -- pk does not tell us anything. We cannot add a hypothesis that initialised st pid' ≡ initd,
+  -- because that's what we're trying to prove in one of the places this is used (note that pid in
+  -- msg∈pool⇒initd corresponds to pid' here).
+
+  -- I think we are running into exactly the thing that unwind helps with: it takes us back to the
+  -- the transition that first sends a signature, where we know it hasn't been sent before, and must be
+  -- sent my a step-msg, which only occurs if the sender is initialised, which we then carry forward
+  -- (see carrInit in Yasm.Properties).  That's not to say we can't succeed without unwind, of course,
+  -- but this challenge highlights the difference well.
 
   peerCanSignPK-Inj :  ∀ {pid pid' s' outs pk v v'}{st : SystemState}
                     → ReachableSystemState st
@@ -132,8 +146,14 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   peerCanSignPK-Inj {pid} {pid'} {v = v} r stP pkH pcsv'Pre pcsvPost refl
     with pid ≟ pid'
   ...| yes refl = refl
-  ...| no pids≢ = ⊥-elim (pids≢ (PK-inj-same-ECs {!!} (trans (pk≡ pcsv'Pre) (sym (pk≡ pcsvPost)))))
-
+  ...| no pids≢
+     with stP
+  ... | step-init uni = ⊥-elim (uninitd≢initd (trans (sym uni) {! !}))
+  ... | step-msg _ ini
+     with availEpochsConsistent r (inPre {! !} pcsv'Pre) (inPost ini stP pcsvPost)
+  ...| refl = ⊥-elim (pids≢ (NodeId-PK-OK-injective (𝓔 pcsvPost)
+                                                    (PCS4PK⇒NodeId-PK-OK pcsvPost)
+                                                    (PCS4PK⇒NodeId-PK-OK pcsv'Pre)))
 
   msg∈pool⇒initd : ∀ {pid pk v}{st : SystemState}
                    → ReachableSystemState st
@@ -177,6 +197,13 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ... | _ , P m = refl
   ... | _ , V m = refl
   ... | _ , C m = refl
+  -- NOTE: this property isn't used (yet?).  It is proved except for one hole, where we know that PCS4PK
+  -- holds in the post-state, but we need to know it holds in the prestate.  But this might not be true
+  -- if stP is step-init and establishes PCS4PK.  Given that we're not using this yet, I suggest we
+  -- leave this for now and concentrate on proving the properties we need in the short term.  (My
+  -- understanding is that this property is intended as something that will hold more generally when
+  -- we do implement epoch changes.)
+
 
   noEpochChangeYet : ∀ {pid s' outs v pk}{st : SystemState}
                      → ReachableSystemState st
@@ -186,9 +213,10 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                      → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                      → (₋rmamEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                      → (₋rmamEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-  noEpochChangeYet r (step-honest x) pcsv pkH sig msv eid≡ = {!!}
-  noEpochChangeYet r cheat@(step-cheat c) pcsv pkH sig msv eid≡ = {!!}
-
+  noEpochChangeYet r (step-honest (step-init uni)) pcsv pkH sig msv eid≡ = ⊥-elim (uninitd≢initd (trans (sym uni) (msg∈pool⇒initd r {! pcsv!} pkH sig msv)))
+  noEpochChangeYet {pid} {v = v} {st = st} r (step-honest sm@(step-msg  _ ini)) pcsv pkH sig msv eid≡ rewrite noEpochIdChangeYet r refl sm ini = eid≡
+  noEpochChangeYet {pid'} r cheat@(step-cheat {pid} c) pcsv pkH sig msv eid≡
+                     rewrite sym (cheatStepDNMPeerStates₁ {pid} {pid'} cheat unit) = eid≡
 
   oldVoteRound≤lvr :  ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
@@ -212,7 +240,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| yes refl = let  pcs = peerCanSignSameS vspk (sym (StepPeer-post-lemma stepPeer))
                        canSign = peerCanSign-Msb4 r stepPeer pcs pkH sig msb4
                        initP = msg∈pool⇒initd r canSign pkH sig msb4
-                       ep≡   = noEpochChange r stPeer initP
+                       ep≡   = noEpochIdChangeYet r refl stPeer initP
                        lvr≤  = lastVoteRound-mono r refl stPeer initP ep≡
                    in ≤-trans (oldVoteRound≤lvr r pkH sig msb4 canSign (trans ep≡ eid≡)) lvr≤
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
