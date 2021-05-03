@@ -48,18 +48,24 @@ module LibraBFT.Concrete.System where
  PCS4PK⇒NodeId-PK-OK : ∀ {rmam v pid pk} → (pcs : PeerCanSignForPK rmam v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
  PCS4PK⇒NodeId-PK-OK (mkPCS4PK _ _ _ mbr n≡ pk≡) = mbr , n≡ , pk≡
 
- postulate -- TODO-1: Eliminate bogus placeholders These are bogus placeholders representing the
-   -- fact that we don't yet add any EpochConfigs after initialization.  TODO-1: more specific (and
-   -- true!) properties should now be provable to enable a real proof of PeerCanSignForPK-stable.
-   -- Note that the handler does not change the number of EpochConfigs or available EpochConfigs
-   -- yet; this will become more challenging in future when we model epoch changes.  One easy
-   -- property noEpochChangeSPS is proved below.
-   PeerCanSignForPKBogus1 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
-                        → ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1
+ noEpochChangeSPS₁ : ∀ {st pid ps' msgs}
+                  → LYS.initialised st pid ≡ LYS.initd
+                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
+                  → ₋rmamMetaNumEpochs ps' ≡ ₋rmamMetaNumEpochs (LYS.peerStates st pid)
+ noEpochChangeSPS₁ ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
+ noEpochChangeSPS₁ _ (LYS.step-msg {_ , P x} m∈pool ini) = refl
+ noEpochChangeSPS₁ _ (LYS.step-msg {_ , V x} m∈pool ini) = refl
+ noEpochChangeSPS₁ _ (LYS.step-msg {_ , C x} m∈pool ini) = refl
 
-   PeerCanSignForPKBogus2 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
-                        → (num𝓔s≡ : ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1)
-                        → ₋rmamMetaAvailEpochs rmam1 ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs rmam2)
+ noEpochChangeSPS₂ : ∀ {st pid ps' msgs}
+                   → LYS.initialised st pid ≡ LYS.initd
+                   → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
+                   → (num𝓔s≡ : ₋rmamMetaNumEpochs ps' ≡ ₋rmamMetaNumEpochs (LYS.peerStates st pid))
+                   → ₋rmamMetaAvailEpochs (LYS.peerStates st pid) ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs ps')
+ noEpochChangeSPS₂ ini (LYS.step-init uni) _ = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
+ noEpochChangeSPS₂ _  (LYS.step-msg {_ , P x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
+ noEpochChangeSPS₂ _  (LYS.step-msg {_ , V x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
+ noEpochChangeSPS₂ _  (LYS.step-msg {_ , C x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
 
  PeerCanSignForPKAux : ∀ {rmam1 rmam2 : RoundManagerAndMeta}{v pid pk}
                      → PeerCanSignForPK rmam1 v pid pk
@@ -68,30 +74,12 @@ module LibraBFT.Concrete.System where
                      → PeerCanSignForPK rmam2 v pid pk
  PeerCanSignForPKAux (mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡) refl refl = mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡
 
- -- Not yet used; see TODO comment above
- noEpochChangeSPS : ∀ {st pid ps' msgs}
-                  → LYS.initialised st pid ≡ LYS.initd
-                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
-                  → ₋rmamMetaNumEpochs (LYS.peerStates st pid) ≡ ₋rmamMetaNumEpochs ps'
- noEpochChangeSPS ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- noEpochChangeSPS _ (LYS.step-msg {_ , P x} m∈pool ini) = refl
- noEpochChangeSPS _ (LYS.step-msg {_ , V x} m∈pool ini) = refl
- noEpochChangeSPS _ (LYS.step-msg {_ , C x} m∈pool ini) = refl
-
  PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
  PeerCanSignForPK-stable {st} {pid = pid} r (LYS.step-init uni) ini _ = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- PeerCanSignForPK-stable {st} {v} {pk} {pid = pid} r (LYS.step-msg {m} m∈pool _) ini pcs = PeerCanSignForPKAux
-                                                                                          {LYS.peerStates st pid}
-                                                                                          {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))}
-                                                                                          {v} {pid} {pk}
-                                                                                          pcs
-                                                                                          (PeerCanSignForPKBogus1
-                                                                                             {LYS.peerStates st pid}
-                                                                                             {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))})
-                                                                                          (PeerCanSignForPKBogus2
-                                                                                             {LYS.peerStates st pid}
-                                                                                             {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))}
-                                                                                             PeerCanSignForPKBogus1)
+ PeerCanSignForPK-stable {st} {v} {pk} {pid = pid} r sps@(LYS.step-msg {m} m∈pool _) ini pcs
+    with noEpochChangeSPS₁ {st} {pid} ini sps
+ ...| num𝓔s≡ = PeerCanSignForPKAux {LYS.peerStates st pid} pcs num𝓔s≡
+                                   (noEpochChangeSPS₂ {st} {pid} ini sps num𝓔s≡)
 
  open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK
                                                                            (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
