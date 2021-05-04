@@ -417,16 +417,15 @@ module LibraBFT.Yasm.System
  -- signatures for which PKs.  The PeerState is needed to provide access to information the peer has
  -- about who uses what keys for what parts (in our case, EpochConfigs either derived from genesis
  -- information or agreed during epoch changes).
- ValidSenderForPK-type : Set (ℓ+1 ℓ-VSFP ℓ⊔ ℓ-PeerState)
- ValidSenderForPK-type = PeerState → Part → PeerId → PK → Set ℓ-VSFP
+ ValidSenderForPK-type : Set (ℓ+1 ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
+ ValidSenderForPK-type = SystemState → Part → PeerId → PK → Set ℓ-VSFP
 
  ValidSenderForPK-stable-type : ValidSenderForPK-type → Set (ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
- ValidSenderForPK-stable-type vs4pk = ∀ {st part pk}{pid ps' msgs}
-                                      → ReachableSystemState st
-                                      → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (ps' , msgs)
-                                      → initialised st pid ≡ initd
-                                      → vs4pk (peerStates st pid) part pid pk
-                                      → vs4pk ps'                 part pid pk
+ ValidSenderForPK-stable-type vs4pk = ∀ {pre post part pid pk}
+                                      → ReachableSystemState pre
+                                      → Step pre post
+                                      → vs4pk pre  part pid pk
+                                      → vs4pk post part pid pk
 
  ------------------------------------------
 
