@@ -170,6 +170,81 @@ module LibraBFT.Yasm.Properties
                         })
                         (unwind r hpk v⊂m m∈pool ver)
 
+     -- Unforgeability is also an important property stating that every part that is
+     -- verified with an honest public key has either been sent by α or is a replay
+     -- of another message sent before.
+     ext-unforgeability'
+       : ∀{α m part pk}{st : SystemState} → ReachableSystemState st
+       -- If a message m has been sent by α, containing part
+       → (α , m) ∈ msgPool st → part ⊂Msg m
+       -- And the part can be verified with an honest public key,
+       → (sig : WithVerSig pk part) → Meta-Honest-PK pk
+       -- then either the part is a valid part by α (meaning that α can
+       -- sign the part itself) or a message with the same signature has
+       -- been sent previously.
+       → ValidSenderForPK st part α pk
+       ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+     ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> ⊎-map (ValidSenderForPK-stable st (step-peer sp)) id
+                                                        (ext-unforgeability' st furtherBack p⊆m sig hpk)
+     ...| inj₁ thisStep
+       with sp
+     ...| step-cheat isCheat
+       with thisStep
+     ...| here refl
+       with isCheat p⊆m sig
+     ...| inj₁ abs    = ⊥-elim (hpk abs)
+     ...| inj₂ sentb4 = inj₂ (MsgWithSig∈-++ʳ sentb4)
+     ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+        | inj₁ thisStep
+        | step-honest x
+       with Any-satisfied-∈ (Any-map⁻ thisStep)
+     ...| (m , refl , m∈outs) = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
+
+     -- The ext-unforgeability' property can be collapsed in a single clause.
+
+     -- TODO-2: so far, ext-unforgeability is used only to get a MsgWithSig∈ that is passed to
+     -- msgWithSigSentByAuthor, which duplicates some of the reasoning in the proof of
+     -- ext-unforgeability'; should these properties possibly be combined into one simpler proof?
+     ext-unforgeability
+       : ∀{α₀ m part pk}{st : SystemState} → ReachableSystemState st
+       → (α₀ , m) ∈ msgPool st → part ⊂Msg m
+       → (sig : WithVerSig pk part) → Meta-Honest-PK pk
+       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     ext-unforgeability {α₀} {m} {st = st} rst m∈sm p⊂m sig hpk
+       with ext-unforgeability' rst m∈sm p⊂m sig hpk
+     ...| inj₁ p
+        = mkMsgWithSig∈ _ _ p⊂m α₀ m∈sm sig refl
+     ...| inj₂ sentb4 = sentb4
+
+     msgWithSigSentByAuthor : ∀ {pk sig}{st : SystemState}
+                            → ReachableSystemState st
+                            → Meta-Honest-PK pk
+                            → MsgWithSig∈ pk sig (msgPool st)
+                            → Σ (MsgWithSig∈ pk sig (msgPool st))
+                                λ mws → ValidSenderForPK st (msgPart mws) (msgSender mws) pk
+     msgWithSigSentByAuthor step-0 _ ()
+     msgWithSigSentByAuthor {pk = pk} (step-s {pre = pre} preach (step-peer theStep@(step-cheat cheatCons))) hpk mws
+        with (¬cheatForgeNew theStep refl unit hpk mws)
+     ...| mws'
+        with msgWithSigSentByAuthor preach hpk mws'
+     ...| mws'' , vpb'' = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+       with Any-++⁻ (List-map (pid ,_) outs) {msgPool pre} (msg∈pool mws)
+     ...| inj₂ furtherBack
+       with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack)
+     ...| mws' , vpb' =  MsgWithSig∈-++ʳ mws' , ValidSenderForPK-stable preach theStep vpb'
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+        | inj₁ thisStep
+        with Any-satisfied-∈ (Any-map⁻ thisStep)
+     ...| (m' , refl , m∈outs)
+        with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
+     ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
+     ...| inj₂ mws'
+        with msgWithSigSentByAuthor preach hpk mws'
+     ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
+
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
                       → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
