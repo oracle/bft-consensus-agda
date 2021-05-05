@@ -18,12 +18,15 @@ module LibraBFT.Abstract.Types.EpochConfig
 
   open import LibraBFT.Base.Types
 
+  ℓ-EC : Level
+  ℓ-EC = ℓ+1 0ℓ
+
   -- An epoch-configuration carries only simple data about the epoch; the complicated
   -- parts will be provided by the System, defined below.
   --
   -- The reason for the separation is that we should be able to provide
   -- an EpochConfig from a single peer state.
-  record EpochConfig : Set₁ where
+  record EpochConfig : Set ℓ-EC where
     constructor EpochConfig∙new
     field
       genesisUID : UID

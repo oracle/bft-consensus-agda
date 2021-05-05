@@ -37,7 +37,7 @@ module LibraBFT.Impl.Consensus.Types where
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
-    constructor RoundManagerPreEC∙new
+    constructor RoundManagerEC∙new
     field
       ₋rmSafetyRules  : SafetyRules
       ₋rmValidators   : ValidatorVerifier
@@ -83,18 +83,22 @@ module LibraBFT.Impl.Consensus.Types where
   postulate
     α-EC-≡ : (rmec1  : RoundManagerEC)
            → (rmec2  : RoundManagerEC)
-           → (vals≡  : (rmec1 ^∙ rmValidators) ≡ (rmec2 ^∙ rmValidators))
-           → (rmoch≡ : (rmec1 ^∙ rmEpoch)      ≡ (rmec2 ^∙ rmEpoch))
+           → (vals≡  : rmec1 ^∙ rmValidators ≡ rmec2 ^∙ rmValidators)
+           →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
            → (rmec1-corr : RoundManagerEC-correct rmec1)
            → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManagerEC-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
   {-
   α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
+  -- Just in case RoundManager is at a higher level in future
+  ℓ-RoundManager : Level
+  ℓ-RoundManager = 0ℓ
+
   -- Finally, the RoundManager is split in two pieces: those
   -- that are used to make an EpochConfig versus those that
   -- use an EpochConfig.
-  record RoundManager : Set where
+  record RoundManager : Set ℓ-RoundManager where
     constructor RoundManager∙new
     field
       ₋rmEC           : RoundManagerEC

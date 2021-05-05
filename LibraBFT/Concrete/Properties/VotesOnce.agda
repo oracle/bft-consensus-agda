@@ -41,7 +41,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set₁
+ ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₁ =
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
@@ -63,7 +63,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- Then an honest implemenation promises v and v' vote for the same blockId.
    → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
 
- ImplObligation₂ : Set₁
+ ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
