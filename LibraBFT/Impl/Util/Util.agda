@@ -11,7 +11,7 @@ open import LibraBFT.Impl.Consensus.Types
 -- to facilitate reasoning about it.
 
 module LibraBFT.Impl.Util.Util where
-  open import LibraBFT.Impl.Util.RWST public
+  open import LibraBFT.Impl.Util.RWST ℓ-RoundManager public
   ----------------
   -- LBFT Monad --
   ----------------
@@ -24,10 +24,10 @@ module LibraBFT.Impl.Util.Util where
   LBFT-run m = RWST-run m unit
 
   LBFT-post : ∀ {A} → LBFT A → RoundManager → RoundManager
-  LBFT-post m ep = proj₁ (proj₂ (LBFT-run m ep))
+  LBFT-post m rm = proj₁ (proj₂ (LBFT-run m rm))
 
   LBFT-outs : ∀ {A} → LBFT A → RoundManager → List Output
-  LBFT-outs m ep = proj₂ (proj₂ (LBFT-run m ep))
+  LBFT-outs m rm = proj₂ (proj₂ (LBFT-run m rm))
 
   -- Local 'LBFT' monad; which operates only over the part of
   -- the state that /depends/ on the ec; not the part
