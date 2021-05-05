@@ -71,12 +71,12 @@ module LibraBFT.Yasm.Properties
    → Meta-Honest-PK pk
    → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
-     -- Note that we require that α can send for the PK according to the α's *new* state.  This
-     -- allows sufficient generality to ensure that a peer can sign and send a message for an epoch
-     -- even if it changed to the epoch in the same step.  If this is too painful, we could require
-     -- that the epoch config is already available in the (initialised) prestate, which would
-     -- require, for example, initialising a peer to be a separate step from sending its first
-     -- signed message, which in turn could preclude some valid implementations.
+     -- Note that we require that α can send for the PK according to the *post* state.  This allows
+     -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
+     -- it changed to the epoch in the same step.  If this is too painful, we could require that the
+     -- peer can sign for the PK already in the prestate, which would require, for example,
+     -- initialising a peer to be a separate step from sending its first signed message, which in
+     -- turn could preclude some valid implementations.
    → (ValidSenderForPK (StepPeer-post {pre = st} (step-honest sps)) part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 

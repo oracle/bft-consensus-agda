@@ -84,10 +84,9 @@ module LibraBFT.Impl.Handle.Properties
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
-   -- We should be able to prove this easily now, because we don't yet do epoch changes,
+   -- We can prove this easily because we don't yet do epoch changes,
    -- so only the initial EC is relevant.  Later, this will require us to use the fact that
-   -- epoch changes require proof of committing an epoch-changing transaction (note that cheat
-   -- steps do not modify meta data such as ₋epamMetaAvailepochs).
+   -- epoch changes require proof of committing an epoch-changing transaction.
   availEpochsConsistent :
      ∀{pid pid' v v' pk}{st : SystemState}
      → ReachableSystemState st
