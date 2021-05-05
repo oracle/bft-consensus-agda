@@ -18,22 +18,21 @@ import      LibraBFT.Yasm.Base as LYB
 -- proving properties of executions of the modeled system.
 
 module LibraBFT.Yasm.System
-   (ℓ-EC        : Level)
-   (EpochConfig : Set ℓ-EC)
-   (epoch       : EpochConfig → Epoch)
-   (authorsN    : EpochConfig → ℕ)
-   (parms : LYB.SystemParameters ℓ-EC EpochConfig epoch authorsN)
+   (ℓ-PeerState : Level)
+   (ℓ-VSFP      : Level)
+   (parms      : LYB.SystemParameters ℓ-PeerState)
  where
 
  data InitStatus : Set where
    uninitd : InitStatus
    initd   : InitStatus
+ open InitStatus
 
- open import LibraBFT.Yasm.Base            ℓ-EC EpochConfig epoch authorsN
+ uninitd≢initd : uninitd ≢ initd
+ uninitd≢initd = λ ()
+
+ open import LibraBFT.Yasm.Base
  open SystemParameters parms
- open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epoch authorsN
-             using (AvailableEpochs) renaming (lookup'' to EC-lookup)
- import LibraBFT.Yasm.AvailableEpochs      PeerId ℓ-EC EpochConfig epoch authorsN as AE
  open import Util.FunctionOverride PeerId _≟PeerId_
 
  open import LibraBFT.Base.PKCS
@@ -161,29 +160,18 @@ module LibraBFT.Yasm.System
  --
  -- A system consists in a partial map from PeerId to PeerState, a pool
  -- of sent messages and a number of available epochs.
- record SystemState (e : ℕ) : Set ℓ-EC where
+ record SystemState : Set (ℓ+1 ℓ-PeerState) where
    field
      peerStates  : PeerId → PeerState
      initialised : PeerId → InitStatus
      msgPool     : SentMessages          -- All messages ever sent
-     availEpochs : AvailableEpochs e
  open SystemState public
 
- initialState : SystemState 0
+ initialState : SystemState
  initialState = record
    { peerStates  = const initPS
    ; initialised = const uninitd
    ; msgPool     = []
-   ; availEpochs = []
-   }
-
- -- Convenience function for appending an epoch to the system state
- pushEpoch : ∀{e} → EpochConfigFor e → SystemState e → SystemState (suc e)
- pushEpoch 𝓔 st = record
-   { peerStates  = peerStates st
-   ; initialised = initialised st
-   ; msgPool     = msgPool st
-   ; availEpochs = AE.append 𝓔 (availEpochs st)
    }
 
  -- * Small Step Semantics
@@ -196,102 +184,122 @@ module LibraBFT.Yasm.System
  --      bringing a new epoch into existence
 
  -- The pre and post states of Honest peers are related iff
- data StepPeerState {e}(pid : PeerId)(𝓔s : AvailableEpochs e)(pool : SentMessages)
-                       (peerInits : PeerId → InitStatus) (ps : PeerState) :
-                       (PeerId → InitStatus) → (PeerState × List Msg) → Set where
-   -- The peer receives an "initialization package"; for now, this consists
-   -- of the actual EpochConfig for the epoch being initialized.  Later, we
-   -- may move to a more general scheme, enabled by assuming a function
-   -- 'render : InitPackage -> EpochConfig'.
-   step-init : ∀ (ix : Fin e)
-             → StepPeerState pid 𝓔s pool peerInits ps ⟦ peerInits , pid ← initd ⟧ (init pid (AE.lookup' 𝓔s ix) ps)
+ data StepPeerState (pid : PeerId)(pool : SentMessages)
+                    (peerInits : PeerId → InitStatus) (ps : PeerState) :
+                    (PeerState × List Msg) → Set where
+   -- An uninitialized peer can be initialized
+   step-init : peerInits pid ≡ uninitd
+             → StepPeerState pid pool peerInits ps (init pid genInfo)
 
    -- The peer processes a message in the pool
    step-msg  : ∀{m}
              → m ∈ pool
              → peerInits pid ≡ initd
-             → StepPeerState pid 𝓔s pool peerInits ps peerInits (handle pid (proj₂ m) ps)
+             → StepPeerState pid pool peerInits ps (handle pid (proj₂ m) ps)
 
  -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
- data StepPeer {e}(pre : SystemState e) : PeerId → PeerState → List Msg → Set where
+ data StepPeer (pre : SystemState) : PeerId → PeerState → List Msg → Set ℓ-PeerState where
    -- it can be obtained by a handle or init call.
-   step-honest : ∀{pid st outs init'}
-               → StepPeerState pid (availEpochs pre) (msgPool pre) (initialised pre) (peerStates pre pid) init' (st , outs)
+   step-honest : ∀{pid st outs}
+               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (st , outs)
                → StepPeer pre pid st outs
 
    -- or the peer decides to cheat.  CheatMsgConstraint ensures it cannot
    -- forge signatures by honest peers.  Cheat steps do not modify peer
    -- state: these are maintained exclusively by the implementation
    -- handlers.
-   step-cheat  : ∀{pid}
-               → (fm : SentMessages → PeerState → Msg)
-               → let m = fm (msgPool pre) (peerStates pre pid)
-                  in CheatMsgConstraint (msgPool pre) m
-                   → StepPeer pre pid (peerStates pre pid) (m ∷ [])
+   step-cheat  : ∀{pid m}
+               → CheatMsgConstraint (msgPool pre) m
+               → StepPeer pre pid (peerStates pre pid) (m ∷ [])
 
- isCheat : ∀ {e pre pid ms outs} → StepPeer {e} pre pid ms outs → Set
- isCheat (step-honest _)  = ⊥
- isCheat (step-cheat _ _) = Unit
+ isCheat : ∀ {pre pid ms outs} → StepPeer pre pid ms outs → Set
+ isCheat (step-honest _) = ⊥
+ isCheat (step-cheat  _) = Unit
+
+ initStatus : ∀ {pid pre ms outs}
+            → StepPeer pre pid ms outs
+            → InitStatus
+            → InitStatus
+ initStatus {pid} (step-honest _) preinit = initd
+ initStatus {pid} (step-cheat  _) preinit = preinit
 
  -- Computes the post-sysstate for a given step-peer.
- StepPeer-post : ∀{e pid st' outs}{pre : SystemState e}
-               → StepPeer pre pid st' outs → SystemState e
- StepPeer-post {e} {pid} {st'} {outs} {pre} _ = record pre
-   { peerStates = ⟦ peerStates pre , pid ← st' ⟧
-   ; msgPool    = List-map (pid ,_) outs ++ msgPool pre
+ StepPeer-post : ∀{pid st' outs}{pre : SystemState }
+               → StepPeer pre pid st' outs → SystemState
+ StepPeer-post {pid} {st'} {outs} {pre} sp = record pre
+   { peerStates  = ⟦ peerStates pre  , pid ← st' ⟧
+   ; initialised = ⟦ initialised pre , pid ← initStatus sp (initialised pre pid) ⟧
+   ; msgPool     = List-map (pid ,_) outs ++ msgPool pre
    }
 
- StepPeer-post-lemma : ∀{e pid st' outs}{pre : SystemState e}
+ StepPeer-post-lemma : ∀{pid st' outs}{pre : SystemState}
                → (pstep : StepPeer pre pid st' outs)
                → st' ≡ peerStates (StepPeer-post pstep) pid
  StepPeer-post-lemma pstep = sym override-target-≡
 
- cheatStepDNMPeerStates : ∀{e pid st' outs}{pre : SystemState e}
+ StepPeer-post-lemma2 : ∀{pid}{pre : SystemState}{st outs}
+                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (st , outs))
+                      → initialised (StepPeer-post {pid} {st} {outs} {pre} (step-honest sps)) pid ≡ initd
+ StepPeer-post-lemma2 {pre = pre} _ = override-target-≡
+
+ cheatStepDNMPeerStates : ∀{pid st' outs}{pre : SystemState}
                         → (theStep : StepPeer pre pid st' outs)
                         → isCheat theStep
                         → peerStates (StepPeer-post theStep) ≡ peerStates pre
- cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _ _) _
-   = overrideSameVal-correct-ext {f = peerStates pre} {pid}
+ cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _) _ = overrideSameVal-correct-ext {f = peerStates pre} {pid}
 
- cheatStepDNMPeerStates₁ : ∀{e pid pid' st' outs}{pre : SystemState e}
+ cheatStepDNMInitialised : ∀{pid st' outs}{pre : SystemState}
                         → (theStep : StepPeer pre pid st' outs)
                         → isCheat theStep
-                        → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
- cheatStepDNMPeerStates₁ {_} {pid} {pid'} (step-cheat fm x₁) x
-   = overrideSameVal-correct pid pid'
+                        → initialised (StepPeer-post theStep) ≡ initialised pre
+ cheatStepDNMInitialised {pid = pid} {pre = pre} (step-cheat _) _ = overrideSameVal-correct-ext
 
- data Step : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
-   step-epoch : ∀{e}{pre : SystemState e}
-              → (𝓔 : EpochConfigFor e)
-              -- TODO-3: Eventually, we'll condition this step to only be
-              -- valid when peers on the previous epoch have agreed that 𝓔
-              -- is the new one.  → ∃EnoughValidCommitMsgsFor pre 𝓔
-              → Step pre (pushEpoch 𝓔 pre)
+ cheatStepDNMInitialised₁ : ∀{pid pid' st' outs}{pre : SystemState}
+                        → (theStep : StepPeer pre pid st' outs)
+                        → isCheat theStep
+                        → initialised (StepPeer-post theStep) pid' ≡ initialised pre pid'
+ cheatStepDNMInitialised₁ {pid} {pid'} {pre = pre} (step-cheat _) _ = overrideSameVal-correct pid pid'
 
-   step-peer : ∀{e pid st' outs}{pre : SystemState e}
+ cheatStepDNMPeerStates₁ : ∀{pid pid' st' outs}{pre : SystemState}
+                         → (theStep : StepPeer pre pid st' outs)
+                         → isCheat theStep
+                         → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
+ cheatStepDNMPeerStates₁ {pid} {pid'} (step-cheat _) x = overrideSameVal-correct pid pid'
+
+ pids≢StepDNMPeerStates :  ∀{pid pid' s' outs}{pre : SystemState}
+                         → (sps : StepPeerState pid' (msgPool pre) (initialised pre) (peerStates pre pid') (s' , outs))
+                         → pid ≢ pid'
+                         → peerStates pre pid ≡ peerStates (StepPeer-post {pid'} {s'} {outs} {pre} (step-honest sps)) pid
+ pids≢StepDNMPeerStates sps pids≢ = override-target-≢ pids≢
+
+ data Step : SystemState → SystemState → Set (ℓ+1 ℓ-PeerState) where
+   -- TO-NOT-DO: it is tempting to merge this and StepPeer, now that step-peer
+   -- is the only constructor here.  I started to do so, but it propagates many
+   -- changes throughout the repo, and it's possible we will in future add steps
+   -- not performed by a specific peer (for example, if we model some notion of
+   -- time to prove liveness properties).
+   step-peer : ∀{pid st' outs}{pre : SystemState}
              → (pstep : StepPeer pre pid st' outs)
              → Step pre (StepPeer-post pstep)
 
 
- msgs-stable : ∀ {e e'} {pre : SystemState e} {post : SystemState e'} {m}
+ msgs-stable : ∀ {pre : SystemState} {post : SystemState} {m}
              → (theStep : Step pre post)
              → m ∈ msgPool pre
              → m ∈ msgPool post
- msgs-stable (step-epoch _) m∈ = m∈
  msgs-stable (step-peer {pid = pid} {outs = outs} _) m∈ = Any-++ʳ (List-map (pid ,_) outs) m∈
 
- peersRemainInitialized : ∀ {pid} {e e'} {pre : SystemState e} {post : SystemState e'}
-                        → (theStep : Step pre post)
+ peersRemainInitialized : ∀ {pid} {pre : SystemState} {post : SystemState}
+                        → Step pre post
                         → initialised pre pid ≡ initd
                         → initialised post pid ≡ initd
- peersRemainInitialized (step-epoch _) isInitd = isInitd
- peersRemainInitialized {pid} (step-peer step) isInitd
+ peersRemainInitialized {pid} (step-peer {pid'} step) isInitd
+   with pid' ≟PeerId pid
+ ...| no neq = isInitd
+ ...| yes refl
    with step
- ... | step-cheat _ _ = isInitd
- ... | step-honest {pidS} {st} {outs} stp
-   with pid ≟PeerId pidS
- ...| yes refl = isInitd
- ...| no imp = isInitd
+ ... | step-honest {pidS} {st} {outs} stp = refl
+ ... | step-cheat _ = isInitd
 
  -- not used yet, but some proofs could probably be cleaned up using this,
  -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
@@ -304,65 +312,64 @@ module LibraBFT.Yasm.System
  ...| inj₁ m∈ml = m∈ml
  ...| inj₂ m∈sm = ⊥-elim (¬m∈sm m∈sm)
 
- step-epoch-does-not-send : ∀ {e} (pre : SystemState e) (𝓔 : EpochConfigFor e)
-                            → msgPool (pushEpoch 𝓔 pre) ≡ msgPool pre
- step-epoch-does-not-send _ _ = refl
-
  -- * Reflexive-Transitive Closure
 
- data Step* : ∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC where
-   step-0 : ∀{e}{pre : SystemState e}
+ data Step* : SystemState → SystemState → Set (ℓ+1 ℓ-PeerState) where
+   step-0 : ∀{pre : SystemState}
           → Step* pre pre
 
-   step-s : ∀{e e' e''}{fst : SystemState e}{pre : SystemState e'}{post : SystemState e''}
+   step-s : ∀{fst : SystemState}{pre : SystemState}{post : SystemState}
           → Step* fst pre
           → Step pre post
           → Step* fst post
 
- ReachableSystemState : ∀{e} → SystemState e → Set ℓ-EC
+ ReachableSystemState : SystemState → Set (ℓ+1 ℓ-PeerState)
  ReachableSystemState = Step* initialState
 
- roundManagerPostSt : ∀ {pid s' s outs init'} {e} {st : SystemState e}
+ roundManagerPostSt : ∀ {pid s' s outs} {st : SystemState}
                       → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (availEpochs st) (msgPool st) (initialised st)
-                                             (peerStates st pid) init' (s' , outs))
+                      → (stP : StepPeerState pid (msgPool st) (initialised st)
+                                             (peerStates st pid) (s' , outs))
                       → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
                       → s ≡ s'
  roundManagerPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
- Step*-mono : ∀{e e'}{st : SystemState e}{st' : SystemState e'}
-            → Step* st st' → e ≤ e'
- Step*-mono step-0 = ≤-refl
- Step*-mono (step-s tr (step-peer _)) = Step*-mono tr
- Step*-mono (step-s tr (step-epoch _)) = ≤-step (Step*-mono tr)
+ Step*-trans : ∀ {st st' st''}
+             → Step* st st'
+             → Step* st' st''
+             → Step* st st''
+ Step*-trans r step-0 = r
+ Step*-trans r (step-s tr x) = step-s (Step*-trans r tr) x
 
- MsgWithSig∈-Step* : ∀{e e' sig pk}{st : SystemState e}{st' : SystemState e'}
+ Step*-initdStable : ∀{st st' pid}
+                   → Step* st st'
+                   → initialised st  pid ≡ initd
+                   → initialised st' pid ≡ initd
+ Step*-initdStable step-0 ini = ini
+ Step*-initdStable {st} {pid = pid} (step-s {pre = pre} tr theStep) ini =
+                   peersRemainInitialized theStep (Step*-initdStable tr ini)
+
+ MsgWithSig∈-Step* : ∀{sig pk}{st : SystemState}{st' : SystemState}
                    → Step* st st'
                    → MsgWithSig∈ pk sig (msgPool st)
                    → MsgWithSig∈ pk sig (msgPool st')
  MsgWithSig∈-Step* step-0        msig = msig
- MsgWithSig∈-Step* (step-s tr (step-epoch _)) msig
-   = MsgWithSig∈-Step* tr msig
  MsgWithSig∈-Step* (step-s tr (step-peer ps)) msig
    = MsgWithSig∈-++ʳ (MsgWithSig∈-Step* tr msig)
 
- MsgWithSig∈-Step*-part : ∀{e e' sig pk}{st : SystemState e}{st' : SystemState e'}
+ MsgWithSig∈-Step*-part : ∀{sig pk}{st : SystemState}{st' : SystemState}
                         → (tr   : Step* st st')
                         → (msig : MsgWithSig∈ pk sig (msgPool st))
                         → msgPart msig ≡ msgPart (MsgWithSig∈-Step* tr msig)
  MsgWithSig∈-Step*-part step-0        msig = refl
- MsgWithSig∈-Step*-part (step-s tr (step-epoch _)) msig
-   = MsgWithSig∈-Step*-part tr msig
  MsgWithSig∈-Step*-part (step-s tr (step-peer ps)) msig
    = MsgWithSig∈-Step*-part tr msig
 
- MsgWithSig∈-Step*-sender : ∀{e e' sig pk}{st : SystemState e}{st' : SystemState e'}
+ MsgWithSig∈-Step*-sender : ∀{sig pk}{st : SystemState}{st' : SystemState}
                           → (tr   : Step* st st')
                           → (msig : MsgWithSig∈ pk sig (msgPool st))
                           → msgSender msig ≡ msgSender (MsgWithSig∈-Step* tr msig)
  MsgWithSig∈-Step*-sender step-0        msig = refl
- MsgWithSig∈-Step*-sender (step-s tr (step-epoch _)) msig
-   = MsgWithSig∈-Step*-sender tr msig
  MsgWithSig∈-Step*-sender (step-s tr (step-peer ps)) msig
    = MsgWithSig∈-Step*-sender tr msig
 
@@ -370,59 +377,67 @@ module LibraBFT.Yasm.System
  ------------------------------------------
 
  -- Type synonym to express a relation over system states;
- SystemStateRel : (∀{e e'} → SystemState e → SystemState e' → Set ℓ-EC) → Set (ℓ+1 ℓ-EC)
- SystemStateRel P = ∀{e e'}{st : SystemState e}{st' : SystemState e'} → P st st' → Set ℓ-EC
+ SystemStateRel : ∀ {ℓ} → (SystemState → SystemState → Set (ℓ+1 ℓ-PeerState)) → Set (ℓ+1 (ℓ ℓ⊔ ℓ-PeerState))
+ SystemStateRel {ℓ} P = ∀{st : SystemState}{st' : SystemState} → P st st' → Set (ℓ ℓ⊔ ℓ-PeerState)
 
  -- Just like Data.List.Any maps a predicate over elements to a predicate over lists,
  -- Any-step maps a relation over steps to a relation over steps in a trace.
- data Any-Step (P : SystemStateRel Step) : SystemStateRel Step* where
-  step-here  : ∀{e e' e''}{fst : SystemState e}{pre : SystemState e'}{post : SystemState e''}
+ data Any-Step {ℓ : Level} (P : SystemStateRel {ℓ} Step) : SystemStateRel {ℓ} Step* where
+  step-here  : ∀{fst : SystemState}{pre : SystemState}{post : SystemState}
              → (cont : Step* fst pre)
              → {this : Step pre post}(prf  : P this)
              → Any-Step P (step-s cont this)
 
-  step-there : ∀{e e' e''}{fst : SystemState e}{pre : SystemState e'}{post : SystemState e''}
+  step-there : ∀{fst : SystemState}{pre : SystemState}{post : SystemState}
              → {cont : Step* fst pre}
              → {this : Step pre post}
-             → (prf  : Any-Step P cont)
+             → (prf  : Any-Step {ℓ} P cont)
              → Any-Step P (step-s cont this)
 
- Any-Step-⇒ : ∀ {P Q : SystemStateRel Step}
-            → (∀ {e e'}{pre : SystemState e}{post : SystemState e'} → (x : Step pre post) → P {e} {e'} x → Q {e} {e'} x)
-            → ∀ {e e' fst lst} {tr : Step* {e} {e'} fst lst}
-            → Any-Step P tr
-            → Any-Step Q tr
+ Any-Step-⇒ : ∀ {ℓ}{P Q : SystemStateRel {ℓ} Step}
+            → (∀ {pre : SystemState}{post : SystemState} → (x : Step pre post) → P x → Q x)
+            → ∀ {fst lst} {tr : Step* fst lst}
+            → Any-Step {ℓ} P tr
+            → Any-Step {ℓ} Q tr
  Any-Step-⇒ p⇒q (step-here cont {this} prf) = step-here cont (p⇒q this prf)
  Any-Step-⇒ p⇒q (step-there anyStep) = step-there (Any-Step-⇒ p⇒q anyStep)
 
  Any-Step-elim
-   : ∀{e₀ e₁}{st₀ : SystemState e₀}{st₁ : SystemState e₁}{P : SystemStateRel Step}{Q : Set ℓ-EC}
+   : ∀{ℓ}{ℓ-Q}{st₀ : SystemState}{st₁ : SystemState}{P : SystemStateRel {ℓ} Step}{Q : Set ℓ-Q}
    → {r : Step* st₀ st₁}
-   → (P⇒Q : ∀{d d'}{s : SystemState d}{s' : SystemState d'}{st : Step s s'}
+   → (P⇒Q : ∀{s : SystemState}{s' : SystemState}{st : Step s s'}
           → P st → Step* s' st₁ → Q)
-   → Any-Step P r → Q
+   → Any-Step {ℓ} P r → Q
  Any-Step-elim P⇒Q (step-here cont prf)
    = P⇒Q prf step-0
  Any-Step-elim P⇒Q (step-there {this = this} f)
    = Any-Step-elim (λ p s → P⇒Q p (step-s s this)) f
 
+ -- A predicate over peer states, parts and peerIds, representing which peers can send new
+ -- signatures for which PKs.  The PeerState is needed to provide access to information the peer has
+ -- about who uses what keys for what parts (in our case, EpochConfigs either derived from genesis
+ -- information or agreed during epoch changes).
+ ValidSenderForPK-type : Set (ℓ+1 ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
+ ValidSenderForPK-type = SystemState → Part → PeerId → PK → Set ℓ-VSFP
+
+ ValidSenderForPK-stable-type : ValidSenderForPK-type → Set (ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
+ ValidSenderForPK-stable-type vs4pk = ∀ {pre post part pid pk}
+                                      → ReachableSystemState pre
+                                      → Step pre post
+                                      → vs4pk pre  part pid pk
+                                      → vs4pk post part pid pk
+
  ------------------------------------------
 
- module _ (P : ∀{e} → SystemState e → Set) where
+ module _ (P : SystemState → Set) where
 
-   Step*-Step-fold : (∀{e}{st : SystemState e}
-                        → ReachableSystemState st
-                        → (𝓔 : EpochConfigFor e)
-                        → P st
-                        → P (pushEpoch 𝓔 st))
-                   → (∀{e pid st' outs}{st : SystemState e}
+   Step*-Step-fold : (∀{pid st' outs}{st : SystemState}
                         → ReachableSystemState st
                         → (pstep : StepPeer st pid st' outs)
                         → P st
                         → P (StepPeer-post pstep))
                    → P initialState
-                   → ∀{e}{st : SystemState e}
+                   → ∀{st : SystemState}
                    → (tr : ReachableSystemState st) → P st
-   Step*-Step-fold fe fs p₀ step-0 = p₀
-   Step*-Step-fold fe fs p₀ (step-s tr (step-epoch 𝓔)) = fe tr 𝓔 (Step*-Step-fold fe fs p₀ tr)
-   Step*-Step-fold fe fs p₀ (step-s tr (step-peer p)) = fs tr p (Step*-Step-fold fe fs p₀ tr)
+   Step*-Step-fold fs p₀ step-0 = p₀
+   Step*-Step-fold fs p₀ (step-s tr (step-peer p)) = fs tr p (Step*-Step-fold fs p₀ tr)

@@ -9,7 +9,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we assume that the implementation meets its
 -- obligations, and use this assumption to prove that, in any reachable
@@ -18,7 +18,7 @@ open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysPa
 -- properties later.
 module LibraBFT.Concrete.Properties
          (impl-correct : ImplObligations)
-         {e}(st : SystemState e)
+         (st : SystemState)
          (r : ReachableSystemState st)
          (eid : Fin e)
          where

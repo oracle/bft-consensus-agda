@@ -6,22 +6,20 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-import      LibraBFT.Yasm.Base as LYB
+import      LibraBFT.Yasm.Base   as LYB
+import      LibraBFT.Yasm.System as LYS
 
 -- This module provides a single import for all Yasm modules
 
 module LibraBFT.Yasm.Yasm
-   (ℓ-EC        : Level)
-   (EpochConfig : Set ℓ-EC)
-   (epoch       : EpochConfig → Epoch)
-   (authorsN    : EpochConfig → ℕ)
-   (parms       : LYB.SystemParameters ℓ-EC EpochConfig epoch authorsN)
-   (senderPKOK  : (ec : EpochConfig) → PK → LYB.SystemParameters.PeerId parms → Set)
+   (ℓ-PeerState : Level)
+   (ℓ-VSFP      : Level)
+   (parms       : LYB.SystemParameters ℓ-PeerState)
+   (ValidSenderForPK        : LYS.ValidSenderForPK-type        ℓ-PeerState ℓ-VSFP parms)
+   (ValidSenderForPK-stable : LYS.ValidSenderForPK-stable-type ℓ-PeerState ℓ-VSFP parms ValidSenderForPK)
   where
  open LYB.SystemParameters parms
- open import LibraBFT.Yasm.AvailableEpochs PeerId ℓ-EC EpochConfig epoch authorsN
-             using (AvailableEpochs) renaming (lookup' to EC-lookup; lookup'' to EC-lookup') public
- open import LibraBFT.Yasm.Base       ℓ-EC EpochConfig epoch authorsN                      public
- open import LibraBFT.Yasm.System     ℓ-EC EpochConfig epoch authorsN parms                public
- open import LibraBFT.Yasm.Properties ℓ-EC EpochConfig epoch authorsN parms senderPKOK     public
- open import Util.FunctionOverride    PeerId _≟PeerId_                                       public
+ open import LibraBFT.Yasm.Base                                                                        public
+ open import LibraBFT.Yasm.System     ℓ-PeerState ℓ-VSFP parms                                          public
+ open import LibraBFT.Yasm.Properties ℓ-PeerState ℓ-VSFP parms ValidSenderForPK ValidSenderForPK-stable public
+ open import Util.FunctionOverride    PeerId _≟PeerId_                                                 public

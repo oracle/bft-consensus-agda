@@ -16,7 +16,6 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
 
 -- This module defines an abstract system state given a reachable
 -- concrete system state.
@@ -165,3 +164,5 @@ module LibraBFT.Concrete.System (sps-corr : StepPeerState-AllValidParts) where
      ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
      ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}
      }
+ open import LibraBFT.Yasm.Base
+ import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
