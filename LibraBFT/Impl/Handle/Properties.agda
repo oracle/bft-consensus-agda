@@ -67,6 +67,8 @@ module LibraBFT.Impl.Handle.Properties
   ...| C _ = ⊥-elim (C≢V v∈outs)
   ...| V vm rewrite sym v∈outs = vm , refl , here refl
 
+  ----- Properties that relate handler to system state -----
+
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
    -- Votes stored in highesQuorumCert and highestCommitCert were sent before.

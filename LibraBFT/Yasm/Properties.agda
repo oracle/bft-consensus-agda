@@ -61,11 +61,6 @@ module LibraBFT.Yasm.Properties
                            ValidSenderForPK-stable (Step*-trans r st''reach) x
                                                    (ValidSenderForPK-stable-* r st''reach v)
 
- override-elim-ValidSenderForPK : ∀ {ps part pid pk f}
-                                → ValidSenderForPK ps part pid pk
-                                → ValidSenderForPK (⟦ f , pid ← ps ⟧ pid) part pid pk
- override-elim-ValidSenderForPK vsfp = subst (λ ps → ValidSenderForPK ps _ _ _) (sym override-target-≡) vsfp  
-
  -- We say that an implementation produces only valid parts iff all parts of every message in the
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and no
  -- message with the same signature has been sent previously), or (ii) a message has been sent
