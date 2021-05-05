@@ -215,26 +215,19 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
   ...| inj₂ refl
      with msgSender mws ≟NodeId pid
-  ...| no neq
-     -- TODO-2: this will be common, streamline it!
-     with msgsToSendWereSent {pid} {0} {P pm} {m} {peerStates pre pid} m∈outs
-  ...| vm , refl , send∈
-     with msgsToSendWereSent1 {pid} {0} {pm} {vm} {peerStates pre pid} send∈
-  ...| recips , SendVote∈
-     -- We know that *after* the step, pid can sign v (vpb is about pid's post-state).  For v', we
-     -- know it about the peerState of (msgSender carrSent) in state "pre".  Because EpochConfigs
-     -- represented in peer states are consistent with each other (i.e., two peers that have
-     -- EpochConfigs for the same epoch have the same EpochConfigs for that epoch), we can use
-     -- PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
-     with step-peer (step-honest sm)
-  ...| theStep
-     with PeerCanSignForPK-stable r theStep vpf'
-  ...| vpf''
-     with availEpochsConsistent {pid} {msgSender mws} (step-s r theStep) vpb vpf''
-  ...| 𝓔s≡ = ⊥-elim (neq (trans (trans (sym (nid≡ vpf''))
-                                        (PK-inj-same-ECs (sym 𝓔s≡)
-                                                         (trans (pk≡ vpf'') (sym (pk≡ vpb)))))
-                                 (nid≡ vpb)))
+  ...| no neq =
+     -- We know that *after* the step, pid can sign v (vpb is about the post-state).  For v', we
+     -- know it about state "pre"; we transport this to the post-state using
+     -- PeerCanSignForPK-Stable.  Because EpochConfigs known in a system state are consistent with
+     -- each other (i.e., trivially, for now because only the initial EpochConfig is known), we can
+     -- use PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
+     let theStep = step-peer (step-honest sm)
+         vpf''   = PeerCanSignForPK-stable r theStep vpf'
+         𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} (step-s r theStep) vpb vpf''
+     in  ⊥-elim (neq (trans (trans (sym (nid≡ vpf''))
+                                   (PK-inj-same-ECs (sym 𝓔s≡)
+                                                    (trans (pk≡ vpf'') (sym (pk≡ vpb)))))
+                            (nid≡ vpb)))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬sentb4 vpb v'⊂m' m'∈pool sig' refl rnds≡
