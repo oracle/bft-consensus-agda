@@ -27,7 +27,6 @@ module LibraBFT.Concrete.System where
 
  open import LibraBFT.Yasm.Base
  import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
- open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig epochId renaming (lookup'' to AE-lookup)
 
  -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
  -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.

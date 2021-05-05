@@ -30,7 +30,6 @@ open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
-open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments

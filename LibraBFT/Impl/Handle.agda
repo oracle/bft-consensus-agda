@@ -13,7 +13,6 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
-open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple

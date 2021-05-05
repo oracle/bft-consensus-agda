@@ -33,7 +33,6 @@ module LibraBFT.Impl.Consensus.Types where
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
   open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
   open import LibraBFT.Impl.Consensus.Types.EpochDep         public
-  open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
