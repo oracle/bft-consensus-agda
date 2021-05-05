@@ -27,7 +27,7 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
 open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
@@ -50,14 +50,15 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → v ^∙ vEpoch ≡ (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
-                               × v ^∙ vRound ≡ ((₋rmamEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+                               → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
+                               × v ^∙ vRound ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound _ (step-init _) v⊂m m∈outs sig = ⊥-elim (¬Any[] m∈outs)
   newVoteSameEpochGreaterRound {pre = pre} {pid} {m = m} r (step-msg {(_ , nm)} msg∈pool pinit) v⊂m m∈outs sig vnew
      rewrite pinit
      with nm
   ...| P msg
+    -- TODO-2: This may be common, can we streamline it?
     with msgsToSendWereSent {pid} {0} {P msg} {m} {peerStates pre pid} m∈outs
   ...| vm , refl , vmSent
     with msgsToSendWereSent1 {pid} {0} {msg} {vm} {peerStates pre pid} vmSent
@@ -81,8 +82,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmamEC ppre) ^∙ rmEpoch ≡ (₋rmamEC ppost) ^∙ rmEpoch
-                     → (₋rmamEC ppre) ^∙ rmLastVotedRound ≤ (₋rmamEC ppost) ^∙ rmLastVotedRound
+                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
   lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
      with m
@@ -94,13 +95,13 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
   LvrProp : CarrierProp
-  LvrProp v rm = (  v ^∙ vEpoch ≢ (₋rmamEC rm) ^∙ rmEpoch
-                 ⊎ (v ^∙ vEpoch ≡ (₋rmamEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (₋rmamEC rm) ^∙ rmLastVotedRound))
+  LvrProp v rm = (  v ^∙ vEpoch ≢ (₋rmEC rm) ^∙ rmEpoch
+                 ⊎ (v ^∙ vEpoch ≡ (₋rmEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (₋rmEC rm) ^∙ rmLastVotedRound))
 
   LvrCarrier = PropCarrier LvrProp
 
   firstSendEstablishes : Vote → PK → (origSt : SystemState) → SystemStateRel Step
-  firstSendEstablishes _ _ _ (step-peer (step-cheat _)) = Lift (ℓ+1 ℓ-RoundManagerAndMeta) ⊥
+  firstSendEstablishes _ _ _ (step-peer (step-cheat _)) = Lift (ℓ+1 ℓ-RoundManager) ⊥
   firstSendEstablishes   v' pk origSt sysStep@(step-peer {pid'} {pre = pre} pstep@(step-honest _)) =
                          ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
@@ -153,8 +154,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
                                        vpk'
                                        (inj₂ ( trans eids≡ (auxEid post≡)
                                              , ≤-reflexive (trans newlvr (auxLvr post≡))))
-                                       where auxEid = cong (_^∙ rmEpoch ∘ ₋rmamEC)
-                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ ₋rmamEC)
+                                       where auxEid = cong (_^∙ rmEpoch ∘ ₋rmEC)
+                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ ₋rmEC)
 
   ImplPreservesLvr : PeerStepPreserves LvrProp
   -- We don't have a real model for the initial peer state, so we can't prove this case yet.
@@ -169,7 +170,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with preprop
   ...| inj₁ diffEpoch = inj₁ λ x → diffEpoch (trans x (sym eids≡))
   ...| inj₂ (sameEpoch , rnd≤ppre)
-     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋rmamEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
+     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋rmEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
   ...| no neq = ⊥-elim (neq sameEpoch)
   ...| yes refl
      with lastVoteRound-mono r refl (step-msg m∈pool inited) (carrInitd prop)

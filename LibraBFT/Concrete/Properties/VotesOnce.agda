@@ -17,7 +17,7 @@ open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
+ ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₁ =
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
@@ -64,7 +64,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- Then an honest implemenation promises v and v' vote for the same blockId.
    → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
- ImplObligation₂ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
+ ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre

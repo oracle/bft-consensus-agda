@@ -92,10 +92,14 @@ module LibraBFT.Impl.Consensus.Types where
   α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
+  -- Just in case RoundManager is at a higher level in future
+  ℓ-RoundManager : Level
+  ℓ-RoundManager = 0ℓ
+
   -- Finally, the RoundManager is split in two pieces: those
   -- that are used to make an EpochConfig versus those that
   -- use an EpochConfig.
-  record RoundManager : Set where
+  record RoundManager : Set ℓ-RoundManager where
     constructor mkRoundManager
     field
       ₋rmEC           : RoundManagerEC
@@ -105,20 +109,6 @@ module LibraBFT.Impl.Consensus.Types where
      -- construction of the EC nor need one, they should be defined in
      -- RoundManager directly
   open RoundManager public
-
-  record RoundManagerAndMeta : Set ℓ-EC where
-    constructor mkRoundManagerAndMeta
-    field
-      ₋rmamRM              : RoundManager
-      ₋rmamMetaNumEpochs   : ℕ
-      ₋rmamMetaAvailEpochs : AvailableEpochs ₋rmamMetaNumEpochs
-  open RoundManagerAndMeta public
-
-  ₋rmamEC : RoundManagerAndMeta → RoundManagerEC
-  ₋rmamEC = ₋rmEC ∘ ₋rmamRM
-
-  ℓ-RoundManagerAndMeta : Level
-  ℓ-RoundManagerAndMeta = ℓ-EC
 
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))

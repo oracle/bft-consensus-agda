@@ -23,10 +23,10 @@ open        EpochConfig
 module LibraBFT.Concrete.System where
 
  ℓ-VSFP : Level
- ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManagerAndMeta
+ ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManager
 
  open import LibraBFT.Yasm.Base
- import      LibraBFT.Yasm.System ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms as LYS
+ import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
  open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig epochId renaming (lookup'' to AE-lookup)
 
  -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
@@ -74,8 +74,8 @@ module LibraBFT.Concrete.System where
  PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
  PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) = (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁)
 
- open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK
-                                                                           (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK
+                                                                  (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
  -- An implementation must prove that, if one of its handlers sends a
  -- message that contains a vote and is signed by a public key pk, then

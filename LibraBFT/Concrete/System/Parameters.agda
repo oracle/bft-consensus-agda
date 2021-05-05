@@ -11,7 +11,7 @@ open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open        EpochConfig
-open import LibraBFT.Yasm.Base ℓ-EC
+open import LibraBFT.Yasm.Base ℓ-RoundManager
 
 -- In this module, we instantiate the system model with parameters to
 -- model a system using the simple implementation model we have so
@@ -26,8 +26,8 @@ module LibraBFT.Concrete.System.Parameters where
                  _≟NodeId_
                  GenesisInfo
                  genInfo
-                 RoundManagerAndMeta
-                 initMetaRM
+                 RoundManager
+                 initRM
                  NetworkMsg
                  Vote
                  sig-Vote

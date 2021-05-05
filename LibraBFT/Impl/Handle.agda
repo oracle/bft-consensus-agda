@@ -64,16 +64,16 @@ module LibraBFT.Impl.Handle
    init-EC-epoch-1  : epochId (init-EC genInfo) ≡ 1
    initRMEC-correct : RoundManagerEC-correct initRMEC
 
- initMetaRM : RoundManagerAndMeta
- initMetaRM = mkRoundManagerAndMeta fakeRM 1 (append (mkEpochConfigFor (init-EC genInfo) init-EC-epoch-1) [])
+ initRM : RoundManager
+ initRM = fakeRM
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
  initialRoundManagerAndMessages
      : (a : Author) → GenesisInfo
-     → RoundManagerAndMeta × List NetworkMsg
- initialRoundManagerAndMessages a _ = initMetaRM , []
+     → RoundManager × List NetworkMsg
+ initialRoundManagerAndMessages a _ = initRM , []
 
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
@@ -102,26 +102,26 @@ module LibraBFT.Impl.Handle
  -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
- outputToActions : RoundManagerAndMeta → Output → List (Action NetworkMsg)
- outputToActions rmam (BroadcastProposal p) = List-map (const (Action.send (P p)))
-                                                       (List-map proj₁
-                                                                 (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC (₋rmamRM rmam))))))
+ outputToActions : RoundManager → Output → List (Action NetworkMsg)
+ outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
+                                                     (List-map proj₁
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
  outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
  outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
- runHandler : RoundManagerAndMeta → LBFT Unit → RoundManagerAndMeta × List (Action NetworkMsg)
+ runHandler : RoundManager → LBFT Unit → RoundManager × List (Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId → NetworkMsg → Instant → RoundManagerAndMeta → RoundManagerAndMeta × List (Action NetworkMsg)
+ peerStep : NodeId → NetworkMsg → Instant → RoundManager → RoundManager × List (Action NetworkMsg)
  peerStep nid msg ts st = runHandler st (handle nid msg ts)
 
  -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
  -- the form required by the new system model, which does not (yet) support actions other
  -- than send.
- peerStepWrapper : NodeId → NetworkMsg → RoundManagerAndMeta → RoundManagerAndMeta × List NetworkMsg
+ peerStepWrapper : NodeId → NetworkMsg → RoundManager → RoundManager × List NetworkMsg
  peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)

@@ -47,9 +47,8 @@ module LibraBFT.Impl.Consensus.RoundManager
 
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
-    stam ← get
-    let st = ₋rmamRM stam
-        𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
+    st ← get
+    let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
         rm  = ₋rmEC st
         rmw = ₋rmWithEC st
         rmc = ₋rmEC-correct st
@@ -69,7 +68,7 @@ module LibraBFT.Impl.Consensus.RoundManager
                         ; ₋rmEC-correct = rmc2
                         ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
                         }
-    put (record stam {₋rmamRM = st'})
+    put st'
     tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))
     pure unit
 
