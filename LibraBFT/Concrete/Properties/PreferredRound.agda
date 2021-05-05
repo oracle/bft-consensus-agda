@@ -15,7 +15,7 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module contains placeholders for the future analog of the
 -- corresponding VotesOnce property.  Defining the implementation
@@ -34,7 +34,7 @@ module LibraBFT.Concrete.Properties.PreferredRound where
    (Impl-PR1 : ImplObligation₁)
    where
   -- Any reachable state satisfies the PR rule for any epoch in the system.
-  module _ {e}(st : SystemState e)(r : ReachableSystemState st)(eid : Fin e) where
+  module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
 

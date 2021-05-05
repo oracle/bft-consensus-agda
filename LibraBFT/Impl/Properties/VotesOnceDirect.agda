@@ -14,14 +14,14 @@ open import LibraBFT.Base.PKCS
 
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
 
-open import LibraBFT.Impl.Consensus.Types hiding (EpochConfigFor)
+open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle.Properties                               sha256 sha256-cr
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Concrete.System impl-sps-avp
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm (ℓ+1 0ℓ) EpochConfig epoch authorsN ConcSysParms NodeId-PK-OK
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 open import LibraBFT.Impl.Properties.VotesOnce
 

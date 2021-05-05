@@ -67,11 +67,6 @@ module LibraBFT.Abstract.Types.EpochConfig
     NodeId-PK-OK-injective (m1 , pid1 , pk1) (m2 , pid2 , pk2)
        rewrite PK-inj ec (trans pk1 (sym pk2)) = trans (sym pid1) pid2
 
-  record EpochConfigFor (eid : ℕ) : Set₁ where
-    field
-     epochConfig : EpochConfig
-     forEpoch    : epoch epochConfig ≡ eid
-
   module WithAbsVote (𝓔 : EpochConfig) where
     -- The abstract model is connected to the implementaton by means of
     -- 'VoteEvidence'. The record module will be parameterized by a
