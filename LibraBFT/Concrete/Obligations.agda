@@ -17,7 +17,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- proved in Abstract.Properties.
 
 module LibraBFT.Concrete.Obligations where
-  record ImplObligations : Set₁ where
+  record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field
       -- Structural obligations:
       sps-cor : StepPeerState-AllValidParts

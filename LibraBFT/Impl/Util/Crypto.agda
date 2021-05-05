@@ -22,7 +22,7 @@ module LibraBFT.Impl.Util.Crypto where
   -- Note that this is an abstraction of a collision-resistant hash function.  It could be any such
   -- hash function, not necessarily sha256.  We just call it sha256 for "concreteness", to remind
   -- ourselves it's modeling such a function.
-  postulate
+  postulate -- valid assumption (collision-resistant hash function)
     sha256    : BitString → Hash
     sha256-cr : ∀{x y} → sha256 x ≡ sha256 y → Collision sha256 x y ⊎ x ≡ y
 

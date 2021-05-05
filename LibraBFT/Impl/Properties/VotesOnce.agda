@@ -24,10 +24,11 @@ open import LibraBFT.Impl.Handle.Properties                  sha256 sha256-cr
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Impl.Util.Util
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
