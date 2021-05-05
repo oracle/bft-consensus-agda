@@ -33,10 +33,10 @@ module LibraBFT.Concrete.System where
  -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.
  data EpochConfig∈Sys (st : LYS.SystemState) (𝓔 : EpochConfig) : Set ℓ-EC where
    inGenInfo : init-EC genInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
-   -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys 
+   -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
 
  -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in a known
- -- EpochConfig.  
+ -- EpochConfig.
  record PeerCanSignForPK (st : LYS.SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
    constructor mkPCS4PK
    field
@@ -48,27 +48,8 @@ module LibraBFT.Concrete.System where
      pk≡      : getPubKey 𝓔 mbr ≡ pk
  open PeerCanSignForPK
 
- PCS4PK⇒NodeId-PK-OK : ∀ {rmam v pid pk} → (pcs : PeerCanSignForPK rmam v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
+ PCS4PK⇒NodeId-PK-OK : ∀ {st v pid pk} → (pcs : PeerCanSignForPK st v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
  PCS4PK⇒NodeId-PK-OK (mkPCS4PK _ _ _ mbr n≡ pk≡) = mbr , n≡ , pk≡
-
- noEpochChangeSPS₁ : ∀ {st pid ps' msgs}
-                  → LYS.initialised st pid ≡ LYS.initd
-                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
-                  → ₋rmamMetaNumEpochs ps' ≡ ₋rmamMetaNumEpochs (LYS.peerStates st pid)
- noEpochChangeSPS₁ ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- noEpochChangeSPS₁ _ (LYS.step-msg {_ , P x} m∈pool ini) = refl
- noEpochChangeSPS₁ _ (LYS.step-msg {_ , V x} m∈pool ini) = refl
- noEpochChangeSPS₁ _ (LYS.step-msg {_ , C x} m∈pool ini) = refl
-
- noEpochChangeSPS₂ : ∀ {st pid ps' msgs}
-                   → LYS.initialised st pid ≡ LYS.initd
-                   → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
-                   → (num𝓔s≡ : ₋rmamMetaNumEpochs ps' ≡ ₋rmamMetaNumEpochs (LYS.peerStates st pid))
-                   → ₋rmamMetaAvailEpochs (LYS.peerStates st pid) ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs ps')
- noEpochChangeSPS₂ ini (LYS.step-init uni) _ = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- noEpochChangeSPS₂ _  (LYS.step-msg {_ , P x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
- noEpochChangeSPS₂ _  (LYS.step-msg {_ , V x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
- noEpochChangeSPS₂ _  (LYS.step-msg {_ , C x} _ ini) num𝓔s≡ rewrite num𝓔s≡ = refl
 
  -- This is super simple for now because the only known EpochConfig is dervied from genInfo, which is not state-dependent
  PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
