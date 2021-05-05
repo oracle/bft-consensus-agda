@@ -27,7 +27,7 @@ module LibraBFT.Abstract.Records
   -- UID of an abstract one; the connection between states is implicit.
   -- Our proofs all work modulo injectivity of UID anyway.
   record Block  : Set where
-    constructor mkBlock
+    constructor Block∙new
     field
       bRound   : Round
       bId      : UID
@@ -67,7 +67,7 @@ module LibraBFT.Abstract.Records
   -- A valid quorum certificate contains at least 'QuorumSize ec'
   -- votes from different authors.
   record QC : Set where
-   constructor mkQC
+   constructor QC∙new
    field
      qRound         : Round
      qCertBlockId   : UID -- this is the id for the block it certifies.

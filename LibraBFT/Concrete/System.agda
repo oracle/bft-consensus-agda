@@ -40,7 +40,7 @@ module LibraBFT.Concrete.System where
    constructor mkPCS4PK
    field
      𝓔       : EpochConfig
-     𝓔id≡    : epochId 𝓔 ≡ v ^∙ vEpoch
+     𝓔id≡    : epoch 𝓔 ≡ v ^∙ vEpoch
      𝓔inSys  : EpochConfig∈Sys st 𝓔
      mbr      : Member 𝓔
      nid≡     : toNodeId  𝓔 mbr ≡ pid
@@ -133,7 +133,7 @@ module LibraBFT.Concrete.System where
          vmsgMember    : EpochConfig.Member 𝓔
          vmsgSigned    : WithVerSig (getPubKey 𝓔 vmsgMember) cv
          vmsg≈v        : α-ValidVote 𝓔 cv vmsgMember ≡ v
-         vmsgEpoch     : cv ^∙ vEpoch ≡ epochId 𝓔
+         vmsgEpoch     : cv ^∙ vEpoch ≡ epoch 𝓔
      open ∃VoteMsgFor public
 
      record ∃VoteMsgSentFor (sm : SentMessages)(v : Abs.Vote) : Set where

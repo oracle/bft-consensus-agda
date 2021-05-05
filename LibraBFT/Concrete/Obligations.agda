@@ -8,8 +8,8 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open import LibraBFT.Impl.Consensus.Types
 
-import      LibraBFT.Concrete.Properties.VotesOnce   as VO
-import      LibraBFT.Concrete.Properties.LockedRound as LR
+import      LibraBFT.Concrete.Properties.VotesOnce      as VO
+import      LibraBFT.Concrete.Properties.PreferredRound as PR
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
@@ -29,5 +29,5 @@ module LibraBFT.Concrete.Obligations where
       vo₁ : VO.ImplObligation₁
       vo₂ : VO.ImplObligation₂
 
-      -- LockedRound:
-      lr₁ : LR.ImplObligation₁
+      -- PreferredRound:
+      pr₁ : PR.ImplObligation₁

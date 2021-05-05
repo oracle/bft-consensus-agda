@@ -31,9 +31,9 @@ module LibraBFT.Concrete.Properties
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
     import      LibraBFT.Concrete.Obligations.VotesOnce          𝓔 (ConcreteVoteEvidence 𝓔) as VO-obl
-    import      LibraBFT.Concrete.Obligations.LockedRound        𝓔 (ConcreteVoteEvidence 𝓔) as LR-obl
+    import      LibraBFT.Concrete.Obligations.PreferredRound     𝓔 (ConcreteVoteEvidence 𝓔) as PR-obl
     open import LibraBFT.Concrete.Properties.VotesOnce                                       as VO
-    open import LibraBFT.Concrete.Properties.LockedRound                                     as LR
+    open import LibraBFT.Concrete.Properties.PreferredRound                                  as PR
 
     --------------------------------------------------------------------------------------------
     -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Properties
     record ValidSysState {ℓ}(𝓢 : IntermediateSystemState ℓ) : Set (ℓ+1 ℓ0 ℓ⊔ ℓ) where
       field
         vss-votes-once   : VO-obl.Type 𝓢
-        vss-locked-round : LR-obl.Type 𝓢
+        vss-preferred-round : PR-obl.Type 𝓢
     open ValidSysState public
 
     -- TODO-2 : This should be provided as a module parameter here, and the
@@ -55,8 +55,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState IntSystemState
     validState = record
-      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
-      ; vss-locked-round = LR.Proof.lrr sps-cor lr₁ st r 𝓔
+      { vss-votes-once      = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
+      ; vss-preferred-round = PR.Proof.prr sps-cor pr₁     st r 𝓔
       }
 
     open IntermediateSystemState IntSystemState
@@ -76,7 +76,7 @@ module LibraBFT.Concrete.Properties
        → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
     ConcCommitsDoNotConflict = CommitsDoNotConflict
            (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (LR-obl.proof IntSystemState (vss-locked-round validState))
+           (PR-obl.proof IntSystemState (vss-preferred-round validState))
 
     module _ (∈QC⇒AllSent : Complete InSys) where
 
@@ -88,7 +88,7 @@ module LibraBFT.Concrete.Properties
         → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
       ConcCommitsDoNotConflict' = CommitsDoNotConflict'
            (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (LR-obl.proof IntSystemState (vss-locked-round validState))
+           (PR-obl.proof IntSystemState (vss-preferred-round validState))
            ∈QC⇒AllSent
 
       ConcCommitsDoNotConflict''
@@ -104,6 +104,6 @@ module LibraBFT.Concrete.Properties
                                  ⊎ Σ (RecordChain (Abs.Q q))  ((Abs.B b') ∈RC_)
       ConcCommitsDoNotConflict'' = CommitsDoNotConflict''
            (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (LR-obl.proof IntSystemState (vss-locked-round validState))
+           (PR-obl.proof IntSystemState (vss-preferred-round validState))
            ∈QC⇒AllSent
 

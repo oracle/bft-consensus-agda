@@ -326,13 +326,13 @@ module LibraBFT.Yasm.System
  ReachableSystemState : SystemState → Set (ℓ+1 ℓ-PeerState)
  ReachableSystemState = Step* initialState
 
- eventProcessorPostSt : ∀ {pid s' s outs} {st : SystemState}
+ roundManagerPostSt : ∀ {pid s' s outs} {st : SystemState}
                       → (r : ReachableSystemState st)
                       → (stP : StepPeerState pid (msgPool st) (initialised st)
                                              (peerStates st pid) (s' , outs))
                       → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
                       → s ≡ s'
- eventProcessorPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
+ roundManagerPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-trans : ∀ {st st' st''}
              → Step* st st'

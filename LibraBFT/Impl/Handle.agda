@@ -52,15 +52,15 @@ module LibraBFT.Impl.Handle
    init-EC : GenesisInfo → EpochConfig
 
  initSR : SafetyRules
- initSR =  over (srPersistentStorage ∙ psEpoch) (const 1)
-                (over (srPersistentStorage ∙ psLastVotedRound) (const 0)
+ initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
+                (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
- initRMEC = mkRoundManagerEC initSR (initVV genInfo)
+ initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
-   init-EC-epoch-1  : epochId (init-EC genInfo) ≡ 1
+   init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
    initRMEC-correct : RoundManagerEC-correct initRMEC
 
  initRM : RoundManager

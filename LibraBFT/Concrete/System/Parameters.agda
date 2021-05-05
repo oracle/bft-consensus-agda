@@ -15,7 +15,7 @@ open import LibraBFT.Yasm.Base ℓ-RoundManager
 
 -- In this module, we instantiate the system model with parameters to
 -- model a system using the simple implementation model we have so
--- far, which aims to obey the VotesOnceRule, but not LockedRoundRule
+-- far, which aims to obey the VotesOnceRule, but not PreferredRoundRule
 -- yet.  This will evolve as we build out a model of a real
 -- implementation.
 
