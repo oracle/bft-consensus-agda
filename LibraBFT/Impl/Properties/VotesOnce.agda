@@ -150,7 +150,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| post≡ = r , ¬sentb4 , mkCarrier (step-s r (step-peer (step-honest hstep)))
                                        mws
                                        (override-target-≡ {a = β})
-                                       (override-elim-ValidSenderForPK vpk')
+                                       vpk'
                                        (inj₂ ( trans eids≡ (auxEid post≡)
                                              , ≤-reflexive (trans newlvr (auxLvr post≡))))
                                        where auxEid = cong (_^∙ rmEpoch ∘ ₋rmamEC)
@@ -226,10 +226,14 @@ module LibraBFT.Impl.Properties.VotesOnce where
      -- represented in peer states are consistent with each other (i.e., two peers that have
      -- EpochConfigs for the same epoch have the same EpochConfigs for that epoch), we can use
      -- PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
-     with availEpochsConsistent {pid} {msgSender mws} r (inPost pidini sm vpb) (inPre ini vpf')
-  ...| 𝓔s≡ = ⊥-elim (neq (trans (trans (sym (nid≡ vpf'))
+     with step-peer (step-honest sm)
+  ...| theStep
+     with PeerCanSignForPK-stable r theStep vpf'
+  ...| vpf''
+     with availEpochsConsistent {pid} {msgSender mws} (step-s r theStep) vpb vpf''
+  ...| 𝓔s≡ = ⊥-elim (neq (trans (trans (sym (nid≡ vpf''))
                                         (PK-inj-same-ECs (sym 𝓔s≡)
-                                                         (trans (pk≡ vpf') (sym (pk≡ vpb)))))
+                                                         (trans (pk≡ vpf'') (sym (pk≡ vpb)))))
                                  (nid≡ vpb)))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
