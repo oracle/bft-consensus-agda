@@ -41,7 +41,7 @@ module LibraBFT.Impl.Consensus.RoundManager
   fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
   fakeLedgerInfo bi pm = LedgerInfo∙new bi (pm ^∙ pmProposal ∙ bId)
 
-  postulate
+  postulate -- TODO-1: these are temporary scaffolding for the fake implementation
     fakeSK  : SK
     fakeSig : Signature
 
@@ -49,12 +49,12 @@ module LibraBFT.Impl.Consensus.RoundManager
   processProposalMsg inst pm = do
     st ← get
     let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
-        ix = EpochConfig.epoch 𝓔
         rm  = ₋rmEC st
         rmw = ₋rmWithEC st
         rmc = ₋rmEC-correct st
         bt = rmw ^∙ (lBlockTree 𝓔)
         nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
+        ix = rm ^∙ rmEpoch
         uv = Vote∙new
                     (VoteData∙new (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor

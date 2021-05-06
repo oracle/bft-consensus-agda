@@ -13,6 +13,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
+open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
@@ -24,18 +25,54 @@ module LibraBFT.Impl.Handle
  open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
  open RWST-do
 
+ open EpochConfig
+
+ record GenesisInfo : Set where
+   constructor mkGenInfo
+   field
+     -- Nodes, PKs for initial epoch
+     -- Faults to tolerate (or quorum size?)
+     genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
+                                        -- highestCommitCert.
+
+ postulate -- valid assumption
+   -- We postulate the existence of GenesisInfo known to all
+   genInfo : GenesisInfo
+
+ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
+           -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
+           -- this won't be needed
+
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
  -- the initial RoundManager for every peer until it is initialised.
- postulate
    fakeRM : RoundManager
+
+ postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+   initVV  : GenesisInfo → ValidatorVerifier
+   init-EC : GenesisInfo → EpochConfig
+
+ initSR : SafetyRules
+ initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
+                (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
+                      (₋rmSafetyRules (₋rmEC fakeRM)))
+
+ initRMEC : RoundManagerEC
+ initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
+
+ postulate -- TODO-2 : prove these once initRMEC is defined directly
+   init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
+   initRMEC-correct : RoundManagerEC-correct initRMEC
+
+ initRM : RoundManager
+ initRM = fakeRM
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
  initialRoundManagerAndMessages
-     : (a : Author) → EpochConfig → RoundManager
+     : (a : Author) → GenesisInfo
      → RoundManager × List NetworkMsg
- initialRoundManagerAndMessages a _ _ = fakeRM , []
+ initialRoundManagerAndMessages a _ = initRM , []
 
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
