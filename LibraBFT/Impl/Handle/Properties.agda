@@ -83,3 +83,28 @@ module LibraBFT.Impl.Handle.Properties
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
+   -- We can prove this easily because we don't yet do epoch changes,
+   -- so only the initial EC is relevant.  Later, this will require us to use the fact that
+   -- epoch changes require proof of committing an epoch-changing transaction.
+  availEpochsConsistent :
+     ∀{pid pid' v v' pk}{st : SystemState}
+     → ReachableSystemState st
+     → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+     → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+     → PeerCanSignForPK.𝓔 pkvpf ≡ PeerCanSignForPK.𝓔 pkvpf'
+  availEpochsConsistent r (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
+                          (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
+
+  -- Always true, so far, as no epoch changes.
+  noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
+                     → ReachableSystemState pre
+                     → ppre ≡ peerStates pre pid
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
+                     → initialised pre pid ≡ initd
+                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+  noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
+  noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
+     with m
+  ...| P p = refl
+  ...| V v = refl
+  ...| C c = refl

@@ -23,6 +23,11 @@ module LibraBFT.Impl.Consensus.RoundManager.Properties
 
   open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
 
+  voteForCurrentEpoch : ∀ {ts pm pre vm αs}
+                      → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
+                      → (₋rmEC pre) ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
+  voteForCurrentEpoch (here refl) = refl
+
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
