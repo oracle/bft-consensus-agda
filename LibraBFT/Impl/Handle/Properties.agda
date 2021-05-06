@@ -21,7 +21,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
 open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should be in this file?
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})

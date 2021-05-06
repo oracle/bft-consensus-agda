@@ -12,6 +12,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open        EpochConfig
+open import LibraBFT.Concrete.System
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we will prove a structural property that any new signed message produced by an
@@ -25,7 +26,7 @@ module LibraBFT.Impl.Properties.Aux where
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
   impl-sps-avp : StepPeerState-AllValidParts
   -- In our fake/simple implementation, init and handling V and C msgs do not send any messages
-  impl-sps-avp _ hpk (step-init ix) m∈outs part⊂m ver      = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-init _) m∈outs part⊂m ver         = ⊥-elim (¬Any[] m∈outs)
   impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
   impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
   -- These aren't true yet, because processProposalMsgM sends fake votes that don't follow the rules for ValidPartForPK
@@ -50,11 +51,7 @@ module LibraBFT.Impl.Properties.Aux where
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ ((mkValidSenderForPK      {! epoch !} -- We will need an invariant that says the epoch
-                                                             -- used by a voter is "in range".
-                                                 (EC-lookup' (availEpochs st) {!!})
-                                                 refl
-                                                 {! !}       -- The implementation will need to check that the voter is a member of
-                                                             -- the epoch of the message it's sending.
-                                                 )
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {! !} {!!} (inGenInfo refl) {!!} {!!} {!!}
+       -- The implementation will need to provide evidence that the peer is a member of
+       -- the epoch of the message it's sending and that it is assigned pk for that epoch.
                         , msg∉)

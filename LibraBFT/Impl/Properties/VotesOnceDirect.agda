@@ -18,10 +18,11 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle.Properties                               sha256 sha256-cr
 open import LibraBFT.Impl.Properties.Aux
-open import LibraBFT.Concrete.System impl-sps-avp
+open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
 open import LibraBFT.Impl.Properties.VotesOnce
 
