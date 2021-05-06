@@ -59,6 +59,12 @@ module LibraBFT.Abstract.Types.EpochConfig
 
   open EpochConfig
 
+  PK-inj-same-ECs : ∀ {𝓔₁ 𝓔₂ : EpochConfig}{mbr₁ mbr₂}
+                  → 𝓔₁ ≡ 𝓔₂
+                  → getPubKey 𝓔₁ mbr₁ ≡ getPubKey 𝓔₂ mbr₂
+                  → toNodeId 𝓔₁ mbr₁ ≡ toNodeId 𝓔₂ mbr₂
+  PK-inj-same-ECs {𝓔₁} refl pks≡ = cong (toNodeId 𝓔₁) (PK-inj 𝓔₁ pks≡)
+
   module _ (ec : EpochConfig) where
     NodeId-PK-OK : PK → NodeId → Set
     NodeId-PK-OK pk pid = ∃[ m ] (toNodeId ec m ≡ pid × getPubKey ec m ≡ pk)
