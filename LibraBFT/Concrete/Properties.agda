@@ -9,6 +9,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open        EpochConfig
+open import LibraBFT.Concrete.System
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we assume that the implementation meets its
@@ -20,12 +21,12 @@ module LibraBFT.Concrete.Properties
          (impl-correct : ImplObligations)
          (st : SystemState)
          (r : ReachableSystemState st)
-         (eid : Fin e)
+         (𝓔 : EpochConfig)
          where
     open        ImplObligations impl-correct
-    open import LibraBFT.Concrete.System sps-cor
+    open        WithSPS sps-cor
     open        PerState st r
-    open        PerEpoch eid
+    open        PerEpoch 𝓔
 
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
@@ -54,8 +55,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState IntSystemState
     validState = record
-      { vss-votes-once   = VO.Proof.voo sps-cor vo₁ vo₂ st r eid
-      ; vss-preferred-round = PR.Proof.prr sps-cor pr₁ st r eid
+      { vss-votes-once      = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
+      ; vss-preferred-round = PR.Proof.prr sps-cor pr₁     st r 𝓔
       }
 
     open IntermediateSystemState IntSystemState

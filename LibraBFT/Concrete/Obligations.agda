@@ -5,10 +5,11 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.System.Parameters
-import      LibraBFT.Concrete.Properties.VotesOnce   as VO
+open import LibraBFT.Concrete.System
 open import LibraBFT.Impl.Consensus.Types
+
+import      LibraBFT.Concrete.Properties.VotesOnce      as VO
 import      LibraBFT.Concrete.Properties.PreferredRound as PR
-open        EpochConfig
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 

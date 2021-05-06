@@ -15,6 +15,7 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Concrete.System
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
@@ -57,11 +58,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
    -- If v and v' share the same epoch and round
-   → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
-   → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙ vRound ≡ v' ^∙ vRound
    ----------------------------------------------------------
    -- Then an honest implemenation promises v and v' vote for the same blockId.
-   → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
+   → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
  ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
@@ -80,11 +81,11 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
 
    -- If v and v' share the same epoch and round
-   → (v ^∙ vEpoch) ≡ (v' ^∙ vEpoch)
-   → (v ^∙ vProposed ∙ biRound) ≡ (v' ^∙ vProposed ∙ biRound)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙ vRound ≡ v' ^∙ vRound
    ----------------------------------------------------------
    -- Then, an honest implemenation promises v and v' vote for the same blockId.
-   → (v ^∙ vProposed ∙ biId) ≡ (v' ^∙ vProposed ∙ biId)
+   → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
  -- Next, we prove that, given the necessary obligations,
  module Proof
@@ -97,11 +98,10 @@ module LibraBFT.Concrete.Properties.VotesOnce where
   module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
 
    open Structural sps-corr
-
    -- Bring in IntSystemState
-   open import LibraBFT.Concrete.System sps-corr
+   open WithSPS sps-corr
    open PerState st r
-   open PerEpoch eid
+   open PerEpoch 𝓔
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 
