@@ -24,12 +24,13 @@ module LibraBFT.Concrete.System.Parameters where
  ConcSysParms = mkSysParms
                  NodeId
                  _≟NodeId_
+                 GenesisInfo
+                 genInfo
                  RoundManager
-                 fakeRM
+                 initRM
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
-                 (_^∙ vEpoch)
                  initialRoundManagerAndMessages
                  peerStepWrapper
