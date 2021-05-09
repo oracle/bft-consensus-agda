@@ -148,9 +148,9 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| yes refl = refl
   ...| no pids≢
      with stP
-  ... | step-init uni = ⊥-elim (uninitd≢initd (trans (sym uni) {! !}))
+  ... | step-init uni = ⊥-elim (uninitd≢initd (trans (sym uni) {!!}))
   ... | step-msg _ ini
-     with availEpochsConsistent r (inPre {! !} pcsv'Pre) (inPost ini stP pcsvPost)
+     with availEpochsConsistent r (inPre {!!} pcsv'Pre) (inPost ini stP pcsvPost)
   ...| refl = ⊥-elim (pids≢ (NodeId-PK-OK-injective (𝓔 pcsvPost)
                                                     (PCS4PK⇒NodeId-PK-OK pcsvPost)
                                                     (PCS4PK⇒NodeId-PK-OK pcsv'Pre)))
@@ -220,39 +220,46 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
 
   oldVoteRound≤lvr :  ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
+                   → initialised pre pid ≡ initd
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK (peerStates pre pid) v pid pk
                    → (₋rmamEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                    → v ^∙ vRound ≤ (₋rmamEC (peerStates pre pid)) ^∙ rmLastVotedRound
   oldVoteRound≤lvr {pid'} {pre = pre} (step-s {pre = prev} r (step-peer {pid = pid} cheat@(step-cheat c)))
-                    pkH sig msv vspk eid≡
+                    initP pkH sig msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv
   ...| msb4 rewrite cheatStepDNMPeerStates₁ {pid = pid} {pid' = pid'} cheat unit
-       = oldVoteRound≤lvr r pkH sig msb4 vspk eid≡
+       = oldVoteRound≤lvr r (trans (sym (overrideSameVal-correct pid pid')) initP) pkH sig msb4 vspk eid≡
   oldVoteRound≤lvr {pid'} {pre = pre}
                    step@(step-s {pre = prev} r (step-peer {pid} stepPeer@(step-honest stPeer)))
-                   pkH sig msv vspk eid≡
+                   initP pkH sig msv vspk eid≡
      with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
   ...| inj₂ msb4 rewrite msgSameSig msv
      with pid ≟ pid'
-  ...| no  pid≢ = oldVoteRound≤lvr r pkH sig msb4 vspk eid≡
+  ...| no  pid≢ = oldVoteRound≤lvr r initP pkH sig msb4 vspk eid≡
   ...| yes refl = let  pcs = peerCanSignSameS vspk (sym (StepPeer-post-lemma stepPeer))
                        canSign = peerCanSign-Msb4 r stepPeer pcs pkH sig msb4
                        initP = msg∈pool⇒initd r canSign pkH sig msb4
                        ep≡   = noEpochIdChangeYet r refl stPeer initP
                        lvr≤  = lastVoteRound-mono r refl stPeer initP ep≡
-                   in ≤-trans (oldVoteRound≤lvr r pkH sig msb4 canSign (trans ep≡ eid≡)) lvr≤
+                   in ≤-trans (oldVoteRound≤lvr r initP pkH sig msb4 canSign (trans ep≡ eid≡)) lvr≤
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s {pre = prev} r (step-peer {pid} {st'} stepPeer@(step-honest stPeer)))
-                   pkH sig msv vspk eid≡
+                   initP pkH sig msv vspk eid≡
      | inj₁ (m∈outs , vspkN , newV)
      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
   ...| inj₂ refl
      with pid ≟ pid'
   ...| yes refl = ≡⇒≤ (newVoteEpoch≡⇒GreaterRound r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV (sym eid≡))
-  ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj r stPeer pkH vspk vspkN refl))
+  ...| no  pid≢
+    with stPeer
+  ... | step-msg _ pidIn
+     with availEpochsConsistent r (inPre initP vspk) (inPost pidIn stPeer vspkN)
+  ... | refl = ⊥-elim (pid≢ (NodeId-PK-OK-injective (𝓔 vspkN)
+                                                    (PCS4PK⇒NodeId-PK-OK vspkN)
+                                                    (PCS4PK⇒NodeId-PK-OK vspk)))
 
 
   votesOnce₁ : VO.ImplObligation₁
@@ -263,7 +270,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                      vspkv' = peerCanSignEp≡ {v' = v'} vspkv eid≡
                      pcsv'  = peerCanSignSameS vspkv' (sym (StepPeer-post-lemma (step-honest step)))
                      vspkv' = peerCanSign-Msb4 r (step-honest step) pcsv' pkH sv' m'mwsb
-                     rv'<rv = oldVoteRound≤lvr r pkH sv' m'mwsb vspkv' eid≡
+                     rv'<rv = oldVoteRound≤lvr r psI pkH sv' m'mwsb vspkv' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
        = ⊥-elim (¬msb (qcVotesSentB4 r psI refl qc∈m refl vs∈qc))
