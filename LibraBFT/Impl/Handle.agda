@@ -57,7 +57,7 @@ module LibraBFT.Impl.Handle
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initSR
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
@@ -104,7 +104,7 @@ module LibraBFT.Impl.Handle
  outputToActions : RoundManager → Output → List (Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
