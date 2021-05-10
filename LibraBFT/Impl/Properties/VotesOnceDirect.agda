@@ -104,15 +104,41 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   -- will involve much of the same complexity, and perhaps be more difficult overall.  Maybe
   -- something like the following could be proved inductively, and then used together with
   -- injectivity properties as mentioned above to determine that the two pids are the same.
+  peerCanSignEp≡ : ∀ {pid v v' pk s'}
+                   → PeerCanSignForPK s' v pid pk
+                   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+                   → PeerCanSignForPK s' v' pid pk
+  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁) refl
+    = (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁)
 
-  postulate
-   MsgWithSig⇒ValidSenderInitialised :
-     ∀ {st pk v}
+  MsgWithSig⇒ValidSenderInitialised :
+     ∀ {st v pk}
      → ReachableSystemState st
-     → Meta-Honest-PK pk
+     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
      → MsgWithSig∈ pk (₋vSignature v) (msgPool st)
      → ∃[ pid ] ( initialised st pid ≡ initd
                 × PeerCanSignForPK st v pid pk )
+  MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest {pid} stP))) pkH sig msv
+     with newMsg⊎msgSentB4 r stP pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
+  ...| inj₁ (m∈outs , pcsN , newV)
+     with stP
+  ...| step-msg _ initP
+      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
+  ...| inj₁ hb   = ⊥-elim (PerState.meta-sha256-cr st (step-s r step) hb)
+  ...| inj₂ refl = pid , peersRemainInitialized step initP , peerCanSignEp≡ pcsN refl
+  MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest stP))) pkH sig msv
+     | inj₂ msb4 rewrite msgSameSig msv
+     with MsgWithSig⇒ValidSenderInitialised {v = v} r pkH sig msb4
+  ...| pid , initP , pcsPre = pid ,
+                              peersRemainInitialized step initP ,
+                              PeerCanSignForPK-stable r step pcsPre
+  MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer cheat@(step-cheat x))) pkH sig msv
+     with ¬cheatForgeNew cheat refl unit pkH msv
+  ...| msb4
+     with MsgWithSig⇒ValidSenderInitialised {v = v} r pkH sig msb4
+  ...| pid , initP , pcsPre = pid ,
+                              peersRemainInitialized step initP ,
+                              PeerCanSignForPK-stable r step pcsPre
 
 
   peerCanSign-Msb4 : ∀ {pid v pk}{pre post : SystemState}
@@ -122,36 +148,22 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                     → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                     → PeerCanSignForPK pre v pid pk
-  peerCanSign-Msb4 r step pcsv pkH sig msv = {!!}
-
-  peerCanSignEp≡ : ∀ {pid v v' pk s'}
-                   → PeerCanSignForPK s' v pid pk
-                   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-                   → PeerCanSignForPK s' v' pid pk
-  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁) refl = (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁)
-
+  peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) pkH sig msv
+    = mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁
 
   peerCanSignPK-Inj :  ∀ {pid pid' pk v v'}{st : SystemState}
                     → ReachableSystemState st
-                    --→ (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                     → Meta-Honest-PK pk
                     → PeerCanSignForPK st v' pid' pk
                     → PeerCanSignForPK st v pid pk
                     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                     → pid ≡ pid'
-  peerCanSignPK-Inj = {!!}
-  {- peerCanSignPK-Inj {pid} {pid'} {v = v} r stP pkH pcsv'Pre pcsvPost refl
-    with pid ≟ pid'
-  ...| yes refl = refl
-  ...| no pids≢
-     with step-peer (step-honest stP)
-  ...| theStep
-     with PeerCanSignForPK-stable r theStep pcsv'Pre
-  ...| pcsv'Post
-     with availEpochsConsistent (step-s r theStep) pcsv'Post pcsvPost
-  ...| refl = ⊥-elim (pids≢ (NodeId-PK-OK-injective (𝓔 pcsvPost)
-                                                    (PCS4PK⇒NodeId-PK-OK pcsvPost)
-                                                    ( PCS4PK⇒NodeId-PK-OK pcsv'Post))) -}
+  peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs eid≡
+     with availEpochsConsistent r pcs' pcs
+  ...| refl
+     with NodeId-PK-OK-injective (𝓔 pcs) (PCS4PK⇒NodeId-PK-OK pcs) (PCS4PK⇒NodeId-PK-OK pcs')
+  ...| pids≡ = pids≡
+
 
   msg∈pool⇒initd : ∀ {pid pk v}{st : SystemState}
                    → ReachableSystemState st
@@ -178,7 +190,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                   in msg∈pool⇒initd r pcsmsb4 pkH sig msb4
   msg∈pool⇒initd {pid'} (step-s r step@(step-peer {pid} cheat@(step-cheat c))) pcs pkH sig msv
     with ¬cheatForgeNew cheat refl unit pkH msv
-  ...| msb4 rewrite cheatStepDNMPeerStates₁ {pid} {pid'} cheat unit
+  ...| msb4
        = let pcsmsb4 = peerCanSign-Msb4 r step pcs pkH sig msb4
              initPre = msg∈pool⇒initd r pcsmsb4  pkH sig msb4
          in peersRemainInitialized (step-peer cheat) initPre
