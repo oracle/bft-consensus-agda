@@ -11,11 +11,11 @@ open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle sha256 sha256-cr
 open        EpochConfig
-open import LibraBFT.Yasm.Base ℓ-EC
+open import LibraBFT.Yasm.Base ℓ-RoundManager
 
 -- In this module, we instantiate the system model with parameters to
 -- model a system using the simple implementation model we have so
--- far, which aims to obey the VotesOnceRule, but not LockedRoundRule
+-- far, which aims to obey the VotesOnceRule, but not PreferredRoundRule
 -- yet.  This will evolve as we build out a model of a real
 -- implementation.
 
@@ -26,8 +26,8 @@ module LibraBFT.Concrete.System.Parameters where
                  _≟NodeId_
                  GenesisInfo
                  genInfo
-                 RoundManagerAndMeta
-                 initMetaRM
+                 RoundManager
+                 initRM
                  NetworkMsg
                  Vote
                  sig-Vote

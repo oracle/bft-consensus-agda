@@ -60,6 +60,9 @@ module LibraBFT.Base.ByteString where
   ByteString : Set
   ByteString = List (Vec Bool 8)
 
+  _≟ByteString_ : (bs1 bs2 : ByteString) → Dec (bs1 ≡ bs2)
+  _≟ByteString_ = List-≡-dec (Vec-≡-dec _≟Bool_)
+
   -- Concatenates ByteString prepending '11' to each byte.
   toBitString-pad' : ByteString → BitString
   toBitString-pad' = concat ∘ List-map (λ v → true ∷ true ∷ Vec-toList v)

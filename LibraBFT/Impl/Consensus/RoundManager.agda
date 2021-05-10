@@ -35,11 +35,11 @@ module LibraBFT.Impl.Consensus.RoundManager
   fakeAuthor : Author
   fakeAuthor = 0
 
-  fakeBlockInfo : EpochId → Round → ProposalMsg → BlockInfo
-  fakeBlockInfo eid rnd pm = mkBlockInfo eid rnd (pm ^∙ pmProposal ∙ bId)
+  fakeBlockInfo : Epoch → Round → ProposalMsg → BlockInfo
+  fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId)
 
   fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
-  fakeLedgerInfo bi pm = mkLedgerInfo bi (pm ^∙ pmProposal ∙ bId)
+  fakeLedgerInfo bi pm = LedgerInfo∙new bi (pm ^∙ pmProposal ∙ bId)
 
   postulate -- TODO-1: these are temporary scaffolding for the fake implementation
     fakeSK  : SK
@@ -47,30 +47,30 @@ module LibraBFT.Impl.Consensus.RoundManager
 
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
-    stam ← get
-    let st = ₋rmamRM stam
-        𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
+    st ← get
+    let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
         rm  = ₋rmEC st
         rmw = ₋rmWithEC st
         rmc = ₋rmEC-correct st
         bt = rmw ^∙ (lBlockTree 𝓔)
         nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
         ix = rm ^∙ rmEpoch
-        uv = mkVote (mkVoteData (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
+        uv = Vote∙new
+                    (VoteData∙new (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
                     fakeAuthor
                     (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
                     fakeSig
                     (₋bSignature (₋pmProposal pm))
         sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
-        si = mkSyncInfo (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
+        si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         rm' = rm [ rmLastVotedRound := nr ]
         rmc2 = RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc
         st' = record st { ₋rmEC         = rm'
                         ; ₋rmEC-correct = rmc2
                         ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
                         }
-    put (record stam {₋rmamRM = st'})
-    tell1 (SendVote (mkVoteMsg sv si) (fakeAuthor ∷ []))
+    put st'
+    tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
     pure unit
 
   processVote : Instant → VoteMsg → LBFT Unit

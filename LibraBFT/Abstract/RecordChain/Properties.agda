@@ -37,7 +37,7 @@ module LibraBFT.Abstract.RecordChain.Properties
  module WithInvariants {ℓ}
    (InSys                 : Record → Set ℓ)
    (votes-only-once       : VotesOnlyOnceRule InSys)
-   (locked-round-rule     : LockedRoundRule   InSys)
+   (preferred-round-rule  : PreferredRoundRule InSys)
    where
    open All-InSys-props InSys
 
@@ -118,7 +118,7 @@ module LibraBFT.Abstract.RecordChain.Properties
       | tri< va₂<va' _ _
      with b←q'
    ...| B←Q rrr xxx
-      = locked-round-rule a honest {q₂} {q'} ex₀ ex₁ (s-chain r←b₂ P b₂←q₂ c2) a∈q₂
+      = preferred-round-rule a honest {q₂} {q'} ex₀ ex₁ (s-chain r←b₂ P b₂←q₂ c2) a∈q₂
                     (step rc' (B←Q rrr xxx)) a∈q'
                           (≤-trans (≤-reflexive (cong suc a∈q₂rnd≡))
                                    va₂<va')

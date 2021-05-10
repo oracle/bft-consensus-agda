@@ -24,9 +24,8 @@ open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
-open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
 
 module LibraBFT.Impl.Handle.Properties
@@ -37,7 +36,7 @@ module LibraBFT.Impl.Handle.Properties
   open import LibraBFT.Impl.Handle hash hash-cr
 
   ----- Properties that bridge the system model gap to the handler -----
-  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManagerAndMeta}
+  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManager}
                       → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
                       → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
@@ -53,7 +52,7 @@ module LibraBFT.Impl.Handle.Properties
      -- keep the implementation model faithful to the implementation.
   ...| here refl = fakeAuthor ∷ [] , here refl
 
-  msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManagerAndMeta}
+  msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManager}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
@@ -70,22 +69,6 @@ module LibraBFT.Impl.Handle.Properties
 
   ----- Properties that relate handler to system state -----
 
-  data PeerKnowsPCS4 (st : SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-EC where
-    inPre  : initialised st pid ≡ initd
-           → PeerCanSignForPK (peerStates st pid) v pid pk
-           → PeerKnowsPCS4 st v pid pk
-    inPost : ∀ {s outs}
-           → initialised st pid ≡ initd
-           → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s , outs)
-           → PeerCanSignForPK s v pid pk
-           → PeerKnowsPCS4 st v pid pk
-
-  𝓔ofPeerKnowsPCS4 : ∀ {st v pid pk}
-                  → PeerKnowsPCS4 st v pid pk
-                  → EpochConfig
-  𝓔ofPeerKnowsPCS4 (inPre  _ pcsf)   = PeerCanSignForPK.𝓔 pcsf
-  𝓔ofPeerKnowsPCS4 (inPost _ _ pcsf) = PeerCanSignForPK.𝓔 pcsf
-
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
    -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
@@ -97,20 +80,21 @@ module LibraBFT.Impl.Handle.Properties
                  → initialised st pid ≡ initd
                  → ps ≡ peerStates st pid
                  → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ mkSyncInfo (₋rmamRM ps ^∙ rmHighestQC) (₋rmamRM ps ^∙ rmHighestCommitQC)
+                 → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
                  → vs ∈ qcVotes q
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
-   -- We should be able to prove this easily now, because we don't yet do epoch changes,
+   -- We can prove this easily because we don't yet do epoch changes,
    -- so only the initial EC is relevant.  Later, this will require us to use the fact that
-   -- epoch changes require proof of committing an epoch-changing transaction (note that cheat
-   -- steps do not modify meta data such as ₋epamMetaAvailepochs).
-   availEpochsConsistent :
-       ∀{pid pid' v v' pk}{st : SystemState}
+   -- epoch changes require proof of committing an epoch-changing transaction.
+  availEpochsConsistent :
+     ∀{pid pid' v v' pk}{st : SystemState}
      → ReachableSystemState st
-     → (pkvpf  : PeerKnowsPCS4 st v  pid  pk)
-     → (pkvpf' : PeerKnowsPCS4 st v' pid' pk)
-     → 𝓔ofPeerKnowsPCS4 pkvpf ≡ 𝓔ofPeerKnowsPCS4 pkvpf'
+     → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+     → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+     → PeerCanSignForPK.𝓔 pkvpf ≡ PeerCanSignForPK.𝓔 pkvpf'
+  availEpochsConsistent r (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
+                          (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
@@ -118,17 +102,10 @@ module LibraBFT.Impl.Handle.Properties
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmamEC ppre) ^∙ rmEpoch ≡ (₋rmamEC ppost) ^∙ rmEpoch
+                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
      with m
   ...| P p = refl
   ...| V v = refl
   ...| C c = refl
-
-  postulate -- Not used yet, prove if needed
-    eIdInRange : ∀{pid}{st : SystemState}
-             → ReachableSystemState st
-             → initialised st pid ≡ initd
-             → ₋rmamEC (peerStates st pid) ^∙ rmEpoch < ₋rmamMetaNumEpochs (peerStates st pid)
-

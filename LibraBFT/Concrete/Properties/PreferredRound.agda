@@ -16,7 +16,7 @@ open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Concrete.System
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module contains placeholders for the future analog of the
 -- corresponding VotesOnce property.  Defining the implementation
@@ -24,7 +24,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms Pee
 -- is a substantial undertaking.  We are working first on proving the
 -- simpler VotesOnce property to settle down the structural aspects
 -- before tackling the harder semantic issues.
-module LibraBFT.Concrete.Properties.LockedRound where
+module LibraBFT.Concrete.Properties.PreferredRound where
  -- TODO-3: define the implementation obligation
  ImplObligation₁ : Set
  ImplObligation₁ = Unit
@@ -32,9 +32,9 @@ module LibraBFT.Concrete.Properties.LockedRound where
  -- Next, we prove that given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-LR1 : ImplObligation₁)
+   (Impl-PR1 : ImplObligation₁)
    where
-  -- Any reachable state satisfies the LR rule for any epoch in the system.
+  -- Any reachable state satisfies the PR rule for any epoch in the system.
   module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
@@ -42,7 +42,7 @@ module LibraBFT.Concrete.Properties.LockedRound where
    open WithSPS sps-corr
    open        PerState st r
    open        PerEpoch 𝓔
-   open import LibraBFT.Concrete.Obligations.LockedRound 𝓔 (ConcreteVoteEvidence 𝓔) as LR
+   open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR
 
    postulate  -- TODO-3: prove it
-     lrr : LR.Type IntSystemState
+     prr : PR.Type IntSystemState

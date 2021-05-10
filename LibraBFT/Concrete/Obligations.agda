@@ -8,17 +8,17 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open import LibraBFT.Impl.Consensus.Types
 
-import      LibraBFT.Concrete.Properties.VotesOnce   as VO
-import      LibraBFT.Concrete.Properties.LockedRound as LR
+import      LibraBFT.Concrete.Properties.VotesOnce      as VO
+import      LibraBFT.Concrete.Properties.PreferredRound as PR
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module collects in one place the obligations an
 -- implementation must meet in order to enjoy the properties
 -- proved in Abstract.Properties.
 
 module LibraBFT.Concrete.Obligations where
-  record ImplObligations : Set (ℓ+1 ℓ-RoundManagerAndMeta) where
+  record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field
       -- Structural obligations:
       sps-cor : StepPeerState-AllValidParts
@@ -29,5 +29,5 @@ module LibraBFT.Concrete.Obligations where
       vo₁ : VO.ImplObligation₁
       vo₂ : VO.ImplObligation₂
 
-      -- LockedRound:
-      lr₁ : LR.ImplObligation₁
+      -- PreferredRound:
+      pr₁ : PR.ImplObligation₁

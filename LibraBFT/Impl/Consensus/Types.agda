@@ -33,12 +33,11 @@ module LibraBFT.Impl.Consensus.Types where
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
   open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
   open import LibraBFT.Impl.Consensus.Types.EpochDep         public
-  open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig EpochConfig.epochId
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
-    constructor mkRoundManagerEC
+    constructor RoundManagerEC∙new
     field
       ₋rmSafetyRules  : SafetyRules
       ₋rmValidators   : ValidatorVerifier
@@ -46,11 +45,11 @@ module LibraBFT.Impl.Consensus.Types where
   unquoteDecl rmSafetyRules rmValidators = mkLens (quote RoundManagerEC)
     (rmSafetyRules ∷ rmValidators ∷ [])
 
-  rmEpoch : Lens RoundManagerEC EpochId
-  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ psEpoch
+  rmEpoch : Lens RoundManagerEC Epoch
+  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
 
   rmLastVotedRound : Lens RoundManagerEC Round
-  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ psLastVotedRound
+  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
 
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over
@@ -78,7 +77,7 @@ module LibraBFT.Impl.Consensus.Types where
     let numAuthors = kvm-size (rmec ^∙ rmValidators ∙ vvAddressToValidatorInfo)
         qsize      = rmec ^∙ rmValidators ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
-     in (mkEpochConfig {! someHash?!}
+     in (EpochConfig∙new {! someHash?!}
                 (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
   postulate
@@ -92,11 +91,15 @@ module LibraBFT.Impl.Consensus.Types where
   α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
+  -- Just in case RoundManager is at a higher level in future
+  ℓ-RoundManager : Level
+  ℓ-RoundManager = 0ℓ
+
   -- Finally, the RoundManager is split in two pieces: those
   -- that are used to make an EpochConfig versus those that
   -- use an EpochConfig.
-  record RoundManager : Set where
-    constructor mkRoundManager
+  record RoundManager : Set ℓ-RoundManager where
+    constructor RoundManager∙new
     field
       ₋rmEC           : RoundManagerEC
       ₋rmEC-correct   : RoundManagerEC-correct ₋rmEC
@@ -106,20 +109,6 @@ module LibraBFT.Impl.Consensus.Types where
      -- RoundManager directly
   open RoundManager public
 
-  record RoundManagerAndMeta : Set ℓ-EC where
-    constructor mkRoundManagerAndMeta
-    field
-      ₋rmamRM              : RoundManager
-      ₋rmamMetaNumEpochs   : ℕ
-      ₋rmamMetaAvailEpochs : AvailableEpochs ₋rmamMetaNumEpochs
-  open RoundManagerAndMeta public
-
-  ₋rmamEC : RoundManagerAndMeta → RoundManagerEC
-  ₋rmamEC = ₋rmEC ∘ ₋rmamRM
-
-  ℓ-RoundManagerAndMeta : Level
-  ℓ-RoundManagerAndMeta = ℓ-EC
-
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
@@ -128,13 +117,13 @@ module LibraBFT.Impl.Consensus.Types where
 
   rmHighestQC : Lens RoundManager QuorumCert
   rmHighestQC = mkLens' ₋rmHighestQC
-                        (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
-                          → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestQuorumCert = qc}))))
+                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
+                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestQuorumCert = qc}))))
 
   ₋rmHighestCommitQC : (rm : RoundManager) → QuorumCert
   ₋rmHighestCommitQC rm = ₋btHighestCommitCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
   rmHighestCommitQC : Lens RoundManager QuorumCert
   rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
-                        (λ (mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore bsInner))) qc
-                          → mkRoundManager ec ecc (mkRoundManagerWithEC (mkBlockStore (record bsInner {₋btHighestCommitCert = qc}))))
+                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
+                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestCommitCert = qc}))))

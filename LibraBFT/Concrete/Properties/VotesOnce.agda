@@ -17,7 +17,7 @@ open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -42,19 +42,19 @@ module LibraBFT.Concrete.Properties.VotesOnce where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
+ ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₁ =
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
      -- Note that this does not directly exclude possibility of previous message with
      -- same signature, but sent by someone else.  We could prove it implies it though.
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK s' v pid pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
    -- If v and v' share the same epoch and round
@@ -64,21 +64,21 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- Then an honest implemenation promises v and v' vote for the same blockId.
    → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
- ImplObligation₂ : Set (ℓ+1 ℓ-RoundManagerAndMeta)
+ ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK s' v pid pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
 
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → m' ∈ outs → (sig' : WithVerSig pk v')
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK s' v' pid pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
 
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch

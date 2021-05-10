@@ -9,14 +9,14 @@ open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
 open        WithAbsVote
 
--- For each desired property (VotesOnce and LockedRoundRule), we have a
+-- For each desired property (VotesOnce and PreferredRoundRule), we have a
 -- module containing a Type that defines a property that an implementation
 -- should prove, and a proof that it implies the corresponding rule used by
 -- the abstract proofs.  Then, we use those proofs to instantiate thmS5,
 -- and the use thmS5 to prove a number of correctness conditions.
 --
 -- TODO-1: refactor this file to separate the definitions and proofs of
--- VotesOnce and LockedRoundRule from their use in proving the correctness
+-- VotesOnce and PreferredRoundRule from their use in proving the correctness
 -- properties.
 
 module LibraBFT.Abstract.Properties
@@ -38,7 +38,7 @@ module LibraBFT.Abstract.Properties
  module WithAssumptions {ℓ}
    (InSys                 : Record → Set ℓ)
    (votes-only-once       : VotesOnlyOnceRule InSys)
-   (locked-round-rule     : LockedRoundRule   InSys)
+   (preferred-round-rule  : PreferredRoundRule InSys)
   where
 
    open All-InSys-props InSys
@@ -50,7 +50,7 @@ module LibraBFT.Abstract.Properties
         → CommitRule rc  b
         → CommitRule rc' b'
         → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-   CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once locked-round-rule
+   CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once preferred-round-rule
 
    -- When we are dealing with a /Complete/ InSys predicate, we can go a few steps
    -- further and prove that commits do not conflict even if we have only partial

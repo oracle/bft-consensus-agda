@@ -29,7 +29,7 @@ module LibraBFT.Impl.Util.Crypto where
   open WithCryptoHash sha256 sha256-cr
 
   blockInfoBSList : BlockInfo → List ByteString
-  blockInfoBSList (mkBlockInfo epoch round id) = encode epoch ∷ encode round ∷ encode id ∷ []
+  blockInfoBSList (BlockInfo∙new epoch round id) = encode epoch ∷ encode round ∷ encode id ∷ []
 
   hashBI : BlockInfo → HashValue
   hashBI = sha256 ∘ bs-concat ∘ blockInfoBSList
@@ -43,7 +43,7 @@ module LibraBFT.Impl.Util.Crypto where
                                  (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final))))))))
 
   voteDataHashList : VoteData → List Hash
-  voteDataHashList (mkVoteData proposed parent) =
+  voteDataHashList (VoteData∙new proposed parent) =
     hProposed ∷ hParent ∷ []
    where
     hProposed = hashBI proposed
@@ -90,11 +90,11 @@ module LibraBFT.Impl.Util.Crypto where
   ...| inj₂ prop≡ | inj₂ par≡ = inj₂ (VoteData-η prop≡ par≡)
 
   hashLI : LedgerInfo → HashValue
-  hashLI (mkLedgerInfo commitInfo consensusDataHash) =
+  hashLI (LedgerInfo∙new commitInfo consensusDataHash) =
     hash-concat (hashBI commitInfo ∷ consensusDataHash ∷ [])
 
   hashLI-inj : ∀ {li1 li2} → hashLI li1 ≡ hashLI li2 → NonInjective-≡ sha256 ⊎ li1 ≡ li2
-  hashLI-inj {mkLedgerInfo ci1 cd1} {mkLedgerInfo ci2 cd2} prf
+  hashLI-inj {LedgerInfo∙new ci1 cd1} {LedgerInfo∙new ci2 cd2} prf
      with hash-concat-inj {hashBI ci1 ∷ cd1 ∷ []} {hashBI ci2 ∷ cd2 ∷ []} prf
   ...| inj₁ hb      = inj₁ hb
   ...| inj₂ li1≡li2
@@ -108,7 +108,7 @@ module LibraBFT.Impl.Util.Crypto where
      = inj₂ (LedgerInfo-η cis≡ cdh≡)
 
   constructLI : Vote → LedgerInfo
-  constructLI v = mkLedgerInfo (₋liCommitInfo (₋vLedgerInfo v)) (hashVD (₋vVoteData v))
+  constructLI v = LedgerInfo∙new (₋liCommitInfo (₋vLedgerInfo v)) (hashVD (₋vVoteData v))
 
   hashVote : Vote → HashValue
   hashVote = hashLI ∘ constructLI
@@ -138,7 +138,7 @@ module LibraBFT.Impl.Util.Crypto where
   Signed-pi-Blk : (b : Block)
                 → (is1 is2 : (Is-just ∘ ₋bSignature) b)
                 → is1 ≡ is2
-  Signed-pi-Blk (mkBlock _ _ .(just _)) (just _) (just _) = cong just refl
+  Signed-pi-Blk (Block∙new _ _ .(just _)) (just _) (just _) = cong just refl
 
   -- A Block might carry a signature
   instance

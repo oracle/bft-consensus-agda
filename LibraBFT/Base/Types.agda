@@ -12,8 +12,8 @@ open import LibraBFT.Base.Encode
 -- and some utility types
 module LibraBFT.Base.Types where
 
-  EpochId : Set
-  EpochId = ℕ
+  Epoch : Set
+  Epoch = ℕ
 
   Round : Set
   Round = ℕ
@@ -31,12 +31,12 @@ module LibraBFT.Base.Types where
   -- proofs are per-epoch so far, these are not used, but
   -- they may be in future.
   EpRound : Set
-  EpRound = EpochId × Round
+  EpRound = Epoch × Round
 
   sucr : EpRound → EpRound
   sucr (e , r) = (e , suc r)
 
-  epr-epoch : EpRound → EpochId
+  epr-epoch : EpRound → Epoch
   epr-epoch = proj₁
 
   epr-round : EpRound → Round

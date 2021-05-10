@@ -51,29 +51,15 @@ module LibraBFT.Yasm.Properties
  ...| inj₁ dis = ⊥-elim (hpk dis)
  ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
- ValidSenderForPK-stable-sys : ∀{st : SystemState}{st' : SystemState}
-                             → ReachableSystemState st
-                             → Step* st st' → ∀{part α pk}
-                             → initialised st α ≡ initd
-                             → ValidSenderForPK (peerStates st  α) part α pk
-                             → ValidSenderForPK (peerStates st' α) part α pk
- ValidSenderForPK-stable-sys _ step-0 _ v = v
- ValidSenderForPK-stable-sys {pre} r (step-s {pre = st''} st''reach (step-peer {pid} {st' = st'} (step-honest sps))) {part} {α} {pk} ini v
-    with pid ≟PeerId α
- ...| yes refl rewrite sym (StepPeer-post-lemma {pre = st''} (step-honest sps)) =
-               ValidSenderForPK-stable {part = part} {pk}
-                                       (Step*-trans r st''reach) sps (Step*-initdStable st''reach ini)
-                                       (ValidSenderForPK-stable-sys r st''reach ini v)
- ...| no  neq  rewrite override-target-≢ {b = st'} {f = peerStates st''} neq = ValidSenderForPK-stable-sys r st''reach ini v
- ValidSenderForPK-stable-sys {pre} r (step-s {pre = st''} st''reach (step-peer {pid} {st' = st'} (step-cheat {m = m} isch))) {α = α} ini v =
-                             subst (λ ps → ValidSenderForPK (ps α) _ _ _)
-                                   (sym (cheatStepDNMPeerStates {pre = st''} (step-cheat {m = m} isch) unit))
-                                   (ValidSenderForPK-stable-sys r st''reach ini v)
-
- override-elim-ValidSenderForPK : ∀ {ps part pid pk f}
-                                → ValidSenderForPK ps part pid pk
-                                → ValidSenderForPK (⟦ f , pid ← ps ⟧ pid) part pid pk
- override-elim-ValidSenderForPK vsfp = subst (λ ps → ValidSenderForPK ps _ _ _) (sym override-target-≡) vsfp  
+ ValidSenderForPK-stable-* : ∀{st : SystemState}{st' : SystemState}
+                           → ReachableSystemState st
+                           → Step* st st' → ∀{part α pk}
+                           → ValidSenderForPK st  part α pk
+                           → ValidSenderForPK st' part α pk
+ ValidSenderForPK-stable-* _ step-0 v = v
+ ValidSenderForPK-stable-* r (step-s {pre = st''} st''reach x) {part} {α} {pk} v =
+                           ValidSenderForPK-stable (Step*-trans r st''reach) x
+                                                   (ValidSenderForPK-stable-* r st''reach v)
 
  -- We say that an implementation produces only valid parts iff all parts of every message in the
  -- output of a 'StepPeerState' are either: (i) a valid new part (i.e., the part is valid and no
@@ -83,15 +69,15 @@ module LibraBFT.Yasm.Properties
  StepPeerState-AllValidParts = ∀{s m part pk outs}{α}{st : SystemState}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs)
+   → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
    → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
-     -- Note that we require that α can send for the PK according to the α's *new* state.  This
-     -- allows sufficient generality to ensure that a peer can sign and send a message for an epoch
-     -- even if it changed to the epoch in the same step.  If this is too painful, we could require
-     -- that the epoch config is already available in the (initialised) prestate, which would
-     -- require, for example, initialising a peer to be a separate step from sending its first
-     -- signed message, which in turn could preclude some valid implementations.
-   → (ValidSenderForPK s part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
+     -- Note that we require that α can send for the PK according to the *post* state.  This allows
+     -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
+     -- it changed to the epoch in the same step.  If this is too painful, we could require that the
+     -- peer can sign for the PK already in the prestate, which would require, for example,
+     -- initialising a peer to be a separate step from sending its first signed message, which in
+     -- turn could preclude some valid implementations.
+   → (ValidSenderForPK (StepPeer-post {pre = st} (step-honest sps)) part α pk × ¬ (MsgWithSig∈ pk (ver-signature ver) (msgPool st)))
    ⊎ MsgWithSig∈ pk (ver-signature ver) (msgPool st)
 
  -- A /part/ was introduced by a specific step when:
@@ -102,8 +88,7 @@ module LibraBFT.Yasm.Properties
     = ReachableSystemState pre
     × ¬ (MsgWithSig∈ pk sig (msgPool pre))
     × Σ (MsgWithSig∈ pk sig (msgPool (StepPeer-post pstep)))
-        (λ m → msgSender m ≡ pid × initialised post pid ≡ initd × ValidSenderForPK (peerStates post pid) (msgPart m) (msgSender m) pk)
-
+        (λ m → msgSender m ≡ pid × initialised post pid ≡ initd × ValidSenderForPK post (msgPart m) (msgSender m) pk)
 
  mwsAndVspk-stable : ∀{st : SystemState}{st' : SystemState}
                    → ReachableSystemState st
@@ -111,14 +96,14 @@ module LibraBFT.Yasm.Properties
                    → ∀ {pk sig}
                    → (mws : MsgWithSig∈ pk sig (msgPool st))
                    → initialised st (msgSender mws) ≡ initd
-                   → ValidSenderForPK (peerStates st (msgSender mws)) (msgPart mws) (msgSender mws) pk
+                   → ValidSenderForPK st (msgPart mws) (msgSender mws) pk
                    → Σ (MsgWithSig∈ pk sig (msgPool st')) λ mws' →
-                       ValidSenderForPK (peerStates st' (msgSender mws')) (msgPart mws') (msgSender mws') pk
+                       ValidSenderForPK st' (msgPart mws') (msgSender mws') pk
  mwsAndVspk-stable {_} {st'} r tr {pk} {sig} mws ini vpk = MsgWithSig∈-Step* tr mws
-                                                     , subst₂ (λ p s → ValidSenderForPK (peerStates st' s) p s pk)
+                                                     , subst₂ (λ p s → ValidSenderForPK st' p s pk)
                                                               (MsgWithSig∈-Step*-part tr mws)
                                                               (MsgWithSig∈-Step*-sender tr mws)
-                                                              (ValidSenderForPK-stable-sys r tr ini vpk)
+                                                              (ValidSenderForPK-stable-* r tr vpk)
 
  -- When we can prove that the implementation provided by 'parms' at the
  -- top of this module satisfies 'StepPeerState-AllValidParts', we can
@@ -161,7 +146,7 @@ module LibraBFT.Yasm.Properties
         | inj₁ thisStep
         | step-honest x
         | (m , refl , m∈outs)
-        | inj₁ (valid-part , notBefore) = step-here tr (tr , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl) , refl , override-target-≡  , override-elim-ValidSenderForPK valid-part )
+        | inj₁ (valid-part , notBefore) = step-here tr (tr , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl) , refl , override-target-≡ , valid-part )
 
      -- Unwind is inconvenient to use by itself because we have to do
      -- induction on Any-Step-elim. The 'honestPartValid' property below
@@ -173,7 +158,7 @@ module LibraBFT.Yasm.Properties
                      → Meta-Honest-PK pk
                      → v ⊂Msg nm → (sender , nm) ∈ msgPool st → (ver : WithVerSig pk v)
                      → Σ (MsgWithSig∈ pk (ver-signature ver) (msgPool st))
-                         (λ msg → (ValidSenderForPK (peerStates st (msgSender msg)) (msgPart msg) (msgSender msg) pk))
+                         (λ msg → (ValidSenderForPK st (msgPart msg) (msgSender msg) pk))
      honestPartValid {st} r {pk = pk} hpk v⊂m m∈pool ver
      -- We extract two pieces of important information from the place where the part 'v'
      -- was first sent: (a) there is a message with the same signature /in the current pool/
@@ -185,12 +170,87 @@ module LibraBFT.Yasm.Properties
                         })
                         (unwind r hpk v⊂m m∈pool ver)
 
+     -- Unforgeability is also an important property stating that every part that is
+     -- verified with an honest public key has either been sent by α or is a replay
+     -- of another message sent before.
+     ext-unforgeability'
+       : ∀{α m part pk}{st : SystemState} → ReachableSystemState st
+       -- If a message m has been sent by α, containing part
+       → (α , m) ∈ msgPool st → part ⊂Msg m
+       -- And the part can be verified with an honest public key,
+       → (sig : WithVerSig pk part) → Meta-Honest-PK pk
+       -- then either the part is a valid part by α (meaning that α can
+       -- sign the part itself) or a message with the same signature has
+       -- been sent previously.
+       → ValidSenderForPK st part α pk
+       ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+     ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> ⊎-map (ValidSenderForPK-stable st (step-peer sp)) id
+                                                        (ext-unforgeability' st furtherBack p⊆m sig hpk)
+     ...| inj₁ thisStep
+       with sp
+     ...| step-cheat isCheat
+       with thisStep
+     ...| here refl
+       with isCheat p⊆m sig
+     ...| inj₁ abs    = ⊥-elim (hpk abs)
+     ...| inj₂ sentb4 = inj₂ (MsgWithSig∈-++ʳ sentb4)
+     ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+        | inj₁ thisStep
+        | step-honest x
+       with Any-satisfied-∈ (Any-map⁻ thisStep)
+     ...| (m , refl , m∈outs) = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
+
+     -- The ext-unforgeability' property can be collapsed in a single clause.
+
+     -- TODO-2: so far, ext-unforgeability is used only to get a MsgWithSig∈ that is passed to
+     -- msgWithSigSentByAuthor, which duplicates some of the reasoning in the proof of
+     -- ext-unforgeability'; should these properties possibly be combined into one simpler proof?
+     ext-unforgeability
+       : ∀{α₀ m part pk}{st : SystemState} → ReachableSystemState st
+       → (α₀ , m) ∈ msgPool st → part ⊂Msg m
+       → (sig : WithVerSig pk part) → Meta-Honest-PK pk
+       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+     ext-unforgeability {α₀} {m} {st = st} rst m∈sm p⊂m sig hpk
+       with ext-unforgeability' rst m∈sm p⊂m sig hpk
+     ...| inj₁ p
+        = mkMsgWithSig∈ _ _ p⊂m α₀ m∈sm sig refl
+     ...| inj₂ sentb4 = sentb4
+
+     msgWithSigSentByAuthor : ∀ {pk sig}{st : SystemState}
+                            → ReachableSystemState st
+                            → Meta-Honest-PK pk
+                            → MsgWithSig∈ pk sig (msgPool st)
+                            → Σ (MsgWithSig∈ pk sig (msgPool st))
+                                λ mws → ValidSenderForPK st (msgPart mws) (msgSender mws) pk
+     msgWithSigSentByAuthor step-0 _ ()
+     msgWithSigSentByAuthor {pk = pk} (step-s {pre = pre} preach (step-peer theStep@(step-cheat cheatCons))) hpk mws
+        with (¬cheatForgeNew theStep refl unit hpk mws)
+     ...| mws'
+        with msgWithSigSentByAuthor preach hpk mws'
+     ...| mws'' , vpb'' = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+       with Any-++⁻ (List-map (pid ,_) outs) {msgPool pre} (msg∈pool mws)
+     ...| inj₂ furtherBack
+       with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack)
+     ...| mws' , vpb' =  MsgWithSig∈-++ʳ mws' , ValidSenderForPK-stable preach theStep vpb'
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+        | inj₁ thisStep
+        with Any-satisfied-∈ (Any-map⁻ thisStep)
+     ...| (m' , refl , m∈outs)
+        with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
+     ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
+     ...| inj₂ mws'
+        with msgWithSigSentByAuthor preach hpk mws'
+     ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
+
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
                       → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                       → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                      → ( m ∈ outs × ValidSenderForPK s' v pid pk
+                      → ( m ∈ outs × ValidSenderForPK (StepPeer-post (step-honest stP)) v pid pk
                         × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                         ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig v⊂m m∈post
@@ -217,7 +277,7 @@ module LibraBFT.Yasm.Properties
       carrStReach : ReachableSystemState st -- Enables use of invariants when proving that steps preserve carrProp
       carrSent    : MsgWithSig∈ pk sig (msgPool st)
       carrInitd   : initialised st (msgSender carrSent) ≡ initd
-      carrValid   : ValidSenderForPK (peerStates st (msgSender carrSent)) (msgPart carrSent) (msgSender carrSent) pk
+      carrValid   : ValidSenderForPK st (msgPart carrSent) (msgSender carrSent) pk
       carrProp    : P (msgPart carrSent) (peerStates st (msgSender carrSent))
   open PropCarrier public
 
@@ -242,14 +302,15 @@ module LibraBFT.Yasm.Properties
        with step-s r theStep
     ...| postReach
        with sps
-    ...| sch@(step-cheat isch) = mkCarrier postReach (MsgWithSig∈-++ʳ mws) (trans (cong (λ f → f (msgSender mws)) (cheatStepDNMInitialised sch unit)) ini)      -- PeerStates not changed by cheat steps
-           (subst (λ ps → ValidSenderForPK ps _ _ _) (cong (λ f → f (msgSender mws)) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat isch) unit))) vpk)
-           (subst (λ ps → P (msgPart mws) (ps (msgSender mws))) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat isch) unit)) prop)
-    ...| step-honest {st = st} sps'
+    ...| cheatStep@(step-cheat isch) = mkCarrier postReach (MsgWithSig∈-++ʳ mws)
+                                 (trans (cong (λ f → f (msgSender mws)) (cheatStepDNMInitialised cheatStep unit)) ini)      -- PeerStates not changed by cheat steps
+                                 (ValidSenderForPK-stable {pre} r (step-peer cheatStep) vpk)
+                                 (subst (λ ps → P (msgPart mws) (ps (msgSender mws))) (sym (cheatStepDNMPeerStates {pre = pre} (step-cheat isch) unit)) prop)
+    ...| honStep@(step-honest {st = st} sps')
        with msgSender mws ≟PeerId pid
     ...| no neq   = mkCarrier postReach (MsgWithSig∈-++ʳ mws) (trans (sym (override-target-≢ neq)) ini)
-                              (subst (λ ps → ValidSenderForPK ps _ _ _) (override-target-≢ {f = peerStates pre} neq) vpk)
+                              (ValidSenderForPK-stable {pre} r (step-peer (step-honest sps')) vpk)
                               (subst (λ ps → P (msgPart mws) ps) (override-target-≢ {f = peerStates pre} neq) prop)
     ...| yes refl = mkCarrier postReach (MsgWithSig∈-++ʳ mws) override-target-≡
-                              (override-elim-ValidSenderForPK (ValidSenderForPK-stable {part = msgPart mws} {pk} r sps' ini vpk))
+                              (ValidSenderForPK-stable {part = msgPart mws} {pk = pk} r (step-peer honStep) vpk)
                               (subst (λ ps → P (msgPart mws) ps) (sym override-target-≡) (PSP r pc sps'))

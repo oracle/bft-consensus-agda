@@ -23,78 +23,39 @@ open        EpochConfig
 module LibraBFT.Concrete.System where
 
  ℓ-VSFP : Level
- ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManagerAndMeta
+ ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManager
 
  open import LibraBFT.Yasm.Base
- import      LibraBFT.Yasm.System ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms as LYS
- open import LibraBFT.Abstract.Util.AvailableEpochs NodeId ℓ-EC EpochConfig epochId renaming (lookup'' to AE-lookup)
+ import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
 
- -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in an EpochConfig
- -- it knows about.  Note that only honest steps update a peer's state, and we will prove that the
- -- EpochConfigs known about by different peers are the same (everyone has the same initial
- -- EpochConfig for now, and later we will add EpochConfigs only by committing epoch-changing
- -- transactions.
- record PeerCanSignForPK (rmam : RoundManagerAndMeta) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
+ -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
+ -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.
+ data EpochConfig∈Sys (st : LYS.SystemState) (𝓔 : EpochConfig) : Set ℓ-EC where
+   inGenInfo : init-EC genInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
+   -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
+
+ -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in a known
+ -- EpochConfig.
+ record PeerCanSignForPK (st : LYS.SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
    constructor mkPCS4PK
    field
-     eInRange : v ^∙ vEpoch < ₋rmamMetaNumEpochs rmam
-     𝓔        : EpochConfig
-     𝓔≡       : 𝓔 ≡ AE-lookup (₋rmamMetaAvailEpochs rmam) eInRange
+     𝓔       : EpochConfig
+     𝓔id≡    : epoch 𝓔 ≡ v ^∙ vEpoch
+     𝓔inSys  : EpochConfig∈Sys st 𝓔
      mbr      : Member 𝓔
      nid≡     : toNodeId  𝓔 mbr ≡ pid
      pk≡      : getPubKey 𝓔 mbr ≡ pk
  open PeerCanSignForPK
 
- PCS4PK⇒NodeId-PK-OK : ∀ {rmam v pid pk} → (pcs : PeerCanSignForPK rmam v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
+ PCS4PK⇒NodeId-PK-OK : ∀ {st v pid pk} → (pcs : PeerCanSignForPK st v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
  PCS4PK⇒NodeId-PK-OK (mkPCS4PK _ _ _ mbr n≡ pk≡) = mbr , n≡ , pk≡
 
- postulate -- TODO-1: Eliminate bogus placeholders These are bogus placeholders representing the
-   -- fact that we don't yet add any EpochConfigs after initialization.  TODO-1: more specific (and
-   -- true!) properties should now be provable to enable a real proof of PeerCanSignForPK-stable.
-   -- Note that the handler does not change the number of EpochConfigs or available EpochConfigs
-   -- yet; this will become more challenging in future when we model epoch changes.  One easy
-   -- property noEpochChangeSPS is proved below.
-   PeerCanSignForPKBogus1 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
-                        → ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1
-
-   PeerCanSignForPKBogus2 : ∀ {rmam1 rmam2 : RoundManagerAndMeta}
-                        → (num𝓔s≡ : ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1)
-                        → ₋rmamMetaAvailEpochs rmam1 ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs rmam2)
-
- PeerCanSignForPKAux : ∀ {rmam1 rmam2 : RoundManagerAndMeta}{v pid pk}
-                     → PeerCanSignForPK rmam1 v pid pk
-                     → (num𝓔s≡ : ₋rmamMetaNumEpochs rmam2 ≡ ₋rmamMetaNumEpochs rmam1)
-                     → ₋rmamMetaAvailEpochs rmam1 ≡ subst AvailableEpochs num𝓔s≡ (₋rmamMetaAvailEpochs rmam2)
-                     → PeerCanSignForPK rmam2 v pid pk
- PeerCanSignForPKAux (mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡) refl refl = mkPCS4PK eInRange 𝓔 𝓔≡ mbr nid≡ pk≡
-
- -- Not yet used; see TODO comment above
- noEpochChangeSPS : ∀ {st pid ps' msgs}
-                  → LYS.initialised st pid ≡ LYS.initd
-                  → LYS.StepPeerState pid (LYS.msgPool st) (LYS.initialised st) (LYS.peerStates st pid) (ps' , msgs)
-                  → ₋rmamMetaNumEpochs (LYS.peerStates st pid) ≡ ₋rmamMetaNumEpochs ps'
- noEpochChangeSPS ini (LYS.step-init uni) = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- noEpochChangeSPS _ (LYS.step-msg {_ , P x} m∈pool ini) = refl
- noEpochChangeSPS _ (LYS.step-msg {_ , V x} m∈pool ini) = refl
- noEpochChangeSPS _ (LYS.step-msg {_ , C x} m∈pool ini) = refl
-
+ -- This is super simple for now because the only known EpochConfig is dervied from genInfo, which is not state-dependent
  PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
- PeerCanSignForPK-stable {st} {pid = pid} r (LYS.step-init uni) ini _ = ⊥-elim (LYS.uninitd≢initd (trans (sym uni) ini))
- PeerCanSignForPK-stable {st} {v} {pk} {pid = pid} r (LYS.step-msg {m} m∈pool _) ini pcs = PeerCanSignForPKAux
-                                                                                          {LYS.peerStates st pid}
-                                                                                          {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))}
-                                                                                          {v} {pid} {pk}
-                                                                                          pcs
-                                                                                          (PeerCanSignForPKBogus1
-                                                                                             {LYS.peerStates st pid}
-                                                                                             {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))})
-                                                                                          (PeerCanSignForPKBogus2
-                                                                                             {LYS.peerStates st pid}
-                                                                                             {proj₁ (peerStep pid (proj₂ m) 0 (LYS.peerStates st pid))}
-                                                                                             PeerCanSignForPKBogus1)
+ PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) = (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁)
 
- open import LibraBFT.Yasm.Yasm ℓ-RoundManagerAndMeta ℓ-VSFP ConcSysParms PeerCanSignForPK
-                                                                           (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK
+                                                                  (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
  -- An implementation must prove that, if one of its handlers sends a
  -- message that contains a vote and is signed by a public key pk, then
@@ -172,7 +133,7 @@ module LibraBFT.Concrete.System where
          vmsgMember    : EpochConfig.Member 𝓔
          vmsgSigned    : WithVerSig (getPubKey 𝓔 vmsgMember) cv
          vmsg≈v        : α-ValidVote 𝓔 cv vmsgMember ≡ v
-         vmsgEpoch     : cv ^∙ vEpoch ≡ epochId 𝓔
+         vmsgEpoch     : cv ^∙ vEpoch ≡ epoch 𝓔
      open ∃VoteMsgFor public
 
      record ∃VoteMsgSentFor (sm : SentMessages)(v : Abs.Vote) : Set where

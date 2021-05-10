@@ -53,13 +53,13 @@ module LibraBFT.Abstract.RecordChain.Assumptions
 
   module _ {ℓ}(InSys  : Record → Set ℓ) where
 
-   -- The locked-round-rule, or preferred-round rule (from V3 onwards) is a critical
+   -- The preferred-round rule (aka locked-round-rule) is a critical
    -- aspect of LibraBFT's correctness. It states that an honest node α will cast
-   -- votes for blocks b only if prevRound(b) ≥ locked_round(α), where locked_round(α)
+   -- votes for blocks b only if prevRound(b) ≥ preferred_round(α), where preferred_round(α)
    -- is defined as $max { round b | b is the head of a 2-chain }$.
    --
    -- Operationally, α can ensure it obeys this rule as follows: it keeps a counter
-   -- locked_round, initialized at 0 and, whenever α receives a QC q that forms a
+   -- preferred_round, initialized at 0 and, whenever α receives a QC q that forms a
    -- 2-chain:
    --
    --  Fig1
@@ -69,13 +69,13 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    --                2-chain
    --
    -- it checks whether round(b₁) , which is the head of the 2-chain above,
-   -- is greater than its previously known locked_round; if so, α updates
+   -- is greater than its previously known preferred_round; if so, α updates
    -- it.  Note that α doesn't need to cast a vote in q, above, to have its
-   -- locked_round updated.  All that matters is that α has seen q.
+   -- preferred_round updated.  All that matters is that α has seen q.
    --
    -- We are encoding the rules governing Libra nodes as invariants in the
-   -- state of other nodes. Hence, the LockedRoundRule below states an invariant
-   -- on the state of β, if α respects the locked-round-rule.
+   -- state of other nodes. Hence, the PreferredRoundRule below states an invariant
+   -- on the state of β, if α respects the preferred-round-rule.
    --
    -- Let the state of β be as below, such that α did cast votes for q
    -- and q' in that order (α is honest here!):
@@ -90,20 +90,20 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    --         ↖
    --           ⋯ ← b₁' ← q₁' ← b' ← q'
    --
-   -- Then, since α is honest and follows the locked-round rule, we know that
+   -- Then, since α is honest and follows the preferred-round rule, we know that
    -- round(b₂) ≤ round(b₁') because, by seeing that α voted on q, we know that α
-   -- has seen the 2-chain above, hence, α's locked_round was at least round(b₂) at
+   -- has seen the 2-chain above, hence, α's preferred_round was at least round(b₂) at
    -- the time α cast its vote for b.
    --
    -- After casting a vote for b, α cast a vote for b', which means that α must have
-   -- checked that round(b₂) ≤ prevRound(b'), as stated by the locked round rule.
+   -- checked that round(b₂) ≤ prevRound(b'), as stated by the preferred round rule.
    --
    -- The invariant below states that, since α is honest, we can trust that these
    -- checks have been performed and we can infer this information solely
    -- by seeing α has knowledge of the 2-chain in Fig2 above.
    --
-   LockedRoundRule : Set ℓ
-   LockedRoundRule
+   PreferredRoundRule : Set ℓ
+   PreferredRoundRule
      = ∀(α : Member) → Meta-Honest-Member α
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
      → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
