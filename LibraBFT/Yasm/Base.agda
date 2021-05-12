@@ -17,11 +17,7 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
   field
     PeerId    : Set
     _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
-    Genesis   : Set
-    genInfo   : Genesis    -- The same genesis information is given to any uninitialised peer before
-                           -- it can handle any messages.
     PeerState : Set ℓ-PeerState
-    initPS    : PeerState  -- Represents an uninitialised PeerState, about which we know nothing whatsoever
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
 
@@ -31,11 +27,15 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     -- A relation specifying what Parts are included in a Msg.
     _⊂Msg_       : Part → Msg → Set
 
+    initPS      : PeerState -- Represents an uninitialised PeerState, about which we know nothing whatsoever
+    initMsg     : Msg       -- An initial message
+    initMsgSndr : PeerId    -- Who sends the initial message?
+
     -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → Genesis → PeerState × List Msg
+    initPeer    : PeerId → (PeerId × Msg) → PeerState × List Msg
 
     -- Handles a message on a previously initialized peer.
-    handle : PeerId → Msg → PeerState → PeerState × List Msg
+    handle      : PeerId → Msg → PeerState → PeerState × List Msg
 
     -- TODO-3?: So far, handlers only produce messages to be sent.
     -- It would be reasonable to generalize this to something like
@@ -55,3 +55,18 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     -- > libraHandle _ (Crashed , l , s) = Crashed , s , [] -- i.e., crashed peers never send messages
     -- >
     -- > handle = filter isSend ∘ libraHandle
+
+ module _ (parms : SystemParameters) where
+
+   open SystemParameters parms
+
+   -- This type encapsulates properties about parts represented in the inital message
+   record InitPartProps : Set₁ where
+     constructor mkInitPartProps
+     field
+       -- A property that should hold for all parts in the initial message...
+       InitPartP  : Part → Set
+       -- ... and proof that it does
+       initPartsP : ∀ {p} → p ⊂Msg initMsg → InitPartP p
+       -- If one part satisfies InitMsgP, so does another with the same signature
+       initPartSS : SameSig⇒ ⦃ Part-sig ⦄ InitPartP

@@ -158,6 +158,16 @@ module LibraBFT.Base.PKCS where
  ...| no ¬Signed = ⊥-elim (¬Signed (isSigned wvs1))
  ...| yes sc = withVerSig-≡ {wvs1 = wvs1} {wvs2 = wvs2} (Signed-pi c (isSigned wvs1) (isSigned wvs2))
 
+ -- A type for expressing that a property that holds for one C holds for any other C with the same
+ -- signature.
+ SameSig⇒ : ∀ {C : Set} ⦃ ws : WithSig C ⦄ → (C → Set) → Set
+ SameSig⇒ P = ∀ {c1 c2 pk}
+              → (wvs1 : WithVerSig pk c1)
+              → (wvs2 : WithVerSig pk c2)
+              → ver-signature wvs2 ≡ ver-signature wvs1
+              → P c2
+              → P c1
+
  data SigCheckResult {C : Set} ⦃ ws : WithSig C ⦄ (pk : PK) (c : C) : Set where
    notSigned   : ¬ Signed c → SigCheckResult pk c
    checkFailed : (sc : Signed c) → verify (signableFields c) (signature c sc) pk ≡ false → SigCheckResult pk c

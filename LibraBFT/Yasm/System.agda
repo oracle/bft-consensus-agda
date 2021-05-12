@@ -171,7 +171,7 @@ module LibraBFT.Yasm.System
  initialState = record
    { peerStates  = const initPS
    ; initialised = const uninitd
-   ; msgPool     = []
+   ; msgPool     = (initMsgSndr , initMsg) ∷ []
    }
 
  -- * Small Step Semantics
@@ -189,7 +189,7 @@ module LibraBFT.Yasm.System
                     (PeerState × List Msg) → Set where
    -- An uninitialized peer can be initialized
    step-init : peerInits pid ≡ uninitd
-             → StepPeerState pid pool peerInits ps (init pid genInfo)
+             → StepPeerState pid pool peerInits ps (initPeer pid (initMsgSndr , initMsg))
 
    -- The peer processes a message in the pool
    step-msg  : ∀{m}

@@ -111,7 +111,34 @@ module LibraBFT.Yasm.Properties
 
  -- TODO-2: Refactor into a file (LibraBFT.Yasm.Properties.Structural) later on
  -- if this grows too large.
- module Structural (sps-avp      : StepPeerState-AllValidParts) where
+ module Structural -- A property honest peers ensure about new parts they send
+                   (sps-avp         : StepPeerState-AllValidParts)
+                   (init-part-props : InitPartProps ℓ-PeerState parms)
+                   where
+
+     open InitPartProps init-part-props
+
+     -- A utility function for proving that is a part is not represented in the initial message, then
+     -- neither is another part with the same signature
+     sameSig⇒¬init : ∀ {p pk pool sig}
+                   → ¬ InitPartP p
+                   → (wvs : WithVerSig pk p)
+                   → sig ≡ ver-signature wvs
+                   → (mws : MsgWithSig∈ pk sig pool)
+                   → ¬ InitPartP (msgPart mws)
+     sameSig⇒¬init ¬init wvs refl mws = ¬init ∘ initPartSS wvs (msgSigned mws) (msgSameSig mws)
+
+     -- A part that does not satisfy the predicate for initial parts is not represented in the initial
+     -- message
+     ¬init⇒ : ∀ {p α m}
+            → ¬ InitPartP p
+            → p ⊂Msg m
+            → (α , m) ∈ msgPool initialState
+            → ⊥
+     ¬init⇒ {p} ¬init p⊂m m∈pool =
+            ⊥-elim (¬init (initPartsP (subst (p ⊂Msg_)
+                                             (cong proj₂ (Any-singleton⁻ m∈pool))
+                                             p⊂m)))
 
      -- We can unwind the state and highlight the step where a part was
      -- originally sent. This 'unwind' function combined with Any-Step-elim
@@ -119,11 +146,14 @@ module LibraBFT.Yasm.Properties
      -- exemplifies this well.
      unwind : ∀{st : SystemState}(tr : ReachableSystemState st)
             → ∀{p m σ pk} → Meta-Honest-PK pk
-            → p ⊂Msg m → (σ , m) ∈ msgPool st → (ver : WithVerSig pk p)
+            → ¬ InitPartP p
+            → p ⊂Msg m → (σ , m) ∈ msgPool st
+            → (ver : WithVerSig pk p)
             → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
-     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
+     unwind step-0 {p} _ ¬init p⊂m m∈pool sig = ⊥-elim (¬init⇒ ¬init p⊂m m∈pool)
+     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk ¬init p⊂m m∈sm sig
        with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
-     ...| inj₂ furtherBack = step-there (unwind tr hpk p⊂m furtherBack sig)
+     ...| inj₂ furtherBack = step-there (unwind tr hpk ¬init p⊂m furtherBack sig)
      ...| inj₁ thisStep
        with sp
      ...| step-cheat isCheat
@@ -132,17 +162,17 @@ module LibraBFT.Yasm.Properties
        with isCheat p⊂m sig
      ...| inj₁ abs    = ⊥-elim (hpk abs)
      ...| inj₂ sentb4
-       with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
+       with unwind tr {p = msgPart sentb4} hpk (sameSig⇒¬init ¬init sig refl sentb4) (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
-     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
+     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk ¬init p⊂m m∈sm sig
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m , refl , m∈outs)
        with sps-avp tr hpk x m∈outs p⊂m sig
-     ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
+     ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (sameSig⇒¬init ¬init sig refl sentb4) (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
-     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
+     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk _ p⊂m m∈sm sig
         | inj₁ thisStep
         | step-honest x
         | (m , refl , m∈outs)
@@ -154,13 +184,14 @@ module LibraBFT.Yasm.Properties
      -- verifiable with an honest PK, there is a msg with the same
      -- signature that is valid for some pid.
 
-     honestPartValid : ∀ {st} → ReachableSystemState st → ∀ {pk nm v sender}
+     honestPartValid : ∀ {st} → ReachableSystemState st → ∀ {pk nm p sender}
                      → Meta-Honest-PK pk
-                     → v ⊂Msg nm → (sender , nm) ∈ msgPool st → (ver : WithVerSig pk v)
+                     → ¬ InitPartP p
+                     → p ⊂Msg nm → (sender , nm) ∈ msgPool st → (ver : WithVerSig pk p)
                      → Σ (MsgWithSig∈ pk (ver-signature ver) (msgPool st))
                          (λ msg → (ValidSenderForPK st (msgPart msg) (msgSender msg) pk))
-     honestPartValid {st} r {pk = pk} hpk v⊂m m∈pool ver
-     -- We extract two pieces of important information from the place where the part 'v'
+     honestPartValid {st} r {pk = pk} hpk ¬init p⊂m m∈pool ver
+     -- We extract two pieces of important information from the place where the part 'p'
      -- was first sent: (a) there is a message with the same signature /in the current pool/
      -- and (b) its epoch is less than e.
         = Any-Step-elim (λ { {st = step-peer {pid = pid} (step-honest sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
@@ -168,13 +199,14 @@ module LibraBFT.Yasm.Properties
                            ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} sps)} (preReach , ¬sentb4 , new , refl , valid) tr
                             → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new))
                         })
-                        (unwind r hpk v⊂m m∈pool ver)
+                        (unwind r hpk ¬init p⊂m m∈pool ver)
 
      -- Unforgeability is also an important property stating that every part that is
      -- verified with an honest public key has either been sent by α or is a replay
      -- of another message sent before.
      ext-unforgeability'
        : ∀{α m part pk}{st : SystemState} → ReachableSystemState st
+       → ¬ InitPartP part
        -- If a message m has been sent by α, containing part
        → (α , m) ∈ msgPool st → part ⊂Msg m
        -- And the part can be verified with an honest public key,
@@ -184,10 +216,11 @@ module LibraBFT.Yasm.Properties
        -- been sent previously.
        → ValidSenderForPK st part α pk
        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-     ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+     ext-unforgeability' step-0 ¬init m∈pool p⊂m = ⊥-elim (¬init⇒ ¬init p⊂m m∈pool)
+     ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) ¬init m∈sm p⊆m sig hpk
        with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> ⊎-map (ValidSenderForPK-stable st (step-peer sp)) id
-                                                        (ext-unforgeability' st furtherBack p⊆m sig hpk)
+                                                        (ext-unforgeability' st ¬init furtherBack p⊆m sig hpk)
      ...| inj₁ thisStep
        with sp
      ...| step-cheat isCheat
@@ -196,7 +229,7 @@ module LibraBFT.Yasm.Properties
        with isCheat p⊆m sig
      ...| inj₁ abs    = ⊥-elim (hpk abs)
      ...| inj₂ sentb4 = inj₂ (MsgWithSig∈-++ʳ sentb4)
-     ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
+     ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) ¬init m∈sm p⊆m sig hpk
         | inj₁ thisStep
         | step-honest x
        with Any-satisfied-∈ (Any-map⁻ thisStep)
@@ -209,11 +242,12 @@ module LibraBFT.Yasm.Properties
      -- ext-unforgeability'; should these properties possibly be combined into one simpler proof?
      ext-unforgeability
        : ∀{α₀ m part pk}{st : SystemState} → ReachableSystemState st
+       → ¬ InitPartP part
        → (α₀ , m) ∈ msgPool st → part ⊂Msg m
        → (sig : WithVerSig pk part) → Meta-Honest-PK pk
        → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-     ext-unforgeability {α₀} {m} {st = st} rst m∈sm p⊂m sig hpk
-       with ext-unforgeability' rst m∈sm p⊂m sig hpk
+     ext-unforgeability {α₀} {m} {st = st} rst ¬init m∈sm p⊂m sig hpk
+       with ext-unforgeability' rst ¬init m∈sm p⊂m sig hpk
      ...| inj₁ p
         = mkMsgWithSig∈ _ _ p⊂m α₀ m∈sm sig refl
      ...| inj₂ sentb4 = sentb4
@@ -221,28 +255,31 @@ module LibraBFT.Yasm.Properties
      msgWithSigSentByAuthor : ∀ {pk sig}{st : SystemState}
                             → ReachableSystemState st
                             → Meta-Honest-PK pk
-                            → MsgWithSig∈ pk sig (msgPool st)
+                            → (mws : MsgWithSig∈ pk sig (msgPool st))
+                            → ¬ InitPartP (msgPart mws)
                             → Σ (MsgWithSig∈ pk sig (msgPool st))
                                 λ mws → ValidSenderForPK st (msgPart mws) (msgSender mws) pk
-     msgWithSigSentByAuthor step-0 _ ()
-     msgWithSigSentByAuthor {pk = pk} (step-s {pre = pre} preach (step-peer theStep@(step-cheat cheatCons))) hpk mws
-        with (¬cheatForgeNew theStep refl unit hpk mws)
+     msgWithSigSentByAuthor step-0 _ mws ¬init =
+        ⊥-elim (¬init⇒ ¬init (msg⊆ mws) (msg∈pool mws))
+     msgWithSigSentByAuthor {pk} {sig} (step-s {pre = pre} preach (step-peer theStep@(step-cheat cheatCons))) hpk mws ¬init
+        with (¬cheatForgeNew theStep refl unit hpk mws)  --  (Any-singleton⁻ (msg∈pool mws))
      ...| mws'
-        with msgWithSigSentByAuthor preach hpk mws'
+        with msgWithSigSentByAuthor preach hpk mws' (sameSig⇒¬init ¬init (msgSigned mws) (sym (msgSameSig mws)) mws')
+        -- (¬init ∘ (initMsgP (msgSigned mws) (msgSigned mws') (trans (msgSameSig mws') (sym (msgSameSig mws)))))
      ...| mws'' , vpb'' = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
-     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws ¬init
        with Any-++⁻ (List-map (pid ,_) outs) {msgPool pre} (msg∈pool mws)
      ...| inj₂ furtherBack
-       with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack)
+       with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack) ¬init
      ...| mws' , vpb' =  MsgWithSig∈-++ʳ mws' , ValidSenderForPK-stable preach theStep vpb'
-     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
+     msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws ¬init
         | inj₁ thisStep
         with Any-satisfied-∈ (Any-map⁻ thisStep)
      ...| (m' , refl , m∈outs)
         with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
      ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
      ...| inj₂ mws'
-        with msgWithSigSentByAuthor preach hpk mws'
+        with msgWithSigSentByAuthor preach hpk mws' (sameSig⇒¬init ¬init (msgSigned mws) refl mws')
      ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
 
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
