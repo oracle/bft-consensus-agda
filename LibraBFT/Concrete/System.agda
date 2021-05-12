@@ -31,6 +31,10 @@ module LibraBFT.Concrete.System where
  -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
  -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.
  data EpochConfig∈Sys (st : LYS.SystemState) (𝓔 : EpochConfig) : Set ℓ-EC where
+   -- This constructor may not be needed because the implementation generates and stores an
+   -- EpochChangeProof from genesis information upon initialization, which means we can use the
+   -- inECP constructor (note that we only need EpochConfig∈Sys to hold in the peer step's post
+   -- state.
    inGenInfo : init-EC genInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
    -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
 
