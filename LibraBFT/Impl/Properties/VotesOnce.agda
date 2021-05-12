@@ -29,7 +29,7 @@ open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP concSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
-open        Structural impl-sps-avp
+open        Structural impl-sps-avp concInitParts
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments
@@ -89,6 +89,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| P p = const (≤-step (≤-reflexive refl))
   ...| V v = const (≤-reflexive refl)
   ...| C c = const (≤-reflexive refl)
+  ...| G g = const (≤-reflexive refl)
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
@@ -207,7 +208,10 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with Any-Step-elim {Q = LvrCarrier pk (₋vSignature v') pre}
                         (fSE⇒rnd≤lvr {v'} hpk)
                         (Any-Step-⇒ (λ _ ivnp → isValidNewPart⇒fSE {v' = v'} hpk ivnp)
-                                    (unwind r hpk v'⊂m' m'∈pool sig'))
+                                    (unwind r hpk
+                                            -- New Votes have nonzero round, so are not represented in the initial message
+                                            (1+n≢0 ∘ (trans (trans suclvr≡v'rnd rnds≡)))
+                                            v'⊂m' m'∈pool sig'))
   ...| mkCarrier r' mws ini vpf' preprop
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
@@ -270,6 +274,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with m'
   ...| P _ = ⊥-elim (P≢V (Any-singleton⁻ m'∈outs))
   ...| C _ = ⊥-elim (C≢V (Any-singleton⁻ m'∈outs))
+  ...| G _ = ⊥-elim (G≢V (Any-singleton⁻ m'∈outs))
   ...| V vm'
        -- Because the handler sends only one message, the two VoteMsgs vm and vm' are the same
      rewrite V-inj (trans (Any-singleton⁻ m'∈outs) (sym (Any-singleton⁻ m∈outs)))

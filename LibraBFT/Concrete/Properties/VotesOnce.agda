@@ -89,15 +89,16 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
  -- Next, we prove that, given the necessary obligations,
  module Proof
-   (sps-corr : StepPeerState-AllValidParts)
-   (Impl-VO1 : ImplObligation₁)
-   (Impl-VO2 : ImplObligation₂)
+   (sps-corr        : StepPeerState-AllValidParts)
+   (init-part-props : InitPartProps ℓ-RoundManager concSysParms)
+   (Impl-VO1        : ImplObligation₁)
+   (Impl-VO2        : ImplObligation₂)
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
   module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
 
-   open Structural sps-corr
+   open Structural sps-corr init-part-props
    -- Bring in IntSystemState
    open WithSPS sps-corr
    open PerState st r
@@ -151,7 +152,15 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        → v ^∙ vEpoch ≡ v' ^∙ vEpoch
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
-    VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
+    VotesOnceProof {v} {v'} {_} {st} step-0 pkH vv mws vv' mws' _ _
+       with sameHonestSig⇒sameVoteData pkH (msgSigned mws ) vv  (msgSameSig mws )
+          | sameHonestSig⇒sameVoteData pkH (msgSigned mws') vv' (msgSameSig mws')
+    ...| inj₁ hb   | _       = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ refl | inj₁ hb = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ refl | inj₂ refl
+       with cong proj₂ (sym (Any-singleton⁻ (msg∈pool mws )))
+          | cong proj₂ (sym (Any-singleton⁻ (msg∈pool mws')))
+    ...| refl | refl = genVotesNoConflict (msg⊆ mws) (msgSigned mws) (msg⊆ mws') (msgSigned mws')
     VotesOnceProof (step-s r (step-peer cheat@(step-cheat c))) pkH vv msv vv' msv' eid≡ r≡
        with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
     ...| msb4 | m'sb4

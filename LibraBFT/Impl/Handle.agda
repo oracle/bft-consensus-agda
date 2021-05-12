@@ -28,6 +28,12 @@ module LibraBFT.Impl.Handle
 
  open EpochConfig
 
+ postulate -- valid assumption (that genesis information is sent by someone)
+   initialisingNode : NodeId
+
+ GenInfoP : Vote → Set
+ GenInfoP v = v ^∙ vRound ≡ 0
+
  postulate -- valid assumption
    -- We postulate the existence of GenesisInfo known to all
    genInfo : GenesisInfo
@@ -35,14 +41,15 @@ module LibraBFT.Impl.Handle
  genesisMsg : NetworkMsg
  genesisMsg = G (GenesisMsg∙new genInfo)
 
- postulate -- valid assumption (that genesis information is sent by someone)
-   initialisingNode : NodeId
-
- GenInfoP : Vote → Set
- GenInfoP v = v ^∙ vRound ≡ 0
-
  postulate -- valid assumption (that votes in genesis information are for round zero)
    genInfoP : ∀ {v} → v ⊂Msg genesisMsg → GenInfoP v
+
+ postulate -- valid assumption (that votes signed for the same PK in genesis information do not
+           -- conflict; generally there will be only one per PK anyway)
+   genVotesNoConflict : ∀ {v v' pk}
+                      → v  ⊂Msg genesisMsg → WithVerSig pk v
+                      → v' ⊂Msg genesisMsg → WithVerSig pk v'
+                      → v ^∙ vProposedId ≡ v' ^∙ vProposedId
 
  postulate -- TODO-2 : prove it using sameHonestSig⇒SameVoteDate
    genInfoPSameSig : SameSig⇒ ⦃ sig-Vote ⦄ GenInfoP
