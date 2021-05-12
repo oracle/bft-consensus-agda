@@ -25,12 +25,16 @@ module LibraBFT.Impl.NetworkMsg where
     P : ProposalMsg → NetworkMsg
     V : VoteMsg     → NetworkMsg
     C : CommitMsg   → NetworkMsg
+    G : GenesisMsg  → NetworkMsg
 
   P≢V : ∀ {p v} → P p ≢ V v
   P≢V ()
 
   C≢V : ∀ {c v} → C c ≢ V v
   C≢V ()
+
+  G≢V : ∀ {g v} → G g ≢ V v
+  G≢V ()
 
   V-inj : ∀ {vm1 vm2} → V vm1 ≡ V vm2 → vm1 ≡ vm2
   V-inj refl = refl
@@ -48,10 +52,14 @@ module LibraBFT.Impl.NetworkMsg where
   data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
      withCommitMsg    : cm ^∙ cmCert ≡ qc                                 → qc QC∈CommitMsg cm
 
+  data _QC∈GenesisMsg_ (qc : QuorumCert) (gm : GenesisMsg) : Set where
+     withGenesisMsg   : ₋genQC (₋gmGenInfo gm) ≡ qc                       → qc QC∈GenesisMsg gm
+
   data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
     inP : ∀ {pm} → qc QC∈ProposalMsg pm → qc QC∈NM (P pm)
     inV : ∀ {vm} → qc QC∈VoteMsg     vm → qc QC∈NM (V vm)
     inC : ∀ {cm} → qc QC∈CommitMsg   cm → qc QC∈NM (C cm)
+    inG : ∀ {gm} → qc QC∈GenesisMsg  gm → qc QC∈NM (G gm)
 
   data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
     vote∈vm : ∀ {si}
@@ -66,6 +74,7 @@ module LibraBFT.Impl.NetworkMsg where
   getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
   getEpoch (V (VoteMsg∙new v _)) = v ^∙ vEpoch
   getEpoch (C c) = c ^∙ cmEpoch
+  getEpoch (G g) = 1 -- Could take it from genesis info, but we'll be proving it's 1 anyway
 
   -- Get the message's author, if it has one.  Note that ProposalMsgs don't necessarily have
   -- authors; we care about the (honesty of) the author only for Proposals, not NilBlocks and
@@ -78,6 +87,7 @@ module LibraBFT.Impl.NetworkMsg where
   ...| Genesis         = nothing
   getAuthor (V v) = just (v ^∙ vmVote ∙ vAuthor)
   getAuthor (C c) = just (c ^∙ cmAuthor)
+  getAuthor (G g) = nothing
 
   -----------------------------------------------------------------------
   -- Proof that network records are signable and may carry a signature --
@@ -122,6 +132,16 @@ module LibraBFT.Impl.NetworkMsg where
                                        ∷ [])
       }
 
+   -- Genesis messages are not signed, the necessary signatures are represented in GenesisInfo
+   sig-GenesisMsg : WithSig GenesisMsg
+   sig-GenesisMsg = record
+      { Signed         = const ⊥
+      ; Signed-pi      = λ _ ()
+      ; isSigned?      = λ gm → no id
+      ; signature      = λ {_ ()}
+      ; signableFields = λ cm → []
+      }
+
   ---------------------------------------------------------
   -- Network Records whose signatures have been verified --
   ---------------------------------------------------------
@@ -135,6 +155,7 @@ module LibraBFT.Impl.NetworkMsg where
     SignedNM (P x) = Signed x
     SignedNM (V x) = Signed x
     SignedNM (C x) = Signed x
+    SignedNM (G x) = Signed x
 
     SignedNM-pi : ∀ (nm : NetworkMsg) → (is1 : SignedNM nm) → (is2 : SignedNM nm) → is1 ≡ is2
     SignedNM-pi (P x) = Signed-pi x
@@ -145,6 +166,7 @@ module LibraBFT.Impl.NetworkMsg where
     isSignedNM? (P x) = isSigned? x
     isSignedNM? (V x) = isSigned? x
     isSignedNM? (C x) = isSigned? x
+    isSignedNM? (G x) = isSigned? x
 
     signatureNM  : (nm : NetworkMsg) → SignedNM nm → Signature
     signatureNM (P x) prf = signature x prf
@@ -155,6 +177,7 @@ module LibraBFT.Impl.NetworkMsg where
     signableFieldsNM (P x) = signableFields x
     signableFieldsNM (V x) = signableFields x
     signableFieldsNM (C x) = signableFields x
+    signableFieldsNM (G x) = signableFields x
 
   instance
     sig-NetworkMsg : WithSig NetworkMsg

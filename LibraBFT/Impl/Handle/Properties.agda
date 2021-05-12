@@ -107,3 +107,4 @@ module LibraBFT.Impl.Handle.Properties
   ...| P p = refl
   ...| V v = refl
   ...| C c = refl
+  ...| G g = refl

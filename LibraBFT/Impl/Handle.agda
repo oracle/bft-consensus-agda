@@ -12,6 +12,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import Optics.All
 
@@ -27,17 +28,24 @@ module LibraBFT.Impl.Handle
 
  open EpochConfig
 
- record GenesisInfo : Set where
-   constructor mkGenInfo
-   field
-     -- Nodes, PKs for initial epoch
-     -- Faults to tolerate (or quorum size?)
-     genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
-                                        -- highestCommitCert.
-
  postulate -- valid assumption
    -- We postulate the existence of GenesisInfo known to all
    genInfo : GenesisInfo
+
+ genesisMsg : NetworkMsg
+ genesisMsg = G (GenesisMsg∙new genInfo)
+
+ postulate -- valid assumption (that genesis information is sent by someone)
+   initialisingNode : NodeId
+
+ GenInfoP : Vote → Set
+ GenInfoP v = v ^∙ vRound ≡ 0
+
+ postulate -- valid assumption (that votes in genesis information are for round zero)
+   genInfoP : ∀ {v} → v ⊂Msg genesisMsg → GenInfoP v
+
+ postulate -- TODO-2 : prove it using sameHonestSig⇒SameVoteDate
+   genInfoPSameSig : SameSig⇒ ⦃ sig-Vote ⦄ GenInfoP
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
            -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
@@ -70,7 +78,7 @@ module LibraBFT.Impl.Handle
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
  initialRoundManagerAndMessages
-     : (a : Author) → GenesisInfo
+     : (a : Author) → (NodeId × NetworkMsg)
      → RoundManager × List NetworkMsg
  initialRoundManagerAndMessages a _ = initRM , []
 
@@ -80,6 +88,7 @@ module LibraBFT.Impl.Handle
  ...| P p = processProposalMsg now p
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
+ ...| G g = return unit            -- We don't do anything with genesis messages, they are just for initialisation.
 
  -- For now, the SystemModel supports only one kind of action: to send a Message.  Later it might
  -- include things like logging, crashes, assertion failures, etc.  At that point, definitions like

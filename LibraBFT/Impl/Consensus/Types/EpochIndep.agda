@@ -324,6 +324,22 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
              (cmEpoch ∷ cmAuthor ∷ cmRound ∷ cmCert ∷ cmSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
+  record GenesisInfo : Set where
+    constructor mkGenInfo
+    field
+      -- Nodes, PKs for initial epoch
+      -- Faults to tolerate (or quorum size?)
+      -- TODO: in the real implementation, a QuorumCert is derived from the genesis information, not stored directly there
+      ₋genQC     : QuorumCert            -- We use the same genesis QC for both highestQC and
+                                         -- highestCommitCert.
+  open GenesisInfo public
+
+  record GenesisMsg : Set where
+    constructor GenesisMsg∙new
+    field
+      ₋gmGenInfo : GenesisInfo
+  open GenesisMsg public
+
   record LastVoteInfo : Set where
     constructor LastVoteInfo∙new
     field
