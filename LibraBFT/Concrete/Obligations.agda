@@ -11,7 +11,7 @@ open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Concrete.Properties.VotesOnce      as VO
 import      LibraBFT.Concrete.Properties.PreferredRound as PR
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP concSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module collects in one place the obligations an
 -- implementation must meet in order to enjoy the properties

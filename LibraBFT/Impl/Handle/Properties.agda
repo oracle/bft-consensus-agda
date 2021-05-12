@@ -24,8 +24,7 @@ open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP concSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 module LibraBFT.Impl.Handle.Properties
   (hash    : BitString → Hash)

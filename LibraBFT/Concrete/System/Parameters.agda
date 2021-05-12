@@ -20,8 +20,9 @@ open import LibraBFT.Yasm.Base ℓ-RoundManager
 -- implementation.
 
 module LibraBFT.Concrete.System.Parameters where
- ConcSysParms : SystemParameters
- ConcSysParms = mkSysParms
+
+ concSysParms : SystemParameters
+ concSysParms = mkSysParms
                  NodeId
                  _≟NodeId_
                  GenesisInfo

@@ -26,7 +26,7 @@ module LibraBFT.Concrete.System where
  ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManager
 
  open import LibraBFT.Yasm.Base
- import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
+ import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP concSysParms as LYS
 
  -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
  -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.
@@ -54,7 +54,7 @@ module LibraBFT.Concrete.System where
  PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
  PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) = (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁)
 
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP concSysParms PeerCanSignForPK
                                                                   (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
  -- An implementation must prove that, if one of its handlers sends a
