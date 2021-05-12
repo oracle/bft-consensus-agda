@@ -167,12 +167,12 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     ...| inj₂ refl  | inj₂ refl
        with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
           | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
-    ...| inj₂ msb4                   | inj₂ m'sb4
+    ...| inj₁ msb4                   | inj₁ m'sb4
          = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
-    ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
+    ...| inj₂ (newV , m∈outs , vspk) | inj₂ (newV' , m'∈outs , v'spk)
       = Impl-VO2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
                  (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk eid≡ r≡
-    ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
+    ...| inj₂ (newV , m∈outs , vspk) | inj₁ m'sb4
        with sameHonestSig⇒sameVoteData pkH (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
@@ -181,7 +181,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
     VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' eid≡ r≡
        | refl       | refl
        | inj₂ refl  | inj₂ refl
-       | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
+       | inj₁ msb4                   | inj₂ (newV' , m'∈outs , v'spk)
        with sameHonestSig⇒sameVoteData pkH (msgSigned msb4) vv (msgSameSig msb4)
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl

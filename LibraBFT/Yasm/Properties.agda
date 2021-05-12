@@ -250,18 +250,18 @@ module LibraBFT.Yasm.Properties
                       → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                       → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                      → ( m ∈ outs × ValidSenderForPK (StepPeer-post (step-honest stP)) v pid pk
-                        × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
-                        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                      → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                      ⊎ (¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st))
+                         × m ∈ outs × ValidSenderForPK (StepPeer-post (step-honest stP)) v pid pk)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig v⊂m m∈post
         with Any-++⁻ (List-map (pid ,_) outs) m∈post
-     ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
+     ...| inj₂ m∈preSt = inj₁ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
      ...| inj₁ nm∈outs
         with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
      ...| m∈outs
         with sps-avp r pkH stP m∈outs v⊂m sig
-     ...| inj₁ newVote = inj₁ (m∈outs , newVote)
-     ...| inj₂ msb4    = inj₂ msb4
+     ...| inj₁ (vspk , newVote) = inj₂ (newVote , m∈outs , vspk)
+     ...| inj₂ msb4    = inj₁ msb4
 
  -- This could potentially be more general, for example covering the whole SystemState, rather than
   -- just one peer's state.  However, this would put more burden on the user and is not required so

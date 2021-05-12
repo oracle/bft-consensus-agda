@@ -5,33 +5,9 @@
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 
--- This module proves the two "VotesOnce" proof obligations for our fake handler
-
-
--- Note that the proofs in this file were broken by the changes to eliminate EpochConfigs from the
--- system model and to move towards more realistic initialisation.  Below some parts of the proofs
--- are commented out and some holes are left to enable exploring where the proof breaks down.
-
--- UPDATE: we have changed PeersCanSignFor (and the its generic counterpart ValidPartBy) to be
--- functions of SystemState, rather than PeerState, and these changes have NOT been propagated to
--- this file.
-
--- One key issue is that, with the new definitions, whether a step by a peer can sign a message
--- for a PK in a particular epoch is a function of the post state, rather than a function of the
--- available EpochConfigs in the system state as it was before.  This means that a peer can learn
--- of a new EpochConfig during a step (either from GenesisInfo in step-init or, eventually, by
--- committing an epoch-changing transaction and adding another EpochConfig as a result).  Thus,
--- unlike before, it is possible for a peer step to sign and send a new message, even though
--- PeerCanSignForPK did not hold in its prestate.  For that reason, the ImplObligation₁ now
--- receives evidence that it can sign in the step's post state (in the form of PeerCanSignForPK
--- (StepPeer-post {pre = pre} (step-honest sps)) v pid pk), whereas previously, it received
--- evidence that it could do so in the step's prestate (in the form of ValidSenderForPK
--- (availEpochs pre) v pid pk).
-
--- I have fixed various things broken by the changes where it was easy to do so, and created holes
--- (mostly containing whatever was there previously) so that the file type checks.  However, I am
--- not pushing further on this at the moment.  There are still significant issues to resolve to
--- come up with a VotesOnce proof without using unwind.
+-- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
+-- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
+-- inductively on the ReachableSystemState. 
 
 open import Optics.All
 open import LibraBFT.Prelude
@@ -62,14 +38,14 @@ open import LibraBFT.Impl.Properties.VotesOnce
 module LibraBFT.Impl.Properties.VotesOnceDirect where
 
 
-  newVoteEpoch≡⇒GreaterRound : ∀ {st : SystemState}{pid s' outs v m pk}
+  newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState st
                                → StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs)
                                → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                                → v ^∙ vEpoch ≡ (₋rmEC s') ^∙ rmEpoch
                                → v ^∙ vRound ≡ (₋rmEC s') ^∙ rmLastVotedRound
-  newVoteEpoch≡⇒GreaterRound r (step-msg {_ , P pm} _ pinit) v⊂m (here refl) sig vnew ep≡
+  newVoteEpoch≡⇒Round≡ r (step-msg {_ , P pm} _ pinit) v⊂m (here refl) sig vnew ep≡
      with v⊂m
   ...| vote∈vm = refl
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
@@ -83,27 +59,6 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → PeerCanSignForPK s' v pid pk
   peerCanSignSameS pcs refl = pcs
 
-  -- NOTE: the (ab)use of the temporary "bogus" properties (now eliminated) in the "proof" of
-  -- peerCansign-msb4 below hides a significant issue.  Those properties were originally used in a
-  -- context in which the peer has been initialised to show that a step by the peer does not
-  -- change its number of epoch configs or actual epoch configs.  The usage here attempts to use
-  -- those properties to reason "backwards" across a step, with no guarantee that the peer was
-  -- initialised in the prestate.  Thus, the properties that have replaced the bogus ones and have
-  -- been proved (noEpochChangeSPS₁ and noEpochChangeSPS₂) do not work here.
-
-  -- The key reason that this property holds is the MsgWithSig∈, which says that *some* peer has
-  -- sent a message with the same signature in the prestate.  But this does not (directly) imply
-  -- that pid sent it.  Another peer might have observed the signature being sent previously and
-  -- resend it.  The whole point of unwind is to go back to the *first* time the signature was sent,
-  -- at which point we can capture that (because pk is honest), the sender must be valid to sign for
-  -- that pk in that epoch, and then we can use injectivity of PKs to conclude that this sender was
-  -- pid (see line 229-233 in VotesOnce.agda).
-
-  -- I think it's possible to capture everything we need in a property that can be proved directly
-  -- by induction (as opposed to using unwind), but I also think this exercise has shown that it
-  -- will involve much of the same complexity, and perhaps be more difficult overall.  Maybe
-  -- something like the following could be proved inductively, and then used together with
-  -- injectivity properties as mentioned above to determine that the two pids are the same.
   peerCanSignEp≡ : ∀ {pid v v' pk s'}
                    → PeerCanSignForPK s' v pid pk
                    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
@@ -115,19 +70,19 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
      ∀ {st v pk}
      → ReachableSystemState st
      → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-     → MsgWithSig∈ pk (₋vSignature v) (msgPool st)
+     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      → ∃[ pid ] ( initialised st pid ≡ initd
                 × PeerCanSignForPK st v pid pk )
   MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest {pid} stP))) pkH sig msv
      with newMsg⊎msgSentB4 r stP pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-  ...| inj₁ (m∈outs , pcsN , newV)
+  ...| inj₂ (newV , m∈outs , pcsN)
      with stP
   ...| step-msg _ initP
       with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb   = ⊥-elim (PerState.meta-sha256-cr st (step-s r step) hb)
   ...| inj₂ refl = pid , peersRemainInitialized step initP , peerCanSignEp≡ pcsN refl
   MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest stP))) pkH sig msv
-     | inj₂ msb4 rewrite msgSameSig msv
+     | inj₁ msb4 rewrite msgSameSig msv
      with MsgWithSig⇒ValidSenderInitialised {v = v} r pkH sig msb4
   ...| pid , initP , pcsPre = pid ,
                               peersRemainInitialized step initP ,
@@ -173,7 +128,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → initialised st pid ≡ initd
   msg∈pool⇒initd {pid'} {st = st} step@(step-s r (step-peer {pid} (step-honest stPeer))) pcs pkH sig msv
     with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-  ...| inj₁ (m∈outs , pcsN , newV)
+  ...| inj₂ (newV , m∈outs , pcsN)
      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr st step hb)
   ...| inj₂ refl
@@ -183,7 +138,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| yes refl = refl
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH pcs pcsN refl))
   msg∈pool⇒initd {pid'} (step-s r step@(step-peer {pid} (step-honest stPeer))) pcs pkH sig msv
-     | inj₂ msb4 rewrite msgSameSig msv
+     | inj₁ msb4 rewrite msgSameSig msv
        with pid ≟ pid'
   ...| yes refl = refl
   ...| no  pid≢ = let pcsmsb4 = peerCanSign-Msb4 r step pcs pkH sig msb4
@@ -228,7 +183,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   oldVoteRound≤lvr {pid'} step@(step-s r stP@(step-peer {pid} (step-honest stPeer)))
                    pkH sig msv vspk eid≡
      with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-  ...| inj₂ msb4 rewrite msgSameSig msv
+  ...| inj₁ msb4 rewrite msgSameSig msv
      with peerCanSign-Msb4 r stP vspk pkH sig msb4
   ...| pcsmsb4
      with pid ≟ pid'
@@ -240,12 +195,12 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s r (step-peer {pid} {st'} stepPeer@(step-honest stPeer)))
                    pkH sig msv vspk eid≡
-     | inj₁ (m∈outs , vspkN , newV)
+     | inj₂ (newV , m∈outs , vspkN)
      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
   ...| inj₂ refl
      with pid ≟ pid'
-  ...| yes refl = ≡⇒≤ (newVoteEpoch≡⇒GreaterRound r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV (sym eid≡))
+  ...| yes refl = ≡⇒≤ (newVoteEpoch≡⇒Round≡ r stPeer (msg⊆ msv) m∈outs (msgSigned msv) newV (sym eid≡))
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
