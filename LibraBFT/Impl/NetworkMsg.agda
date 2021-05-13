@@ -46,7 +46,7 @@ module LibraBFT.Impl.NetworkMsg where
      withVoteSIHighCC : vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈VoteMsg vm
 
   data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
-     withCommitMsg    : cm ^∙ cCert ≡ qc                                  → qc QC∈CommitMsg cm
+     withCommitMsg    : cm ^∙ cmCert ≡ qc                                 → qc QC∈CommitMsg cm
 
   data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
     inP : ∀ {pm} → qc QC∈ProposalMsg pm → qc QC∈NM (P pm)
@@ -65,7 +65,7 @@ module LibraBFT.Impl.NetworkMsg where
   getEpoch : NetworkMsg → Epoch
   getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
   getEpoch (V (VoteMsg∙new v _)) = v ^∙ vEpoch
-  getEpoch (C c) = c ^∙ cEpoch
+  getEpoch (C c) = c ^∙ cmEpoch
 
   -- Get the message's author, if it has one.  Note that ProposalMsgs don't necessarily have
   -- authors; we care about the (honesty of) the author only for Proposals, not NilBlocks and
@@ -77,14 +77,14 @@ module LibraBFT.Impl.NetworkMsg where
   ...| NilBlock        = nothing
   ...| Genesis         = nothing
   getAuthor (V v) = just (v ^∙ vmVote ∙ vAuthor)
-  getAuthor (C c) = just (c ^∙ cAuthor)
+  getAuthor (C c) = just (c ^∙ cmAuthor)
 
   -----------------------------------------------------------------------
   -- Proof that network records are signable and may carry a signature --
   -----------------------------------------------------------------------
 
-  Signed-pi-CommitMsg : (c : CommitMsg)
-                      → (is1 is2 : (Is-just ∘ ₋cSigMB) c)
+  Signed-pi-CommitMsg : (cm : CommitMsg)
+                      → (is1 is2 : (Is-just ∘ ₋cmSigMB) cm)
                       → is1 ≡ is2
   Signed-pi-CommitMsg (CommitMsg∙new _ _ _ _ .(just _)) (just _) (just _) = cong just refl
 
@@ -111,15 +111,15 @@ module LibraBFT.Impl.NetworkMsg where
 
    sig-CommitMsg : WithSig CommitMsg
    sig-CommitMsg = record
-      { Signed         = Is-just ∘ ₋cSigMB
+      { Signed         = Is-just ∘ ₋cmSigMB
       ; Signed-pi      = Signed-pi-CommitMsg
-      ; isSigned?      = λ c → Maybe-Any-dec (λ _ → yes tt) (c ^∙ cSigMB)
+      ; isSigned?      = λ cm → Maybe-Any-dec (λ _ → yes tt) (cm ^∙ cmSigMB)
       ; signature      = λ { _ prf → to-witness prf }
-      ; signableFields = λ c → concat ( encode  (c ^∙ cEpoch)
-                                      ∷ encode  (c ^∙ cAuthor)
-                                      ∷ encode  (c ^∙ cRound)
-                                      ∷ encode  (c ^∙ cCert)
-                                      ∷ [])
+      ; signableFields = λ cm → concat ( encode  (cm ^∙ cmEpoch)
+                                       ∷ encode  (cm ^∙ cmAuthor)
+                                       ∷ encode  (cm ^∙ cmRound)
+                                       ∷ encode  (cm ^∙ cmCert)
+                                       ∷ [])
       }
 
   ---------------------------------------------------------

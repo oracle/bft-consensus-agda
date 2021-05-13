@@ -51,13 +51,7 @@ module LibraBFT.Impl.Properties.Aux where
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ {!!}
-  {- ((mkValidSenderForPK      {! epoch !} -- We will need an invariant that says the epoch
-                                                             -- used by a voter is "in range".
-                                                 (EC-lookup' (availEpochs st) {!!})
-                                                 refl
-                                                 {! !}       -- The implementation will need to check that the voter is a member of
-                                                             -- the epoch of the message it's sending.
-                                                 )
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {! !} {!!} (inGenInfo refl) {!!} {!!} {!!}
+       -- The implementation will need to provide evidence that the peer is a member of
+       -- the epoch of the message it's sending and that it is assigned pk for that epoch.
                         , msg∉)
-  -}
