@@ -163,12 +163,16 @@ module LibraBFT.Yasm.Properties
      -- We extract two pieces of important information from the place where the part 'v'
      -- was first sent: (a) there is a message with the same signature /in the current pool/
      -- and (b) its epoch is less than e.
-        = Any-Step-elim (λ { {st = step-peer {pid = pid} (step-honest sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
-                             → mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid
-                           ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} sps)} (preReach , ¬sentb4 , new , refl , valid) tr
-                            → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new))
-                        })
-                        (unwind r hpk v⊂m m∈pool ver)
+        = Any-Step-elim helper (unwind r hpk v⊂m m∈pool ver)
+          where helper : {s s' : SystemState} {st = st₁ : Step s s'} → IsValidNewPart (ver-signature ver) pk st₁ →
+                         Step* s' st →
+                         Σ (MsgWithSig∈ pk (ver-signature ver) (msgPool st))
+                           (λ msg → ValidSenderForPK st (msgPart msg) (msgSender msg) pk)
+                helper {st = step-peer (step-honest sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
+                  = mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid
+                helper {st = step-peer {pre = pre} (step-cheat sps)} (preReach , ¬sentb4 , new , refl , ini , valid) tr
+                  = ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new))
+
 
      -- Unforgeability is also an important property stating that every part that is
      -- verified with an honest public key has either been sent by α or is a replay
