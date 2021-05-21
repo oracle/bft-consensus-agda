@@ -57,6 +57,7 @@ module LibraBFT.Prelude where
     using    (¬Any[])
     renaming ( map⁺       to Any-map⁺
              ; map⁻       to Any-map⁻
+             ; mapMaybe⁺  to Any-mapMaybe⁺
              ; concat⁺    to Any-concat⁺
              ; concat⁻    to Any-concat⁻
              ; ++⁻        to Any-++⁻

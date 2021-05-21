@@ -7,6 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+import      LibraBFT.Yasm.Types  as LYT
 import      LibraBFT.Yasm.Base   as LYB
 import      LibraBFT.Yasm.System as LYS
 
@@ -38,7 +39,7 @@ module LibraBFT.Yasm.Properties
 
  ¬cheatForgeNew : ∀ {pid pk vsig mst outs m}{st : SystemState}
                 → (sp : StepPeer st pid mst outs)
-                → outs ≡ m ∷ []
+                → outs ≡ LYT.send m ∷ []
                 → (ic : isCheat sp)
                 → Meta-Honest-PK pk
                 → MsgWithSig∈ pk vsig ((pid , m) ∷ msgPool st)
@@ -70,7 +71,7 @@ module LibraBFT.Yasm.Properties
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
    → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
-   → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
+   → LYT.send m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
      -- Note that we require that α can send for the PK according to the *post* state.  This allows
      -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
      -- it changed to the epoch in the same step.  If this is too painful, we could require that the
@@ -122,7 +123,7 @@ module LibraBFT.Yasm.Properties
             → p ⊂Msg m → (σ , m) ∈ msgPool st → (ver : WithVerSig pk p)
             → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
-       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+       with Any-++⁻ (actionsToSentMessages β outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = step-there (unwind tr hpk p⊂m furtherBack sig)
      ...| inj₁ thisStep
        with sp
@@ -134,19 +135,19 @@ module LibraBFT.Yasm.Properties
      ...| inj₂ sentb4
        with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
-     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig
+     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {m = m} {σ} hpk p⊂m m∈sm sig
         | inj₁ thisStep
-        | step-honest x
-       with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs)
-       with sps-avp tr hpk x m∈outs p⊂m sig
+        | step-honest x with senderMsgPair∈⇒send∈ outs thisStep
+     ...| m∈outs , refl with sps-avp tr hpk x m∈outs p⊂m sig
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
-     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig
+     unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {m = m} {σ} hpk p⊂m m∈sm sig
         | inj₁ thisStep
         | step-honest x
-        | (m , refl , m∈outs)
-        | inj₁ (valid-part , notBefore) = step-here tr (tr , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl) , refl , override-target-≡ , valid-part )
+        | m∈outs , refl
+        | inj₁ (valid-part , notBefore) = step-here tr (tr , notBefore , mws∈pool , refl , override-target-≡ , valid-part)
+        where mws∈pool : MsgWithSig∈ _ (WithSig.signature Part-sig _ (isSigned sig)) (actionsToSentMessages β outs ++ msgPool pre)
+              mws∈pool = MsgWithSig∈-++ˡ (mkMsgWithSig∈ m _ p⊂m β thisStep sig refl)
 
      -- Unwind is inconvenient to use by itself because we have to do
      -- induction on Any-Step-elim. The 'honestPartValid' property below
@@ -189,7 +190,7 @@ module LibraBFT.Yasm.Properties
        → ValidSenderForPK st part α pk
        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
-       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+       with Any-++⁻ (actionsToSentMessages β outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> ⊎-map (ValidSenderForPK-stable st (step-peer sp)) id
                                                         (ext-unforgeability' st furtherBack p⊆m sig hpk)
      ...| inj₁ thisStep
@@ -202,9 +203,8 @@ module LibraBFT.Yasm.Properties
      ...| inj₂ sentb4 = inj₂ (MsgWithSig∈-++ʳ sentb4)
      ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig hpk
         | inj₁ thisStep
-        | step-honest x
-       with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs) = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
+        | step-honest x with senderMsgPair∈⇒send∈ outs thisStep
+     ... | m∈outs , refl = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig)
 
      -- The ext-unforgeability' property can be collapsed in a single clause.
 
@@ -235,19 +235,17 @@ module LibraBFT.Yasm.Properties
         with msgWithSigSentByAuthor preach hpk mws'
      ...| mws'' , vpb'' = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
      msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
-       with Any-++⁻ (List-map (pid ,_) outs) {msgPool pre} (msg∈pool mws)
+       with Any-++⁻ (actionsToSentMessages pid outs) {msgPool pre} (msg∈pool mws)
      ...| inj₂ furtherBack
        with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack)
      ...| mws' , vpb' =  MsgWithSig∈-++ʳ mws' , ValidSenderForPK-stable preach theStep vpb'
      msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws
-        | inj₁ thisStep
-        with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m' , refl , m∈outs)
-        with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
-     ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
-     ...| inj₂ mws'
-        with msgWithSigSentByAuthor preach hpk mws'
-     ...| mws'' , vpb'' rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
+        | inj₁ thisStep with senderMsgPair∈⇒send∈ outs thisStep
+     ... | m∈outs , refl with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws)
+     ... | inj₁ (vsfpk-pid , _) = mws , vsfpk-pid
+     ... | inj₂ mws' with msgWithSigSentByAuthor preach hpk mws'
+     ... | mws₁ , vsfpk-mws₁-sender rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws₁ , ValidSenderForPK-stable preach theStep vsfpk-mws₁-sender
+
 
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
@@ -256,16 +254,15 @@ module LibraBFT.Yasm.Properties
                       → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
                       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                       ⊎ (¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st))
-                         × m ∈ outs × ValidSenderForPK (StepPeer-post (step-honest stP)) v pid pk)
+                         × LYT.send m ∈ outs × ValidSenderForPK (StepPeer-post {pre = st} (step-honest {outs = outs} stP)) v pid pk)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig v⊂m m∈post
-        with Any-++⁻ (List-map (pid ,_) outs) m∈post
+        with Any-++⁻ (actionsToSentMessages pid outs) m∈post
      ...| inj₂ m∈preSt = inj₁ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
-     ...| inj₁ nm∈outs
-        with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
-     ...| m∈outs
-        with sps-avp r pkH stP m∈outs v⊂m sig
-     ...| inj₁ (vspk , newVote) = inj₂ (newVote , m∈outs , vspk)
-     ...| inj₂ msb4    = inj₁ msb4
+     ...| inj₁ nm∈outs with senderMsgPair∈⇒send∈ outs nm∈outs
+     ...| m∈outs , refl with sps-avp r pkH stP m∈outs v⊂m sig
+     ... | inj₁ (vspk , newVote) = inj₂ (newVote , m∈outs , vspk)
+     ... | inj₂ msb4 = inj₁ msb4
+
 
  -- This could potentially be more general, for example covering the whole SystemState, rather than
   -- just one peer's state.  However, this would put more burden on the user and is not required so

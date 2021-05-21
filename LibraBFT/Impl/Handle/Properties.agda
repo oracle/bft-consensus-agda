@@ -24,6 +24,7 @@ open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 
@@ -53,7 +54,7 @@ module LibraBFT.Impl.Handle.Properties
   ...| here refl = fakeAuthor ∷ [] , here refl
 
   msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManager}
-                     → m ∈ proj₂ (peerStepWrapper pid nm st)
+                     → send m ∈ proj₂ (peerStepWrapper pid nm st)
                      → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
     with nm
@@ -63,8 +64,8 @@ module LibraBFT.Impl.Handle.Properties
      with m∈outs
   ...| here v∈outs
        with m
-  ...| P _ = ⊥-elim (P≢V v∈outs)
-  ...| C _ = ⊥-elim (C≢V v∈outs)
+  ...| P _ = ⊥-elim (P≢V (action-send-injective v∈outs))
+  ...| C _ = ⊥-elim (C≢V (action-send-injective v∈outs) )
   ...| V vm rewrite sym v∈outs = vm , refl , here refl
 
   ----- Properties that relate handler to system state -----

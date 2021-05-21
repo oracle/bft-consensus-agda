@@ -27,6 +27,7 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
@@ -47,7 +48,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
-                               → v  ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                               → v  ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                                → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
                                × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
@@ -113,7 +114,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → (ivnp : IsValidNewPart (₋vSignature v') pk theStep)
                      → firstSendEstablishes v' pk pre theStep
   isValidNewPart⇒fSE {pre = pre} {theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬sentb4 , mws , _)
-     with Any-++⁻ (List-map (β ,_) outs) (msg∈pool mws)
+     with Any-++⁻ (actionsToSentMessages β outs) (msg∈pool mws)
      -- TODO-1 : Much of this proof is not specific to the particular property being proved, and could be
      -- refactored into Yasm.Properties.  See proof of unwind and refactor to avoid redundancy?
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
@@ -128,9 +129,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   isValidNewPart⇒fSE {pk = pk}{pre = pre}{theStep = step-peer {β} {postst} {outs} {.pre} pstep} hpk (r , ¬sentb4 , mws , refl , zefl , vpk)
      | inj₁ thisStep
-     | step-honest {.β} hstep
-     with Any-satisfied-∈ (Any-map⁻ thisStep)
-  ...| nm , refl , nm∈outs
+     | step-honest {.β} hstep with senderMsgPair∈⇒send∈ outs thisStep
+  ...| nm∈outs , refl
      with hstep
   ...| step-init _                   = ⊥-elim (¬Any[] nm∈outs) -- So far these handlers don't send any messages
   ...| step-msg {_ , C _} m∈pool ini = ⊥-elim (¬Any[] nm∈outs)
@@ -268,11 +268,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
      = ⊥-elim (vnew (qcVotesSentB4 r pinit refl qc∈m refl vs∈qc))
   ...| vote∈vm {si}
      with m'
-  ...| P _ = ⊥-elim (P≢V (Any-singleton⁻ m'∈outs))
-  ...| C _ = ⊥-elim (C≢V (Any-singleton⁻ m'∈outs))
+  ...| P _ = ⊥-elim (P≢V (action-send-injective (Any-singleton⁻ m'∈outs)))
+  ...| C _ = ⊥-elim (C≢V (action-send-injective (Any-singleton⁻ m'∈outs)))
   ...| V vm'
        -- Because the handler sends only one message, the two VoteMsgs vm and vm' are the same
-     rewrite V-inj (trans (Any-singleton⁻ m'∈outs) (sym (Any-singleton⁻ m∈outs)))
+     rewrite V-inj (trans (action-send-injective (Any-singleton⁻ m'∈outs)) (sym (action-send-injective (Any-singleton⁻ m∈outs))))
      with v'⊂m'
        -- Both votes are the vote in the (single) VoteMsg, so their biIds must be the same
   ...| vote∈vm = refl
@@ -281,3 +281,4 @@ module LibraBFT.Impl.Properties.VotesOnce where
                   rewrite cong ₋vSignature v≈rbld
                         | procPMCerts≡ {0} {msg} {peerStates pre pid} {vm} v∈outs
      = ⊥-elim (v'new (qcVotesSentB4 r pinit refl qc∈m refl vs∈qc))
+

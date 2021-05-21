@@ -17,6 +17,7 @@ open import LibraBFT.Impl.Handle sha256 sha256-cr
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
@@ -50,7 +51,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
-   → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
+   → v  ⊂Msg m  → send m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
      -- Note that this does not directly exclude possibility of previous message with
      -- same signature, but sent by someone else.  We could prove it implies it though.
@@ -72,12 +73,12 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
-   → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
+   → v  ⊂Msg m  → send m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
 
    -- And if there exists another v' that is also new and valid
-   → v' ⊂Msg m'  → m' ∈ outs → (sig' : WithVerSig pk v')
+   → v' ⊂Msg m'  → send m' ∈ outs → (sig' : WithVerSig pk v')
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
 
    -- If v and v' share the same epoch and round

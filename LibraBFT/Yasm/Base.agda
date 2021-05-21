@@ -6,10 +6,10 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 
+open import LibraBFT.Yasm.Types
+
 -- This module defines the types used to define a SystemModel.
-
 module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
-
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
  record SystemParameters : Set (ℓ+1 ℓ-PeerState) where
@@ -32,10 +32,10 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     _⊂Msg_       : Part → Msg → Set
 
     -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → Genesis → PeerState × List Msg
+    init : PeerId → Genesis → PeerState × List (Action Msg)
 
     -- Handles a message on a previously initialized peer.
-    handle : PeerId → Msg → PeerState → PeerState × List Msg
+    handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
 
     -- TODO-3?: So far, handlers only produce messages to be sent.
     -- It would be reasonable to generalize this to something like
