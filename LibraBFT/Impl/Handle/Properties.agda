@@ -17,6 +17,7 @@ open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
@@ -27,13 +28,9 @@ open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 
-
-module LibraBFT.Impl.Handle.Properties
-  (hash    : BitString → Hash)
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  where
-  open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
-  open import LibraBFT.Impl.Handle hash hash-cr
+module LibraBFT.Impl.Handle.Properties where
+  open import LibraBFT.Impl.Consensus.RoundManager
+  open import LibraBFT.Impl.Handle
 
   ----- Properties that bridge the system model gap to the handler -----
   msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManager}

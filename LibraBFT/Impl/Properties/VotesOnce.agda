@@ -18,9 +18,9 @@ open import LibraBFT.Impl.Base.Types
 
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Consensus.RoundManager.Properties  sha256 sha256-cr
-open import LibraBFT.Impl.Handle                             sha256 sha256-cr
-open import LibraBFT.Impl.Handle.Properties                  sha256 sha256-cr
+open import LibraBFT.Impl.Consensus.RoundManager.Properties
+open import LibraBFT.Impl.Handle
+open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Impl.Util.Util

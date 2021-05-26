@@ -19,11 +19,8 @@ open import Optics.All
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
 
-module LibraBFT.Impl.Handle
-  (hash    : BitString → Hash)
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  where
- open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
+module LibraBFT.Impl.Handle where
+ open import LibraBFT.Impl.Consensus.RoundManager
  open RWST-do
 
  open EpochConfig

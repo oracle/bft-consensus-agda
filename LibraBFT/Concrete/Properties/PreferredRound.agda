@@ -12,7 +12,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle sha256 sha256-cr
+open import LibraBFT.Impl.Handle
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Concrete.System

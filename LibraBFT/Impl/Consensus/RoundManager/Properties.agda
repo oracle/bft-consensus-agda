@@ -16,12 +16,9 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
-module LibraBFT.Impl.Consensus.RoundManager.Properties
-  (hash    : BitString → Hash)
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  where
+module LibraBFT.Impl.Consensus.RoundManager.Properties where
 
-  open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
+  open import LibraBFT.Impl.Consensus.RoundManager
 
   voteForCurrentEpoch : ∀ {ts pm pre vm αs}
                       → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
