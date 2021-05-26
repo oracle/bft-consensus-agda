@@ -19,6 +19,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should be in this file?
 open import LibraBFT.Concrete.System
@@ -66,14 +67,14 @@ module LibraBFT.Impl.Handle.Properties where
   ...| C _ = ⊥-elim (C≢V v∈outs)
   ...| V vm rewrite sym v∈outs = here refl , vm , pm , refl , refl
 
-  proposalHandlerSentVote : ∀ {pid ts pm m} {st : RoundManager}
-                          → m ∈ proj₂ (peerStepWrapper pid (P pm) st)
-                          → ∃[ αs ] ∃[ vm ] (m ≡ V vm × SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
-  proposalHandlerSentVote {pid} {ts} {pm} {m} {st} m∈outs
+  proposalHandlerSentVote : ∀ {pid ts pm vm} {st : RoundManager}
+                          → V vm ∈ proj₂ (peerStepWrapper pid (P pm) st)
+                          → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
+  proposalHandlerSentVote {pid} {ts} {pm} {vm} {st} m∈outs
      with msgsToSendWereSent {pid} {P pm} {st = st} m∈outs
   ...| send∈ , vm , pm' , refl , refl
      with msgsToSendWereSent1 {pid} {ts} {pm'} {st = st} send∈
-  ...| αs , sv = αs , vm , refl , sv
+  ...| αs , sv = αs , sv
 
   ----- Properties that relate handler to system state -----
 
@@ -141,8 +142,8 @@ module LibraBFT.Impl.Handle.Properties where
                              hpk v⊂m m∈outs qc∈m
      with peerStates pre pid
   ...| rm
-     with proposalHandlerSentVote {pid} {0} {pm} {V vm} {rm} m∈outs
-  ...| _ , vm'  , refl , v∈outs
+     with proposalHandlerSentVote {pid} {0} {pm} {vm} {rm} m∈outs
+  ...| _ , v∈outs
      with qc∈m
   ...| withVoteSIHighQC refl
        = inHQC (cong ₋siHighestQuorumCert (procPMCerts≡ {0} {pm} {rm} v∈outs))
@@ -150,10 +151,56 @@ module LibraBFT.Impl.Handle.Properties where
   VoteMsgQCsFromRoundManager {pid} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v} {vm1}
                              hpk v⊂m m∈outs qc∈m
      | rm
-     | _ , vm' , refl , v∈outs
+     | _ , v∈outs
      | withVoteSIHighCC hqcIsJust
      with cong ₋siHighestCommitCert (procPMCerts≡ {0} {pm} {rm} v∈outs)
   ...| refl
      with (rm ^∙ rmHighestQC) ≟QC (rm ^∙ rmHighestCommitQC)
   ...| true  because (ofʸ refl) = ⊥-elim (maybe-⊥ hqcIsJust refl)
   ...| false because _          = inHCC (just-injective (sym hqcIsJust))
+
+  newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
+                               → ReachableSystemState pre
+                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
+                               → ¬ (∈GenInfo (₋vSignature v))
+                               → Meta-Honest-PK pk
+                               → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                               → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+                               → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
+                               × v ^∙ vRound ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+  newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
+     rewrite pinit
+     with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
+  ...| _ , vm , _ , refl , refl
+    with proposalHandlerSentVote {pid} {0} {pm} {vm} {peerStates pre pid} m∈outs
+  ...| _ , v∈outs
+     rewrite SendVote-inj-v  (Any-singleton⁻ v∈outs)
+           | SendVote-inj-si (Any-singleton⁻ v∈outs)
+    with v⊂m
+       -- Rebuilding keeps the same signature, and the SyncInfo included with the
+       -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
+       -- those QCS have signatures that have been sent before, contradicting the
+       -- assumption that v's signature has not been sent before.
+  ...| vote∈vm {si} = refl , refl , refl
+  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
+                  rewrite cong ₋vSignature v≈rbld
+                        | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
+    with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
+  ...| sentb4 = ⊥-elim (vnew sentb4)
+
+  -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
+  lastVoteRound-mono : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
+                     → ReachableSystemState pre
+                     → ppre ≡ peerStates pre pid
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
+                     → initialised pre pid ≡ initd
+                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
+  lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
+  lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
+     with m
+  ...| P p = const (≤-step (≤-reflexive refl))
+  ...| V v = const (≤-reflexive refl)
+  ...| C c = const (≤-reflexive refl)
+

@@ -3,8 +3,6 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
-
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
 open import Optics.All
@@ -17,12 +15,12 @@ import      LibraBFT.Concrete.Properties.VotesOnce as VO
 open import LibraBFT.Impl.Base.Types
 
 open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Handle
 open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Properties.Aux
+open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -38,55 +36,6 @@ open        Structural impl-sps-avp
 -- ambitious properties.
 
 module LibraBFT.Impl.Properties.VotesOnce where
-
-  -- TODO-2: newVoteSameEpochGreaterRound and lastVoteround-mono probably belong in
-  -- Impl.Handle.Properties
-  newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
-                               → ReachableSystemState pre
-                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
-                               → ¬ (∈GenInfo (₋vSignature v))
-                               → Meta-Honest-PK pk
-                               → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
-                               → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
-                               × v ^∙ vRound ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
-  newVoteSameEpochGreaterRound _ (step-init _) _ _ v⊂m m∈outs sig = ⊥-elim (¬Any[] m∈outs)
-  newVoteSameEpochGreaterRound {m = m} r (step-msg {(_ , V vm')} _ _) _ _ _ m∈outs = ⊥-elim (¬Any[] m∈outs)
-  newVoteSameEpochGreaterRound {m = m} r (step-msg {(_ , C cm)} _ _)  _ _ _ m∈outs = ⊥-elim (¬Any[] m∈outs)
-
-  newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
-     rewrite pinit
-    with proposalHandlerSentVote {pid} {0} {pm} {m} {peerStates pre pid} m∈outs
-  ...| _ , vm , refl , v∈outs
-     rewrite SendVote-inj-v  (Any-singleton⁻ v∈outs)
-           | SendVote-inj-si (Any-singleton⁻ v∈outs)
-    with v⊂m
-       -- Rebuilding keeps the same signature, and the SyncInfo included with the
-       -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
-       -- those QCS have signatures that have been sent before, contradicting the
-       -- assumption that v's signature has not been sent before.
-  ...| vote∈vm {si} = refl , refl , refl
-  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
-    with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
-  ...| sentb4 = ⊥-elim (vnew sentb4)
-
-  -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes
-  lastVoteRound-mono : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
-                     → ReachableSystemState pre
-                     → ppre ≡ peerStates pre pid
-                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
-                     → initialised pre pid ≡ initd
-                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
-                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
-  lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
-  lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
-     with m
-  ...| P p = const (≤-step (≤-reflexive refl))
-  ...| V v = const (≤-reflexive refl)
-  ...| C c = const (≤-reflexive refl)
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
@@ -130,9 +79,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
      with Any-satisfied-∈ (Any-map⁻ thisStep)
   ...| nm , refl , nm∈outs
      with hstep
-  ...| step-init _                   = ⊥-elim (¬Any[] nm∈outs) -- So far these handlers don't send any messages
-  ...| step-msg {_ , C _} m∈pool ini = ⊥-elim (¬Any[] nm∈outs)
-  ...| step-msg {_ , V _} m∈pool ini = ⊥-elim (¬Any[] nm∈outs)
   ...| step-msg {_ , P m} m∈pool ini
      with impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws )
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
@@ -189,17 +135,13 @@ module LibraBFT.Impl.Properties.VotesOnce where
   fSE⇒rnd≤lvr hpk {theStep = step-peer (step-honest _)} (_ , _ , lvrc) step* = LvrCarrier-transp* lvrc step*
 
   vo₁ : VO.ImplObligation₁
-  -- Initialization doesn't send any messages at all so far.  In future it may send messages, but
-  -- any votes they contains will be from GenesisInfo.
-  vo₁ r (step-init _) _ _ m∈outs = ⊥-elim (¬Any[] m∈outs)
+  -- Initialization doesn't send any messages at all so far; Agda figures that out so no proof
+  -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
+  -- they contain will be from GenesisInfo.
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
       {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' ¬init' refl rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs
-  ...| _ , _ , _ , isVoteMsg , _
-     with m
-  ...| P _ = ⊥-elim (P≢V isVoteMsg)
-  ...| C _ = ⊥-elim (C≢V isVoteMsg)
-  ...| V vm
+  ...| _ , vm , _ , refl , _
      with newVoteSameEpochGreaterRound r (step-msg m∈pool pidini) ¬init hpk v⊂m m∈outs sig ¬sentb4
   ...| eIds≡' , suclvr≡v'rnd , _
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
@@ -233,8 +175,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' _ refl rnds≡
-     | _ , _ , _ , isVoteMsg , _
-     | V vm
+     | _ , vm , _ , refl , _
      | eIds≡' , suclvr≡v'rnd , _
      | mkCarrier r' mws ini vpf' preprop
      | inj₂ refl
@@ -252,16 +193,12 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- newVoteSameEpochGreaterRound property uses similar reasoning.
 
   vo₂ : VO.ImplObligation₂
-  vo₂ _ (step-init _) _ _ m∈outs = ⊥-elim (¬Any[] m∈outs)
-  -- TODO-1: Handle these cases more like vo₁ above
-  vo₂ r (step-msg {_ , P pm} m∈pool pinit) {m = P _} _ _ m∈outs = ⊥-elim (P≢V (Any-singleton⁻ m∈outs))
-  vo₂ r (step-msg {_ , P pm} m∈pool pinit) {m = C _} _ _ m∈outs = ⊥-elim (C≢V (Any-singleton⁻ m∈outs))
-  vo₂ r (step-msg {_ , P pm} m∈pool pinit) {m = V _} {m' = P _} _ _ _ _ _ _ _ _ m'∈outs = ⊥-elim (P≢V (Any-singleton⁻ m'∈outs))
-  vo₂ r (step-msg {_ , P pm} m∈pool pinit) {m = V _} {m' = C _} _ _ _ _ _ _ _ _ m'∈outs = ⊥-elim (C≢V (Any-singleton⁻ m'∈outs))
-  vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v = v} {V vm} {m' = V vm'}
+  vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
-    with proposalHandlerSentVote {pid} {0} {pm} {V vm} {peerStates pre pid} m∈outs
-  ...| _ , vm , refl , v∈outs
+     with msgsToSendWereSent {pid} {nm} m∈outs
+  ...| _ , vm , pm , refl , refl
+    with proposalHandlerSentVote {pid} {0} {pm} {vm} {peerStates pre pid} m∈outs
+  ...| _ , v∈outs
     with v⊂m
        -- Rebuilding keeps the same signature, and the SyncInfo included with the
        -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
@@ -271,19 +208,20 @@ module LibraBFT.Impl.Properties.VotesOnce where
                   rewrite cong ₋vSignature v≈rbld
                         | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
                         | SendVote-inj-v (Any-singleton⁻ v∈outs)
-     -- TODO-1: I don't understand why qcVotesSentB4 wants an implicit Vote parameter here.
      with qcVotesSentB4 r pinit
                         (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v⊂m m∈outs qc∈m) vs∈qc ¬init
   ...| mws = ⊥-elim (vnew mws)
 
-  vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v = v} {V vm} {v'} {V vm'}
+  vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m} {v'} {m'}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
-     | _ , vm , refl , v∈outs
+     | _ , vm , pm , refl , refl
+     | _ , v∈outs
      | vote∈vm
-    with proposalHandlerSentVote {pid} {0} {pm} {V vm'} {peerStates pre pid} m'∈outs
-  ...| _ , vm''' , xrefl , v'∈outs
-       rewrite V-inj (sym xrefl)
-             | cong ₋vmVote (SendVote-inj-v (trans (Any-singleton⁻ v∈outs) (sym (Any-singleton⁻ v'∈outs))))
+     with msgsToSendWereSent {pid} {nm} {m'} {st = peerStates pre pid} m'∈outs
+  ...| _ , vm' , pm , refl , refl
+    with proposalHandlerSentVote {pid} {0} {pm} {vm'} {peerStates pre pid} m'∈outs
+  ...| _ , v'∈outs
+       rewrite cong ₋vmVote (SendVote-inj-v (trans (Any-singleton⁻ v∈outs) (sym (Any-singleton⁻ v'∈outs))))
     with v'⊂m'
   ...| vote∈vm = refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
