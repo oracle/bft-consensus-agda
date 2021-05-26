@@ -112,6 +112,16 @@ module LibraBFT.Concrete.System where
     postulate  -- temporary assumption that hash collisions don't exist (see comment above)
       meta-sha256-cr : ¬ (NonInjective-≡ sha256)
 
+    sameSig⇒sameVoteDataNoCol : ∀ {v1 v2 : Vote} {pk}
+                              → WithVerSig pk v1
+                              → WithVerSig pk v2
+                              → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
+                              → v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
+    sameSig⇒sameVoteDataNoCol {v1} {v2} wvs1 wvs2 refl
+       with sameSig⇒sameVoteData {v1} {v2} wvs1 wvs2 refl
+    ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ x = x
+
     module PerEpoch (𝓔 : EpochConfig) where
 
      open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
