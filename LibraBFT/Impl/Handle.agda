@@ -68,7 +68,7 @@ module LibraBFT.Impl.Handle where
                       → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
-           -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
+           -- it by construction; eventually we will construct an entire RoundManager, so
            -- this won't be needed
 
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
@@ -81,7 +81,7 @@ module LibraBFT.Impl.Handle where
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initSR
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
@@ -129,7 +129,7 @@ module LibraBFT.Impl.Handle where
  outputToActions : RoundManager → Output → List (Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
