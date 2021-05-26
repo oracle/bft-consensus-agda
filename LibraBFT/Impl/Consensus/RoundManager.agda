@@ -45,27 +45,22 @@ module LibraBFT.Impl.Consensus.RoundManager where
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
     st ← get
-    let 𝓔  = α-EC ((₋rmEC st) , (₋rmEC-correct st))
-        rm  = ₋rmEC st
-        rmw = ₋rmWithEC st
-        rmc = ₋rmEC-correct st
-        bt = rmw ^∙ (lBlockTree 𝓔)
-        nr = suc ((₋rmEC st) ^∙ rmLastVotedRound)
-        ix = rm ^∙ rmEpoch
+    let RoundManager∙new rm rmc rmw = st
+        𝓔  = α-EC (rm , rmc)
+        e  = rm ^∙ rmEpoch
+        nr = suc (rm ^∙ rmLastVotedRound)
         uv = Vote∙new
-                    (VoteData∙new (fakeBlockInfo ix nr pm) (fakeBlockInfo ix 0 pm))
+                    (VoteData∙new (fakeBlockInfo e nr pm) (fakeBlockInfo e 0 pm))
                     fakeAuthor
-                    (fakeLedgerInfo (fakeBlockInfo ix nr pm) pm)
+                    (fakeLedgerInfo (fakeBlockInfo e nr pm) pm)
                     fakeSig
-                    (₋bSignature (₋pmProposal pm))
-        sv =  record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
+                    nothing
+        sv = record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
+        bt = rmw ^∙ (lBlockTree 𝓔)
         si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         rm' = rm [ rmLastVotedRound := nr ]
-        rmc2 = RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc
-        st' = record st { ₋rmEC         = rm'
-                        ; ₋rmEC-correct = rmc2
-                        ; ₋rmWithEC     = subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw
-                        }
+        st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc)
+                                   (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
     put st'
     tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
     pure unit
