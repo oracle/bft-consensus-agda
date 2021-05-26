@@ -12,6 +12,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import Optics.All
 
@@ -30,14 +31,44 @@ module LibraBFT.Impl.Handle
  record GenesisInfo : Set where
    constructor mkGenInfo
    field
-     -- Nodes, PKs for initial epoch
-     -- Faults to tolerate (or quorum size?)
+     -- TODO : Nodes, PKs for initial epoch
+     -- TODO : Faults to tolerate (or quorum size?)
      genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
                                         -- highestCommitCert.
+ open GenesisInfo
 
  postulate -- valid assumption
    -- We postulate the existence of GenesisInfo known to all
+   -- TODO: construct one or write a function that generates one from some parameters.
    genInfo : GenesisInfo
+
+ postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+   initVV  : GenesisInfo → ValidatorVerifier
+   init-EC : GenesisInfo → EpochConfig
+
+ data ∈GenInfo : Signature → Set where
+  inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC genInfo) → ∈GenInfo (proj₂ vs)
+
+ open import LibraBFT.Abstract.Records UID _≟UID_ NodeId
+                                       (init-EC genInfo)
+                                       (ConcreteVoteEvidence (init-EC genInfo))
+                                       as Abs using ()
+
+ postulate -- TODO-1 : prove
+   ∈GenInfo? : (sig : Signature) → Dec (∈GenInfo sig)
+
+ postulate -- TODO-1: prove after defining genInfo
+   genVotesRound≡0     : ∀ {pk v}
+                      → (wvs : WithVerSig pk v)
+                      → ∈GenInfo (ver-signature wvs)
+                      → v ^∙ vRound ≡ 0
+   ¬genVotesRound≢0   : ∀ {pk v}
+                      → (wvs : WithVerSig pk v)
+                      → ¬ (∈GenInfo (ver-signature wvs))
+                      → v ^∙ vRound ≢ 0
+   genVotesConsistent : (v1 v2 : Vote)
+                      → ∈GenInfo (₋vSignature v1) → ∈GenInfo (₋vSignature v2)
+                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
            -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
@@ -46,10 +77,6 @@ module LibraBFT.Impl.Handle
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
  -- the initial RoundManager for every peer until it is initialised.
    fakeRM : RoundManager
-
- postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-   initVV  : GenesisInfo → ValidatorVerifier
-   init-EC : GenesisInfo → EpochConfig
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
@@ -69,6 +96,7 @@ module LibraBFT.Impl.Handle
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
+ -- TODO: create real RoundManager using GenesisInfo
  initialRoundManagerAndMessages
      : (a : Author) → GenesisInfo
      → RoundManager × List NetworkMsg

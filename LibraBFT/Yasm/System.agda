@@ -135,17 +135,18 @@ module LibraBFT.Yasm.System
  --
  -- A part of a cheat message can contain a verifiable signature only if it
  -- is for a dishonest public key, or a message with the same signature has
- -- been sent before (a cheater can "reuse" an honest signature sent
- -- before; it just can't produce a new one).  Note that this constraint
- -- precludes a peer sending a message that contains a new verifiable
- -- signature for an honest PK, even if the PK is the peer's own PK for
- -- some epoch (implying that the peer possesses the associated secret
- -- key).  In other words, a peer that is honest for a given epoch (by
- -- virtue of being a member of that epoch and being assigned an honest PK
- -- for the epoch), cannot send a message for that epoch using a cheat
- -- step.
+ -- been sent before or can be derived from GenesisInfo (a cheater can
+ -- "reuse" an honest signature sent before; it just can't produce a new
+ -- one).  Note that this constraint precludes a peer sending a message
+ -- that contains a new verifiable signature for an honest PK, even if the
+ -- PK is the peer's own PK for some epoch (implying that the peer
+ -- possesses the associated secret key).  In other words, a peer that is
+ -- honest for a given epoch (by virtue of being a member of that epoch and
+ -- being assigned an honest PK for the epoch), cannot send a message for
+ -- that epoch using a cheat step.
  CheatPartConstraint : SentMessages → Part → Set
  CheatPartConstraint pool m = ∀{pk} → (ver : WithVerSig pk m)
+                                    → ¬ ∈GenInfo (ver-signature ver)
                                     → Meta-Dishonest-PK pk
                                     ⊎ MsgWithSig∈ pk (ver-signature ver) pool
 

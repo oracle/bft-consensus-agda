@@ -32,5 +32,6 @@ module LibraBFT.Concrete.System.Parameters where
                  Vote
                  sig-Vote
                  _⊂Msg_
+                 ∈GenInfo
                  initialRoundManagerAndMessages
                  peerStepWrapper

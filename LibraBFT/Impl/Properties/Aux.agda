@@ -30,7 +30,7 @@ module LibraBFT.Impl.Properties.Aux where
   impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
   impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
   -- These aren't true yet, because processProposalMsgM sends fake votes that don't follow the rules for ValidPartForPK
-  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver
+  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver ¬init
      with m∈outs
      -- Handler sends at most one vote, so it can't be "there"
   ...| there {xs = xs} imp = ⊥-elim (¬Any[] imp)
@@ -46,7 +46,7 @@ module LibraBFT.Impl.Properties.Aux where
                                   -- signature injectivity to ensure a different vote was not sent
                                   -- previously with the same signature.
 
-  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver
+  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver ¬init
      | here refl
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
