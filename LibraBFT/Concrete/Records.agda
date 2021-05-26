@@ -93,9 +93,8 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
          → pm ^∙ pmProposal ≡ cb
          → (Abs.B (α-Block cb)) α-∈NM nm
 
- -- Our abstract system contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
+ -- Our system model contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
  -- following relation expresses that an abstract record r is represented in a given message pool
  -- sm.
  data _α-Sent_ (r : Abs.Record) (sm : List (NodeId × NetworkMsg)) : Set where
-   i  : r ≡ Abs.I → r α-Sent sm
    ws : ∀ {p nm} → getEpoch nm ≡ epoch → (p , nm) ∈ sm → r α-∈NM nm → r α-Sent sm
