@@ -327,13 +327,13 @@ module LibraBFT.Yasm.System
  ReachableSystemState : SystemState → Set (ℓ+1 ℓ-PeerState)
  ReachableSystemState = Step* initialState
 
- roundManagerPostSt : ∀ {pid s' s outs} {st : SystemState}
-                      → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (msgPool st) (initialised st)
-                                             (peerStates st pid) (s' , outs))
-                      → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
-                      → s ≡ s'
- roundManagerPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
+ peerStatePostSt : ∀ {pid s' s outs} {st : SystemState}
+                 → (r : ReachableSystemState st)
+                 → (stP : StepPeerState pid (msgPool st) (initialised st)
+                                        (peerStates st pid) (s' , outs))
+                 → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
+                 → s ≡ s'
+ peerStatePostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-trans : ∀ {st st' st''}
              → Step* st st'
@@ -395,13 +395,13 @@ module LibraBFT.Yasm.System
              → (prf  : Any-Step {ℓ} P cont)
              → Any-Step P (step-s cont this)
 
- Any-Step-⇒ : ∀ {ℓ}{P Q : SystemStateRel {ℓ} Step}
-            → (∀ {pre : SystemState}{post : SystemState} → (x : Step pre post) → P x → Q x)
-            → ∀ {fst lst} {tr : Step* fst lst}
-            → Any-Step {ℓ} P tr
-            → Any-Step {ℓ} Q tr
- Any-Step-⇒ p⇒q (step-here cont {this} prf) = step-here cont (p⇒q this prf)
- Any-Step-⇒ p⇒q (step-there anyStep) = step-there (Any-Step-⇒ p⇒q anyStep)
+ Any-Step-map : ∀ {ℓ}{P P' : SystemStateRel {ℓ} Step}
+              → (∀ {pre : SystemState}{post : SystemState} → (x : Step pre post) → P x → P' x)
+              → ∀ {fst lst} {tr : Step* fst lst}
+              → Any-Step {ℓ} P tr
+              → Any-Step {ℓ} P' tr
+ Any-Step-map p⇒p' (step-here cont {this} prf) = step-here cont (p⇒p' this prf)
+ Any-Step-map p⇒p' (step-there anyStep) = step-there (Any-Step-map p⇒p' anyStep)
 
  Any-Step-elim
    : ∀{ℓ}{ℓ-Q}{st₀ : SystemState}{st₁ : SystemState}{P : SystemStateRel {ℓ} Step}{Q : Set ℓ-Q}

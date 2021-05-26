@@ -52,8 +52,6 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → m ∈ outs → (sig : WithVerSig pk v)
    -- If v is really new and valid
-     -- Note that this does not directly exclude possibility of previous message with
-     -- same signature, but sent by someone else.  We could prove it implies it though.
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'

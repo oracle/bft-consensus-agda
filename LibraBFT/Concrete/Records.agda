@@ -87,11 +87,11 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
          → (valid : IsValidQC cqc)
          → cqc QC∈NM nm
          → q ≡ α-QC (cqc , valid)
-         → (Abs.Q q) α-∈NM nm
+         → Abs.Q q α-∈NM nm
    b∈NM  : ∀ {cb pm nm}
          → nm ≡ P pm
          → pm ^∙ pmProposal ≡ cb
-         → (Abs.B (α-Block cb)) α-∈NM nm
+         → Abs.B (α-Block cb) α-∈NM nm
 
  -- Our system model contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
  -- following relation expresses that an abstract record r is represented in a given message pool

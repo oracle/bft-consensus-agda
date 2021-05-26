@@ -20,7 +20,6 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
-
 open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should be in this file?
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
