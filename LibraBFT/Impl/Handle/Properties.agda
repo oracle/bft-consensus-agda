@@ -48,9 +48,12 @@ module LibraBFT.Impl.Handle.Properties where
      -- keep the implementation model faithful to the implementation.
   ...| here refl = fakeAuthor ∷ [] , here refl
 
-  msgsToSendWereSent : ∀ {pid ts nm m} {st : RoundManager}
+  -- This captures which kinds of messages are sent by handling which kind of message.  It will
+  -- require additional disjuncts when we implement processVote.
+  msgsToSendWereSent : ∀ {pid nm m} {st : RoundManager}
                      → m ∈ proj₂ (peerStepWrapper pid nm st)
-                     → ∃[ vm ] (m ≡ V vm × send (V vm) ∈ proj₂ (peerStep pid nm ts st))
+                     → send m ∈ proj₂ (peerStep pid nm 0 st)
+                     × ∃[ vm ] ∃[ pm ] (m ≡ V vm × nm ≡ P pm)
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
     with nm
   ...| C _ = ⊥-elim (¬Any[] m∈outs)
@@ -61,9 +64,22 @@ module LibraBFT.Impl.Handle.Properties where
        with m
   ...| P _ = ⊥-elim (P≢V v∈outs)
   ...| C _ = ⊥-elim (C≢V v∈outs)
-  ...| V vm rewrite sym v∈outs = vm , refl , here refl
+  ...| V vm rewrite sym v∈outs = here refl , vm , pm , refl , refl
+
+  proposalHandlerSentVote : ∀ {pid ts pm m} {st : RoundManager}
+                          → m ∈ proj₂ (peerStepWrapper pid (P pm) st)
+                          → ∃[ αs ] ∃[ vm ] (m ≡ V vm × SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
+  proposalHandlerSentVote {pid} {ts} {pm} {m} {st} m∈outs
+     with msgsToSendWereSent {pid} {P pm} {st = st} m∈outs
+  ...| send∈ , vm , pm' , refl , refl
+     with msgsToSendWereSent1 {pid} {ts} {pm'} {st = st} send∈
+  ...| αs , sv = αs , vm , refl , sv
 
   ----- Properties that relate handler to system state -----
+
+  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
+    inHQC : qc ≡ ₋rmHighestQC rm       → qc ∈RoundManager rm
+    inHCC : qc ≡ ₋rmHighestCommitQC rm → qc ∈RoundManager rm
 
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
@@ -71,13 +87,13 @@ module LibraBFT.Impl.Handle.Properties where
    -- Note that some implementations might not ensure this, but LibraBFT does
    -- because even the leader of the next round sends its own vote to itself,
    -- as opposed to using it to construct a QC using its own unsent vote.
-   qcVotesSentB4 : ∀{pid ps vs pk q vm}{st : SystemState}
+
+   qcVotesSentB4 : ∀{pid qc vs pk}{st : SystemState}
                  → ReachableSystemState st
                  → initialised st pid ≡ initd
-                 → ps ≡ peerStates st pid
-                 → q QC∈VoteMsg vm
-                 → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (ps ^∙ rmHighestQC) (ps ^∙ rmHighestCommitQC)
-                 → vs ∈ qcVotes q
+                 → qc ∈RoundManager (peerStates st pid)
+                 → vs ∈ qcVotes qc
+                 → ¬ (∈GenInfo (proj₂ vs))
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
    -- We can prove this easily because we don't yet do epoch changes,
@@ -105,3 +121,39 @@ module LibraBFT.Impl.Handle.Properties where
   ...| P p = refl
   ...| V v = refl
   ...| C c = refl
+
+  open SyncInfo
+
+  -- QCs in VoteMsg come from RoundManager
+  VoteMsgQCsFromRoundManager :
+       ∀ {pid s' outs pk}{pre : SystemState}
+       → ReachableSystemState pre
+       -- For any honest call to /handle/ or /init/,
+       → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+       → ∀{v vm qc} → Meta-Honest-PK pk
+       -- For every vote v represented in a message output by the call
+       → v ⊂Msg (V vm)
+       → (V vm) ∈ outs
+       → qc QC∈SyncInfo (vm ^∙ vmSyncInfo)
+       → qc ∈RoundManager (peerStates pre pid)
+  VoteMsgQCsFromRoundManager r (step-init _) _ _ ()
+  VoteMsgQCsFromRoundManager {pid} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v} {vm}
+                             hpk v⊂m m∈outs qc∈m
+     with peerStates pre pid
+  ...| rm
+     with proposalHandlerSentVote {pid} {0} {pm} {V vm} {rm} m∈outs
+  ...| _ , vm'  , refl , v∈outs
+     with qc∈m
+  ...| withVoteSIHighQC refl
+       = inHQC (cong ₋siHighestQuorumCert (procPMCerts≡ {0} {pm} {rm} v∈outs))
+
+  VoteMsgQCsFromRoundManager {pid} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v} {vm1}
+                             hpk v⊂m m∈outs qc∈m
+     | rm
+     | _ , vm' , refl , v∈outs
+     | withVoteSIHighCC hqcIsJust
+     with cong ₋siHighestCommitCert (procPMCerts≡ {0} {pm} {rm} v∈outs)
+  ...| refl
+     with (rm ^∙ rmHighestQC) ≟QC (rm ^∙ rmHighestCommitQC)
+  ...| true  because (ofʸ refl) = ⊥-elim (maybe-⊥ hqcIsJust refl)
+  ...| false because _          = inHCC (just-injective (sym hqcIsJust))
