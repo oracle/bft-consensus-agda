@@ -78,9 +78,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| inj₂ (newV , m∈outs , pcsN)
      with stP
   ...| step-msg _ initP
-      with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
-  ...| inj₁ hb   = ⊥-elim (PerState.meta-sha256-cr st (step-s r step) hb)
-  ...| inj₂ refl = pid , peersRemainInitialized step initP , peerCanSignEp≡ pcsN refl
+      with PerState.sameSig⇒sameVoteDataNoCol st (msgSigned msv) sig (msgSameSig msv)
+  ...| refl = pid , peersRemainInitialized step initP , peerCanSignEp≡ pcsN refl
   MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest stP))) pkH sig msv
      | inj₁ msb4 rewrite msgSameSig msv
      with MsgWithSig⇒ValidSenderInitialised {v = v} r pkH sig msb4
@@ -128,8 +127,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → initialised st pid ≡ initd
   msg∈pool⇒initd {pid'} {st = st} step@(step-s r (step-peer {pid} (step-honest stPeer))) pcs pkH sig msv
     with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-  ...| inj₂ (newV , m∈outs , pcsN)
-     with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
+  ...| inj₁ (m∈outs , pcsN , newV)
+     with sameSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr st step hb)
   ...| inj₂ refl
     with stPeer
@@ -195,8 +194,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   oldVoteRound≤lvr {pid = pid'} {pre = pre}
                    step@(step-s r (step-peer {pid} {st'} stepPeer@(step-honest stPeer)))
                    pkH sig msv vspk eid≡
-     | inj₂ (newV , m∈outs , vspkN)
-     with sameHonestSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
+     | inj₁ (m∈outs , vspkN , newV)
+     with sameSig⇒sameVoteData pkH (msgSigned msv) sig (msgSameSig msv)
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
   ...| inj₂ refl
      with pid ≟ pid'
