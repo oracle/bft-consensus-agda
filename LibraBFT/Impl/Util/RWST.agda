@@ -29,7 +29,8 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   data RWST (Ev Wr : Set) (St : Set ℓ-State) {ℓ-Result : Level} : Set ℓ-Result → Set (ℓ-State ℓ⊔ ℓ-Result) where
     rwst : ∀ {R : Set ℓ-Result} → RWST-Raw Ev Wr St {ℓ-Result} R → RWST Ev Wr St R
 
-  variable
+  private
+   variable
     Ev Wr : Set
     ℓ-A ℓ-B : Level
     A : Set ℓ-A
