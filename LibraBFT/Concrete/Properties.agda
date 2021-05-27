@@ -41,7 +41,7 @@ module LibraBFT.Concrete.Properties
 
     record ValidSysState {ℓ}(𝓢 : IntermediateSystemState ℓ) : Set (ℓ+1 ℓ0 ℓ⊔ ℓ) where
       field
-        vss-votes-once   : VO-obl.Type 𝓢
+        vss-votes-once      : VO-obl.Type 𝓢
         vss-preferred-round : PR-obl.Type 𝓢
     open ValidSysState public
 
@@ -64,8 +64,12 @@ module LibraBFT.Concrete.Properties
     open All-InSys-props InSys
     open WithAssumptions InSys
 
-    -- We can now invoke the various abstract correctness properties, using
-    -- 
+    -- We can now invoke the various abstract correctness properties.  Note that the arguments are
+    -- expressed in Abstract terms (RecordChain, CommitRule).  Proving the corresponding properties
+    -- for the actual implementation will involve proving that the implementation decides to commit
+    -- only if it has evidence of the required RecordChains and CommitRules such that the records in
+    -- the RecordChains are all "InSys" according to the implementation's notion thereof (defined in
+    -- Concrete.System.IntSystemState).
     ConcCommitsDoNotConflict :
        ∀{q q'}
        → {rc  : RecordChain (Abs.Q q)}  → All-InSys rc

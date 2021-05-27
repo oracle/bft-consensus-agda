@@ -9,7 +9,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle sha256 sha256-cr
+open import LibraBFT.Impl.Handle
 open        EpochConfig
 open import LibraBFT.Yasm.Base ℓ-RoundManager
 
@@ -32,5 +32,6 @@ module LibraBFT.Concrete.System.Parameters where
                  Vote
                  sig-Vote
                  _⊂Msg_
+                 ∈GenInfo
                  initialRoundManagerAndMessages
                  peerStepWrapper

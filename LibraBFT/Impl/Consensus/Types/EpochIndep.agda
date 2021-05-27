@@ -139,8 +139,11 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   vEpoch : Lens Vote Epoch
   vEpoch = vVoteData ∙ vdProposed ∙ biEpoch
 
+  vdRound : Lens VoteData Round
+  vdRound = vdProposed ∙ biRound
+
   vRound : Lens Vote Round
-  vRound = vVoteData ∙ vdProposed ∙ biRound
+  vRound = vVoteData ∙ vdRound
 
   record QuorumCert : Set where
     constructor QuorumCert∙new

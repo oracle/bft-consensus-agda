@@ -325,3 +325,5 @@ module LibraBFT.Prelude where
 
   f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
   f-sum f = sum ∘ List-map f
+
+  open import LibraBFT.Base.Util public

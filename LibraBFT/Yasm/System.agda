@@ -135,17 +135,18 @@ module LibraBFT.Yasm.System
  --
  -- A part of a cheat message can contain a verifiable signature only if it
  -- is for a dishonest public key, or a message with the same signature has
- -- been sent before (a cheater can "reuse" an honest signature sent
- -- before; it just can't produce a new one).  Note that this constraint
- -- precludes a peer sending a message that contains a new verifiable
- -- signature for an honest PK, even if the PK is the peer's own PK for
- -- some epoch (implying that the peer possesses the associated secret
- -- key).  In other words, a peer that is honest for a given epoch (by
- -- virtue of being a member of that epoch and being assigned an honest PK
- -- for the epoch), cannot send a message for that epoch using a cheat
- -- step.
+ -- been sent before or can be derived from GenesisInfo (a cheater can
+ -- "reuse" an honest signature sent before; it just can't produce a new
+ -- one).  Note that this constraint precludes a peer sending a message
+ -- that contains a new verifiable signature for an honest PK, even if the
+ -- PK is the peer's own PK for some epoch (implying that the peer
+ -- possesses the associated secret key).  In other words, a peer that is
+ -- honest for a given epoch (by virtue of being a member of that epoch and
+ -- being assigned an honest PK for the epoch), cannot send a message for
+ -- that epoch using a cheat step.
  CheatPartConstraint : SentMessages → Part → Set
  CheatPartConstraint pool m = ∀{pk} → (ver : WithVerSig pk m)
+                                    → ¬ ∈GenInfo (ver-signature ver)
                                     → Meta-Dishonest-PK pk
                                     ⊎ MsgWithSig∈ pk (ver-signature ver) pool
 
@@ -326,13 +327,13 @@ module LibraBFT.Yasm.System
  ReachableSystemState : SystemState → Set (ℓ+1 ℓ-PeerState)
  ReachableSystemState = Step* initialState
 
- roundManagerPostSt : ∀ {pid s' s outs} {st : SystemState}
-                      → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (msgPool st) (initialised st)
-                                             (peerStates st pid) (s' , outs))
-                      → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
-                      → s ≡ s'
- roundManagerPostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
+ peerStatePostSt : ∀ {pid s' s outs} {st : SystemState}
+                 → (r : ReachableSystemState st)
+                 → (stP : StepPeerState pid (msgPool st) (initialised st)
+                                        (peerStates st pid) (s' , outs))
+                 → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
+                 → s ≡ s'
+ peerStatePostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
  Step*-trans : ∀ {st st' st''}
              → Step* st st'
@@ -394,13 +395,13 @@ module LibraBFT.Yasm.System
              → (prf  : Any-Step {ℓ} P cont)
              → Any-Step P (step-s cont this)
 
- Any-Step-⇒ : ∀ {ℓ}{P Q : SystemStateRel {ℓ} Step}
-            → (∀ {pre : SystemState}{post : SystemState} → (x : Step pre post) → P x → Q x)
-            → ∀ {fst lst} {tr : Step* fst lst}
-            → Any-Step {ℓ} P tr
-            → Any-Step {ℓ} Q tr
- Any-Step-⇒ p⇒q (step-here cont {this} prf) = step-here cont (p⇒q this prf)
- Any-Step-⇒ p⇒q (step-there anyStep) = step-there (Any-Step-⇒ p⇒q anyStep)
+ Any-Step-map : ∀ {ℓ}{P P' : SystemStateRel {ℓ} Step}
+              → (∀ {pre : SystemState}{post : SystemState} → (x : Step pre post) → P x → P' x)
+              → ∀ {fst lst} {tr : Step* fst lst}
+              → Any-Step {ℓ} P tr
+              → Any-Step {ℓ} P' tr
+ Any-Step-map p⇒p' (step-here cont {this} prf) = step-here cont (p⇒p' this prf)
+ Any-Step-map p⇒p' (step-there anyStep) = step-there (Any-Step-map p⇒p' anyStep)
 
  Any-Step-elim
    : ∀{ℓ}{ℓ-Q}{st₀ : SystemState}{st₁ : SystemState}{P : SystemStateRel {ℓ} Step}{Q : Set ℓ-Q}

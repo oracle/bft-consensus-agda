@@ -35,23 +35,24 @@ module LibraBFT.Impl.NetworkMsg where
   V-inj : ∀ {vm1 vm2} → V vm1 ≡ V vm2 → vm1 ≡ vm2
   V-inj refl = refl
 
-  -- What does it mean for a (concrete) Vote to be represented in a NetworkMsg?
+  data _QC∈SyncInfo_ (qc : QuorumCert) (si : SyncInfo) : Set where
+     withVoteSIHighQC : si ^∙ siHighestQuorumCert  ≡ qc   → qc QC∈SyncInfo si
+     -- Note that we do not use the Lens here, because the Lens returns the siHighestQuorumcert in
+     -- case siHighestCommitcert is nothing, and it was easier to directly handle the just case.  We
+     -- could use the Lens, and fix the proofs, but it seems simpler this way.
+     withVoteSIHighCC : ₋siHighestCommitCert si ≡ just qc → qc QC∈SyncInfo si
+
   data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
      inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
-     inPMSIHighQC     : pm ^∙ pmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈ProposalMsg pm
-     inPMSIHighCC     : pm ^∙ pmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈ProposalMsg pm
-
-  data _QC∈VoteMsg_ (qc : QuorumCert) (vm : VoteMsg) : Set where
-     withVoteSIHighQC : vm ^∙ vmSyncInfo ∙ siHighestQuorumCert ≡ qc       → qc QC∈VoteMsg vm
-     withVoteSIHighCC : vm ^∙ vmSyncInfo ∙ siHighestCommitCert ≡ qc       → qc QC∈VoteMsg vm
+     inPMSyncInfo     : qc QC∈SyncInfo (pm ^∙ pmSyncInfo)                 → qc QC∈ProposalMsg pm
 
   data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
      withCommitMsg    : cm ^∙ cmCert ≡ qc                                 → qc QC∈CommitMsg cm
 
   data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
-    inP : ∀ {pm} → qc QC∈ProposalMsg pm → qc QC∈NM (P pm)
-    inV : ∀ {vm} → qc QC∈VoteMsg     vm → qc QC∈NM (V vm)
-    inC : ∀ {cm} → qc QC∈CommitMsg   cm → qc QC∈NM (C cm)
+    inP : ∀ {pm} → qc QC∈ProposalMsg pm                 → qc QC∈NM (P pm)
+    inV : ∀ {vm} → qc QC∈SyncInfo    (vm ^∙ vmSyncInfo) → qc QC∈NM (V vm)
+    inC : ∀ {cm} → qc QC∈CommitMsg   cm                 → qc QC∈NM (C cm)
 
   data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
     vote∈vm : ∀ {si}

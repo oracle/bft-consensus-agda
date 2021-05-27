@@ -55,27 +55,27 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
       ; bRound  = vd ^∙ vdProposed ∙ biRound
       }
 
- α-Vote : (qc : QuorumCert)(valid : IsValidQC qc) → ∀ {as} → as ∈ qcVotes qc → Abs.Vote
+ α-Vote : (qc : QuorumCert)(valid : MetaIsValidQC qc) → ∀ {as} → as ∈ qcVotes qc → Abs.Vote
  α-Vote qc v {as} as∈QC = α-ValidVote (rebuildVote qc as)
-                                      (₋ivvMember (All-lookup (₋ivqcVotesValid v) as∈QC))
+                                      (₋ivvMember (All-lookup (₋ivqcMetaVotesValid v) as∈QC))
 
  -- Abstraction of votes produce votes that carry evidence
  -- they have been cast.
- α-Vote-evidence : (qc : QuorumCert)(valid : IsValidQC qc)
+ α-Vote-evidence : (qc : QuorumCert)(valid : MetaIsValidQC qc)
                  → ∀{vs} (prf : vs ∈ qcVotes qc)
                  → ConcreteVoteEvidence (α-Vote qc valid prf)
  α-Vote-evidence qc valid {as} v∈qc
    = record { ₋cveVote        = rebuildVote qc as
-            ; ₋cveIsValidVote = All-lookup (₋ivqcVotesValid valid) v∈qc
+            ; ₋cveIsValidVote = All-lookup (₋ivqcMetaVotesValid valid) v∈qc
             ; ₋cveIsAbs       = refl
             }
 
- α-QC : Σ QuorumCert IsValidQC → Abs.QC
+ α-QC : Σ QuorumCert MetaIsValidQC → Abs.QC
  α-QC (qc , valid) = record
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
-   ; qVotes-C1    = {! IsValidQC.₋ivqcIsQuorum valid!}
+   ; qVotes-C1    = {! MetaIsValidQC.₋ivqcMetaIsQuorum valid!}
    ; qVotes-C2    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self
@@ -84,18 +84,17 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
  -- What does it mean for an (abstract) Block or QC to be represented in a NetworkMsg?
  data _α-∈NM_ : Abs.Record → NetworkMsg → Set where
    qc∈NM : ∀ {cqc q nm}
-         → (valid : IsValidQC cqc)
+         → (valid : MetaIsValidQC cqc)
          → cqc QC∈NM nm
          → q ≡ α-QC (cqc , valid)
-         → (Abs.Q q) α-∈NM nm
+         → Abs.Q q α-∈NM nm
    b∈NM  : ∀ {cb pm nm}
          → nm ≡ P pm
          → pm ^∙ pmProposal ≡ cb
-         → (Abs.B (α-Block cb)) α-∈NM nm
+         → Abs.B (α-Block cb) α-∈NM nm
 
- -- Our abstract system contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
+ -- Our system model contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
  -- following relation expresses that an abstract record r is represented in a given message pool
  -- sm.
  data _α-Sent_ (r : Abs.Record) (sm : List (NodeId × NetworkMsg)) : Set where
-   i  : r ≡ Abs.I → r α-Sent sm
    ws : ∀ {p nm} → getEpoch nm ≡ epoch → (p , nm) ∈ sm → r α-∈NM nm → r α-Sent sm
