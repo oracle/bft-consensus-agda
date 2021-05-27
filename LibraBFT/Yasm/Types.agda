@@ -10,9 +10,22 @@ open import LibraBFT.Prelude
 module LibraBFT.Yasm.Types where
 
 -- Actions that can be performed by peers.
+--
 -- For now, the SystemModel supports only one kind of action: to send a
 -- message. Later it might include things like logging, crashes, assertion
--- failures, etc.
+-- failures, etc. For example, if an assertion fires, this
+-- could "kill the process" and make it not send any messages in the future.
+-- We could also then prove that the handlers do not crash, certain
+-- messages are logged under certain circumstances, etc.
+--
+-- Alternatively, certain actions can be kept outside the system model by
+-- defining an application-specific PeerState type (see `LibraBFT.Yasm.Base`).
+-- For example:
+--
+-- > libraHandle : Msg → Status × Log × LState → Status × LState × List Action
+-- > libraHandle _ (Crashed , l , s) = Crashed , s , [] -- i.e., crashed peers never send messages
+-- >
+-- > handle = filter isSend ∘ libraHandle
 data Action (Msg : Set) : Set where
   send : (m : Msg) → Action Msg
 

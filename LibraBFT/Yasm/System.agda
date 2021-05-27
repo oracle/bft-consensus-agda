@@ -52,9 +52,9 @@ module LibraBFT.Yasm.System
  actionsToSentMessages : PeerId → List (LYT.Action Msg) → SentMessages
  actionsToSentMessages pid = mapMaybe (actionToSMP pid)
 
- -- If the sender-message pair `(pid₁ , m)` is associated with actions `outs` of
- -- `pid₂`, then these two PIDs are equal and this peer performed a `send`
- -- action for that message.
+ -- If the sender-message pair `(pid₁ , m)` is associated with the messages that
+ -- were sent as a consequence of the actions `outs` of `pid₂`, then these two
+ -- PIDs are equal and this peer performed a `send` action for that message.
  senderMsgPair∈⇒send∈ : ∀ {pid₁ pid₂ m} → (outs : List (LYT.Action Msg)) →
        (pid₁ , m) ∈ (actionsToSentMessages pid₂ outs) →
        (LYT.send m ∈ outs) × pid₁ ≡ pid₂
