@@ -59,10 +59,6 @@ module LibraBFT.Impl.Handle where
                       → (wvs : WithVerSig pk v)
                       → ∈GenInfo (ver-signature wvs)
                       → v ^∙ vRound ≡ 0
-   ¬genVotesRound≢0   : ∀ {pk v}
-                      → (wvs : WithVerSig pk v)
-                      → ¬ (∈GenInfo (ver-signature wvs))
-                      → v ^∙ vRound ≢ 0
    genVotesConsistent : (v1 v2 : Vote)
                       → ∈GenInfo (₋vSignature v1) → ∈GenInfo (₋vSignature v2)
                       → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId

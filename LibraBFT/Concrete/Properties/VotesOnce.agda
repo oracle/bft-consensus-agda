@@ -14,6 +14,7 @@ open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Handle
+open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
@@ -167,8 +168,8 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        -- A signature in GenInfo is for a vote with round 0, and a signature for which we have a
        -- MsgWithSig∈ that is not in GenInfo and is for an honest PK is for a round ≢ 0, so we can
        -- derive a contradiction using r≡.
-    ...| yes init  | no  ¬init = ⊥-elim (¬genVotesRound≢0 (msgSigned msv') ¬init ((trans (sym r≡) (genVotesRound≡0 vv  init))))
-    ...| no  ¬init | yes init  = ⊥-elim (¬genVotesRound≢0 (msgSigned msv)  ¬init ((trans r≡       (genVotesRound≡0 vv' init))))
+    ...| yes init  | no  ¬init = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv' ¬init ((trans (sym r≡) (genVotesRound≡0 vv  init))))
+    ...| no  ¬init | yes init  = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv  ¬init ((trans r≡       (genVotesRound≡0 vv' init))))
     ...| no  ¬init | no ¬init'
        with theStep
     ...| step-peer cheat@(step-cheat c)
