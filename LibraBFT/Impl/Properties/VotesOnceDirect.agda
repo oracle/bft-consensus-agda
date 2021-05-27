@@ -20,7 +20,6 @@ open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Handle.Properties
-open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig

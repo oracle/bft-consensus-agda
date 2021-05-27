@@ -21,16 +21,50 @@ open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
-open import LibraBFT.Impl.Properties.Aux  -- TODO-1: maybe Aux properties should be in this file?
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
 
 module LibraBFT.Impl.Handle.Properties where
   open import LibraBFT.Impl.Consensus.RoundManager
   open import LibraBFT.Impl.Handle
+
+  -- This proof is complete except for pieces that are directly about the handlers.  Our
+  -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
+  impl-sps-avp : StepPeerState-AllValidParts
+  -- In our fake/simple implementation, init and handling V and C msgs do not send any messages
+  impl-sps-avp _ hpk (step-init _) m∈outs part⊂m ver         = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-msg {sndr , V vm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
+  impl-sps-avp _ hpk (step-msg {sndr , C cm} _ _) m∈outs _ _ = ⊥-elim (¬Any[] m∈outs)
+  -- These aren't true yet, because processProposalMsgM sends fake votes that don't follow the rules for ValidPartForPK
+  impl-sps-avp preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver ¬init
+     with m∈outs
+     -- Handler sends at most one vote, so it can't be "there"
+  ...| there {xs = xs} imp = ⊥-elim (¬Any[] imp)
+  ...| here refl
+     with v⊂m
+  ...| vote∈qc vs∈qc rbld≈ qc∈m
+     with qc∈m
+  ...| xxx = {!x!}                -- We will prove that votes represented in the SyncInfo of a
+                                  -- proposal message were sent before, so these will be inj₂.
+                                  -- This will be based on an invariant of the implementation, for
+                                  -- example that the QCs included in the SyncInfo of a VoteMsg have
+                                  -- been sent before.  We will need to use hash injectivity and
+                                  -- signature injectivity to ensure a different vote was not sent
+                                  -- previously with the same signature.
+
+  impl-sps-avp {pk = pk} {α = α} {st = st} preach hpk (step-msg {sndr , P pm} m∈pool ps≡) m∈outs v⊂m ver ¬init
+     | here refl
+     | vote∈vm {si}
+     with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
+  ...| yes msg∈ = inj₂ msg∈
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {! !} {!!} (inGenInfo refl) {!!} {!!} {!!}
+       -- The implementation will need to provide evidence that the peer is a member of
+       -- the epoch of the message it's sending and that it is assigned pk for that epoch.
+                        , msg∉)
+
+  open Structural impl-sps-avp
 
   ----- Properties that bridge the system model gap to the handler -----
   msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManager}

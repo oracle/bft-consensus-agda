@@ -28,8 +28,8 @@ module LibraBFT.Impl.Handle where
  record GenesisInfo : Set where
    constructor mkGenInfo
    field
-     -- TODO : Nodes, PKs for initial epoch
-     -- TODO : Faults to tolerate (or quorum size?)
+     -- TODO-1 : Nodes, PKs for initial epoch
+     -- TODO-1 : Faults to tolerate (or quorum size?)
      genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
                                         -- highestCommitCert.
  open GenesisInfo

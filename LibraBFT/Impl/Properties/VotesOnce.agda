@@ -19,7 +19,6 @@ open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Handle
 open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Properties.Aux
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
