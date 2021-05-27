@@ -24,6 +24,7 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 module LibraBFT.Impl.Handle.Properties where
@@ -86,7 +87,7 @@ module LibraBFT.Impl.Handle.Properties where
   -- This captures which kinds of messages are sent by handling which kind of message.  It will
   -- require additional disjuncts when we implement processVote.
   msgsToSendWereSent : ∀ {pid nm m} {st : RoundManager}
-                     → m ∈ proj₂ (peerStepWrapper pid nm st)
+                     → send m ∈ proj₂ (peerStepWrapper pid nm st)
                      → send m ∈ proj₂ (peerStep pid nm 0 st)
                      × ∃[ vm ] ∃[ pm ] (m ≡ V vm × nm ≡ P pm)
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
@@ -97,12 +98,12 @@ module LibraBFT.Impl.Handle.Properties where
      with m∈outs
   ...| here v∈outs
        with m
-  ...| P _ = ⊥-elim (P≢V v∈outs)
-  ...| C _ = ⊥-elim (C≢V v∈outs)
+  ...| P _ = ⊥-elim (P≢V (action-send-injective v∈outs))
+  ...| C _ = ⊥-elim (C≢V (action-send-injective v∈outs))
   ...| V vm rewrite sym v∈outs = here refl , vm , pm , refl , refl
 
   proposalHandlerSentVote : ∀ {pid ts pm vm} {st : RoundManager}
-                          → V vm ∈ proj₂ (peerStepWrapper pid (P pm) st)
+                          → send (V vm) ∈ proj₂ (peerStepWrapper pid (P pm) st)
                           → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
   proposalHandlerSentVote {pid} {ts} {pm} {vm} {st} m∈outs
      with msgsToSendWereSent {pid} {P pm} {st = st} m∈outs
@@ -168,7 +169,7 @@ module LibraBFT.Impl.Handle.Properties where
        → ∀{v vm qc} → Meta-Honest-PK pk
        -- For every vote v represented in a message output by the call
        → v ⊂Msg (V vm)
-       → (V vm) ∈ outs
+       → send (V vm) ∈ outs
        → qc QC∈SyncInfo (vm ^∙ vmSyncInfo)
        → qc ∈RoundManager (peerStates pre pid)
   VoteMsgQCsFromRoundManager r (step-init _) _ _ ()
@@ -198,7 +199,7 @@ module LibraBFT.Impl.Handle.Properties where
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
                                → ¬ (∈GenInfo (₋vSignature v))
                                → Meta-Honest-PK pk
-                               → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                               → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                                → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
                                × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted

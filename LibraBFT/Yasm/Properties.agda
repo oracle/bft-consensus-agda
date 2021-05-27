@@ -7,6 +7,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+import      LibraBFT.Yasm.Types  as LYT
 import      LibraBFT.Yasm.Base   as LYB
 import      LibraBFT.Yasm.System as LYS
 
@@ -62,7 +63,7 @@ module LibraBFT.Yasm.Properties
 
  ¬cheatForgeNew : ∀ {pid pk vsig mst outs m}{st : SystemState}
                 → (sp : StepPeer st pid mst outs)
-                → outs ≡ m ∷ []
+                → outs ≡ LYT.send m ∷ []
                 → (ic : isCheat sp)
                 → Meta-Honest-PK pk
                 → (mws : MsgWithSig∈ pk vsig ((pid , m) ∷ msgPool st))
@@ -97,7 +98,7 @@ module LibraBFT.Yasm.Properties
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
    → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
-   → m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
+   → LYT.send m ∈ outs → part ⊂Msg m → (ver : WithVerSig pk part)
    → ¬ (∈GenInfo (ver-signature ver))
      -- Note that we require that α can send for the PK according to the *post* state.  This allows
      -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
@@ -151,7 +152,7 @@ module LibraBFT.Yasm.Properties
             → ¬ ∈GenInfo (ver-signature ver)
             → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig ¬init
-       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+       with Any-++⁻ (actionsToSentMessages β outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = step-there (unwind tr hpk p⊂m furtherBack sig ¬init)
      ...| inj₁ thisStep
        with sp
@@ -167,8 +168,8 @@ module LibraBFT.Yasm.Properties
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig ¬init
         | inj₁ thisStep
         | step-honest x
-       with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs)
+       with senderMsgPair∈⇒send∈ outs thisStep
+     ...| m∈outs , refl
        with sps-avp tr hpk x m∈outs p⊂m sig ¬init
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
                                   (¬subst {P = ∈GenInfo} ¬init (msgSameSig sentb4))
@@ -176,8 +177,10 @@ module LibraBFT.Yasm.Properties
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig ¬init
         | inj₁ thisStep
         | step-honest x
-        | (m , refl , m∈outs)
-        | inj₁ (valid-part , notBefore) = step-here tr (tr , ¬init , notBefore , MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl) , refl , override-target-≡ , valid-part )
+        | m∈outs , refl
+        | inj₁ (valid-part , notBefore) = step-here tr (tr , ¬init , notBefore , mws∈pool , refl , override-target-≡ , valid-part)
+        where mws∈pool : MsgWithSig∈ _ (WithSig.signature Part-sig _ (isSigned sig)) (actionsToSentMessages β outs ++ msgPool pre)
+              mws∈pool = MsgWithSig∈-++ˡ (mkMsgWithSig∈ _ _ p⊂m β thisStep sig refl)
 
      -- Unwind is inconvenient to use by itself because we have to do
      -- induction on Any-Step-elim. The 'honestPartValid' property below
@@ -218,7 +221,7 @@ module LibraBFT.Yasm.Properties
        → ValidSenderForPK st part α pk
        ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      ext-unforgeability' {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig ¬init hpk
-       with Any-++⁻ (List-map (β ,_) outs) {msgPool pre} m∈sm
+       with Any-++⁻ (actionsToSentMessages β outs) {msgPool pre} m∈sm
      ...| inj₂ furtherBack = MsgWithSig∈-++ʳ <⊎$> ⊎-map (ValidSenderForPK-stable st (step-peer sp)) id
                                                         (ext-unforgeability' st furtherBack p⊆m sig ¬init hpk)
      ...| inj₁ thisStep
@@ -232,8 +235,8 @@ module LibraBFT.Yasm.Properties
      ext-unforgeability' {α = α} {m = m} {part = part} (step-s st (step-peer {pid = β} {outs = outs} {pre = pre} sp)) m∈sm p⊆m sig ¬init hpk
         | inj₁ thisStep
         | step-honest x
-       with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m , refl , m∈outs) = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig ¬init)
+       with senderMsgPair∈⇒send∈ outs thisStep
+     ...| m∈outs , refl = ⊎-map proj₁ MsgWithSig∈-++ʳ (sps-avp st hpk x m∈outs p⊆m sig ¬init)
 
      -- The ext-unforgeability' property can be collapsed in a single clause.
 
@@ -266,14 +269,14 @@ module LibraBFT.Yasm.Properties
         with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈GenInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') refl)
      ...| (mws'' , vpb'') = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
      msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws ¬init
-       with Any-++⁻ (List-map (pid ,_) outs) {msgPool pre} (msg∈pool mws)
+       with Any-++⁻ (actionsToSentMessages pid outs) {msgPool pre} (msg∈pool mws)
      ...| inj₂ furtherBack
        with msgWithSigSentByAuthor preach hpk (MsgWithSig∈-transp mws furtherBack) ¬init
      ...| (mws' , vpb') = MsgWithSig∈-++ʳ mws' , ValidSenderForPK-stable preach theStep vpb'
      msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws ¬init
         | inj₁ thisStep
-        with Any-satisfied-∈ (Any-map⁻ thisStep)
-     ...| (m' , refl , m∈outs)
+       with senderMsgPair∈⇒send∈ outs thisStep
+     ...| m∈outs , refl
         with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws) ¬init
      ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
      ...| inj₂ mws'
@@ -286,15 +289,15 @@ module LibraBFT.Yasm.Properties
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                       → ¬ (∈GenInfo (ver-signature sig))
                       → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                      → ( m ∈ outs × ValidSenderForPK (StepPeer-post (step-honest stP)) v pid pk
+                      → ( LYT.send m ∈ outs × ValidSenderForPK (StepPeer-post {pre = st} (step-honest stP)) v pid pk
                         × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                         ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig ¬init v⊂m m∈post
-        with Any-++⁻ (List-map (pid ,_) outs) m∈post
+        with Any-++⁻ (actionsToSentMessages pid outs) m∈post
      ...| inj₂ m∈preSt = inj₂ (mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl)
      ...| inj₁ nm∈outs
-        with Any-map (cong proj₂) (Any-map⁻ nm∈outs)
-     ...| m∈outs
+        with senderMsgPair∈⇒send∈ outs nm∈outs
+     ...| m∈outs , refl
         with sps-avp r pkH stP m∈outs v⊂m sig ¬init
      ...| inj₁ newVote = inj₁ (m∈outs , newVote)
      ...| inj₂ msb4    = inj₂ msb4

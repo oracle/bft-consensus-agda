@@ -6,10 +6,10 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 
+open import LibraBFT.Yasm.Types
+
 -- This module defines the types used to define a SystemModel.
-
 module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
-
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
  record SystemParameters : Set (ℓ+1 ℓ-PeerState) where
@@ -35,26 +35,8 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     ∈GenInfo     : Signature → Set
 
     -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → Genesis → PeerState × List Msg
+    init : PeerId → Genesis → PeerState × List (Action Msg)
 
     -- Handles a message on a previously initialized peer.
-    handle : PeerId → Msg → PeerState → PeerState × List Msg
+    handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
 
-    -- TODO-3?: So far, handlers only produce messages to be sent.
-    -- It would be reasonable to generalize this to something like
-    --
-    --   data Action = Send Msg | Crash CrashMsg | Log LogMsg | ...
-    --
-    -- on the system level, and have the handlers return List Action,
-    -- rather than just ListMsg.  For example, if an assertion fires, this
-    -- could "kill the process" and make it not send any messages in the future.
-    -- We could also then prove that the handlers do not crash, certain
-    -- messages are logged under certain circumstances, etc.
-    --
-    -- Alternatively, we could keep this outside the system model by
-    -- defining an application-specific peerState type, for example:
-    --
-    -- > libraHandle : Msg → Status × Log × LState → Status × LState × List Action
-    -- > libraHandle _ (Crashed , l , s) = Crashed , s , [] -- i.e., crashed peers never send messages
-    -- >
-    -- > handle = filter isSend ∘ libraHandle

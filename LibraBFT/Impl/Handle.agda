@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
+import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
@@ -102,46 +103,29 @@ module LibraBFT.Impl.Handle where
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
 
- -- For now, the SystemModel supports only one kind of action: to send a Message.  Later it might
- -- include things like logging, crashes, assertion failures, etc.  At that point, definitions like
- -- the following might become part of the SystemModel, but they are included here to enable the
- -- temporary scaffolding below.
-
- data Action (Msg : Set) : Set where
-   send : Msg → Action Msg
-
- action-send-injective : ∀ {Msg}{m m' : Msg} → send m ≡ send m' → m ≡ m'
- action-send-injective refl = refl
-
- msgToSend : {Msg : Set} → Action Msg → Msg
- msgToSend (send m) = m
-
- msgToSend≡ : ∀ {Msg x}{m : Msg} → m ≡ msgToSend x → send m ≡ x
- msgToSend≡ {_} {send m} {m} refl = refl
+ initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+ initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
  -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
- outputToActions : RoundManager → Output → List (Action NetworkMsg)
- outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
+ outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
+ outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
                                                      (List-map proj₁
                                                                (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
- outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
+ outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V v))) toList
 
- outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
+ outputsToActions : ∀ {State} → List Output → List (LYT.Action NetworkMsg)
  outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
- runHandler : RoundManager → LBFT Unit → RoundManager × List (Action NetworkMsg)
+ runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId → NetworkMsg → Instant → RoundManager → RoundManager × List (Action NetworkMsg)
- peerStep nid msg ts st = runHandler st (handle nid msg ts)
-
- -- This (temporary) wrapper bridges the gap between our (draft) concrete handler and
- -- the form required by the new system model, which does not (yet) support actions other
- -- than send.
- peerStepWrapper : NodeId → NetworkMsg → RoundManager → RoundManager × List NetworkMsg
- peerStepWrapper nid msg st = ×-map₂ (List-map msgToSend) (peerStep nid msg 0 st)
+ --
+ -- Note that we currently do not do anything non-trivial with the timestamp.
+ -- Here, we just pass 0 to `handle`.
+ peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
+ peerStep nid msg st = runHandler st (handle nid msg 0)

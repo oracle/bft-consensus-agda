@@ -24,6 +24,7 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
@@ -59,7 +60,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                      → (ivnp : IsValidNewPart (₋vSignature v') pk theStep)
                      → firstSendEstablishes v' pk pre theStep
   isValidNewPart⇒fSE {pre = pre} {theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬init , ¬sentb4 , mws , _)
-     with Any-++⁻ (List-map (β ,_) outs) (msg∈pool mws)
+     with Any-++⁻ (actionsToSentMessages β outs) (msg∈pool mws)
      -- TODO-1 : Much of this proof is not specific to the particular property being proved, and could be
      -- refactored into Yasm.Properties.  See proof of unwind and refactor to avoid redundancy?
   ...| inj₂ furtherBack = ⊥-elim (¬sentb4 (MsgWithSig∈-transp mws furtherBack))
@@ -75,8 +76,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
   isValidNewPart⇒fSE {pk}{v'}{pre}{theStep = step-peer {β} {postst} {outs} {.pre} pstep} hpk (r , ¬init , ¬sentb4 , mws , refl , zefl , vpk)
      | inj₁ thisStep
      | step-honest {.β} hstep
-     with Any-satisfied-∈ (Any-map⁻ thisStep)
-  ...| nm , refl , nm∈outs
+     with senderMsgPair∈⇒send∈ outs thisStep
+  ...| nm∈outs , refl
      with hstep
   ...| step-msg {_ , P m} m∈pool ini
      with impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws )

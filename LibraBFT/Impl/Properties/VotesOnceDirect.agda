@@ -20,6 +20,7 @@ open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
+open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
@@ -36,7 +37,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                        → ReachableSystemState st
                        → StepPeerState pid (msgPool st) (initialised st)
                                        (peerStates st pid) (s' , outs)
-                       → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                       → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                        → Meta-Honest-PK pk → ¬ (∈GenInfo (ver-signature sig))
                        → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                        → v ^∙ vEpoch ≡ (₋rmEC s') ^∙ rmEpoch
