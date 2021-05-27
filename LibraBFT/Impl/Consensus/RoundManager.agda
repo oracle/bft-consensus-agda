@@ -42,8 +42,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
     fakeSK  : SK
     fakeSig : Signature
 
-  processProposalMsg : Instant → ProposalMsg → LBFT Unit
-  processProposalMsg inst pm = do
+  fakeProcessProposalMsg : Instant → ProposalMsg → LBFT Unit
+  fakeProcessProposalMsg inst pm = do
     st ← get
     xx ← use rmHighestQC   -- Not used; just a demonstration that our RoundManager-specific "use" works
     modify' rmHighestQC xx -- Similarly for modify'
@@ -69,3 +69,5 @@ module LibraBFT.Impl.Consensus.RoundManager where
 
   processVote : Instant → VoteMsg → LBFT Unit
   processVote now msg = pure unit
+
+

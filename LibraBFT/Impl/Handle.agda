@@ -99,7 +99,7 @@ module LibraBFT.Impl.Handle where
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
     with msg
- ...| P p = processProposalMsg now p
+ ...| P p = fakeProcessProposalMsg now p
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
 
