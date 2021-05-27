@@ -34,4 +34,4 @@ module LibraBFT.Concrete.System.Parameters where
                  _⊂Msg_
                  ∈GenInfo
                  initWrapper
-                 peerStepWrapper
+                 peerStep

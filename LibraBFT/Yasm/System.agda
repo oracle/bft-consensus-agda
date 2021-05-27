@@ -47,7 +47,7 @@ module LibraBFT.Yasm.System
  SentMessages : Set
  SentMessages = List SenderMsgPair
 
- -- Convert the actions a peer `pid` took to a list of `SentMessages`.
+ -- Convert the actions a peer `pid` took to a list of sent messages.
  -- Non-message actions are discarded.
  actionsToSentMessages : PeerId → List (LYT.Action Msg) → SentMessages
  actionsToSentMessages pid = mapMaybe (actionToSMP pid)
@@ -59,8 +59,9 @@ module LibraBFT.Yasm.System
        (pid₁ , m) ∈ (actionsToSentMessages pid₂ outs) →
        (LYT.send m ∈ outs) × pid₁ ≡ pid₂
  senderMsgPair∈⇒send∈ (LYT.send m ∷ outs) (here refl) = (here refl , refl)
- senderMsgPair∈⇒send∈ (LYT.send m ∷ outs) (there pm∈) with senderMsgPair∈⇒send∈ outs pm∈
- ... | m∈outs , refl = (there m∈outs) , refl
+ senderMsgPair∈⇒send∈ (LYT.send m ∷ outs) (there pm∈)
+    with senderMsgPair∈⇒send∈ outs pm∈
+ ...| m∈outs , refl = (there m∈outs) , refl
 
  -- The model supports sending messages that contain some fields that are
  -- /not/ covered by the message's signature.  Therefore, given a message

@@ -75,7 +75,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   isValidNewPart⇒fSE {pk}{v'}{pre}{theStep = step-peer {β} {postst} {outs} {.pre} pstep} hpk (r , ¬init , ¬sentb4 , mws , refl , zefl , vpk)
      | inj₁ thisStep
-     | step-honest {.β} hstep with senderMsgPair∈⇒send∈ outs thisStep
+     | step-honest {.β} hstep
+     with senderMsgPair∈⇒send∈ outs thisStep
   ...| nm∈outs , refl
      with hstep
   ...| step-msg {_ , P m} m∈pool ini

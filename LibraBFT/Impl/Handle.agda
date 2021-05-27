@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
+import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
@@ -102,10 +103,6 @@ module LibraBFT.Impl.Handle where
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
 
- -- Translation to SystemModel
- import LibraBFT.Yasm.Types as LYT
- -- For now, the SystemModel supports only one kind of action: to send a Message.  Later it might
- -- include things like logging, crashes, assertion failures, etc.
  initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
  initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
@@ -127,8 +124,8 @@ module LibraBFT.Impl.Handle where
 
  -- And ultimately, the all-knowing system layer only cares about the
  -- step function.
- peerStep : NodeId → NetworkMsg → Instant → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
- peerStep nid msg ts st = runHandler st (handle nid msg ts)
-
- peerStepWrapper : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
- peerStepWrapper nid msg st = peerStep nid msg 0 st
+ --
+ -- Note that we currently do not do anything non-trivial with the timestamp.
+ -- Here, we just pass 0 to `handle`.
+ peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
+ peerStep nid msg st = runHandler st (handle nid msg 0)

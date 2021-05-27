@@ -169,7 +169,7 @@ module LibraBFT.Yasm.Properties
         | inj₁ thisStep
         | step-honest x
        with senderMsgPair∈⇒send∈ outs thisStep
-     ... | m∈outs , refl
+     ...| m∈outs , refl
        with sps-avp tr hpk x m∈outs p⊂m sig ¬init
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
                                   (¬subst {P = ∈GenInfo} ¬init (msgSameSig sentb4))
