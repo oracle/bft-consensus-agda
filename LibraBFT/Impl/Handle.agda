@@ -12,17 +12,15 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
 
-module LibraBFT.Impl.Handle
-  (hash    : BitString → Hash)
-  (hash-cr : ∀{x y} → hash x ≡ hash y → Collision hash x y ⊎ x ≡ y)
-  where
- open import LibraBFT.Impl.Consensus.RoundManager hash hash-cr
+module LibraBFT.Impl.Handle where
+ open import LibraBFT.Impl.Consensus.RoundManager
  open RWST-do
 
  open EpochConfig
@@ -30,26 +28,48 @@ module LibraBFT.Impl.Handle
  record GenesisInfo : Set where
    constructor mkGenInfo
    field
-     -- Nodes, PKs for initial epoch
-     -- Faults to tolerate (or quorum size?)
+     -- TODO-1 : Nodes, PKs for initial epoch
+     -- TODO-1 : Faults to tolerate (or quorum size?)
      genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
                                         -- highestCommitCert.
+ open GenesisInfo
 
  postulate -- valid assumption
    -- We postulate the existence of GenesisInfo known to all
+   -- TODO: construct one or write a function that generates one from some parameters.
    genInfo : GenesisInfo
 
+ postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+   initVV  : GenesisInfo → ValidatorVerifier
+   init-EC : GenesisInfo → EpochConfig
+
+ data ∈GenInfo : Signature → Set where
+  inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC genInfo) → ∈GenInfo (proj₂ vs)
+
+ open import LibraBFT.Abstract.Records UID _≟UID_ NodeId
+                                       (init-EC genInfo)
+                                       (ConcreteVoteEvidence (init-EC genInfo))
+                                       as Abs using ()
+
+ postulate -- TODO-1 : prove
+   ∈GenInfo? : (sig : Signature) → Dec (∈GenInfo sig)
+
+ postulate -- TODO-1: prove after defining genInfo
+   genVotesRound≡0     : ∀ {pk v}
+                      → (wvs : WithVerSig pk v)
+                      → ∈GenInfo (ver-signature wvs)
+                      → v ^∙ vRound ≡ 0
+   genVotesConsistent : (v1 v2 : Vote)
+                      → ∈GenInfo (₋vSignature v1) → ∈GenInfo (₋vSignature v2)
+                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
+
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
-           -- it by construction; eventually we will construct an entire RoundManagerAndMeta, so
+           -- it by construction; eventually we will construct an entire RoundManager, so
            -- this won't be needed
 
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
  -- the initial RoundManager for every peer until it is initialised.
    fakeRM : RoundManager
-
- postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-   initVV  : GenesisInfo → ValidatorVerifier
-   init-EC : GenesisInfo → EpochConfig
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
@@ -57,7 +77,7 @@ module LibraBFT.Impl.Handle
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initSR
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
@@ -69,6 +89,7 @@ module LibraBFT.Impl.Handle
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
+ -- TODO: create real RoundManager using GenesisInfo
  initialRoundManagerAndMessages
      : (a : Author) → GenesisInfo
      → RoundManager × List NetworkMsg
@@ -85,24 +106,27 @@ module LibraBFT.Impl.Handle
  import LibraBFT.Yasm.Types as LYT
  -- For now, the SystemModel supports only one kind of action: to send a Message.  Later it might
  -- include things like logging, crashes, assertion failures, etc.
- initialRoundManagerAndMessagesWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
- initialRoundManagerAndMessagesWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
+ initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+ initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
  -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
  -- it is included in the model only to facilitate future work on liveness properties, when we will need
  -- assumptions about message delivery between honest peers.
  outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
-                                              (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm))))
- outputToActions rm (LogErr _) = []
- outputToActions rm (SendVote v toList) = List-map (const (LYT.send (V v))) toList
+                                                     (List-map proj₁
+                                                               (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
+ outputToActions _  (LogErr x)            = []
+ outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V v))) toList
 
- outputsToActions : (rm : RoundManager) → List Output → List (LYT.Action NetworkMsg)
- outputsToActions rm = concat ∘ List-map (outputToActions rm)
+ outputsToActions : ∀ {State} → List Output → List (LYT.Action NetworkMsg)
+ outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
- runHandler st handler = ×-map₂ (outputsToActions st) (proj₂ (LBFT-run handler st))
+ runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
+ -- And ultimately, the all-knowing system layer only cares about the
+ -- step function.
  peerStep : NodeId → NetworkMsg → Instant → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
  peerStep nid msg ts st = runHandler st (handle nid msg ts)
 

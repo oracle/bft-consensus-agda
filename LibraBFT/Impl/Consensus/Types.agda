@@ -34,19 +34,28 @@ module LibraBFT.Impl.Consensus.Types where
   open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
   open import LibraBFT.Impl.Consensus.Types.EpochDep         public
 
+  record EpochState : Set where
+    constructor EpochState∙new
+    field
+      ₋esEpoch    : Epoch
+      ₋esVerifier : ValidatorVerifier
+  open EpochState public
+  unquoteDecl esEpoch esVerifier = mkLens (quote EpochState)
+    (esEpoch ∷ esVerifier ∷ [])
+
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
+      ₋rmEpochState   : EpochState
       ₋rmSafetyRules  : SafetyRules
-      ₋rmValidators   : ValidatorVerifier
   open RoundManagerEC public
-  unquoteDecl rmSafetyRules rmValidators = mkLens (quote RoundManagerEC)
-    (rmSafetyRules ∷ rmValidators ∷ [])
+  unquoteDecl rmEpochState rmSafetyRules = mkLens (quote RoundManagerEC)
+    (rmEpochState ∷ rmSafetyRules ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
-  rmEpoch = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
+  rmEpoch = rmEpochState ∙ esEpoch
 
   rmLastVotedRound : Lens RoundManagerEC Round
   rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
@@ -56,14 +65,14 @@ module LibraBFT.Impl.Consensus.Types where
   -- 'RoundManagerEC'.
   RoundManagerEC-correct : RoundManagerEC → Set
   RoundManagerEC-correct rmec =
-    let numAuthors = kvm-size (rmec ^∙ rmValidators ∙ vvAddressToValidatorInfo)
-        qsize      = rmec ^∙ rmValidators ∙ vvQuorumVotingPower
+    let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+        qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors
 
   RoundManagerEC-correct-≡ : (rmec1 : RoundManagerEC)
                              → (rmec2 : RoundManagerEC)
-                             → (rmec1 ^∙ rmValidators) ≡ (rmec2 ^∙ rmValidators)
+                             → (rmec1 ^∙ rmEpochState ∙ esVerifier) ≡ (rmec2 ^∙ rmEpochState ∙ esVerifier)
                              → RoundManagerEC-correct rmec1
                              → RoundManagerEC-correct rmec2
   RoundManagerEC-correct-≡ rmec1 rmec2 refl = id
@@ -74,8 +83,8 @@ module LibraBFT.Impl.Consensus.Types where
   -- TODO-2: update and complete when definitions are updated to more recent version
   α-EC : Σ RoundManagerEC RoundManagerEC-correct → EpochConfig
   α-EC (rmec , ok) =
-    let numAuthors = kvm-size (rmec ^∙ rmValidators ∙ vvAddressToValidatorInfo)
-        qsize      = rmec ^∙ rmValidators ∙ vvQuorumVotingPower
+    let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+        qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in (EpochConfig∙new {! someHash?!}
                 (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
@@ -83,7 +92,7 @@ module LibraBFT.Impl.Consensus.Types where
   postulate
     α-EC-≡ : (rmec1  : RoundManagerEC)
            → (rmec2  : RoundManagerEC)
-           → (vals≡  : rmec1 ^∙ rmValidators ≡ rmec2 ^∙ rmValidators)
+           → (vals≡  : rmec1 ^∙ rmEpochState ∙ esVerifier ≡ rmec2 ^∙ rmEpochState ∙ esVerifier)
            →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
            → (rmec1-corr : RoundManagerEC-correct rmec1)
            → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManagerEC-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
@@ -95,9 +104,11 @@ module LibraBFT.Impl.Consensus.Types where
   ℓ-RoundManager : Level
   ℓ-RoundManager = 0ℓ
 
-  -- Finally, the RoundManager is split in two pieces: those
-  -- that are used to make an EpochConfig versus those that
-  -- use an EpochConfig.
+  -- Finally, the RoundManager is split in two pieces: those that are used to make an EpochConfig
+  -- versus those that use an EpochConfig.  The reason is that the *abstract* EpochConfig is a
+  -- function of some parts of the RoundManager (₋rmEC), and some parts depend on the abstract
+  -- EpochConfig.  For example, ₋btIdToQuorumCert carries a proof that the QuorumCert is valid (for
+  -- the abstract EpochConfig).
   record RoundManager : Set ℓ-RoundManager where
     constructor RoundManager∙new
     field

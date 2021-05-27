@@ -13,7 +13,8 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.NetworkMsg
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle sha256 sha256-cr
+open import LibraBFT.Impl.Handle
+open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
@@ -51,13 +52,13 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
-   → v  ⊂Msg m  → send m ∈ outs → (sig : WithVerSig pk v)
+   → v  ⊂Msg m  → send m ∈ outs
+   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v is really new and valid
-     -- Note that this does not directly exclude possibility of previous message with
-     -- same signature, but sent by someone else.  We could prove it implies it though.
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that has been sent before
-   → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre) → WithVerSig pk v'
+   → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
+   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v ^∙ vRound ≡ v' ^∙ vRound
@@ -71,14 +72,17 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
-   → ∀{v m v' m'} → Meta-Honest-PK pk
+   → ∀{v m v' m'}
+   → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
-   → v  ⊂Msg m  → send m ∈ outs → (sig : WithVerSig pk v)
+   → v  ⊂Msg m  → send m ∈ outs
+   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
 
    -- And if there exists another v' that is also new and valid
-   → v' ⊂Msg m'  → send m' ∈ outs → (sig' : WithVerSig pk v')
+   → v' ⊂Msg m'  → send m' ∈ outs
+   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
 
    -- If v and v' share the same epoch and round
@@ -147,47 +151,64 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        ∀ {v v' pk} {st : SystemState}
        → ReachableSystemState st
        → Meta-Honest-PK pk
-       → (vv  : WithVerSig pk v)  → MsgWithSig∈ pk (ver-signature vv) (msgPool st)
+       → (vv  : WithVerSig pk v)  → MsgWithSig∈ pk (ver-signature vv)  (msgPool st)
        → (vv' : WithVerSig pk v') → MsgWithSig∈ pk (ver-signature vv') (msgPool st)
        → v ^∙ vEpoch ≡ v' ^∙ vEpoch
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
     VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
-    VotesOnceProof (step-s r (step-peer cheat@(step-cheat c))) pkH vv msv vv' msv' eid≡ r≡
-       with ¬cheatForgeNew cheat refl unit pkH msv | ¬cheatForgeNew cheat refl unit pkH msv'
+    VotesOnceProof {v} {v'} (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
+       with msgSameSig msv | msgSameSig msv'
+    ...| refl | refl
+      with sameSig⇒sameVoteDataNoCol (msgSigned msv)  vv  (msgSameSig msv )
+         | sameSig⇒sameVoteDataNoCol (msgSigned msv') vv' (msgSameSig msv')
+    ...| refl | refl
+       with ∈GenInfo? (₋vSignature (msgPart msv)) | ∈GenInfo? (₋vSignature (msgPart msv'))
+    ...| yes init  | yes init' =  genVotesConsistent (msgPart msv) (msgPart msv') init init'
+       -- A signature in GenInfo is for a vote with round 0, and a signature for which we have a
+       -- MsgWithSig∈ that is not in GenInfo and is for an honest PK is for a round ≢ 0, so we can
+       -- derive a contradiction using r≡.
+    ...| yes init  | no  ¬init = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv' ¬init ((trans (sym r≡) (genVotesRound≡0 vv  init))))
+    ...| no  ¬init | yes init  = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv  ¬init ((trans r≡       (genVotesRound≡0 vv' init))))
+    ...| no  ¬init | no ¬init'
+       with theStep
+    ...| step-peer cheat@(step-cheat c)
+       with ¬cheatForgeNew cheat refl unit pkH msv  ¬init
+          | ¬cheatForgeNew cheat refl unit pkH msv' ¬init'
     ...| msb4 | m'sb4
        with  msgSameSig msb4 | msgSameSig m'sb4
     ...| refl | refl = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
-    VotesOnceProof (step-s r (step-peer stHon@(step-honest stPeer))) pkH vv msv vv' msv' eid≡ r≡
-       with  msgSameSig msv | msgSameSig msv'
-    ...| refl       | refl
-       with sameHonestSig⇒sameVoteData pkH (msgSigned msv) vv (msgSameSig msv)
-          | sameHonestSig⇒sameVoteData pkH (msgSigned msv') vv' (msgSameSig msv')
-    ...| inj₁ hb    | _         = ⊥-elim (meta-sha256-cr hb)
-    ...| inj₂ refl  | inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-    ...| inj₂ refl  | inj₂ refl
-       with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) (msg⊆ msv) (msg∈pool msv)
-          | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') (msg⊆ msv') (msg∈pool msv')
-    ...| inj₁ msb4                   | inj₁ m'sb4
+
+    VotesOnceProof (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
+       | refl | refl
+       | refl | refl
+       | no  ¬init | no ¬init'
+       | step-peer (step-honest stPeer)
+       with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv)  ¬init  (msg⊆ msv)  (msg∈pool msv)
+          | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') ¬init' (msg⊆ msv') (msg∈pool msv')
+    ...| inj₂ msb4                   | inj₂ m'sb4
          = VotesOnceProof r pkH vv msb4 vv' m'sb4 eid≡ r≡
-    ...| inj₂ (newV , m∈outs , vspk) | inj₂ (newV' , m'∈outs , v'spk)
-      = Impl-VO2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
-                 (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk eid≡ r≡
-    ...| inj₂ (newV , m∈outs , vspk) | inj₁ m'sb4
-       with sameHonestSig⇒sameVoteData pkH (msgSigned m'sb4) vv' (msgSameSig m'sb4)
+    ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
+      = Impl-VO2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV vspk
+                 (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk eid≡ r≡
+    ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
+       with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-    ...| inj₂ refl
-      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) newV vspk
-                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) eid≡ r≡
-    VotesOnceProof (step-s r (step-peer (step-honest stPeer))) pkH vv msv vv' msv' eid≡ r≡
-       | refl       | refl
-       | inj₂ refl  | inj₂ refl
-       | inj₁ msb4                   | inj₂ (newV' , m'∈outs , v'spk)
-       with sameHonestSig⇒sameVoteData pkH (msgSigned msb4) vv (msgSameSig msb4)
+    ...| inj₂ refl rewrite sym (msgSameSig msv')
+      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV vspk
+                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) (¬subst ¬init' (msgSameSig m'sb4)) eid≡ r≡
+
+    VotesOnceProof (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
+       | refl | refl
+       | refl | refl
+       | no  ¬init | no ¬init'
+       | step-peer (step-honest stPeer)
+       | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
+       with sameSig⇒sameVoteData (msgSigned msb4) vv (msgSameSig msb4)
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
-      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') newV' v'spk
-                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (sym eid≡) (sym r≡))
+      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk
+                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4)) (sym eid≡) (sym r≡))
 
    voo : VO.Type IntSystemState
    voo hpk refl sv refl sv' round≡

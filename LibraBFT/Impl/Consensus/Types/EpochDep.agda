@@ -128,15 +128,15 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   -- A valid quorum certificate contains a collection of valid votes, such that
   -- the members represented by those votes (which exist because the votes are valid)
   -- constitutes a quorum.
-  record IsValidQC (qc : QuorumCert) : Set where
+  record MetaIsValidQC (qc : QuorumCert) : Set where
     field
-      ₋ivqcVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
-      ₋ivqcIsQuorum        : IsQuorum (All-reduce ₋ivvMember ₋ivqcVotesValid)
-  open IsValidQC public
+      ₋ivqcMetaVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
+      ₋ivqcMetaIsQuorum        : IsQuorum (All-reduce ₋ivvMember ₋ivqcMetaVotesValid)
+  open MetaIsValidQC public
 
-  vqcMember : (qc : QuorumCert) → IsValidQC qc
+  vqcMember : (qc : QuorumCert) → MetaIsValidQC qc
              → ∀ {as} → as ∈ qcVotes qc → Member
-  vqcMember qc v {α , _ , _} as∈qc with All-lookup (₋ivqcVotesValid v) as∈qc
+  vqcMember qc v {α , _ , _} as∈qc with All-lookup (₋ivqcMetaVotesValid v) as∈qc
   ...| prf = ₋ivvMember prf
 
   -- A block tree depends on a epoch config but works regardlesss of which
@@ -153,7 +153,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
       ₋btPendingVotes            : PendingVotes
       ₋btPrunedBlockIds          : List HashValue
       ₋btMaxPrunedBlocksInMem    : ℕ
-      ₋btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert IsValidQC)
+      ₋btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
   open BlockTree public
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
               btHighestCommitCert   btPendingVotes   btPrunedBlockIds

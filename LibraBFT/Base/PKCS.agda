@@ -50,11 +50,6 @@ module LibraBFT.Base.PKCS where
                  → verify bs' sig pk ≡ true
                  → bs ≡ bs'
 
-   verify-pi : ∀{bs sig pk}
-             → (v1 : verify bs sig pk ≡ true)
-             → (v2 : verify bs sig pk ≡ true)
-             → v1 ≡ v2
-
    verify-sign : ∀{bs pk sk}
                → IsKeyPair pk sk
                → verify bs (sign-raw bs sk) pk ≡ true
@@ -81,6 +76,13 @@ module LibraBFT.Base.PKCS where
 
    Meta-DishonestPK? : (pk : PK) → Dec (Meta-Dishonest-PK pk)
 
+ verify-pi : ∀{bs sig pk}
+           → (v1 : verify bs sig pk ≡ true)
+           → (v2 : verify bs sig pk ≡ true)
+           → v1 ≡ v2
+ verify-pi {bs} {sig} {pk} _ _
+    with verify bs sig pk
+ verify-pi {bs} {sig} {pk} refl refl | .true = refl
 
  Meta-Honest-PK : PK → Set
  Meta-Honest-PK  = ¬_ ∘ Meta-Dishonest-PK

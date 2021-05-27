@@ -252,6 +252,13 @@ module LibraBFT.Lemmas where
  deMorgan (inj₁ ¬a) = λ a×b → ¬a (proj₁ a×b)
  deMorgan (inj₂ ¬b) = λ a×b → ¬b (proj₂ a×b)
 
+ ¬subst : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {P : A → Set ℓ₂}
+        → {x y : A}
+        → ¬ (P x)
+        → y ≡ x
+        → ¬ (P y)
+ ¬subst px refl = px
+
  ∸-suc-≤ : ∀ (x w : ℕ) → suc x ∸ w ≤ suc (x ∸ w)
  ∸-suc-≤ x zero = ≤-refl
  ∸-suc-≤ zero (suc w) rewrite 0∸n≡0 w = z≤n

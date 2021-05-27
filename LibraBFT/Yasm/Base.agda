@@ -31,6 +31,9 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     -- A relation specifying what Parts are included in a Msg.
     _⊂Msg_       : Part → Msg → Set
 
+    -- A relation specifying what Signatures are included in genInfo
+    ∈GenInfo     : Signature → Set
+
     -- Initializes a potentially-empty state with an EpochConfig
     init : PeerId → Genesis → PeerState × List (Action Msg)
 

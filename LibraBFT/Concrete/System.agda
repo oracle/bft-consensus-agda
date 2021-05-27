@@ -13,7 +13,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle sha256 sha256-cr
+open import LibraBFT.Impl.Handle
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 
@@ -70,13 +70,12 @@ module LibraBFT.Concrete.System where
 
    -- TODO-1: refactor this somewhere else?  Maybe something like
    -- LibraBFT.Impl.Consensus.Types.Properties?
-   sameHonestSig⇒sameVoteData : ∀ {v1 v2 : Vote} {pk}
-                              → Meta-Honest-PK pk
-                              → WithVerSig pk v1
-                              → WithVerSig pk v2
-                              → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
-                              → NonInjective-≡ sha256 ⊎ v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
-   sameHonestSig⇒sameVoteData {v1} {v2} hpk wvs1 wvs2 refl
+   sameSig⇒sameVoteData : ∀ {v1 v2 : Vote} {pk}
+                        → WithVerSig pk v1
+                        → WithVerSig pk v2
+                        → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
+                        → NonInjective-≡ sha256 ⊎ v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
+   sameSig⇒sameVoteData {v1} {v2} wvs1 wvs2 refl
       with verify-bs-inj (verified wvs1) (verified wvs2)
         -- The signable fields of the votes must be the same (we do not model signature collisions)
    ...| bs≡
@@ -97,7 +96,7 @@ module LibraBFT.Concrete.System where
     -- (in LibraBFT.LibraBFT.Concrete.Properties.VotesOnce), we
     -- currently use this postulate to eliminate the possibility of two
     -- votes that have the same signature but different VoteData
-    -- whenever we use sameHonestSig⇒sameVoteData.  To eliminate the
+    -- whenever we use sameSig⇒sameVoteData.  To eliminate the
     -- postulate, we need to refine the properties we prove to enable
     -- the possibility of a hash collision, in which case the required
     -- property might not hold.  However, it is not sufficient to simply
@@ -112,6 +111,16 @@ module LibraBFT.Concrete.System where
     -- that the colliding values actually exist in that state.
     postulate  -- temporary assumption that hash collisions don't exist (see comment above)
       meta-sha256-cr : ¬ (NonInjective-≡ sha256)
+
+    sameSig⇒sameVoteDataNoCol : ∀ {v1 v2 : Vote} {pk}
+                              → WithVerSig pk v1
+                              → WithVerSig pk v2
+                              → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
+                              → v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
+    sameSig⇒sameVoteDataNoCol {v1} {v2} wvs1 wvs2 refl
+       with sameSig⇒sameVoteData {v1} {v2} wvs1 wvs2 refl
+    ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
+    ...| inj₂ x = x
 
     module PerEpoch (𝓔 : EpochConfig) where
 
@@ -151,19 +160,12 @@ module LibraBFT.Concrete.System where
      ∃VoteMsgSentFor-stable theStep (mk∃VoteMsgSentFor sndr vmFor sba) =
                                      mk∃VoteMsgSentFor sndr vmFor (msgs-stable theStep sba)
 
-     record ∃VoteMsgInFor (outs : List NetworkMsg)(v : Abs.Vote) : Set where
-       constructor mk∃VoteMsgInFor
-       field
-         vmFor    : ∃VoteMsgFor v
-         nmInOuts : nm vmFor ∈ outs
-     open ∃VoteMsgInFor public
-
      ∈QC⇒sent : ∀{st : SystemState} {q α}
               → Abs.Q q α-Sent (msgPool st)
               → Meta-Honest-Member α
               → (vα : α Abs.∈QC q)
               → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
-     ∈QC⇒sent {e} {st} {α = α} vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm q≡)) ha va
+     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm q≡)) ha va
        with All-reduce⁻ {vdq = Any-lookup va} (α-Vote cqc valid) All-self
                         (subst (Any-lookup va ∈_) (cong Abs.qVotes q≡) (Any-lookup-correctP va))
      ...| as , as∈cqc , α≡
@@ -171,8 +173,7 @@ module LibraBFT.Concrete.System where
             (α-Vote-evidence cqc valid) as∈cqc
      ...| ev | [ refl ]
         with vote∈qc {vs = as} as∈cqc refl cqc∈nm
-     ...| v∈nm =
-          mk∃VoteMsgSentFor
+     ...| v∈nm = mk∃VoteMsgSentFor
                    (mk∃VoteMsgFor nm (₋cveVote ev) v∈nm
                                   (₋ivvMember (₋cveIsValidVote ev))
                                   (₋ivvSigned (₋cveIsValidVote ev)) (sym α≡)

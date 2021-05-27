@@ -24,7 +24,8 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Base.KVMap  where
 
- variable
+ private
+  variable
    Key : Set
    Val : Set
 

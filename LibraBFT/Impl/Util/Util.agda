@@ -11,6 +11,7 @@ open import LibraBFT.Impl.Consensus.Types
 -- to facilitate reasoning about it.
 
 module LibraBFT.Impl.Util.Util where
+  open import Optics.All
   open import LibraBFT.Impl.Util.RWST ℓ-RoundManager public
   ----------------
   -- LBFT Monad --
@@ -55,3 +56,17 @@ module LibraBFT.Impl.Util.Util where
                 → Set
   LBFT-Contract f Pre Post =
     ∀ rm → Pre rm × Post (proj₁ (proj₂ (RWST-run f unit rm)))
+
+  -- Because we made RWST work for different level State types, but broke use
+  -- and modify' because Lens does not support different levels, we define use
+  -- and modify' here for RoundManager.  This will work as long as we can keep
+  -- RoundManager in Set.  If we ever need to make RoundManager at some higher
+  -- Level, we will have to consider making Lens level-agnostic.  Preliminary
+  -- exploration by @cwjnkins showed this to be somewhat painful in particular
+  -- around composition, so we are not pursuing it for now.
+  use : ∀ {A} → Lens RoundManager A → LBFT A
+  use f = RWST-bind get (RWST-return ∘ (_^∙ f))
+
+  modify' : ∀ {A} → Lens RoundManager A → A → LBFT Unit
+  modify' l val = modify λ x → x [ l := val ]
+
