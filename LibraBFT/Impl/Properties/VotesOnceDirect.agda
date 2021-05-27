@@ -5,10 +5,6 @@
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 
--- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
--- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
--- inductively on the ReachableSystemState. 
-
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
@@ -30,24 +26,22 @@ open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
 open import LibraBFT.Impl.Properties.VotesOnce
 
--- In this module, we (will) prove the two implementation obligations for the VotesOnce rule.  Note
--- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments
--- in Concrete.VotesOnce.  We will want to prove these obligations for the fake/simple
--- implementation (or some variant on it) and streamline the proof before we proceed to tacke more
--- ambitious properties.
+-- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
+-- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
+-- inductively on the ReachableSystemState.
 
 module LibraBFT.Impl.Properties.VotesOnceDirect where
 
 
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
-                               → ReachableSystemState st
-                               → StepPeerState pid (msgPool st) (initialised st)
-                                               (peerStates st pid) (s' , outs)
-                               → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
-                               → Meta-Honest-PK pk → ¬ (∈GenInfo (ver-signature sig))
-                               → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                               → v ^∙ vEpoch ≡ (₋rmEC s') ^∙ rmEpoch
-                               → v ^∙ vRound ≡ (₋rmEC s') ^∙ rmLastVotedRound
+                       → ReachableSystemState st
+                       → StepPeerState pid (msgPool st) (initialised st)
+                                       (peerStates st pid) (s' , outs)
+                       → v ⊂Msg m → m ∈ outs → (sig : WithVerSig pk v)
+                       → Meta-Honest-PK pk → ¬ (∈GenInfo (ver-signature sig))
+                       → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                       → v ^∙ vEpoch ≡ (₋rmEC s') ^∙ rmEpoch
+                       → v ^∙ vRound ≡ (₋rmEC s') ^∙ rmLastVotedRound
   newVoteEpoch≡⇒Round≡ r step@(step-msg {_ , P pm} _ pinit) v⊂m (here refl)
                        sig pkH ¬gen vnew ep≡
      with v⊂m
@@ -65,20 +59,19 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   peerCanSignSameS pcs refl = pcs
 
   peerCanSignEp≡ : ∀ {pid v v' pk s'}
-                   → PeerCanSignForPK s' v pid pk
-                   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-                   → PeerCanSignForPK s' v' pid pk
+                 → PeerCanSignForPK s' v pid pk
+                 → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+                 → PeerCanSignForPK s' v' pid pk
   peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁) refl
     = (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁)
 
-  MsgWithSig⇒ValidSenderInitialised :
-     ∀ {st v pk}
-     → ReachableSystemState st
-     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-     → ¬ (∈GenInfo (ver-signature sig))
-     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-     → ∃[ pid ] ( initialised st pid ≡ initd
-                × PeerCanSignForPK st v pid pk )
+  MsgWithSig⇒ValidSenderInitialised : ∀ {st v pk}
+                                    → ReachableSystemState st
+                                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                                    → ¬ (∈GenInfo (ver-signature sig))
+                                    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                                    → ∃[ pid ] ( initialised st pid ≡ initd
+                                               × PeerCanSignForPK st v pid pk )
   MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest {pid} stP))) pkH sig ¬gen msv
      with msgSameSig msv
   ...| refl
@@ -107,12 +100,12 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
 
 
   peerCanSign-Msb4 : ∀ {pid v pk}{pre post : SystemState}
-                    → ReachableSystemState pre
-                    → Step pre post
-                    → PeerCanSignForPK post v pid pk
-                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                    → PeerCanSignForPK pre v pid pk
+                   → ReachableSystemState pre
+                   → Step pre post
+                   → PeerCanSignForPK post v pid pk
+                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                   → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+                   → PeerCanSignForPK pre v pid pk
   peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) pkH sig msv
     = mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁
 
@@ -127,16 +120,16 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
      with availEpochsConsistent r pcs' pcs
   ...| refl
      with NodeId-PK-OK-injective (𝓔 pcs) (PCS4PK⇒NodeId-PK-OK pcs) (PCS4PK⇒NodeId-PK-OK pcs')
-  ...| pids≡ = pids≡
+  ...| refl = refl
 
 
   msg∈pool⇒initd : ∀ {pid pk v}{st : SystemState}
-                   → ReachableSystemState st
-                   → PeerCanSignForPK st v pid pk
-                   → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                   → ¬ (∈GenInfo (ver-signature sig))
-                   → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                   → initialised st pid ≡ initd
+                 → ReachableSystemState st
+                 → PeerCanSignForPK st v pid pk
+                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
+                 → ¬ (∈GenInfo (ver-signature sig))
+                 → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+                 → initialised st pid ≡ initd
   msg∈pool⇒initd {pid'} {st = st} step@(step-s r (step-peer {pid} (step-honest stPeer))) pcs pkH sig ¬gen msv
      with msgSameSig msv
   ...| refl
@@ -182,7 +175,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   noEpochChange r sm@(step-msg _ ini) pcs pkH sig ∉gen msv eid≡
     rewrite noEpochIdChangeYet r refl sm ini = eid≡
 
-  oldVoteRound≤lvr :  ∀ {pid pk v}{pre : SystemState}
+  oldVoteRound≤lvr : ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                    → ¬ (∈GenInfo (ver-signature sig))
