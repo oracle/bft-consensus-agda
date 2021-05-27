@@ -65,6 +65,13 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   gets f = RWST-bind get (RWST-return ∘ f)
 
 {- TODO-2: extend Lens to work with different levels and reinstate this
+
+   Note that a preliminary exploration by @cwjnkins revealed this to
+   be more painful than it's worth, at least until we have a
+   compelling use case for St to be at a higher level.  In the
+   meantime, we have defined use and modify' specifically for our
+   state type, which is in Set; see LibraBFT.Impl.Util.Util.
+
   use : Lens St A → RWST Ev Wr St A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
 -}
@@ -73,6 +80,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   modify f = rwst (λ _ st → unit , f st , [])
 
 {- TODO-2: extend Lens to work with different levels and reinstate this
+   See comment above for use
   modify' : ∀ {A} → Lens St A → A → RWST Ev Wr St Unit
   modify' l val = modify λ x → x [ l := val ]
   syntax modify' l val = l ∙= val

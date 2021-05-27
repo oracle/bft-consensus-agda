@@ -45,6 +45,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
   processProposalMsg : Instant → ProposalMsg → LBFT Unit
   processProposalMsg inst pm = do
     st ← get
+    xx ← use rmHighestQC   -- Not used; just a demonstration that our RoundManager-specific "use" works
+    modify' rmHighestQC xx -- Similarly for modify'
     let RoundManager∙new rm rmc rmw = st
         𝓔  = α-EC (rm , rmc)
         e  = rm ^∙ rmEpoch
