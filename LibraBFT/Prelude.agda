@@ -194,6 +194,9 @@ module LibraBFT.Prelude where
     hiding (map)
     public
 
+  _<?ℕ_ : Decidable _<_
+  m <?ℕ n = suc m ≤?ℕ n
+
   infix 0 if-yes_then_else_
   infix 0 if-dec_then_else_
   if-yes_then_else_ : {A B : Set} → Dec A → (A → B) → (¬ A → B) → B
