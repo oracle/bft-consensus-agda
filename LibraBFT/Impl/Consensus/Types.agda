@@ -59,12 +59,13 @@ module LibraBFT.Impl.Consensus.Types where
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
-      ₋rmEpochState   : EpochState
-      -rmRoundState   : RoundState
-      ₋rmSafetyRules  : SafetyRules
+      ₋rmEpochState       : EpochState
+      -rmRoundState       : RoundState
+      -rmProposerElection : ProposerElection
+      ₋rmSafetyRules      : SafetyRules
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmRoundState rmSafetyRules  = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmRoundState ∷ rmSafetyRules ∷ [])
+  unquoteDecl rmEpochState rmRoundState rmProposerElection rmSafetyRules  = mkLens (quote RoundManagerEC)
+    (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -155,3 +156,12 @@ module LibraBFT.Impl.Consensus.Types where
   -- managers to block stores.
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
   rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
+
+  lProposerElection : Lens RoundManager ProposerElection
+  lProposerElection = mkLens' g s
+    where
+    g : RoundManager → ProposerElection
+    g rm = ₋rmEC rm ^∙ rmProposerElection
+
+    s : RoundManager → ProposerElection → RoundManager
+    s rm pe = record rm { ₋rmEC = (₋rmEC rm) [ rmProposerElection := pe ] }

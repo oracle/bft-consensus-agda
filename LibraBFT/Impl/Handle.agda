@@ -82,8 +82,12 @@ module LibraBFT.Impl.Handle where
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
+ -- TODO-1: Implement this.
+ initPE : ProposerElection
+ initPE = obm-dangerous-magic!
+
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initSR
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1

@@ -485,6 +485,14 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     (quote ValidatorVerifier)
     (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
+  record ProposerElection : Set where
+    constructor ProposerElection∙new
+    -- field
+      -- :peProposers : Set Author
+      -- :peObmLeaderOfRound : LeaderOfRoundFn
+      -- :peObmNodesInORder  : NodesInOrder
+  open ProposerElection
+
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
