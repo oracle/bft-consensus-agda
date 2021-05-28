@@ -70,9 +70,8 @@ module LibraBFT.Impl.Handle.Properties where
   -- This captures which kinds of messages are sent by handling which kind of message.  It will
   -- require additional disjuncts when we implement processVote.
   msgsToSendWereSent : ∀ {pid nm m} {st : RoundManager}
-                     → send m ∈ proj₂ (peerStepWrapper pid nm st)
-                     → send m ∈ proj₂ (peerStep pid nm 0 st)
-                     × ∃[ vm ] ∃[ pm ] (m ≡ V vm × nm ≡ P pm)
+                     → send m ∈ proj₂ (peerStep pid nm st)
+                     → ∃[ vm ] ∃[ pm ] (m ≡ V vm × nm ≡ P pm)
   msgsToSendWereSent {pid} {nm = nm} {m} {st} m∈outs
     with nm
   ...| C _ = ⊥-elim (¬Any[] m∈outs)
@@ -83,7 +82,7 @@ module LibraBFT.Impl.Handle.Properties where
        with m
   ...| P _ = ⊥-elim (P≢V (action-send-injective v∈outs))
   ...| C _ = ⊥-elim (C≢V (action-send-injective v∈outs))
-  ...| V vm rewrite sym v∈outs = here refl , vm , pm , refl , refl
+  ...| V vm rewrite sym v∈outs = vm , pm , refl , refl
 
   ----- Properties that relate handler to system state -----
 
@@ -179,7 +178,7 @@ module LibraBFT.Impl.Handle.Properties where
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
-  ...| _ , vm , _ , refl , refl
+  ...| _ , vm , _ , refl
     with m∈outs
   ...| here refl
     with v⊂m
