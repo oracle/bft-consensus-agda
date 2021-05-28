@@ -3,6 +3,8 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
@@ -72,13 +74,16 @@ module LibraBFT.Impl.Handle where
  -- the initial RoundManager for every peer until it is initialised.
    fakeRM : RoundManager
 
+ initRS : RoundState
+ initRS = RoundState∙new 0
+
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initSR
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initSR
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1

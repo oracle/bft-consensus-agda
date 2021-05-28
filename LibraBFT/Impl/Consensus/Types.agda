@@ -43,16 +43,28 @@ module LibraBFT.Impl.Consensus.Types where
   unquoteDecl esEpoch esVerifier = mkLens (quote EpochState)
     (esEpoch ∷ esVerifier ∷ [])
 
+  record RoundState : Set where
+    constructor RoundState∙new
+    field
+      -- ...
+      -rsCurrentRound : Round
+      -- ...
+  open RoundState public
+  unquoteDecl rsCurrentRound = mkLens (quote RoundState)
+    (rsCurrentRound ∷ [])
+
+
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
       ₋rmEpochState   : EpochState
+      -rmRoundState   : RoundState
       ₋rmSafetyRules  : SafetyRules
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmSafetyRules = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmSafetyRules ∷ [])
+  unquoteDecl rmEpochState rmRoundState rmSafetyRules  = mkLens (quote RoundManagerEC)
+    (rmEpochState ∷ rmRoundState ∷ rmSafetyRules ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -138,3 +150,8 @@ module LibraBFT.Impl.Consensus.Types where
   rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
                         (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
                           → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestCommitCert = qc}))))
+
+  -- TODO-1? We would need lenses to be dependent to make a lens from round
+  -- managers to block stores.
+  rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
+  rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))

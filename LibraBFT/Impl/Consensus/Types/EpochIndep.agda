@@ -276,6 +276,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bAuthor : Lens Block (Maybe Author)
   bAuthor = bBlockData ∙ bdAuthor
 
+  bParentId : Lens Block HashValue
+  bParentId = bQuorumCert ∙ qcCertifiedBlock ∙ biId
+
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
                            -- constructor SyncInfo∙new is below
