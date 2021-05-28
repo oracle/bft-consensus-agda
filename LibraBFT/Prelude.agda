@@ -123,6 +123,10 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  maybeS : ∀ {a b} {A : Set a} {B : Maybe A → Set b} →
+           (x : Maybe A) → B nothing → ((x : A) → B (just x)) → B x
+  maybeS {B = B} x f t = maybe {B = B} t f x
+
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
     hiding (map; zip; zipWith; unzip ; unzipWith)

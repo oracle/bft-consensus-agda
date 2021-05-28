@@ -67,6 +67,8 @@ module LibraBFT.Impl.Util.Util where
   use : ∀ {A} → Lens RoundManager A → LBFT A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
 
-  modify' : ∀ {A} → Lens RoundManager A → A → LBFT Unit
-  modify' l val = modify λ x → x [ l := val ]
+  modify' : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
+  modify' l f = modify (over l f)
 
+  _∙=_ : ∀ {A} → Lens RoundManager A → A → LBFT Unit
+  l ∙= a = modify' l (const a)

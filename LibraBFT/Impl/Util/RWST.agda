@@ -95,6 +95,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   tell1 : Wr → RWST Ev Wr St Unit
   tell1 wr = tell (wr ∷ [])
 
+  act = tell1
 
   ask : RWST Ev Wr St Ev
   ask = rwst (λ ev st → (ev , st , []))
@@ -114,9 +115,16 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
     pure : A → RWST Ev Wr St A
     pure = return
 
-    infixr 4 _<$>_
+    infixl 4 _<$>_
     _<$>_ : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
     _<$>_ = RWST-map
+
+    infixl 4 _<*>_
+    _<*>_ : RWST Ev Wr St (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+    fs <*> xs = do
+      f ← fs
+      x ← xs
+      pure (f x)
 
   private
     ex₀ : RWST ℕ Wr (Lift ℓ-State ℕ) ℕ
