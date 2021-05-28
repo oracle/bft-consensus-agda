@@ -12,6 +12,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection as ProposerElection
+import      LibraBFT.Impl.Consensus.Liveness.RoundState       as RoundState
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore   as BlockStore
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
@@ -48,7 +49,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
   fakeProcessProposalMsg inst pm = do
     st ← get
     xx ← use rmHighestQC   -- Not used; just a demonstration that our RoundManager-specific "use" works
-    modify' rmHighestQC xx -- Similarly for modify'
+    rmHighestQC ∙= xx -- Similarly for modify'
     let RoundManager∙new rm rmc rmw = st
         𝓔  = α-EC (rm , rmc)
         e  = rm ^∙ rmEpoch
@@ -73,39 +74,51 @@ module LibraBFT.Impl.Consensus.RoundManager where
   processVote now msg = pure unit
 
   ------------------------------------------------------------------------------
-  ensureRoundAndSyncUp : Instant → Round → SyncInfo → Author → Bool →
+  ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
                          LBFT (Unit ⊎ Bool)
-  processProposal : Block → LBFT Unit
+  processProposalM : Block → LBFT Unit
+  executeAndVoteM : Block → LBFT (Unit ⊎ Vote)
 
   -- external entry point
-  processProposalMsg : Instant → Author → ProposalMsg → LBFT Unit
-  processProposalMsg now from pm
+  processProposalMsgM : Instant → Author → ProposalMsg → LBFT Unit
+  processProposalMsgM now from pm
      with pm ^∙ pmProposer
   ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
   ...| just auth =
-    ensureRoundAndSyncUp now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true >>= λ where
+    ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true >>= λ where
       (inj₁ _) → -- log error
         pure unit
-      (inj₂ true) → processProposal (pm ^∙ pmProposal)
+      (inj₂ true) → processProposalM (pm ^∙ pmProposal)
       (inj₂ false) → do
         -- dropping proposal for old round
         pure unit
 
-  ensureRoundAndSyncUp now messageRound syncInfo author helpRemote = pure (inj₁ unit)
+  ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = pure (inj₁ unit)
 
-  processProposal proposal = do
+  processProposalM proposal = do
     _rm ← get
     let bs = rmGetBlockStore _rm
-    vp ← ProposerElection.isValidProposal proposal
+    vp ← ProposerElection.isValidProposalM proposal
     grd‖ is-nothing (proposal ^∙ bAuthor)
          ≔ pure unit -- proposal does not have an author
        ‖ not vp
          ≔ pure unit -- proposer for block is not valid for this round
-       ‖ not (maybe (λ parentBlock →
-                       ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
-                    false (BlockStore.getBlock _ (proposal ^∙ bParentId) bs))
+       ‖ not (maybeS (BlockStore.getBlock _ (proposal ^∙ bParentId) bs) false
+                (λ parentBlock →
+                   ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋))
          ≔ pure unit -- parentBlock < proposalRound
-       ‖ otherwise≔ pure unit
+       ‖ otherwise≔
+           (executeAndVoteM proposal >>= λ where
+             (inj₁ _) → pure unit -- propagate error
+             (inj₂ vote) → do
+               RoundState.recordVote vote
+               si ← BlockStore.syncInfo (α-EC-RM _rm)
+               recipient ← ProposerElection.getValidProposer
+                             <$> use lProposerElection
+                             <*> pure (proposal ^∙ bRound + 1)
+               act (SendVote (VoteMsg∙new vote si) (recipient ∷ [])))
+               -- TODO-1                         {- mkNodesInOrder1 recipient-}
 
 
+  executeAndVoteM b = pure (inj₁ unit)
 
