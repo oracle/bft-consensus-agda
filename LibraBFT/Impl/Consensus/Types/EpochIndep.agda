@@ -232,6 +232,22 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bdBlockId : Lens BlockData Hash
   bdBlockId = bdQuorumCert ∙ qcVoteData ∙ vdProposed ∙ biId
 
+  bdAuthor : Lens BlockData (Maybe Author)
+  bdAuthor = mkLens' g s
+    where
+    g : BlockData → Maybe Author
+    g bd = case (bd ^∙ bdBlockType) of λ where
+             (Proposal _ author) → just author
+             _                   → nothing
+
+    s : BlockData → Maybe Author → BlockData
+    s bd nothing     = bd
+    s bd (just auth) =
+      bd [ bdBlockType %~
+            (λ where
+               (Proposal tx _) → Proposal tx auth
+               bdt             → bdt) ]
+
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
   -- "nil" blocks are not signed because they are produced
@@ -256,6 +272,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
 
   bRound : Lens Block Round
   bRound =  bBlockData ∙ bdRound
+
+  bAuthor : Lens Block (Maybe Author)
+  bAuthor = bBlockData ∙ bdAuthor
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
@@ -294,6 +313,12 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   unquoteDecl pmProposal   pmSyncInfo = mkLens (quote ProposalMsg)
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
+
+  -- The implementation exits with an error if a proposal message contains no
+  -- author. Here, we handle the case of a missing author by having this lens
+  -- return a `Maybe Author`.
+  pmProposer : Lens ProposalMsg (Maybe Author)
+  pmProposer = pmProposal ∙ bAuthor
 
   record VoteMsg : Set where
     constructor  VoteMsg∙new
