@@ -11,6 +11,8 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
+import      LibraBFT.Impl.Consensus.Liveness.ProposerElection as ProposerElection
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore   as BlockStore
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
@@ -73,10 +75,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
   ------------------------------------------------------------------------------
   ensureRoundAndSyncUp : Instant → Round → SyncInfo → Author → Bool →
                          LBFT (Unit ⊎ Bool)
-  ensureRoundAndSyncUp now messageRound syncInfo author helpRemote = pure (inj₁ unit)
-
   processProposal : Block → LBFT Unit
-  processProposal b = pure unit
 
   -- external entry point
   processProposalMsg : Instant → Author → ProposalMsg → LBFT Unit
@@ -91,4 +90,22 @@ module LibraBFT.Impl.Consensus.RoundManager where
       (inj₂ false) → do
         -- dropping proposal for old round
         pure unit
+
+  ensureRoundAndSyncUp now messageRound syncInfo author helpRemote = pure (inj₁ unit)
+
+  processProposal proposal = do
+    _rm ← get
+    let bs = rmGetBlockStore _rm
+    vp ← ProposerElection.isValidProposal proposal
+    grd‖ is-nothing (proposal ^∙ bAuthor)
+         ≔ pure unit -- proposal does not have an author
+       ‖ not vp
+         ≔ pure unit -- proposer for block is not valid for this round
+       ‖ not (maybe (λ parentBlock →
+                       ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
+                    false (BlockStore.getBlock _ (proposal ^∙ bParentId) bs))
+         ≔ pure unit -- parentBlock < proposalRound
+       ‖ otherwise≔ pure unit
+
+
 
