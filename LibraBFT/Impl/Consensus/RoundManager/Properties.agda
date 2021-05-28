@@ -25,9 +25,11 @@ module LibraBFT.Impl.Consensus.RoundManager.Properties where
                       → (₋rmEC pre) ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
   voteForCurrentEpoch (here refl) = refl
 
-  -- The quorum certificates sent in SyncInfo with votes are those from the peer state
+  -- The quorum certificates sent in SyncInfo with votes are those from the peer state.
+  -- This is no longer used because matching m∈outs parameters to here refl eliminated the need for
+  -- it, at least for our simple handler.  I'm keeping it, though, as it may be needed in future
+  -- when the real handler will be much more complicated and this proof may no longer be trivial.
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
                → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (₋rmHighestQC pre) (₋rmHighestCommitQC pre)
-  procPMCerts≡ (there x)   = ⊥-elim (¬Any[] x)  -- processProposalMsg sends only one vote
   procPMCerts≡ (here refl) = refl

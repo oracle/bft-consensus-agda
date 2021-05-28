@@ -197,8 +197,8 @@ module LibraBFT.Impl.Properties.VotesOnce where
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs
   ...| _ , vm , pm , refl , refl
-    with proposalHandlerSentVote {pid} {0} {pm} {vm} {peerStates pre pid} m∈outs
-  ...| _ , v∈outs
+    with m∈outs
+  ...| here refl
     with v⊂m
        -- Rebuilding keeps the same signature, and the SyncInfo included with the
        -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
@@ -206,8 +206,6 @@ module LibraBFT.Impl.Properties.VotesOnce where
        -- assumption that v's signature has not been sent before.
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
                   rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
-                        | SendVote-inj-v (Any-singleton⁻ v∈outs)
      with qcVotesSentB4 r pinit
                         (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v⊂m m∈outs qc∈m) vs∈qc ¬init
   ...| mws = ⊥-elim (vnew mws)
@@ -215,20 +213,16 @@ module LibraBFT.Impl.Properties.VotesOnce where
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m} {v'} {m'}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
      | _ , vm , pm , refl , refl
-     | _ , v∈outs
+     | here refl
      | vote∈vm
      with msgsToSendWereSent {pid} {nm} {m'} {st = peerStates pre pid} m'∈outs
   ...| _ , vm' , pm , refl , refl
-    with proposalHandlerSentVote {pid} {0} {pm} {vm'} {peerStates pre pid} m'∈outs
-  ...| _ , v'∈outs
-       rewrite cong ₋vmVote (SendVote-inj-v (trans (Any-singleton⁻ v∈outs) (sym (Any-singleton⁻ v'∈outs))))
-    with v'⊂m'
+     with m'∈outs
+  ...| here refl
+     with v'⊂m'
   ...| vote∈vm = refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
                   rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
-                        | SendVote-inj-v (Any-singleton⁻ v∈outs)
-                        | cong ₋vmVote (SendVote-inj-v (trans (Any-singleton⁻ v∈outs) (sym (Any-singleton⁻ v'∈outs))))
-    with qcVotesSentB4 r pinit
+     with qcVotesSentB4 r pinit
                        (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v'⊂m' m'∈outs qc∈m) vs∈qc ¬init'
   ...| mws = ⊥-elim (v'new mws)

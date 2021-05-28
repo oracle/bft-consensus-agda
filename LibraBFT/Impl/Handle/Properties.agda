@@ -67,23 +67,6 @@ module LibraBFT.Impl.Handle.Properties where
 
   open Structural impl-sps-avp
 
-  ----- Properties that bridge the system model gap to the handler -----
-  msgsToSendWereSent1 : ∀ {pid ts pm vm} {st : RoundManager}
-                      → send (V vm) ∈ proj₂ (peerStep pid (P pm) ts st)
-                      → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
-  msgsToSendWereSent1 {pid} {ts} {pm} {vm} {st} send∈acts
-     with send∈acts
-     -- The fake handler sends only to node 0 (fakeAuthor), so this doesn't
-     -- need to be very general yet.
-     -- TODO-1: generalize this proof so it will work when the set of recipients is
-     -- not hard coded.
-
-     -- The system model allows any message sent to be received by any peer (so the list of
-     -- recipients it essentially ignored), meaning that our safety proofs will be for a slightly
-     -- stronger model.  Progress proofs will require knowledge of recipients, though, so we will
-     -- keep the implementation model faithful to the implementation.
-  ...| here refl = fakeAuthor ∷ [] , here refl
-
   -- This captures which kinds of messages are sent by handling which kind of message.  It will
   -- require additional disjuncts when we implement processVote.
   msgsToSendWereSent : ∀ {pid nm m} {st : RoundManager}
@@ -101,15 +84,6 @@ module LibraBFT.Impl.Handle.Properties where
   ...| P _ = ⊥-elim (P≢V (action-send-injective v∈outs))
   ...| C _ = ⊥-elim (C≢V (action-send-injective v∈outs))
   ...| V vm rewrite sym v∈outs = here refl , vm , pm , refl , refl
-
-  proposalHandlerSentVote : ∀ {pid ts pm vm} {st : RoundManager}
-                          → send (V vm) ∈ proj₂ (peerStepWrapper pid (P pm) st)
-                          → ∃[ αs ] (SendVote vm αs ∈ LBFT-outs (handle pid (P pm) ts) st)
-  proposalHandlerSentVote {pid} {ts} {pm} {vm} {st} m∈outs
-     with msgsToSendWereSent {pid} {P pm} {st = st} m∈outs
-  ...| send∈ , vm , pm' , refl , refl
-     with msgsToSendWereSent1 {pid} {ts} {pm'} {st = st} send∈
-  ...| αs , sv = αs , sv
 
   ----- Properties that relate handler to system state -----
 
@@ -177,19 +151,17 @@ module LibraBFT.Impl.Handle.Properties where
                              hpk v⊂m m∈outs qc∈m
      with peerStates pre pid
   ...| rm
-     with proposalHandlerSentVote {pid} {0} {pm} {vm} {rm} m∈outs
-  ...| _ , v∈outs
+     with m∈outs
+  ...| here refl
      with qc∈m
   ...| withVoteSIHighQC refl
-       = inHQC (cong ₋siHighestQuorumCert (procPMCerts≡ {0} {pm} {rm} v∈outs))
+       = inHQC refl
 
   VoteMsgQCsFromRoundManager {pid} {pre = pre} r (step-msg {_ , P pm} m∈pool pinit) {v} {vm1}
                              hpk v⊂m m∈outs qc∈m
      | rm
-     | _ , v∈outs
+     | here refl
      | withVoteSIHighCC hqcIsJust
-     with cong ₋siHighestCommitCert (procPMCerts≡ {0} {pm} {rm} v∈outs)
-  ...| refl
      with (rm ^∙ rmHighestQC) ≟QC (rm ^∙ rmHighestCommitQC)
   ...| true  because (ofʸ refl) = ⊥-elim (maybe-⊥ hqcIsJust refl)
   ...| false because _          = inHCC (just-injective (sym hqcIsJust))
@@ -208,10 +180,8 @@ module LibraBFT.Impl.Handle.Properties where
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
   ...| _ , vm , _ , refl , refl
-    with proposalHandlerSentVote {pid} {0} {pm} {vm} {peerStates pre pid} m∈outs
-  ...| _ , v∈outs
-     rewrite SendVote-inj-v  (Any-singleton⁻ v∈outs)
-           | SendVote-inj-si (Any-singleton⁻ v∈outs)
+    with m∈outs
+  ...| here refl
     with v⊂m
        -- Rebuilding keeps the same signature, and the SyncInfo included with the
        -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
@@ -220,7 +190,6 @@ module LibraBFT.Impl.Handle.Properties where
   ...| vote∈vm {si} = refl , refl , refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
                   rewrite cong ₋vSignature v≈rbld
-                        | procPMCerts≡ {0} {pm} {peerStates pre pid} {vm} v∈outs
     with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
   ...| sentb4 = ⊥-elim (vnew sentb4)
 
