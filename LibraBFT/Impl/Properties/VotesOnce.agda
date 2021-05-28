@@ -141,7 +141,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
       {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' ¬init' refl rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs
-  ...| _ , vm , _ , refl , _
+  ...| _ , vm , _ , _
      with newVoteSameEpochGreaterRound r (step-msg m∈pool pidini) ¬init hpk v⊂m m∈outs sig ¬sentb4
   ...| eIds≡' , suclvr≡v'rnd , _
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
@@ -175,7 +175,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' _ refl rnds≡
-     | _ , vm , _ , refl , _
+     | _ , vm , _ , _
      | eIds≡' , suclvr≡v'rnd , _
      | mkCarrier r' mws ini vpf' preprop
      | inj₂ refl
@@ -196,7 +196,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs
-  ...| _ , vm , pm , refl , refl
+  ...| _ , vm , pm , refl
     with m∈outs
   ...| here refl
     with v⊂m
@@ -212,11 +212,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
 
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m} {v'} {m'}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
-     | _ , vm , pm , refl , refl
+     | _ , vm , pm , refl
      | here refl
      | vote∈vm
      with msgsToSendWereSent {pid} {nm} {m'} {st = peerStates pre pid} m'∈outs
-  ...| _ , vm' , pm , refl , refl
+  ...| _ , vm' , pm' , refl
      with m'∈outs
   ...| here refl
      with v'⊂m'
