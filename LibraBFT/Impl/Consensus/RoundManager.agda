@@ -70,4 +70,25 @@ module LibraBFT.Impl.Consensus.RoundManager where
   processVote : Instant → VoteMsg → LBFT Unit
   processVote now msg = pure unit
 
+  ------------------------------------------------------------------------------
+  ensureRoundAndSyncUp : Instant → Round → SyncInfo → Author → Bool →
+                         LBFT (Unit ⊎ Bool)
+  ensureRoundAndSyncUp now messageRound syncInfo author helpRemote = pure (inj₁ unit)
+
+  processProposal : Block → LBFT Unit
+  processProposal b = pure unit
+
+  -- external entry point
+  processProposalMsg : Instant → Author → ProposalMsg → LBFT Unit
+  processProposalMsg now from pm
+     with pm ^∙ pmProposer
+  ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
+  ...| just auth =
+    ensureRoundAndSyncUp now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true >>= λ where
+      (inj₁ _) → -- log error
+        pure unit
+      (inj₂ true) → processProposal (pm ^∙ pmProposal)
+      (inj₂ false) → do
+        -- dropping proposal for old round
+        pure unit
 
