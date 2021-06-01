@@ -39,7 +39,6 @@ module LibraBFT.Concrete.Properties.PreferredRound where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
    -- Bring in IntSystemState
-   open WithSPS sps-corr
    open        PerState st r
    open        PerEpoch 𝓔
    open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR

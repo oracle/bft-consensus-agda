@@ -24,7 +24,6 @@ module LibraBFT.Concrete.Properties
          (𝓔 : EpochConfig)
          where
     open        ImplObligations impl-correct
-    open        WithSPS sps-cor
     open        PerState st r
     open        PerEpoch 𝓔
 

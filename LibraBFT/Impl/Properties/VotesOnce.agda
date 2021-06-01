@@ -26,7 +26,6 @@ open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        WithSPS impl-sps-avp
 open        Structural impl-sps-avp
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note

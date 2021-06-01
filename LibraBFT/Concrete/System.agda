@@ -57,17 +57,7 @@ module LibraBFT.Concrete.System where
  open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK
                                                                   (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
- -- An implementation must prove that, if one of its handlers sends a
- -- message that contains a vote and is signed by a public key pk, then
- -- either the vote's author is the peer executing the handler, the
- -- epochId is in range, the peer is a member of the epoch, and its key
- -- in that epoch is pk; or, a message with the same signature has been
- -- sent before.  This is represented by StepPeerState-AllValidParts.
- module WithSPS (sps-corr : StepPeerState-AllValidParts) where
-
-   -- Bring in 'unwind', 'ext-unforgeability' and friends
-   open Structural sps-corr
-
+ module _ where
    -- TODO-1: refactor this somewhere else?  Maybe something like
    -- LibraBFT.Impl.Consensus.Types.Properties?
    sameSig⇒sameVoteData : ∀ {v1 v2 : Vote} {pk}
