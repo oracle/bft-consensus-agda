@@ -10,10 +10,11 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
+import      LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
+import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+import      LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
 open import LibraBFT.Impl.Consensus.Types
-import      LibraBFT.Impl.Consensus.Liveness.ProposerElection as ProposerElection
-import      LibraBFT.Impl.Consensus.Liveness.RoundState       as RoundState
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore   as BlockStore
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
@@ -80,6 +81,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
   executeAndVoteM : Block → LBFT (Unit ⊎ Vote)
 
   -- external entry point
+  -- TODO-2: The sync info that the peer requests if it discovers that its round
+  -- state is behind the sender's should be sent as an additional argument, for now.
   processProposalMsgM : Instant → Author → ProposalMsg → LBFT Unit
   processProposalMsgM now from pm
      with pm ^∙ pmProposer
@@ -93,7 +96,12 @@ module LibraBFT.Impl.Consensus.RoundManager where
         -- dropping proposal for old round
         pure unit
 
-  ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = pure (inj₁ unit)
+  ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
+    currentRound ← use (lRoundState ∙ rsCurrentRound)
+    if ⌊ messageRound <? currentRound ⌋
+      then ok false
+      -- TODO-1: syncUpM
+      else bail unit
 
   processProposalM proposal = do
     _rm ← get
@@ -103,16 +111,16 @@ module LibraBFT.Impl.Consensus.RoundManager where
          ≔ pure unit -- proposal does not have an author
        ‖ not vp
          ≔ pure unit -- proposer for block is not valid for this round
-       ‖ not (maybeS (BlockStore.getBlock _ (proposal ^∙ bParentId) bs) false
-                (λ parentBlock →
-                   ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋))
+       ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
+                λ parentBlock →
+                  ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
          ≔ pure unit -- parentBlock < proposalRound
        ‖ otherwise≔
            (executeAndVoteM proposal >>= λ where
              (inj₁ _) → pure unit -- propagate error
              (inj₂ vote) → do
                RoundState.recordVote vote
-               si ← BlockStore.syncInfo (α-EC-RM _rm)
+               si ← BlockStore.syncInfo
                recipient ← ProposerElection.getValidProposer
                              <$> use lProposerElection
                              <*> pure (proposal ^∙ bRound + 1)
@@ -120,5 +128,18 @@ module LibraBFT.Impl.Consensus.RoundManager where
                -- TODO-1                         {- mkNodesInOrder1 recipient-}
 
 
-  executeAndVoteM b = pure (inj₁ unit)
+  executeAndVoteM b =
+    BlockStore.executeAndInsertBlockM b {- ∙^∙ logging -} ∙?∙ λ eb → do
+    cr ← use (lRoundState ∙ rsCurrentRound)
+    vs ← use (lRoundState ∙ rsVoteSent)
+    so ← use lSyncOnly
+    grd‖ is-just vs
+         ≔ bail unit -- already voted this round
+       ‖ so
+         ≔ bail unit -- sync-only set
+       ‖ otherwise≔ do
+         let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
+         -- WIP safety rules
+         bail unit
+
 

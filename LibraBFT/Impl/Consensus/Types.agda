@@ -48,10 +48,11 @@ module LibraBFT.Impl.Consensus.Types where
     field
       -- ...
       -rsCurrentRound : Round
+      ₋rsVoteSent     : Maybe Vote
       -- ...
   open RoundState public
-  unquoteDecl rsCurrentRound = mkLens (quote RoundState)
-    (rsCurrentRound ∷ [])
+  unquoteDecl rsCurrentRound rsVoteSent = mkLens (quote RoundState)
+    (rsCurrentRound ∷ rsVoteSent ∷ [])
 
 
   -- The parts of the state of a peer that are used to
@@ -63,9 +64,10 @@ module LibraBFT.Impl.Consensus.Types where
       -rmRoundState       : RoundState
       -rmProposerElection : ProposerElection
       ₋rmSafetyRules      : SafetyRules
+      ₋rmSyncOnly         : Bool
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmRoundState rmProposerElection rmSafetyRules  = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ [])
+  unquoteDecl rmEpochState rmRoundState rmProposerElection rmSafetyRules rmSyncOnly = mkLens (quote RoundManagerEC)
+    (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -129,6 +131,10 @@ module LibraBFT.Impl.Consensus.Types where
      -- RoundManager directly
   open RoundManager public
 
+  -- TODO-2: We would need dependent lenses to have a lens from RoundManager to
+  -- RoundManagerEC, since setting ₋rmEC means updating the proofs ₋rmEC-correct
+  -- and ₋rmWithEC
+
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
@@ -161,3 +167,21 @@ module LibraBFT.Impl.Consensus.Types where
 
     s : RoundManager → ProposerElection → RoundManager
     s rm pe = record rm { ₋rmEC = (₋rmEC rm) [ rmProposerElection := pe ] }
+
+  lRoundState : Lens RoundManager RoundState
+  lRoundState = mkLens' g s
+    where
+    g : RoundManager → RoundState
+    g rm = ₋rmEC rm ^∙ rmRoundState
+
+    s : RoundManager → RoundState → RoundManager
+    s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
+
+  lSyncOnly : Lens RoundManager Bool
+  lSyncOnly = mkLens' g s
+    where
+    g : RoundManager → Bool
+    g rm = ₋rmEC rm ^∙ rmSyncOnly
+
+    s : RoundManager → Bool → RoundManager
+    s rm so = record rm { ₋rmEC = (₋rmEC rm) [ rmSyncOnly := so ] }

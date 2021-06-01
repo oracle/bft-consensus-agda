@@ -32,9 +32,10 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   private
    variable
     Ev Wr : Set
-    ℓ-A ℓ-B : Level
+    ℓ-A ℓ-B ℓ-C : Level
     A : Set ℓ-A
     B : Set ℓ-B
+    C : Set ℓ-C
     St : Set ℓ-State
 
   RWST-run : RWST Ev Wr St A → Ev → St → (A × St × List Wr)
@@ -100,6 +101,12 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   ask : RWST Ev Wr St Ev
   ask = rwst (λ ev st → (ev , st , []))
 
+  ok : ∀ {B : Set ℓ-B} → A → RWST Ev Wr St (B ⊎ A)
+  ok = RWST-return ∘ inj₂
+
+  bail : B → RWST Ev Wr St (B ⊎ A)
+  bail = RWST-return ∘ inj₁
+
   -- Easy to use do notation; i.e.;
   module RWST-do where
     infixl 1 _>>=_ _>>_
@@ -145,3 +152,12 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
         ; nothing  → return b
         }
     where open RWST-do
+
+  _∙?∙_ : RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
+  m ∙?∙ f = do
+    r ← m
+    case r of λ where
+      (inj₁ c) → pure (inj₁ c)
+      (inj₂ a) → f a
+    where open RWST-do
+

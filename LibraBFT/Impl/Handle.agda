@@ -75,7 +75,7 @@ module LibraBFT.Impl.Handle where
    fakeRM : RoundManager
 
  initRS : RoundState
- initRS = RoundState∙new 0
+ initRS = RoundState∙new 0 nothing
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
@@ -87,7 +87,7 @@ module LibraBFT.Impl.Handle where
  initPE = obm-dangerous-magic!
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR false
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1

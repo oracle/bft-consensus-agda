@@ -9,9 +9,16 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Util
 
-module LibraBFT.Impl.Consensus.BlockStorage.BlockStore (𝓔 : EpochConfig) where
+module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 -- TODO-1: Implement these.
 postulate
-  getBlock : HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
+  executeAndInsertBlockM : Block → LBFT (Unit ⊎ ExecutedBlock)
+  getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   syncInfo : LBFT SyncInfo
 
+{-
+executeAndInsertBlockM
+  :: (Monad m, Show a, RWBlockStore s a)
+  => Block a
+  -> LBFT m e s a (Either (ErrLog a) (ExecutedBlock a))
+-}

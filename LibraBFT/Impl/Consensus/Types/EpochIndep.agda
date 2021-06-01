@@ -279,6 +279,15 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bParentId : Lens Block HashValue
   bParentId = bQuorumCert ∙ qcCertifiedBlock ∙ biId
 
+  record MaybeSignedVoteProposal : Set where
+    constructor MaybeSignedVoteProposal∙new
+    field
+      -- ₋msvpVoteProposal : VoteProposal
+      ₋msvpSignature : Maybe Signature
+  open MaybeSignedVoteProposal public
+  unquoteDecl msvpSignature = mkLens (quote MaybeSignedVoteProposal)
+              (msvpSignature ∷ [])
+
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
                            -- constructor SyncInfo∙new is below
