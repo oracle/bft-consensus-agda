@@ -104,7 +104,6 @@ module LibraBFT.Concrete.Properties.VotesOnce where
 
    open Structural sps-corr
    -- Bring in IntSystemState
-   open WithSPS sps-corr
    open PerState st r
    open PerEpoch 𝓔
 
