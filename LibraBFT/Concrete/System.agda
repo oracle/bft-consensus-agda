@@ -155,9 +155,9 @@ module LibraBFT.Concrete.System where
               → Meta-Honest-Member α
               → (vα : α Abs.∈QC q)
               → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
-     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm q≡)) ha va
+     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm)) ha va
        with All-reduce⁻ {vdq = Any-lookup va} (α-Vote cqc valid) All-self
-                        (subst (Any-lookup va ∈_) (cong Abs.qVotes q≡) (Any-lookup-correctP va))
+                        (Any-lookup-correctP va)
      ...| as , as∈cqc , α≡
        with  α-Vote-evidence cqc valid  as∈cqc | inspect
             (α-Vote-evidence cqc valid) as∈cqc
