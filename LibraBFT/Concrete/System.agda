@@ -172,8 +172,8 @@ module LibraBFT.Concrete.System where
                    nm∈st
 
      -- Finally, we can define the abstract system state corresponding to the concrete state st
-     IntSystemState : IntermediateSystemState ℓ0
-     IntSystemState = record
+     intSystemState : IntermediateSystemState ℓ0
+     intSystemState = record
        { InSys           = λ { r → r α-Sent (msgPool st) }
        ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
        ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}

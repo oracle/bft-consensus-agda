@@ -52,13 +52,13 @@ module LibraBFT.Concrete.Properties
     -- addressed.  There is not much point in doing said refactoring until we
     -- make progress on that question.
 
-    validState : ValidSysState IntSystemState
+    validState : ValidSysState intSystemState
     validState = record
       { vss-votes-once      = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
       ; vss-preferred-round = PR.Proof.prr sps-cor pr₁     st r 𝓔
       }
 
-    open IntermediateSystemState IntSystemState
+    open IntermediateSystemState intSystemState
 
     open All-InSys-props InSys
     open WithAssumptions InSys
@@ -68,7 +68,7 @@ module LibraBFT.Concrete.Properties
     -- for the actual implementation will involve proving that the implementation decides to commit
     -- only if it has evidence of the required RecordChains and CommitRules such that the records in
     -- the RecordChains are all "InSys" according to the implementation's notion thereof (defined in
-    -- Concrete.System.IntSystemState).
+    -- Concrete.System.intSystemState).
     ConcCommitsDoNotConflict :
        ∀{q q'}
        → {rc  : RecordChain (Abs.Q q)}  → All-InSys rc
@@ -78,8 +78,8 @@ module LibraBFT.Concrete.Properties
        → CommitRule rc' b'
        → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
     ConcCommitsDoNotConflict = CommitsDoNotConflict
-           (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (PR-obl.proof IntSystemState (vss-preferred-round validState))
+           (VO-obl.proof intSystemState (vss-votes-once validState))
+           (PR-obl.proof intSystemState (vss-preferred-round validState))
 
     module _ (∈QC⇒AllSent : Complete InSys) where
 
@@ -90,8 +90,8 @@ module LibraBFT.Concrete.Properties
         → CommitRule rc' b'
         → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
       ConcCommitsDoNotConflict' = CommitsDoNotConflict'
-           (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (PR-obl.proof IntSystemState (vss-preferred-round validState))
+           (VO-obl.proof intSystemState (vss-votes-once validState))
+           (PR-obl.proof intSystemState (vss-preferred-round validState))
            ∈QC⇒AllSent
 
       ConcCommitsDoNotConflict''
@@ -106,7 +106,7 @@ module LibraBFT.Concrete.Properties
         → NonInjective-≡ Abs.bId ⊎ Σ (RecordChain (Abs.Q q')) ((Abs.B b)  ∈RC_)
                                  ⊎ Σ (RecordChain (Abs.Q q))  ((Abs.B b') ∈RC_)
       ConcCommitsDoNotConflict'' = CommitsDoNotConflict''
-           (VO-obl.proof IntSystemState (vss-votes-once validState))
-           (PR-obl.proof IntSystemState (vss-preferred-round validState))
+           (VO-obl.proof intSystemState (vss-votes-once validState))
+           (PR-obl.proof intSystemState (vss-preferred-round validState))
            ∈QC⇒AllSent
 
