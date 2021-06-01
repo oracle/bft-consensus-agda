@@ -113,10 +113,6 @@ module LibraBFT.Impl.Consensus.Types where
   α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
-  -- Just in case RoundManager is at a higher level in future
-  ℓ-RoundManager : Level
-  ℓ-RoundManager = 0ℓ
-
   -- Finally, the RoundManager is split in two pieces: those that are used to make an EpochConfig
   -- versus those that use an EpochConfig.  The reason is that the *abstract* EpochConfig is a
   -- function of some parts of the RoundManager (₋rmEC), and some parts depend on the abstract

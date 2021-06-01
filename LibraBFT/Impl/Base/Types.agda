@@ -19,3 +19,10 @@ module LibraBFT.Impl.Base.Types where
 
   _≟UID_ : (u₀ u₁ : UID) → Dec (u₀ ≡ u₁)
   _≟UID_ = _≟Hash_
+
+  -- Just in case RoundManager is at a higher level in future
+  ℓ-RoundManager : Level
+  ℓ-RoundManager = 0ℓ
+
+  ℓ-VSFP : Level
+  ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManager

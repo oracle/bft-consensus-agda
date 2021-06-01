@@ -103,8 +103,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
   module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
 
    open Structural sps-corr
-   -- Bring in IntSystemState
-   open WithSPS sps-corr
+   -- Bring in intSystemState
    open PerState st r
    open PerEpoch 𝓔
 
@@ -210,7 +209,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
       = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk
                       (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4)) (sym eid≡) (sym r≡))
 
-   voo : VO.Type IntSystemState
+   voo : VO.Type intSystemState
    voo hpk refl sv refl sv' round≡
       with vmsg≈v (vmFor sv) | vmsg≈v (vmFor sv')
    ...| refl | refl

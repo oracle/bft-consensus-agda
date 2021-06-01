@@ -17,79 +17,23 @@ open import LibraBFT.Impl.Handle
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 
--- This module defines an abstract system state given a reachable
--- concrete system state.
+-- This module defines an abstract system state (represented by a value
+-- of type 'IntermediateSystemState') for a given concrete reachable
+-- state.  The culminaton of this proof is seen in the 'intSystemState'
+-- "function" at the bottom, which is probably the best place to start
+-- understanding this.  Longer term, we will also need higher-level,
+-- cross-epoch properties.
 
 module LibraBFT.Concrete.System where
-
- ℓ-VSFP : Level
- ℓ-VSFP = 1ℓ ℓ⊔ ℓ-RoundManager
 
  open import LibraBFT.Yasm.Base
  import      LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms as LYS
 
- -- What EpochConfigs are known in the system?  For now, only the initial one.  Later, we will add
- -- knowledge of subsequent EpochConfigs known via EpochChangeProofs.
- data EpochConfig∈Sys (st : LYS.SystemState) (𝓔 : EpochConfig) : Set ℓ-EC where
-   inGenInfo : init-EC genInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
-   -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
-
- -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in a known
- -- EpochConfig.
- record PeerCanSignForPK (st : LYS.SystemState) (v : Vote) (pid : NodeId) (pk : PK) : Set ℓ-VSFP where
-   constructor mkPCS4PK
-   field
-     𝓔       : EpochConfig
-     𝓔id≡    : epoch 𝓔 ≡ v ^∙ vEpoch
-     𝓔inSys  : EpochConfig∈Sys st 𝓔
-     mbr      : Member 𝓔
-     nid≡     : toNodeId  𝓔 mbr ≡ pid
-     pk≡      : getPubKey 𝓔 mbr ≡ pk
- open PeerCanSignForPK
-
- PCS4PK⇒NodeId-PK-OK : ∀ {st v pid pk} → (pcs : PeerCanSignForPK st v pid pk) → NodeId-PK-OK (𝓔 pcs) pk pid
- PCS4PK⇒NodeId-PK-OK (mkPCS4PK _ _ _ mbr n≡ pk≡) = mbr , n≡ , pk≡
-
- -- This is super simple for now because the only known EpochConfig is dervied from genInfo, which is not state-dependent
- PeerCanSignForPK-stable : LYS.ValidSenderForPK-stable-type PeerCanSignForPK
- PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) = (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁)
 
  open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK
                                                                   (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
- -- An implementation must prove that, if one of its handlers sends a
- -- message that contains a vote and is signed by a public key pk, then
- -- either the vote's author is the peer executing the handler, the
- -- epochId is in range, the peer is a member of the epoch, and its key
- -- in that epoch is pk; or, a message with the same signature has been
- -- sent before.  This is represented by StepPeerState-AllValidParts.
- module WithSPS (sps-corr : StepPeerState-AllValidParts) where
-
-   -- Bring in 'unwind', 'ext-unforgeability' and friends
-   open Structural sps-corr
-
-   -- TODO-1: refactor this somewhere else?  Maybe something like
-   -- LibraBFT.Impl.Consensus.Types.Properties?
-   sameSig⇒sameVoteData : ∀ {v1 v2 : Vote} {pk}
-                        → WithVerSig pk v1
-                        → WithVerSig pk v2
-                        → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
-                        → NonInjective-≡ sha256 ⊎ v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
-   sameSig⇒sameVoteData {v1} {v2} wvs1 wvs2 refl
-      with verify-bs-inj (verified wvs1) (verified wvs2)
-        -- The signable fields of the votes must be the same (we do not model signature collisions)
-   ...| bs≡
-        -- Therefore the LedgerInfo is the same for the new vote as for the previous vote
-        = sym <⊎$> (hashVote-inj1 {v1} {v2} (sameBS⇒sameHash bs≡))
-
-   -- We are now ready to define an 'IntermediateSystemState' view for a concrete
-   -- reachable state.  We will do so by fixing an epoch that exists in
-   -- the system, which will enable us to define the abstract
-   -- properties. The culminaton of this 'PerEpoch' module is seen in
-   -- the 'IntSystemState' "function" at the bottom, which probably the
-   -- best place to start uynderstanding this.  Longer term, we will
-   -- also need higher-level, cross-epoch properties.
-   module PerState (st : SystemState)(r : ReachableSystemState st) where
+ module PerState (st : SystemState)(r : ReachableSystemState st) where
 
     -- TODO-3: Remove this postulate when we are satisfied with the
     -- "hash-collision-tracking" solution. For example, when proving voo
@@ -165,9 +109,9 @@ module LibraBFT.Concrete.System where
               → Meta-Honest-Member α
               → (vα : α Abs.∈QC q)
               → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
-     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm q≡)) ha va
+     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm)) ha va
        with All-reduce⁻ {vdq = Any-lookup va} (α-Vote cqc valid) All-self
-                        (subst (Any-lookup va ∈_) (cong Abs.qVotes q≡) (Any-lookup-correctP va))
+                        (Any-lookup-correctP va)
      ...| as , as∈cqc , α≡
        with  α-Vote-evidence cqc valid  as∈cqc | inspect
             (α-Vote-evidence cqc valid) as∈cqc
@@ -182,8 +126,8 @@ module LibraBFT.Concrete.System where
                    nm∈st
 
      -- Finally, we can define the abstract system state corresponding to the concrete state st
-     IntSystemState : IntermediateSystemState ℓ0
-     IntSystemState = record
+     intSystemState : IntermediateSystemState ℓ0
+     intSystemState = record
        { InSys           = λ { r → r α-Sent (msgPool st) }
        ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
        ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}

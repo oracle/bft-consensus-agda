@@ -131,6 +131,18 @@ module LibraBFT.Impl.Util.Crypto where
        ; signableFields = encodeH ∘ hashVote
        }
 
+  sameSig⇒sameVoteData : ∀ {v1 v2 : Vote} {pk}
+                       → WithVerSig pk v1
+                       → WithVerSig pk v2
+                       → v1 ^∙ vSignature ≡ v2 ^∙ vSignature
+                       → NonInjective-≡ sha256 ⊎ v2 ^∙ vVoteData ≡ v1 ^∙ vVoteData
+  sameSig⇒sameVoteData {v1} {v2} wvs1 wvs2 refl
+     with verify-bs-inj (verified wvs1) (verified wvs2)
+       -- The signable fields of the votes must be the same (we do not model signature collisions)
+  ...| bs≡
+       -- Therefore the LedgerInfo is the same for the new vote as for the previous vote
+       = sym <⊎$> (hashVote-inj1 {v1} {v2} (sameBS⇒sameHash bs≡))
+
   -- Captures a proof that a vote was cast by α by recording that 'verify' returns true.
   VoteSigVerifies : PK → Vote → Set
   VoteSigVerifies pk v = T (verify (signableFields ⦃ sig-Vote ⦄ v) (₋vSignature v) pk)

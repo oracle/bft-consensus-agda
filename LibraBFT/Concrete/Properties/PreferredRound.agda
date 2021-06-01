@@ -38,11 +38,10 @@ module LibraBFT.Concrete.Properties.PreferredRound where
   module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
-   -- Bring in IntSystemState
-   open WithSPS sps-corr
+   -- Bring in intSystemState
    open        PerState st r
    open        PerEpoch 𝓔
    open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR
 
    postulate  -- TODO-3: prove it
-     prr : PR.Type IntSystemState
+     prr : PR.Type intSystemState
