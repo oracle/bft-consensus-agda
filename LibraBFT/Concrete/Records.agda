@@ -86,8 +86,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    qc∈NM : ∀ {cqc q nm}
          → (valid : MetaIsValidQC cqc)
          → cqc QC∈NM nm
-         → q ≡ α-QC (cqc , valid)
-         → Abs.Q q α-∈NM nm
+         → Abs.Q (α-QC (cqc , valid)) α-∈NM nm
    b∈NM  : ∀ {cb pm nm}
          → nm ≡ P pm
          → pm ^∙ pmProposal ≡ cb
