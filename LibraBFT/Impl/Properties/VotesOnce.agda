@@ -53,6 +53,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                          × LvrCarrier pk (₋vSignature v') (StepPeer-post pstep)
                          )
   open PeerCanSignForPK
+  open PeerCanSignForPKinEpoch
 
   isValidNewPart⇒fSE : ∀ {pk v'}{pre : SystemState} {post : SystemState} {theStep : Step pre post}
                      → Meta-Honest-PK pk
@@ -166,11 +167,11 @@ module LibraBFT.Impl.Properties.VotesOnce where
      -- use PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
      let theStep = step-peer (step-honest sm)
          vpf''   = PeerCanSignForPK-stable r theStep vpf'
-         𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} (step-s r theStep) vpb vpf''
-     in  ⊥-elim (neq (trans (trans (sym (nid≡ vpf''))
+         𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} vpb vpf''
+     in  ⊥-elim (neq (trans (trans (sym (nid≡ (pcs4in𝓔 vpf'')))
                                    (PK-inj-same-ECs (sym 𝓔s≡)
-                                                    (trans (pk≡ vpf'') (sym (pk≡ vpb)))))
-                            (nid≡ vpb)))
+                                                    (trans (pk≡ (pcs4in𝓔 vpf'')) (sym (pk≡ (pcs4in𝓔 vpb))))))
+                            (nid≡ (pcs4in𝓔 vpb))))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
       {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' _ refl rnds≡

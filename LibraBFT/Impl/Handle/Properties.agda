@@ -23,6 +23,7 @@ open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
@@ -59,7 +60,7 @@ module LibraBFT.Impl.Handle.Properties where
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ ( mkPCS4PK {! !} {!!} (inGenInfo refl) {!!} {!!} {!!}
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {!!} (inGenInfo refl) {!!}
        -- The implementation will need to provide evidence that the peer is a member of
        -- the epoch of the message it's sending and that it is assigned pk for that epoch.
                         , msg∉)
@@ -111,9 +112,9 @@ module LibraBFT.Impl.Handle.Properties where
      ∀{pid pid' v v' pk}{st : SystemState}
      → (pkvpf  : PeerCanSignForPK st v  pid  pk)
      → (pkvpf' : PeerCanSignForPK st v' pid' pk)
-     → PeerCanSignForPK.𝓔 pkvpf ≡ PeerCanSignForPK.𝓔 pkvpf'
-  availEpochsConsistent (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
-                        (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
+     → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+  availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _)
+                        (mkPCS4PK _ (inGenInfo refl) _) = refl
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}

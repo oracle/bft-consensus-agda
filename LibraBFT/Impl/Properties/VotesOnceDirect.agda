@@ -60,8 +60,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                  → PeerCanSignForPK s' v pid pk
                  → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                  → PeerCanSignForPK s' v' pid pk
-  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁) refl
-    = (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁)
+  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔inSys₁ (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) refl
+    = (mkPCS4PK 𝓔₁ 𝓔inSys₁ (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁))
 
   MsgWithSig⇒ValidSenderInitialised : ∀ {st v pk}
                                     → ReachableSystemState st
@@ -104,8 +104,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK pre v pid pk
-  peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) pkH sig msv
-    = mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁
+  peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) pkH sig msv
+    = mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁  mbr₁ nid≡₁ pk≡₁)
 
   peerCanSignPK-Inj :  ∀ {pid pid' pk v v'}{st : SystemState}
                     → ReachableSystemState st
@@ -115,9 +115,9 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                     → pid ≡ pid'
   peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs eid≡
-     with availEpochsConsistent r pcs' pcs
+     with availEpochsConsistent pcs' pcs
   ...| refl
-     with NodeId-PK-OK-injective (𝓔 pcs) (PCS4PK⇒NodeId-PK-OK pcs) (PCS4PK⇒NodeId-PK-OK pcs')
+     with NodeId-PK-OK-injective (pcs4𝓔 pcs) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs)) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs'))
   ...| refl = refl
 
 
