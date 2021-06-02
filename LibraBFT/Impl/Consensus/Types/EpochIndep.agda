@@ -279,14 +279,27 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bParentId : Lens Block HashValue
   bParentId = bQuorumCert ∙ qcCertifiedBlock ∙ biId
 
+  bEpoch : Lens Block Epoch
+  bEpoch = bBlockData ∙ bdEpoch
+
+  record VoteProposal : Set where
+    constructor VoteProposal∙new
+    field
+      -- ₋vpAccumulatorExtensionProof : AccumulatorExtensionProof
+      ₋vpBlock : Block
+      -- ₋vpNextEpochState : Maybe EpochState
+  open VoteProposal public
+  unquoteDecl vpBlock = mkLens (quote VoteProposal) (vpBlock ∷ [])
+
+
   record MaybeSignedVoteProposal : Set where
     constructor MaybeSignedVoteProposal∙new
     field
-      -- ₋msvpVoteProposal : VoteProposal
+      ₋msvpVoteProposal : VoteProposal
       ₋msvpSignature : Maybe Signature
   open MaybeSignedVoteProposal public
-  unquoteDecl msvpSignature = mkLens (quote MaybeSignedVoteProposal)
-              (msvpSignature ∷ [])
+  unquoteDecl msvpVoteProposal msvpSignature = mkLens (quote MaybeSignedVoteProposal)
+              (msvpVoteProposal ∷ msvpSignature ∷ [])
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
@@ -505,11 +518,12 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
-      :srPersistentStorage : PersistentSafetyStorage
+      :srPersistentStorage  : PersistentSafetyStorage
+      :srExecutionPublicKey : Maybe PK
       -- :srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
-  unquoteDecl srPersistentStorage = mkLens (quote SafetyRules)
-   (srPersistentStorage ∷ [])
+  unquoteDecl srPersistentStorage srExecutionPublicKey = mkLens (quote SafetyRules)
+   (srPersistentStorage ∷ srExecutionPublicKey ∷ [])
 
   data Output : Set where
     BroadcastProposal : ProposalMsg           → Output
@@ -523,3 +537,8 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
 
   SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
   SendVote-inj-si refl = refl
+
+  -- TODO-1: Implement this (low priority)
+  ErrLog : Set
+  ErrLog = Unit
+

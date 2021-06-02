@@ -185,3 +185,15 @@ module LibraBFT.Impl.Consensus.Types where
 
     s : RoundManager → Bool → RoundManager
     s rm so = record rm { ₋rmEC = (₋rmEC rm) [ rmSyncOnly := so ] }
+
+  lSafetyRules : Lens RoundManager SafetyRules
+  lSafetyRules = mkLens' g s
+    where
+    g : RoundManager → SafetyRules
+    g rm = ₋rmEC rm ^∙ rmSafetyRules
+
+    s : RoundManager → SafetyRules → RoundManager
+    s rm sr = record rm { ₋rmEC = (₋rmEC rm) [ rmSafetyRules := sr ]}
+
+  lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
+  lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage

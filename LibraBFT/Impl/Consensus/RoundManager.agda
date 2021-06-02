@@ -14,6 +14,8 @@ import      LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
 open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Util.Crypto
 open import LibraBFT.Impl.Util.Util
@@ -76,9 +78,9 @@ module LibraBFT.Impl.Consensus.RoundManager where
 
   ------------------------------------------------------------------------------
   ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
-                         LBFT (Unit ⊎ Bool)
+                         LBFT (ErrLog ⊎ Bool)
   processProposalM : Block → LBFT Unit
-  executeAndVoteM : Block → LBFT (Unit ⊎ Vote)
+  executeAndVoteM : Block → LBFT (ErrLog ⊎ Vote)
 
   -- external entry point
   -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -89,11 +91,11 @@ module LibraBFT.Impl.Consensus.RoundManager where
   ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
   ...| just auth =
     ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true >>= λ where
-      (inj₁ _) → -- log error
+      (inj₁ _) → -- log: error: <propagate error>
         pure unit
       (inj₂ true) → processProposalM (pm ^∙ pmProposal)
       (inj₂ false) → do
-        -- dropping proposal for old round
+        -- log: info: dropping proposal for old round
         pure unit
 
   ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
@@ -108,13 +110,15 @@ module LibraBFT.Impl.Consensus.RoundManager where
     let bs = rmGetBlockStore _rm
     vp ← ProposerElection.isValidProposalM proposal
     grd‖ is-nothing (proposal ^∙ bAuthor)
-         ≔ pure unit -- proposal does not have an author
+         ≔ pure unit -- log: error: proposal does not have an author
        ‖ not vp
-         ≔ pure unit -- proposer for block is not valid for this round
+         ≔ pure unit -- log: error: proposer for block is not valid for this round
+       ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs)
+         ≔ pure unit -- log: error: QC of parent is not in BS
        ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
                 λ parentBlock →
                   ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
-         ≔ pure unit -- parentBlock < proposalRound
+         ≔ pure unit -- log: error: parentBlock < proposalRound
        ‖ otherwise≔
            (executeAndVoteM proposal >>= λ where
              (inj₁ _) → pure unit -- propagate error
@@ -139,7 +143,6 @@ module LibraBFT.Impl.Consensus.RoundManager where
          ≔ bail unit -- sync-only set
        ‖ otherwise≔ do
          let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
-         -- WIP safety rules
-         bail unit
-
-
+         SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
+           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM vote
+           ∙?∙ λ _ → ok vote

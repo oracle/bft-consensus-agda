@@ -153,6 +153,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
         }
     where open RWST-do
 
+  infixl 4 _∙?∙_
   _∙?∙_ : RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
   m ∙?∙ f = do
     r ← m
@@ -161,3 +162,10 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
       (inj₂ a) → f a
     where open RWST-do
 
+  _∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
+  m ∙^∙ f = do
+    x ← m
+    case x of λ where
+      (inj₁ e) → pure (inj₁ (f e))
+      (inj₂ r) → pure (inj₂ r)
+    where open RWST-do

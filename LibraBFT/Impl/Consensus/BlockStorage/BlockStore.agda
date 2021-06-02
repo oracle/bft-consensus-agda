@@ -14,6 +14,7 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 postulate
   executeAndInsertBlockM : Block → LBFT (Unit ⊎ ExecutedBlock)
   getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
+  getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
   syncInfo : LBFT SyncInfo
 
 {-
