@@ -17,7 +17,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- implementation must meet in order to enjoy the properties
 -- proved in Abstract.Properties.
 
-module LibraBFT.Concrete.Obligations where
+module LibraBFT.Concrete.Obligations (𝓔 : EpochConfig) where
   record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field
       -- Structural obligations:
@@ -30,4 +30,4 @@ module LibraBFT.Concrete.Obligations where
       vo₂ : VO.ImplObligation₂
 
       -- PreferredRound:
-      pr₁ : PR.ImplObligation₁
+      pr₁ : PR.ImplObligation₁ 𝓔

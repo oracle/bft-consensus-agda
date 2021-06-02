@@ -9,15 +9,17 @@ open import LibraBFT.Concrete.System.Parameters
 
 -- This module collects the implementation obligations for our (fake/simple, for now)
 -- "implementation" into the structure required by Concrete.Properties.
+open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Impl.Handle.Properties
 import      LibraBFT.Impl.Properties.VotesOnce   as VO
 import      LibraBFT.Impl.Properties.PreferredRound as PR
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System
 
-module LibraBFT.Impl.Properties where
-  theImplObligations : ImplObligations
+module LibraBFT.Impl.Properties (𝓔 : EpochConfig) where
+  theImplObligations : ImplObligations 𝓔
   theImplObligations = record { sps-cor = impl-sps-avp
                               ; vo₁     = VO.vo₁
                               ; vo₂     = VO.vo₂
-                              ; pr₁     = PR.pr₁ }
+                              ; pr₁     = PR.pr₁ 𝓔}

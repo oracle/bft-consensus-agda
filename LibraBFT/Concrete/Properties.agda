@@ -18,10 +18,10 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- conditions proved in Abstract.Properties.  It can be extended to other
 -- properties later.
 module LibraBFT.Concrete.Properties
-         (impl-correct : ImplObligations)
          (st : SystemState)
          (r : ReachableSystemState st)
-         (𝓔 : EpochConfig)
+         (𝓔 : EpochConfig) 
+         (impl-correct : ImplObligations 𝓔)
          where
     open        ImplObligations impl-correct
     open        PerState st r
@@ -55,7 +55,7 @@ module LibraBFT.Concrete.Properties
     validState : ValidSysState intSystemState
     validState = record
       { vss-votes-once      = VO.Proof.voo sps-cor vo₁ vo₂ st r 𝓔
-      ; vss-preferred-round = PR.Proof.prr sps-cor pr₁     st r 𝓔
+      ; vss-preferred-round = PR.Proof.prr 𝓔 sps-cor pr₁     st r 𝓔
       }
 
     open IntermediateSystemState intSystemState
