@@ -43,16 +43,29 @@ module LibraBFT.Impl.Consensus.Types where
   unquoteDecl esEpoch esVerifier = mkLens (quote EpochState)
     (esEpoch ∷ esVerifier ∷ [])
 
+  record RoundState : Set where
+    constructor RoundState∙new
+    field
+      -- ...
+      -rsCurrentRound : Round
+      -rsPendingVotes : PendingVotes
+      ₋rsVoteSent     : Maybe Vote
+      -- ...
+  open RoundState public
+  unquoteDecl rsCurrentRound rsPendingVotes rsVoteSent = mkLens (quote RoundState)
+    (rsCurrentRound ∷ rsPendingVotes ∷ rsVoteSent ∷ [])
+
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
       ₋rmEpochState   : EpochState
+      -rmRoundState   : RoundState
       ₋rmSafetyRules  : SafetyRules
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmSafetyRules = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmSafetyRules ∷ [])
+  unquoteDecl rmEpochState rmRoundState rmSafetyRules = mkLens (quote RoundManagerEC)
+    (rmEpochState ∷ rmRoundState ∷ rmSafetyRules ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -134,3 +147,23 @@ module LibraBFT.Impl.Consensus.Types where
   rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
                         (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
                           → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestCommitCert = qc}))))
+
+  lRoundState : Lens RoundManager RoundState
+  lRoundState = mkLens' g s
+    where
+    g : RoundManager → RoundState
+    g rm = ₋rmEC rm ^∙ rmRoundState
+
+    s : RoundManager → RoundState → RoundManager
+    s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
+{-
+  lPendingVotes : Lens RoundManager PendingVotes
+  lPendingVotes = mkLens' g s
+    where
+    g : RoundManager → PendingVotes
+    g rm = ₋rmEC rm ^∙ (rmRoundState ^∙ rsPendingVotes)
+
+    s : RoundManager → PendingVotes → RoundManager
+    s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
+-}
+

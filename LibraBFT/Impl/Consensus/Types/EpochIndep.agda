@@ -335,13 +335,33 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
       ₋lviIsTimeout : Bool
   open LastVoteInfo public
 
+  record Timeout : Set where
+    constructor Timeout∙new
+    field
+      -toEpoch : Epoch
+      -toRound : Round
+
+  record TimeoutCertificate : Set where
+    constructor mkTimeoutCertificate
+    field
+      -tcTimeout    : Timeout
+      -tcSignatures : KVMap Author Signature
+  open TimeoutCertificate public
+  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
+             (tcTimeout ∷ tcSignatures ∷ [])
+
+  TimeoutCertificate∙new : Timeout → TimeoutCertificate
+  TimeoutCertificate∙new to = mkTimeoutCertificate to KVMap.empty
+
   record PendingVotes : Set where
     constructor PendingVotes∙new
     field
       ₋pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
-      -- -pvMaybePartialTC : Maybe TimeoutCertificate
+      -pvMaybePartialTC    : Maybe TimeoutCertificate
       ₋pvAuthorToVote      : KVMap Author Vote
   open PendingVotes public
+  unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
+             (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
 
   -- Note: this is a placeholder.
   -- We are not concerned for now with executing transactions, just ordering/committing them.

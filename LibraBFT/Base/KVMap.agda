@@ -61,6 +61,7 @@ module LibraBFT.Base.KVMap  where
 
    kvm-size       : KVMap Key Val → ℕ
    -- TODO-1: add properties relating kvm-toList to empty, kvm-insert and kvm-update
+   kvm-keys       : KVMap Key Val → List Key
    kvm-toList     : KVMap Key Val → List (Key × Val)
    kvm-toList-length : (kvm : KVMap Key Val)
                      → length (kvm-toList kvm) ≡ kvm-size kvm
