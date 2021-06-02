@@ -85,8 +85,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
   -- external entry point
   -- TODO-2: The sync info that the peer requests if it discovers that its round
   -- state is behind the sender's should be sent as an additional argument, for now.
-  processProposalMsgM : Instant → Author → ProposalMsg → LBFT Unit
-  processProposalMsgM now from pm
+  processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
+  processProposalMsgM now {- from -} pm
      with pm ^∙ pmProposer
   ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
   ...| just auth =
