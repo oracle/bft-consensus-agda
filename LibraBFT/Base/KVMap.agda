@@ -59,6 +59,9 @@ module LibraBFT.Base.KVMap  where
                   → lookup k kvm ≢ nothing
                   → KVMap Key Val
 
+   kvm-insert-Haskell : (k : Key)(v : Val)(kvm : KVMap Key Val)
+                      → KVMap Key Val
+
    kvm-size       : KVMap Key Val → ℕ
    -- TODO-1: add properties relating kvm-toList to empty, kvm-insert and kvm-update
    kvm-toList     : KVMap Key Val → List (Key × Val)

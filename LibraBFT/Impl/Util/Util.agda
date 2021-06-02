@@ -69,6 +69,7 @@ module LibraBFT.Impl.Util.Util where
 
   modify' : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
   modify' l f = modify (over l f)
+  syntax modify' l f = l %= f
 
   _∙=_ : ∀ {A} → Lens RoundManager A → A → LBFT Unit
   l ∙= a = modify' l (const a)
