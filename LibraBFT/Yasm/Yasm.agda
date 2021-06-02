@@ -20,6 +20,7 @@ module LibraBFT.Yasm.Yasm
   where
  open LYB.SystemParameters parms
  open import LibraBFT.Yasm.Base                                                                        public
+ open import LibraBFT.Yasm.Types                                                                       public
  open import LibraBFT.Yasm.System     ℓ-PeerState ℓ-VSFP parms                                          public
  open import LibraBFT.Yasm.Properties ℓ-PeerState ℓ-VSFP parms ValidSenderForPK ValidSenderForPK-stable public
  open import Util.FunctionOverride    PeerId _≟PeerId_                                                 public

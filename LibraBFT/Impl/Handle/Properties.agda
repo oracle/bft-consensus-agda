@@ -24,7 +24,6 @@ open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
-open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 module LibraBFT.Impl.Handle.Properties where
@@ -110,12 +109,11 @@ module LibraBFT.Impl.Handle.Properties where
    -- epoch changes require proof of committing an epoch-changing transaction.
   availEpochsConsistent :
      ∀{pid pid' v v' pk}{st : SystemState}
-     → ReachableSystemState st
      → (pkvpf  : PeerCanSignForPK st v  pid  pk)
      → (pkvpf' : PeerCanSignForPK st v' pid' pk)
      → PeerCanSignForPK.𝓔 pkvpf ≡ PeerCanSignForPK.𝓔 pkvpf'
-  availEpochsConsistent r (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
-                          (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
+  availEpochsConsistent (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
+                        (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
