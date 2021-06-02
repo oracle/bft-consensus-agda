@@ -69,7 +69,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    (Impl-PR1 : ImplObligation₁)
    where
   -- Any reachable state satisfies the PR rule for any epoch in the system.
-  module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
+  module _ (st : SystemState)(r : ReachableSystemState st) where
    -- Bring in 'unwind', 'ext-unforgeability' and friends
    open Structural sps-corr
    -- Bring in intSystemState
@@ -77,5 +77,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    open        PerEpoch 𝓔
    open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR
 
-   postulate  -- TODO-3: prove it
+   postulate
      prr : PR.Type intSystemState
+   -- prr honα refl sv refl sv' c2 round< = {!!}
