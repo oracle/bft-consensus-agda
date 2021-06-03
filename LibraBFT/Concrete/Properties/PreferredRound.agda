@@ -25,7 +25,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- simpler VotesOnce property to settle down the structural aspects
 -- before tackling the harder semantic issues.
 module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
- import      LibraBFT.Abstract.Records UID _≟UID_ NodeId 𝓔 as Abs
+ import      LibraBFT.Abstract.Records UID _≟UID_ NodeId  𝓔 (ConcreteVoteEvidence 𝓔) as Abs
  open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔)
  open WithAbsVote 𝓔
  open PeerCanSignForPK
@@ -42,6 +42,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → let post = StepPeer-post {pre = pre} (step-honest sps) in
      ∀{mbr v vabs m v' v'abs m'}
+   -- 𝓔 must be "in the system" after the step
    → (𝓔∈Sys : EpochConfig∈Sys post 𝓔)
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
@@ -52,18 +53,24 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
-   -- If v and v' share the same epoch and round
+   -- If v and v' share the same epoch
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   -- and v is for a smaller round
    → v ^∙ vRound < v' ^∙ vRound
+   -- and mbr is the Member corresponding to the peer taking the steo
    → toNodeId 𝓔 mbr ≡ pid
+   -- and vabs* are the abstract Votes for v and v'
    → α-ValidVote 𝓔 v  mbr ≡ vabs
    → α-ValidVote 𝓔 v' mbr ≡ v'abs
    → let intSys = PerState.PerEpoch.intSystemState pre r 𝓔 in
+   -- and vabs could contribute to a 3-chain
      (c2 : Cand-3-chain-vote intSys vabs)
+   -- then the round of the block that v' votes for is at least the round of
+   -- the grandparent of the block that v votes for (i.e., the preferred round rule)
    → Σ (VoteParentData intSys v'abs)
-           (λ vp → Cand-3-chain-head-round intSys c2
-                   ≤ Abs.round (ConcreteVoteEvidence 𝓔) (vpParent vp))
+           (λ vp → Cand-3-chain-head-round intSys c2 ≤ Abs.round (vpParent vp))
 
+ -- Similarly in case the same step sends both v and v'
  ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
    ∀{pid s' outs pk}{pre : SystemState}
@@ -93,7 +100,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
      (c2 : Cand-3-chain-vote intSys vabs)
    → Σ (VoteParentData intSys v'abs)
            (λ vp → Cand-3-chain-head-round intSys c2
-                   ≤ Abs.round (ConcreteVoteEvidence 𝓔) (vpParent vp))
+                   ≤ Abs.round (vpParent vp))
 
   -- Next, we prove that given the necessary obligations,
  module Proof
