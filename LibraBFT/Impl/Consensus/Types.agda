@@ -156,14 +156,14 @@ module LibraBFT.Impl.Consensus.Types where
 
     s : RoundManager → RoundState → RoundManager
     s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
-{-
+
   lPendingVotes : Lens RoundManager PendingVotes
   lPendingVotes = mkLens' g s
     where
     g : RoundManager → PendingVotes
-    g rm = ₋rmEC rm ^∙ (rmRoundState ^∙ rsPendingVotes)
+    g rm = ₋rmEC rm ^∙ (rmRoundState ∙ rsPendingVotes)
 
     s : RoundManager → PendingVotes → RoundManager
-    s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
--}
+    s rm pv = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState ∙ rsPendingVotes := pv ]  }
+
 

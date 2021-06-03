@@ -85,7 +85,7 @@ addToLi = {-LedgerInfoWithSignatures.-}addSignature
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)
-  atv          ← use (lRoundState ∙ rsPendingVotes ∙ pvAuthorToVote) -- TODO use (lPendingVotes.pvAuthorToVote)
+  atv          ← use (lPendingVotes ∙ pvAuthorToVote)
   case (Map.lookup (vote ^∙ vAuthor) atv) of λ where
     (just previouslySeenVote) →
       if ⌊ liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo)) ⌋
@@ -104,8 +104,8 @@ insertVoteM vote vv = do
 
   continue1 : HashValue → LBFT VoteReceptionResult
   continue1 liDigest = do
-    pv            ← use (lRoundState ∙ rsPendingVotes) -- TODO use lPendingVotes
-    (lRoundState ∙ rsPendingVotes ∙ pvAuthorToVote) %=
+    pv            ← use lPendingVotes
+    (lPendingVotes ∙ pvAuthorToVote) %=
       λ m → Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote m
     let liWithSig = {-CryptoProxies.-}addToLi (vote ^∙ vAuthor) (vote ^∙ vSignature)
                       (fromMaybe (LedgerInfoWithSignatures∙new (vote ^∙ vLedgerInfo) Map.empty)
