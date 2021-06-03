@@ -212,21 +212,18 @@ module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
              pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
      with v⊂m
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
+     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
+       in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
   ...| vote∈vm
-     with impl-sps-avp r pkH stMsg (here refl) v⊂m sv ¬gen
-  ...| inj₂ sentb4 = ⊥-elim (¬msb sentb4)
-  ...| inj₁ (vspkv , _) =
+     with ⊎-elimʳ ¬msb (impl-sps-avp r pkH stMsg (here refl) v⊂m sv ¬gen)
+  ...| (vspkv , _) =
                  let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
                      vspkv' = peerCanSignEp≡ {v' = v'} vspkv eid≡
                      step   = step-peer (step-honest stMsg)
                      vspre' = peerCanSign-Msb4 r step vspkv' pkH sv' m'mwsb
                      rv'<rv = oldVoteRound≤lvr r pkH sv' ¬gen' m'mwsb vspre' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
-  votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
-             pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
-     | vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
-     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
-       in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
 
   votesOnce₂ : VO.ImplObligation₂ 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew

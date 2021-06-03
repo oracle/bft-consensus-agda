@@ -80,9 +80,9 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| nm∈outs , refl
      with hstep
   ...| step-msg {_ , P m} m∈pool ini
-     with impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws )
-  ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ (vpk' , _)
+     with ⊎-elimʳ (¬subst ¬sentb4 (msgSameSig mws))
+                  (impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws))
+  ...| (vpk' , _)
      with noEpochIdChangeYet {ppre = peerStates pre β} r refl hstep ini
   ...| eids≡
      with newVoteSameEpochGreaterRound r hstep (¬subst ¬init (msgSameSig mws)) hpk (msg⊆ mws) nm∈outs (msgSigned mws)
@@ -159,16 +159,14 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
   ...| inj₂ refl
      with msgSender mws ≟NodeId pid
-  ...| no neq
+  ...| no neq =
      -- We know that *after* the step, pid can sign v (vpb is about the post-state).  For v', we
      -- know it about state "pre"; we transport this to the post-state using
      -- PeerCanSignForPK-Stable.  Because EpochConfigs known in a system state are consistent with
      -- each other (i.e., trivially, for now because only the initial EpochConfig is known), we can
      -- use PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
-     with impl-sps-avp r hpk sm m∈outs v⊂m sig ¬init
-  ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
-  ...| inj₁ (vpb , _) =
-     let theStep = step-peer (step-honest sm)
+     let vpb     = proj₁ (⊎-elimʳ ¬sentb4 (impl-sps-avp r hpk sm m∈outs v⊂m sig ¬init))
+         theStep = step-peer (step-honest sm)
          vpf''   = PeerCanSignForPK-stable r theStep vpf'
          𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} vpb vpf'' refl
      in  ⊥-elim (neq (trans (trans (sym (nid≡ (pcs4in𝓔 vpf'')))
