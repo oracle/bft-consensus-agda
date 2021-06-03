@@ -179,7 +179,7 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const)
+    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
     public
 
   open import Data.Product

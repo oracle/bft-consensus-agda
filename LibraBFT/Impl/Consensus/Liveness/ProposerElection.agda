@@ -16,8 +16,14 @@ module LibraBFT.Impl.Consensus.Liveness.ProposerElection where
 open RWST-do
 
 postulate
-  isValidProposerM : Author → Round → LBFT Bool
   getValidProposer : ProposerElection → Round → Author
+
+isValidProposerM : Author → Round → LBFT Bool
+isValidProposer : ProposerElection → Author → Round → Bool
 
 isValidProposalM : Block → LBFT Bool
 isValidProposalM b = maybeS (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
+
+isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
+
+isValidProposer pe a r = ⌊ getValidProposer pe r ≟ℕ a ⌋
