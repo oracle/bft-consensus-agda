@@ -56,13 +56,6 @@ module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                    → PeerCanSignForPK s' v pid pk
   peerCanSignSameS pcs refl = pcs
 
-  peerCanSignEp≡ : ∀ {pid v v' pk s'}
-                 → PeerCanSignForPK s' v pid pk
-                 → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-                 → PeerCanSignForPK s' v' pid pk
-  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔inSys₁ (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) refl
-    = (mkPCS4PK 𝓔₁ 𝓔inSys₁ (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁))
-
   MsgWithSig⇒ValidSenderInitialised : ∀ {st v pk}
                                     → ReachableSystemState st
                                     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
