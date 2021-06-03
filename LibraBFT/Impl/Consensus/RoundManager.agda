@@ -77,8 +77,9 @@ module LibraBFT.Impl.Consensus.RoundManager where
   processVote now msg = pure unit
 
   ------------------------------------------------------------------------------
+  syncUpM : Instant → SyncInfo → Author → LBFT (ErrLog ⊎ Unit)
   ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
-                         LBFT (ErrLog ⊎ Bool)
+                          LBFT (ErrLog ⊎ Bool)
   processProposalM : Block → LBFT Unit
   executeAndVoteM : Block → LBFT (ErrLog ⊎ Vote)
 
@@ -98,12 +99,18 @@ module LibraBFT.Impl.Consensus.RoundManager where
         -- log: info: dropping proposal for old round
         pure unit
 
+  syncUpM now syncInfo author = ok unit
+
   ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
     if ⌊ messageRound <? currentRound ⌋
       then ok false
-      -- TODO-1: syncUpM
-      else bail unit
+      else do
+        syncUpM now syncInfo author ∙?∙ λ _ → do
+          currentRound' ← use (lRoundState ∙ rsCurrentRound)
+          if not ⌊ messageRound ≟ℕ currentRound' ⌋
+            then bail unit -- error: after sync, round does not match local
+            else ok true
 
   processProposalM proposal = do
     _rm ← get
