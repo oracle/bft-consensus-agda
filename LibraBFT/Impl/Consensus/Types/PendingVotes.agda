@@ -62,20 +62,21 @@ TOaddSignature : Author → Signature → TimeoutCertificate → TimeoutCertific
 TOaddSignature a s tc with Map.lookup a (tc ^∙ tcSignatures)
 ... | (just existing) = mkTimeoutCertificate
                           (tc ^∙ tcTimeout)
-                          (Map.kvm-insert a s (tc ^∙ tcSignatures) {!!})
+                          (Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures))
 ... | nothing         = mkTimeoutCertificate
                           (tc ^∙ tcTimeout)
-                          (Map.kvm-insert a s Map.empty {!!})
+                          (Map.kvm-insert-Haskell a s Map.empty)
 
 -- TODO LedgerInfoWithSignatures
 addSignature : AccountAddress → Signature → LedgerInfoWithSignatures → LedgerInfoWithSignatures
-addSignature validator sig liws with Map.lookup validator (liws ^∙ liwsSignatures)
+addSignature validator sig liws
+    with Map.lookup validator (liws ^∙ liwsSignatures)
 ... | (just existing) = LedgerInfoWithSignatures∙new
                           (liws ^∙ liwsLedgerInfo)
-                          (Map.kvm-insert validator sig (liws ^∙ liwsSignatures) {!!})
+                          (Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures))
 ... | nothing         = LedgerInfoWithSignatures∙new
                           (liws ^∙ liwsLedgerInfo)
-                          (Map.kvm-insert validator sig Map.empty {!!})
+                          (Map.kvm-insert-Haskell validator sig Map.empty)
 
 -- TODO LBFT.Types.CryptoProxies
 addToLi : AccountAddress → Signature → LedgerInfoWithSignatures → LedgerInfoWithSignatures
@@ -85,16 +86,17 @@ insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)
   atv          ← use (lRoundState ∙ rsPendingVotes ∙ pvAuthorToVote) -- TODO use (lPendingVotes.pvAuthorToVote)
-  (case (Map.lookup (vote ^∙ vAuthor) atv) of
-   λ { (just previouslySeenVote) →
-         if true -- TODO liDigest ≡ hashLI (previouslySeenVote ^∙ vLedgerInfo)
-         then (do
-           let newTimeoutVote = {-Vote.-}isTimeout vote ∧ not ({-Vote.-}isTimeout previouslySeenVote)
-           (if (not newTimeoutVote)
-            then (pure DuplicateVote)
-            else (continue1 liDigest)))
-         else (pure EquivocateVote)
-     ; nothing → continue1 liDigest })
+  case (Map.lookup (vote ^∙ vAuthor) atv) of λ where
+    (just previouslySeenVote) →
+      if ⌊ liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo)) ⌋
+      then (do
+        let newTimeoutVote = {-Vote.-}isTimeout vote ∧ not ({-Vote.-}isTimeout previouslySeenVote)
+        (if (not newTimeoutVote)
+         then (pure DuplicateVote)
+         else (continue1 liDigest)))
+      else (pure EquivocateVote)
+    nothing →
+      continue1 liDigest
 
  where
 
@@ -103,12 +105,12 @@ insertVoteM vote vv = do
   continue1 : HashValue → LBFT VoteReceptionResult
   continue1 liDigest = do
     pv            ← use (lRoundState ∙ rsPendingVotes) -- TODO use lPendingVotes
-    modify' (lRoundState ∙ rsPendingVotes ∙ pvAuthorToVote)
-            (Map.kvm-insert (vote ^∙ vAuthor) vote (pv ^∙ pvAuthorToVote) {!!})
+    (lRoundState ∙ rsPendingVotes ∙ pvAuthorToVote) %=
+      λ m → Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote m
     let liWithSig = {-CryptoProxies.-}addToLi (vote ^∙ vAuthor) (vote ^∙ vSignature)
                       (fromMaybe (LedgerInfoWithSignatures∙new (vote ^∙ vLedgerInfo) Map.empty)
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
-        dtv       = Map.kvm-insert liDigest liWithSig (pv ^∙ pvLiDigestToVotes) {!!}
+        dtv       = Map.kvm-insert-Haskell liDigest liWithSig (pv ^∙ pvLiDigestToVotes)
     (case {-ValidatorVerifier.-}checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of
      λ { (inj₂ Unit) →
            pure DuplicateVote
