@@ -31,6 +31,15 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   AccountAddress : Set
   AccountAddress = Author
 
+  AuthorName : Set
+  AuthorName = Author
+
+  U64 : Set
+  U64 = ℕ
+
+  Usize : Set
+  Usize = ℕ
+
   HashValue : Set
   HashValue = Hash
 
@@ -486,6 +495,16 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   unquoteDecl srPersistentStorage = mkLens (quote SafetyRules)
    (srPersistentStorage ∷ [])
 
+  data VoteReceptionResult : Set where
+    QCVoteAdded           : U64 →                VoteReceptionResult
+    TCVoteAdded           : U64 →                VoteReceptionResult
+    DuplicateVote         :                      VoteReceptionResult
+    EquivocateVote        :                      VoteReceptionResult
+    NewQuorumCertificate  : QuorumCert →         VoteReceptionResult
+    NewTimeoutCertificate : TimeoutCertificate → VoteReceptionResult
+    UnexpectedRound       : Round → Round →      VoteReceptionResult
+    VRR_TODO              :                      VoteReceptionResult
+
   data Output : Set where
     BroadcastProposal : ProposalMsg           → Output
     LogErr            : String                → Output
@@ -498,3 +517,10 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
 
   SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
   SendVote-inj-si refl = refl
+
+  data VerifyError : Set where
+    UnknownAuthor        : AuthorName →    VerifyError
+    TooLittleVotingPower : U64 → U64 →     VerifyError
+    TooManySignatures    : Usize → Usize → VerifyError
+    InvalidSignature     :                 VerifyError
+
