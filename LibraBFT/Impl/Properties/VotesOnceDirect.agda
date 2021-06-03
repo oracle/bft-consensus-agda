@@ -114,8 +114,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                     → PeerCanSignForPK st v pid pk
                     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                     → pid ≡ pid'
-  peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs eid≡
-     with availEpochsConsistent pcs' pcs
+  peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs refl
+     with availEpochsConsistent pcs' pcs refl
   ...| refl
      with NodeId-PK-OK-injective (pcs4𝓔 pcs) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs)) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs'))
   ...| refl = refl

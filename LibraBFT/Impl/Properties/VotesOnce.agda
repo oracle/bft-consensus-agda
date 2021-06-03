@@ -170,7 +170,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| inj₁ (vpb , _) =
      let theStep = step-peer (step-honest sm)
          vpf''   = PeerCanSignForPK-stable r theStep vpf'
-         𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} vpb vpf''
+         𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} vpb vpf'' refl
      in  ⊥-elim (neq (trans (trans (sym (nid≡ (pcs4in𝓔 vpf'')))
                                    (PK-inj-same-ECs (sym 𝓔s≡)
                                                     (trans (pk≡ (pcs4in𝓔 vpf'')) (sym (pk≡ (pcs4in𝓔 vpb))))))
