@@ -20,8 +20,8 @@ open import LibraBFT.Concrete.System
 module LibraBFT.Impl.Properties (𝓔 : EpochConfig) where
   theImplObligations : ImplObligations 𝓔
   theImplObligations = record { sps-cor = impl-sps-avp
-                              ; vo₁     = VO.vo₁
-                              ; vo₂     = VO.vo₂
+                              ; vo₁     = VO.vo₁ 𝓔
+                              ; vo₂     = VO.vo₂ 𝓔
                               ; pr₁     = PR.pr₁ 𝓔
                               ; pr₂     = PR.pr₂ 𝓔
                               }

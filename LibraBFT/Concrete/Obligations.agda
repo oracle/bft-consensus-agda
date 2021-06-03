@@ -26,8 +26,8 @@ module LibraBFT.Concrete.Obligations (𝓔 : EpochConfig) where
       -- Semantic obligations:
       --
       -- VotesOnce:
-      vo₁ : VO.ImplObligation₁
-      vo₂ : VO.ImplObligation₂
+      vo₁ : VO.ImplObligation₁ 𝓔
+      vo₂ : VO.ImplObligation₂ 𝓔
 
       -- PreferredRound:
       pr₁ : PR.ImplObligation₁ 𝓔

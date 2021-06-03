@@ -28,7 +28,7 @@ open import LibraBFT.Impl.Properties.VotesOnce
 -- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
 -- inductively on the ReachableSystemState.
 
-module LibraBFT.Impl.Properties.VotesOnceDirect where
+module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
 
 
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
@@ -215,7 +215,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
-  votesOnce₁ : VO.ImplObligation₁
+  votesOnce₁ : VO.ImplObligation₁ 𝓔
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
              pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
      with v⊂m
@@ -235,7 +235,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
      = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
        in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
 
-  votesOnce₂ : VO.ImplObligation₂
+  votesOnce₂ : VO.ImplObligation₂ 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew
              vpk v'⊂m' m'∈outs sig' ¬gen' v'new vpk' es≡ rnds≡
      with m∈outs | m'∈outs

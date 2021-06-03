@@ -34,7 +34,7 @@ open        Structural impl-sps-avp
 -- implementation (or some variant on it) and streamline the proof before we proceed to tackle more
 -- ambitious properties.
 
-module LibraBFT.Impl.Properties.VotesOnce where
+module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
@@ -134,7 +134,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
               → LvrCarrier pk (signature v' unit) final
   fSE⇒rnd≤lvr hpk {theStep = step-peer (step-honest _)} (_ , _ , lvrc) step* = LvrCarrier-transp* lvrc step*
 
-  vo₁ : VO.ImplObligation₁
+  vo₁ : VO.ImplObligation₁ 𝓔
   -- Initialization doesn't send any messages at all so far; Agda figures that out so no proof
   -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
   -- they contain will be from GenesisInfo.
@@ -195,7 +195,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- TODO-1: This proof should be refactored to reduce redundant reasoning about the two votes.  The
   -- newVoteSameEpochGreaterRound property uses similar reasoning.
 
-  vo₂ : VO.ImplObligation₂
+  vo₂ : VO.ImplObligation₂ 𝓔
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs

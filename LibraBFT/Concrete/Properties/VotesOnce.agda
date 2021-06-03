@@ -35,7 +35,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- sent by honest peers in the implementation, then the implemenation
 -- satisfies the LibraBFT.Abstract.Properties.VotesOnce invariant.
 
-module LibraBFT.Concrete.Properties.VotesOnce where
+module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- TODO-3: This may not be the best way to state the implementation obligation.  Why not reduce
  -- this as much as possible before giving the obligation to the implementation?  For example, this
  -- will still require the implementation to deal with hash collisons (v and v' could be different,
@@ -99,7 +99,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
-  module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
+  module _ (st : SystemState)(r : ReachableSystemState st) where
 
    open Structural sps-corr
    -- Bring in intSystemState
