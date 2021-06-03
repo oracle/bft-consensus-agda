@@ -75,7 +75,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
-   ; qVotes-C1    = {! MetaIsValidQC.₋ivqcMetaIsQuorum valid!}
+   ; qVotes-C1    = subst IsQuorum {!!} (MetaIsValidQC.₋ivqcMetaIsQuorum valid) 
    ; qVotes-C2    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self

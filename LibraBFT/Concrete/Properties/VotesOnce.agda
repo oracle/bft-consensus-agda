@@ -35,6 +35,14 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- sent by honest peers in the implementation, then the implemenation
 -- satisfies the LibraBFT.Abstract.Properties.VotesOnce invariant.
 
+-- It is not actually necessary to provide an EpochConfig to define
+-- these implementation obligations, but it is needed below to state
+-- the goal of the proof (voo).  In contrast, the PreferredRound rule
+-- requires and EpochConfig to state the obligations, because they
+-- are defined in terms of abstract Records, which are defined for an
+-- EpochConfig.  We introduce the EpochConfig at the top of this
+-- module for consistency with the PreferredRound rule so that the
+-- order of parameters to invoke the respective proofs is consistent.
 module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- TODO-3: This may not be the best way to state the implementation obligation.  Why not reduce
  -- this as much as possible before giving the obligation to the implementation?  For example, this

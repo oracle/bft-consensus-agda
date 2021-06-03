@@ -90,8 +90,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v' ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
-   -- If v and v' share the same epoch and round
+   -- If v and v' share the same epoch
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   -- and v is for a smaller round
    → v ^∙ vRound < v' ^∙ vRound
    → toNodeId 𝓔 mbr ≡ pid
    → α-ValidVote 𝓔 v  mbr ≡ vabs
@@ -102,7 +103,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
            (λ vp → Cand-3-chain-head-round intSys c2
                    ≤ Abs.round (vpParent vp))
 
-  -- Next, we prove that given the necessary obligations,
+ -- Next, we prove that given the necessary obligations, we can prove the type required (by
+ -- LibraBFT.Concrete.Obligations.PreferredRound.proof) to prove the type needed by the abstract
+ -- proofs for the preferred round rule.
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
    (Impl-PR1 : ImplObligation₁)
