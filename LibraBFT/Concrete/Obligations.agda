@@ -31,3 +31,4 @@ module LibraBFT.Concrete.Obligations (𝓔 : EpochConfig) where
 
       -- PreferredRound:
       pr₁ : PR.ImplObligation₁ 𝓔
+      pr₂ : PR.ImplObligation₂ 𝓔

@@ -22,4 +22,6 @@ module LibraBFT.Impl.Properties (𝓔 : EpochConfig) where
   theImplObligations = record { sps-cor = impl-sps-avp
                               ; vo₁     = VO.vo₁
                               ; vo₂     = VO.vo₂
-                              ; pr₁     = PR.pr₁ 𝓔}
+                              ; pr₁     = PR.pr₁ 𝓔
+                              ; pr₂     = PR.pr₂ 𝓔
+                              }

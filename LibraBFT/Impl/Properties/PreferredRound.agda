@@ -22,3 +22,4 @@ module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
              -- our current fake/simple implementaion) that we can
              -- reasonably hope actually ensures the property!
     pr₁ : PR.ImplObligation₁ 𝓔
+    pr₂ : PR.ImplObligation₂ 𝓔

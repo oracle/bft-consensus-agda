@@ -40,33 +40,66 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → (r : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
-   → ∀{v vabs m v' v'abs m'}
-   → (pcs4 : PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk)
+   → let post = StepPeer-post {pre = pre} (step-honest sps) in
+     ∀{mbr v vabs m v' v'abs m'}
+   → (𝓔∈Sys : EpochConfig∈Sys post 𝓔)
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
-   → (𝓔s≡ : pcs4𝓔 pcs4 ≡ 𝓔)
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v ^∙ vRound < v' ^∙ vRound
-   → α-ValidVote 𝓔 v  (EC-member-cast 𝓔s≡ (PeerCanSignForPKinEpoch.mbr (pcs4in𝓔 pcs4))) ≡ vabs
-   → α-ValidVote 𝓔 v' (EC-member-cast 𝓔s≡ (mbr (pcs4in𝓔 pcs4))) ≡ v'abs
-   → (c2 : Cand-3-chain-vote (PerState.PerEpoch.intSystemState pre r 𝓔) vabs)
-   → Σ (VoteParentData (PerState.PerEpoch.intSystemState pre r 𝓔) v'abs)
-           (λ vp → Cand-3-chain-head-round
-                     (PerState.PerEpoch.intSystemState pre r 𝓔) c2
+   → toNodeId 𝓔 mbr ≡ pid
+   → α-ValidVote 𝓔 v  mbr ≡ vabs
+   → α-ValidVote 𝓔 v' mbr ≡ v'abs
+   → let intSys = PerState.PerEpoch.intSystemState pre r 𝓔 in
+     (c2 : Cand-3-chain-vote intSys vabs)
+   → Σ (VoteParentData intSys v'abs)
+           (λ vp → Cand-3-chain-head-round intSys c2
                    ≤ Abs.round (ConcreteVoteEvidence 𝓔) (vpParent vp))
 
- -- Next, we prove that given the necessary obligations,
+ ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
+ ImplObligation₂ =
+   ∀{pid s' outs pk}{pre : SystemState}
+   → (r  : ReachableSystemState pre)
+   -- For any honest call to /handle/ or /init/,
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+   → let post = StepPeer-post {pre = pre} (step-honest sps) in
+     ∀{mbr v vabs m v' v'abs m'}
+   → Meta-Honest-PK pk
+   -- For every vote v represented in a message output by the call
+   → v  ⊂Msg m  → send m ∈ outs
+   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   -- If v is really new and valid
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
+
+   -- And if there exists another v' that is also new and valid
+   → v' ⊂Msg m'  → send m' ∈ outs
+   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
+   -- If v and v' share the same epoch and round
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙ vRound < v' ^∙ vRound
+   → toNodeId 𝓔 mbr ≡ pid
+   → α-ValidVote 𝓔 v  mbr ≡ vabs
+   → α-ValidVote 𝓔 v' mbr ≡ v'abs
+   → let intSys = PerState.PerEpoch.intSystemState pre r 𝓔 in
+     (c2 : Cand-3-chain-vote intSys vabs)
+   → Σ (VoteParentData intSys v'abs)
+           (λ vp → Cand-3-chain-head-round intSys c2
+                   ≤ Abs.round (ConcreteVoteEvidence 𝓔) (vpParent vp))
+
+  -- Next, we prove that given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
    (Impl-PR1 : ImplObligation₁)
+   (Impl-PR2 : ImplObligation₂)
    where
   -- Any reachable state satisfies the PR rule for any epoch in the system.
   module _ (st : SystemState)(r : ReachableSystemState st) where
@@ -79,4 +112,4 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
 
    postulate
      prr : PR.Type intSystemState
-   -- prr honα refl sv refl sv' c2 round< = {!!}
+   -- prr honα refl sv refl sv' c2 round< = {!c2!}
