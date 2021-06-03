@@ -118,7 +118,7 @@ module LibraBFT.Impl.Handle where
  outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
+                                                               (kvm-toList (-vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V v))) toList
 

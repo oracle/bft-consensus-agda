@@ -34,6 +34,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   AuthorName : Set
   AuthorName = Author
 
+  aAuthorName : Lens Author AuthorName
+  aAuthorName = mkLens' (λ x → x) (λ x → const x)
+
   U64 : Set
   U64 = ℕ
 
@@ -471,20 +474,21 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
-     :vciPublicKey   : PK
-     --:vciVotingPower : U64
+     -vciPublicKey   : PK
+     -vciVotingPower : U64
   open ValidatorConsensusInfo public
+  unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
+             (vciPublicKey ∷ vciVotingPower ∷ [])
 
   record ValidatorVerifier : Set where
     constructor ValidatorVerifier∙new
     field
-      :vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
-      :vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
+      -vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      -vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo vvQuorumVotingPower = mkLens
-    (quote ValidatorVerifier)
-    (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
   record SafetyRules : Set where
     constructor SafetyRules∙new

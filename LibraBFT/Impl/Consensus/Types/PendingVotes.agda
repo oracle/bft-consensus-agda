@@ -1,12 +1,9 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.KVMap                                       as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
@@ -52,8 +49,8 @@ insertVoteM vote vv = do
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
         dtv       = Map.kvm-insert-Haskell liDigest liWithSig (pv ^∙ pvLiDigestToVotes)
     (case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of
-     λ { (inj₂ Unit) →
-           pure DuplicateVote
+     λ { (inj₂ unit) →
+           pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
        ; (inj₁ (TooLittleVotingPower votingPower _)) →
            continue2 votingPower
        ; (inj₁ _) →
@@ -62,14 +59,14 @@ insertVoteM vote vv = do
   continue2 qcVotingPower = do
     (case vote ^∙ vTimeoutSignature of
      λ { (just timeoutSignature) → do
-           pv            ← use (lRoundState ∙ rsPendingVotes) -- TODO use lPendingVotes
+           pv            ← use lPendingVotes
            let partialTc = TimeoutCertificate.addSignature (vote ^∙ vAuthor) timeoutSignature
                              (fromMaybe (TimeoutCertificate∙new (Vote.timeout vote))
                                         (pv ^∙ pvMaybePartialTC))
-           modify' (lRoundState ∙ rsPendingVotes ∙ pvMaybePartialTC) (just partialTc)
+           (lPendingVotes ∙ pvMaybePartialTC) %= const (just partialTc)
            (case ValidatorVerifier.checkVotingPower
                    vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of
-            λ { (inj₂ Unit) →
+            λ { (inj₂ unit) →
                   pure (NewTimeoutCertificate partialTc)
               ; (inj₁ (TooLittleVotingPower votingPower _)) →
                   pure (TCVoteAdded votingPower)
