@@ -139,7 +139,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
   -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
   -- they contain will be from GenesisInfo.
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
-      {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' ¬init' refl rnds≡
+      {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 v'⊂m' m'∈pool sig' ¬init' refl rnds≡
      with msgsToSendWereSent {pid} {nm} m∈outs
   ...| _ , vm , _ , _
      with newVoteSameEpochGreaterRound r (step-msg m∈pool pidini) ¬init hpk v⊂m m∈outs sig ¬sentb4
@@ -159,12 +159,15 @@ module LibraBFT.Impl.Properties.VotesOnce where
   ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
   ...| inj₂ refl
      with msgSender mws ≟NodeId pid
-  ...| no neq =
+  ...| no neq
      -- We know that *after* the step, pid can sign v (vpb is about the post-state).  For v', we
      -- know it about state "pre"; we transport this to the post-state using
      -- PeerCanSignForPK-Stable.  Because EpochConfigs known in a system state are consistent with
      -- each other (i.e., trivially, for now because only the initial EpochConfig is known), we can
      -- use PK-inj to contradict the assumption that v and v' were sent by different peers (neq).
+     with impl-sps-avp r hpk sm m∈outs v⊂m sig ¬init
+  ...| inj₂ sentb4 = ⊥-elim (¬sentb4 sentb4)
+  ...| inj₁ (vpb , _) =
      let theStep = step-peer (step-honest sm)
          vpf''   = PeerCanSignForPK-stable r theStep vpf'
          𝓔s≡     = availEpochsConsistent {pid} {msgSender mws} vpb vpf''
@@ -174,7 +177,7 @@ module LibraBFT.Impl.Properties.VotesOnce where
                             (nid≡ (pcs4in𝓔 vpb))))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
-      {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vpb v'⊂m' m'∈pool sig' _ refl rnds≡
+      {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 v'⊂m' m'∈pool sig' _ refl rnds≡
      | _ , vm , _ , _
      | eIds≡' , suclvr≡v'rnd , _
      | mkCarrier r' mws ini vpf' preprop
