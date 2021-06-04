@@ -15,6 +15,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate where
 -- HC-TODO : refactor this and LedgerInfoWithSignatures
 addSignature : Author → Signature → TimeoutCertificate → TimeoutCertificate
 addSignature a s tc =
-  case (Map.lookup a (tc ^∙ tcSignatures)) of λ where
+  case Map.lookup a (tc ^∙ tcSignatures) of λ where
     (just _) → tc
     nothing  → tc [ tcSignatures := Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures) ]

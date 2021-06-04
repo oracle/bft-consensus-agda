@@ -17,14 +17,14 @@ getVotingPower : ValidatorVerifier → AccountAddress → Maybe U64
 checkVotingPower : ValidatorVerifier → List AccountAddress → VerifyError ⊎ Unit
 checkVotingPower self authors = loop authors 0
  where
-  loop : List AccountAddress  → U64 → VerifyError ⊎ Unit
+  loop : List AccountAddress → U64 → VerifyError ⊎ Unit
   loop (a ∷ as) acc = case getVotingPower self a of λ where
                         nothing  → inj₁ (UnknownAuthor (a ^∙ aAuthorName))
                         (just n) → loop as (n + acc)
   loop [] aggregatedVotingPower =
-    if ⌊ aggregatedVotingPower <? self ^∙ vvQuorumVotingPower ⌋
-    then (inj₁ (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
-    else (inj₂ unit)
+    if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
+    then inj₁ (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower))
+    else inj₂ unit
 
 getVotingPower self author =
 --  (λ a → a ^∙ vciVotingPower) <$> (Map.lookup author (self ^∙ vvAddressToValidatorInfo))

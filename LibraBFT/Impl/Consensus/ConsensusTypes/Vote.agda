@@ -16,10 +16,7 @@ timeout v =
   Timeout∙new (v ^∙ vVoteData ∙ vdProposed ∙ biEpoch) (v ^∙ vVoteData ∙ vdProposed ∙ biRound)
 
 isTimeout : Vote → Bool
-isTimeout v
-    with v ^∙ vTimeoutSignature
-... | (just _) = true
-... | nothing  = false
+isTimeout v = isjust (v ^∙ vTimeoutSignature)
 
 
 

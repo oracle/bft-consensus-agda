@@ -327,3 +327,10 @@ module LibraBFT.Prelude where
   f-sum f = sum ∘ List-map f
 
   open import LibraBFT.Base.Util public
+
+  -- HC-TODO : Lemmas has an isJust - should it be renamed, or this one?
+  isjust : ∀{ℓ}{A : Set ℓ} → Maybe A -> Bool
+  isjust ma
+      with ma
+  ... | (just _) = true
+  ... | nothing  = false

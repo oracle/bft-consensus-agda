@@ -15,7 +15,7 @@ module LibraBFT.Impl.Types.LedgerInfoWithSignatures where
 -- HC-TODO : refactor this and TimeoutCertificate
 addSignature : AccountAddress → Signature → LedgerInfoWithSignatures → LedgerInfoWithSignatures
 addSignature validator sig liws =
-  case (Map.lookup validator (liws ^∙ liwsSignatures)) of λ where
+  case Map.lookup validator (liws ^∙ liwsSignatures) of λ where
     (just _) → liws
     nothing  →
       liws [ liwsSignatures := Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures) ]

@@ -24,15 +24,16 @@ insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)
   atv          ← use (lPendingVotes ∙ pvAuthorToVote)
-  case (Map.lookup (vote ^∙ vAuthor) atv) of λ where
+  case Map.lookup (vote ^∙ vAuthor) atv of λ where
     (just previouslySeenVote) →
-      if ⌊ liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo)) ⌋
+      if-dec liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
       then (do
         let newTimeoutVote = Vote.isTimeout vote ∧ not (Vote.isTimeout previouslySeenVote)
-        (if (not newTimeoutVote)
-         then (pure DuplicateVote)
-         else (continue1 liDigest)))
-      else (pure EquivocateVote)
+        if not newTimeoutVote
+          then pure DuplicateVote
+          else continue1 liDigest)
+      else
+        pure EquivocateVote
     nothing →
       continue1 liDigest
 
@@ -43,37 +44,36 @@ insertVoteM vote vv = do
   continue1 : HashValue → LBFT VoteReceptionResult
   continue1 liDigest = do
     pv            ← use lPendingVotes
-    (lPendingVotes ∙ pvAuthorToVote) %= λ m → Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote m
+    lPendingVotes ∙ pvAuthorToVote %= Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote
     let liWithSig = CryptoProxies.addToLi (vote ^∙ vAuthor) (vote ^∙ vSignature)
                       (fromMaybe (LedgerInfoWithSignatures∙new (vote ^∙ vLedgerInfo) Map.empty)
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
-        dtv       = Map.kvm-insert-Haskell liDigest liWithSig (pv ^∙ pvLiDigestToVotes)
-    (case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of
-     λ { (inj₂ unit) →
-           pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
-       ; (inj₁ (TooLittleVotingPower votingPower _)) →
-           continue2 votingPower
-       ; (inj₁ _) →
-           pure VRR_TODO })
+    lPendingVotes ∙ pvLiDigestToVotes %= Map.kvm-insert-Haskell liDigest liWithSig
+    case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
+      (inj₂ unit) →
+        pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
+      (inj₁ (TooLittleVotingPower votingPower _)) →
+        continue2 votingPower
+      (inj₁ _) →
+        pure VRR_TODO
 
-  continue2 qcVotingPower = do
-    (case vote ^∙ vTimeoutSignature of
-     λ { (just timeoutSignature) → do
-           pv            ← use lPendingVotes
-           let partialTc = TimeoutCertificate.addSignature (vote ^∙ vAuthor) timeoutSignature
-                             (fromMaybe (TimeoutCertificate∙new (Vote.timeout vote))
-                                        (pv ^∙ pvMaybePartialTC))
-           (lPendingVotes ∙ pvMaybePartialTC) %= const (just partialTc)
-           (case ValidatorVerifier.checkVotingPower
-                   vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of
-            λ { (inj₂ unit) →
-                  pure (NewTimeoutCertificate partialTc)
-              ; (inj₁ (TooLittleVotingPower votingPower _)) →
-                  pure (TCVoteAdded votingPower)
-              ; (inj₁ _) →
-                  pure VRR_TODO })
-       ; nothing →
-           pure (QCVoteAdded qcVotingPower) })
+  continue2 qcVotingPower =
+    case vote ^∙ vTimeoutSignature of λ where
+      (just timeoutSignature) → do
+        pv            ← use lPendingVotes
+        let partialTc = TimeoutCertificate.addSignature (vote ^∙ vAuthor) timeoutSignature
+                          (fromMaybe (TimeoutCertificate∙new (Vote.timeout vote))
+                                     (pv ^∙ pvMaybePartialTC))
+        lPendingVotes ∙ pvMaybePartialTC %= const (just partialTc)
+        case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
+          (inj₂ unit) →
+            pure (NewTimeoutCertificate partialTc)
+          (inj₁ (TooLittleVotingPower votingPower _)) →
+            pure (TCVoteAdded votingPower)
+          (inj₁ _) →
+            pure VRR_TODO
+      nothing →
+        pure (QCVoteAdded qcVotingPower)
 
 
 
