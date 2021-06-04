@@ -307,20 +307,20 @@ module LibraBFT.Prelude where
     ToBool-Dec = record { toBool = ⌊_⌋ }
 
   infix 3 _≔_
-  data GuardClause {a}(A : Set a) : Set (ℓ+1 a) where
-    _≔_ : {B : Set a}{{ bb : ToBool B }} → B → A → GuardClause A
+  data GuardClause {a}{b}(A : Set a) : Set (ℓ+1 (a ℓ⊔ b)) where
+    _≔_ : {B : Set b}{{ bb : ToBool B }} → B → A → GuardClause A
 
   infix 3 otherwise≔_
-  data Guards {a}(A : Set a) : Set (ℓ+1 a) where
+  data Guards {a}{b}(A : Set a) : Set (ℓ+1 (a ℓ⊔ b)) where
    otherwise≔_ : A → Guards A
-   clause     : GuardClause A → Guards A → Guards A
+   clause     : GuardClause{a}{b} A → Guards{a}{b} A → Guards A
 
   infixr 2 _‖_
-  _‖_ : ∀{a}{A : Set a} → GuardClause A → Guards A → Guards A
+  _‖_ : ∀{a}{b}{A : Set a} → GuardClause{a}{b} A → Guards A → Guards A
   _‖_ = clause
 
   infix 1 grd‖_
-  grd‖_ : ∀{a}{A : Set a} → Guards A → A
+  grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
   grd‖_ (otherwise≔ a) = a
   grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
 
