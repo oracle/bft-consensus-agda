@@ -110,8 +110,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
 
   syncUpM now syncInfo author = ok unit
 
--- ensureRoundAndSyncUp
------------------------
+  -- ensureRoundAndSyncUp
+  -----------------------
 
   ensureRoundAndSyncUpM-check₁ : Instant → Round → SyncInfo → Author → Bool →
                                  LBFT (ErrLog ⊎ Bool)
@@ -132,6 +132,8 @@ module LibraBFT.Impl.Consensus.RoundManager where
       then bail unit  -- error: after sync, round does not match local
       else ok true
 
+  -- processProposalM
+  -------------------
   processProposalM proposal = do
     _rm ← get
     let bs = rmGetBlockStore _rm
@@ -157,7 +159,6 @@ module LibraBFT.Impl.Consensus.RoundManager where
                              <*> pure (proposal ^∙ bRound + 1)
                act (SendVote (MetaVoteMsg∙new vote si) (recipient ∷ [])))
                -- TODO-1                         {- mkNodesInOrder1 recipient-}
-
 
   executeAndVoteM b =
     BlockStore.executeAndInsertBlockM b {- ∙^∙ logging -} ∙?∙ λ eb → do
