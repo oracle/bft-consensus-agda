@@ -31,6 +31,18 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   AccountAddress : Set
   AccountAddress = Author
 
+  AuthorName : Set
+  AuthorName = Author
+
+  aAuthorName : Lens Author AuthorName
+  aAuthorName = mkLens' (λ x → x) (λ x → const x)
+
+  U64 : Set
+  U64 = ℕ
+
+  Usize : Set
+  Usize = ℕ
+
   HashValue : Set
   HashValue = Hash
 
@@ -385,13 +397,33 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
       ₋lviIsTimeout : Bool
   open LastVoteInfo public
 
+  record Timeout : Set where
+    constructor Timeout∙new
+    field
+      -toEpoch : Epoch
+      -toRound : Round
+
+  record TimeoutCertificate : Set where
+    constructor mkTimeoutCertificate
+    field
+      -tcTimeout    : Timeout
+      -tcSignatures : KVMap Author Signature
+  open TimeoutCertificate public
+  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
+             (tcTimeout ∷ tcSignatures ∷ [])
+
+  TimeoutCertificate∙new : Timeout → TimeoutCertificate
+  TimeoutCertificate∙new to = mkTimeoutCertificate to KVMap.empty
+
   record PendingVotes : Set where
     constructor PendingVotes∙new
     field
       ₋pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
-      -- -pvMaybePartialTC : Maybe TimeoutCertificate
+      -pvMaybePartialTC    : Maybe TimeoutCertificate
       ₋pvAuthorToVote      : KVMap Author Vote
   open PendingVotes public
+  unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
+             (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
 
   -- Note: this is a placeholder.
   -- We are not concerned for now with executing transactions, just ordering/committing them.
@@ -492,20 +524,21 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
-     :vciPublicKey   : PK
-     --:vciVotingPower : U64
+     -vciPublicKey   : PK
+     -vciVotingPower : U64
   open ValidatorConsensusInfo public
+  unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
+             (vciPublicKey ∷ vciVotingPower ∷ [])
 
   record ValidatorVerifier : Set where
     constructor ValidatorVerifier∙new
     field
-      :vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
-      :vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
+      -vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      -vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo vvQuorumVotingPower = mkLens
-    (quote ValidatorVerifier)
-    (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
   record ProposerElection : Set where
     constructor ProposerElection∙new
@@ -522,8 +555,24 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
       :srExecutionPublicKey : Maybe PK
       -- :srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
-  unquoteDecl srPersistentStorage srExecutionPublicKey = mkLens (quote SafetyRules)
-   (srPersistentStorage ∷ srExecutionPublicKey ∷ [])
+  unquoteDecl srPersistentStorage   srExecutionPublicKey = mkLens (quote SafetyRules)
+             (srPersistentStorage ∷ srExecutionPublicKey ∷ [])
+
+  data VoteReceptionResult : Set where
+    QCVoteAdded           : U64 →                VoteReceptionResult
+    TCVoteAdded           : U64 →                VoteReceptionResult
+    DuplicateVote         :                      VoteReceptionResult
+    EquivocateVote        :                      VoteReceptionResult
+    NewQuorumCertificate  : QuorumCert →         VoteReceptionResult
+    NewTimeoutCertificate : TimeoutCertificate → VoteReceptionResult
+    UnexpectedRound       : Round → Round →      VoteReceptionResult
+    VRR_TODO              :                      VoteReceptionResult
+
+  data VerifyError : Set where
+    UnknownAuthor        : AuthorName →    VerifyError
+    TooLittleVotingPower : U64 → U64 →     VerifyError
+    TooManySignatures    : Usize → Usize → VerifyError
+    InvalidSignature     :                 VerifyError
 
   -- TODO-1: Implement this (low priority)
   ErrLog : Set

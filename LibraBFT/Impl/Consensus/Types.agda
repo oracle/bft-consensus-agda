@@ -49,12 +49,12 @@ module LibraBFT.Impl.Consensus.Types where
     field
       -- ...
       -rsCurrentRound : Round
+      -rsPendingVotes : PendingVotes
       ₋rsVoteSent     : Maybe Vote
       -- ...
   open RoundState public
-  unquoteDecl rsCurrentRound rsVoteSent = mkLens (quote RoundState)
-    (rsCurrentRound ∷ rsVoteSent ∷ [])
-
+  unquoteDecl rsCurrentRound rsPendingVotes rsVoteSent = mkLens (quote RoundState)
+    (rsCurrentRound ∷ rsPendingVotes ∷ rsVoteSent ∷ [])
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
@@ -189,6 +189,15 @@ module LibraBFT.Impl.Consensus.Types where
 
     s : RoundManager → Bool → RoundManager
     s rm so = record rm { ₋rmEC = (₋rmEC rm) [ rmSyncOnly := so ] }
+
+  lPendingVotes : Lens RoundManager PendingVotes
+  lPendingVotes = mkLens' g s
+    where
+    g : RoundManager → PendingVotes
+    g rm = ₋rmEC rm ^∙ (rmRoundState ∙ rsPendingVotes)
+
+    s : RoundManager → PendingVotes → RoundManager
+    s rm pv = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState ∙ rsPendingVotes := pv ]  }
 
   lSafetyRules : Lens RoundManager SafetyRules
   lSafetyRules = mkLens' g s
