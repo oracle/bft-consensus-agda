@@ -160,9 +160,6 @@ module LibraBFT.Impl.Consensus.Types where
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
   rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
 
-  rmGetValidatorVerifier : RoundManager → ValidatorVerifier
-  rmGetValidatorVerifier rm = ₋esVerifier (₋rmEpochState (₋rmEC rm))
-
   lProposerElection : Lens RoundManager ProposerElection
   lProposerElection = mkLens' g s
     where
