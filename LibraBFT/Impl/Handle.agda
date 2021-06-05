@@ -123,7 +123,7 @@ module LibraBFT.Impl.Handle where
                                                      (List-map proj₁
                                                                (kvm-toList (:vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
- outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V v))) toList
+ outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V (unmetaVoteMsg v)))) toList
 
  outputsToActions : ∀ {State} → List Output → List (LYT.Action NetworkMsg)
  outputsToActions {st} = concat ∘ List-map (outputToActions st)

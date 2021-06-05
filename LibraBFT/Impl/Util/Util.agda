@@ -24,6 +24,9 @@ module LibraBFT.Impl.Util.Util where
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
 
+  LBFT-result : ∀ {A} → LBFT A → RoundManager → A
+  LBFT-result m rm = proj₁ (LBFT-run m rm)
+
   LBFT-post : ∀ {A} → LBFT A → RoundManager → RoundManager
   LBFT-post m rm = proj₁ (proj₂ (LBFT-run m rm))
 

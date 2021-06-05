@@ -64,13 +64,14 @@ module LibraBFT.Impl.Consensus.RoundManager where
                     fakeSig
                     nothing
         sv = record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
+        mvs = MetaVote∙new sv mvsNew -- Tracking the source of the vote
         bt = rmw ^∙ (lBlockTree 𝓔)
         si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         rm' = rm [ rmLastVotedRound := nr ]
         st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc)
                                    (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
     put st'
-    tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
+    tell1 (SendVote (MetaVoteMsg∙new mvs si) (fakeAuthor ∷ []))
     pure unit
 
   processVote : Instant → VoteMsg → LBFT Unit
@@ -81,36 +82,55 @@ module LibraBFT.Impl.Consensus.RoundManager where
   ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
                           LBFT (ErrLog ⊎ Bool)
   processProposalM : Block → LBFT Unit
-  executeAndVoteM : Block → LBFT (ErrLog ⊎ Vote)
+  executeAndVoteM : Block → LBFT (ErrLog ⊎ MetaVote)
 
   -- external entry point
   -- TODO-2: The sync info that the peer requests if it discovers that its round
   -- state is behind the sender's should be sent as an additional argument, for now.
+
+  -- This is broken up into smaller pieces in order to aid in the verification effort.
+  processProposalMsgM-check₁ : Instant → ProposalMsg → Author → LBFT Unit
+  processProposalMsgM-check₁-cont : Instant → ProposalMsg → Author → ErrLog ⊎ Bool → LBFT Unit
+
   processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
   processProposalMsgM now {- from -} pm
      with pm ^∙ pmProposer
   ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
   ...| just auth =
-    ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true >>= λ where
-      (inj₁ _) → -- log: error: <propagate error>
-        pure unit
-      (inj₂ true) → processProposalM (pm ^∙ pmProposal)
-      (inj₂ false) → do
-        -- log: info: dropping proposal for old round
-        pure unit
+    processProposalMsgM-check₁ now pm auth
+
+  processProposalMsgM-check₁ now pm auth =
+    ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true
+      >>= processProposalMsgM-check₁-cont now pm auth
+
+  processProposalMsgM-check₁-cont now pm auth = λ where
+    (inj₁ _)    → pure unit -- log: error: <propagate error>
+    (inj₂ true) → processProposalM (pm ^∙ pmProposal)
+    (inj₂ false) → pure unit -- log: info: dropping proposal for old round
 
   syncUpM now syncInfo author = ok unit
+
+-- ensureRoundAndSyncUp
+-----------------------
+
+  ensureRoundAndSyncUpM-check₁ : Instant → Round → SyncInfo → Author → Bool →
+                                 LBFT (ErrLog ⊎ Bool)
+  ensureRoundAndSyncUpM-check₁-cont : Round → Unit → LBFT (ErrLog ⊎ Bool)
 
   ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
     if ⌊ messageRound <? currentRound ⌋
       then ok false
-      else do
-        syncUpM now syncInfo author ∙?∙ λ _ → do
-          currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          if not ⌊ messageRound ≟ℕ currentRound' ⌋
-            then bail unit -- error: after sync, round does not match local
-            else ok true
+      else ensureRoundAndSyncUpM-check₁ now messageRound syncInfo author helpRemote
+
+  ensureRoundAndSyncUpM-check₁ now messageRound syncInfo author helpRemote = do
+    syncUpM now syncInfo author ∙?∙ ensureRoundAndSyncUpM-check₁-cont messageRound
+
+  ensureRoundAndSyncUpM-check₁-cont messageRound = λ _ → do
+    currentRound' ← use (lRoundState ∙ rsCurrentRound)
+    if not ⌊ messageRound ≟ℕ currentRound' ⌋
+      then bail unit  -- error: after sync, round does not match local
+      else ok true
 
   processProposalM proposal = do
     _rm ← get
@@ -130,12 +150,12 @@ module LibraBFT.Impl.Consensus.RoundManager where
            (executeAndVoteM proposal >>= λ where
              (inj₁ _) → pure unit -- propagate error
              (inj₂ vote) → do
-               RoundState.recordVote vote
+               RoundState.recordVote (unmetaVote vote) {- vote -}
                si ← BlockStore.syncInfo
                recipient ← ProposerElection.getValidProposer
                              <$> use lProposerElection
                              <*> pure (proposal ^∙ bRound + 1)
-               act (SendVote (VoteMsg∙new vote si) (recipient ∷ [])))
+               act (SendVote (MetaVoteMsg∙new vote si) (recipient ∷ [])))
                -- TODO-1                         {- mkNodesInOrder1 recipient-}
 
 
@@ -151,5 +171,5 @@ module LibraBFT.Impl.Consensus.RoundManager where
        ‖ otherwise≔ do
          let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
          SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
-           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM vote
+           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM (unmetaVote vote)
            ∙?∙ λ _ → ok vote

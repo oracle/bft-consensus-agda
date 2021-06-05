@@ -33,6 +33,7 @@ module LibraBFT.Impl.Consensus.Types where
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
   open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
   open import LibraBFT.Impl.Consensus.Types.EpochDep         public
+  open import LibraBFT.Impl.Consensus.Types.MetaEpochIndep   public
 
   record EpochState : Set where
     constructor EpochState∙new

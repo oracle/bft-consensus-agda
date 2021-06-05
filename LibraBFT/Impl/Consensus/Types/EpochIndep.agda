@@ -107,7 +107,6 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   -- DESIGN NOTE: The ₋vAuthor field is included only to facilitate lookup of the public key against
   -- which to verify the signature.  An alternative would be to use an index into the members of the
   -- epoch config, which would save message space and therefore bandwidth.
-
   record Vote : Set where
     constructor Vote∙new
     field
@@ -361,6 +360,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   vmParent : Lens VoteMsg BlockInfo
   vmParent = vmVote ∙ vVoteData ∙ vdParent
 
+
   -- This is a notification of a commit.  It may not be explicitly included in an implementation,
   -- but we need something to be able to express correctness conditions.  It will
   -- probably have something different in it, but will serve the purpose for now.
@@ -524,19 +524,6 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   open SafetyRules public
   unquoteDecl srPersistentStorage srExecutionPublicKey = mkLens (quote SafetyRules)
    (srPersistentStorage ∷ srExecutionPublicKey ∷ [])
-
-  data Output : Set where
-    BroadcastProposal : ProposalMsg           → Output
-    LogErr            : String                → Output
-    -- LogInfo           : InfoLog a          → Output
-    SendVote          : VoteMsg → List Author → Output
-  open Output public
-
-  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
-  SendVote-inj-v refl = refl
-
-  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
-  SendVote-inj-si refl = refl
 
   -- TODO-1: Implement this (low priority)
   ErrLog : Set

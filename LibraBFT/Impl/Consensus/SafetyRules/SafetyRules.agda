@@ -16,10 +16,10 @@ module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 open RWST-do
 
 postulate
-  obmCheckSigner sr : SafetyRules → Bool
+  obmCheckSigner : SafetyRules → Bool
   verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
 
-constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ Vote)
+constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ MetaVote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   sr ← use lSafetyRules
   if not (obmCheckSigner sr)
@@ -31,9 +31,10 @@ constructAndSignVoteM maybeSignedVoteProposal = do
         (just _) → bail unit -- errorExitNow: verify execution signature not implemented
         nothing → continue0 voteProposal
   where
-  continue1 : VoteProposal → Block → SafetyData → LBFT (ErrLog ⊎ Vote)
+  postulate
+    continue1 : VoteProposal → Block → SafetyData → LBFT (ErrLog ⊎ MetaVote)
 
-  continue0 : VoteProposal → LBFT (ErrLog ⊎ Vote)
+  continue0 : VoteProposal → LBFT (ErrLog ⊎ MetaVote)
   continue0 voteProposal = do
     let proposedBlock = voteProposal ^∙ vpBlock
     safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
@@ -41,11 +42,11 @@ constructAndSignVoteM maybeSignedVoteProposal = do
       case safetyData0 ^∙ sdLastVote of λ where
         (just vote) →
           grd‖ (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-               ≔ ok vote
+               ≔ ok (MetaVote∙new vote mvsLastVote)
              ‖ otherwise≔ continue1 voteProposal proposedBlock safetyData0
         nothing → continue1 voteProposal proposedBlock safetyData0
 
 
   -- TODO-1: Implement
-  continue1 voteProposal proposedBlock safetyData0 = bail unit
+--  continue1 voteProposal proposedBlock safetyData0 = bail unit
 
