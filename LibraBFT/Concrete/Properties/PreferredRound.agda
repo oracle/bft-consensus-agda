@@ -47,13 +47,13 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → (𝓔∈Sys : EpochConfig∈Sys post 𝓔)
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
-   → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
-   -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
-   -- And if there exists another v' that has been sent before
-   → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
+   → v'  ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   -- If v is really new and valid
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
+   -- And if there exists another v' that has been sent before
+   → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
+   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v and v' share the same epoch
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    -- and v is for a smaller round
@@ -190,9 +190,13 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
       with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
    ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
    ...| inj₂ refl
-        = Impl-PR1 {!r!} {!stPeer!} {!!} pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init {!newV!}
+        = {! We should get to a contradiction here because of the increasing round rule
+             Actually in the Impl-PR1 the argument v.Round < v'.Round should be
+             v'.Round < v.Round (already changed)
+
+          Impl-PR1 {!r!} {!stPeer!} {!!} pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init {!newV!}
                    (msg⊆ m'sb4) {!msg∈pool m'sb4!} (msgSigned m'sb4) (¬subst ¬init' (msgSameSig m'sb4))
-                   {!!} rv<rv' {!!} absv absv' c3
+                   {!!} rv<rv' {!!} absv absv' c3 !}
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' rv<rv' absv absv' c3
       | refl | refl
       | refl | refl
@@ -202,10 +206,10 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
       with sameSig⇒sameVoteData (msgSigned msb4) vv (msgSameSig msb4)
    ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
    ...| inj₂ refl
-        = {! We should get to a contradiction here because of the increasing round rule!}
-          {- Impl-PR1 {!r!} {!stPeer!} {!!} pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' {!newV'!}
-                      (msg⊆ msb4) {!msg∈pool msb4!} (msgSigned msb4) (¬subst ¬init (msgSameSig msb4))
-                      {!!} {!rv<rv'!} {!!} {!!} {!!} {!!} -}
+        =  Impl-PR1 {!r!} {!stPeer!} {!!} pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' {!newV'!}
+                    (msg⊆ msb4) {!msg∈pool msb4!} (msgSigned msb4) (¬subst ¬init (msgSameSig msb4))
+                    {!!} rv<rv' {!!} absv absv' c3
+
 
    prr : PR.Type intSystemState
    prr honα refl sv refl sv' c2 round<
