@@ -11,6 +11,7 @@ open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
+import      LibraBFT.Impl.Util.Crypto                         as Crypto
 open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
@@ -19,9 +20,16 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
+  extensionCheckM : VoteProposal → LBFT (ErrLog ⊎ VoteData)
+  constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
   verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (ErrLog ⊎ SafetyData)
   verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
+
+-- signers
+--------------------------------------------------
+signer : SafetyRules → ErrLog ⊎ ValidatorSigner
+signer self = maybeS (self ^∙ srValidatorSigner) (inj₁ unit) inj₂
 
 -- verifyAndUpdateLastVoteRoundM
 --------------------------------------------------
@@ -73,4 +81,10 @@ constructAndSignVoteM-continue1 voteProposal proposedBlock safetyData0 =
 constructAndSignVoteM-continue2 voteProposal proposedBlock safetyData =
   verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ λ safetyData1 → do
     lSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙= safetyData1
-    bail unit
+    extensionCheckM voteProposal ∙?∙ λ voteData → do
+      sr0 ← use lSafetyRules
+      pure (signer sr0) ∙?∙ λ _vs → do
+        let author = _vs ^∙ vsAuthor
+        constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
+          sr1 ← use lSafetyRules
+          bail unit
