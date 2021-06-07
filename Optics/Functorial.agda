@@ -6,6 +6,7 @@
 open import Level
 open import Function
 open import Category.Functor
+open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 
 module Optics.Functorial where
@@ -49,6 +50,10 @@ module Optics.Functorial where
   set : ∀{S A} → Lens S A → A → S → S
   set (lens p) a s = p id if (const a) s
   syntax set p a s = s [ p := a ]
+
+  set? : ∀{S A} → Lens S (Maybe A) → A → S → S
+  set? l a s = s [ l := just a ]
+  syntax set? l a s = s [ l ?= a ]
 
   -- Modifier:
 

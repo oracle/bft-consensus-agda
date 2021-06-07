@@ -6,11 +6,14 @@
 
 open import Optics.All
 open import LibraBFT.Prelude
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
+open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Util.Crypto                         as Crypto
 open import LibraBFT.Impl.Util.Util
 
@@ -20,6 +23,11 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
+
+  -- TODO-1: These two functions should require a proof that `signer` returns `inj₂`
+  obmUnsafeSign : ∀ {C} ⦃ ws :  WithSig C ⦄ → SafetyRules → C → Signature
+  obmUnsafeSigner : SafetyRules → ValidatorSigner
+
   extensionCheckM : VoteProposal → LBFT (ErrLog ⊎ VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
@@ -50,8 +58,8 @@ constructAndSignVoteM-continue2 : VoteProposal → Block → SafetyData → LBFT
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ MetaVote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   sr ← use lSafetyRules
-  if not (obmCheckSigner sr)
-    then bail unit -- error: ["srValidatorSigner", "Noathing"]
+  if not (obmCheckSigner sr) -- TODO-1: The result of this check needs to be propagated.
+    then bail unit -- error: ["srValidatorSigner", "Nothing"]
     else do
       let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
           _executionSignature = maybeSignedVoteProposal ^∙ msvpSignature
@@ -80,11 +88,13 @@ constructAndSignVoteM-continue1 voteProposal proposedBlock safetyData0 =
 
 constructAndSignVoteM-continue2 voteProposal proposedBlock safetyData =
   verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ λ safetyData1 → do
-    lSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙= safetyData1
+    lSafetyData ∙= safetyData1
     extensionCheckM voteProposal ∙?∙ λ voteData → do
       sr0 ← use lSafetyRules
-      pure (signer sr0) ∙?∙ λ _vs → do
-        let author = _vs ^∙ vsAuthor
-        constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
-          sr1 ← use lSafetyRules
-          bail unit
+      let author = obmUnsafeSigner sr0 ^∙ vsAuthor
+      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
+        sr1 ← use lSafetyRules
+        let signature = obmUnsafeSign ⦃ obm-dangerous-magic! ⦄ sr1 ledgerInfo
+            vote      = Vote.newWithSignature voteData author ledgerInfo signature
+        lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
+        ok (MetaVote∙new vote mvsNew)
