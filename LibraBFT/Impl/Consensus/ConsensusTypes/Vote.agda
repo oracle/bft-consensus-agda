@@ -11,6 +11,10 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.Vote where
 
+newWithSignature : VoteData → Author → LedgerInfo → Signature → Vote
+newWithSignature voteData author ledgerInfo signature =
+  Vote∙new voteData author ledgerInfo signature nothing
+
 timeout : Vote → Timeout
 timeout v =
   Timeout∙new (v ^∙ vVoteData ∙ vdProposed ∙ biEpoch) (v ^∙ vVoteData ∙ vdProposed ∙ biRound)

@@ -210,3 +210,6 @@ module LibraBFT.Impl.Consensus.Types where
 
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
+
+  lSafetyData : Lens RoundManager SafetyData
+  lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData

@@ -496,14 +496,16 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     constructor ValidatorSigner∙new
     field
       :vsAuthor     : AccountAddress
-      -- :vsPrivateKey : SK   -- Note that the SystemModel doesn't
-                              -- allow one node to examine another's
-                              -- state, so we don't model someone being
-                              -- able to impersonate someone else unless
-                              -- PK is "dishonest", which models the
-                              -- possibility that the corresponding secret
-                              -- key may have been leaked.
+      :vsPrivateKey : SK   -- Note that the SystemModel doesn't
+                            -- allow one node to examine another's
+                            -- state, so we don't model someone being
+                            -- able to impersonate someone else unless
+                            -- PK is "dishonest", which models the
+                            -- possibility that the corresponding secret
+                            -- key may have been leaked.
   open ValidatorSigner public
+  unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
+              (vsAuthor ∷ [])
 
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
@@ -553,10 +555,10 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     field
       :srPersistentStorage  : PersistentSafetyStorage
       :srExecutionPublicKey : Maybe PK
-      -- :srValidatorSigner   : Maybe ValidatorSigner
+      :srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
-  unquoteDecl srPersistentStorage   srExecutionPublicKey = mkLens (quote SafetyRules)
-             (srPersistentStorage ∷ srExecutionPublicKey ∷ [])
+  unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
+             (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
 
   data VoteReceptionResult : Set where
     QCVoteAdded           : U64 →                VoteReceptionResult
