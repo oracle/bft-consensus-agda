@@ -154,7 +154,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
        → v ^∙ vEpoch ≡ v' ^∙ vEpoch
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
-    VotesOnceProof step-0 _ _ msv _ _ _ _ = ⊥-elim (¬Any[] (msg∈pool msv))
+    VotesOnceProof step-0 _ _ msv = ⊥-elim (¬Any[] (msg∈pool msv))
     VotesOnceProof {v} {v'} (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
        with msgSameSig msv | msgSameSig msv'
     ...| refl | refl
@@ -192,7 +192,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
        with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-    ...| inj₂ refl rewrite sym (msgSameSig msv')
+    ...| inj₂ refl
       = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV
                  (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) (¬subst ¬init' (msgSameSig m'sb4)) eid≡ r≡
 
