@@ -9,6 +9,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.Impl.Consensus.Types.PendingVotes as PendingVotes
 open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.Liveness.RoundState where
@@ -19,3 +20,10 @@ open RWST-do
 -- > recordVote v = rsVoteSent ∙= just v
 recordVote : Vote → LBFT Unit
 recordVote v = pure unit
+
+insertVote : Vote → ValidatorVerifier → LBFT VoteReceptionResult
+insertVote vote verifier = do
+  currentRound ← use (lRoundState ∙ rsCurrentRound)
+  if-dec vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ currentRound
+    then PendingVotes.insertVoteM vote verifier
+    else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
