@@ -21,9 +21,6 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  -- * PreferredRound * --
  ---------------------
 
- module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
-  open IntermediateSystemState 𝓢
-
  -- The PreferredRound rule is a little more involved to be expressed in terms
  -- of /HasBeenSent/: it needs two additional pieces which are introduced
  -- next.
@@ -43,15 +40,15 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  --                                          |
  --                                     The 'qc' defined below is an
  --                                     abstract view of q, above.
-  record voteExtends (v : Vote) : Set where
+ record voteExtends (v : Vote) : Set where
     constructor mkVE
     field
       veBlock   : Block
       veId      : vBlockUID v ≡ bId    veBlock
       veRounds≡ : vRound    v ≡ bRound veBlock
-  open voteExtends
+ open voteExtends
 
-  record Cand-3-chain-vote (v : Vote) : Set where
+ record Cand-3-chain-vote (v : Vote) : Set where
     field
       votesForB : voteExtends v
       qc        : QC
@@ -59,19 +56,19 @@ module LibraBFT.Concrete.Obligations.PreferredRound
       rc        : RecordChain (Q qc)
       n         : ℕ
       is-2chain : 𝕂-chain Contig (2 + n) rc
-  open Cand-3-chain-vote public
+ open Cand-3-chain-vote public
 
   -- Returns the round of the head of the candidate 3-chain. In the diagram
   -- explaining Cand-3-chain-vote, this would be v.grandparent.round.
-  Cand-3-chain-head-round : ∀{v} → Cand-3-chain-vote v → Round
-  Cand-3-chain-head-round c3cand =
+ Cand-3-chain-head-round : ∀{v} → Cand-3-chain-vote v → Round
+ Cand-3-chain-head-round c3cand =
     getRound (kchainBlock (suc zero) (is-2chain c3cand))
 
   -- The preferred round rule states a fact about the /previous round/
   -- of a vote; that is, the round of the parent of the block
   -- being voted for; the implementation will have to
   -- show it can construct this parent.
-  data VoteParentData-BlockExt : Record → Set where
+ data VoteParentData-BlockExt : Record → Set where
     vpParent≡I : VoteParentData-BlockExt I
     vpParent≡Q : ∀{b q} → B b ← Q q → VoteParentData-BlockExt (Q q)
 
@@ -79,13 +76,17 @@ module LibraBFT.Concrete.Obligations.PreferredRound
   -- and we should consider it once we address the issue in
   -- Abstract.RecordChain (below the definition of transp-𝕂-chain)
 
-  record VoteParentData (v : Vote) : Set where
+
+ record VoteParentData (v : Vote) : Set where
     field
       vpExt        : voteExtends v
       vpParent     : Record
       vpExt'       : vpParent ← B (veBlock vpExt)
       vpMaybeBlock : VoteParentData-BlockExt vpParent
-  open VoteParentData public
+ open VoteParentData public
+
+ module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
+  open IntermediateSystemState 𝓢
 
   -- The setup for PreferredRoundRule is like thta for VotesOnce.
   -- Given two votes by an honest author α:
