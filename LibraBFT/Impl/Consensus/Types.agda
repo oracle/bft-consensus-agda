@@ -79,12 +79,15 @@ module LibraBFT.Impl.Consensus.Types where
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over
   -- 'RoundManagerEC'.
-  RoundManagerEC-correct : RoundManagerEC → Set
-  RoundManagerEC-correct rmec =
-    let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-        qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+  ValidatorVerifier-correct : ValidatorVerifier → Set
+  ValidatorVerifier-correct vv =
+    let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
+        qsize      = vv ^∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors
+
+  RoundManagerEC-correct : RoundManagerEC → Set
+  RoundManagerEC-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
 
   RoundManagerEC-correct-≡ : (rmec1 : RoundManagerEC)
                              → (rmec2 : RoundManagerEC)
@@ -138,6 +141,9 @@ module LibraBFT.Impl.Consensus.Types where
 
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
+
+  rmGetEpochState : (rm : RoundManager) → EpochState
+  rmGetEpochState rm = (₋rmEC rm) ^∙ rmEpochState
 
   ₋rmHighestQC : (rm : RoundManager) → QuorumCert
   ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
