@@ -32,7 +32,6 @@ postulate
   constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
   verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (ErrLog ⊎ SafetyData)
-  verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
 
 -- signers
 --------------------------------------------------
@@ -48,6 +47,14 @@ verifyAndUpdateLastVoteRoundM round safetyData =
   if ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋
     then ok (safetyData [ sdLastVotedRound := round ])
     else bail unit -- log: error: incorrect last vote round
+
+-- verifyEpochM
+--------------------------------------------------
+verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
+verifyEpochM epoch safetyData =
+  if not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
+    then bail unit -- log: error: incorrect epoch
+    else ok unit
 
 -- constructAndSignVoteM
 --------------------------------------------------
