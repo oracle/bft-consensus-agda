@@ -43,8 +43,46 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
 
- ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
- ImplObligation₁ =
+ record VoteForRound∈ (v : Vote)(pk : PK)(round : ℕ)(epoch : ℕ)(pool : SentMessages) : Set where
+   constructor mkVoteForRound∈
+   field
+     msgWhole     : NetworkMsg
+     msg⊆         : v ⊂Msg msgWhole
+     msgSender    : ℕ
+     msg∈pool     : (msgSender , msgWhole) ∈ pool
+     msgSigned    : WithVerSig pk v
+     msgSameEpoch : v ^∙ vEpoch ≡ epoch
+     msgSameRound : v ^∙ vRound ≡ round
+ open MsgWithSig∈ public
+
+
+ postulate
+      ¬Msg∈⇒¬Vote∈ : ∀ {v pk msgPool} → Meta-Honest-PK pk → (vv  : WithVerSig pk v)
+                 → ¬ MsgWithSig∈ pk (ver-signature vv) msgPool
+                 → ∄[ v'' ] VoteForRound∈ v'' pk (v ^∙ vRound) (v ^∙ vEpoch) msgPool
+    {- ¬Msg∈⇒¬Vote∈ pkH vv ¬msv (v'' , vfr)
+      with vfr
+    ... | mkVoteForRound∈ msgWhole₁ msg⊆₁ msgSender₁ msg∈pool₁
+                          msgSigned₁ msgSameEpoch msgSameRound
+          = ⊥-elim (¬msv (mkMsgWithSig∈ msgWhole₁ v'' msg⊆₁ msgSender₁
+                                        msg∈pool₁ msgSigned₁ {!!})) -}
+{-
+ record VoteForRound∈ (pk : PK)(round : ℕ)(epoch : ℕ)(pool : SentMessages) : Set where
+   constructor mkMsgWithSig∈
+   field
+     msgWhole     : NetworkMsg
+     msgPart      : Vote
+     msg⊆         : msgPart ⊂Msg msgWhole
+     msgSender    : ℕ
+     msg∈pool     : (msgSender , msgWhole) ∈ pool
+     msgSigned    : WithVerSig pk msgPart
+     msgSameEpoch : msgPart ^∙ vEpoch ≡ epoch
+     msgSameRound : msgPart ^∙ vRound ≡ round
+ open MsgWithSig∈ public
+-}
+
+ IncreasingRoundObligation : Set (ℓ+1 ℓ-RoundManager)
+ IncreasingRoundObligation =
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
@@ -53,17 +91,16 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
-   -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
+   -- If v is really new and valid, i.e. it does not exist a vote with the same round and epoch
+   -- which signature verifies in the msgPool
+   → ∄[ v'' ] VoteForRound∈ v'' pk (v ^∙ vRound) (v ^∙ vEpoch) (msgPool pre)
+   -- → ¬ VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (msgPool pre)
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-   → v ^∙ vRound ≡ v' ^∙ vRound
-   ----------------------------------------------------------
-   -- Then an honest implemenation promises v and v' vote for the same blockId.
-   → v ^∙ vProposedId ≡ v' ^∙ vProposedId
+   → v' ^∙ vRound < v ^∙ vRound
 
  ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₂ =
@@ -94,7 +131,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- Next, we prove that, given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-VO1 : ImplObligation₁)
+   (Impl-VO1 : IncreasingRoundObligation)
    (Impl-VO2 : ImplObligation₂)
    where
 
@@ -144,7 +181,6 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     -- obligation (Impl-VO1) and case (ii) reduces to a different implementation obligation
     -- (Impl-VO2).
 
-
     VotesOnceProof :
        ∀ {v v' pk} {st : SystemState}
        → ReachableSystemState st
@@ -193,9 +229,11 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
        with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
-      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV
-                 (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) (¬subst ¬init' (msgSameSig m'sb4)) eid≡ r≡
-
+      = ⊥-elim (<⇒≢ (Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init
+                               (¬Msg∈⇒¬Vote∈ pkH (msgSigned msv) newV)
+                               (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4)
+                               (¬subst ¬init' (msgSameSig m'sb4)) eid≡)
+               (sym r≡))
     VotesOnceProof (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
        | refl | refl
        | refl | refl
@@ -205,8 +243,11 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
        with sameSig⇒sameVoteData (msgSigned msb4) vv (msgSameSig msb4)
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
-      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV'
-                      (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4)) (sym eid≡) (sym r≡))
+      = ⊥-elim (<⇒≢ (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init'
+                              (¬Msg∈⇒¬Vote∈ pkH (msgSigned msv') newV')
+                              (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4)
+                              (¬subst ¬init (msgSameSig msb4)) (sym eid≡))
+                r≡)
 
    voo : VO.Type intSystemState
    voo hpk refl sv refl sv' round≡

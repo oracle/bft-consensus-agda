@@ -58,6 +58,17 @@ module LibraBFT.Concrete.Obligations.PreferredRound
       is-2chain : 𝕂-chain Contig (2 + n) rc
  open Cand-3-chain-vote public
 
+ v-cand-3-chain⇒0<roundv : ∀ {v} → Cand-3-chain-vote v → 0 < vRound v
+ v-cand-3-chain⇒0<roundv
+   record { votesForB = (mkVE veBlock₁ veId₁ refl)
+          ; qc = qc
+          ; qc←b = qc←b
+          ; rc = rc
+          ; n = n
+          ; is-2chain = is-2chain }
+   with qc←b
+ ... | Q←B (s≤s x) x₁ = s≤s z≤n
+
   -- Returns the round of the head of the candidate 3-chain. In the diagram
   -- explaining Cand-3-chain-vote, this would be v.grandparent.round.
  Cand-3-chain-head-round : ∀{v} → Cand-3-chain-vote v → Round

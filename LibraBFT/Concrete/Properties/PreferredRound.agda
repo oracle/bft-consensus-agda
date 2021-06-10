@@ -28,6 +28,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
  import      LibraBFT.Abstract.Records UID _≟UID_ NodeId  𝓔 (ConcreteVoteEvidence 𝓔) as Abs
  open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Concrete.Properties.VotesOnce 𝓔 as VO
  open WithAbsVote 𝓔
  open PeerCanSignForPK
  open PeerCanSignForPKinEpoch
@@ -35,8 +36,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
  -- As with VotesOnce, we will have two implementation obligations, one for when v is sent by the
  -- step and v' has been sent before, and one for when both are sent by the step.
 
- ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
- ImplObligation₁ =
+ PR-ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
+ PR-ImplObligation₁ =
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → (r : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
@@ -66,8 +67,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
            (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
 
  -- Similarly in case the same step sends both v and v'
- ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
- ImplObligation₂ =
+ PR-ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
+ PR-ImplObligation₂ =
    ∀{pid s' outs pk}{pre : SystemState}
    → (r  : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
@@ -95,10 +96,11 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
            (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
 
   -- Next, we prove that given the necessary obligations,
- module Proof
+ module PR-Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-PR1 : ImplObligation₁)
-   (Impl-PR2 : ImplObligation₂)
+   (Impl-IRO : VO.IncreasingRoundObligation)
+   (Impl-PR1 : PR-ImplObligation₁)
+   (Impl-PR2 : PR-ImplObligation₂)
    where
   -- Any reachable state satisfies the PR rule for any epoch in the system.
   module _ (st : SystemState)(r : ReachableSystemState st) where
@@ -108,12 +110,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    open        PerState st r
    open        PerEpoch 𝓔
    open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR
-
-   v-cand-3-chain⇒0<roundv : ∀ {v mbr vabs} {st : SystemState}
-                           → (r : ReachableSystemState st)
-                           → α-ValidVote 𝓔 v mbr ≡ vabs
-                           → PR.Cand-3-chain-vote vabs
-                           → 0 < v ^∙ vRound
 
    PreferredRoundProof :
       ∀ {v v' vabs v'abs pk mbr} {st : SystemState}
@@ -169,10 +165,10 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
       with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
    ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
    ...| inj₂ refl
-        = {! We should get to a contradiction here because of the increasing round rule. Notice that if
-             v is being send now and v' was sent before (by the same peer), then by the increasing round
-             rule we should have that v'.Round < v.Round, but we have that v.Round < v'.Round. Therefore
-             we cannot call the Impl-PR1 switching the arguments (as we did on VotesOnceProof). !}
+        = ⊥-elim (<⇒≯ rv<rv' (Impl-IRO r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init
+                                       (¬Msg∈⇒¬Vote∈ pkH vv newV)
+                                       (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4)
+                                       (¬subst ¬init' (msgSameSig m'sb4)) eid≡))
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
       | refl | refl
       | refl | refl
