@@ -1,9 +1,11 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
+
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
@@ -40,32 +42,50 @@ module LibraBFT.Impl.Consensus.Types where
       ₋esEpoch    : Epoch
       ₋esVerifier : ValidatorVerifier
   open EpochState public
-  unquoteDecl esEpoch esVerifier = mkLens (quote EpochState)
-    (esEpoch ∷ esVerifier ∷ [])
+  unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
+             (esEpoch ∷ esVerifier ∷ [])
+
+  data NewRoundReason : Set where
+    QCReady : NewRoundReason
+    TOReady : NewRoundReason
+
+  record NewRoundEvent : Set where
+    constructor NewRoundEvent∙new
+    field
+      ₋nreRound   : Round
+      ₋nreReason  : NewRoundReason
+    --  ₋nreTimeout : Duration
+  unquoteDecl nreRound   nreReason = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ [])
 
   record RoundState : Set where
     constructor RoundState∙new
     field
       -- ...
-      -rsCurrentRound : Round
-      -rsPendingVotes : PendingVotes
-      ₋rsVoteSent     : Maybe Vote
+      ₋rsHighestCommittedRound : Round
+      ₋rsCurrentRound          : Round
+      ₋rsPendingVotes          : PendingVotes
+      ₋rsVoteSent              : Maybe Vote
       -- ...
   open RoundState public
-  unquoteDecl rsCurrentRound rsPendingVotes rsVoteSent = mkLens (quote RoundState)
-    (rsCurrentRound ∷ rsPendingVotes ∷ rsVoteSent ∷ [])
+  unquoteDecl rsHighestCommittedRound   rsCurrentRound   rsPendingVotes
+              rsVoteSent = mkLens (quote RoundState)
+             (rsHighestCommittedRound ∷ rsCurrentRound ∷ rsPendingVotes ∷
+              rsVoteSent ∷ [])
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
-      ₋rmEpochState   : EpochState
-      -rmRoundState   : RoundState
-      ₋rmSafetyRules  : SafetyRules
+      ₋rmEpochState       : EpochState
+      ₋rmRoundState       : RoundState
+      ₋rmProposerElection : ProposerElection
+      ₋rmSafetyRules      : SafetyRules
+      ₋rmSyncOnly         : Bool
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmRoundState rmSafetyRules = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmRoundState ∷ rmSafetyRules ∷ [])
+  unquoteDecl rmEpochState   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManagerEC)
+             (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -76,12 +96,15 @@ module LibraBFT.Impl.Consensus.Types where
   -- We need enough authors to withstand the desired number of
   -- byzantine failures.  We enforce this with a predicate over
   -- 'RoundManagerEC'.
-  RoundManagerEC-correct : RoundManagerEC → Set
-  RoundManagerEC-correct rmec =
-    let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-        qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+  ValidatorVerifier-correct : ValidatorVerifier → Set
+  ValidatorVerifier-correct vv =
+    let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
+        qsize      = vv ^∙ vvQuorumVotingPower
         bizF       = numAuthors ∸ qsize
      in suc (3 * bizF) ≤ numAuthors
+
+  RoundManagerEC-correct : RoundManagerEC → Set
+  RoundManagerEC-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
 
   RoundManagerEC-correct-≡ : (rmec1 : RoundManagerEC)
                              → (rmec2 : RoundManagerEC)
@@ -132,6 +155,23 @@ module LibraBFT.Impl.Consensus.Types where
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
+  rmGetEpochState : (rm : RoundManager) → EpochState
+  rmGetEpochState rm = (₋rmEC rm) ^∙ rmEpochState
+
+  lValidatorVerifier : Lens RoundManager ValidatorVerifier
+  lValidatorVerifier = mkLens' g s
+   where
+    g : RoundManager → ValidatorVerifier
+    g rm = ₋rmEC rm  ^∙ (rmEpochState ∙ esVerifier)
+    s : RoundManager → ValidatorVerifier → RoundManager
+    s rm v = -- IMPL TODO : not sure if we need this anymore
+      let es = record (rmGetEpochState rm) { ₋esVerifier = v }
+          r  = record rm { ₋rmEC = (₋rmEC rm)
+                           [ rmEpochState := {!!}
+                           ]
+                         }
+       in r
+
   ₋rmHighestQC : (rm : RoundManager) → QuorumCert
   ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
@@ -148,6 +188,24 @@ module LibraBFT.Impl.Consensus.Types where
                         (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
                           → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestCommitCert = qc}))))
 
+  -- TODO-1? We would need lenses to be dependent to make a lens from round
+  -- managers to block stores.
+
+  rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
+  rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
+
+  rmGetValidatorVerifier : RoundManager → ValidatorVerifier
+  rmGetValidatorVerifier rm = ₋esVerifier (₋rmEpochState (₋rmEC rm))
+
+  lProposerElection : Lens RoundManager ProposerElection
+  lProposerElection = mkLens' g s
+    where
+    g : RoundManager → ProposerElection
+    g rm = ₋rmEC rm ^∙ rmProposerElection
+
+    s : RoundManager → ProposerElection → RoundManager
+    s rm pe = record rm { ₋rmEC = (₋rmEC rm) [ rmProposerElection := pe ] }
+
   lRoundState : Lens RoundManager RoundState
   lRoundState = mkLens' g s
     where
@@ -156,6 +214,15 @@ module LibraBFT.Impl.Consensus.Types where
 
     s : RoundManager → RoundState → RoundManager
     s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
+
+  lSyncOnly : Lens RoundManager Bool
+  lSyncOnly = mkLens' g s
+    where
+    g : RoundManager → Bool
+    g rm = ₋rmEC rm ^∙ rmSyncOnly
+
+    s : RoundManager → Bool → RoundManager
+    s rm so = record rm { ₋rmEC = (₋rmEC rm) [ rmSyncOnly := so ] }
 
   lPendingVotes : Lens RoundManager PendingVotes
   lPendingVotes = mkLens' g s
@@ -166,4 +233,17 @@ module LibraBFT.Impl.Consensus.Types where
     s : RoundManager → PendingVotes → RoundManager
     s rm pv = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState ∙ rsPendingVotes := pv ]  }
 
+  lSafetyRules : Lens RoundManager SafetyRules
+  lSafetyRules = mkLens' g s
+    where
+    g : RoundManager → SafetyRules
+    g rm = ₋rmEC rm ^∙ rmSafetyRules
 
+    s : RoundManager → SafetyRules → RoundManager
+    s rm sr = record rm { ₋rmEC = (₋rmEC rm) [ rmSafetyRules := sr ]}
+
+  lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
+  lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
+
+  lSafetyData : Lens RoundManager SafetyData
+  lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData

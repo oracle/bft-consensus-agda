@@ -77,14 +77,18 @@ module LibraBFT.Impl.Handle where
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (₋rmSafetyRules (₋rmEC fakeRM)))
 
+ -- TODO-1: Implement this.
+ initPE : ProposerElection
+ initPE = obm-dangerous-magic!
+
  initPV : PendingVotes
  initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
 
  initRS : RoundState
- initRS = RoundState∙new 0 initPV nothing
+ initRS = RoundState∙new 0 0 initPV nothing
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initSR
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR false
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
    init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
@@ -118,7 +122,7 @@ module LibraBFT.Impl.Handle where
  outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (-vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
+                                                               (kvm-toList (₋vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V v))) toList
 
