@@ -48,7 +48,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v'  ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
+   → ∄[ v'' ] VoteForRound∈ v'' pk (v' ^∙ vRound) (v' ^∙ vEpoch) (msgPool pre)
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- And if there exists another v' that has been sent before
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
@@ -79,12 +79,12 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
@@ -98,6 +98,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
   -- Next, we prove that given the necessary obligations,
  module PR-Proof
    (sps-corr : StepPeerState-AllValidParts)
+   (Impl-R>0 : VO.NewVoteSignedAndRound>0)
    (Impl-IRO : VO.IncreasingRoundObligation)
    (Impl-PR1 : PR-ImplObligation₁)
    (Impl-PR2 : PR-ImplObligation₂)
@@ -109,21 +110,22 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    -- Bring in intSystemState
    open        PerState st r
    open        PerEpoch 𝓔
-   open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔) as PR
 
-   PreferredRoundProof :
+   postulate
+    PreferredRoundProof :
       ∀ {v v' vabs v'abs pk mbr} {st : SystemState}
       → (r : ReachableSystemState st)
       → Meta-Honest-PK pk
-      → (vv  : WithVerSig pk v)  → MsgWithSig∈ pk (ver-signature vv)  (msgPool st)
-      → (vv' : WithVerSig pk v') → MsgWithSig∈ pk (ver-signature vv') (msgPool st)
+      → (vv  : WithVerSig pk v)  → ∃VoteMsgFor vabs
+      → (vv' : WithVerSig pk v') → ∃VoteMsgFor v'abs
       → v ^∙ vEpoch ≡ v' ^∙ vEpoch
       → v ^∙ vRound < v' ^∙ vRound
       → α-ValidVote 𝓔 v  mbr ≡ vabs
       → α-ValidVote 𝓔 v' mbr ≡ v'abs
-      → (c3 : PR.Cand-3-chain-vote vabs)
-      → Σ (PR.VoteParentData v'abs)
-           (λ vp → PR.Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
+      → (c3 : Cand-3-chain-vote vabs)
+      → Σ (VoteParentData v'abs)
+           (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
+{-
    PreferredRoundProof step-0 _ _ msv = ⊥-elim (¬Any[] (msg∈pool msv))
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
       with msgSameSig msv | msgSameSig msv'
@@ -136,7 +138,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
                                      rv'≡0 = genVotesRound≡0 vv' init'
                                  in ⊥-elim (<⇒≢ rv<rv' (trans rv≡0 (sym rv'≡0)))
    ...| yes init  | no  ¬init = let 0≡rv = sym (genVotesRound≡0 vv  init)
-                                    0<rv = v-cand-3-chain⇒0<roundv {v} (step-s r theStep) absv c3
+                                    0<rv = v-cand-3-chain⇒0<roundv c3
                                 in ⊥-elim (<⇒≢ 0<rv 0≡rv)
    ...| no  ¬init | yes init  = let 0≡rv' = sym (genVotesRound≡0 vv' init)
                                 in ⊥-elim (<⇒≱ rv<rv' (subst (v ^∙ vRound ≥_) 0≡rv' z≤n))
@@ -148,7 +150,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    ...| msb4 | m'sb4
       with  msgSameSig msb4 | msgSameSig m'sb4
    ...| refl | refl
-        = PreferredRoundProof r pkH vv msb4 vv' m'sb4 eid≡ rv<rv' absv absv' c3
+        = PreferredRoundProof r pkH vv msb4 vv' m'sb4 eid≡ rv<rv' refl refl c3
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
       | refl | refl
       | refl | refl
@@ -181,17 +183,13 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
         =  Impl-PR1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk
                     (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4))
                     eid≡ rv<rv' absv absv' c3
+-}
 
-
-   prr : PR.Type intSystemState
+   prr : Type intSystemState
    prr honα refl sv refl sv' c2 round<
      with vmsg≈v (vmFor sv) | vmsg≈v (vmFor sv')
    ...| refl | refl
        = let ver = vmsgSigned (vmFor sv)
-             mswsv = mkMsgWithSig∈ (nm (vmFor sv)) (cv (vmFor sv)) (cv∈nm (vmFor sv))
-                                    _ (nmSentByAuth sv) (vmsgSigned (vmFor sv)) refl
              ver' = vmsgSigned (vmFor sv')
-             mswsv' = mkMsgWithSig∈ (nm (vmFor sv')) (cv (vmFor sv')) (cv∈nm (vmFor sv'))
-                                     _ (nmSentByAuth sv') (vmsgSigned (vmFor sv')) refl
              epoch≡ = trans (vmsgEpoch (vmFor sv)) (sym (vmsgEpoch (vmFor sv')))
-         in PreferredRoundProof r honα ver mswsv ver' mswsv' epoch≡ round< refl refl c2
+         in PreferredRoundProof r honα ver (vmFor sv) ver' (vmFor sv') epoch≡ round< refl refl c2

@@ -55,17 +55,6 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
      msgSameRound : v ^∙ vRound ≡ round
  open MsgWithSig∈ public
 
-
- postulate
-      ¬Msg∈⇒¬Vote∈ : ∀ {v pk msgPool} → Meta-Honest-PK pk → (vv  : WithVerSig pk v)
-                 → ¬ MsgWithSig∈ pk (ver-signature vv) msgPool
-                 → ∄[ v'' ] VoteForRound∈ v'' pk (v ^∙ vRound) (v ^∙ vEpoch) msgPool
-    {- ¬Msg∈⇒¬Vote∈ pkH vv ¬msv (v'' , vfr)
-      with vfr
-    ... | mkVoteForRound∈ msgWhole₁ msg⊆₁ msgSender₁ msg∈pool₁
-                          msgSigned₁ msgSameEpoch msgSameRound
-          = ⊥-elim (¬msv (mkMsgWithSig∈ msgWhole₁ v'' msg⊆₁ msgSender₁
-                                        msg∈pool₁ msgSigned₁ {!!})) -}
 {-
  record VoteForRound∈ (pk : PK)(round : ℕ)(epoch : ℕ)(pool : SentMessages) : Set where
    constructor mkMsgWithSig∈
@@ -81,6 +70,17 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  open MsgWithSig∈ public
 -}
 
+ NewVoteSignedAndRound>0 : Set (ℓ+1 ℓ-RoundManager)
+ NewVoteSignedAndRound>0 =
+   ∀{pid s' outs pk}{pre : SystemState}
+   → ReachableSystemState pre
+   -- For any honest call to /handle/ or /init/,
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+   → ∀{v m} → Meta-Honest-PK pk
+   -- For signed every vote v of every outputted message
+   → v ⊂Msg m → send m ∈ outs
+   → Σ (WithVerSig pk v) λ sig → (¬ ∈GenInfo (ver-signature sig) → v ^∙ vRound > 0)
+
  IncreasingRoundObligation : Set (ℓ+1 ℓ-RoundManager)
  IncreasingRoundObligation =
    ∀{pid pid' s' outs pk}{pre : SystemState}
@@ -89,15 +89,16 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
-   → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   → v  ⊂Msg m → send m ∈ outs  -- We know from NewVoteSignedandRound>0 that v ^∙ Round > 0, so we
+                                -- use genvotesround≡0 to eliminate cases where signature is from
+                                -- genesisinfo
    -- If v is really new and valid, i.e. it does not exist a vote with the same round and epoch
    -- which signature verifies in the msgPool
    → ∄[ v'' ] VoteForRound∈ v'' pk (v ^∙ vRound) (v ^∙ vEpoch) (msgPool pre)
    -- → ¬ VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (msgPool pre)
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → v' ^∙ vRound > 0
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v' ^∙ vRound < v ^∙ vRound
@@ -181,15 +182,17 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     -- obligation (Impl-VO1) and case (ii) reduces to a different implementation obligation
     -- (Impl-VO2).
 
-    VotesOnceProof :
-       ∀ {v v' pk} {st : SystemState}
+    postulate
+     VotesOnceProof :
+       ∀ {v v' vfr vfr' pk} {st : SystemState}
        → ReachableSystemState st
        → Meta-Honest-PK pk
-       → (vv  : WithVerSig pk v)  → MsgWithSig∈ pk (ver-signature vv)  (msgPool st)
-       → (vv' : WithVerSig pk v') → MsgWithSig∈ pk (ver-signature vv') (msgPool st)
+       → (vv  : WithVerSig pk v)  → VoteForRound∈ vfr  pk (v  ^∙ vRound) (v  ^∙ vEpoch) (msgPool st)
+       → (vv' : WithVerSig pk v') → VoteForRound∈ vfr' pk (v' ^∙ vRound) (v' ^∙ vEpoch) (msgPool st)
        → v ^∙ vEpoch ≡ v' ^∙ vEpoch
        → v ^∙ vRound ≡ v' ^∙ vRound
        → v ^∙ vProposedId ≡ v' ^∙ vProposedId
+{-
     VotesOnceProof step-0 _ _ msv = ⊥-elim (¬Any[] (msg∈pool msv))
     VotesOnceProof {v} {v'} (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
        with msgSameSig msv | msgSameSig msv'
@@ -248,16 +251,21 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
                               (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4)
                               (¬subst ¬init (msgSameSig msb4)) (sym eid≡))
                 r≡)
+-}
 
    voo : VO.Type intSystemState
    voo hpk refl sv refl sv' round≡
       with vmsg≈v (vmFor sv) | vmsg≈v (vmFor sv')
    ...| refl | refl
+      with vmsgEpoch (vmFor sv) | vmsgEpoch (vmFor sv')
+   ...| refl | refl
        = let ver = vmsgSigned (vmFor sv)
-             mswsv = mkMsgWithSig∈ (nm (vmFor sv)) (cv (vmFor sv)) (cv∈nm (vmFor sv))
-                                    _ (nmSentByAuth sv) (vmsgSigned (vmFor sv)) refl
+             vfr  = mkVoteForRound∈ (nm (vmFor sv)) (cv∈nm (vmFor sv)) (vmSender sv)
+                                    (nmSentByAuth sv) (vmsgSigned (vmFor sv))
+                                    (vmsgEpoch (vmFor sv)) refl
              ver' = vmsgSigned (vmFor sv')
-             mswsv' = mkMsgWithSig∈ (nm (vmFor sv')) (cv (vmFor sv')) (cv∈nm (vmFor sv'))
-                                     _ (nmSentByAuth sv') (vmsgSigned (vmFor sv')) refl
+             vfr' = mkVoteForRound∈ (nm (vmFor sv')) (cv∈nm (vmFor sv')) (vmSender sv')
+                                    (nmSentByAuth sv') (vmsgSigned (vmFor sv'))
+                                    (vmsgEpoch (vmFor sv')) refl
              epoch≡ = trans (vmsgEpoch (vmFor sv)) (sym (vmsgEpoch (vmFor sv')))
-         in VotesOnceProof r hpk ver mswsv ver' mswsv' epoch≡ round≡
+         in VotesOnceProof r hpk ver vfr ver' vfr' epoch≡ round≡
