@@ -208,9 +208,10 @@ module LibraBFT.Impl.Handle.Properties where
   ...| C c = const (≤-reflexive refl)
 
   postulate -- TODO-1: prove it
-    ¬genVotesRound≢0  : ∀ {pk sig}{st : SystemState}
+    ¬genVotesRound≢0  : ∀ {pk v m pid}{st : SystemState}
                       → ReachableSystemState st
                       → Meta-Honest-PK pk
-                      → (mws : MsgWithSig∈ pk sig (msgPool st))
-                      → ¬ (∈GenInfo sig)
-                      → (msgPart mws) ^∙ vRound ≢ 0
+                      → (sig : WithVerSig pk v)
+                      → v ⊂Msg m → (pid , m) ∈ msgPool st
+                      → ¬ (∈GenInfo (ver-signature sig))
+                      → v ^∙ vRound ≢ 0
