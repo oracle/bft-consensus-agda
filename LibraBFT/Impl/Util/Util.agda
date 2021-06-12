@@ -55,10 +55,13 @@ module LibraBFT.Impl.Util.Util where
     put (record st { ₋rmWithEC = stec₁ })
     return r₁
 
-  LBFT-Contract
-    : ∀ {A} → LBFT A
-      → ((pre : RoundManager) → Set) → ((x : A) (post : RoundManager) (outs : List Output) → Set)
-      → Set
+  LBFT-Pre : Set₁
+  LBFT-Pre = (pre : RoundManager) → Set
+
+  LBFT-Post : Set → Set₁
+  LBFT-Post A = (x : A) (post : RoundManager) (outs : List Output) → Set
+
+  LBFT-Contract : ∀ {A} → LBFT A → LBFT-Pre → LBFT-Post A → Set
   LBFT-Contract m Pre Post =
     ∀ pre →
       let (r , post , outs) = RWST-run m unit pre in
