@@ -178,6 +178,10 @@ module LibraBFT.Prelude where
     renaming ([_,_] to either; map to ⊎-map)
     public
 
+  open import Data.Sum.Properties
+    using (inj₁-injective ; inj₂-injective)
+    public
+
   open import Function
     using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
     public
@@ -307,11 +311,11 @@ module LibraBFT.Prelude where
     ToBool-Dec = record { toBool = ⌊_⌋ }
 
   infix 3 _≔_
-  data GuardClause {a}{b}(A : Set a) : Set (ℓ+1 (a ℓ⊔ b)) where
+  data GuardClause {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
     _≔_ : {B : Set b}{{ bb : ToBool B }} → B → A → GuardClause A
 
   infix 3 otherwise≔_
-  data Guards {a}{b}(A : Set a) : Set (ℓ+1 (a ℓ⊔ b)) where
+  data Guards {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
    otherwise≔_ : A → Guards A
    clause     : GuardClause{a}{b} A → Guards{a}{b} A → Guards A
 

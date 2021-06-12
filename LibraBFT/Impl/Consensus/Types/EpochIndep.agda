@@ -177,6 +177,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   qcCertifiedBlock : Lens QuorumCert BlockInfo
   qcCertifiedBlock = qcVoteData ∙ vdProposed
 
+  qcParentBlock : Lens QuorumCert BlockInfo
+  qcParentBlock = qcVoteData ∙ vdParent
+
   -- Constructs a 'vote' that was gathered in a QC.
   rebuildVote : QuorumCert → Author × Signature → Vote
   rebuildVote qc (α , sig)
