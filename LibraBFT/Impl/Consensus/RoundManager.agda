@@ -87,26 +87,21 @@ module LibraBFT.Impl.Consensus.RoundManager where
   -- external entry point
   -- TODO-2: The sync info that the peer requests if it discovers that its round
   -- state is behind the sender's should be sent as an additional argument, for now.
-
-  -- This is broken up into smaller pieces in order to aid in the verification effort.
-  processProposalMsgM-check₁ : Instant → ProposalMsg → Author → LBFT Unit
-  processProposalMsgM-check₁-cont : Instant → ProposalMsg → Author → ErrLog ⊎ Bool → LBFT Unit
-
   processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
-  processProposalMsgM now {- from -} pm
-     with pm ^∙ pmProposer
-  ...| nothing = pure unit -- errorExit "ProposalMsg does not have an author"
-  ...| just auth =
-    processProposalMsgM-check₁ now pm auth
-
-  processProposalMsgM-check₁ now pm auth =
-    ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) auth true
-      >>= processProposalMsgM-check₁-cont now pm auth
-
-  processProposalMsgM-check₁-cont now pm auth = λ where
-    (inj₁ _)    → pure unit -- log: error: <propagate error>
-    (inj₂ true) → processProposalM (pm ^∙ pmProposal)
-    (inj₂ false) → pure unit -- log: info: dropping proposal for old round
+  processProposalMsgM now pm = do
+    caseMM pm ^∙ pmProposer of λ where
+      nothing →
+        return unit -- log: info: proposal with no author
+      (just pAuthor) → do
+        _r ← ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true
+        caseM⊎ _r of λ where
+          (inj₁ _) → return unit -- log: error: <propagate error>
+          (inj₂ b) →
+            ifM b
+              then processProposalM (pm ^∙ pmProposal)
+              else do
+                currentRound ← use (lRoundState ∙ rsCurrentRound)
+                return unit -- log: info: dropping proposal for old round
 
   syncUpM now syncInfo author = ok unit
 
@@ -138,7 +133,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
     _rm ← get
     let bs = rmGetBlockStore _rm
     vp ← ProposerElection.isValidProposalM proposal
-    grd‖ is-nothing (proposal ^∙ bAuthor)
+    ifM‖ is-nothing (proposal ^∙ bAuthor)
          ≔ pure unit -- log: error: proposal does not have an author
        ‖ not vp
          ≔ pure unit -- log: error: proposer for block is not valid for this round
@@ -148,8 +143,9 @@ module LibraBFT.Impl.Consensus.RoundManager where
                 λ parentBlock →
                   ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
          ≔ pure unit -- log: error: parentBlock < proposalRound
-       ‖ otherwise≔
-           (executeAndVoteM proposal >>= λ where
+       ‖ otherwise≔ do
+           _r ← executeAndVoteM proposal
+           caseM⊎ _r of λ where
              (inj₁ _) → pure unit -- propagate error
              (inj₂ vote) → do
                RoundState.recordVote (unmetaVote vote) {- vote -}
@@ -157,7 +153,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
                recipient ← ProposerElection.getValidProposer
                              <$> use lProposerElection
                              <*> pure (proposal ^∙ bRound + 1)
-               act (SendVote (MetaVoteMsg∙new vote si) (recipient ∷ [])))
+               act (SendVote (MetaVoteMsg∙new vote si) (recipient ∷ []))
                -- TODO-1                         {- mkNodesInOrder1 recipient-}
 
   executeAndVoteM b =
@@ -165,7 +161,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
     so ← use lSyncOnly
-    grd‖ is-just vs
+    ifM‖ is-just vs
          ≔ bail unit -- already voted this round
        ‖ so
          ≔ bail unit -- sync-only set
