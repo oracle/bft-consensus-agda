@@ -17,9 +17,10 @@ open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore       as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStoreSpec   as BlockStoreSpec
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlock
+import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerElection
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage     as PersistentLivenessStorage
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules       as SafetyRules
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesSpec   as SafetyRulesSpec
-import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerElection
 open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
@@ -40,9 +41,81 @@ module FakeProcessProposalMsg where
                → (unmetaVoteMsg vm) ^∙ vmSyncInfo ≡ SyncInfo∙new (₋rmHighestQC pre) (₋rmHighestCommitQC pre)
   procPMCerts≡ (here refl) = refl
 
+
+module ExecuteAndVoteM (b : Block) where
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
+  open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
+
+  open RWST-do
+
+  VoteSrcCorrect = ConstructAndSignVoteM.VoteSrcCorrect
+
+  c₂ : ExecutedBlock → Round → Maybe Vote → Bool → LBFT (ErrLog ⊎ MetaVote)
+  c₂ eb cr vs so =
+    ifM‖ is-just vs
+         ≔ bail unit -- already voted this round
+       ‖ so
+         ≔ bail unit -- sync-only set
+       ‖ otherwise≔ do
+         let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
+         SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
+           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM (unmetaVote vote)
+           ∙?∙ λ _ → ok vote
+
+  c₁ : ExecutedBlock → LBFT (ErrLog ⊎ MetaVote)
+  c₁ eb = do
+    cr ← use (lRoundState ∙ rsCurrentRound)
+    vs ← use (lRoundState ∙ rsVoteSent)
+    so ← use lSyncOnly
+    c₂ eb cr vs so
+
+  voteSrcCorrect
+    : ∀ pre
+      → RWST-weakestPre (executeAndVoteM b) (VoteSrcCorrect pre) unit pre
+  voteSrcCorrect pre =
+    ExecuteAndInsertBlockM.contract-rwst-∙?∙ b (VoteSrcCorrect pre) pre
+      c₁ unit vsc₂
+    where
+    module _ (eb : ExecutedBlock) (bs : BlockStore _) where
+      st₁ = rmSetBlockStore pre bs
+      cr  = st₁ ^∙ lRoundState ∙ rsCurrentRound
+      vs  = st₁ ^∙ lRoundState ∙ rsVoteSent
+      so  = st₁ ^∙ lSyncOnly
+      maybeSignedVoteProposal = ExecutedBlock.maybeSignedVoteProposal eb
+
+      vsc₂ : RWST-weakestPre (c₂ eb cr vs so) (VoteSrcCorrect pre) unit st₁
+      proj₁ vsc₂ _ = unit
+      proj₁ (proj₂ vsc₂ _) _ = unit
+      proj₁ (proj₂ (proj₂ vsc₂ _) _) =
+        let con = ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl in
+        RWST-impl
+          (ConstructAndSignVoteM.VoteSrcCorrect pre)
+          (λ x post outs →
+             (c : ErrLog) → x ≡ inj₁ c → VoteSrcCorrect pre (inj₁ c) post outs)
+          (λ x st outs vsc c c≡ → unit)
+          (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
+          (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl)
+        -- RWST-impl _ {!!} {!VoteSrcCorrect!} (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
+        --   (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁
+        --      refl)
+      proj₂ (proj₂ (proj₂ vsc₂ _) _) = {!!}
+        -- ConstructAndSignVoteM.voteSrcCorrect (ExecutedBlock.maybeSignedVoteProposal eb) pre st₁ ?
+    -- vsc₂ : ∀ eb bs cr vs so → RWST-weakestPre (c₂ eb cr vs so) (VoteSrcCorrect pre) unit (rmSetBlockStore pre bs)
+    -- vsc₂ = {!!}
+
 module ProcessProposalMsgM where
   open RWST-do
 
+  VoteSrcCorrect : RoundManager → LBFT-Post Unit
+  VoteSrcCorrect pre x post outs =
+    ∀ mv αs → SendVote mv αs ∈ outs → Cod mv
+    where
+    Cod : MetaVoteMsg → Set
+    Cod (MetaVoteMsg∙new (MetaVote∙new vote mvsNew) _) = Unit
+    Cod (MetaVoteMsg∙new (MetaVote∙new vote mvsLastVote) _) =
+      just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
+
+{-
   m∈outs⇒ : ∀ {nm ts pm pre} → nm ∈ LBFT-outs (processProposalMsgM ts pm) pre
             → let messageRound = pm ^∙ pmProposal ∙ bRound
                   syncInfo     = pm ^∙ pmSyncInfo
@@ -111,5 +184,6 @@ module ProcessProposalMsgM where
       | a , pmAuth , mr≥cr , here refl | yes proof₁ | just a' | a“ | yes proof₂ | just _ | just parentBlock | yes proof | refl | eaib-rw | inj₂ eb , rm₁ , .[]
       | nothing | false | maybeSignedVoteProposal' | csv-vsc | refl | inj₂ mv , rm₂ , .[]
       | refl | si , rm₃ , .[] rewrite sym eaib-rw = csv-vsc src≡LastVote
+-}
 
 open FakeProcessProposalMsg public

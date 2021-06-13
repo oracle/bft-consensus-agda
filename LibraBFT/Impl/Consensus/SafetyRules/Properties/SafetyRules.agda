@@ -32,28 +32,30 @@ module VerifyAndUpdatePreferredRoundM (quorumCert : QuorumCert) (safetyData : Sa
   C₃ = ⌊ twoChainRound <? preferredRound ⌋ ≡_
   C₄ = ⌊ twoChainRound ≟  preferredRound ⌋ ≡_
 
-  contract
-    : ∀ P pre
-      → (C₁ true → P (inj₁ unit) pre [])
-      → (C₁ false
-         → (C₂ true → P (inj₂ (safetyData [ sdPreferredRound := twoChainRound ])) pre [])
-           × (C₃ true → P (inj₂ safetyData) pre [])
-           × (C₄ true → P (inj₂ safetyData) pre []))
-      → RWST-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData) P unit pre
-  proj₁ (contract P₁ pre b o) = b
-  proj₁ (proj₂ (contract P₁ pre b o) c₁f) c₂t = proj₁ (o c₁f) c₂t
-  proj₁ (proj₂ (proj₂ (contract P₁ pre b o) c₁f) c₂f) c₃t = proj₁ (proj₂ (o c₁f)) c₃t
-  proj₂ (proj₂ (proj₂ (contract P₁ pre b o) c₁f) c₂f) c₃f
-    with twoChainRound ≟ preferredRound
-  ...| yes proof = proj₂ (proj₂ (o c₁f)) refl
-  ...| no  proof
-     with twoChainRound >? preferredRound
-     |    twoChainRound <? preferredRound
-  ...| no pf₁ | no pf₂
-     with <-cmp twoChainRound preferredRound
-  ... | tri< imp _ _ = ⊥-elim (pf₂ imp)
-  ... | tri≈ _ imp _ = ⊥-elim (proof imp)
-  ... | tri> _ _ imp = ⊥-elim (pf₁ imp)
+  postulate
+    contract
+      : ∀ P pre
+        → (C₁ true → P (inj₁ unit) pre [])
+        → (C₁ false
+          → (C₂ true → P (inj₂ (safetyData [ sdPreferredRound := twoChainRound ])) pre [])
+            × (C₃ true → P (inj₂ safetyData) pre [])
+            × (C₄ true → P (inj₂ safetyData) pre []))
+        → RWST-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData) P unit pre
+
+  -- proj₁ (contract P₁ pre b o) = b
+  -- proj₁ (proj₂ (contract P₁ pre b o) c₁f) c₂t = proj₁ (o c₁f) c₂t
+  -- proj₁ (proj₂ (proj₂ (contract P₁ pre b o) c₁f) c₂f) c₃t = proj₁ (proj₂ (o c₁f)) c₃t
+  -- proj₂ (proj₂ (proj₂ (contract P₁ pre b o) c₁f) c₂f) c₃f
+  --   with twoChainRound ≟ preferredRound
+  -- ...| yes proof = proj₂ (proj₂ (o c₁f)) refl
+  -- ...| no  proof
+  --    with twoChainRound >? preferredRound
+  --    |    twoChainRound <? preferredRound
+  -- ...| no pf₁ | no pf₂
+  --    with <-cmp twoChainRound preferredRound
+  -- ... | tri< imp _ _ = ⊥-elim (pf₂ imp)
+  -- ... | tri≈ _ imp _ = ⊥-elim (proof imp)
+  -- ... | tri> _ _ imp = ⊥-elim (pf₁ imp)
 
   contract-rwst
     : ∀ P pre
@@ -66,26 +68,14 @@ module VerifyAndUpdatePreferredRoundM (quorumCert : QuorumCert) (safetyData : Sa
              , (λ _ → o safetyData)
              , λ _ → o safetyData)
 
-  contract-rwst-∙?∙
-    : ∀ {A} P pre (m : SafetyData → LBFT (ErrLog ⊎ A))
-      → P (inj₁ unit) pre []
-      → (∀ safetyData1 → RWST-weakestPre (m safetyData1) P unit pre)
-      → RWST-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData ∙?∙ m) P unit pre
-  proj₁ (contract-rwst-∙?∙ Post pre m b o) =
-    contract-rwst (λ x post outs → (c : ErrLog) → x ≡ inj₁ c → Post (inj₁ c) post outs) pre
-      (λ {unit _ → b})
-      λ { _ _ ()}
-  proj₂ (contract-rwst-∙?∙ Post pre m b o) =
-    contract-rwst
-      (λ x post outs →
-        (safetyData1 : SafetyData) → x ≡ inj₂ safetyData1
-        → RWST-weakestPre (m safetyData1) (RWST-Post++ Post outs) unit post)
-      pre
-      (λ { _ ()})
-      λ { safetyData1 ._ refl → o safetyData1}
-
 module ExtensionCheckM (voteProposal : VoteProposal) where
   postulate
+    contract
+      : ∀ P pre
+        → P (inj₁ unit) pre []
+        → (∀ voteData → P (inj₂ voteData) pre [])
+        → RWST-weakestPre (extensionCheckM voteProposal) P unit pre
+
     contract-∙?∙
       : ∀ {A} P pre {m : VoteData → LBFT (ErrLog ⊎ A)}
         → P (inj₁ unit) pre []
@@ -105,19 +95,18 @@ module ConstructLedgerInfoM (proposedBlock : Block) (consensusDataHash : HashVal
       → P (inj₁ unit) pre []
       → (∀ ledgerInfo → RWST-weakestPre (m ledgerInfo) P unit pre)
       → RWST-weakestPre (constructLedgerInfoM proposedBlock consensusDataHash ∙?∙ m) P unit pre
-  proj₁ (contract-rwst-∙?∙ Post pre {m} b o) = contract _ pre (λ { unit _ → b }) λ { _ _ ()}
-  proj₂ (contract-rwst-∙?∙ Post pre {m} b o) = contract _ pre (λ {_ ()}) (λ {li₁ .li₁ refl → o li₁})
+  contract-rwst-∙?∙ Post pre {m} b o =
+    contract (RWST-weakestPre-ebindPost unit m Post) pre
+      b λ {ledgerInfo ._ refl → o ledgerInfo}
 
 module VerifyEpochM (epoch : Epoch) (safetyData : SafetyData) where
-  contract-rwst-∙?∙
-    : ∀ {A} P pre (m : Unit → LBFT (ErrLog ⊎ A))
+  contract-rwst
+    : ∀ P pre
       → P (inj₁ unit) pre []
-      → RWST-weakestPre (m unit) P unit pre
-      → RWST-weakestPre (verifyEpochM epoch safetyData ∙?∙ m) P unit pre
-  proj₁ (proj₁ (contract-rwst-∙?∙ Post pre m b o)) _ unit _ = b
-  proj₂ (proj₁ (contract-rwst-∙?∙ Post pre m b o)) _ _ ()
-  proj₁ (proj₂ (contract-rwst-∙?∙ Post pre m b o)) _ _ ()
-  proj₂ (proj₂ (contract-rwst-∙?∙ Post pre m b o)) _ unit _ = o
+      → P (inj₂ unit) pre []
+      → RWST-weakestPre (verifyEpochM epoch safetyData) P unit pre
+  proj₁ (contract-rwst Post pre b o) _ = b
+  proj₂ (contract-rwst Post pre b o) _ = o
 
 
 module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) where
@@ -127,10 +116,9 @@ module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) w
   contract
     : ∀ P pre
       → (C₁ false → P (inj₁ unit) pre [])
-      → (C₁ true → (safetyData1 : SafetyData) → safetyData≡ safetyData1
-         → P (inj₂ safetyData1) pre [])
+      → (C₁ true → P (inj₂ (safetyData [ sdLastVotedRound := round ])) pre [])
       → RWST-weakestPre (verifyAndUpdateLastVoteRoundM round safetyData) P unit pre
-  proj₁ (contract P₁ pre b o) c₁t = o c₁t _ refl
+  proj₁ (contract P₁ pre b o) c₁t = o c₁t
   proj₂ (contract P₁ pre b o) c₁f = b c₁f
 
   contract-rwst
@@ -138,39 +126,24 @@ module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) w
       → P (inj₁ unit) pre []
       → (∀ safetyData1 → P (inj₂ safetyData1) pre [])
       → RWST-weakestPre (verifyAndUpdateLastVoteRoundM round safetyData) P unit pre
-  contract-rwst Post pre b o = contract Post pre (λ _ → b) λ _ safetyData _ → o safetyData
-
-  contract-∙?∙
-    : ∀ {A : Set} P pre {m : SafetyData → LBFT (ErrLog ⊎ A)}
-      → (C₁ false → P (inj₁ unit) pre [])
-      → (C₁ true
-         → (safetyData1 : SafetyData) → safetyData≡ safetyData1
-         → RWST-weakestPre (m safetyData1) P unit pre)
-      → RWST-weakestPre (verifyAndUpdateLastVoteRoundM round safetyData ∙?∙ m) P unit pre
-  proj₁ (proj₁ (contract-∙?∙ Post pre {m} b o)) _ _ ()
-  proj₂ (proj₁ (contract-∙?∙ Post pre {m} b o)) c₁f unit _ = b c₁f
-  proj₁ (proj₂ (contract-∙?∙ Post pre {m} b o)) c₁t ._ refl = o c₁t _ refl
-  proj₂ (proj₂ (contract-∙?∙ Post pre {m} b o)) _ _ ()
+  contract-rwst Post pre b o = contract Post pre (λ _ → b) λ _ → o _
 
 module VerifyQcM (qc : QuorumCert) where
   postulate
     -- TODO-2: needs refining, when verifyQcM is implemented
-    contract
+    contract-rwst
       : ∀ P pre
         → (P (inj₁ unit) pre [])
         → (P (inj₂ unit) pre [])
         → RWST-weakestPre (verifyQcM qc) P unit pre
 
-    contract-rwst-∙?∙
-      : ∀ {A} P pre {m : LBFT (ErrLog ⊎ A)}
-        → P (inj₁ unit) pre []
-        → (RWST-weakestPre m P unit pre)
-        → RWST-weakestPre (verifyQcM qc ∙?∙ λ _ → m) P unit pre
-
 module ConstructAndSignVoteM where
-  VoteSrcCorrect₁₂ : LBFT-Post (ErrLog ⊎ MetaVote)
-  VoteSrcCorrect₁₂ (inj₁ _) post outs = Unit
-  VoteSrcCorrect₁₂ (inj₂ v) post outs = v ^∙ mvSrc ≡ mvsNew
+  VoteSrcCorrect : RoundManager → LBFT-Post (ErrLog ⊎ MetaVote)
+  VoteSrcCorrect rm e@(inj₁ x) post outs = Unit
+  VoteSrcCorrect rm mv@(inj₂ (MetaVote∙new v mvsNew)) post outs
+    = just v ≡ (post ^∙ lSafetyData ∙ sdLastVote)
+  VoteSrcCorrect rm (inj₂ (MetaVote∙new v mvsLastVote)) post outs =
+    just v ≡ (rm ^∙ lSafetyData ∙ sdLastVote)
 
   module Continue2
     (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) (proposedBlock : Block)
@@ -203,26 +176,24 @@ module ConstructAndSignVoteM where
         c₂ safetyData1 voteData
 
     voteSrcCorrect
-      : ∀ pre
+      : ∀ rm pre
         → RWST-weakestPre
             (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData)
-            VoteSrcCorrect₁₂ unit pre
-    voteSrcCorrect pre =
-      VerifyAndUpdateLastVoteRoundM.contract-∙?∙ round safetyData
-        VoteSrcCorrect₁₂ pre {m = c₁}
+            (VoteSrcCorrect rm) unit pre
+    voteSrcCorrect rm pre =
+      VerifyAndUpdateLastVoteRoundM.contract round safetyData
+        (RWST-weakestPre-ebindPost unit c₁ (VoteSrcCorrect rm)) pre
         (λ _ → unit)
-        λ _ safetyData1 _ →
-          let st₁ = pre [ lSafetyData := safetyData1 ] in
-          ExtensionCheckM.contract-∙?∙ voteProposal VoteSrcCorrect₁₂ st₁
-           {m = c₂ safetyData1}
-           unit
-           λ voteData →
-             let author = validatorSigner ^∙ vsAuthor in
-             ConstructLedgerInfoM.contract-rwst-∙?∙ proposedBlock (Crypto.hashVD voteData)
-               VoteSrcCorrect₁₂ st₁
-               {m = c₃ safetyData1 voteData author}
-               unit
-               λ ledgerInfo → refl
+        λ _ safetyData1 safetyData1≡ → λ where
+          ._ refl unit _ →
+            let st₁ = pre [ lSafetyData := safetyData1 ] in
+            ExtensionCheckM.contract voteProposal (RWST-weakestPre-ebindPost unit (c₂ safetyData1) _) st₁
+              unit
+              λ _ voteData _ →
+                ConstructLedgerInfoM.contract proposedBlock (Crypto.hashVD voteData)
+                  (RWST-weakestPre-ebindPost _ (c₃ safetyData1 voteData author) _) st₁
+                  unit
+                  λ _ ledgerInfo _ → λ _ _ _ _ → refl
 
   module Continue1
     (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) (proposedBlock : Block)
@@ -245,30 +216,25 @@ module ConstructAndSignVoteM where
       c₂ validatorVerifier
 
     voteSrcCorrect
-      : ∀ pre
+      : ∀ rm pre
         → RWST-weakestPre
           (constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0)
-          VoteSrcCorrect₁₂ unit pre
-    voteSrcCorrect pre =
-      VerifyQcM.contract-rwst-∙?∙ (proposedBlock ^∙ bQuorumCert) VoteSrcCorrect₁₂ pre
-        {m = c₁} unit
-        ((λ _ _ → unit)
-        , λ {unit _ →
-          VerifyAndUpdatePreferredRoundM.contract-rwst-∙?∙
-            (proposedBlock ^∙ bQuorumCert) safetyData0 VoteSrcCorrect₁₂
-            pre (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock)
-            unit
-            (λ safetyData1 →
-              Continue2.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData1 pre)})
-
-  VoteSrcCorrect : RoundManager → LBFT-Post (ErrLog ⊎ MetaVote)
-  VoteSrcCorrect pre e@(inj₁ x) post outs =
-    VoteSrcCorrect₁₂ e post outs
-  VoteSrcCorrect pre mv@(inj₂ (MetaVote∙new ₋mvVote mvsNew)) post outs =
-    VoteSrcCorrect₁₂ mv post outs
-  VoteSrcCorrect pre (inj₂ (MetaVote∙new v mvsLastVote)) post outs =
-    just v ≡ (pre ^∙ lSafetyData ∙ sdLastVote)
-
+          (VoteSrcCorrect rm) unit pre
+    voteSrcCorrect rm pre =
+      VerifyQcM.contract-rwst (proposedBlock ^∙ bQuorumCert)
+        (RWST-weakestPre-ebindPost unit (λ _ → c₁) _) pre unit λ where
+          unit _ ._ refl → λ validatorVerifier vv≡ →
+            either {C = λ x → RWST-weakestPre (pure x ∙?∙ c₃) (VoteSrcCorrect rm) _ _}
+              (const unit)
+              (λ _ _ _ →
+                VerifyAndUpdatePreferredRoundM.contract-rwst (proposedBlock ^∙ bQuorumCert) safetyData0
+                  (RWST-weakestPre-ebindPost unit
+                     (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock)
+                     _)
+                  pre unit
+                  λ _ safetyData1 _ →
+                    Continue2.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData1 rm pre)
+              (Block.validateSignature proposedBlock validatorVerifier)
 
   module Continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
 
@@ -284,20 +250,28 @@ module ConstructAndSignVoteM where
     proposedBlock = voteProposal ^∙ vpBlock
 
     voteSrcCorrect
-      : ∀ pre
+      : ∀ rm pre → rm ≡L pre at (lSafetyData ∙ sdLastVote)
         → RWST-weakestPre
             (constructAndSignVoteM-continue0 voteProposal validatorSigner)
-            (VoteSrcCorrect pre) unit pre
-    voteSrcCorrect pre =
-      VerifyEpochM.contract-rwst-∙?∙ (proposedBlock ^∙ bEpoch) safetyData0 (VoteSrcCorrect pre) pre
-        (λ _ → c₁ proposedBlock safetyData0)
-        unit vsc₁
-      where
-      safetyData0 = pre ^∙ lSafetyData
+            (VoteSrcCorrect rm) unit pre
+    proj₁ (voteSrcCorrect rm pre pf _ refl safetyData0 safetyData0≡) _ = unit
+    proj₁ (proj₂ (voteSrcCorrect rm pre pf _ refl safetyData0 safetyData0≡) _ unit _) ≡nothing
+      = Continue1.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData0 rm pre
+    proj₁ (proj₂ (proj₂ (voteSrcCorrect rm pre pf _ refl safetyData0@_ safetyData0≡) _ unit _) _ refl) _
+      rewrite pf = cong (_^∙ sdLastVote) safetyData0≡
+    proj₂ (proj₂ (proj₂ (voteSrcCorrect rm pre pf _ refl safetyData0@_ safetyData0≡) _ unit _) _ refl) _
+      = Continue1.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData0 rm pre
 
-      vsc₁ : RWST-weakestPre (c₁ proposedBlock safetyData0) (VoteSrcCorrect pre) unit pre
-      proj₁ vsc₁ x =
-        Continue1.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData0 pre
-      proj₁ (proj₂ vsc₁ v lastVote) _ = sym lastVote
-      proj₂ (proj₂ vsc₁ v lastVote) _ =
-        Continue1.voteSrcCorrect voteProposal validatorSigner proposedBlock safetyData0 pre
+  module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
+
+    voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
+
+    voteSrcCorrect
+      : ∀ rm pre → rm ≡L pre at (lSafetyData ∙ sdLastVote)
+        → RWST-weakestPre
+          (constructAndSignVoteM maybeSignedVoteProposal)
+          (VoteSrcCorrect rm) unit pre
+    proj₁ (voteSrcCorrect rm pre pf _ refl vs vs≡) ≡nothing = unit
+    proj₂ (voteSrcCorrect rm pre pf _ refl vs vs≡) validatorSigner validatorSigner≡ =
+      Continue0.voteSrcCorrect voteProposal validatorSigner rm pre pf
+
