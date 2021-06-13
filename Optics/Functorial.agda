@@ -67,3 +67,7 @@ module Optics.Functorial where
   infixr 30 _∙_
   _∙_ : ∀{S A B} → Lens S A → Lens A B → Lens S B
   (lens p) ∙ (lens q) = lens (λ F rf x x₁ → p F rf (q F rf x) x₁)
+
+  -- Equality of fields
+  _≡L_at_ : ∀ {S A} (s₁ s₂ : S) → Lens S A → Set
+  s₁ ≡L s₂ at l = s₁ ^∙ l ≡ s₂ ^∙ l

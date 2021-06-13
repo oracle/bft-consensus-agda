@@ -166,6 +166,9 @@ module LibraBFT.Impl.Consensus.Types where
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
   rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
 
+  rmSetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm) → RoundManager
+  rmSetBlockStore rm bs = record rm { ₋rmWithEC = RoundManagerWithEC∙new bs }
+
   rmGetValidatorVerifier : RoundManager → ValidatorVerifier
   rmGetValidatorVerifier rm = ₋esVerifier (₋rmEpochState (₋rmEC rm))
 
