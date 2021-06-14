@@ -73,13 +73,12 @@ RWST-PredTrans : (Ev Wr St A : Set) → Set₁
 RWST-PredTrans Ev Wr St A = RWST-Post Wr St A → RWST-Pre Ev St
 
 RWST-weakestPre-ebindPost : (ev : Ev) (f : A → RWST Ev Wr St (C ⊎ B)) → RWST-Post Wr St (C ⊎ B) → RWST-Post Wr St (C ⊎ A)
+RWST-weakestPre-bindPost  : (ev : Ev) (f : A → RWST Ev Wr St B) → RWST-Post Wr St B → RWST-Post Wr St A
 
 RWST-weakestPre : (m : RWST Ev Wr St A) → RWST-PredTrans Ev Wr St A
 RWST-weakestPre (RWST-return x) P ev pre = P x pre []
 RWST-weakestPre (RWST-bind m f) P ev pre =
-  RWST-weakestPre m
-    (λ x post outs →
-      ∀ r → r ≡ x → RWST-weakestPre (f r) (RWST-Post++ P outs) ev post) ev pre
+  RWST-weakestPre m (RWST-weakestPre-bindPost ev f P) ev pre
 RWST-weakestPre RWST-get P ev pre = P pre pre []
 RWST-weakestPre (RWST-put post) P ev pre = P unit post []
 RWST-weakestPre RWST-ask P ev pre = P ev pre []
@@ -106,6 +105,9 @@ RWST-weakestPre-ebindPost ev f Post (inj₁ r) post outs =
   Post (inj₁ r) post outs
 RWST-weakestPre-ebindPost ev f Post (inj₂ r) post outs =
   ∀ c → c ≡ r → RWST-weakestPre (f c) (RWST-Post++ Post outs) ev post
+
+RWST-weakestPre-bindPost ev f Post x post outs =
+  ∀ r → r ≡ x → RWST-weakestPre (f r) (RWST-Post++ Post outs) ev post
 
 RWST-Contract : (m : RWST Ev Wr St A) → Set₁
 RWST-Contract{Ev}{Wr}{St}{A} m =
@@ -296,6 +298,48 @@ RWST-impl P Q impl (RWST-ebind m f) ev st pre =
     m ev st pre
 proj₁ (RWST-impl P Q impl (RWST-maybe x m f) ev st (pre₁ , pre₂)) ≡nothing = RWST-impl _ _ impl m ev st (pre₁ ≡nothing)
 proj₂ (RWST-impl P Q impl (RWST-maybe x m f) ev st (pre₁ , pre₂)) b b≡ = RWST-impl _ _ impl (f b) ev st (pre₂ b b≡)
+
+RWST-×
+  : ∀ (P Q : RWST-Post Wr St A) m (ev : Ev) st
+    → RWST-weakestPre m P ev st → RWST-weakestPre m Q ev st
+    → RWST-weakestPre m (λ x post outs → P x post outs × Q x post outs) ev st
+RWST-× P Q (RWST-return x) ev st p q = p , q
+RWST-× P Q (RWST-bind m f) ev st p q
+   with RWST-×
+          (RWST-weakestPre-bindPost ev f P)
+          (RWST-weakestPre-bindPost ev f Q) m ev st
+          p q
+...| res =
+  RWST-impl _ _
+    (λ r st₁ outs pf r' r'≡ →
+      RWST-× (RWST-Post++ P outs) (RWST-Post++ Q outs) (f r') ev st₁ (proj₁ pf r' r'≡) (proj₂ pf r' r'≡))
+    m ev st res
+RWST-× P Q RWST-get ev st p q = p , q
+RWST-× P Q (RWST-put x) ev st p q = p , q
+RWST-× P Q RWST-ask ev st p q = p , q
+RWST-× P Q (RWST-tell x) ev st p q = p , q
+RWST-× P Q (RWST-if (clause (b ≔ c) gs)) ev st p q =
+  (λ b≡ → RWST-× P Q c ev st (proj₁ p b≡) (proj₁ q b≡))
+  , λ b≡ → RWST-× P Q (RWST-if gs) ev st (proj₂ p b≡) (proj₂ q b≡)
+RWST-× P Q (RWST-if (otherwise≔ c)) ev st p q = RWST-× P Q c ev st p q
+RWST-× P Q (RWST-either e c₁ c₂) ev st p q =
+  (λ x x≡ → RWST-× P Q (c₁ x) ev st (proj₁ p x x≡) (proj₁ q x x≡))
+  , (λ x x≡ → RWST-× P Q (c₂ x) ev st (proj₂ p x x≡) (proj₂ q x x≡))
+RWST-× P Q (RWST-ebind m f) ev st p q
+  with RWST-×
+         (RWST-weakestPre-ebindPost ev f P)
+         (RWST-weakestPre-ebindPost ev f Q) m ev st p q
+...| res =
+  RWST-impl _ _
+    (λ where
+      (inj₁ c) st₁ outs pf → pf
+      (inj₂ a) st₁ outs (p' , q') c c≡ →
+        RWST-× _ _ (f c) ev st₁ (p' c c≡) (q' c c≡))
+    m ev st res
+RWST-× P Q (RWST-maybe m c₁ c₂) ev st p q =
+  (λ ≡nothing → RWST-× P Q c₁ ev st (proj₁ p ≡nothing) (proj₁ q ≡nothing))
+  , (λ j j≡ → RWST-× P Q (c₂ j) ev st (proj₂ p j j≡) (proj₂ q j j≡))
+
 {-
   -- Derived Functionality
 
@@ -317,4 +361,3 @@ _∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
       (inj₂ r) → pure (inj₂ r)
     where open RWST-do
 -}
-
