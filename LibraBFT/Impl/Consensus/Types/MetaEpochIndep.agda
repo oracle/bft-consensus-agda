@@ -18,37 +18,37 @@ module LibraBFT.Impl.Consensus.Types.MetaEpochIndep where
 data MetaVoteSrc : Set where
   mvsNew mvsLastVote : MetaVoteSrc
 
-record MetaVote : Set where
-  constructor MetaVote∙new
+record VoteWithMeta : Set where
+  constructor VoteWithMeta∙new
   field
     ₋mvVote : Vote
     ₋mvSrc  : MetaVoteSrc
 open Vote public
 unquoteDecl mvVote mvSrc =
-  mkLens (quote MetaVote) (mvVote ∷ mvSrc ∷ [])
+  mkLens (quote VoteWithMeta) (mvVote ∷ mvSrc ∷ [])
 
-unmetaVote : MetaVote → Vote
+unmetaVote : VoteWithMeta → Vote
 unmetaVote mv = mv ^∙ mvVote
 
-record MetaVoteMsg : Set where
-  constructor MetaVoteMsg∙new
+record VoteMsgWithMeta : Set where
+  constructor VoteMsgWithMeta∙new
   field
-    ₋mvmVote     : MetaVote
-    ₋mvmSyncInfo : SyncInfo
-unquoteDecl mvmVote   mvmSyncInfo = mkLens (quote MetaVoteMsg)
-            (mvmVote ∷ mvmSyncInfo ∷ [])
+    ₋mvmVoteMsg  : VoteMsg
+    ₋mvmSrc      : MetaVoteSrc
+unquoteDecl mvmVoteMsg   mvmSrc = mkLens (quote VoteMsgWithMeta)
+           (mvmVoteMsg ∷ mvmSrc ∷ [])
 
-mvmSrc : Lens MetaVoteMsg MetaVoteSrc
-mvmSrc = mvmVote ∙ mvSrc
+VoteMsgWithMeta∙fromVoteWithMeta : VoteWithMeta → SyncInfo → VoteMsgWithMeta
+VoteMsgWithMeta∙fromVoteWithMeta mv si = VoteMsgWithMeta∙new (VoteMsg∙new (unmetaVote mv) si) (mv ^∙ mvSrc)
 
-unmetaVoteMsg : MetaVoteMsg → VoteMsg
-unmetaVoteMsg mvm = VoteMsg∙new (unmetaVote (mvm ^∙ mvmVote)) (mvm ^∙ mvmSyncInfo)
+unmetaVoteMsg : VoteMsgWithMeta → VoteMsg
+unmetaVoteMsg = _^∙ mvmVoteMsg
 
 data Output : Set where
-  BroadcastProposal : ProposalMsg               → Output
-  LogErr            : String                    → Output
-  -- LogInfo           : InfoLog a              → Output
-  SendVote          : MetaVoteMsg → List Author → Output
+  BroadcastProposal : ProposalMsg                   → Output
+  LogErr            : String                        → Output
+  -- LogInfo           : InfoLog a                  → Output
+  SendVote          : VoteMsgWithMeta → List Author → Output
 open Output public
 
 SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2

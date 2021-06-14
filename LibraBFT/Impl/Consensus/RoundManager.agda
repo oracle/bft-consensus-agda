@@ -64,14 +64,14 @@ module LibraBFT.Impl.Consensus.RoundManager where
                     fakeSig
                     nothing
         sv = record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
-        mvs = MetaVote∙new sv mvsNew -- Tracking the source of the vote
+        mvs = VoteWithMeta∙new sv mvsNew -- Tracking the source of the vote
         bt = rmw ^∙ (lBlockTree 𝓔)
         si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
         rm' = rm [ rmLastVotedRound := nr ]
         st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc)
                                    (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
     put st'
-    tell1 (SendVote (MetaVoteMsg∙new mvs si) (fakeAuthor ∷ []))
+    tell1 (SendVote (VoteMsgWithMeta∙fromVoteWithMeta mvs si) (fakeAuthor ∷ []))
     pure unit
 
   processVote : Instant → VoteMsg → LBFT Unit
@@ -82,7 +82,7 @@ module LibraBFT.Impl.Consensus.RoundManager where
   ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
                           LBFT (ErrLog ⊎ Bool)
   processProposalM : Block → LBFT Unit
-  executeAndVoteM : Block → LBFT (ErrLog ⊎ MetaVote)
+  executeAndVoteM : Block → LBFT (ErrLog ⊎ VoteWithMeta)
 
   -- external entry point
   -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -153,8 +153,9 @@ module LibraBFT.Impl.Consensus.RoundManager where
                recipient ← ProposerElection.getValidProposer
                              <$> use lProposerElection
                              <*> pure (proposal ^∙ bRound + 1)
-               act (SendVote (MetaVoteMsg∙new vote si) (recipient ∷ []))
-               -- TODO-1                         {- mkNodesInOrder1 recipient-}
+               act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si)
+                             (recipient ∷ []))
+               -- TODO-1   {- mkNodesInOrder1 recipient-}
 
   executeAndVoteM b =
     BlockStore.executeAndInsertBlockM b {- ∙^∙ logging -} ∙?∙ λ eb → do

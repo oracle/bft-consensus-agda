@@ -138,11 +138,11 @@ module VerifyQcM (qc : QuorumCert) where
         → RWST-weakestPre (verifyQcM qc) P unit pre
 
 module ConstructAndSignVoteM where
-  VoteSrcCorrect : RoundManager → LBFT-Post (ErrLog ⊎ MetaVote)
+  VoteSrcCorrect : RoundManager → LBFT-Post (ErrLog ⊎ VoteWithMeta)
   VoteSrcCorrect rm e@(inj₁ x) post outs = Unit
-  VoteSrcCorrect rm mv@(inj₂ (MetaVote∙new v mvsNew)) post outs
+  VoteSrcCorrect rm mv@(inj₂ (VoteWithMeta∙new v mvsNew)) post outs
     = just v ≡ (post ^∙ lSafetyData ∙ sdLastVote)
-  VoteSrcCorrect rm (inj₂ (MetaVote∙new v mvsLastVote)) post outs =
+  VoteSrcCorrect rm (inj₂ (VoteWithMeta∙new v mvsLastVote)) post outs =
     just v ≡ (rm ^∙ lSafetyData ∙ sdLastVote)
 
   module Continue2
@@ -156,20 +156,20 @@ module ConstructAndSignVoteM where
 
     C₁ = ⌊ round >? lastVotedRound ⌋ ≡_
 
-    c₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ MetaVote)
+    c₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
     c₃ safetyData1 voteData author ledgerInfo = do
       let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
           vote      = Vote.newWithSignature voteData author ledgerInfo signature
       lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
-      ok (MetaVote∙new vote mvsNew)
+      ok (VoteWithMeta∙new vote mvsNew)
 
-    c₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ MetaVote)
+    c₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ VoteWithMeta)
     c₂ safetyData1 voteData = do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
         c₃ safetyData1 voteData author ledgerInfo
 
-    c₁ : SafetyData → LBFT (ErrLog ⊎ MetaVote)
+    c₁ : SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
     c₁ safetyData1 = do
       lSafetyData ∙= safetyData1
       extensionCheckM voteProposal ∙?∙ λ voteData → do
@@ -200,17 +200,17 @@ module ConstructAndSignVoteM where
     (safetyData0 : SafetyData)
     where
 
-    c₃ : Unit → LBFT (ErrLog ⊎ MetaVote)
+    c₃ : Unit → LBFT (ErrLog ⊎ VoteWithMeta)
     c₃ _ =
       verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
         constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
 
-    c₂ : ValidatorVerifier → LBFT (ErrLog ⊎ MetaVote)
+    c₂ : ValidatorVerifier → LBFT (ErrLog ⊎ VoteWithMeta)
     c₂ validatorVerifier =
       pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙
         c₃
 
-    c₁ : LBFT (ErrLog ⊎ MetaVote)
+    c₁ : LBFT (ErrLog ⊎ VoteWithMeta)
     c₁ = do
       validatorVerifier ← gets rmGetValidatorVerifier
       c₂ validatorVerifier
@@ -238,12 +238,12 @@ module ConstructAndSignVoteM where
 
   module Continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
 
-    c₁ : Block → SafetyData → LBFT (ErrLog ⊎ MetaVote)
+    c₁ : Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
     c₁ proposedBlock safetyData0 = do
       caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
           ifM (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-            then ok (MetaVote∙new vote mvsLastVote)
+            then ok (VoteWithMeta∙new vote mvsLastVote)
             else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
         nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 

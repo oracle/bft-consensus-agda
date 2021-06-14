@@ -20,7 +20,6 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlo
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerElection
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage     as PersistentLivenessStorage
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules       as SafetyRules
-import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesSpec   as SafetyRulesSpec
 open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
@@ -50,12 +49,12 @@ module ExecuteAndVoteM (b : Block) where
 
   VoteSrcCorrect = ConstructAndSignVoteM.VoteSrcCorrect
 
-  c₃ : MetaVote → LBFT (ErrLog ⊎ MetaVote)
+  c₃ : VoteWithMeta → LBFT (ErrLog ⊎ VoteWithMeta)
   c₃ vote =
     PersistentLivenessStorage.saveVoteM (unmetaVote vote)
     ∙?∙ λ _ → ok vote
 
-  c₂ : ExecutedBlock → Round → Maybe Vote → Bool → LBFT (ErrLog ⊎ MetaVote)
+  c₂ : ExecutedBlock → Round → Maybe Vote → Bool → LBFT (ErrLog ⊎ VoteWithMeta)
   c₂ eb cr vs so =
     ifM‖ is-just vs
          ≔ bail unit -- already voted this round
@@ -66,7 +65,7 @@ module ExecuteAndVoteM (b : Block) where
          SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
            ∙?∙ c₃
 
-  c₁ : ExecutedBlock → LBFT (ErrLog ⊎ MetaVote)
+  c₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
   c₁ eb = do
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
@@ -115,10 +114,11 @@ module ProcessProposalMsgM where
   VoteSrcCorrect pre x post outs =
     ∀ mv αs → SendVote mv αs ∈ outs → Cod mv
     where
-    Cod : MetaVoteMsg → Set
-    Cod (MetaVoteMsg∙new (MetaVote∙new vote mvsNew) _) = Unit
-    Cod (MetaVoteMsg∙new (MetaVote∙new vote mvsLastVote) _) =
-      just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
+    Cod : VoteMsgWithMeta → Set
+    Cod (VoteMsgWithMeta∙new voteMsg mvsNew) =
+      just (voteMsg ^∙ vmVote) ≡ (post ^∙ lSafetyData ∙ sdLastVote)
+    Cod (VoteMsgWithMeta∙new voteMsg mvsLastVote) =
+      just (voteMsg ^∙ vmVote) ≡ (pre ^∙ lSafetyData ∙ sdLastVote)
 
 {-
   m∈outs⇒ : ∀ {nm ts pm pre} → nm ∈ LBFT-outs (processProposalMsgM ts pm) pre
