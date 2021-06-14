@@ -27,3 +27,10 @@ module ExecuteAndInsertBlockM (b : Block) where
         → P (inj₁ unit) pre []
         → (∀ eb blockStore → RWST-weakestPre (m eb) P unit (rmSetBlockStore pre blockStore))
         → RWST-weakestPre (executeAndInsertBlockM b ∙?∙ m) P unit pre
+
+module GetSyncInfo where
+  postulate
+    contract
+      : ∀ P pre
+        → (∀ si → P si pre [])
+        → RWST-weakestPre syncInfo P unit pre

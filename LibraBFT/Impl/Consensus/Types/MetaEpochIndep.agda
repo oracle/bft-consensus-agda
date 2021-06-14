@@ -44,6 +44,15 @@ VoteMsgWithMeta∙fromVoteWithMeta mv si = VoteMsgWithMeta∙new (VoteMsg∙new 
 unmetaVoteMsg : VoteMsgWithMeta → VoteMsg
 unmetaVoteMsg = _^∙ mvmVoteMsg
 
+mvmVoteWithMeta : Lens VoteMsgWithMeta VoteWithMeta
+mvmVoteWithMeta = mkLens' g s
+  where
+  g : VoteMsgWithMeta → VoteWithMeta
+  g vm = VoteWithMeta∙new (vm ^∙ mvmVoteMsg ∙ vmVote) (vm ^∙ mvmSrc)
+
+  s : VoteMsgWithMeta → VoteWithMeta → VoteMsgWithMeta
+  s vm v = VoteMsgWithMeta∙new ((vm ^∙ mvmVoteMsg) [ vmVote := v ^∙ mvVote ]) (v ^∙ mvSrc)
+
 data Output : Set where
   BroadcastProposal : ProposalMsg                   → Output
   LogErr            : String                        → Output

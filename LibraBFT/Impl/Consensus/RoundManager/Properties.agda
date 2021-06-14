@@ -15,12 +15,15 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore       as BlockStore
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockStoreSpec   as BlockStoreSpec
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlock
+import      LibraBFT.Impl.Consensus.Liveness.RoundState           as RoundState
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerElection
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage     as PersistentLivenessStorage
+open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules       as SafetyRules
 open import LibraBFT.Impl.Util.Util
+
+open RWST-do
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
 open import LibraBFT.Impl.Consensus.RoundManager
@@ -46,7 +49,11 @@ module ExecuteAndVoteM (b : Block) where
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
-  open RWST-do
+  -- TODO-2: This should be proven "by construction", not directly.
+  postulate
+    noOuts
+      : ∀ pre
+        → RWST-weakestPre (executeAndVoteM b) (λ _ _ outs → outs ≡ []) unit pre
 
   VoteSrcCorrect = ConstructAndSignVoteM.VoteSrcCorrect
 
@@ -74,8 +81,7 @@ module ExecuteAndVoteM (b : Block) where
     c₂ eb cr vs so
 
   voteSrcCorrect
-    : ∀ pre
-      → RWST-weakestPre (executeAndVoteM b) (VoteSrcCorrect pre) unit pre
+    : ∀ pre → RWST-weakestPre (executeAndVoteM b) (VoteSrcCorrect pre) unit pre
   voteSrcCorrect pre =
     ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit c₁ _) pre unit
       λ where
@@ -110,19 +116,65 @@ module ExecuteAndVoteM (b : Block) where
             (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
             (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl)
 
-
-module ProcessProposalMsgM where
-  open RWST-do
+module ProcessProposalM (proposal : Block) where
+  open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
-    ∀ mv αs → SendVote mv αs ∈ outs → Cod mv
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+
+  c₁ : ErrLog ⊎ VoteWithMeta → LBFT Unit
+  c₁ _r =
+    caseM⊎ (_r) of λ where
+      (inj₁ _) → pure unit
+      (inj₂ vote) → do
+        RoundState.recordVote (unmetaVote vote)
+        si ← BlockStore.syncInfo
+        recipient ← ProposerElection.getValidProposer
+                      <$> use lProposerElection
+                      <*> pure (proposal ^∙ bRound + 1)
+        act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si) (recipient ∷ []))
+
+  voteSrcCorrect
+    : ∀ pre → RWST-weakestPre (processProposalM proposal) (VoteSrcCorrect pre) unit pre
+  voteSrcCorrect pre ._ refl =
+    IsValidProposalM.contract proposal _ pre λ where
+      b _ refl →
+        (λ where _ _ _ ())
+        , λ _ → (λ where _ _ _ ())
+          , λ _ → (λ where _ _ _ ())
+            , λ _ → (λ where _ _ _ ())
+              , (λ _ → vsc)
     where
-    Cod : VoteMsgWithMeta → Set
-    Cod (VoteMsgWithMeta∙new voteMsg mvsNew) =
-      just (voteMsg ^∙ vmVote) ≡ (post ^∙ lSafetyData ∙ sdLastVote)
-    Cod (VoteMsgWithMeta∙new voteMsg mvsLastVote) =
-      just (voteMsg ^∙ vmVote) ≡ (pre ^∙ lSafetyData ∙ sdLastVote)
+    -- TODO-3: This is unprovable without knowing that `outs` is [], i.e., that
+    -- `executeAndVoteM` produces no output.
+    impl : ∀ x st outs
+           → (outs ≡ [] × ExecuteAndVoteM.VoteSrcCorrect proposal pre x st outs)
+           → RWST-weakestPre-bindPost unit c₁ (VoteSrcCorrect pre) x st outs
+    proj₁ (impl x st .[] (refl , pf) .x refl) unit _ _ _ ()
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsNew) refl unit _ =
+      GetSyncInfo.contract _ st λ where
+        _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsNew) .(_ ∷ []) (here refl) →
+          pf
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsLastVote) refl unit _ =
+      GetSyncInfo.contract _ st λ where
+        _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsLastVote) ._ (here refl) →
+          pf
+
+    vsc : RWST-weakestPre (executeAndVoteM proposal) _ unit pre
+    vsc = RWST-impl _ _ impl (executeAndVoteM proposal) unit pre
+            (RWST-× _ _ (executeAndVoteM proposal) unit pre
+              (ExecuteAndVoteM.noOuts proposal pre)
+              (ExecuteAndVoteM.voteSrcCorrect proposal pre))
+           -- RWST-impl _ _ impl (executeAndVoteM proposal) unit pre
+           -- {!!} -- (ExecuteAndVoteM.voteSrcCorrect proposal pre)
+
+module ProcessProposalMsgM where
+
+  VoteSrcCorrect : RoundManager → LBFT-Post Unit
+  VoteSrcCorrect pre x post outs =
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
 
 {-
   m∈outs⇒ : ∀ {nm ts pm pre} → nm ∈ LBFT-outs (processProposalMsgM ts pm) pre

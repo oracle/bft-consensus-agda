@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
 import      LibraBFT.Impl.Util.Crypto                         as Crypto
 open import LibraBFT.Impl.Util.Util
@@ -139,11 +140,8 @@ module VerifyQcM (qc : QuorumCert) where
 
 module ConstructAndSignVoteM where
   VoteSrcCorrect : RoundManager → LBFT-Post (ErrLog ⊎ VoteWithMeta)
-  VoteSrcCorrect rm e@(inj₁ x) post outs = Unit
-  VoteSrcCorrect rm mv@(inj₂ (VoteWithMeta∙new v mvsNew)) post outs
-    = just v ≡ (post ^∙ lSafetyData ∙ sdLastVote)
-  VoteSrcCorrect rm (inj₂ (VoteWithMeta∙new v mvsLastVote)) post outs =
-    just v ≡ (rm ^∙ lSafetyData ∙ sdLastVote)
+  VoteSrcCorrect pre (inj₁ _) post outs = Unit
+  VoteSrcCorrect pre (inj₂ mv) post outs = VoteSrcCorrectCod pre post mv
 
   module Continue2
     (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) (proposedBlock : Block)
@@ -264,6 +262,13 @@ module ConstructAndSignVoteM where
 
   module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
 
+    -- TODO-2: This should be be proved "by construction", not separately
+    postulate
+      contract-noOuts
+        : ∀ P pre
+          → (∀ x st → P x st [])
+          → RWST-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) P unit pre
+
     voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
 
     voteSrcCorrect
@@ -274,4 +279,3 @@ module ConstructAndSignVoteM where
     proj₁ (voteSrcCorrect rm pre pf _ refl vs vs≡) ≡nothing = unit
     proj₂ (voteSrcCorrect rm pre pf _ refl vs vs≡) validatorSigner validatorSigner≡ =
       Continue0.voteSrcCorrect voteProposal validatorSigner rm pre pf
-
