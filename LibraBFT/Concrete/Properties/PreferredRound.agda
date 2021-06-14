@@ -54,7 +54,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v and v' share the same epoch
-   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → v ^∙  vEpoch ≡ epoch 𝓔
+   → v' ^∙ vEpoch ≡ epoch 𝓔
    -- and v is for a smaller round
    → v ^∙ vRound < v' ^∙ vRound
    -- and vabs* are the abstract Votes for v and v'
