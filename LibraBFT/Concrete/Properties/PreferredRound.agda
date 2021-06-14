@@ -194,7 +194,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂)
         = Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
                    m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
-   ...| inj₁ (m₁∈outs , v₁pk , _) | inj₂ v₂sb4
+   ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4
         = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ v₂)
               ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH v₂ ¬init₂ (msgSigned v₂sb4) round≡
               epoch≡ = sym (msgEpoch≡ v₂sb4)
@@ -206,7 +206,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
                                                              refl (msgRound≡ v₂sb4)
                                                              (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
                                in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
-                    (Impl-IRO r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ v₁pk
+                    (Impl-IRO r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ v₁New v₁pk
                               (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , _)
         = let rv₁<r₂ = <-transʳ (≡⇒≤ (msgRound≡ v₁sb4)) r₁<r₂

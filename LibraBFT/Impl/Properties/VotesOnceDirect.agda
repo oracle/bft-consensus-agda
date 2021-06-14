@@ -22,7 +22,6 @@ open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
-open import LibraBFT.Impl.Properties.VotesOnce
 
 -- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
 -- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
@@ -208,9 +207,9 @@ module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
-  votesOnce₁ : VO.ImplObligation₁ 𝓔
+  votesOnce₁ : VO.IncreasingRoundObligation 𝓔
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
-             pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
+             pkH v⊂m (here refl) sv ¬gen ¬msb vspk v'⊂m' m'∈pool sv' ¬gen' eid≡
      with v⊂m
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
      = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
@@ -223,7 +222,7 @@ module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                      step   = step-peer (step-honest stMsg)
                      vspre' = peerCanSign-Msb4 r step vspkv' pkH sv' m'mwsb
                      rv'<rv = oldVoteRound≤lvr r pkH sv' ¬gen' m'mwsb vspre' eid≡
-                 in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
+                 in inj₁ (s≤s rv'<rv)
 
   votesOnce₂ : VO.ImplObligation₂ 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew
