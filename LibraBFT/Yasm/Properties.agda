@@ -80,20 +80,20 @@ module LibraBFT.Yasm.Properties
  ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
 
- ¬cheatForgeNewVote : ∀ {v m sndr pid pk mst outs}{st : SystemState}
+ ¬cheatForgeNewSig : ∀ {p m sndr pid pk mst outs}{st : SystemState}
                     → (r : ReachableSystemState st)
                     → (sp : StepPeer st pid mst outs)
                     → (ic : isCheat sp)
                     → Meta-Honest-PK pk
-                    → (sig : WithVerSig pk v)
-                    → v ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post sp)
+                    → (sig : WithVerSig pk p)
+                    → p ⊂Msg m → (sndr , m) ∈ msgPool (StepPeer-post sp)
                     → ¬ (∈GenInfo (ver-signature sig))
                     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
- ¬cheatForgeNewVote {v} {m} {sndr} r (step-cheat chConstraint) ic pkH sig v⊂m m∈pool ¬init
+ ¬cheatForgeNewSig {p} {m} {sndr} r (step-cheat chConstraint) ic pkH sig p⊂m m∈pool ¬init
    with m∈pool
- ... | there m∈preSt = mkMsgWithSig∈ m v v⊂m sndr m∈preSt sig refl
+ ... | there m∈preSt = mkMsgWithSig∈ m p p⊂m sndr m∈preSt sig refl
  ... | here refl
-   with chConstraint v⊂m sig ¬init
+   with chConstraint p⊂m sig ¬init
  ... | inj₁ dis = ⊥-elim (pkH dis)
  ... | inj₂ msv = msv
 

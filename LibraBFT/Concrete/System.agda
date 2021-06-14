@@ -82,7 +82,7 @@ module LibraBFT.Concrete.System where
          nm            : NetworkMsg
          cv            : Vote
          cv∈nm         : cv ⊂Msg nm
-         -- And contained a valid vote that, once abstracted, yeilds v.
+         -- And contained a valid vote that, once abstracted, yields v.
          vmsgMember    : EpochConfig.Member 𝓔
          vmsgSigned    : WithVerSig (getPubKey 𝓔 vmsgMember) cv
          vmsg≈v        : α-ValidVote 𝓔 cv vmsgMember ≡ v

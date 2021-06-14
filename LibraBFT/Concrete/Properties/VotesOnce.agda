@@ -228,8 +228,8 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     ...| no  ¬init | no ¬init'
        with theStep
     ...| step-peer cheat@(step-cheat c)
-       with ¬cheatForgeNewVote r cheat unit pkH (msgSigned m₁) (msg⊆ m₁) (msg∈pool m₁) ¬init
-          | ¬cheatForgeNewVote r cheat unit pkH (msgSigned m₂) (msg⊆ m₂) (msg∈pool m₂) ¬init'
+       with ¬cheatForgeNewSig r cheat unit pkH (msgSigned m₁) (msg⊆ m₁) (msg∈pool m₁) ¬init
+          | ¬cheatForgeNewSig r cheat unit pkH (msgSigned m₂) (msg⊆ m₂) (msg∈pool m₂) ¬init'
     ...| m₁sb4 | m₂sb4
          = let v₁sb4 = msbSentB4⇒VoteForRound∈ (msgSigned m₁) m₁sb4
                v₂sb4 = msbSentB4⇒VoteForRound∈ (msgSigned m₂) m₂sb4
