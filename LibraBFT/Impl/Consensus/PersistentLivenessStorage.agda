@@ -16,5 +16,5 @@ module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 open RWST-do
 
 -- TODO-3?: Implement this
-postulate
-  saveVoteM : Vote → LBFT (ErrLog ⊎ Unit)
+saveVoteM : Vote → LBFT (ErrLog ⊎ Unit)
+saveVoteM v = ok unit

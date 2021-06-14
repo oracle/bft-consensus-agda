@@ -16,6 +16,12 @@ open RWST-do
 
 module ExecuteAndInsertBlockM (b : Block) where
   postulate
+    contract
+      : ∀ P pre
+        → P (inj₁ unit) pre []
+        → (∀ eb blockStore → P (inj₂ eb) (rmSetBlockStore pre blockStore) [])
+        → RWST-weakestPre (executeAndInsertBlockM b) P unit pre
+
     contract-rwst-∙?∙
       : ∀ {A} P pre (m : ExecutedBlock → LBFT (ErrLog ⊎ A))
         → P (inj₁ unit) pre []

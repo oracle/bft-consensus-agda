@@ -50,6 +50,11 @@ module ExecuteAndVoteM (b : Block) where
 
   VoteSrcCorrect = ConstructAndSignVoteM.VoteSrcCorrect
 
+  c₃ : MetaVote → LBFT (ErrLog ⊎ MetaVote)
+  c₃ vote =
+    PersistentLivenessStorage.saveVoteM (unmetaVote vote)
+    ∙?∙ λ _ → ok vote
+
   c₂ : ExecutedBlock → Round → Maybe Vote → Bool → LBFT (ErrLog ⊎ MetaVote)
   c₂ eb cr vs so =
     ifM‖ is-just vs
@@ -59,8 +64,7 @@ module ExecuteAndVoteM (b : Block) where
        ‖ otherwise≔ do
          let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
          SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
-           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM (unmetaVote vote)
-           ∙?∙ λ _ → ok vote
+           ∙?∙ c₃
 
   c₁ : ExecutedBlock → LBFT (ErrLog ⊎ MetaVote)
   c₁ eb = do
@@ -73,35 +77,36 @@ module ExecuteAndVoteM (b : Block) where
     : ∀ pre
       → RWST-weakestPre (executeAndVoteM b) (VoteSrcCorrect pre) unit pre
   voteSrcCorrect pre =
-    ExecuteAndInsertBlockM.contract-rwst-∙?∙ b (VoteSrcCorrect pre) pre
-      c₁ unit vsc₂
-    where
-    module _ (eb : ExecutedBlock) (bs : BlockStore _) where
-      st₁ = rmSetBlockStore pre bs
-      cr  = st₁ ^∙ lRoundState ∙ rsCurrentRound
-      vs  = st₁ ^∙ lRoundState ∙ rsVoteSent
-      so  = st₁ ^∙ lSyncOnly
-      maybeSignedVoteProposal = ExecutedBlock.maybeSignedVoteProposal eb
+    ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit c₁ _) pre unit
+      λ where
+        eb blockStore ._ refl ._ refl cr cr≡ ._ refl vs vs≡ ._ refl so so≡ →
+          (const unit) , (λ _ → (const unit)
+          , (λ _ → vsc eb blockStore))
+      where
+      module _ (eb : ExecutedBlock) (blockStore : BlockStore _) where
+        maybeSignedVoteProposal = ExecutedBlock.maybeSignedVoteProposal eb
+        st₁ = rmSetBlockStore pre blockStore
 
-      vsc₂ : RWST-weakestPre (c₂ eb cr vs so) (VoteSrcCorrect pre) unit st₁
-      proj₁ vsc₂ _ = unit
-      proj₁ (proj₂ vsc₂ _) _ = unit
-      proj₁ (proj₂ (proj₂ vsc₂ _) _) =
-        let con = ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl in
-        RWST-impl
-          (ConstructAndSignVoteM.VoteSrcCorrect pre)
-          (λ x post outs →
-             (c : ErrLog) → x ≡ inj₁ c → VoteSrcCorrect pre (inj₁ c) post outs)
-          (λ x st outs vsc c c≡ → unit)
-          (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
-          (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl)
-        -- RWST-impl _ {!!} {!VoteSrcCorrect!} (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
-        --   (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁
-        --      refl)
-      proj₂ (proj₂ (proj₂ vsc₂ _) _) = {!!}
-        -- ConstructAndSignVoteM.voteSrcCorrect (ExecutedBlock.maybeSignedVoteProposal eb) pre st₁ ?
-    -- vsc₂ : ∀ eb bs cr vs so → RWST-weakestPre (c₂ eb cr vs so) (VoteSrcCorrect pre) unit (rmSetBlockStore pre bs)
-    -- vsc₂ = {!!}
+        impl : ∀ r st outs
+               → VoteSrcCorrect pre r st outs
+               → RWST-weakestPre-ebindPost unit c₃ (VoteSrcCorrect pre) r st outs
+        impl (inj₁ x) st outs pf = unit
+        impl (inj₂ mv) st outs pf ._ refl unit _
+          rewrite ++-identityʳ outs = pf
+
+        vsc
+          : RWST-weakestPre
+              (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal
+                ∙?∙ c₃)
+              (VoteSrcCorrect pre)
+              unit st₁
+        vsc =
+          RWST-impl
+            _ (RWST-weakestPre-ebindPost unit c₃ (VoteSrcCorrect pre))
+            impl
+            (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
+            (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl)
+
 
 module ProcessProposalMsgM where
   open RWST-do
