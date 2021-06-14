@@ -68,7 +68,7 @@ module LibraBFT.Concrete.System where
 
     module PerEpoch (𝓔 : EpochConfig) where
 
-     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
+     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote; vRound)
      open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
      open import LibraBFT.Concrete.Records                        𝓔
 
@@ -111,15 +111,19 @@ module LibraBFT.Concrete.System where
                → (wvs : WithVerSig (getPubKey 𝓔 (abs-vMember vabs)) v)
                → MsgWithSig∈ (getPubKey 𝓔 (abs-vMember vabs)) (ver-signature wvs) pool
                → α-ValidVote 𝓔 v (abs-vMember vabs) ≡ vabs
-               → NonInjective-≡ sha256 ⊎
-                 Σ (∃VoteMsgSentFor pool vabs) λ ∃vms → (abs-vMember vabs) ≡ vmsgMember (vmFor ∃vms)
+               → Σ (∃VoteMsgSentFor pool vabs) λ ∃vms →
+                   abs-vMember   vabs ≡ vmsgMember (vmFor ∃vms)
+                 × abs-vRound    vabs ≡ (cv (vmFor ∃vms)) ^∙ vRound
+                 × abs-vBlockUID vabs ≡ (cv (vmFor ∃vms)) ^∙ vProposedId
+                 × epoch 𝓔 ≡ (cv (vmFor ∃vms)) ^∙ vEpoch
      MWSS⇒∃VMS {vabs} refl wvs mws refl
-        with sameSig⇒sameVoteData (msgSigned mws) wvs (msgSameSig mws)
-     ...| inj₁ hb = inj₁ hb
-     ...| inj₂ refl
-        = inj₂ (mk∃VoteMsgSentFor (mk∃VoteMsgFor (msgWhole mws) (msgPart mws) (msg⊆ mws) (abs-vMember vabs)
+        with sameSig⇒sameVoteDataNoCol (msgSigned mws) wvs (msgSameSig mws)
+     ...| refl = mk∃VoteMsgSentFor (mk∃VoteMsgFor (msgWhole mws) (msgPart mws) (msg⊆ mws) (abs-vMember vabs)
                                                  (msgSigned mws) refl refl) (msgSender mws) (msg∈pool mws)
-               , refl)
+               , refl
+               , refl
+               , refl
+               , refl
 
 
      ∈QC⇒sent : ∀{st : SystemState} {q α}

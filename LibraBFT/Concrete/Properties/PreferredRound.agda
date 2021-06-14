@@ -129,7 +129,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
       → Σ (VoteParentData v'abs)
            (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
    PreferredRoundProof step-0 _ msv = ⊥-elim (¬Any[] (nmSentByAuth msv))
-   PreferredRoundProof {v} {v'} {AbsVoteData∙new absrnd absmbr abs-absbId} {st = st} step@(step-s {pre = pre} r theStep) msv msv' refl refl refl refl pkH mbrs≡ refl refl rv<rv' c3
+   PreferredRoundProof {v} {v'} {st = st} step@(step-s {pre = pre} r theStep) msv msv' refl refl refl refl pkH mbrs≡ refl refl rv<rv' c3
       with mbrs≡
    ...| refl
       with ∈GenInfo? (₋vSignature (cv (vmFor msv))) | ∈GenInfo? (₋vSignature (cv (vmFor msv')))
@@ -151,15 +151,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    ...| refl | refl
       with (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv))  msb4  refl)
          | (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv')) m'sb4 refl)
-   ...| inj₁ hb | _       = ⊥-elim (meta-sha256-cr hb)
-   ...| inj₂ _  | inj₁ hb = ⊥-elim (meta-sha256-cr hb)
-   ...| inj₂ (∃vms , refl) | inj₂ (∃vms' , refl)
-      with PK-inj 𝓔 (cong (getPubKey 𝓔) mbrs≡)
-   ...| xxrefl
-      with sameSig⇒sameVoteDataNoCol (vmsgSigned (vmFor msv)) (msgSigned msb4) (sym (msgSameSig msb4))
-   ...| theSame
-        = PreferredRoundProof r ∃vms ∃vms' refl refl (Abs.Vote-η {! theSame!} {!!} {!!}) {!!}
-                              {! pkH !} {! refl !} {!!} {!!} {! rv<rv' !} {! c3 !}
+   ...| ∃vms , refl , refl , refl , refl | ∃vms' , refl , refl , refl , refl
+        = PreferredRoundProof r ∃vms ∃vms' refl refl refl refl
+                              pkH refl refl refl rv<rv' c3
 
 {-
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
