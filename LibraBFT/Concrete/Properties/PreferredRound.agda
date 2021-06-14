@@ -48,7 +48,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v'  ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v is really new and valid
-   → ∄[ v'' ] VoteForRound∈ v'' pk (v' ^∙ vRound) (v' ^∙ vEpoch) (msgPool pre)
+   → ¬ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- And if there exists another v' that has been sent before
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
