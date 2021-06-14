@@ -99,7 +99,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
   -- Next, we prove that given the necessary obligations,
  module PR-Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-R>0 : VO.NewVoteSignedAndRound>0)
    (Impl-IRO : VO.IncreasingRoundObligation)
    (Impl-PR1 : PR-ImplObligation₁)
    (Impl-PR2 : PR-ImplObligation₂)
@@ -112,46 +111,57 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    open        PerState st r
    open        PerEpoch 𝓔
 
-   postulate
-    PreferredRoundProof :
-      ∀ {v v' vabs v'abs pk mbr} {st : SystemState}
+   PreferredRoundProof :
+      ∀ {v v' vabs v'abs} {st : SystemState}
       → (r : ReachableSystemState st)
-      → Meta-Honest-PK pk
-      → (vv  : WithVerSig pk v)  → ∃VoteMsgFor vabs
-      → (vv' : WithVerSig pk v') → ∃VoteMsgFor v'abs
-      → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+      → (vms  : ∃VoteMsgSentFor (msgPool st) vabs)
+      → (vms' : ∃VoteMsgSentFor (msgPool st) v'abs)
+      → v  ≡ cv (vmFor vms)
+      → v' ≡ cv (vmFor vms')
+      → α-ValidVote 𝓔 v  (vmsgMember (vmFor vms))  ≡ vabs
+      → α-ValidVote 𝓔 v' (vmsgMember (vmFor vms')) ≡ v'abs
+      → Meta-Honest-PK (getPubKey 𝓔 (vmsgMember (vmFor vms)))
+      → vmsgMember (vmFor vms) ≡ vmsgMember (vmFor vms')
+      → v  ^∙ vEpoch ≡ epoch 𝓔
+      → v' ^∙ vEpoch ≡ epoch 𝓔
       → v ^∙ vRound < v' ^∙ vRound
-      → α-ValidVote 𝓔 v  mbr ≡ vabs
-      → α-ValidVote 𝓔 v' mbr ≡ v'abs
       → (c3 : Cand-3-chain-vote vabs)
       → Σ (VoteParentData v'abs)
            (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
-{-
-   PreferredRoundProof step-0 _ _ msv = ⊥-elim (¬Any[] (msg∈pool msv))
-   PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
-      with msgSameSig msv | msgSameSig msv'
-   ...| refl | refl
-      with sameSig⇒sameVoteDataNoCol (msgSigned msv)  vv  (msgSameSig msv )
-         | sameSig⇒sameVoteDataNoCol (msgSigned msv') vv' (msgSameSig msv')
-   ...| refl | refl
-      with ∈GenInfo? (₋vSignature (msgPart msv)) | ∈GenInfo? (₋vSignature (msgPart msv'))
-   ...| yes init  | yes init' =  let rv≡0  = genVotesRound≡0 vv  init
-                                     rv'≡0 = genVotesRound≡0 vv' init'
+   PreferredRoundProof step-0 _ msv = ⊥-elim (¬Any[] (nmSentByAuth msv))
+   PreferredRoundProof {v} {v'} {AbsVoteData∙new absrnd absmbr abs-absbId} {st = st} step@(step-s {pre = pre} r theStep) msv msv' refl refl refl refl pkH mbrs≡ refl refl rv<rv' c3
+      with mbrs≡
+   ...| refl
+      with ∈GenInfo? (₋vSignature (cv (vmFor msv))) | ∈GenInfo? (₋vSignature (cv (vmFor msv')))
+   ...| yes init  | yes init' =  let rv≡0  = genVotesRound≡0 (vmsgSigned (vmFor msv))  init
+                                     rv'≡0 = genVotesRound≡0 (vmsgSigned (vmFor msv'))  init'
                                  in ⊥-elim (<⇒≢ rv<rv' (trans rv≡0 (sym rv'≡0)))
-   ...| yes init  | no  ¬init = let 0≡rv = sym (genVotesRound≡0 vv  init)
+   ...| yes init  | no  ¬init = let 0≡rv = sym (genVotesRound≡0 (vmsgSigned (vmFor msv))  init)
                                     0<rv = v-cand-3-chain⇒0<roundv c3
                                 in ⊥-elim (<⇒≢ 0<rv 0≡rv)
-   ...| no  ¬init | yes init  = let 0≡rv' = sym (genVotesRound≡0 vv' init)
+   ...| no  ¬init | yes init  = let 0≡rv' = sym (genVotesRound≡0 (vmsgSigned (vmFor msv')) init)
                                 in ⊥-elim (<⇒≱ rv<rv' (subst (v ^∙ vRound ≥_) 0≡rv' z≤n))
    ...| no  ¬init | no ¬init'
       with theStep
    ...| step-peer cheat@(step-cheat c)
-      with ¬cheatForgeNew cheat refl unit pkH msv  ¬init
-         | ¬cheatForgeNew cheat refl unit pkH msv' ¬init'
+      with ¬cheatForgeNewSig r cheat unit pkH (vmsgSigned (vmFor msv))  (cv∈nm (vmFor msv))  (nmSentByAuth msv)  ¬init
+         | ¬cheatForgeNewSig r cheat unit pkH (vmsgSigned (vmFor msv')) (cv∈nm (vmFor msv')) (nmSentByAuth msv') ¬init'
    ...| msb4 | m'sb4
       with  msgSameSig msb4 | msgSameSig m'sb4
    ...| refl | refl
-        = PreferredRoundProof r pkH vv msb4 vv' m'sb4 eid≡ rv<rv' refl refl c3
+      with (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv))  msb4  refl)
+         | (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv')) m'sb4 refl)
+   ...| inj₁ hb | _       = ⊥-elim (meta-sha256-cr hb)
+   ...| inj₂ _  | inj₁ hb = ⊥-elim (meta-sha256-cr hb)
+   ...| inj₂ (∃vms , refl) | inj₂ (∃vms' , refl)
+      with PK-inj 𝓔 (cong (getPubKey 𝓔) mbrs≡)
+   ...| xxrefl
+      with sameSig⇒sameVoteDataNoCol (vmsgSigned (vmFor msv)) (msgSigned msb4) (sym (msgSameSig msb4))
+   ...| theSame
+        = PreferredRoundProof r ∃vms ∃vms' refl refl (Abs.Vote-η {! theSame!} {!!} {!!}) {!!}
+                              {! pkH !} {! refl !} {!!} {!!} {! rv<rv' !} {! c3 !}
+
+{-
    PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
       | refl | refl
       | refl | refl
@@ -192,5 +202,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    ...| refl | refl
        = let ver = vmsgSigned (vmFor sv)
              ver' = vmsgSigned (vmFor sv')
-             epoch≡ = trans (vmsgEpoch (vmFor sv)) (sym (vmsgEpoch (vmFor sv')))
-         in PreferredRoundProof r honα ver (vmFor sv) ver' (vmFor sv') epoch≡ round< refl refl c2
+             epoch≡  = vmsgEpoch (vmFor sv)
+             epoch≡' = vmsgEpoch (vmFor sv')
+         in PreferredRoundProof r sv sv' refl refl refl refl honα refl epoch≡ epoch≡' round< c2

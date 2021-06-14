@@ -104,6 +104,24 @@ module LibraBFT.Concrete.System where
      ∃VoteMsgSentFor-stable theStep (mk∃VoteMsgSentFor sndr vmFor sba) =
                                      mk∃VoteMsgSentFor sndr vmFor (msgs-stable theStep sba)
 
+     open WithAbsVote
+
+     MWSS⇒∃VMS : ∀ {vabs v pool}
+               → v ^∙ vEpoch ≡ epoch 𝓔
+               → (wvs : WithVerSig (getPubKey 𝓔 (abs-vMember vabs)) v)
+               → MsgWithSig∈ (getPubKey 𝓔 (abs-vMember vabs)) (ver-signature wvs) pool
+               → α-ValidVote 𝓔 v (abs-vMember vabs) ≡ vabs
+               → NonInjective-≡ sha256 ⊎
+                 Σ (∃VoteMsgSentFor pool vabs) λ ∃vms → (abs-vMember vabs) ≡ vmsgMember (vmFor ∃vms)
+     MWSS⇒∃VMS {vabs} refl wvs mws refl
+        with sameSig⇒sameVoteData (msgSigned mws) wvs (msgSameSig mws)
+     ...| inj₁ hb = inj₁ hb
+     ...| inj₂ refl
+        = inj₂ (mk∃VoteMsgSentFor (mk∃VoteMsgFor (msgWhole mws) (msgPart mws) (msg⊆ mws) (abs-vMember vabs)
+                                                 (msgSigned mws) refl refl) (msgSender mws) (msg∈pool mws)
+               , refl)
+
+
      ∈QC⇒sent : ∀{st : SystemState} {q α}
               → Abs.Q q α-Sent (msgPool st)
               → Meta-Honest-Member α
