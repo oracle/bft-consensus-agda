@@ -48,14 +48,12 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    → v'  ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
    -- If v is really new and valid
-   → ¬ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- And if there exists another v' that has been sent before
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v and v' share the same epoch
-   → v ^∙  vEpoch ≡ epoch 𝓔
-   → v' ^∙ vEpoch ≡ epoch 𝓔
+   → v ^∙  vEpoch ≡ v' ^∙ vEpoch
    -- and v is for a smaller round
    → v ^∙ vRound < v' ^∙ vRound
    -- and vabs* are the abstract Votes for v and v'
@@ -66,6 +64,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    -- the grandparent of the block that v votes for (i.e., the preferred round rule)
    → Σ (VoteParentData v'abs)
            (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
+     ⊎ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
+
 
  -- Similarly in case the same step sends both v and v'
  PR-ImplObligation₂ : Set (ℓ+1 ℓ-RoundManager)
@@ -111,91 +111,130 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    open        PerState st r
    open        PerEpoch 𝓔
 
+
+   msgSentB4⇒VoteRound∈ : ∀ {v pk pool}
+                        → (vv : WithVerSig pk v)
+                        → (m : MsgWithSig∈ pk (ver-signature vv) pool)
+                        → VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) pool
+   msgSentB4⇒VoteRound∈ {v} vv m
+      with sameSig⇒sameVoteData (msgSigned m) vv (msgSameSig m)
+   ... | inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
+   ... | inj₂ refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
+                                     (msg∈pool m) (msgSigned m) refl refl refl
+
+   ¬Gen∧Round≡⇒¬Gen : ∀ {v pk round epoch bId} {st : SystemState}
+                     → ReachableSystemState st
+                     → Meta-Honest-PK pk
+                     → (vfr : VoteForRound∈ pk round epoch bId (msgPool st))
+                     → ¬ (∈GenInfo (ver-signature (msgSigned vfr)))
+                     → (sig : WithVerSig pk v)
+                     → v ^∙ vRound ≡ round
+                     → ¬ (∈GenInfo (ver-signature sig))
+   ¬Gen∧Round≡⇒¬Gen r pkH v₁ ¬genV₁ sigV₂ refl genV₂
+      with ¬genVotesRound≢0 r pkH (msgSigned v₁) (msg⊆ v₁) (msg∈pool v₁) ¬genV₁
+   ...| v₁r≢0 = ⊥-elim (v₁r≢0 (trans (msgRound≡ v₁) (genVotesRound≡0 sigV₂ genV₂)))
+
+   α-ValidVote-trans : ∀ {mbr vabs} (v₁ v₂ : Vote)
+                     → α-ValidVote 𝓔 v₁ mbr ≡ vabs
+                     → v₂ ^∙ vRound ≡ v₁ ^∙ vRound
+                     → v₂ ^∙ vEpoch ≡ v₁ ^∙ vEpoch
+                     → v₂ ^∙ vProposedId ≡ v₁ ^∙ vProposedId
+                     → α-ValidVote 𝓔 v₂ mbr ≡ vabs
+   α-ValidVote-trans v₁ v₂ refl refl refl refl = refl
+
    PreferredRoundProof :
-      ∀ {v v' vabs v'abs} {st : SystemState}
-      → (r : ReachableSystemState st)
-      → (vms  : ∃VoteMsgSentFor (msgPool st) vabs)
-      → (vms' : ∃VoteMsgSentFor (msgPool st) v'abs)
-      → v  ≡ cv (vmFor vms)
-      → v' ≡ cv (vmFor vms')
-      → α-ValidVote 𝓔 v  (vmsgMember (vmFor vms))  ≡ vabs
-      → α-ValidVote 𝓔 v' (vmsgMember (vmFor vms')) ≡ v'abs
-      → Meta-Honest-PK (getPubKey 𝓔 (vmsgMember (vmFor vms)))
-      → vmsgMember (vmFor vms) ≡ vmsgMember (vmFor vms')
-      → v  ^∙ vEpoch ≡ epoch 𝓔
-      → v' ^∙ vEpoch ≡ epoch 𝓔
-      → v ^∙ vRound < v' ^∙ vRound
-      → (c3 : Cand-3-chain-vote vabs)
-      → Σ (VoteParentData v'abs)
-           (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
-   PreferredRoundProof step-0 _ msv = ⊥-elim (¬Any[] (nmSentByAuth msv))
-   PreferredRoundProof {v} {v'} {st = st} step@(step-s {pre = pre} r theStep) msv msv' refl refl refl refl pkH mbrs≡ refl refl rv<rv' c3
-      with mbrs≡
-   ...| refl
-      with ∈GenInfo? (₋vSignature (cv (vmFor msv))) | ∈GenInfo? (₋vSignature (cv (vmFor msv')))
-   ...| yes init  | yes init' =  let rv≡0  = genVotesRound≡0 (vmsgSigned (vmFor msv))  init
-                                     rv'≡0 = genVotesRound≡0 (vmsgSigned (vmFor msv'))  init'
-                                 in ⊥-elim (<⇒≢ rv<rv' (trans rv≡0 (sym rv'≡0)))
-   ...| yes init  | no  ¬init = let 0≡rv = sym (genVotesRound≡0 (vmsgSigned (vmFor msv))  init)
-                                    0<rv = v-cand-3-chain⇒0<roundv c3
-                                in ⊥-elim (<⇒≢ 0<rv 0≡rv)
-   ...| no  ¬init | yes init  = let 0≡rv' = sym (genVotesRound≡0 (vmsgSigned (vmFor msv')) init)
-                                in ⊥-elim (<⇒≱ rv<rv' (subst (v ^∙ vRound ≥_) 0≡rv' z≤n))
-   ...| no  ¬init | no ¬init'
+      ∀ {pk round₁ round₂ epoch bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
+      → ReachableSystemState st
+      → Meta-Honest-PK pk
+      → (v₁ : VoteForRound∈ pk round₁ epoch bId₁ (msgPool st))
+      → (v₂ : VoteForRound∈ pk round₂ epoch bId₂ (msgPool st))
+      → round₁ < round₂
+      → α-ValidVote 𝓔 (msgVote v₁) mbr ≡ v₁abs
+      → α-ValidVote 𝓔 (msgVote v₂) mbr ≡ v₂abs
+      → (c3 : Cand-3-chain-vote v₁abs)
+      → Σ (VoteParentData v₂abs)
+            (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
+   PreferredRoundProof step@(step-s r theStep) pkH v₁ v₂ r₁<r₂ refl refl c3
+      with msgRound≡ v₁ | msgEpoch≡ v₁ | msgBId≡ v₁
+         | msgRound≡ v₂ | msgEpoch≡ v₂ | msgBId≡ v₂
+   ...| refl | refl | refl | refl | refl | refl
+      with ∈GenInfo? (₋vSignature (msgVote v₁)) | ∈GenInfo? (₋vSignature (msgVote v₂))
+   ...| yes init₁  | yes init₂  = let r₁≡0 = genVotesRound≡0 (msgSigned v₁) init₁
+                                      r₂≡0 = genVotesRound≡0 (msgSigned v₂) init₂
+                                  in ⊥-elim (<⇒≢ r₁<r₂ (trans r₁≡0 (sym r₂≡0)))
+   ...| yes init₁  | no  ¬init₂ = let 0≡rv = sym (genVotesRound≡0 (msgSigned v₁) init₁)
+                                      0<rv = v-cand-3-chain⇒0<roundv c3
+                                  in ⊥-elim (<⇒≢ 0<rv 0≡rv)
+   ...| no  ¬init₁ | yes init₂  = let 0≡r₂ = sym (genVotesRound≡0 (msgSigned v₂) init₂)
+                                      r₁   = msgVote v₁ ^∙ vRound
+                                  in ⊥-elim (<⇒≱ r₁<r₂ (subst (r₁ ≥_) 0≡r₂ z≤n))
+   ...| no  ¬init₁ | no ¬init₂
       with theStep
    ...| step-peer cheat@(step-cheat c)
-      with ¬cheatForgeNewSig r cheat unit pkH (vmsgSigned (vmFor msv))  (cv∈nm (vmFor msv))  (nmSentByAuth msv)  ¬init
-         | ¬cheatForgeNewSig r cheat unit pkH (vmsgSigned (vmFor msv')) (cv∈nm (vmFor msv')) (nmSentByAuth msv') ¬init'
-   ...| msb4 | m'sb4
-      with  msgSameSig msb4 | msgSameSig m'sb4
-   ...| refl | refl
-      with (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv))  msb4  refl)
-         | (MWSS⇒∃VMS refl (vmsgSigned (vmFor msv')) m'sb4 refl)
-   ...| ∃vms , refl , refl , refl , refl | ∃vms' , refl , refl , refl , refl
-        = PreferredRoundProof r ∃vms ∃vms' refl refl refl refl
-                              pkH refl refl refl rv<rv' c3
+        = let m₁sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned v₁) (msg⊆ v₁) (msg∈pool v₁) ¬init₁
+              m₂sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned v₂) (msg⊆ v₂) (msg∈pool v₂) ¬init₂
+              v₁sb4 = msgSentB4⇒VoteRound∈ (msgSigned v₁) m₁sb4
+              v₂sb4 = msgSentB4⇒VoteRound∈ (msgSigned v₂) m₂sb4
+              v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl
+                                        (msgRound≡ v₁sb4) (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+              v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4) refl
+                                        (msgRound≡ v₂sb4) (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+          in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3
+   ...| step-peer (step-honest stP)
+      with ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned v₁))
+                  (newMsg⊎msgSentB4 r stP pkH (msgSigned v₁) ¬init₁  (msg⊆ v₁) (msg∈pool v₁))
+         | ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned v₂))
+                  (newMsg⊎msgSentB4 r stP pkH (msgSigned v₂) ¬init₂ (msg⊆ v₂) (msg∈pool v₂))
+   ...| inj₂ v₁sb4                | inj₂ v₂sb4
+        = let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl (msgRound≡ v₁sb4)
+                                        (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+              v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4) refl (msgRound≡ v₂sb4)
+                                        (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+          in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3
+   ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂)
+        = Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
+                   m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
+   ...| inj₁ (m₁∈outs , v₁pk , _) | inj₂ v₂sb4
+        = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ v₂)
+              ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH v₂ ¬init₂ (msgSigned v₂sb4) round≡
+              epoch≡ = sym (msgEpoch≡ v₂sb4)
+          in either (λ r₂<r₁ → ⊥-elim (<⇒≯ r₁<r₂ (<-transʳ (≡⇒≤ (sym round≡)) r₂<r₁)))
+                    (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4)
+                                                             refl (msgRound≡ v₁sb4)
+                                                             (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+                                   v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4)
+                                                             refl (msgRound≡ v₂sb4)
+                                                             (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+                               in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
+                    (Impl-IRO r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ v₁pk
+                              (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
+   ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , _)
+        = let rv₁<r₂ = <-transʳ (≡⇒≤ (msgRound≡ v₁sb4)) r₁<r₂
+              round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ v₁)
+              ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
+              v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl (msgRound≡ v₁sb4)
+                                        (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+          in either id
+                    (λ v₂sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4)
+                                                             refl (msgRound≡ v₁sb4)
+                                                             (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+                                   v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4)
+                                                             refl (msgRound≡ v₂sb4)
+                                                             (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+                               in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
+                    (Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
+                              (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
+                              (msgEpoch≡ v₁sb4) rv₁<r₂ v₁abs refl c3)
 
-{-
-   PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
-      | refl | refl
-      | refl | refl
-      | no  ¬init | no ¬init'
-      | step-peer (step-honest stPeer)
-      with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv)  ¬init  (msg⊆ msv)  (msg∈pool msv)
-         | newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv') ¬init' (msg⊆ msv') (msg∈pool msv')
-   ...| inj₂ msb4                   | inj₂ m'sb4
-        = PreferredRoundProof r pkH vv msb4 vv' m'sb4 eid≡ rv<rv' absv absv' c3
-   ...| inj₁ (m∈outs , vspk , newV) | inj₁ (m'∈outs , v'spk , newV')
-        = Impl-PR2 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV vspk
-                   (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk eid≡ rv<rv' absv absv' c3
-   ...| inj₁ (m∈outs , vspk , newV) | inj₂ m'sb4
-      with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
-   ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-   ...| inj₂ refl
-        = ⊥-elim (<⇒≯ rv<rv' (Impl-IRO r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init
-                                       (¬Msg∈⇒¬Vote∈ pkH vv newV)
-                                       (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4)
-                                       (¬subst ¬init' (msgSameSig m'sb4)) eid≡))
-   PreferredRoundProof {v} step@(step-s r theStep) pkH vv msv vv' msv' eid≡ rv<rv' absv absv' c3
-      | refl | refl
-      | refl | refl
-      | no  ¬init | no ¬init'
-      | step-peer (step-honest stPeer)
-      | inj₂ msb4                   | inj₁ (m'∈outs , v'spk , newV')
-      with sameSig⇒sameVoteData (msgSigned msb4) vv (msgSameSig msb4)
-   ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-   ...| inj₂ refl
-        =  Impl-PR1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk
-                    (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4))
-                    eid≡ rv<rv' absv absv' c3
--}
 
    prr : Type intSystemState
    prr honα refl sv refl sv' c2 round<
      with vmsg≈v (vmFor sv) | vmsg≈v (vmFor sv')
    ...| refl | refl
-       = let ver = vmsgSigned (vmFor sv)
-             ver' = vmsgSigned (vmFor sv')
-             epoch≡  = vmsgEpoch (vmFor sv)
-             epoch≡' = vmsgEpoch (vmFor sv')
-         in PreferredRoundProof r sv sv' refl refl refl refl honα refl epoch≡ epoch≡' round< c2
+       = let v₁ = mkVoteForRound∈ (nm (vmFor sv)) (cv ((vmFor sv))) (cv∈nm (vmFor sv))
+                                  (vmSender sv) (nmSentByAuth sv) (vmsgSigned (vmFor sv))
+                                  (vmsgEpoch (vmFor sv)) refl refl
+             v₂ = mkVoteForRound∈ (nm (vmFor sv')) (cv (vmFor sv')) (cv∈nm (vmFor sv'))
+                                  (vmSender sv') (nmSentByAuth sv') (vmsgSigned (vmFor sv'))
+                                  (vmsgEpoch (vmFor sv')) refl refl
+         in PreferredRoundProof r honα v₁ v₂ round< refl refl c2

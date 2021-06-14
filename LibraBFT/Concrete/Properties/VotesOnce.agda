@@ -215,7 +215,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
                    (newMsg⊎msgSentB4 r stP pkH (msgSigned m₁) ¬init₁  (msg⊆ m₁) (msg∈pool m₁))
           | ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned m₂))
                    (newMsg⊎msgSentB4 r stP pkH (msgSigned m₂) ¬init₂ (msg⊆ m₂) (msg∈pool m₂))
-    ...| inj₂ v₁sb4               | inj₂ v₂sb4
+    ...| inj₂ v₁sb4                | inj₂ v₂sb4
          = VotesOnceProof r pkH v₁sb4 v₂sb4
     ...| inj₁ (m₁∈outs , v₁pk , _) | inj₁ (m₂∈outs , v₂pk , _)
          = Impl-VO2 r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁pk
@@ -223,19 +223,19 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     ...| inj₁ (m₁∈outs , v₁pk , _) | inj₂ v₂sb4
          = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ m₂)
                ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH m₂ ¬init₂ (msgSigned v₂sb4) round≡
-               irObl  = Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁pk (msg⊆ v₂sb4)
-                                 (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ (sym (msgEpoch≡ v₂sb4))
+               epoch≡ = sym (msgEpoch≡ v₂sb4)
            in either (λ v₂<v₁ → ⊥-elim (<⇒≢ v₂<v₁ (msgRound≡ v₂sb4)))
                      (λ v₁sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
-                     irObl
-    ...| inj₂ v₁sb4               | inj₁ (m₂∈outs , v₂pk , _)
+                     (Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁pk
+                               (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
+    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , _)
          = let round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ m₁)
                ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH m₁ ¬init₁ (msgSigned v₁sb4) round≡
-               irObl  = Impl-IRO r stP pkH (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂pk (msg⊆ v₁sb4)
-                                 (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁ (sym (msgEpoch≡ v₁sb4))
            in either (λ v₁<v₂ → ⊥-elim (<⇒≢ v₁<v₂ (msgRound≡ v₁sb4)))
                      (λ v₂sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
-                     irObl
+                     (Impl-IRO r stP pkH (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂pk
+                               (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
+                               (sym (msgEpoch≡ v₁sb4)))
 
 
    voo : VO.Type intSystemState
