@@ -44,6 +44,7 @@ module FakeProcessProposalMsg where
 module ExecuteAndVoteM (b : Block) where
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
+  open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
   open RWST-do
 
@@ -89,9 +90,12 @@ module ExecuteAndVoteM (b : Block) where
         impl : ∀ r st outs
                → VoteSrcCorrect pre r st outs
                → RWST-weakestPre-ebindPost unit c₃ (VoteSrcCorrect pre) r st outs
-        impl (inj₁ x) st outs pf = unit
-        impl (inj₂ mv) st outs pf ._ refl unit _
-          rewrite ++-identityʳ outs = pf
+        impl (inj₁ _) st outs pf = unit
+        impl (inj₂ (VoteWithMeta∙new vote mvsNew)) st outs pf ._ refl =
+          SaveVoteM.contract vote _ st unit λ where
+            blockStore' unit _ → pf
+        impl (inj₂ (VoteWithMeta∙new vote mvsLastVote)) st outs pf ._ refl =
+          SaveVoteM.contract vote _ st unit (λ where blockStore₁ unit ._ → pf)
 
         vsc
           : RWST-weakestPre

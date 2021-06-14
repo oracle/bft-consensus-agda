@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c)2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
@@ -16,5 +16,6 @@ module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 open RWST-do
 
 -- TODO-3?: Implement this
-saveVoteM : Vote → LBFT (ErrLog ⊎ Unit)
-saveVoteM v = ok unit
+postulate
+  saveVoteM : Vote → LBFT (ErrLog ⊎ Unit)
+
