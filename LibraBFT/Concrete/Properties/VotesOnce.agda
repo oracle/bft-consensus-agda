@@ -18,7 +18,6 @@ open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open        EpochConfig
-open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
@@ -36,7 +35,15 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- sent by honest peers in the implementation, then the implemenation
 -- satisfies the LibraBFT.Abstract.Properties.VotesOnce invariant.
 
-module LibraBFT.Concrete.Properties.VotesOnce where
+-- It is not actually necessary to provide an EpochConfig to define
+-- these implementation obligations, but it is needed below to state
+-- the goal of the proof (voo).  In contrast, the PreferredRound rule
+-- requires and EpochConfig to state the obligations, because they
+-- are defined in terms of abstract Records, which are defined for an
+-- EpochConfig.  We introduce the EpochConfig at the top of this
+-- module for consistency with the PreferredRound rule so that the
+-- order of parameters to invoke the respective proofs is consistent.
+module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- TODO-3: This may not be the best way to state the implementation obligation.  Why not reduce
  -- this as much as possible before giving the obligation to the implementation?  For example, this
  -- will still require the implementation to deal with hash collisons (v and v' could be different,
@@ -55,7 +62,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
@@ -100,7 +107,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
-  module _ (st : SystemState)(r : ReachableSystemState st)(𝓔 : EpochConfig) where
+  module _ (st : SystemState)(r : ReachableSystemState st) where
 
    open Structural sps-corr
    -- Bring in intSystemState
@@ -194,7 +201,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        with sameSig⇒sameVoteData (msgSigned m'sb4) vv' (msgSameSig m'sb4)
     ...| inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl rewrite sym (msgSameSig msv')
-      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV vspk
+      = Impl-VO1 r stPeer pkH (msg⊆ msv) m∈outs (msgSigned msv) ¬init newV
                  (msg⊆ m'sb4) (msg∈pool m'sb4) (msgSigned m'sb4) (¬subst ¬init' (msgSameSig m'sb4)) eid≡ r≡
 
     VotesOnceProof (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
@@ -206,7 +213,7 @@ module LibraBFT.Concrete.Properties.VotesOnce where
        with sameSig⇒sameVoteData (msgSigned msb4) vv (msgSameSig msb4)
     ...| inj₁ hb = ⊥-elim (meta-sha256-cr hb)
     ...| inj₂ refl
-      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV' v'spk
+      = sym (Impl-VO1 r stPeer pkH (msg⊆ msv') m'∈outs (msgSigned msv') ¬init' newV'
                       (msg⊆ msb4) (msg∈pool msb4) (msgSigned msb4) (¬subst ¬init (msgSameSig msb4)) (sym eid≡) (sym r≡))
 
    voo : VO.Type intSystemState

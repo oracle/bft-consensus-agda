@@ -52,6 +52,7 @@ module LibraBFT.Concrete.Obligations.PreferredRound
   open voteExtends
 
   record Cand-3-chain-vote (v : Vote) : Set where
+    constructor mkCand3chainvote
     field
       votesForB : voteExtends v
       qc        : QC
