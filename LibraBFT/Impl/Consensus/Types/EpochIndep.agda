@@ -81,6 +81,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   unquoteDecl liCommitInfo   liConsensusDataHash = mkLens (quote LedgerInfo)
              (liCommitInfo ∷ liConsensusDataHash ∷ [])
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
+  postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2

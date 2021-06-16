@@ -119,7 +119,7 @@ constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safet
     extensionCheckM voteProposal ∙?∙ λ voteData → do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
-        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+        let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
         ok (VoteWithMeta∙new vote mvsNew)
