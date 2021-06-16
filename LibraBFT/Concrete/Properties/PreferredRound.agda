@@ -17,6 +17,7 @@ open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System.Parameters
 open        EpochConfig
 open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.Properties.Common
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- This module contains placeholders for the future analog of the
@@ -110,37 +111,17 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
    -- Bring in intSystemState
    open        PerState st r
    open        PerEpoch 𝓔
+   open        ConcreteCommonProperties st r
 
 
-   msgSentB4⇒VoteRound∈ : ∀ {v pk pool}
-                        → (vv : WithVerSig pk v)
-                        → (m : MsgWithSig∈ pk (ver-signature vv) pool)
-                        → VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) pool
-   msgSentB4⇒VoteRound∈ {v} vv m
-      with sameSig⇒sameVoteData (msgSigned m) vv (msgSameSig m)
-   ... | inj₁ hb   = ⊥-elim (meta-sha256-cr hb)
-   ... | inj₂ refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
-                                     (msg∈pool m) (msgSigned m) refl refl refl
-
-   ¬Gen∧Round≡⇒¬Gen : ∀ {v pk round epoch bId} {st : SystemState}
-                     → ReachableSystemState st
-                     → Meta-Honest-PK pk
-                     → (vfr : VoteForRound∈ pk round epoch bId (msgPool st))
-                     → ¬ (∈GenInfo (ver-signature (msgSigned vfr)))
-                     → (sig : WithVerSig pk v)
-                     → v ^∙ vRound ≡ round
-                     → ¬ (∈GenInfo (ver-signature sig))
-   ¬Gen∧Round≡⇒¬Gen r pkH v₁ ¬genV₁ sigV₂ refl genV₂
-      with ¬genVotesRound≢0 r pkH (msgSigned v₁) (msg⊆ v₁) (msg∈pool v₁) ¬genV₁
-   ...| v₁r≢0 = ⊥-elim (v₁r≢0 (trans (msgRound≡ v₁) (genVotesRound≡0 sigV₂ genV₂)))
-
-   α-ValidVote-trans : ∀ {mbr vabs} (v₁ v₂ : Vote)
-                     → α-ValidVote 𝓔 v₁ mbr ≡ vabs
-                     → v₂ ^∙ vRound ≡ v₁ ^∙ vRound
-                     → v₂ ^∙ vEpoch ≡ v₁ ^∙ vEpoch
-                     → v₂ ^∙ vProposedId ≡ v₁ ^∙ vProposedId
-                     → α-ValidVote 𝓔 v₂ mbr ≡ vabs
-   α-ValidVote-trans v₁ v₂ refl refl refl refl = refl
+   α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)
+                     → α-ValidVote 𝓔 v mbr ≡ vabs
+                     → (vfr : VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch)
+                                            (v ^∙ vProposedId) pool)
+                     → α-ValidVote 𝓔 (msgVote vfr) mbr ≡ vabs
+   α-ValidVote-trans v₁ refl vfr
+     with msgRound≡ vfr | msgEpoch≡ vfr | msgBId≡ vfr
+   ...| refl | refl | refl = refl
 
    PreferredRoundProof :
       ∀ {pk round₁ round₂ epoch bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
@@ -175,10 +156,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
               m₂sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned v₂) (msg⊆ v₂) (msg∈pool v₂) ¬init₂
               v₁sb4 = msgSentB4⇒VoteRound∈ (msgSigned v₁) m₁sb4
               v₂sb4 = msgSentB4⇒VoteRound∈ (msgSigned v₂) m₂sb4
-              v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl
-                                        (msgRound≡ v₁sb4) (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
-              v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4) refl
-                                        (msgRound≡ v₂sb4) (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+              v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
+              v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
           in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3
    ...| step-peer (step-honest stP)
       with ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned v₁))
@@ -186,10 +165,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
          | ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned v₂))
                   (newMsg⊎msgSentB4 r stP pkH (msgSigned v₂) ¬init₂ (msg⊆ v₂) (msg∈pool v₂))
    ...| inj₂ v₁sb4                | inj₂ v₂sb4
-        = let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl (msgRound≡ v₁sb4)
-                                        (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
-              v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4) refl (msgRound≡ v₂sb4)
-                                        (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+        = let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
+              v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
           in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3
    ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂)
         = Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
@@ -199,12 +176,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
               ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH v₂ ¬init₂ (msgSigned v₂sb4) round≡
               epoch≡ = sym (msgEpoch≡ v₂sb4)
           in either (λ r₂<r₁ → ⊥-elim (<⇒≯ r₁<r₂ (<-transʳ (≡⇒≤ (sym round≡)) r₂<r₁)))
-                    (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4)
-                                                             refl (msgRound≡ v₁sb4)
-                                                             (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
-                                   v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4)
-                                                             refl (msgRound≡ v₂sb4)
-                                                             (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+                    (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
+                                   v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
                                in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
                     (Impl-IRO r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ v₁pk
                               (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
@@ -212,15 +185,10 @@ module LibraBFT.Concrete.Properties.PreferredRound (𝓔 : EpochConfig) where
         = let rv₁<r₂ = <-transʳ (≡⇒≤ (msgRound≡ v₁sb4)) r₁<r₂
               round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ v₁)
               ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
-              v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4) refl (msgRound≡ v₁sb4)
-                                        (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
+              v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
           in either id
-                    (λ v₂sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) (msgVote v₁sb4)
-                                                             refl (msgRound≡ v₁sb4)
-                                                             (msgEpoch≡ v₁sb4) (msgBId≡ v₁sb4)
-                                   v₂abs = α-ValidVote-trans (msgVote v₂) (msgVote v₂sb4)
-                                                             refl (msgRound≡ v₂sb4)
-                                                             (msgEpoch≡ v₂sb4) (msgBId≡ v₂sb4)
+                    (λ v₂sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
+                                   v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
                                in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
                     (Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
                               (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
