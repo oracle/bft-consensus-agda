@@ -1,6 +1,6 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import Optics.All
@@ -59,6 +59,15 @@ RWST-run (RWST-ebind m f) ev st
 ...| r , st₂ , outs₂ = r , st₂ , outs₁ ++ outs₂
 RWST-run (RWST-maybe nothing f₁ f₂) ev st = RWST-run f₁ ev st
 RWST-run (RWST-maybe (just x) f₁ f₂) ev st = RWST-run (f₂ x) ev st
+
+RWST-result : RWST Ev Wr St A → Ev → St → A
+RWST-result m ev st = proj₁ (RWST-run m ev st)
+
+RWST-post : RWST Ev Wr St A → Ev → St → St
+RWST-post m ev st = proj₁ (proj₂ (RWST-run m ev st))
+
+RWST-outs : RWST Ev Wr St A → Ev → St → List Wr
+RWST-outs m ev st = proj₂ (proj₂ (RWST-run m ev st))
 
 RWST-Pre : (Ev St : Set) → Set₁
 RWST-Pre Ev St = (ev : Ev) (pre : St) → Set
