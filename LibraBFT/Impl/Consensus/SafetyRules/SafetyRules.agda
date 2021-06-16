@@ -23,11 +23,6 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
-
-  -- TODO-1: These two functions should require a proof that `signer` returns `inj₂`
-  obmUnsafeSign : ∀ {C} ⦃ ws :  WithSig C ⦄ → SafetyRules → C → Signature
-  obmUnsafeSigner : SafetyRules → ValidatorSigner
-
   extensionCheckM : VoteProposal → LBFT (ErrLog ⊎ VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
