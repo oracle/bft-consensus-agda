@@ -47,10 +47,10 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
       twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
   -- LBFT-ALGO v3:p6: "... votes in round k only if the QC inside the k proposal
   -- is at least" PreferredRound."
-  ifM oneChainRound <? preferredRound
+  if ⌊ oneChainRound <? preferredRound ⌋
     then bail unit -- error: incorrect preferred round, QC round does not match preferred round
     else do
-      updated ← ifM‖ twoChainRound >? preferredRound
+      updated ← grd‖ twoChainRound >? preferredRound
                      ≔ pure (safetyData [ sdPreferredRound := twoChainRound ])
                      -- log: info: updated preferred round
                    ‖ twoChainRound <? preferredRound
@@ -65,7 +65,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 --------------------------------------------------
 verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
 verifyEpochM epoch safetyData =
-  ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
+  if not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
     then bail unit -- log: error: incorrect epoch
     else ok unit
 
@@ -75,21 +75,21 @@ verifyEpochM epoch safetyData =
 verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (ErrLog ⊎ SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
-  ifM round >? (safetyData ^∙ sdLastVotedRound)
+  if ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋
     then ok (safetyData [ sdLastVotedRound := round ])
     else bail unit -- log: error: incorrect last vote round
 
 -- constructAndSignVoteM
 --------------------------------------------------
-constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ MetaVote)
-constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ MetaVote)
-constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ MetaVote)
--- constructAndSignVoteM-continue2-c₃ : VoteProposal → Block → SafetyData → VoteData → LedgerInfo → LBFT (ErrLog ⊎ MetaVote)
+constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ VoteWithMeta)
+constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
+constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
+-- constructAndSignVoteM-continue2-c₃ : VoteProposal → Block → SafetyData → VoteData → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
 
-constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ MetaVote)
+constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
-  caseMM vs of λ where
+  case vs of λ where
     nothing → bail unit -- error: srValidatorSigner is nothing
     (just validatorSigner) → do
       let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
@@ -99,10 +99,10 @@ constructAndSignVoteM-continue0 voteProposal validatorSigner = do
   let proposedBlock = voteProposal ^∙ vpBlock
   safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
   verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ →
-    caseMM (safetyData0 ^∙ sdLastVote) of λ where
+    case (safetyData0 ^∙ sdLastVote) of λ where
       (just vote) →
-        ifM (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-          then ok (MetaVote∙new vote mvsLastVote)
+        if ⌊ (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound) ⌋
+          then ok (VoteWithMeta∙new vote mvsLastVote)
           else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
       nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 
@@ -122,5 +122,5 @@ constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safet
         let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
-        ok (MetaVote∙new vote mvsNew)
+        ok (VoteWithMeta∙new vote mvsNew)
 
