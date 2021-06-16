@@ -170,11 +170,27 @@ module ProcessProposalM (proposal : Block) where
            -- RWST-impl _ _ impl (executeAndVoteM proposal) unit pre
            -- {!!} -- (ExecuteAndVoteM.voteSrcCorrect proposal pre)
 
-module ProcessProposalMsgM where
+module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
     ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+
+  Contract : RoundManager → LBFT-Post Unit
+  Contract pre x post outs =
+    ∀ m → m ∈ outs →
+    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+
+  postulate
+    contract
+      : ∀ pre → RWST-weakestPre (processProposalMsgM now pm) (Contract pre) unit pre
+
+  contract! : ∀ pre
+              → let x    = RWST-result (processProposalMsgM now pm) unit pre
+                    post = RWST-post   (processProposalMsgM now pm) unit pre
+                    outs = RWST-outs   (processProposalMsgM now pm) unit pre in
+                Contract pre x post outs
+  contract! pre = RWST-contract (processProposalMsgM now pm) (Contract pre) unit pre (contract pre)
 
 {-
   m∈outs⇒ : ∀ {nm ts pm pre} → nm ∈ LBFT-outs (processProposalMsgM ts pm) pre
