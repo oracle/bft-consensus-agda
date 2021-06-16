@@ -54,6 +54,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
@@ -74,10 +75,12 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
@@ -171,23 +174,23 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
                    (newMsg⊎msgSentB4 r stP pkH (msgSigned m₂) ¬init₂ (msg⊆ m₂) (msg∈pool m₂))
     ...| inj₂ v₁sb4                | inj₂ v₂sb4
          = VotesOnceProof r pkH v₁sb4 v₂sb4
-    ...| inj₁ (m₁∈outs , v₁pk , _) | inj₁ (m₂∈outs , v₂pk , _)
-         = Impl-VO2 r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁pk
-                    (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂pk refl refl
-    ...| inj₁ (m₁∈outs , v₁pk , _) | inj₂ v₂sb4
+    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₁ (m₂∈outs , v₂pk , v₂New)
+         = Impl-VO2 r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁New v₁pk
+                    (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂New v₂pk refl refl
+    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4
          = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ m₂)
                ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH m₂ ¬init₂ (msgSigned v₂sb4) round≡
                epoch≡ = sym (msgEpoch≡ v₂sb4)
            in either (λ v₂<v₁ → ⊥-elim (<⇒≢ v₂<v₁ (msgRound≡ v₂sb4)))
                      (λ v₁sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
-                     (Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁pk
+                     (Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁New v₁pk
                                (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
-    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , _)
+    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , v₂New)
          = let round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ m₁)
                ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH m₁ ¬init₁ (msgSigned v₁sb4) round≡
            in either (λ v₁<v₂ → ⊥-elim (<⇒≢ v₁<v₂ (msgRound≡ v₁sb4)))
                      (λ v₂sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
-                     (Impl-IRO r stP pkH (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂pk
+                     (Impl-IRO r stP pkH (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂New v₂pk
                                (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
                                (sym (msgEpoch≡ v₁sb4)))
 

@@ -28,11 +28,11 @@ module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
              -- implementation (perhaps some incremental extension of
              -- our current fake/simple implementaion) that we can
              -- reasonably hope actually ensures the property!
-    pr₁ : PR.ImplObligation₁ 𝓔
+    pr₁ : PR.PR-ImplObligation₁ 𝓔
 
   --TODO-2: This proof is highly redundant with vo₁, some refactoring may be in order
-  pr₂ : PR.ImplObligation₂ 𝓔
-  pr₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew v'⊂m' m'∈outs sig' ¬gen' v'new refl vround< refl refl refl c2
+  pr₂ : PR.PR-ImplObligation₂ 𝓔
+  pr₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew vspk v'⊂m' m'∈outs sig' ¬gen' v'new v'spk refl vround< refl refl c2
      with m∈outs | m'∈outs
   ...| here refl | here refl
      with v⊂m                          | v'⊂m'
