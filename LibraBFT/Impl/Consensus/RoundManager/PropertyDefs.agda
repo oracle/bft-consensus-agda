@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
--- This module contains properties that are only about the behavior of the handlers, nothing to do
--- with system state
+-- This module contains definitions of properties of only the behavior of the
+-- handlers, nothing concerning the system state.
 
 open import Optics.All
 open import LibraBFT.Prelude
@@ -14,12 +14,6 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Base.Types
 open import LibraBFT.Impl.Consensus.Types
--- import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore       as BlockStore
--- import      LibraBFT.Impl.Consensus.BlockStorage.BlockStoreSpec   as BlockStoreSpec
--- import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlock
--- import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerElection
--- import      LibraBFT.Impl.Consensus.PersistentLivenessStorage     as PersistentLivenessStorage
--- import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules       as SafetyRules
 open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
@@ -33,3 +27,9 @@ VoteSrcCorrectCod pre post (VoteWithMeta∙new vote mvsNew) =
   just vote ≡ post ^∙ lSafetyData ∙ sdLastVote
 VoteSrcCorrectCod pre post (VoteWithMeta∙new vote mvsLastVote) =
   just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
+
+voteSrcCorrectCod-substPre
+  : ∀ {pre₁ pre₂ post mv} → pre₁ ≡L pre₂ at (lSafetyData ∙ sdLastVote)
+    → VoteSrcCorrectCod pre₁ post mv  → VoteSrcCorrectCod pre₂ post mv
+voteSrcCorrectCod-substPre {mv = VoteWithMeta∙new vote mvsNew} refl pf = pf
+voteSrcCorrectCod-substPre {mv = VoteWithMeta∙new vote mvsLastVote} refl pf = pf
