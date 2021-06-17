@@ -12,8 +12,7 @@ We will maintain style-related conventions here; please try to adhere to them wh
   - Imports
      - In general, list all imports in the earliest place possible.  For example, the top of file should include all imports required by the file's modules except those that must be imported within the module due to a dependence on module parameters or a requirement to open public.
      - List imports alphabetically where possible.
-     - For modules that depend on earlier imports, list them right after the import they depend on.
-       - Use blank lines to avoid any confusion due to non-alpha order imports.
+     - Use blank lines to avoid any confusion due to non-alpha order imports.
      - When a module must be imported in order to define the module parameters *and* must be imported within the module, if necessary, limit the first import with `using` or using a module qualifier; this helps to avoid conflicts with subset imports within the module.
   - Comment with overview of the module
   - Module definition
