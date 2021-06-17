@@ -3,23 +3,24 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap            as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
-
+open import LibraBFT.Hash
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.Prelude
+open import Optics.All
+------------------------------------------------------------------------------
 open import Data.String using (String)
 
 -- Defines the types that /DO NOT/ depend on an epoch config.
 -- TODO-3: update types to reflect more recent version of LibraBFT.  This is
 -- a substantial undertaking that should probably be led by someone who can
 -- access our internal implementation.
-module LibraBFT.Impl.Consensus.Types.EpochIndep where
+
+module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- Below here is incremental progress towards something
   -- that will eventually mirror the types in LBFT.Consensus.Types
   -- that /DO NOT/ depend on the set of active authors

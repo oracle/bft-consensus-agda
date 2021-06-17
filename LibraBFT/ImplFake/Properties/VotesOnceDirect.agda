@@ -5,30 +5,30 @@
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.PKCS
-
-import      LibraBFT.Concrete.Properties.VotesOnce as VO
-
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+import      LibraBFT.Concrete.Properties.VotesOnce as VO
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplFake.Properties.VotesOnce
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
-open import LibraBFT.Impl.Properties.VotesOnce
 
 -- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
--- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
+-- LibraBFT.ImplFake.Properties.VotesOnce, which is based on unwind, this proof is done
 -- inductively on the ReachableSystemState.
 
-module LibraBFT.Impl.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
+module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
 
 
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}

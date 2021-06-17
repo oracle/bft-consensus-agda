@@ -3,13 +3,14 @@
    Copyright (c) 2020, 2021 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-import      LibraBFT.Yasm.Types  as LYT
+open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 import      LibraBFT.Yasm.Base   as LYB
 import      LibraBFT.Yasm.System as LYS
+import      LibraBFT.Yasm.Types  as LYT
 
 -- This module provides some definitions and properties that facilitate
 -- proofs of properties about a distributed system modeled by Yasm.System

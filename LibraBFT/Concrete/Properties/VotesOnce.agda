@@ -3,20 +3,21 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Base.Types
-
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
-open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.ImplFake.NetworkMsg
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 

@@ -7,15 +7,15 @@ open import LibraBFT.Base.KVMap                                       as Map
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
-open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Consensus.Types.PendingVotes                as PendingVotes
-open import LibraBFT.Impl.Handle                                      as Handle
 open import LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
 open import LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
 open import LibraBFT.Impl.Types.ValidatorSigner                       as ValidatorSigner
 open import LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplFake.Handle                                  as Handle
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------

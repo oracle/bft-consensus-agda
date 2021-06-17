@@ -3,15 +3,15 @@
    Copyright (c) 2020 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
+open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.Encode
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.ByteString
 
 -- This module defines Hash functions, and related properties
 
 module LibraBFT.Hash where
-
 
  -------------------------------------------------
  -- Hash function postulates

@@ -5,24 +5,24 @@
 -}
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
-open import LibraBFT.Impl.Base.Types
-
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplFake.NetworkMsg
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open        EpochConfig
 open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
@@ -34,7 +34,7 @@ open        Structural impl-sps-avp
 -- implementation (or some variant on it) and streamline the proof before we proceed to tackle more
 -- ambitious properties.
 
-module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
+module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove

@@ -8,28 +8,29 @@
 -- This module provides some scaffolding to define the handlers for our fake/simple "implementation"
 -- and connect them to the interface of the SystemModel.
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Hash
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
 open        PeerCanSignForPK
+
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
-module LibraBFT.Impl.Handle.Properties where
-  open import LibraBFT.Impl.Consensus.RoundManager
-  open import LibraBFT.Impl.Handle
+module LibraBFT.ImplFake.Handle.Properties where
+  open import LibraBFT.ImplFake.Consensus.RoundManager
+  open import LibraBFT.ImplFake.Handle
 
   -- This proof is complete except for pieces that are directly about the handlers.  Our
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.

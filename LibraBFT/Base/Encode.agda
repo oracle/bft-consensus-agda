@@ -3,8 +3,9 @@
    Copyright (c) 2020 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
+
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Prelude
 
 module LibraBFT.Base.Encode where
 

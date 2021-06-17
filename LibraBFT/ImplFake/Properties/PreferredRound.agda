@@ -3,23 +3,23 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Impl.Base.Types
 import      LibraBFT.Concrete.Properties.PreferredRound as PR
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.Prelude
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
 open        Structural impl-sps-avp
 
 open import LibraBFT.Concrete.Obligations
 
 -- In this module, we (will) prove the implementation obligation for the PreferredRound rule.
 
-module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
+module LibraBFT.ImplFake.Properties.PreferredRound (𝓔 : EpochConfig) where
 
   postulate  -- TODO-3 : prove.  Note that this is a substantial
              -- undertaking that should not be started before we have

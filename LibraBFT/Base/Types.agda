@@ -3,10 +3,11 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Hash
-open import LibraBFT.Base.PKCS
+
 open import LibraBFT.Base.Encode
+open import LibraBFT.Base.PKCS
+open import LibraBFT.Hash
+open import LibraBFT.Prelude
 
 -- The ground types that are common across Abstract, Concrete and Impl
 -- and some utility types
