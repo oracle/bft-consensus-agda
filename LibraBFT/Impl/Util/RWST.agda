@@ -118,6 +118,13 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
     _<$>_ : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
     _<$>_ = RWST-map
 
+    infixl 4 _<*>_
+    _<*>_ : RWST Ev Wr St (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+    fs <*> xs = do
+      f ← fs
+      x ← xs
+      pure (f x)
+
   private
     ex₀ : RWST ℕ Wr (Lift ℓ-State ℕ) ℕ
     ex₀ = do
