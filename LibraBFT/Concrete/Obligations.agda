@@ -6,7 +6,7 @@
 open import LibraBFT.Prelude
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 
 import      LibraBFT.Concrete.Properties.VotesOnce      as VO
 import      LibraBFT.Concrete.Properties.PreferredRound as PR

@@ -11,7 +11,7 @@ open import LibraBFT.Prelude
 -- TODO-2: this module is independent of any particular implementation
 -- and arguably belongs somewhere more general, such as next to Optics.
 
-module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
+module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
 
   ----------------
   -- RWST Monad --
@@ -70,7 +70,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
    be more painful than it's worth, at least until we have a
    compelling use case for St to be at a higher level.  In the
    meantime, we have defined use and modify' specifically for our
-   state type, which is in Set; see LibraBFT.Impl.Util.Util.
+   state type, which is in Set; see LibraBFT.ImplFake.Util.Util.
 
   use : Lens St A → RWST Ev Wr St A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))

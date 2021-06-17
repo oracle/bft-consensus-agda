@@ -5,8 +5,8 @@
 -}
 
 open import LibraBFT.Base.KVMap as Map
-open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Impl.Types.LedgerInfoWithSignatures as LedgerInfoWithSignatures
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 

@@ -3,25 +3,25 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
 
-module LibraBFT.Impl.Handle where
- open import LibraBFT.Impl.Consensus.RoundManager
+module LibraBFT.ImplFake.Handle where
+ open import LibraBFT.ImplFake.Consensus.RoundManager
  open RWST-do
 
  open EpochConfig

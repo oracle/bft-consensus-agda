@@ -6,8 +6,8 @@
 
 open import LibraBFT.Base.KVMap           as Map
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types
 open import LibraBFT.Prelude
+open import LibraBFT.ImplShared.Consensus.Types
 open import Optics.All
 
 module LibraBFT.Impl.Types.LedgerInfoWithSignatures where

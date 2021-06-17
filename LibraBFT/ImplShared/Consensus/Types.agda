@@ -30,12 +30,12 @@ open import Data.String using (String)
 -- so sometimes fields may be modified in EpochIndep even though there
 -- is no epoch change.
 
-module LibraBFT.Impl.Consensus.Types where
-  open import LibraBFT.Impl.Base.Types                       public
-  open import LibraBFT.Impl.NetworkMsg                       public
+module LibraBFT.ImplShared.Consensus.Types where
+  open import LibraBFT.ImplShared.Base.Types                 public
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
-  open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
-  open import LibraBFT.Impl.Consensus.Types.EpochDep         public
+  open import LibraBFT.ImplFake.NetworkMsg                   public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochIndep public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochDep   public
 
   record EpochState : Set where
     constructor EpochState∙new

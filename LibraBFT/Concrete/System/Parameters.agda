@@ -7,10 +7,10 @@ open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Handle
+open import LibraBFT.ImplFake.NetworkMsg
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
 open        EpochConfig
 open import LibraBFT.Yasm.Base ℓ-RoundManager
 

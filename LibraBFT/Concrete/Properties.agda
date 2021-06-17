@@ -3,13 +3,15 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Concrete.Obligations
-open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open        EpochConfig
+
 open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Concrete.Obligations
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.Prelude
+
+open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we assume that the implementation meets its
@@ -20,7 +22,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 module LibraBFT.Concrete.Properties
          (st : SystemState)
          (r : ReachableSystemState st)
-         (𝓔 : EpochConfig) 
+         (𝓔 : EpochConfig)
          (impl-correct : ImplObligations 𝓔)
          where
     open        ImplObligations impl-correct
@@ -45,7 +47,7 @@ module LibraBFT.Concrete.Properties
     open ValidSysState public
 
     -- TODO-2 : This should be provided as a module parameter here, and the
-    -- proofs provided to instantiate it should be refactored into LibraBFT.Impl.
+    -- proofs provided to instantiate it should be refactored into LibraBFT.ImplFake.
     -- However, see the TODO-3 in LibraBFT.Concrete.Intermediate, which suggests
     -- that those proofs may change, perhaps some parts of them will remain in
     -- Concrete and others should be in Impl, depending on how that TODO-3 is

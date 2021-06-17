@@ -19,7 +19,7 @@
 -- α-ValidVote)
 
 open import LibraBFT.Prelude
-open import LibraBFT.Impl.Base.Types
+open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open WithAbsVote
 
