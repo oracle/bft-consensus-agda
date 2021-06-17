@@ -1,17 +1,18 @@
-{-# OPTIONS --allow-unsolved-metas #-}
-
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Base.PKCS
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Prelude
+open import Optics.All
+------------------------------------------------------------------------------
 open import Data.String using (String)
 
 -- This module defines types for an out-of-date implementation, based
