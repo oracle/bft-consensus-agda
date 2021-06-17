@@ -3,11 +3,12 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 -- TODO-2: The following import should be eliminated and replaced
 -- with the necessary module parameters (PK and MetaHonestPK)
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
 
 -- This module brings in the base types used through libra
 -- and those necessary for the abstract model.

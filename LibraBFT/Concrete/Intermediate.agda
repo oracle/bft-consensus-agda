@@ -18,8 +18,9 @@
 -- be provided as module parameters to LibraBFT.Concrete (including IsValidVote and
 -- α-ValidVote)
 
-open import LibraBFT.Prelude
 open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.Prelude
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open WithAbsVote
 

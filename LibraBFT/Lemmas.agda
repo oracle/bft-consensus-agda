@@ -3,9 +3,9 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
 
 open import Level using (0ℓ)
+open import LibraBFT.Prelude
 
 -- This module incldes various Agda lemmas that are independent of the project's domain
 

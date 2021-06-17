@@ -24,6 +24,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 open        PeerCanSignForPK
+
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 

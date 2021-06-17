@@ -5,7 +5,7 @@
 -}
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap            as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash

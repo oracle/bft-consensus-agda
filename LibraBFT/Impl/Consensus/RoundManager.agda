@@ -18,9 +18,9 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Prelude
 open import Optics.All
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 
 module LibraBFT.Impl.Consensus.RoundManager where

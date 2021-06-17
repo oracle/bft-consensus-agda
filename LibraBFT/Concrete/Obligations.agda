@@ -3,13 +3,13 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Prelude
-open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Concrete.System
-open import LibraBFT.ImplShared.Consensus.Types
 
 import      LibraBFT.Concrete.Properties.VotesOnce      as VO
 import      LibraBFT.Concrete.Properties.PreferredRound as PR
+open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Concrete.System
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.Prelude
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
