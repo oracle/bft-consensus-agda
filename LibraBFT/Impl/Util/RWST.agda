@@ -17,7 +17,7 @@ data RWST (Ev Wr St : Set) : Set → Set₁ where
   -- Primitive combinators
   RWST-return : ∀ {A}   → A                                       → RWST Ev Wr St A
   RWST-bind   : ∀ {A B} → RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
-  RWST-get    :                                                     RWST Ev Wr St St
+  RWST-gets   : ∀ {A} → (St → A)                                  → RWST Ev Wr St A
   RWST-put    : St                                                → RWST Ev Wr St Unit
   RWST-ask    :                                                     RWST Ev Wr St Ev
   RWST-tell   : List Wr                                           → RWST Ev Wr St Unit
@@ -42,7 +42,7 @@ RWST-run (RWST-bind m f) ev st
 ...| x₁ , st₁ , outs₁
    with RWST-run (f x₁) ev st₁
 ...| x₂ , st₂ , outs₂           = x₂ , st₂ , outs₁ ++ outs₂
-RWST-run RWST-get ev st         = st , st , []
+RWST-run (RWST-gets f) ev st    = f st , st , []
 RWST-run (RWST-put st) ev _     = unit , st , []
 RWST-run RWST-ask ev st         = ev , st , []
 RWST-run (RWST-tell outs) ev st = unit , st , outs
@@ -88,7 +88,7 @@ RWST-weakestPre : (m : RWST Ev Wr St A) → RWST-PredTrans Ev Wr St A
 RWST-weakestPre (RWST-return x) P ev pre = P x pre []
 RWST-weakestPre (RWST-bind m f) P ev pre =
   RWST-weakestPre m (RWST-weakestPre-bindPost ev f P) ev pre
-RWST-weakestPre RWST-get P ev pre = P pre pre []
+RWST-weakestPre (RWST-gets f) P ev pre = P (f pre) pre []
 RWST-weakestPre (RWST-put post) P ev pre = P unit post []
 RWST-weakestPre RWST-ask P ev pre = P ev pre []
 RWST-weakestPre (RWST-tell outs) P ev pre = P unit pre outs
@@ -133,7 +133,7 @@ RWST-contract (RWST-bind m f) P ev pre wp
    with RWST-run m ev pre
 ...| x₁ , st₁ , outs₁ =
   RWST-contract (f x₁) _ ev st₁ (con x₁ refl)
-RWST-contract RWST-get P ev pre wp = wp
+RWST-contract (RWST-gets f) P ev pre wp = wp
 RWST-contract (RWST-put x₁) P ev pre wp = wp
 RWST-contract RWST-ask P ev pre wp = wp
 RWST-contract (RWST-tell x₁) P ev pre wp = wp
@@ -174,13 +174,11 @@ module RWST-do where
 
   pure = return
 
-  get : RWST Ev Wr St St
-  get = RWST-get
-
   gets : (St → A) → RWST Ev Wr St A
-  gets f = do
-    st ← get
-    return (f st)
+  gets = RWST-gets
+
+  get : RWST Ev Wr St St
+  get = gets id
 
   put : St → RWST Ev Wr St Unit
   put = RWST-put
@@ -258,9 +256,7 @@ module RWST-do where
   -- exploration by @cwjnkins showed this to be somewhat painful in particular
   -- around composition, so we are not pursuing it for now.
   use : Lens St A → RWST Ev Wr St A
-  use f = do
-    st ← get
-    pure (st ^∙ f)
+  use f = gets (_^∙ f)
 
   modifyL : Lens St A → (A → A) → RWST Ev Wr St Unit
   modifyL l f = modify (over l f)
@@ -285,7 +281,7 @@ RWST-impl P Q impl (RWST-bind m f) ev st pre =
         (λ r₂ st₂ outs₁ pf₂ → impl r₂ st₂ (outs ++ outs₁) pf₂)
         (f x) ev st₁ (pf x x≡))
     m ev st pre
-RWST-impl P Q impl RWST-get ev st pre = impl _ _ _ pre
+RWST-impl P Q impl (RWST-gets f) ev st pre = impl _ _ _ pre
 RWST-impl P Q impl (RWST-put x) ev st pre = impl _ _ _ pre
 RWST-impl P Q impl RWST-ask ev st pre = impl _ _ _ pre
 RWST-impl P Q impl (RWST-tell x) ev st pre = impl _ _ _ pre
@@ -323,7 +319,7 @@ RWST-× P Q (RWST-bind m f) ev st p q
     (λ r st₁ outs pf r' r'≡ →
       RWST-× (RWST-Post++ P outs) (RWST-Post++ Q outs) (f r') ev st₁ (proj₁ pf r' r'≡) (proj₂ pf r' r'≡))
     m ev st res
-RWST-× P Q RWST-get ev st p q = p , q
+RWST-× P Q (RWST-gets f) ev st p q = p , q
 RWST-× P Q (RWST-put x) ev st p q = p , q
 RWST-× P Q RWST-ask ev st p q = p , q
 RWST-× P Q (RWST-tell x) ev st p q = p , q
