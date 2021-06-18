@@ -34,9 +34,9 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
  --------------------------------
 
  α-Block : Block → Abs.Block
- α-Block b with ₋bdBlockType (₋bBlockData b)
+ α-Block b with _bdBlockType (_bBlockData b)
  ...| NilBlock = record
-      { bId     = ₋bId b
+      { bId     = _bId b
       ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
       ; bRound  = b ^∙ bBlockData ∙ bdRound
       }
@@ -60,7 +60,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
 
  α-Vote : (qc : QuorumCert)(valid : MetaIsValidQC qc) → ∀ {as} → as ∈ qcVotes qc → Abs.Vote
  α-Vote qc v {as} as∈QC = α-ValidVote (rebuildVote qc as)
-                                      (₋ivvMember (All-lookup (₋ivqcMetaVotesValid v) as∈QC))
+                                      (_ivvMember (All-lookup (_ivqcMetaVotesValid v) as∈QC))
 
  -- Abstraction of votes produce votes that carry evidence
  -- they have been cast.
@@ -68,9 +68,9 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
                  → ∀{vs} (prf : vs ∈ qcVotes qc)
                  → ConcreteVoteEvidence (α-Vote qc valid prf)
  α-Vote-evidence qc valid {as} v∈qc
-   = record { ₋cveVote        = rebuildVote qc as
-            ; ₋cveIsValidVote = All-lookup (₋ivqcMetaVotesValid valid) v∈qc
-            ; ₋cveIsAbs       = refl
+   = record { _cveVote        = rebuildVote qc as
+            ; _cveIsValidVote = All-lookup (_ivqcMetaVotesValid valid) v∈qc
+            ; _cveIsAbs       = refl
             }
 
  α-QC : Σ QuorumCert MetaIsValidQC → Abs.QC
@@ -78,7 +78,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
-   ; qVotes-C1    = subst IsQuorum {!!} (MetaIsValidQC.₋ivqcMetaIsQuorum valid) 
+   ; qVotes-C1    = subst IsQuorum {!!} (MetaIsValidQC._ivqcMetaIsQuorum valid)
    ; qVotes-C2    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self

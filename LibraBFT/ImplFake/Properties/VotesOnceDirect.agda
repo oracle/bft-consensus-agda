@@ -38,13 +38,13 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                        → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                        → Meta-Honest-PK pk → ¬ (∈GenInfo (ver-signature sig))
                        → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                       → v ^∙ vEpoch ≡ (₋rmEC s') ^∙ rmEpoch
-                       → v ^∙ vRound ≡ (₋rmEC s') ^∙ rmLastVotedRound
+                       → v ^∙ vEpoch ≡ (_rmEC s') ^∙ rmEpoch
+                       → v ^∙ vRound ≡ (_rmEC s') ^∙ rmLastVotedRound
   newVoteEpoch≡⇒Round≡ r step@(step-msg {_ , P pm} _ pinit) v⊂m (here refl)
                        sig pkH ¬gen vnew ep≡
      with v⊂m
   ...| vote∈vm = refl
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong _vSignature v≈rbld
        = let qc∈rm = VoteMsgQCsFromRoundManager r step pkH v⊂m (here refl) qc∈m
          in ⊥-elim (vnew (qcVotesSentB4 r pinit qc∈rm vs∈qc ¬gen))
 
@@ -159,8 +159,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                 → ¬ ∈GenInfo (ver-signature sig)
                 → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                → (₋rmEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                → (₋rmEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                → (_rmEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                → (_rmEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
   noEpochChange r (step-init uni) pcs pkH sig ∉gen msv eid≡
     = ⊥-elim (uninitd≢initd (trans (sym uni) (msg∈pool⇒initd r pcs pkH sig ∉gen msv)))
   noEpochChange r sm@(step-msg _ ini) pcs pkH sig ∉gen msv eid≡
@@ -172,8 +172,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                    → ¬ (∈GenInfo (ver-signature sig))
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK pre v pid pk
-                   → (₋rmEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                   → v ^∙ vRound ≤ (₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound
+                   → (_rmEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                   → v ^∙ vRound ≤ (_rmEC (peerStates pre pid)) ^∙ rmLastVotedRound
   oldVoteRound≤lvr {pid'} (step-s r step@(step-peer {pid = pid} cheat@(step-cheat c)))
                    pkH sig ¬gen msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv (¬subst ¬gen (msgSameSig msv))
@@ -212,7 +212,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
              pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
      with v⊂m
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong _vSignature v≈rbld
      = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
        in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
   ...| vote∈vm
@@ -233,10 +233,10 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
      with v⊂m                          | v'⊂m'
   ...| vote∈vm                         | vote∈vm = refl
   ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inV qc∈m')
-       rewrite cong ₋vSignature v≈rbld'
+       rewrite cong _vSignature v≈rbld'
        = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) qc∈m'
          in ⊥-elim (v'new (qcVotesSentB4 r psI qc∈rm' vs∈qc' ¬gen'))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) | _
-       rewrite cong ₋vSignature v≈rbld
+       rewrite cong _vSignature v≈rbld
        = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
          in ⊥-elim (vnew (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))

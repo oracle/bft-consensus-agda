@@ -54,7 +54,7 @@ module LibraBFT.Impl.Handle
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
-                      (₋rmSafetyRules (₋rmEC fakeRM)))
+                      (_rmSafetyRules (_rmEC fakeRM)))
 
  initRMEC : RoundManagerEC
  initRMEC = RoundManagerEC∙new initSR (initVV genInfo)
@@ -104,7 +104,7 @@ module LibraBFT.Impl.Handle
  outputToActions : RoundManager → Output → List (Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (Action.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (:vvAddressToValidatorInfo (₋rmValidators (₋rmEC rm)))))
+                                                               (kvm-toList (:vvAddressToValidatorInfo (_rmValidators (_rmEC rm)))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (Action.send (V v))) toList
 
