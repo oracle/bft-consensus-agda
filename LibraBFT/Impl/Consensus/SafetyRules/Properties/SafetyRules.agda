@@ -197,7 +197,7 @@ module ConstructAndSignVoteM where
         (RWST-weakestPre-ebindPost unit (λ _ → c₁) _) pre
         (record { noOutput = refl ; voteSrcCorrect = unit })
         λ where
-          unit ._ ._ refl validatorVerifier vv≡ →
+          unit _ validatorVerifier vv≡ →
             either{C = λ x → RWST-weakestPre (pure x ∙?∙ c₃) (Contract pre) _ _}
               (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
               (λ where
@@ -235,27 +235,26 @@ module ConstructAndSignVoteM where
       : ∀ pre
         → RWST-weakestPre (constructAndSignVoteM-continue0 voteProposal validatorSigner)
             (Contract pre) unit pre
-    contract pre _ refl safetyData0@._ refl =
-      VerifyEpochM.contract (proposedBlock ^∙ bEpoch) safetyData0
-        (RWST-weakestPre-ebindPost unit (λ _ → c₁ safetyData0) _)
-        pre
-        (record { noOutput = refl ; voteSrcCorrect = unit })
-        λ where
-          unit _ →
-            (λ ≡nothing → Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre)
-            , (λ j j≡ →
-                 (λ round≡ →
-                   record { noOutput = refl
-                          ; voteSrcCorrect = sym j≡ })
-                 , λ round≢ → Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre)
+    proj₁ (contract pre safetyData0@._ refl) c₁≡true = record { noOutput = refl ; voteSrcCorrect = unit }
+    proj₁ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) ≡nothing =
+      Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+    proj₁ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j j≡) c₂≡true =
+      record { noOutput = refl ; voteSrcCorrect = sym j≡ , refl }
+    proj₂ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j j≡) c₂≡false =
+      Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
 
   module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
 
     voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
 
     contract : ∀ pre → RWST-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre) unit pre
-    proj₁ (contract pre _ refl vs vs≡) vs≡nothing =
-      record { noOutput = refl
-             ; voteSrcCorrect = unit }
-    proj₂ (contract pre _ refl vs vs≡) j vs≡just-j =
-      Continue0.contract voteProposal j pre
+    proj₁ (contract pre vs vs≡) vs≡nothing = record { noOutput = refl ; voteSrcCorrect = unit }
+    proj₂ (contract pre vs vs≡) j j≡ = Continue0.contract voteProposal j pre
+
+    contract⇒ : ∀ pre Post
+                → (∀ r st outs → Contract pre r st outs → Post r st outs)
+                → RWST-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) Post unit pre
+    contract⇒ pre Post impl =
+      RWST-impl (Contract pre) Post impl
+        (constructAndSignVoteM maybeSignedVoteProposal) unit pre
+        (contract pre)

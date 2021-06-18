@@ -129,45 +129,69 @@ module LibraBFT.Impl.Consensus.RoundManager where
 
   -- processProposalM
   -------------------
-  processProposalM proposal = do
-    _rm ← get
-    let bs = rmGetBlockStore _rm
-    vp ← ProposerElection.isValidProposalM proposal
-    ifM‖ is-nothing (proposal ^∙ bAuthor)
-         ≔ pure unit -- log: error: proposal does not have an author
-       ‖ not vp
-         ≔ pure unit -- log: error: proposer for block is not valid for this round
-       ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs)
-         ≔ pure unit -- log: error: QC of parent is not in BS
-       ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
-                λ parentBlock →
-                  ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
-         ≔ pure unit -- log: error: parentBlock < proposalRound
-       ‖ otherwise≔ do
-           _r ← executeAndVoteM proposal
-           caseM⊎ _r of λ where
-             (inj₁ _) → pure unit -- propagate error
-             (inj₂ vote) → do
-               RoundState.recordVote (unmetaVote vote) {- vote -}
-               si ← BlockStore.syncInfo
-               recipient ← ProposerElection.getValidProposer
-                             <$> use lProposerElection
-                             <*> pure (proposal ^∙ bRound + 1)
-               act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si)
-                             (recipient ∷ []))
-               -- TODO-1   {- mkNodesInOrder1 recipient-}
+  module ProcessProposalM (proposal : Block) where
+    step₀ : LBFT Unit
+    step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
+    step₂ : LBFT Unit
+    step₃ : VoteWithMeta → LBFT Unit
 
-  executeAndVoteM b =
-    BlockStore.executeAndInsertBlockM b {- ∙^∙ logging -} ∙?∙ λ eb → do
-    cr ← use (lRoundState ∙ rsCurrentRound)
-    vs ← use (lRoundState ∙ rsVoteSent)
-    so ← use lSyncOnly
-    ifM‖ is-just vs
-         ≔ bail unit -- already voted this round
-       ‖ so
-         ≔ bail unit -- sync-only set
-       ‖ otherwise≔ do
-         let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
-         SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
-           ∙?∙ λ vote → PersistentLivenessStorage.saveVoteM (unmetaVote vote)
-           ∙?∙ λ _ → ok vote
+    step₀ = do
+      _rm ← get
+      let bs = rmGetBlockStore _rm
+      vp ← ProposerElection.isValidProposalM proposal
+      step₁{_rm} bs vp
+    step₁ bs vp =
+      ifM‖ is-nothing (proposal ^∙ bAuthor)
+           ≔ pure unit -- log: error: proposal does not have an author
+         ‖ not vp
+           ≔ pure unit -- log: error: proposer for block is not valid for this round
+         ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs)
+           ≔ pure unit -- log: error: QC of parent is not in BS
+         ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
+                  λ parentBlock →
+                  ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
+           ≔ pure unit -- log: error: parentBlock < proposalRound
+         ‖ otherwise≔ step₂
+    step₂ = do
+            _r ← executeAndVoteM proposal
+            caseM⊎ _r of λ where
+              (inj₁ _) → pure unit -- propagate error
+              (inj₂ vote) → step₃ vote
+    step₃ vote = do
+                RoundState.recordVote (unmetaVote vote) {- vote -}
+                si ← BlockStore.syncInfo
+                recipient ← ProposerElection.getValidProposer
+                              <$> use lProposerElection
+                              <*> pure (proposal ^∙ bRound + 1)
+                act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si)
+                              (recipient ∷ []))
+                -- TODO-1   {- mkNodesInOrder1 recipient-}
+
+  processProposalM = ProcessProposalM.step₀
+
+  -- executeAndVoteM
+  module ExecuteAndVoteM (b : Block) where
+    step₀ :                 LBFT (ErrLog ⊎ VoteWithMeta)
+    step₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
+    step₂ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
+    step₃ : VoteWithMeta  → LBFT (ErrLog ⊎ VoteWithMeta)
+
+    step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
+    step₁ eb = do
+      cr ← use (lRoundState ∙ rsCurrentRound)
+      vs ← use (lRoundState ∙ rsVoteSent)
+      so ← use lSyncOnly
+      ifM‖ is-just vs
+           ≔ bail unit -- already voted this round
+         ‖ so
+           ≔ bail unit -- sync-only set
+         ‖ otherwise≔ step₂ eb
+    step₂ eb = do
+           let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
+           SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
+             ∙?∙ step₃
+    step₃ vote =
+                 PersistentLivenessStorage.saveVoteM (unmetaVote vote)
+             ∙?∙ λ _ → ok vote
+
+  executeAndVoteM = ExecuteAndVoteM.step₀

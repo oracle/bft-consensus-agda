@@ -44,78 +44,63 @@ module FakeProcessProposalMsg where
   procPMCerts≡ (here refl) = refl
 
 
-module ExecuteAndVoteM (b : Block) where
+module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
-  -- TODO-2: This should be proven "by construction", not directly.
-  postulate
-    noOuts
-      : ∀ pre
-        → RWST-weakestPre (executeAndVoteM b) (λ _ _ outs → outs ≡ []) unit pre
+  record Contract (pre : RoundManager) (r : ErrLog ⊎ VoteWithMeta) (post : RoundManager) (outs : List Output) : Set where
+    field
+      noOutput       : outs ≡ []
+      voteSrcCorrect : ConstructAndSignVoteM.VoteSrcCorrect pre r post
 
-  VoteSrcCorrect = ConstructAndSignVoteM.VoteSrcCorrect
-
-  c₃ : VoteWithMeta → LBFT (ErrLog ⊎ VoteWithMeta)
-  c₃ vote =
-    PersistentLivenessStorage.saveVoteM (unmetaVote vote)
-    ∙?∙ λ _ → ok vote
-
-  c₂ : ExecutedBlock → Round → Maybe Vote → Bool → LBFT (ErrLog ⊎ VoteWithMeta)
-  c₂ eb cr vs so =
-    ifM‖ is-just vs
-         ≔ bail unit -- already voted this round
-       ‖ so
-         ≔ bail unit -- sync-only set
-       ‖ otherwise≔ do
-         let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
-         SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
-           ∙?∙ c₃
-
-  c₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
-  c₁ eb = do
-    cr ← use (lRoundState ∙ rsCurrentRound)
-    vs ← use (lRoundState ∙ rsVoteSent)
-    so ← use lSyncOnly
-    c₂ eb cr vs so
-
-  voteSrcCorrect
-    : ∀ pre → RWST-weakestPre (executeAndVoteM b) (VoteSrcCorrect pre) unit pre
-  voteSrcCorrect pre =
-    ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit c₁ _) pre unit
-      λ where
-        eb blockStore ._ refl ._ refl cr cr≡ ._ refl vs vs≡ ._ refl so so≡ →
-          (const unit) , (λ _ → (const unit)
-          , (λ _ → vsc eb blockStore))
+  contract : ∀ pre → RWST-weakestPre (executeAndVoteM b) (Contract pre) unit pre
+  contract pre =
+    ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit (ExecuteAndVoteM.step₁ b) _) pre
+      (record { noOutput = refl ; voteSrcCorrect = unit })
+      (λ where
+        eb bs ._ refl cr cr≡ vs vs≡ so so≡ →
+          (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+          , λ _ → (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+          , (λ _ →
+               let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
+                   st₁                      = rmSetBlockStore pre bs in
+               ConstructAndSignVoteM.contract⇒ maybeSignedVoteProposal' st₁
+                 (RWST-weakestPre-ebindPost unit (ExecuteAndVoteM.step₃ b) (Contract pre))
+                 (help bs)))
+    where
+    help : ∀ bs r st outs
+           → ConstructAndSignVoteM.Contract (rmSetBlockStore pre bs) r st outs
+           → _
+    help bs (inj₁ _) st outs pf =
+      record { noOutput = ConstructAndSignVoteM.Contract.noOutput pf ; voteSrcCorrect = unit }
+    help bs (inj₂ vote) st outs pf ._ refl =
+      SaveVoteM.contract (unmetaVote vote) (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
+        (record { noOutput = noo
+                ; voteSrcCorrect = unit })
+        λ where
+          bs' unit _ →
+            record { noOutput = noo
+                   ; voteSrcCorrect = voteSrcCorrectCod-substRm refl refl vsc }
       where
-      module _ (eb : ExecutedBlock) (blockStore : BlockStore _) where
-        maybeSignedVoteProposal = ExecutedBlock.maybeSignedVoteProposal eb
-        st₁ = rmSetBlockStore pre blockStore
+      noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
+      vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
 
-        impl : ∀ r st outs
-               → VoteSrcCorrect pre r st outs
-               → RWST-weakestPre-ebindPost unit c₃ (VoteSrcCorrect pre) r st outs
-        impl (inj₁ _) st outs pf = unit
-        impl (inj₂ (VoteWithMeta∙new vote mvsNew)) st outs pf ._ refl =
-          SaveVoteM.contract vote _ st unit λ where
-            blockStore' unit _ → pf
-        impl (inj₂ (VoteWithMeta∙new vote mvsLastVote)) st outs pf ._ refl =
-          SaveVoteM.contract vote _ st unit (λ where blockStore₁ unit ._ → pf)
+module ProcessProposalMSpec (proposal : Block) where
+  open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
 
-        vsc
-          : RWST-weakestPre
-              (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal
-                ∙?∙ c₃)
-              (VoteSrcCorrect pre)
-              unit st₁
-        vsc =
-          RWST-impl
-            _ (RWST-weakestPre-ebindPost unit c₃ (VoteSrcCorrect pre))
-            impl
-            (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal) unit st₁
-            (ConstructAndSignVoteM.voteSrcCorrect maybeSignedVoteProposal pre st₁ refl)
+  OutputSpec : ErrLog ⊎ Unit → List Output → Set
+  OutputSpec (inj₁ _) outs = outs ≡ []
+  OutputSpec (inj₂ _) outs = ∃₂ λ mv pid → outs ≡ SendVote mv pid ∷ []
 
+  record Contract (pre : RoundManager) (r : ErrLog ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
+    field
+      output         : OutputSpec r outs
+      voteSrcCorrect : ∀ mv pid → SendVote mv pid ∈ outs → VoteSrcCorrectCod pre post (mv ^∙ mvmVoteWithMeta)
+      -- TODO-2: We will also want, likely as a separate field, that the vote is being sent to the correct peer.
+
+{-
 module ProcessProposalM (proposal : Block) where
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
@@ -262,5 +247,5 @@ module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
       | nothing | false | maybeSignedVoteProposal' | csv-vsc | refl | inj₂ mv , rm₂ , .[]
       | refl | si , rm₃ , .[] rewrite sym eaib-rw = csv-vsc src≡LastVote
 -}
-
+-}
 open FakeProcessProposalMsg public
