@@ -262,10 +262,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockData → Maybe Author → BlockData
     s bd nothing     = bd
     s bd (just auth) =
-      bd [ bdBlockType %~
-            (λ where
-               (Proposal tx _) → Proposal tx auth
-               bdt             → bdt) ]
+      bd & bdBlockType %~ λ where
+        (Proposal tx _) → Proposal tx auth
+        bdt → bdt
 
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
@@ -371,9 +370,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
-  -- The implementation exits with an error if a proposal message contains no
-  -- author. Here, we handle the case of a missing author by having this lens
-  -- return a `Maybe Author`.
   pmProposer : Lens ProposalMsg (Maybe Author)
   pmProposer = pmProposal ∙ bAuthor
 

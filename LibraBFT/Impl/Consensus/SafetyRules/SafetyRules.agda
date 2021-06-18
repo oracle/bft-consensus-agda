@@ -46,7 +46,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
     then bail unit -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← grd‖ twoChainRound >? preferredRound
-                     ≔ pure (safetyData [ sdPreferredRound := twoChainRound ])
+                     ≔ pure (safetyData & sdPreferredRound ∙~ twoChainRound)
                      -- log: info: updated preferred round
                    ‖ twoChainRound <? preferredRound
                      ≔ pure safetyData
@@ -71,7 +71,7 @@ verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (ErrLog ⊎ Safety
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
   if ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋
-    then ok (safetyData [ sdLastVotedRound := round ])
+    then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail unit -- log: error: incorrect last vote round
 
 -- constructAndSignVoteM
@@ -116,6 +116,6 @@ constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safet
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
-        lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
+        lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
         ok (VoteWithMeta∙new vote mvsNew)
 

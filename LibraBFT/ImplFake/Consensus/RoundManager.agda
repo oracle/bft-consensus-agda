@@ -61,7 +61,7 @@ processProposalMsg inst pm = do
       sv = record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
       bt = rmw ^∙ (lBlockTree 𝓔)
       si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
-      rm' = rm [ rmLastVotedRound := nr ]
+      rm' = rm & rmLastVotedRound ∙~ nr
       st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc)
                                  (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
   put st'
