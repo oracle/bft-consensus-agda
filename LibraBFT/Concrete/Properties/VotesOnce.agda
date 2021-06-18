@@ -8,7 +8,6 @@ open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.ImplFake.NetworkMsg
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
 open import LibraBFT.ImplShared.Base.Types
