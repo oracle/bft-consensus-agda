@@ -3,15 +3,16 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
+
 open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module defines syntax and functionality modeling an RWST monad,
 -- which we use to define an implementation.
 -- TODO-2: this module is independent of any particular implementation
 -- and arguably belongs somewhere more general, such as next to Optics.
 
-module LibraBFT.Impl.Util.RWST where
+module LibraBFT.ImplShared.Util.RWST where
 
 data RWST (Ev Wr St : Set) : Set → Set₁ where
   -- Primitive combinators
@@ -345,24 +346,30 @@ RWST-× P Q (RWST-maybe m c₁ c₂) ev st p q =
   (λ ≡nothing → RWST-× P Q c₁ ev st (proj₁ p ≡nothing) (proj₁ q ≡nothing))
   , (λ j j≡ → RWST-× P Q (c₂ j) ev st (proj₂ p j j≡) (proj₂ q j j≡))
 
-{-
-  -- Derived Functionality
+-- Derived Functionality
+maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+maybeSM mma mb f = do
+  x ← mma
+  case x of λ where
+    nothing → mb
+    (just j) → f j
+  where
+  open RWST-do
 
-  maybeMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
-          → RWST Ev Wr St B
-  maybeMP ma b f = do
-    x ← ma
-    case x of
-      λ { (just r) → f r
-        ; nothing  → return b
-        }
-    where open RWST-do
+maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
+           → RWST Ev Wr St B
+maybeSMP ma b f = do
+  x ← ma
+  case x of λ where
+    nothing → return b
+    (just j) → f j
+  where open RWST-do
 
 _∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
-  m ∙^∙ f = do
-    x ← m
-    case x of λ where
-      (inj₁ e) → pure (inj₁ (f e))
-      (inj₂ r) → pure (inj₂ r)
-    where open RWST-do
--}
+m ∙^∙ f = do
+  x ← m
+  case x of λ where
+    (inj₁ e) → pure (inj₁ (f e))
+    (inj₂ r) → pure (inj₂ r)
+  where open RWST-do
+

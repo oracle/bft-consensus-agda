@@ -4,18 +4,18 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Optics.All
-open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
-open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-import      LibraBFT.Impl.Util.Crypto                         as Crypto
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
@@ -23,11 +23,6 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
-
-  -- TODO-1: These two functions should require a proof that `signer` returns `inj₂`
-  obmUnsafeSign : ∀ {C} ⦃ ws :  WithSig C ⦄ → SafetyRules → C → Signature
-  obmUnsafeSigner : SafetyRules → ValidatorSigner
-
   extensionCheckM : VoteProposal → LBFT (ErrLog ⊎ VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
@@ -51,7 +46,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
     then bail unit -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← ifM‖ twoChainRound >? preferredRound
-                     ≔ pure (safetyData [ sdPreferredRound := twoChainRound ])
+                     ≔ pure (safetyData & sdPreferredRound ∙~ twoChainRound)
                      -- log: info: updated preferred round
                    ‖ twoChainRound <? preferredRound
                      ≔ pure safetyData
@@ -76,7 +71,7 @@ verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (ErrLog ⊎ Safety
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
   ifM round >? (safetyData ^∙ sdLastVotedRound)
-    then ok (safetyData [ sdLastVotedRound := round ])
+    then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail unit -- log: error: incorrect last vote round
 
 -- constructAndSignVoteM
@@ -119,8 +114,8 @@ constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safet
     extensionCheckM voteProposal ∙?∙ λ voteData → do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
-        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+        let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
-        lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
+        lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
         ok (VoteWithMeta∙new vote mvsNew)
 

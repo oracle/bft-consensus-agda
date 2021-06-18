@@ -3,27 +3,30 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.ImplFake.NetworkMsg
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        WithAbsVote
 
 -- Here we have the abstraction functions that connect
--- the datatypes defined in LibraBFT.Impl.Consensus.Types
+-- the datatypes defined in LibraBFT.ImplFake.Consensus.Types
 -- to the abstract records from LibraBFT.Abstract.Records
 -- for a given EpochConfig.
 --
 module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
- open import LibraBFT.Impl.Consensus.Types.EpochDep 𝓔
+ open import LibraBFT.ImplShared.Consensus.Types.EpochDep 𝓔
  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (bId; qcVotes; Block)
  open        EpochConfig 𝓔
  --------------------------------
@@ -75,7 +78,7 @@ module LibraBFT.Concrete.Records (𝓔 : EpochConfig) where
    { qCertBlockId = qc ^∙ qcVoteData ∙ vdProposed ∙ biId
    ; qRound       = qc ^∙ qcVoteData ∙ vdProposed ∙ biRound
    ; qVotes       = All-reduce (α-Vote qc valid) All-self
-   ; qVotes-C1    = {! MetaIsValidQC.₋ivqcMetaIsQuorum valid!}
+   ; qVotes-C1    = subst IsQuorum {!!} (MetaIsValidQC.₋ivqcMetaIsQuorum valid) 
    ; qVotes-C2    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C3    = All-reduce⁺ (α-Vote qc valid) (λ _ → refl) All-self
    ; qVotes-C4    = All-reduce⁺ (α-Vote qc valid) (α-Vote-evidence qc valid) All-self

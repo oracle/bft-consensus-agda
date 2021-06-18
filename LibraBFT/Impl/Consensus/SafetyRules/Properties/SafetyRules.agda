@@ -8,16 +8,16 @@ open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+import      LibraBFT.ImplShared.Util.Crypto                         as Crypto
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
-open import LibraBFT.Impl.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
-import      LibraBFT.Impl.Util.Crypto                         as Crypto
-open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 
@@ -38,7 +38,7 @@ module VerifyAndUpdatePreferredRoundM (quorumCert : QuorumCert) (safetyData : Sa
       : ∀ P pre
         → (C₁ true → P (inj₁ unit) pre [])
         → (C₁ false
-          → (C₂ true → P (inj₂ (safetyData [ sdPreferredRound := twoChainRound ])) pre [])
+          → (C₂ true → P (inj₂ (safetyData & sdPreferredRound ∙~ twoChainRound)) pre [])
             × (C₃ true → P (inj₂ safetyData) pre [])
             × (C₄ true → P (inj₂ safetyData) pre []))
         → RWST-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData) P unit pre
@@ -86,12 +86,12 @@ module VerifyEpochM (epoch : Epoch) (safetyData : SafetyData) where
 
 module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) where
   C₁ = ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋ ≡_
-  safetyData≡ = (safetyData [ sdLastVotedRound := round ]) ≡_
+  safetyData≡ = (safetyData & sdLastVotedRound ∙~ round) ≡_
 
   contract
     : ∀ P pre
       → (C₁ false → P (inj₁ unit) pre [])
-      → (C₁ true → P (inj₂ (safetyData [ sdLastVotedRound := round ])) pre [])
+      → (C₁ true → P (inj₂ (safetyData & sdLastVotedRound ∙~ round)) pre [])
       → RWST-weakestPre (verifyAndUpdateLastVoteRoundM round safetyData) P unit pre
   proj₁ (contract P₁ pre b o) c₁t = o c₁t
   proj₂ (contract P₁ pre b o) c₁f = b c₁f
@@ -128,9 +128,9 @@ module ConstructAndSignVoteM where
 
     c₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
     c₃ safetyData1 voteData author ledgerInfo = do
-      let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+      let signature = ValidatorSigner.sign validatorSigner ledgerInfo
           vote      = Vote.newWithSignature voteData author ledgerInfo signature
-      lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
+      lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
       ok (VoteWithMeta∙new vote mvsNew)
 
     c₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ VoteWithMeta)
@@ -156,7 +156,7 @@ module ConstructAndSignVoteM where
         (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
         λ _ safetyData1 safetyData1≡ → λ where
           ._ refl unit _ →
-            let st₁ = pre [ lSafetyData := safetyData1 ] in
+            let st₁ = pre & lSafetyData ∙~ safetyData1 in
             ExtensionCheckM.contract voteProposal
               (RWST-weakestPre-ebindPost unit (c₂ safetyData1) _) st₁
               (record { noOutput = refl ; voteSrcCorrect = unit })

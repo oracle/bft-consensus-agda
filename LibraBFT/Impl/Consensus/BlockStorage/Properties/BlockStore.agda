@@ -5,9 +5,9 @@
 -}
 open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
@@ -33,4 +33,4 @@ module GetSyncInfo where
     contract
       : ∀ P pre
         → (∀ si → P si pre [])
-        → RWST-weakestPre syncInfo P unit pre
+        → RWST-weakestPre syncInfoM P unit pre

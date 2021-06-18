@@ -12,8 +12,9 @@ open import LibraBFT.Prelude
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore       as BlockStore
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlock
 import      LibraBFT.Impl.Consensus.Liveness.RoundState           as RoundState
@@ -21,28 +22,11 @@ import      LibraBFT.Impl.Consensus.Liveness.ProposerElection     as ProposerEle
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage     as PersistentLivenessStorage
 open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules       as SafetyRules
-open import LibraBFT.Impl.Util.Util
 
 open RWST-do
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
 open import LibraBFT.Impl.Consensus.RoundManager
-
-module FakeProcessProposalMsg where
-  voteForCurrentEpoch : ∀ {ts pm pre vm αs}
-                      → (SendVote vm αs) ∈ LBFT-outs (fakeProcessProposalMsg ts pm) pre
-                      → (₋rmEC pre) ^∙ rmEpoch ≡ (unmetaVoteMsg vm) ^∙ vmVote ∙ vEpoch
-  voteForCurrentEpoch (here refl) = refl
-
-  -- The quorum certificates sent in SyncInfo with votes are those from the peer state.
-  -- This is no longer used because matching m∈outs parameters to here refl eliminated the need for
-  -- it, at least for our simple handler.  I'm keeping it, though, as it may be needed in future
-  -- when the real handler will be much more complicated and this proof may no longer be trivial.
-  procPMCerts≡ : ∀ {ts pm pre vm αs}
-               → (SendVote vm αs) ∈ LBFT-outs (fakeProcessProposalMsg ts pm) pre
-               → (unmetaVoteMsg vm) ^∙ vmSyncInfo ≡ SyncInfo∙new (₋rmHighestQC pre) (₋rmHighestCommitQC pre)
-  procPMCerts≡ (here refl) = refl
-
 
 module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
@@ -248,4 +232,3 @@ module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
       | refl | si , rm₃ , .[] rewrite sym eaib-rw = csv-vsc src≡LastVote
 -}
 -}
-open FakeProcessProposalMsg public

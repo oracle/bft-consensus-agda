@@ -8,28 +8,29 @@
 -- This module provides some scaffolding to define the handlers for our fake/simple "implementation"
 -- and connect them to the interface of the SystemModel.
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Hash
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+open        PeerCanSignForPK
+
 open        EpochConfig
-open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
-module LibraBFT.Impl.Handle.Properties where
-  open import LibraBFT.Impl.Consensus.RoundManager
-  open import LibraBFT.Impl.Handle
+module LibraBFT.ImplFake.Handle.Properties where
+  open import LibraBFT.ImplFake.Consensus.RoundManager
+  open import LibraBFT.ImplFake.Handle
 
   -- This proof is complete except for pieces that are directly about the handlers.  Our
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
@@ -60,7 +61,7 @@ module LibraBFT.Impl.Handle.Properties where
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ ( mkPCS4PK {! !} {!!} (inGenInfo refl) {!!} {!!} {!!}
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {!!} (inGenInfo refl) {!!}
        -- The implementation will need to provide evidence that the peer is a member of
        -- the epoch of the message it's sending and that it is assigned pk for that epoch.
                         , msg∉)
@@ -105,17 +106,17 @@ module LibraBFT.Impl.Handle.Properties where
                  → ¬ (∈GenInfo (proj₂ vs))
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
-   -- We can prove this easily because we don't yet do epoch changes,
-   -- so only the initial EC is relevant.  Later, this will require us to use the fact that
-   -- epoch changes require proof of committing an epoch-changing transaction.
+  -- We can prove this easily because we don't yet do epoch changes,
+  -- so only the initial EC is relevant.  Later, this will require us to use the fact that
+  -- epoch changes require proof of committing an epoch-changing transaction.
   availEpochsConsistent :
      ∀{pid pid' v v' pk}{st : SystemState}
-     → ReachableSystemState st
      → (pkvpf  : PeerCanSignForPK st v  pid  pk)
      → (pkvpf' : PeerCanSignForPK st v' pid' pk)
-     → PeerCanSignForPK.𝓔 pkvpf ≡ PeerCanSignForPK.𝓔 pkvpf'
-  availEpochsConsistent r (mkPCS4PK _ _ (inGenInfo refl) _ _ _)
-                          (mkPCS4PK _ _ (inGenInfo refl) _ _ _) = refl
+     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+     → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+  availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _)
+                        (mkPCS4PK _ (inGenInfo refl) _) refl = refl
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}

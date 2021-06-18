@@ -4,9 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap           as Map
+open import LibraBFT.Base.KVMap                 as Map
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -17,4 +17,4 @@ addSignature : Author → Signature → TimeoutCertificate → TimeoutCertificat
 addSignature a s tc =
   case Map.lookup a (tc ^∙ tcSignatures) of λ where
     (just _) → tc
-    nothing  → tc [ tcSignatures := Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures) ]
+    nothing  → tc & tcSignatures ∙~ Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures)

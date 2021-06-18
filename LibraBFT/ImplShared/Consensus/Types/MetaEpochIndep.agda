@@ -5,14 +5,14 @@
 -}
 open import Optics.All
 open import LibraBFT.Prelude
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 
 open import Data.String using (String)
 
 {- Defines meta-level instrumentation for epoch-independent types in order to
 -- reason about the implementation.
 -}
-module LibraBFT.Impl.Consensus.Types.MetaEpochIndep where
+module LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep where
 
   -- Meta-level instrumentation for reasoning about the source of a vote.
 data MetaVoteSrc : Set where
@@ -51,7 +51,7 @@ mvmVoteWithMeta = mkLens' g s
   g vm = VoteWithMeta∙new (vm ^∙ mvmVoteMsg ∙ vmVote) (vm ^∙ mvmSrc)
 
   s : VoteMsgWithMeta → VoteWithMeta → VoteMsgWithMeta
-  s vm v = VoteMsgWithMeta∙new ((vm ^∙ mvmVoteMsg) [ vmVote := v ^∙ mvVote ]) (v ^∙ mvSrc)
+  s vm v = VoteMsgWithMeta∙new ((vm ^∙ mvmVoteMsg) & vmVote ∙~ v ^∙ mvVote) (v ^∙ mvSrc)
 
 data Output : Set where
   BroadcastProposal : ProposalMsg                   → Output

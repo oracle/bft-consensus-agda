@@ -4,15 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 
 -- This module defines the LBFT monad used by our (fake/simple,
 -- for now) "implementation", along with some utility functions
 -- to facilitate reasoning about it.
 
-module LibraBFT.Impl.Util.Util where
+module LibraBFT.ImplShared.Util.Util where
   open import Optics.All
-  open import LibraBFT.Impl.Util.RWST public
+  open import LibraBFT.ImplShared.Util.RWST public
   open RWST-do
   ----------------
   -- LBFT Monad --

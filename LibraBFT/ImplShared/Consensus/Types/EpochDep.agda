@@ -3,15 +3,17 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This module defines the types that depend on an EpochConfig,
@@ -34,7 +36,7 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- module inside Consensus.Types called EpochDep will break
 -- mkLens (not sure why).
 
-module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
+module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
   open WithAbsVote 𝓔
 

@@ -3,23 +3,24 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Hash
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap            as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
-
+open import LibraBFT.Hash
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.Prelude
+open import Optics.All
+------------------------------------------------------------------------------
 open import Data.String using (String)
 
 -- Defines the types that /DO NOT/ depend on an epoch config.
 -- TODO-3: update types to reflect more recent version of LibraBFT.  This is
 -- a substantial undertaking that should probably be led by someone who can
 -- access our internal implementation.
-module LibraBFT.Impl.Consensus.Types.EpochIndep where
+
+module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- Below here is incremental progress towards something
   -- that will eventually mirror the types in LBFT.Consensus.Types
   -- that /DO NOT/ depend on the set of active authors
@@ -81,6 +82,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   unquoteDecl liCommitInfo   liConsensusDataHash = mkLens (quote LedgerInfo)
              (liCommitInfo ∷ liConsensusDataHash ∷ [])
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
+  postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
@@ -180,6 +182,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   qcParentBlock : Lens QuorumCert BlockInfo
   qcParentBlock = qcVoteData ∙ vdParent
 
+  qcCommitInfo : Lens QuorumCert BlockInfo
+  qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
+
   -- Constructs a 'vote' that was gathered in a QC.
   rebuildVote : QuorumCert → Author × Signature → Vote
   rebuildVote qc (α , sig)
@@ -257,10 +262,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     s : BlockData → Maybe Author → BlockData
     s bd nothing     = bd
     s bd (just auth) =
-      bd [ bdBlockType %~
-            (λ where
-               (Proposal tx _) → Proposal tx auth
-               bdt             → bdt) ]
+      bd & bdBlockType %~ λ where
+        (Proposal tx _) → Proposal tx auth
+        bdt → bdt
 
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
@@ -296,6 +300,15 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   bEpoch : Lens Block Epoch
   bEpoch = bBlockData ∙ bdEpoch
 
+  record BlockRetriever : Set where
+    constructor BlockRetriever∙new
+    field
+      ₋brDeadline      : Instant
+      ₋brPreferredPeer : Author
+  open BlockRetriever public
+  unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
+             (brDeadline ∷ brPreferredPeer ∷ [])
+
   record VoteProposal : Set where
     constructor VoteProposal∙new
     field
@@ -314,6 +327,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   open MaybeSignedVoteProposal public
   unquoteDecl msvpVoteProposal msvpSignature = mkLens (quote MaybeSignedVoteProposal)
               (msvpVoteProposal ∷ msvpSignature ∷ [])
+
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
@@ -339,6 +353,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   siHighestCommitCert = mkLens' (λ x → fromMaybe (x ^∙ siHighestQuorumCert) (₋siHighestCommitCert x))
                                 (λ x si → record x { ₋siHighestCommitCert = just si })
 
+  siHighestCommitRound : Lens SyncInfo Round
+  siHighestCommitRound = siHighestCommitCert ∙ qcCommitInfo ∙ biRound
+
   ----------------------
   -- Network Messages --
   ----------------------
@@ -353,9 +370,6 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
-  -- The implementation exits with an error if a proposal message contains no
-  -- author. Here, we handle the case of a missing author by having this lens
-  -- return a `Maybe Author`.
   pmProposer : Lens ProposalMsg (Maybe Author)
   pmProposer = pmProposal ∙ bAuthor
 
@@ -409,8 +423,8 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record TimeoutCertificate : Set where
     constructor mkTimeoutCertificate
     field
-      -tcTimeout    : Timeout
-      -tcSignatures : KVMap Author Signature
+      ₋tcTimeout    : Timeout
+      ₋tcSignatures : KVMap Author Signature
   open TimeoutCertificate public
   unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
              (tcTimeout ∷ tcSignatures ∷ [])
@@ -422,7 +436,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     constructor PendingVotes∙new
     field
       ₋pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
-      -pvMaybePartialTC    : Maybe TimeoutCertificate
+      ₋pvMaybePartialTC    : Maybe TimeoutCertificate
       ₋pvAuthorToVote      : KVMap Author Vote
   open PendingVotes public
   unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
@@ -476,10 +490,10 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record SafetyData : Set where
     constructor SafetyData∙new
     field
-      :sdEpoch          : Epoch
-      :sdLastVotedRound : Round
-      :sdPreferredRound : Round
-      :sdLastVote       : Maybe Vote
+      ₋sdEpoch          : Epoch
+      ₋sdLastVotedRound : Round
+      ₋sdPreferredRound : Round
+      ₋sdLastVote       : Maybe Vote
   open SafetyData public
   unquoteDecl sdEpoch sdLastVotedRound sdPreferredRound sdLastVote =
     mkLens (quote SafetyData)
@@ -488,9 +502,9 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record PersistentSafetyStorage : Set where
     constructor PersistentSafetyStorage∙new
     field
-      :pssSafetyData : SafetyData
-      :pssAuthor     : Author
-      -- :pssWaypoint : Waypoint
+      ₋pssSafetyData : SafetyData
+      ₋pssAuthor     : Author
+      -- ₋pssWaypoint : Waypoint
   open PersistentSafetyStorage public
   unquoteDecl pssSafetyData pssAuthor = mkLens (quote PersistentSafetyStorage)
     (pssSafetyData ∷ pssAuthor ∷ [])
@@ -498,14 +512,14 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record ValidatorSigner : Set where
     constructor ValidatorSigner∙new
     field
-      :vsAuthor     : AccountAddress
-      :vsPrivateKey : SK   -- Note that the SystemModel doesn't
-                            -- allow one node to examine another's
-                            -- state, so we don't model someone being
-                            -- able to impersonate someone else unless
-                            -- PK is "dishonest", which models the
-                            -- possibility that the corresponding secret
-                            -- key may have been leaked.
+      ₋vsAuthor     : AccountAddress
+      ₋vsPrivateKey : SK      -- Note that the SystemModel doesn't
+                              -- allow one node to examine another's
+                              -- state, so we don't model someone being
+                              -- able to impersonate someone else unless
+                              -- PK is "dishonest", which models the
+                              -- possibility that the corresponding secret
+                              -- key may have been leaked.
   open ValidatorSigner public
   unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
               (vsAuthor ∷ [])
@@ -513,7 +527,7 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-     :vcConsensusPublicKey : PK
+     ₋vcConsensusPublicKey : PK
   open ValidatorConfig public
   unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
     (vcConsensusPublicKey ∷ [])
@@ -521,29 +535,19 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
     field
-      -- :viAccountAddress       : AccountAddress
-      -- :viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
-      :viConfig : ValidatorConfig
+      -- ₋viAccountAddress       : AccountAddress
+      -- ₋viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
+      ₋viConfig : ValidatorConfig
   open ValidatorInfo public
 
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
-     -vciPublicKey   : PK
-     -vciVotingPower : U64
+     ₋vciPublicKey   : PK
+     ₋vciVotingPower : U64
   open ValidatorConsensusInfo public
   unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
              (vciPublicKey ∷ vciVotingPower ∷ [])
-
-  record ValidatorVerifier : Set where
-    constructor ValidatorVerifier∙new
-    field
-      -vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
-      -vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
-      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
-  open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
-             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
   record ProposerElection : Set where
     constructor ProposerElection∙new
@@ -553,12 +557,22 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
       -- :peObmNodesInORder  : NodesInOrder
   open ProposerElection
 
+  record ValidatorVerifier : Set where
+    constructor ValidatorVerifier∙new
+    field
+      ₋vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      ₋vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
+      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
+  open ValidatorVerifier public
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
-      :srPersistentStorage  : PersistentSafetyStorage
-      :srExecutionPublicKey : Maybe PK
-      :srValidatorSigner   : Maybe ValidatorSigner
+      ₋srPersistentStorage  : PersistentSafetyStorage
+      ₋srExecutionPublicKey : Maybe PK
+      ₋srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
@@ -582,4 +596,3 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
   -- TODO-1: Implement this (low priority)
   ErrLog : Set
   ErrLog = Unit
-

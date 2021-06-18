@@ -6,7 +6,7 @@
 
 open import LibraBFT.Base.KVMap           as Map
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -18,7 +18,7 @@ addSignature validator sig liws =
   case Map.lookup validator (liws ^∙ liwsSignatures) of λ where
     (just _) → liws
     nothing  →
-      liws [ liwsSignatures := Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures) ]
+      liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
 
 

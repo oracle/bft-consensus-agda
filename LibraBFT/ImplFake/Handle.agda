@@ -3,27 +3,25 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
-{-# OPTIONS --allow-unsolved-metas #-}
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
 -- This module provides some scaffolding to define the handlers for our fake/simple
 -- "implementation" and connect them to the interface of the SystemModel.
 
-module LibraBFT.Impl.Handle where
- open import LibraBFT.Impl.Consensus.RoundManager
+module LibraBFT.ImplFake.Handle where
+ open import LibraBFT.ImplFake.Consensus.RoundManager
  open RWST-do
 
  open EpochConfig
@@ -87,7 +85,7 @@ module LibraBFT.Impl.Handle where
  initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
 
  initRS : RoundState
- initRS = RoundState∙new 0 initPV nothing
+ initRS = RoundState∙new 0 0 initPV nothing
 
  initRMEC : RoundManagerEC
  initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR false
@@ -111,7 +109,7 @@ module LibraBFT.Impl.Handle where
  handle : NodeId → NetworkMsg → Instant → LBFT Unit
  handle _self msg now
     with msg
- ...| P p = fakeProcessProposalMsg now p
+ ...| P p = processProposalMsg now p
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
 
@@ -124,7 +122,7 @@ module LibraBFT.Impl.Handle where
  outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (-vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
+                                                               (kvm-toList (₋vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V (unmetaVoteMsg v)))) toList
 

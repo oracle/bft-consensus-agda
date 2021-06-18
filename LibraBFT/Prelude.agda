@@ -186,6 +186,9 @@ module LibraBFT.Prelude where
     using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
     public
 
+  infixl 1 _&_
+  _&_ = Function._|>_
+
   open import Data.Product
     renaming (map to ×-map; map₂ to ×-map₂; map₁ to ×-map₁; <_,_> to split; swap to ×-swap)
     hiding (zip)
