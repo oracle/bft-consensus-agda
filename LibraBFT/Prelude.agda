@@ -205,6 +205,7 @@ module LibraBFT.Prelude where
     hiding (map)
     public
 
+  infix 4 _<?ℕ_
   _<?ℕ_ : Decidable _<_
   m <?ℕ n = suc m ≤?ℕ n
 

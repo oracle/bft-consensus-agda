@@ -316,8 +316,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       ₋vpBlock : Block
       -- ₋vpNextEpochState : Maybe EpochState
   open VoteProposal public
-  unquoteDecl vpBlock = mkLens (quote VoteProposal) (vpBlock ∷ [])
-
+  unquoteDecl  vpBlock = mkLens (quote VoteProposal)
+              (vpBlock ∷ [])
 
   record MaybeSignedVoteProposal : Set where
     constructor MaybeSignedVoteProposal∙new
@@ -325,7 +325,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       ₋msvpVoteProposal : VoteProposal
       ₋msvpSignature : Maybe Signature
   open MaybeSignedVoteProposal public
-  unquoteDecl msvpVoteProposal msvpSignature = mkLens (quote MaybeSignedVoteProposal)
+  unquoteDecl  msvpVoteProposal   msvpSignature = mkLens (quote MaybeSignedVoteProposal)
               (msvpVoteProposal ∷ msvpSignature ∷ [])
 
 

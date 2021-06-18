@@ -23,11 +23,6 @@ module LibraBFT.Impl.Consensus.Liveness.RoundState where
 
 open RWST-do
 
--- TODO-1: Implement this.
--- > recordVote v = rsVoteSent ∙= just v
-recordVote : Vote → LBFT Unit
-recordVote v = pure unit
-
 ------------------------------------------------------------------------------
 
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
@@ -46,3 +41,10 @@ insertVoteM vote verifier = do
   if-dec vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ currentRound
     then PendingVotes.insertVoteM vote verifier
     else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
+
+------------------------------------------------------------------------------
+-- TODO-1: Implement this.
+-- > recordVote v = rsVoteSent ∙= just v
+recordVote : Vote → LBFT Unit
+recordVote v = pure unit
+

@@ -41,12 +41,130 @@ processNewRoundEventM now nre = pure unit
 
 ------------------------------------------------------------------------------
 
+syncUpM               : Instant → SyncInfo → Author                   → LBFT (ErrLog ⊎ Unit)
+ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (ErrLog ⊎ Bool)
+processProposalM      : Block                                         → LBFT Unit
+executeAndVoteM       : Block                                         → LBFT (ErrLog ⊎ VoteWithMeta)
+
+-- external entry point
+-- TODO-2: The sync info that the peer requests if it discovers that its round
+-- state is behind the sender's should be sent as an additional argument, for now.
+processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
+processProposalMsgM now {- from -} pm =
+  case pm ^∙ pmProposer of λ where
+    nothing        → pure unit -- log: info: proposal with no author
+    (just pAuthor) →
+      ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
+                            pAuthor true >>= λ where
+      (inj₁ _)     → pure unit -- log: error: <propagate error>
+      (inj₂ true)  → processProposalM (pm ^∙ pmProposal)
+      (inj₂ false) → do
+        currentRound ← use (lRoundState ∙ rsCurrentRound)
+        pure unit -- log: info: dropping proposal for old round
+
+------------------------------------------------------------------------------
+
+-- TODO-2: Implement this.
+syncUpM now syncInfo author = ok unit
+
+------------------------------------------------------------------------------
+
+ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
+  currentRound ← use (lRoundState ∙ rsCurrentRound)
+  if ⌊ messageRound <? currentRound ⌋
+     then ok false
+     else syncUpM now syncInfo author ∙?∙ λ _ → do
+       currentRound' ← use (lRoundState ∙ rsCurrentRound)
+       if not ⌊ messageRound ≟ℕ currentRound' ⌋
+         then bail unit  -- error: after sync, round does not match local
+         else ok true
+
+------------------------------------------------------------------------------
+
 processCertificatesM : Instant → LBFT Unit
 processCertificatesM now = do
   syncInfo ← BlockStore.syncInfoM
   maybeSMP (RoundState.processCertificatesM now syncInfo) unit (processNewRoundEventM now)
 
 ------------------------------------------------------------------------------
+
+-- This function is broken into smaller pieces to aid in the verification
+-- effort. The style of indentation used is to make side-by-side reading of the
+-- Haskell prototype and Agda model easier.
+module ProcessProposalM (proposal : Block) where
+  step₀ : LBFT Unit
+  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
+  step₂ : LBFT Unit
+  step₃ : VoteWithMeta → LBFT Unit
+
+  step₀ = do
+  -- DIFF: We cannot define a lens for the block store without dependent lenses,
+  -- so here we first get the state.
+    s ← get
+    let bs = rmGetBlockStore s
+    vp ← ProposerElection.isValidProposalM proposal
+    step₁{s} bs vp
+  step₁ bs vp =
+    ifM‖ is-nothing (proposal ^∙ bAuthor) ≔
+         pure unit -- log: error: proposal does not have an author
+       ‖ not vp ≔
+         pure unit -- log: error: proposer for block is not valid for this round
+       ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs) ≔
+         pure unit -- log: error: QC of parent is not in BS
+       ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
+              λ parentBlock →
+                ⌊ parentBlock ^∙ ebRound <?ℕ proposal ^∙ bRound ⌋) ≔
+         pure unit -- log: error: parentBlock < proposalRound
+       ‖ otherwise≔
+         step₂
+  step₂ = do
+         -- DIFF: For the verification effort, we use special-purpose case
+         -- distinction operators, so the Haskell
+         -- > executeAndVoteM proposal >>= \case
+         -- is translated to the following.
+         r ← executeAndVoteM proposal
+         caseM⊎ r of λ where
+           (inj₁ _) → pure unit -- <propagate error>
+           (inj₂ vote) → step₃ vote
+  step₃ vote = do
+             RoundState.recordVote (unmetaVote vote)
+             si ← BlockStore.syncInfoM
+             recipient ← ProposerElection.getValidProposer
+                         <$> use lProposerElection
+                         <*> pure (proposal ^∙ bRound + 1)
+             act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si) (recipient ∷ []))
+             -- TODO-2:                                                mkNodesInOrder1 recipient
+
+processProposalM = ProcessProposalM.step₀
+
+------------------------------------------------------------------------------
+module ExecuteAndVoteM (b : Block) where
+  step₀ :                 LBFT (ErrLog ⊎ VoteWithMeta)
+  step₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
+  step₂ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
+  step₃ : VoteWithMeta  → LBFT (ErrLog ⊎ VoteWithMeta)
+
+  step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
+  step₁ eb = do
+    cr ← use (lRoundState ∙ rsCurrentRound)
+    vs ← use (lRoundState ∙ rsVoteSent)
+    so ← use lSyncOnly
+    ifM‖ is-just vs
+         ≔ bail unit -- already voted this round
+       ‖ so
+         ≔ bail unit -- sync-only set
+       ‖ otherwise≔ step₂ eb
+  step₂ eb = do
+           let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
+           SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
+             ∙?∙ step₃
+  step₃ vote =   PersistentLivenessStorage.saveVoteM (unmetaVote vote)
+             ∙?∙ λ _ → ok vote
+
+executeAndVoteM = ExecuteAndVoteM.step₀
+
+------------------------------------------------------------------------------
+
 processVoteM     : Instant → Vote                → LBFT Unit
 addVoteM         : Instant → Vote                → LBFT Unit
 newQcAggregatedM : Instant → QuorumCert → Author → LBFT Unit
@@ -101,127 +219,6 @@ addVoteM now vote = do
         newTcAggregatedM now tc
       _ →
         pure unit
-
-processVote : Instant → VoteMsg → LBFT Unit
-processVote now msg = pure unit
-
-------------------------------------------------------------------------------
-syncUpM : Instant → SyncInfo → Author → LBFT (ErrLog ⊎ Unit)
-ensureRoundAndSyncUpM : Instant → Round → SyncInfo → Author → Bool →
-                        LBFT (ErrLog ⊎ Bool)
-processProposalM : Block → LBFT Unit
-executeAndVoteM : Block → LBFT (ErrLog ⊎ VoteWithMeta)
-
--- external entry point
--- TODO-2: The sync info that the peer requests if it discovers that its round
--- state is behind the sender's should be sent as an additional argument, for now.
-processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
-processProposalMsgM now pm = do
-  caseMM pm ^∙ pmProposer of λ where
-    nothing →
-      return unit -- log: info: proposal with no author
-    (just pAuthor) → do
-      _r ← ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true
-      caseM⊎ _r of λ where
-        (inj₁ _) → return unit -- log: error: <propagate error>
-        (inj₂ b) →
-          ifM b
-          then processProposalM (pm ^∙ pmProposal)
-          else do
-            currentRound ← use (lRoundState ∙ rsCurrentRound)
-            return unit -- log: info: dropping proposal for old round
-
-syncUpM now syncInfo author = ok unit
-
--- ensureRoundAndSyncUp
------------------------
-
-ensureRoundAndSyncUpM-check₁ : Instant → Round → SyncInfo → Author → Bool →
-                               LBFT (ErrLog ⊎ Bool)
-ensureRoundAndSyncUpM-check₁-cont : Round → Unit → LBFT (ErrLog ⊎ Bool)
-
-ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
-  currentRound ← use (lRoundState ∙ rsCurrentRound)
-  ifM messageRound <? currentRound
-     then ok false
-     else ensureRoundAndSyncUpM-check₁ now messageRound syncInfo author helpRemote
-
-ensureRoundAndSyncUpM-check₁ now messageRound syncInfo author helpRemote = do
-  syncUpM now syncInfo author ∙?∙ ensureRoundAndSyncUpM-check₁-cont messageRound
-
-ensureRoundAndSyncUpM-check₁-cont messageRound = λ _ → do
-  currentRound' ← use (lRoundState ∙ rsCurrentRound)
-  ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
-     then bail unit  -- error: after sync, round does not match local
-     else ok true
-
--- processProposalM
--------------------
-module ProcessProposalM (proposal : Block) where
-  step₀ : LBFT Unit
-  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
-  step₂ : LBFT Unit
-  step₃ : VoteWithMeta → LBFT Unit
-
-  step₀ = do
-    _rm ← get
-    let bs = rmGetBlockStore _rm
-    vp ← ProposerElection.isValidProposalM proposal
-    step₁{_rm} bs vp
-  step₁ bs vp =
-    ifM‖ is-nothing (proposal ^∙ bAuthor)
-         ≔ pure unit -- log: error: proposal does not have an author
-       ‖ not vp
-         ≔ pure unit -- log: error: proposer for block is not valid for this round
-       ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs)
-         ≔ pure unit -- log: error: QC of parent is not in BS
-       ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
-             λ parentBlock →
-               ⌊ (parentBlock ^∙ ebRound) <?ℕ (proposal ^∙ bRound) ⌋)
-         ≔ pure unit -- log: error: parentBlock < proposalRound
-       ‖ otherwise≔ step₂
-  step₂ = do
-           _r ← executeAndVoteM proposal
-           caseM⊎ _r of λ where
-             (inj₁ _) → pure unit -- propagate error
-             (inj₂ vote) → step₃ vote
-  step₃ vote = do
-               RoundState.recordVote (unmetaVote vote) {- vote -}
-               si ← BlockStore.syncInfoM
-               recipient ← ProposerElection.getValidProposer
-                           <$> use lProposerElection
-                           <*> pure (proposal ^∙ bRound + 1)
-               act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si)
-                             (recipient ∷ []))
-               -- TODO-1   {- mkNodesInOrder1 recipient-}
-
-processProposalM = ProcessProposalM.step₀
-
--- executeAndVoteM
-module ExecuteAndVoteM (b : Block) where
-  step₀ :                 LBFT (ErrLog ⊎ VoteWithMeta)
-  step₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₂ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₃ : VoteWithMeta  → LBFT (ErrLog ⊎ VoteWithMeta)
-
-  step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
-  step₁ eb = do
-    cr ← use (lRoundState ∙ rsCurrentRound)
-    vs ← use (lRoundState ∙ rsVoteSent)
-    so ← use lSyncOnly
-    ifM‖ is-just vs
-         ≔ bail unit -- already voted this round
-       ‖ so
-         ≔ bail unit -- sync-only set
-       ‖ otherwise≔ step₂ eb
-  step₂ eb = do
-           let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
-           SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
-             ∙?∙ step₃
-  step₃ vote =   PersistentLivenessStorage.saveVoteM (unmetaVote vote)
-             ∙?∙ λ _ → ok vote
-
-executeAndVoteM = ExecuteAndVoteM.step₀
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where

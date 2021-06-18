@@ -3,18 +3,18 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 
 open import Data.String using (String)
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.Prelude
+open import Optics.All
 
 {- Defines meta-level instrumentation for epoch-independent types in order to
 -- reason about the implementation.
 -}
 module LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep where
 
-  -- Meta-level instrumentation for reasoning about the source of a vote.
+-- Meta-level instrumentation for reasoning about the source of a vote.
 data MetaVoteSrc : Set where
   mvsNew mvsLastVote : MetaVoteSrc
 

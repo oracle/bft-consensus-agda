@@ -27,13 +27,13 @@ postulate
   constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
   verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
 
--- signers
---------------------------------------------------
+------------------------------------------------------------------------------
+
 signer : SafetyRules → ErrLog ⊎ ValidatorSigner
 signer self = maybeS (self ^∙ srValidatorSigner) (inj₁ unit) inj₂
 
--- verifyAndUpdatePreferredRoundM
---------------------------------------------------
+------------------------------------------------------------------------------
+
 -- PREFERRED ROUND RULE (2nd VOTING RULE) : this avoids voting to commit a conflicting Block
 verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (ErrLog ⊎ SafetyData)
 verifyAndUpdatePreferredRoundM quorumCert safetyData = do
@@ -45,27 +45,24 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   ifM oneChainRound <? preferredRound
     then bail unit -- error: incorrect preferred round, QC round does not match preferred round
     else do
-      updated ← ifM‖ twoChainRound >? preferredRound
-                     ≔ pure (safetyData & sdPreferredRound ∙~ twoChainRound)
-                     -- log: info: updated preferred round
-                   ‖ twoChainRound <? preferredRound
-                     ≔ pure safetyData
-                     -- log: info: 2-chain round is lower than preferred round, but 1-chain is higher
+      updated ← ifM‖ twoChainRound >? preferredRound ≔
+                     pure (safetyData & sdPreferredRound ∙~ twoChainRound) -- log: info: updated preferred round
+                   ‖ twoChainRound <? preferredRound ≔
+                     pure safetyData                                       -- log: info: 2-chain round is lower than preferred round, but 1-chain is higher
                    ‖ otherwise≔
                      pure safetyData
       ok updated
 
+------------------------------------------------------------------------------
 
--- verifyEpochM
---------------------------------------------------
 verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
 verifyEpochM epoch safetyData =
   ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
     then bail unit -- log: error: incorrect epoch
     else ok unit
 
--- verifyAndUpdateLastVoteRoundM
---------------------------------------------------
+------------------------------------------------------------------------------
+
 -- INCREASING ROUND RULE (1st VOTING RULE) : ensures voting only ONCE per round
 verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (ErrLog ⊎ SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
@@ -74,12 +71,11 @@ verifyAndUpdateLastVoteRoundM round safetyData =
     then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail unit -- log: error: incorrect last vote round
 
--- constructAndSignVoteM
---------------------------------------------------
+------------------------------------------------------------------------------
+
 constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
--- constructAndSignVoteM-continue2-c₃ : VoteProposal → Block → SafetyData → VoteData → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM maybeSignedVoteProposal = do
