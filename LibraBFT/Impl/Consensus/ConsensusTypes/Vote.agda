@@ -5,7 +5,7 @@
 -}
 
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 

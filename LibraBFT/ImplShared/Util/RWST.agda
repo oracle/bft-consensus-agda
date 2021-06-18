@@ -3,15 +3,16 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
+
 open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module defines syntax and functionality modeling an RWST monad,
 -- which we use to define an implementation.
 -- TODO-2: this module is independent of any particular implementation
 -- and arguably belongs somewhere more general, such as next to Optics.
 
-module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
+module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
 
   ----------------
   -- RWST Monad --
@@ -71,7 +72,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
    be more painful than it's worth, at least until we have a
    compelling use case for St to be at a higher level.  In the
    meantime, we have defined use and modify' specifically for our
-   state type, which is in Set; see LibraBFT.Impl.Util.Util.
+   state type, which is in Set; see LibraBFT.ImplFake.Util.Util.
 
   use : Lens St A → RWST Ev Wr St A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
@@ -142,15 +143,22 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
        where open RWST-do
 
   -- Derived Functionality
+  maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+  maybeSM mma mb f = do
+    x ← mma
+    case x of λ where
+      nothing → mb
+      (just j) → f j
+    where
+    open RWST-do
 
-  maybeMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
+  maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
           → RWST Ev Wr St B
-  maybeMP ma b f = do
+  maybeSMP ma b f = do
     x ← ma
-    case x of
-      λ { (just r) → f r
-        ; nothing  → return b
-        }
+    case x of λ where
+      nothing → return b
+      (just j) → f j
     where open RWST-do
 
   infixl 4 _∙?∙_

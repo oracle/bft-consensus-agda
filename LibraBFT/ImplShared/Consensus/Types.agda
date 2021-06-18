@@ -3,13 +3,16 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Base.PKCS
+
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Prelude
+open import Optics.All
+------------------------------------------------------------------------------
 open import Data.String using (String)
 
 -- This module defines types for an out-of-date implementation, based
@@ -27,13 +30,13 @@ open import Data.String using (String)
 -- so sometimes fields may be modified in EpochIndep even though there
 -- is no epoch change.
 
-module LibraBFT.Impl.Consensus.Types where
-  open import LibraBFT.Impl.Base.Types                       public
-  open import LibraBFT.Impl.NetworkMsg                       public
-  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
-  open import LibraBFT.Impl.Consensus.Types.EpochIndep       public
-  open import LibraBFT.Impl.Consensus.Types.EpochDep         public
-  open import LibraBFT.Impl.Consensus.Types.MetaEpochIndep   public
+module LibraBFT.ImplShared.Consensus.Types where
+  open import LibraBFT.ImplShared.Base.Types                     public
+  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
+  open import LibraBFT.ImplFake.NetworkMsg                       public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
+  open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochDep       public
 
   record EpochState : Set where
     constructor EpochState∙new
@@ -41,20 +44,36 @@ module LibraBFT.Impl.Consensus.Types where
       ₋esEpoch    : Epoch
       ₋esVerifier : ValidatorVerifier
   open EpochState public
-  unquoteDecl esEpoch esVerifier = mkLens (quote EpochState)
-    (esEpoch ∷ esVerifier ∷ [])
+  unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
+             (esEpoch ∷ esVerifier ∷ [])
+
+  data NewRoundReason : Set where
+    QCReady : NewRoundReason
+    TOReady : NewRoundReason
+
+  record NewRoundEvent : Set where
+    constructor NewRoundEvent∙new
+    field
+      ₋nreRound   : Round
+      ₋nreReason  : NewRoundReason
+    --  ₋nreTimeout : Duration
+  unquoteDecl nreRound   nreReason = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ [])
 
   record RoundState : Set where
     constructor RoundState∙new
     field
       -- ...
-      -rsCurrentRound : Round
-      -rsPendingVotes : PendingVotes
-      ₋rsVoteSent     : Maybe Vote
+      ₋rsHighestCommittedRound : Round
+      ₋rsCurrentRound          : Round
+      ₋rsPendingVotes          : PendingVotes
+      ₋rsVoteSent              : Maybe Vote
       -- ...
   open RoundState public
-  unquoteDecl rsCurrentRound rsPendingVotes rsVoteSent = mkLens (quote RoundState)
-    (rsCurrentRound ∷ rsPendingVotes ∷ rsVoteSent ∷ [])
+  unquoteDecl rsHighestCommittedRound   rsCurrentRound   rsPendingVotes
+              rsVoteSent = mkLens (quote RoundState)
+             (rsHighestCommittedRound ∷ rsCurrentRound ∷ rsPendingVotes ∷
+              rsVoteSent ∷ [])
 
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
@@ -62,13 +81,13 @@ module LibraBFT.Impl.Consensus.Types where
     constructor RoundManagerEC∙new
     field
       ₋rmEpochState       : EpochState
-      -rmRoundState       : RoundState
-      -rmProposerElection : ProposerElection
+      ₋rmRoundState       : RoundState
+      ₋rmProposerElection : ProposerElection
       ₋rmSafetyRules      : SafetyRules
       ₋rmSyncOnly         : Bool
   open RoundManagerEC public
-  unquoteDecl rmEpochState rmRoundState rmProposerElection rmSafetyRules rmSyncOnly = mkLens (quote RoundManagerEC)
-    (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
+  unquoteDecl rmEpochState   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManagerEC)
+             (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -144,6 +163,20 @@ module LibraBFT.Impl.Consensus.Types where
 
   rmGetEpochState : (rm : RoundManager) → EpochState
   rmGetEpochState rm = (₋rmEC rm) ^∙ rmEpochState
+
+  lValidatorVerifier : Lens RoundManager ValidatorVerifier
+  lValidatorVerifier = mkLens' g s
+   where
+    g : RoundManager → ValidatorVerifier
+    g rm = ₋rmEC rm  ^∙ (rmEpochState ∙ esVerifier)
+    s : RoundManager → ValidatorVerifier → RoundManager
+    s rm v = -- IMPL TODO : not sure if we need this anymore
+      let es = record (rmGetEpochState rm) { ₋esVerifier = v }
+          r  = record rm { ₋rmEC = (₋rmEC rm)
+                           [ rmEpochState := {!!}
+                           ]
+                         }
+       in r
 
   ₋rmHighestQC : (rm : RoundManager) → QuorumCert
   ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))

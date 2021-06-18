@@ -7,9 +7,9 @@
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 

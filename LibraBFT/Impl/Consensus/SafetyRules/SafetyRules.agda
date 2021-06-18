@@ -8,14 +8,14 @@ open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Base.Types
+open import LibraBFT.ImplShared.Base.Types
+import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-import      LibraBFT.Impl.Util.Crypto                         as Crypto
-open import LibraBFT.Impl.Util.Util
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 

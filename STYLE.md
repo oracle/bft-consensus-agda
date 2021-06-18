@@ -11,7 +11,8 @@ We will maintain style-related conventions here; please try to adhere to them wh
   - Pragmas, if any
   - Imports
      - In general, list all imports in the earliest place possible.  For example, the top of file should include all imports required by the file's modules except those that must be imported within the module due to a dependence on module parameters or a requirement to open public.
-     - To the extent possible, group related imports together in order.  List common imports such as `LibraBFT.Prelude`, `LibraBFT.Lemmas` and `LibraBFT.Base.Types` first.
+     - List imports alphabetically where possible.
+     - Use blank lines to avoid any confusion due to non-alpha order imports.
      - When a module must be imported in order to define the module parameters *and* must be imported within the module, if necessary, limit the first import with `using` or using a module qualifier; this helps to avoid conflicts with subset imports within the module.
   - Comment with overview of the module
   - Module definition

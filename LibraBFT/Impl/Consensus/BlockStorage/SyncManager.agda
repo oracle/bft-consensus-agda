@@ -13,16 +13,13 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Prelude
 open import Optics.All
 
-module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
+module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 
 open RWST-do
 
 postulate
-  executeAndInsertBlockM : Block → LBFT (Unit ⊎ ExecutedBlock)
-  insertTimeoutCertificateM : TimeoutCertificate → LBFT (ErrLog ⊎ Unit)
-  getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
-  getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
-  syncInfoM : LBFT SyncInfo
+  insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (ErrLog ⊎ Unit)

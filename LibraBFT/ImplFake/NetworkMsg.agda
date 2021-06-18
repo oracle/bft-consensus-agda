@@ -3,24 +3,25 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
-open import LibraBFT.Hash
-open import LibraBFT.Base.Types
+
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Base.Types
+open import LibraBFT.Hash
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module defines the types of messages that the implementation
 -- can send, along with properties defining ways in which votes can be
 -- represented in them, some useful functions, and definitions of how
 -- NetworkMsgs are signed.
 
-module LibraBFT.Impl.NetworkMsg where
+module LibraBFT.ImplFake.NetworkMsg where
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
     V : VoteMsg     → NetworkMsg

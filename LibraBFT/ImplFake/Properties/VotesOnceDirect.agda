@@ -5,31 +5,30 @@
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.PKCS
-
-import      LibraBFT.Concrete.Properties.VotesOnce as VO
-
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+import      LibraBFT.Concrete.Properties.VotesOnce as VO
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplFake.Properties.VotesOnce
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open        EpochConfig
-open import LibraBFT.Yasm.Types
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
-open import LibraBFT.Impl.Properties.VotesOnce
 
 -- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
--- LibraBFT.Impl.Properties.VotesOnce, which is based on unwind, this proof is done
+-- LibraBFT.ImplFake.Properties.VotesOnce, which is based on unwind, this proof is done
 -- inductively on the ReachableSystemState.
 
-module LibraBFT.Impl.Properties.VotesOnceDirect where
+module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
 
 
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
@@ -56,13 +55,6 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → s' ≡ s
                    → PeerCanSignForPK s' v pid pk
   peerCanSignSameS pcs refl = pcs
-
-  peerCanSignEp≡ : ∀ {pid v v' pk s'}
-                 → PeerCanSignForPK s' v pid pk
-                 → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-                 → PeerCanSignForPK s' v' pid pk
-  peerCanSignEp≡ (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁) refl
-    = (mkPCS4PK 𝓔₁ 𝓔id≡₁ 𝓔inSys₁ mbr₁ nid≡₁ pk≡₁)
 
   MsgWithSig⇒ValidSenderInitialised : ∀ {st v pk}
                                     → ReachableSystemState st
@@ -105,8 +97,8 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK pre v pid pk
-  peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁) pkH sig msv
-    = mkPCS4PK 𝓔₁ 𝓔id≡₁ (inGenInfo refl) mbr₁ nid≡₁ pk≡₁
+  peerCanSign-Msb4 r step (mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) pkH sig msv
+    = mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁  mbr₁ nid≡₁ pk≡₁)
 
   peerCanSignPK-Inj :  ∀ {pid pid' pk v v'}{st : SystemState}
                     → ReachableSystemState st
@@ -115,10 +107,10 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
                     → PeerCanSignForPK st v pid pk
                     → v ^∙ vEpoch ≡ v' ^∙ vEpoch
                     → pid ≡ pid'
-  peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs eid≡
-     with availEpochsConsistent r pcs' pcs
+  peerCanSignPK-Inj {pid} {pid'} r pkH pcs' pcs refl
+     with availEpochsConsistent pcs' pcs refl
   ...| refl
-     with NodeId-PK-OK-injective (𝓔 pcs) (PCS4PK⇒NodeId-PK-OK pcs) (PCS4PK⇒NodeId-PK-OK pcs')
+     with NodeId-PK-OK-injective (pcs4𝓔 pcs) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs)) (PCS4PK⇒NodeId-PK-OK (pcs4in𝓔 pcs'))
   ...| refl = refl
 
 
@@ -216,21 +208,24 @@ module LibraBFT.Impl.Properties.VotesOnceDirect where
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
-  votesOnce₁ : VO.ImplObligation₁
+  votesOnce₁ : VO.ImplObligation₁ 𝓔
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
-             pkH v⊂m (here refl) sv ¬gen ¬msb vspkv v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
+             pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
      with v⊂m
-  ...| vote∈vm = let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
+  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
+     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
+       in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
+  ...| vote∈vm
+     with ⊎-elimʳ ¬msb (impl-sps-avp r pkH stMsg (here refl) v⊂m sv ¬gen)
+  ...| (vspkv , _) =
+                 let m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sv' refl
                      vspkv' = peerCanSignEp≡ {v' = v'} vspkv eid≡
                      step   = step-peer (step-honest stMsg)
                      vspre' = peerCanSign-Msb4 r step vspkv' pkH sv' m'mwsb
                      rv'<rv = oldVoteRound≤lvr r pkH sv' ¬gen' m'mwsb vspre' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong ₋vSignature v≈rbld
-     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
-       in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
 
-  votesOnce₂ : VO.ImplObligation₂
+  votesOnce₂ : VO.ImplObligation₂ 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew
              vpk v'⊂m' m'∈outs sig' ¬gen' v'new vpk' es≡ rnds≡
      with m∈outs | m'∈outs
