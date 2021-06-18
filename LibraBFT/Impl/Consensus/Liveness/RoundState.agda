@@ -40,7 +40,6 @@ processCertificatesM now syncInfo = do
 
 ------------------------------------------------------------------------------
 
-
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote verifier = do
   currentRound ← use (lRoundState ∙ rsCurrentRound)

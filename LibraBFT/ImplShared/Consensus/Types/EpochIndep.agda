@@ -553,6 +553,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
              (vciPublicKey ∷ vciVotingPower ∷ [])
 
+  record ProposerElection : Set where
+    constructor ProposerElection∙new
+    -- field
+      -- :peProposers : Set Author
+      -- :peObmLeaderOfRound : LeaderOfRoundFn
+      -- :peObmNodesInORder  : NodesInOrder
+  open ProposerElection
+
   record ValidatorVerifier : Set where
     constructor ValidatorVerifier∙new
     field
@@ -563,20 +571,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
              (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
-  record ProposerElection : Set where
-    constructor ProposerElection∙new
-    -- field
-      -- :peProposers : Set Author
-      -- :peObmLeaderOfRound : LeaderOfRoundFn
-      -- :peObmNodesInORder  : NodesInOrder
-  open ProposerElection
-
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
-      :srPersistentStorage  : PersistentSafetyStorage
-      :srExecutionPublicKey : Maybe PK
-      :srValidatorSigner   : Maybe ValidatorSigner
+      ₋srPersistentStorage  : PersistentSafetyStorage
+      ₋srExecutionPublicKey : Maybe PK
+      ₋srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])

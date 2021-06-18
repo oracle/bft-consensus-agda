@@ -4,12 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Optics.All
-open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 

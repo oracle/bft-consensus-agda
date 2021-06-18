@@ -3,10 +3,10 @@
    Copyright (c) 2020 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Level
-open import Function
 open import Category.Functor
 open import Data.Maybe
+open import Function
+open import Level
 open import Relation.Binary.PropositionalEquality
 
 module Optics.Functorial where

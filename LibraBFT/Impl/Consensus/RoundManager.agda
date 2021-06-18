@@ -22,6 +22,7 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 

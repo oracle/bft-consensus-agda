@@ -4,18 +4,18 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Optics.All
-open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.ImplShared.Base.Types
-import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
-open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
-open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 

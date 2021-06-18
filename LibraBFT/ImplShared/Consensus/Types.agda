@@ -31,12 +31,13 @@ open import Data.String using (String)
 -- is no epoch change.
 
 module LibraBFT.ImplShared.Consensus.Types where
-  open import LibraBFT.ImplShared.Base.Types                     public
-  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
   open import LibraBFT.ImplFake.NetworkMsg                       public
+  open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
   open import LibraBFT.ImplShared.Consensus.Types.EpochDep       public
+
+  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
 
   record EpochState : Set where
     constructor EpochState∙new
