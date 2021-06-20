@@ -154,14 +154,14 @@ processVoteM now vote =
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
     s ← get
-    let bs = ₋epBlockStore (₋rmWithEC s)
+    let bs = _epBlockStore (_rmWithEC s)
     if true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
       then pure unit
       else addVoteM now vote
 
 addVoteM now vote = do
   s ← get
-  let bs = ₋epBlockStore (₋rmWithEC s)
+  let bs = _epBlockStore (_rmWithEC s)
   {- IMPL-TODO make this commented code work then remove the 'continue' after the comment
   maybeS nothing (bs ^∙ bsHighestTimeoutCert) continue λ tc →
     if-dec vote ^∙ vRound =? tc ^∙ tcRound
@@ -173,7 +173,7 @@ addVoteM now vote = do
   continue : LBFT Unit
   continue = do
     rm ← get
-    let verifier = ₋esVerifier (₋rmEpochState (₋rmEC rm))
+    let verifier = _esVerifier (_rmEpochState (_rmEC rm))
     r ← RoundState.insertVoteM vote verifier
     case r of λ where
       (NewQuorumCertificate qc) →

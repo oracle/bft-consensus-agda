@@ -120,10 +120,10 @@ module LibraBFT.Concrete.System where
      ...| ev | [ refl ]
         with vote∈qc {vs = as} as∈cqc refl cqc∈nm
      ...| v∈nm = mk∃VoteMsgSentFor
-                   (mk∃VoteMsgFor nm (₋cveVote ev) v∈nm
-                                  (₋ivvMember (₋cveIsValidVote ev))
-                                  (₋ivvSigned (₋cveIsValidVote ev)) (sym α≡)
-                                  (₋ivvEpoch (₋cveIsValidVote ev)))
+                   (mk∃VoteMsgFor nm (_cveVote ev) v∈nm
+                                  (_ivvMember (_cveIsValidVote ev))
+                                  (_ivvSigned (_cveIsValidVote ev)) (sym α≡)
+                                  (_ivvEpoch  (_cveIsValidVote ev)))
                    sender
                    nm∈st
 

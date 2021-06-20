@@ -109,16 +109,16 @@ module LibraBFT.ImplShared.Util.Crypto where
      = inj₂ (LedgerInfo-η cis≡ cdh≡)
 
   constructLI : Vote → LedgerInfo
-  constructLI v = LedgerInfo∙new (₋liCommitInfo (₋vLedgerInfo v)) (hashVD (₋vVoteData v))
+  constructLI v = LedgerInfo∙new (_liCommitInfo (_vLedgerInfo v)) (hashVD (_vVoteData v))
 
   hashVote : Vote → HashValue
   hashVote = hashLI ∘ constructLI
 
   hashVote-inj1 : ∀ {v1 v2} → hashVote v1 ≡ hashVote v2
-                → NonInjective-≡ sha256 ⊎ ₋vVoteData v1 ≡ ₋vVoteData v2
+                → NonInjective-≡ sha256 ⊎ _vVoteData v1 ≡ _vVoteData v2
   hashVote-inj1 {v1} {v2} hyp with hashLI-inj {constructLI v1} {constructLI v2} hyp
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ ok = hashVD-inj {₋vVoteData v1} {₋vVoteData v2} (cong ₋liConsensusDataHash ok)
+  ...| inj₂ ok = hashVD-inj {_vVoteData v1} {_vVoteData v2} (cong _liConsensusDataHash ok)
 
   -- A vote is always signed; as seen by the 'Unit'
   -- in the definition of Signed.
@@ -128,7 +128,7 @@ module LibraBFT.ImplShared.Util.Crypto where
        { Signed         = λ _ → Unit
        ; Signed-pi      = λ _ _ _ → Unit-pi
        ; isSigned?      = λ _ → yes unit
-       ; signature      = λ v _ → ₋vSignature v
+       ; signature      = λ v _ → _vSignature v
        ; signableFields = encodeH ∘ hashVote
        }
 
@@ -146,10 +146,10 @@ module LibraBFT.ImplShared.Util.Crypto where
 
   -- Captures a proof that a vote was cast by α by recording that 'verify' returns true.
   VoteSigVerifies : PK → Vote → Set
-  VoteSigVerifies pk v = T (verify (signableFields ⦃ sig-Vote ⦄ v) (₋vSignature v) pk)
+  VoteSigVerifies pk v = T (verify (signableFields ⦃ sig-Vote ⦄ v) (_vSignature v) pk)
 
   Signed-pi-Blk : (b : Block)
-                → (is1 is2 : (Is-just ∘ ₋bSignature) b)
+                → (is1 is2 : (Is-just ∘ _bSignature) b)
                 → is1 ≡ is2
   Signed-pi-Blk (Block∙new _ _ .(just _)) (just _) (just _) = cong just refl
 
@@ -157,9 +157,9 @@ module LibraBFT.ImplShared.Util.Crypto where
   instance
     sig-Block : WithSig Block
     sig-Block = record
-       { Signed         = Is-just ∘ ₋bSignature
+       { Signed         = Is-just ∘ _bSignature
        ; Signed-pi      = Signed-pi-Blk
        ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (b ^∙ bSignature)
        ; signature      = λ { _ prf → to-witness prf }
-       ; signableFields = λ b → concat (encodeH (₋bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
+       ; signableFields = λ b → concat (encodeH (_bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
        }
