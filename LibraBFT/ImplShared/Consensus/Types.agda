@@ -31,7 +31,7 @@ open import Data.String using (String)
 -- is no epoch change.
 
 module LibraBFT.ImplShared.Consensus.Types where
-  open import LibraBFT.ImplFake.NetworkMsg                       public
+  open import LibraBFT.ImplShared.NetworkMsg                     public
   open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public

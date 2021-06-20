@@ -21,7 +21,7 @@ open import Optics.All
 -- represented in them, some useful functions, and definitions of how
 -- NetworkMsgs are signed.
 
-module LibraBFT.ImplFake.NetworkMsg where
+module LibraBFT.ImplShared.NetworkMsg where
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
     V : VoteMsg     → NetworkMsg

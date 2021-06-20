@@ -8,7 +8,6 @@ open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Handle.Properties
-open import LibraBFT.ImplFake.NetworkMsg
 import      LibraBFT.ImplFake.Properties.VotesOnce      as VO
 import      LibraBFT.ImplFake.Properties.PreferredRound as PR
 open import LibraBFT.ImplShared.Base.Types
