@@ -14,7 +14,6 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
-open import LibraBFT.ImplFake.NetworkMsg
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto

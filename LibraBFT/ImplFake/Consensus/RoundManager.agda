@@ -47,7 +47,7 @@ processProposalMsg : Instant → ProposalMsg → LBFT Unit
 processProposalMsg inst pm = do
   st ← get
   xx ← use rmHighestQC   -- Not used; just a demonstration that our RoundManager-specific "use" works
-  modify' rmHighestQC xx -- Similarly for modify'
+  rmHighestQC ∙= xx -- Similarly for modify'
   let RoundManager∙new rm rmc rmw = st
       𝓔  = α-EC (rm , rmc)
       e  = rm ^∙ rmEpoch
@@ -61,11 +61,11 @@ processProposalMsg inst pm = do
       sv = record uv { ₋vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
       bt = rmw ^∙ (lBlockTree 𝓔)
       si = SyncInfo∙new (₋btHighestQuorumCert bt) (₋btHighestCommitCert bt)
-      rm' = rm [ rmLastVotedRound := nr ]
+      rm' = rm & rmLastVotedRound ∙~ nr
       st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (₋rmEC st) rm' refl rmc)
                                  (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
   put st'
-  tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
+  tell1 (SendVote (VoteMsgWithMeta∙new (VoteMsg∙new sv si) mvsNew) (fakeAuthor ∷ []))
   pure unit
 
 processVote : Instant → VoteMsg → LBFT Unit

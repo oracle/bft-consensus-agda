@@ -17,4 +17,4 @@ addSignature : Author → Signature → TimeoutCertificate → TimeoutCertificat
 addSignature a s tc =
   case Map.lookup a (tc ^∙ tcSignatures) of λ where
     (just _) → tc
-    nothing  → tc [ tcSignatures := Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures) ]
+    nothing  → tc & tcSignatures ∙~ Map.kvm-insert-Haskell a s (tc ^∙ tcSignatures)

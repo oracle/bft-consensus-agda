@@ -82,6 +82,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl liCommitInfo   liConsensusDataHash = mkLens (quote LedgerInfo)
              (liCommitInfo ∷ liConsensusDataHash ∷ [])
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
+  postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
@@ -120,7 +121,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- DESIGN NOTE: The ₋vAuthor field is included only to facilitate lookup of the public key against
   -- which to verify the signature.  An alternative would be to use an index into the members of the
   -- epoch config, which would save message space and therefore bandwidth.
-
   record Vote : Set where
     constructor Vote∙new
     field
@@ -178,6 +178,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   qcCertifiedBlock : Lens QuorumCert BlockInfo
   qcCertifiedBlock = qcVoteData ∙ vdProposed
+
+  qcParentBlock : Lens QuorumCert BlockInfo
+  qcParentBlock = qcVoteData ∙ vdParent
 
   qcCommitInfo : Lens QuorumCert BlockInfo
   qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
@@ -259,10 +262,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockData → Maybe Author → BlockData
     s bd nothing     = bd
     s bd (just auth) =
-      bd [ bdBlockType %~
-            (λ where
-               (Proposal tx _) → Proposal tx auth
-               bdt             → bdt) ]
+      bd & bdBlockType %~ λ where
+        (Proposal tx _) → Proposal tx auth
+        bdt → bdt
 
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
@@ -307,6 +309,26 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
              (brDeadline ∷ brPreferredPeer ∷ [])
 
+  record VoteProposal : Set where
+    constructor VoteProposal∙new
+    field
+      -- ₋vpAccumulatorExtensionProof : AccumulatorExtensionProof
+      ₋vpBlock : Block
+      -- ₋vpNextEpochState : Maybe EpochState
+  open VoteProposal public
+  unquoteDecl  vpBlock = mkLens (quote VoteProposal)
+              (vpBlock ∷ [])
+
+  record MaybeSignedVoteProposal : Set where
+    constructor MaybeSignedVoteProposal∙new
+    field
+      ₋msvpVoteProposal : VoteProposal
+      ₋msvpSignature : Maybe Signature
+  open MaybeSignedVoteProposal public
+  unquoteDecl  msvpVoteProposal   msvpSignature = mkLens (quote MaybeSignedVoteProposal)
+              (msvpVoteProposal ∷ msvpSignature ∷ [])
+
+
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
                            -- constructor SyncInfo∙new is below
@@ -348,6 +370,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
+  pmProposer : Lens ProposalMsg (Maybe Author)
+  pmProposer = pmProposal ∙ bAuthor
+
   record VoteMsg : Set where
     constructor  VoteMsg∙new
     field
@@ -363,6 +388,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   vmParent : Lens VoteMsg BlockInfo
   vmParent = vmVote ∙ vVoteData ∙ vdParent
+
 
   -- This is a notification of a commit.  It may not be explicitly included in an implementation,
   -- but we need something to be able to express correctness conditions.  It will
@@ -487,7 +513,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     constructor ValidatorSigner∙new
     field
       ₋vsAuthor     : AccountAddress
-      -- :vsPrivateKey : SK   -- Note that the SystemModel doesn't
+      ₋vsPrivateKey : SK      -- Note that the SystemModel doesn't
                               -- allow one node to examine another's
                               -- state, so we don't model someone being
                               -- able to impersonate someone else unless
@@ -495,8 +521,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
                               -- possibility that the corresponding secret
                               -- key may have been leaked.
   open ValidatorSigner public
-  unquoteDecl vsAuthor  = mkLens (quote ValidatorSigner)
-             (vsAuthor ∷ [])
+  unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
+              (vsAuthor ∷ [])
 
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
@@ -544,11 +570,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
-      ₋srPersistentStorage : PersistentSafetyStorage
-      -- ₋srValidatorSigner   : Maybe ValidatorSigner
+      ₋srPersistentStorage  : PersistentSafetyStorage
+      ₋srExecutionPublicKey : Maybe PK
+      ₋srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
-  unquoteDecl srPersistentStorage = mkLens (quote SafetyRules)
-   (srPersistentStorage ∷ [])
+  unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
+             (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
 
   data VoteReceptionResult : Set where
     QCVoteAdded           : U64 →                VoteReceptionResult
@@ -559,19 +586,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     NewTimeoutCertificate : TimeoutCertificate → VoteReceptionResult
     UnexpectedRound       : Round → Round →      VoteReceptionResult
     VRR_TODO              :                      VoteReceptionResult
-
-  data Output : Set where
-    BroadcastProposal : ProposalMsg           → Output
-    LogErr            : String                → Output
-    -- LogInfo           : InfoLog a          → Output
-    SendVote          : VoteMsg → List Author → Output
-  open Output public
-
-  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
-  SendVote-inj-v refl = refl
-
-  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
-  SendVote-inj-si refl = refl
 
   data VerifyError : Set where
     UnknownAuthor        : AuthorName →    VerifyError

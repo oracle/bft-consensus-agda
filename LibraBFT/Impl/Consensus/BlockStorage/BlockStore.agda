@@ -1,5 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
-
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
    Copyright (c) 2021, Oracle and/or its affiliates.
@@ -15,7 +13,6 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -24,6 +21,8 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 open RWST-do
 
 postulate
+  executeAndInsertBlockM : Block → LBFT (ErrLog ⊎ ExecutedBlock)
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (ErrLog ⊎ Unit)
-  getQuorumCertForBlock : HashValue → BlockStore {!!} → Maybe QuorumCert -- IMPL-TODO
+  getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
+  getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
   syncInfoM : LBFT SyncInfo

@@ -24,6 +24,9 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
 
+  LBFT-result : ∀ {A} → LBFT A → RoundManager → A
+  LBFT-result m rm = proj₁ (LBFT-run m rm)
+
   LBFT-post : ∀ {A} → LBFT A → RoundManager → RoundManager
   LBFT-post m rm = proj₁ (proj₂ (LBFT-run m rm))
 
@@ -67,9 +70,9 @@ module LibraBFT.ImplShared.Util.Util where
   use : ∀ {A} → Lens RoundManager A → LBFT A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
 
-  modify' : ∀ {A} → Lens RoundManager A → A → LBFT Unit
-  modify' l val = modify λ x → x [ l := val ]
+  modify' : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
+  modify' l f = modify (over l f)
+  syntax modify' l f = l %= f
 
-  overM : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
-  overM l f = modify λ x → x [ l %~ f ]
-  syntax overM l f = l %= f
+  _∙=_ : ∀ {A} → Lens RoundManager A → A → LBFT Unit
+  l ∙= a = modify' l (const a)

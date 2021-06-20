@@ -31,11 +31,13 @@ open import Data.String using (String)
 -- is no epoch change.
 
 module LibraBFT.ImplShared.Consensus.Types where
-  open import LibraBFT.ImplShared.Base.Types                 public
-  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId public
-  open import LibraBFT.ImplFake.NetworkMsg                   public
-  open import LibraBFT.ImplShared.Consensus.Types.EpochIndep public
-  open import LibraBFT.ImplShared.Consensus.Types.EpochDep   public
+  open import LibraBFT.ImplShared.NetworkMsg                     public
+  open import LibraBFT.ImplShared.Base.Types                     public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
+  open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
+  open import LibraBFT.ImplShared.Consensus.Types.EpochDep       public
+
+  open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
 
   record EpochState : Set where
     constructor EpochState∙new
@@ -153,25 +155,15 @@ module LibraBFT.ImplShared.Consensus.Types where
      -- RoundManager directly
   open RoundManager public
 
+  -- TODO-2: We would need dependent lenses to have a lens from RoundManager to
+  -- RoundManagerEC, since setting ₋rmEC means updating the proofs ₋rmEC-correct
+  -- and ₋rmWithEC
+
   α-EC-RM : RoundManager → EpochConfig
   α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
 
   rmGetEpochState : (rm : RoundManager) → EpochState
   rmGetEpochState rm = (₋rmEC rm) ^∙ rmEpochState
-
-  lValidatorVerifier : Lens RoundManager ValidatorVerifier
-  lValidatorVerifier = mkLens' g s
-   where
-    g : RoundManager → ValidatorVerifier
-    g rm = ₋rmEC rm  ^∙ (rmEpochState ∙ esVerifier)
-    s : RoundManager → ValidatorVerifier → RoundManager
-    s rm v = -- IMPL TODO : not sure if we need this anymore
-      let es = record (rmGetEpochState rm) { ₋esVerifier = v }
-          r  = record rm { ₋rmEC = (₋rmEC rm)
-                           [ rmEpochState := {!!}
-                           ]
-                         }
-       in r
 
   ₋rmHighestQC : (rm : RoundManager) → QuorumCert
   ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
@@ -191,9 +183,11 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   -- TODO-1? We would need lenses to be dependent to make a lens from round
   -- managers to block stores.
-
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
   rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
+
+  rmSetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm) → RoundManager
+  rmSetBlockStore rm bs = record rm { ₋rmWithEC = RoundManagerWithEC∙new bs }
 
   rmGetValidatorVerifier : RoundManager → ValidatorVerifier
   rmGetValidatorVerifier rm = ₋esVerifier (₋rmEpochState (₋rmEC rm))
@@ -205,7 +199,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = ₋rmEC rm ^∙ rmProposerElection
 
     s : RoundManager → ProposerElection → RoundManager
-    s rm pe = record rm { ₋rmEC = (₋rmEC rm) [ rmProposerElection := pe ] }
+    s rm pe = record rm { ₋rmEC = (₋rmEC rm) & rmProposerElection ∙~ pe }
 
   lRoundState : Lens RoundManager RoundState
   lRoundState = mkLens' g s
@@ -214,7 +208,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = ₋rmEC rm ^∙ rmRoundState
 
     s : RoundManager → RoundState → RoundManager
-    s rm rs = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState := rs ]  }
+    s rm rs = record rm { ₋rmEC = (₋rmEC rm) & rmRoundState ∙~ rs }
 
   lSyncOnly : Lens RoundManager Bool
   lSyncOnly = mkLens' g s
@@ -223,7 +217,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = ₋rmEC rm ^∙ rmSyncOnly
 
     s : RoundManager → Bool → RoundManager
-    s rm so = record rm { ₋rmEC = (₋rmEC rm) [ rmSyncOnly := so ] }
+    s rm so = record rm { ₋rmEC = (₋rmEC rm) & rmSyncOnly ∙~ so }
 
   lPendingVotes : Lens RoundManager PendingVotes
   lPendingVotes = mkLens' g s
@@ -232,7 +226,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = ₋rmEC rm ^∙ (rmRoundState ∙ rsPendingVotes)
 
     s : RoundManager → PendingVotes → RoundManager
-    s rm pv = record rm { ₋rmEC = (₋rmEC rm) [ rmRoundState ∙ rsPendingVotes := pv ]  }
+    s rm pv = record rm { ₋rmEC = (₋rmEC rm) & rmRoundState ∙ rsPendingVotes ∙~ pv }
 
   lSafetyRules : Lens RoundManager SafetyRules
   lSafetyRules = mkLens' g s
@@ -241,7 +235,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = ₋rmEC rm ^∙ rmSafetyRules
 
     s : RoundManager → SafetyRules → RoundManager
-    s rm sr = record rm { ₋rmEC = (₋rmEC rm) [ rmSafetyRules := sr ]}
+    s rm sr = record rm { ₋rmEC = (₋rmEC rm) & rmSafetyRules ∙~ sr }
 
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage

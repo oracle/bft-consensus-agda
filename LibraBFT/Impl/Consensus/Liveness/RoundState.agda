@@ -11,7 +11,6 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore as BlockStore
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote     as Vote
 open import LibraBFT.Impl.Consensus.Types.PendingVotes      as PendingVotes hiding (insertVoteM)
-open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -42,3 +41,10 @@ insertVoteM vote verifier = do
   if-dec vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ currentRound
     then PendingVotes.insertVoteM vote verifier
     else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
+
+------------------------------------------------------------------------------
+-- TODO-1: Implement this.
+-- > recordVote v = rsVoteSent ∙= just v
+recordVote : Vote → LBFT Unit
+recordVote v = pure unit
+

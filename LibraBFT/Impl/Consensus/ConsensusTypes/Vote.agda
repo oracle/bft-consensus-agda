@@ -13,7 +13,7 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Vote where
 
 newWithSignature : VoteData → Author → LedgerInfo → Signature → Vote
 newWithSignature voteData author ledgerInfo signature =
-   Vote∙new voteData author ledgerInfo signature nothing
+  Vote∙new voteData author ledgerInfo signature nothing
 
 timeout : Vote → Timeout
 timeout v =

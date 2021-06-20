@@ -15,5 +15,5 @@ open import Optics.All
 
 module LibraBFT.Impl.Types.ValidatorSigner where
 
-sign : ∀ {A : Set} → ValidatorSigner → A → Signature
-sign = {!!}
+sign : {C : Set} ⦃ ws : WithSig C ⦄ → ValidatorSigner → C → Signature
+sign (ValidatorSigner∙new _ sk) c = PKCS.sign c sk

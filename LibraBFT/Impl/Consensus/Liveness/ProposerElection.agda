@@ -5,7 +5,6 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
@@ -25,6 +24,6 @@ isValidProposer : ProposerElection → Author → Round → Bool
 isValidProposalM : Block → LBFT Bool
 isValidProposalM b = maybeS (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
 
-isValidProposerM a r = (isValidProposer <$> use lProposerElection) <*> pure a <*> pure r
+isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
 
 isValidProposer pe a r = ⌊ getValidProposer pe r ≟ℕ a ⌋

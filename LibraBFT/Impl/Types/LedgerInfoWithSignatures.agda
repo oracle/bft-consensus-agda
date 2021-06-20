@@ -18,7 +18,7 @@ addSignature validator sig liws =
   case Map.lookup validator (liws ^∙ liwsSignatures) of λ where
     (just _) → liws
     nothing  →
-      liws [ liwsSignatures := Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures) ]
+      liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
 
 
