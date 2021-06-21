@@ -61,7 +61,7 @@ module LibraBFT.ImplFake.Handle where
                       → ∈GenInfo (ver-signature wvs)
                       → v ^∙ vRound ≡ 0
    genVotesConsistent : (v1 v2 : Vote)
-                      → ∈GenInfo (₋vSignature v1) → ∈GenInfo (₋vSignature v2)
+                      → ∈GenInfo (_vSignature v1) → ∈GenInfo (_vSignature v2)
                       → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
@@ -75,7 +75,7 @@ module LibraBFT.ImplFake.Handle where
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
-                      (₋rmSafetyRules (₋rmEC fakeRM)))
+                      (_rmSafetyRules (_rmEC fakeRM)))
 
  -- TODO-1: Implement this.
  initPE : ProposerElection
@@ -122,7 +122,7 @@ module LibraBFT.ImplFake.Handle where
  outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
  outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
                                                      (List-map proj₁
-                                                               (kvm-toList (₋vvAddressToValidatorInfo (₋esVerifier (₋rmEpochState (₋rmEC rm))))))
+                                                               (kvm-toList (_vvAddressToValidatorInfo (_esVerifier (_rmEpochState (_rmEC rm))))))
  outputToActions _  (LogErr x)            = []
  outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V (unmetaVoteMsg v)))) toList
 

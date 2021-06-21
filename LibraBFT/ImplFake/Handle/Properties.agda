@@ -88,8 +88,8 @@ module LibraBFT.ImplFake.Handle.Properties where
   ----- Properties that relate handler to system state -----
 
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ ₋rmHighestQC rm       → qc ∈RoundManager rm
-    inHCC : qc ≡ ₋rmHighestCommitQC rm → qc ∈RoundManager rm
+    inHQC : qc ≡ _rmHighestQC rm       → qc ∈RoundManager rm
+    inHCC : qc ≡ _rmHighestCommitQC rm → qc ∈RoundManager rm
 
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
@@ -124,7 +124,7 @@ module LibraBFT.ImplFake.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
      with m
@@ -169,13 +169,13 @@ module LibraBFT.ImplFake.Handle.Properties where
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
-                               → ¬ (∈GenInfo (₋vSignature v))
+                               → ¬ (∈GenInfo (_vSignature v))
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
-                               × v ^∙ vRound ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+                               → v ^∙ vEpoch ≡ (_rmEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((_rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
+                               × v ^∙ vRound ≡ ((_rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
@@ -189,7 +189,7 @@ module LibraBFT.ImplFake.Handle.Properties where
        -- assumption that v's signature has not been sent before.
   ...| vote∈vm {si} = refl , refl , refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
+                  rewrite cong _vSignature v≈rbld
     with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
   ...| sentb4 = ⊥-elim (vnew sentb4)
 
@@ -199,8 +199,8 @@ module LibraBFT.ImplFake.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
-                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
+                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
+                     → (_rmEC ppre) ^∙ rmLastVotedRound ≤ (_rmEC ppost) ^∙ rmLastVotedRound
   lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
      with m

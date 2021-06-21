@@ -44,7 +44,7 @@ mkVote randomLiVd signers i mli =
  where
   voteNew : VoteData → Author → LedgerInfo → ValidatorSigner → Vote
   voteNew voteData author ledgerInfoPlaceholder validatorSigner =
-    let li        = record ledgerInfoPlaceholder { ₋liConsensusDataHash = hashVD voteData }
+    let li        = record ledgerInfoPlaceholder { _liConsensusDataHash = hashVD voteData }
         signature = ValidatorSigner.sign validatorSigner li
      in Vote.newWithSignature voteData author li signature
 
@@ -59,7 +59,7 @@ TODO : prove
 Given a RoundManager that has
 - an EpochState with a ValidatorVerifier with
   - 4 validators
-  - ₋vvQuorumVotingPower of 3
+  - _vvQuorumVotingPower of 3
 - a RoundState that has a PendingVotes with
   - empty maps
   - nothing TC

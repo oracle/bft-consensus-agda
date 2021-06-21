@@ -31,7 +31,7 @@ open import Data.String using (String)
 -- is no epoch change.
 
 module LibraBFT.ImplShared.Consensus.Types where
-  open import LibraBFT.ImplFake.NetworkMsg                       public
+  open import LibraBFT.ImplShared.NetworkMsg                     public
   open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
@@ -42,8 +42,8 @@ module LibraBFT.ImplShared.Consensus.Types where
   record EpochState : Set where
     constructor EpochState∙new
     field
-      ₋esEpoch    : Epoch
-      ₋esVerifier : ValidatorVerifier
+      _esEpoch    : Epoch
+      _esVerifier : ValidatorVerifier
   open EpochState public
   unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
              (esEpoch ∷ esVerifier ∷ [])
@@ -55,9 +55,9 @@ module LibraBFT.ImplShared.Consensus.Types where
   record NewRoundEvent : Set where
     constructor NewRoundEvent∙new
     field
-      ₋nreRound   : Round
-      ₋nreReason  : NewRoundReason
-    --  ₋nreTimeout : Duration
+      _nreRound   : Round
+      _nreReason  : NewRoundReason
+    --  _nreTimeout : Duration
   unquoteDecl nreRound   nreReason = mkLens (quote NewRoundEvent)
              (nreRound ∷ nreReason ∷ [])
 
@@ -65,10 +65,10 @@ module LibraBFT.ImplShared.Consensus.Types where
     constructor RoundState∙new
     field
       -- ...
-      ₋rsHighestCommittedRound : Round
-      ₋rsCurrentRound          : Round
-      ₋rsPendingVotes          : PendingVotes
-      ₋rsVoteSent              : Maybe Vote
+      _rsHighestCommittedRound : Round
+      _rsCurrentRound          : Round
+      _rsPendingVotes          : PendingVotes
+      _rsVoteSent              : Maybe Vote
       -- ...
   open RoundState public
   unquoteDecl rsHighestCommittedRound   rsCurrentRound   rsPendingVotes
@@ -81,11 +81,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   record RoundManagerEC : Set where
     constructor RoundManagerEC∙new
     field
-      ₋rmEpochState       : EpochState
-      ₋rmRoundState       : RoundState
-      ₋rmProposerElection : ProposerElection
-      ₋rmSafetyRules      : SafetyRules
-      ₋rmSyncOnly         : Bool
+      _rmEpochState       : EpochState
+      _rmRoundState       : RoundState
+      _rmProposerElection : ProposerElection
+      _rmSafetyRules      : SafetyRules
+      _rmSyncOnly         : Bool
   open RoundManagerEC public
   unquoteDecl rmEpochState   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManagerEC)
              (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
@@ -141,101 +141,101 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   -- Finally, the RoundManager is split in two pieces: those that are used to make an EpochConfig
   -- versus those that use an EpochConfig.  The reason is that the *abstract* EpochConfig is a
-  -- function of some parts of the RoundManager (₋rmEC), and some parts depend on the abstract
-  -- EpochConfig.  For example, ₋btIdToQuorumCert carries a proof that the QuorumCert is valid (for
+  -- function of some parts of the RoundManager (_rmEC), and some parts depend on the abstract
+  -- EpochConfig.  For example, _btIdToQuorumCert carries a proof that the QuorumCert is valid (for
   -- the abstract EpochConfig).
   record RoundManager : Set ℓ-RoundManager where
     constructor RoundManager∙new
     field
-      ₋rmEC           : RoundManagerEC
-      ₋rmEC-correct   : RoundManagerEC-correct ₋rmEC
-      ₋rmWithEC       : RoundManagerWithEC (α-EC (₋rmEC , ₋rmEC-correct))
+      _rmEC           : RoundManagerEC
+      _rmEC-correct   : RoundManagerEC-correct _rmEC
+      _rmWithEC       : RoundManagerWithEC (α-EC (_rmEC , _rmEC-correct))
      -- If we want to add pieces that neither contribute to the
      -- construction of the EC nor need one, they should be defined in
      -- RoundManager directly
   open RoundManager public
 
   -- TODO-2: We would need dependent lenses to have a lens from RoundManager to
-  -- RoundManagerEC, since setting ₋rmEC means updating the proofs ₋rmEC-correct
-  -- and ₋rmWithEC
+  -- RoundManagerEC, since setting _rmEC means updating the proofs _rmEC-correct
+  -- and _rmWithEC
 
   α-EC-RM : RoundManager → EpochConfig
-  α-EC-RM rm = α-EC ((₋rmEC rm) , (₋rmEC-correct rm))
+  α-EC-RM rm = α-EC ((_rmEC rm) , (_rmEC-correct rm))
 
   rmGetEpochState : (rm : RoundManager) → EpochState
-  rmGetEpochState rm = (₋rmEC rm) ^∙ rmEpochState
+  rmGetEpochState rm = (_rmEC rm) ^∙ rmEpochState
 
-  ₋rmHighestQC : (rm : RoundManager) → QuorumCert
-  ₋rmHighestQC rm = ₋btHighestQuorumCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
+  _rmHighestQC : (rm : RoundManager) → QuorumCert
+  _rmHighestQC rm = _btHighestQuorumCert ((_rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
   rmHighestQC : Lens RoundManager QuorumCert
-  rmHighestQC = mkLens' ₋rmHighestQC
-                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
-                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestQuorumCert = qc}))))
+  rmHighestQC = mkLens' _rmHighestQC
+                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner'))) qc
+                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner' {_btHighestQuorumCert = qc}))))
 
-  ₋rmHighestCommitQC : (rm : RoundManager) → QuorumCert
-  ₋rmHighestCommitQC rm = ₋btHighestCommitCert ((₋rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
+  _rmHighestCommitQC : (rm : RoundManager) → QuorumCert
+  _rmHighestCommitQC rm = _btHighestCommitCert ((_rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))
 
   rmHighestCommitQC : Lens RoundManager QuorumCert
-  rmHighestCommitQC = mkLens' ₋rmHighestCommitQC
-                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner))) qc
-                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner {₋btHighestCommitCert = qc}))))
+  rmHighestCommitQC = mkLens' _rmHighestCommitQC
+                        (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner'))) qc
+                          → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner' {_btHighestCommitCert = qc}))))
 
   -- TODO-1? We would need lenses to be dependent to make a lens from round
   -- managers to block stores.
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
-  rmGetBlockStore rm = (₋rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
+  rmGetBlockStore rm = (_rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
 
   rmSetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm) → RoundManager
-  rmSetBlockStore rm bs = record rm { ₋rmWithEC = RoundManagerWithEC∙new bs }
+  rmSetBlockStore rm bs = record rm { _rmWithEC = RoundManagerWithEC∙new bs }
 
   rmGetValidatorVerifier : RoundManager → ValidatorVerifier
-  rmGetValidatorVerifier rm = ₋esVerifier (₋rmEpochState (₋rmEC rm))
+  rmGetValidatorVerifier rm = _esVerifier (_rmEpochState (_rmEC rm))
 
   lProposerElection : Lens RoundManager ProposerElection
   lProposerElection = mkLens' g s
     where
     g : RoundManager → ProposerElection
-    g rm = ₋rmEC rm ^∙ rmProposerElection
+    g rm = _rmEC rm ^∙ rmProposerElection
 
     s : RoundManager → ProposerElection → RoundManager
-    s rm pe = record rm { ₋rmEC = (₋rmEC rm) & rmProposerElection ∙~ pe }
+    s rm pe = record rm { _rmEC = (_rmEC rm) & rmProposerElection ∙~ pe }
 
   lRoundState : Lens RoundManager RoundState
   lRoundState = mkLens' g s
     where
     g : RoundManager → RoundState
-    g rm = ₋rmEC rm ^∙ rmRoundState
+    g rm = _rmEC rm ^∙ rmRoundState
 
     s : RoundManager → RoundState → RoundManager
-    s rm rs = record rm { ₋rmEC = (₋rmEC rm) & rmRoundState ∙~ rs }
+    s rm rs = record rm { _rmEC = (_rmEC rm) & rmRoundState ∙~ rs }
 
   lSyncOnly : Lens RoundManager Bool
   lSyncOnly = mkLens' g s
     where
     g : RoundManager → Bool
-    g rm = ₋rmEC rm ^∙ rmSyncOnly
+    g rm = _rmEC rm ^∙ rmSyncOnly
 
     s : RoundManager → Bool → RoundManager
-    s rm so = record rm { ₋rmEC = (₋rmEC rm) & rmSyncOnly ∙~ so }
+    s rm so = record rm { _rmEC = (_rmEC rm) & rmSyncOnly ∙~ so }
 
   lPendingVotes : Lens RoundManager PendingVotes
   lPendingVotes = mkLens' g s
     where
     g : RoundManager → PendingVotes
-    g rm = ₋rmEC rm ^∙ (rmRoundState ∙ rsPendingVotes)
+    g rm = _rmEC rm ^∙ (rmRoundState ∙ rsPendingVotes)
 
     s : RoundManager → PendingVotes → RoundManager
-    s rm pv = record rm { ₋rmEC = (₋rmEC rm) & rmRoundState ∙ rsPendingVotes ∙~ pv }
+    s rm pv = record rm { _rmEC = (_rmEC rm) & rmRoundState ∙ rsPendingVotes ∙~ pv }
 
   lSafetyRules : Lens RoundManager SafetyRules
   lSafetyRules = mkLens' g s
     where
     g : RoundManager → SafetyRules
-    g rm = ₋rmEC rm ^∙ rmSafetyRules
+    g rm = _rmEC rm ^∙ rmSafetyRules
 
     s : RoundManager → SafetyRules → RoundManager
-    s rm sr = record rm { ₋rmEC = (₋rmEC rm) & rmSafetyRules ∙~ sr }
+    s rm sr = record rm { _rmEC = (_rmEC rm) & rmSafetyRules ∙~ sr }
 
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage

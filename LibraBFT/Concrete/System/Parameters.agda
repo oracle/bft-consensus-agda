@@ -6,7 +6,6 @@
 
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.ImplFake.NetworkMsg
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto

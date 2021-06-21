@@ -21,8 +21,8 @@ data MetaVoteSrc : Set where
 record VoteWithMeta : Set where
   constructor VoteWithMeta∙new
   field
-    ₋mvVote : Vote
-    ₋mvSrc  : MetaVoteSrc
+    _mvVote : Vote
+    _mvSrc  : MetaVoteSrc
 open Vote public
 unquoteDecl mvVote mvSrc =
   mkLens (quote VoteWithMeta) (mvVote ∷ mvSrc ∷ [])
@@ -33,8 +33,8 @@ unmetaVote mv = mv ^∙ mvVote
 record VoteMsgWithMeta : Set where
   constructor VoteMsgWithMeta∙new
   field
-    ₋mvmVoteMsg  : VoteMsg
-    ₋mvmSrc      : MetaVoteSrc
+    _mvmVoteMsg  : VoteMsg
+    _mvmSrc      : MetaVoteSrc
 unquoteDecl mvmVoteMsg   mvmSrc = mkLens (quote VoteMsgWithMeta)
            (mvmVoteMsg ∷ mvmSrc ∷ [])
 
