@@ -254,7 +254,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     BroadcastProposal : ProposalMsg                   → Output
     LogErr            : FakeErr                       → Output
     LogInfo           : FakeInfo                      → Output
-    SendVote          : VoteMsgWithMeta → List Author → Output
+    SendVote          : VoteMsg → List Author → Output
   open Output public
 
   SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2

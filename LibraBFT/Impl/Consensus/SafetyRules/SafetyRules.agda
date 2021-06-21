@@ -73,11 +73,11 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 
 ------------------------------------------------------------------------------
 
-constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ VoteWithMeta)
-constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
-constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
+constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ Vote)
+constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ Vote)
+constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ Vote)
 
-constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ VoteWithMeta)
+constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ Vote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   caseMM vs of λ where
@@ -93,16 +93,16 @@ constructAndSignVoteM-continue0 voteProposal validatorSigner = do
     caseMM (safetyData0 ^∙ sdLastVote) of λ where
       (just vote) →
         ifM (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-          then ok (VoteWithMeta∙new vote mvsLastVote)
+          then ok vote
           else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
       nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 
 module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
                                        (proposedBlock : Block) (safetyData : SafetyData) where
-  step₀ : LBFT (ErrLog ⊎ VoteWithMeta)
-  step₁ : SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
+  step₀ : LBFT (ErrLog ⊎ Vote)
+  step₁ : SafetyData → LBFT (ErrLog ⊎ Vote)
+  step₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ Vote)
+  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ Vote)
 
   step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
@@ -118,7 +118,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
         let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
-        ok (VoteWithMeta∙new vote mvsNew)
+        ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
 

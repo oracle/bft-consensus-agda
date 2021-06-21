@@ -33,7 +33,7 @@ module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
-  record Contract (pre : RoundManager) (r : ErrLog ⊎ VoteWithMeta) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (r : ErrLog ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noOutput       : outs ≡ []
@@ -60,10 +60,10 @@ module ExecuteAndVoteMSpec (b : Block) where
     help bs (inj₁ _) st outs pf =
       mkContract (ConstructAndSignVoteM.Contract.noOutput pf) unit
     help bs (inj₂ vote) st outs pf ._ refl =
-      SaveVoteM.contract (unmetaVote vote) (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
+      SaveVoteM.contract vote (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
         (mkContract noo unit)
         λ where
-          bs' unit _ → mkContract noo (voteSrcCorrectCod-substRm refl refl vsc)
+          bs' unit _ → mkContract noo vsc
       where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
@@ -94,7 +94,7 @@ module ProcessProposalMSpec (proposal : Block) where
   record Contract (pre : RoundManager) (r : ErrLog ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
     field
       output         : OutputSpec r outs
-      voteSrcCorrect : ∀ mv pid → SendVote mv pid ∈ outs → VoteSrcCorrectCod pre post (mv ^∙ mvmVoteWithMeta)
+      voteSrcCorrect : ∀ vm pid → SendVote vm pid ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ vmVote)
       -- TODO-2: We will also want, likely as a separate field, that the vote is being sent to the correct peer.
 
 {-
@@ -104,9 +104,9 @@ module ProcessProposalM (proposal : Block) where
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
-  c₁ : ErrLog ⊎ VoteWithMeta → LBFT Unit
+  c₁ : ErrLog ⊎ Vote → LBFT Unit
   c₁ _r =
     caseM⊎ (_r) of λ where
       (inj₁ _) → pure unit
@@ -116,7 +116,7 @@ module ProcessProposalM (proposal : Block) where
         recipient ← ProposerElection.getValidProposer
                       <$> use lProposerElection
                       <*> pure (proposal ^∙ bRound + 1)
-        act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si) (recipient ∷ []))
+        act (SendVote (VoteMsgWithMeta∙fromVote vote si) (recipient ∷ []))
 
   voteSrcCorrect
     : ∀ pre → RWST-weakestPre (processProposalM proposal) (VoteSrcCorrect pre) unit pre
@@ -135,11 +135,11 @@ module ProcessProposalM (proposal : Block) where
            → (outs ≡ [] × ExecuteAndVoteM.VoteSrcCorrect proposal pre x st outs)
            → RWST-weakestPre-bindPost unit c₁ (VoteSrcCorrect pre) x st outs
     proj₁ (impl x st .[] (refl , pf) .x refl) unit _ _ _ ()
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsNew) refl unit _ =
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsNew) refl unit _ =
       GetSyncInfo.contract _ st λ where
         _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsNew) .(_ ∷ []) (here refl) →
           pf
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsLastVote) refl unit _ =
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsLastVote) refl unit _ =
       GetSyncInfo.contract _ st λ where
         _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsLastVote) ._ (here refl) →
           pf
@@ -156,12 +156,12 @@ module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
   Contract : RoundManager → LBFT-Post Unit
   Contract pre x post outs =
     ∀ m → m ∈ outs →
-    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
   postulate
     contract

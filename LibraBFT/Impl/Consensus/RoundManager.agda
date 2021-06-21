@@ -46,7 +46,7 @@ processNewRoundEventM now nre = pure unit
 syncUpM               : Instant → SyncInfo → Author                   → LBFT (ErrLog ⊎ Unit)
 ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (ErrLog ⊎ Bool)
 processProposalM      : Block                                         → LBFT Unit
-executeAndVoteM       : Block                                         → LBFT (ErrLog ⊎ VoteWithMeta)
+executeAndVoteM       : Block                                         → LBFT (ErrLog ⊎ Vote)
 
 -- external entry point
 -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -97,7 +97,7 @@ module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
   step₂ : LBFT Unit
-  step₃ : VoteWithMeta → LBFT Unit
+  step₃ : Vote → LBFT Unit
 
   step₀ = do
   -- DIFF: We cannot define a lens for the block store without dependent lenses,
@@ -129,22 +129,22 @@ module ProcessProposalM (proposal : Block) where
            (inj₁ _) → logErr -- <propagate error>
            (inj₂ vote) → step₃ vote
   step₃ vote = do
-             RoundState.recordVote (unmetaVote vote)
+             RoundState.recordVote vote
              si ← BlockStore.syncInfoM
              recipient ← ProposerElection.getValidProposer
                          <$> use lProposerElection
                          <*> pure (proposal ^∙ bRound + 1)
-             act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si) (recipient ∷ []))
+             act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
              -- TODO-2:                                                mkNodesInOrder1 recipient
 
 processProposalM = ProcessProposalM.step₀
 
 ------------------------------------------------------------------------------
 module ExecuteAndVoteM (b : Block) where
-  step₀ :                 LBFT (ErrLog ⊎ VoteWithMeta)
-  step₁ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₂ : ExecutedBlock → LBFT (ErrLog ⊎ VoteWithMeta)
-  step₃ : VoteWithMeta  → LBFT (ErrLog ⊎ VoteWithMeta)
+  step₀ :                 LBFT (ErrLog ⊎ Vote)
+  step₁ : ExecutedBlock → LBFT (ErrLog ⊎ Vote)
+  step₂ : ExecutedBlock → LBFT (ErrLog ⊎ Vote)
+  step₃ : Vote  → LBFT (ErrLog ⊎ Vote)
 
   step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
   step₁ eb = do
@@ -160,7 +160,7 @@ module ExecuteAndVoteM (b : Block) where
            let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
            SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
              ∙?∙ step₃
-  step₃ vote =   PersistentLivenessStorage.saveVoteM (unmetaVote vote)
+  step₃ vote =   PersistentLivenessStorage.saveVoteM vote
              ∙?∙ λ _ → ok vote
 
 executeAndVoteM = ExecuteAndVoteM.step₀
