@@ -33,6 +33,9 @@ module VerifyAndUpdatePreferredRoundM (quorumCert : QuorumCert) (safetyData : Sa
   C₃ = ⌊ twoChainRound <? preferredRound ⌋ ≡_
   C₄ = ⌊ twoChainRound ≟  preferredRound ⌋ ≡_
 
+  -- Before proving this, we should consider whether to add explicit support for <-cmp to our RWST
+  -- support, to make this proof unroll more "automatically".
+
   postulate
     contract
       : ∀ P pre
