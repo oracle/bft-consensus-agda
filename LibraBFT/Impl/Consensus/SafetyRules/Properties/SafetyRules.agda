@@ -147,13 +147,13 @@ module ConstructAndSignVoteM where
     {-
     The proof can be as simple as this:
 
-       = λ _ _ _ _ → refl
+       = λ _ _ _ _ → mkContract refl refl
 
     Easy, right?!  Oh, you want a little more detail?  Sure here you go:
 
        = λ where .pre refl →
                   λ where .unit refl →
-                           refl          -- Indenting important for parsing
+                           mkContract refl refl     -- Indenting important for parsing
 
     Still not crystal clear?  OK, let's explore in a little more detail.
 
@@ -222,7 +222,7 @@ module ConstructAndSignVoteM where
             RWST-get
             (RWST-put "lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])"))
          (λ _ → RWST-return (inj₂ "VoteWithMeta∙new vote mvsNew"))               = f
-      (Contract rm)                                                        = P
+      (Contract rm)                                                              = P
       unit                                                                       = ev
       pre                                                                        = st
 
@@ -582,7 +582,7 @@ module ConstructAndSignVoteM where
     voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
 
     contract : ∀ pre → RWST-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre) unit pre
-    proj₁ (contract pre vs vs≡) vs≡nothing = record { noOutput = refl ; voteSrcCorrect = unit }
+    proj₁ (contract pre vs vs≡) vs≡nothing = mkContract refl unit
     proj₂ (contract pre vs vs≡) j j≡ = Continue0.contract voteProposal j pre
 
     contract⇒ : ∀ pre Post

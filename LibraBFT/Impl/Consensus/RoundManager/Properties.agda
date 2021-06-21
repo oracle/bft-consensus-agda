@@ -34,6 +34,7 @@ module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
   record Contract (pre : RoundManager) (r : ErrLog ⊎ VoteWithMeta) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
     field
       noOutput       : outs ≡ []
       voteSrcCorrect : ConstructAndSignVoteM.VoteSrcCorrect pre r post
@@ -41,11 +42,11 @@ module ExecuteAndVoteMSpec (b : Block) where
   contract : ∀ pre → RWST-weakestPre (executeAndVoteM b) (Contract pre) unit pre
   contract pre =
     ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit (ExecuteAndVoteM.step₁ b) _) pre
-      (record { noOutput = refl ; voteSrcCorrect = unit })
+      (mkContract refl unit)
       (λ where
         eb bs ._ refl cr cr≡ vs vs≡ so so≡ →
-          (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
-          , λ _ → (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+          (λ _ → mkContract refl unit)
+          , λ _ → (λ _ → mkContract refl unit)
           , (λ _ →
                let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
                    st₁                      = rmSetBlockStore pre bs in
@@ -57,15 +58,12 @@ module ExecuteAndVoteMSpec (b : Block) where
            → ConstructAndSignVoteM.Contract (rmSetBlockStore pre bs) r st outs
            → _
     help bs (inj₁ _) st outs pf =
-      record { noOutput = ConstructAndSignVoteM.Contract.noOutput pf ; voteSrcCorrect = unit }
+      mkContract (ConstructAndSignVoteM.Contract.noOutput pf) unit
     help bs (inj₂ vote) st outs pf ._ refl =
       SaveVoteM.contract (unmetaVote vote) (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
-        (record { noOutput = noo
-                ; voteSrcCorrect = unit })
+        (mkContract noo unit)
         λ where
-          bs' unit _ →
-            record { noOutput = noo
-                   ; voteSrcCorrect = voteSrcCorrectCod-substRm refl refl vsc }
+          bs' unit _ → mkContract noo (voteSrcCorrectCod-substRm refl refl vsc)
       where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
