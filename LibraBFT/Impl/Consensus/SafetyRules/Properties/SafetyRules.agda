@@ -440,7 +440,7 @@ module ConstructAndSignVoteM where
 
    -}
 
-                               mkContract refl (inj₁ refl)
+                               mkContract refl (mvsNew refl)
 
 
     step₂-contract
@@ -573,7 +573,7 @@ module ConstructAndSignVoteM where
     proj₁ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) ≡nothing =
       Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
     proj₁ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j refl) c₂≡true =
-      mkContract refl (inj₂ (refl , refl))
+      mkContract refl (mvsLastVote refl refl)
     proj₂ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j refl) c₂≡false =
       Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
 

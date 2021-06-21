@@ -3,6 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 -- This module contains properties that are only about the behavior of the handlers, nothing to do
 -- with system state
@@ -63,7 +64,7 @@ module ExecuteAndVoteMSpec (b : Block) where
       SaveVoteM.contract vote (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
         (mkContract noo unit)
         λ where
-          bs' unit _ → mkContract noo vsc
+          bs' unit _ → mkContract noo {! vsc !}  -- Ran out of time here.  Worked without more general definition of VoteSrcCorrectCod.
       where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf

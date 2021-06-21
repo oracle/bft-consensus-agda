@@ -23,16 +23,7 @@ module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 -- stateful computation we are considering (e.g., whether the vote is being
 -- returned or emitted as output).
 
-VoteSrcCorrectCod : (pre post : RoundManager) → Vote → Set
-VoteSrcCorrectCod pre post vote =
-  (just vote ≡ post ^∙ lSafetyData ∙ sdLastVote)
-  ⊎ ( just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
-    × pre ≡L post at (lSafetyData ∙ sdLastVote))
-
-voteSrcCorrectCod-substRm
-  : ∀ {pre₁ pre₂ post₁ post₂ v}
-    → pre₁ ≡L pre₂ at (lSafetyData ∙ sdLastVote)
-    → post₁ ≡L post₂ at (lSafetyData ∙ sdLastVote)
-    → VoteSrcCorrectCod pre₁ post₁ v
-    → VoteSrcCorrectCod pre₂ post₂ v
-voteSrcCorrectCod-substRm {v = vote} refl refl = id
+data VoteSrcCorrectCod (pre post : RoundManager) (vote : Vote) : Set where
+  mvsNew :      just vote ≡ post ^∙ lSafetyData ∙ sdLastVote → VoteSrcCorrectCod pre post vote
+  mvsLastVote : just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
+              → pre ≡L post at (lSafetyData ∙ sdLastVote)    → VoteSrcCorrectCod pre post vote
