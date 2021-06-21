@@ -88,25 +88,47 @@ module ProcessProposalMSpec (proposal : Block) where
     field
       output         : OutputSpec outs
       voteSrcCorrect : ∀ vm pid → SendVote vm pid ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ vmVote)
-      -- TODO-2: We will also want, likely as a separate field, that the vote is being sent to the correct peer.
+      -- TODO-2: We will also want, likely as a separate field, that the vote is
+      -- being sent to the correct peer.
+      -- TODO-2: And that if we return an error, we do not modify the lastVote
+      -- field.
 
   contract : ∀ pre → RWST-weakestPre (processProposalM proposal) (Contract pre) unit pre
   contract pre ._ refl =
     IsValidProposalM.contract proposal
       (RWST-weakestPre-bindPost unit (step₁{pre} (rmGetBlockStore pre)) (Contract pre)) pre
-      λ where
-        vp ._ refl →
-          (λ ≡nothing →
-           mkContract (inj₁ refl) errOuts)
-          , λ _ → (λ ¬vp → mkContract (inj₁ refl) errOuts)
-          , λ _ → (λ ≡nothing → mkContract (inj₁ refl) errOuts)
-          , (λ _ → (λ noParentOrParentRound>ProposalRound → mkContract (inj₁ refl) errOuts)
-          , λ _ →
-            ExecuteAndVoteMSpec.contract⇒ proposal pre
-              (RWST-weakestPre-bindPost unit step₂ (Contract pre))
+      invalidProposal validProposal
+
+    where
+    errOuts : ∀ {st} vm pid → SendVote vm pid ∈ LogErr fakeErr ∷ [] → VoteSrcCorrectCod pre st (vm ^∙ vmVote)
+    errOuts vm pid = ⊥-elim ∘ SendVote∉Output refl
+
+    errContract : ∀ {st} → Contract pre unit st (LogErr fakeErr ∷ [])
+    errContract = mkContract (inj₁ refl) errOuts
+
+    invalidProposal : _ → _
+    invalidProposal (inj₁ ≡nothing) r x₁ rewrite ≡nothing =
+      (λ _ → errContract) , λ where ()
+    invalidProposal (inj₂ ¬eq) r refl
+       with proposal ^∙ bAuthor
+    invalidProposal (inj₂ (just x)) .false refl | .(just _) =
+      (λ where ()) , (λ _ → (λ _ → errContract) , λ where ())
+
+    validProposal : Maybe-Any _ (proposal ^∙ bAuthor) → _
+    validProposal any
+       with proposal ^∙ bAuthor
+    validProposal (just refl) | .(just _) = λ where
+      ._ refl →
+        (λ where ())
+        , λ _ → (λ where ())
+        , λ _ → (λ ≡nothing → errContract)
+        , λ _ → (λ noParentOrParentRound>ProposalRound → errContract)
+        , (λ _ →
+           ExecuteAndVoteMSpec.contract⇒ proposal pre
+             (RWST-weakestPre-bindPost unit step₂ (Contract pre))
               λ where
                 (inj₁ x) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
-                  (λ where ._ refl → mkContract (inj₁ refl) errOuts)
+                  (λ where ._ refl → errContract)
                   , λ where ._ ()
                 (inj₂ vote) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
                   (λ where _ ())
@@ -119,9 +141,6 @@ module ProcessProposalMSpec (proposal : Block) where
                                (inj₂ ((SendVote (VoteMsg∙new vote si) _) , refl))
                                λ where ._ ._ (here refl) → voteSrcCorrect)
 
-    where
-    errOuts : ∀ {st} vm pid → SendVote vm pid ∈ LogErr fakeErr ∷ [] → VoteSrcCorrectCod pre st (vm ^∙ vmVote)
-    errOuts vm pid = ⊥-elim ∘ SendVote∉Output refl
 {-
 module ProcessProposalM (proposal : Block) where
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
