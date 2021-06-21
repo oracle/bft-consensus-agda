@@ -78,16 +78,6 @@ module ProcessProposalMSpec (proposal : Block) where
   OutputSpec (inj₁ _) outs = outs ≡ []
   OutputSpec (inj₂ _) outs = ∃₂ λ mv pid → outs ≡ SendVote mv pid ∷ []
 
-  -- TODO-1: this should be near the definition of Output
-  IsSendVote : Output → Set
-  IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
-
-  isSendVote? : (out : Output) → Dec (IsSendVote out)
-  isSendVote? (BroadcastProposal _) = no λ ()
-  isSendVote? (LogErr _)            = no λ ()
-  isSendVote? (LogInfo _)           = no λ ()
-  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
-
   OutputSpec2 : FakeErr ⊎ Unit → List Output → Set
   OutputSpec2 (inj₁ _) outs = List-filter isSendVote? outs ≡ []                -- No SendVote
   OutputSpec2 (inj₂ _) outs = ∃[ sv ](List-filter isSendVote? outs ≡ sv ∷ [])  -- Exactly one SendVote
