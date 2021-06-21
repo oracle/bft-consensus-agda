@@ -17,4 +17,4 @@ open RWST-do
 
 -- TODO-3?: Implement this
 postulate
-  saveVoteM : Vote → LBFT (ErrLog ⊎ Unit)
+  saveVoteM : Vote → LBFT (FakeErr ⊎ Unit)

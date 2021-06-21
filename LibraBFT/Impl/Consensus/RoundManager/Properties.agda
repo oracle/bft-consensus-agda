@@ -34,7 +34,7 @@ module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
-  record Contract (pre : RoundManager) (r : ErrLog ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (r : FakeErr ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noOutput       : outs ≡ []
@@ -69,35 +69,59 @@ module ExecuteAndVoteMSpec (b : Block) where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
 
+  contract⇒ : ∀ pre Post → (∀ r st outs → Contract pre r st outs → Post r st outs)
+              → RWST-weakestPre (executeAndVoteM b) Post unit pre
+  contract⇒ pre Post pf = RWST-impl (Contract pre) Post pf (executeAndVoteM b) unit pre (contract pre)
+
 module ProcessProposalMSpec (proposal : Block) where
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
+  open        LibraBFT.Impl.Consensus.RoundManager.ProcessProposalM proposal
 
-  -- TODO-2: this needs to change because processProposalM can have logging outputs; an attempt below
-  OutputSpec : ErrLog ⊎ Unit → List Output → Set
-  OutputSpec (inj₁ _) outs = outs ≡ []
-  OutputSpec (inj₂ _) outs = ∃₂ λ mv pid → outs ≡ SendVote mv pid ∷ []
+  OutputSpec : List Output → Set
+  OutputSpec outs =
+    let msgs = List-filter isSendVote? outs in
+    msgs ≡ [] ⊎ ∃[ sv ] (msgs ≡ sv ∷ []) -- No SendVote, or exactly one SendVote
 
-  -- TODO-1: this should be near the definition of Output
-  isSendVote : Output → Set
-  isSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
-
-  isSendVote? : (out : Output) → Dec(isSendVote out)
-  isSendVote? (BroadcastProposal _) = no λ ()
-  isSendVote? (LogErr _)            = no λ ()
-  isSendVote? (LogInfo _)           = no λ ()
-  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
-
-  OutputSpec2 : ErrLog ⊎ Unit → List Output → Set
-  OutputSpec2 (inj₁ _) outs = List-filter isSendVote? outs ≡ []                -- No SendVote
-  OutputSpec2 (inj₂ _) outs = ∃[ sv ](List-filter isSendVote? outs ≡ sv ∷ [])  -- Exactly one SendVote
-
-  record Contract (pre : RoundManager) (r : ErrLog ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (r : Unit) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
     field
-      output         : OutputSpec r outs
+      output         : OutputSpec outs
       voteSrcCorrect : ∀ vm pid → SendVote vm pid ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ vmVote)
       -- TODO-2: We will also want, likely as a separate field, that the vote is being sent to the correct peer.
 
+  contract : ∀ pre → RWST-weakestPre (processProposalM proposal) (Contract pre) unit pre
+  contract pre ._ refl =
+    IsValidProposalM.contract proposal
+      (RWST-weakestPre-bindPost unit (step₁{pre} (rmGetBlockStore pre)) (Contract pre)) pre
+      λ where
+        vp ._ refl →
+          (λ ≡nothing →
+           mkContract (inj₁ refl) errOuts)
+          , λ _ → (λ ¬vp → mkContract (inj₁ refl) errOuts)
+          , λ _ → (λ ≡nothing → mkContract (inj₁ refl) errOuts)
+          , (λ _ → (λ noParentOrParentRound>ProposalRound → mkContract (inj₁ refl) errOuts)
+          , λ _ →
+            ExecuteAndVoteMSpec.contract⇒ proposal pre
+              (RWST-weakestPre-bindPost unit step₂ (Contract pre))
+              λ where
+                (inj₁ x) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
+                  (λ where ._ refl → mkContract (inj₁ refl) errOuts)
+                  , λ where ._ ()
+                (inj₂ vote) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
+                  (λ where _ ())
+                  , λ where
+                     ._ refl unit _ →
+                       syncInfoMSpec.contract (RWST-weakestPre-bindPost unit (step₄ vote ) (Contract pre)) st
+                         λ where
+                           si ._ refl ._ refl ._ refl ._ refl ._ refl →
+                             mkContract
+                               (inj₂ ((SendVote (VoteMsg∙new vote si) _) , refl))
+                               λ where ._ ._ (here refl) → voteSrcCorrect)
+
+    where
+    errOuts : ∀ {st} vm pid → SendVote vm pid ∈ LogErr fakeErr ∷ [] → VoteSrcCorrectCod pre st (vm ^∙ vmVote)
+    errOuts vm pid = ⊥-elim ∘ SendVote∉Output refl
 {-
 module ProcessProposalM (proposal : Block) where
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
