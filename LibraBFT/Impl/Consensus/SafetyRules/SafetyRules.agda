@@ -86,16 +86,23 @@ constructAndSignVoteM maybeSignedVoteProposal = do
       let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
       constructAndSignVoteM-continue0 voteProposal validatorSigner
 
-constructAndSignVoteM-continue0 voteProposal validatorSigner = do
-  let proposedBlock = voteProposal ^∙ vpBlock
-  safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
-  verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ →
-    caseMM (safetyData0 ^∙ sdLastVote) of λ where
-      (just vote) →
-        ifM (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-          then ok vote
-          else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
-      nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
+module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
+  step₀ : LBFT (ErrLog ⊎ Vote)
+  step₁ : SafetyData → LBFT (ErrLog ⊎ Vote)
+
+  proposedBlock = voteProposal ^∙ vpBlock
+  step₀ = do
+    safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
+    verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ → step₁ safetyData0
+  step₁ safetyData0 = do
+      caseMM (safetyData0 ^∙ sdLastVote) of λ where
+        (just vote) →
+          ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ (proposedBlock ^∙ bRound)
+            then ok vote
+            else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
+        nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
+
+constructAndSignVoteM-continue0 = constructAndSignVoteM-continue0.step₀
 
 module constructAndSignVoteM-continue1
   (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)

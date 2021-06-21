@@ -539,29 +539,23 @@ module ConstructAndSignVoteM where
                 (Block.validateSignature proposedBlock validatorVerifier)
 
   module Continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
-
-    proposedBlock = voteProposal ^∙ vpBlock
-
-    c₁ : SafetyData → LBFT (ErrLog ⊎ Vote)
-    c₁ safetyData0 = do
-      caseMM (safetyData0 ^∙ sdLastVote) of λ where
-        (just vote) →
-          ifM (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) ≟ℕ (proposedBlock ^∙ bRound)
-            then ok vote
-            else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
-        nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
+    open constructAndSignVoteM-continue0 voteProposal validatorSigner
 
     contract
       : ∀ pre
         → RWST-weakestPre (constructAndSignVoteM-continue0 voteProposal validatorSigner)
             (Contract pre) unit pre
-    proj₁ (contract pre safetyData0@._ refl) c₁≡true = mkContract refl unit
-    proj₁ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) ≡nothing =
-      Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-    proj₁ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j refl) c₂≡true =
-      mkContract refl (mvsLastVote refl refl)
-    proj₂ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j refl) c₂≡false =
-      Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+    contract pre safetyData0@._ refl =
+      VerifyEpochM.contract (proposedBlock ^∙ bEpoch) safetyData0
+        (RWST-weakestPre-ebindPost unit (λ _ → step₁ safetyData0) (Contract pre)) pre
+          (mkContract refl unit)
+          λ where
+            unit _ →
+              (λ ≡nothing → Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre)
+              , λ where
+                vote@._ refl →
+                  (λ vote≡lastVote → mkContract refl (mvsLastVote refl refl))
+                  , λ vote≢lastVote → Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
 
   module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
 
