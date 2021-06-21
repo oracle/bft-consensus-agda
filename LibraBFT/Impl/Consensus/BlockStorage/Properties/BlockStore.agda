@@ -22,7 +22,7 @@ module ExecuteAndInsertBlockM (b : Block) where
         → (∀ eb blockStore → P (inj₂ eb) (rmSetBlockStore pre blockStore) [])
         → RWST-weakestPre (executeAndInsertBlockM b) P unit pre
 
-module GetSyncInfo where
+module syncInfoMSpec where
   postulate
     contract
       : ∀ P pre

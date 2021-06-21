@@ -96,8 +96,9 @@ processCertificatesM now = do
 module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
-  step₂ : LBFT Unit
+  step₂ : FakeErr ⊎ Vote → LBFT Unit
   step₃ : Vote → LBFT Unit
+  step₄ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
   -- DIFF: We cannot define a lens for the block store without dependent lenses,
@@ -117,20 +118,22 @@ module ProcessProposalM (proposal : Block) where
               λ parentBlock →
                 ⌊ parentBlock ^∙ ebRound <?ℕ proposal ^∙ bRound ⌋) ≔
          logErr -- log: error: parentBlock < proposalRound
-       ‖ otherwise≔
-         step₂
-  step₂ = do
+       ‖ otherwise≔ do
          -- DIFF: For the verification effort, we use special-purpose case
          -- distinction operators, so the Haskell
          -- > executeAndVoteM proposal >>= \case
          -- is translated to the following.
          r ← executeAndVoteM proposal
+         step₂ r
+  step₂ r =
          caseM⊎ r of λ where
            (inj₁ _) → logErr -- <propagate error>
            (inj₂ vote) → step₃ vote
   step₃ vote = do
              RoundState.recordVote vote
              si ← BlockStore.syncInfoM
+             step₄ vote si
+  step₄ vote si = do
              recipient ← ProposerElection.getValidProposer
                          <$> use lProposerElection
                          <*> pure (proposal ^∙ bRound + 1)

@@ -272,3 +272,8 @@ module LibraBFT.ImplShared.Consensus.Types where
   isSendVote? (LogInfo _)           = no λ ()
   isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
 
+  SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
+  SendVote∉Output () (here refl)
+  SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
+     with isSendVote? x
+  ... | no proof = SendVote∉Output eq vm∈outs
