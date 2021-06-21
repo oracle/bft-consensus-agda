@@ -27,14 +27,14 @@ module LibraBFT.Concrete.System.Parameters where
                  NodeId
                  _≟NodeId_
                  GenesisInfo
-                 genInfo
                  RoundManager
-                 initRM
                  NetworkMsg
                  Vote
                  sig-Vote
                  _⊂Msg_
+                 genInfo
                  ∈GenInfo
+                 initRM
                  initWrapper
                  peerStep
 

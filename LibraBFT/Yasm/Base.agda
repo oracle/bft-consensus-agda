@@ -12,16 +12,13 @@ open import LibraBFT.Yasm.Types
 module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
- record SystemParameters : Set (ℓ+1 ℓ-PeerState) where
-  constructor mkSysParms
+ record SystemTypeParameters : Set (ℓ+1 ℓ-PeerState) where
+  constructor mkSysTypeParms
   field
     PeerId    : Set
     _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
     Genesis   : Set
-    genInfo   : Genesis    -- The same genesis information is given to any uninitialised peer before
-                           -- it can handle any messages.
     PeerState : Set ℓ-PeerState
-    initPS    : PeerState  -- Represents an uninitialised PeerState, about which we know nothing whatsoever
     Msg       : Set
     Part      : Set -- Types of interest that can be represented in Msgs
 
@@ -31,12 +28,25 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     -- A relation specifying what Parts are included in a Msg.
     _⊂Msg_       : Part → Msg → Set
 
-    -- A relation specifying what Signatures are included in genInfo
-    ∈GenInfo     : Signature → Set
+ module _ (systypes : SystemTypeParameters) where
+   open SystemTypeParameters systypes
 
-    -- Initializes a potentially-empty state with an EpochConfig
-    init : PeerId → Genesis → PeerState × List (Action Msg)
+   record SystemInitAndHandlers : Set (ℓ+1 ℓ-PeerState) where
+    constructor mkSysInitAndHandlers
+    field
+      -- The same genesis information is given to any uninitialised peer before
+      -- it can handle any messages.
+      genInfo   : Genesis
 
-    -- Handles a message on a previously initialized peer.
-    handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
+      -- A relation specifying what Signatures are included in genInfo
+      ∈GenInfo     : Signature → Set
+
+      -- Represents an uninitialised PeerState, about which we know nothing whatsoever
+      initPS    : PeerState
+
+      -- Initializes a potentially-empty state with an EpochConfig
+      init : PeerId → Genesis → PeerState × List (Action Msg)
+
+      -- Handles a message on a previously initialized peer.
+      handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
 

@@ -22,7 +22,7 @@ import      LibraBFT.Yasm.Types as LYT
 module LibraBFT.Yasm.System
    (ℓ-PeerState : Level)
    (ℓ-VSFP      : Level)
-   (parms      : LYB.SystemParameters ℓ-PeerState)
+   (parms      : LYB.SystemTypeParameters ℓ-PeerState)
  where
 
  data InitStatus : Set where
@@ -34,7 +34,7 @@ module LibraBFT.Yasm.System
  uninitd≢initd = λ ()
 
  open import LibraBFT.Yasm.Base
- open SystemParameters parms
+ open SystemTypeParameters parms
  open import Util.FunctionOverride PeerId _≟PeerId_
 
  open import LibraBFT.Base.PKCS
@@ -117,6 +117,17 @@ module LibraBFT.Yasm.System
     ; msgSameSig = msgSameSig msig
     }
 
+ -- * The System State
+ --
+ -- A system consists in a partial map from PeerId to PeerState, a pool
+ -- of sent messages and a number of available epochs.
+ record SystemState : Set (ℓ+1 ℓ-PeerState) where
+   field
+     peerStates  : PeerId → PeerState
+     initialised : PeerId → InitStatus
+     msgPool     : SentMessages          -- All messages ever sent
+ open SystemState public
+
 
  -- * Forbidding the Forging of Signatures
  --
@@ -177,17 +188,6 @@ module LibraBFT.Yasm.System
  --   that it is not a new signature for an honest public key
  CheatMsgConstraint : SentMessages → Msg → Set
  CheatMsgConstraint pool m = ∀{part} → part ⊂Msg m → CheatPartConstraint pool part
-
- -- * The System State
- --
- -- A system consists in a partial map from PeerId to PeerState, a pool
- -- of sent messages and a number of available epochs.
- record SystemState : Set (ℓ+1 ℓ-PeerState) where
-   field
-     peerStates  : PeerId → PeerState
-     initialised : PeerId → InitStatus
-     msgPool     : SentMessages          -- All messages ever sent
- open SystemState public
 
  initialState : SystemState
  initialState = record
