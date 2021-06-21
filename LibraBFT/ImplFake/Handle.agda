@@ -124,6 +124,7 @@ module LibraBFT.ImplFake.Handle where
                                                      (List-map proj₁
                                                                (kvm-toList (_vvAddressToValidatorInfo (_esVerifier (_rmEpochState (_rmEC rm))))))
  outputToActions _  (LogErr x)            = []
+ outputToActions _  (LogInfo x)           = []
  outputToActions _  (SendVote v toList)   = List-map (const (LYT.send (V (unmetaVoteMsg v)))) toList
 
  outputsToActions : ∀ {State} → List Output → List (LYT.Action NetworkMsg)

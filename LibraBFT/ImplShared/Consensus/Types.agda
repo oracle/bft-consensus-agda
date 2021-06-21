@@ -242,3 +242,23 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   lSafetyData : Lens RoundManager SafetyData
   lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData
+
+  -- These are placeholders so that we can model error and logging outputs even
+  -- though we don't yet model them in detail.
+  postulate
+    FakeInfo FakeErr : Set
+    fakeErr          : FakeErr
+    fakeInfo         : FakeInfo
+
+  data Output : Set where
+    BroadcastProposal : ProposalMsg                   → Output
+    LogErr            : FakeErr                       → Output
+    LogInfo           : FakeInfo                      → Output
+    SendVote          : VoteMsgWithMeta → List Author → Output
+  open Output public
+
+  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
+  SendVote-inj-v refl = refl
+
+  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
+  SendVote-inj-si refl = refl

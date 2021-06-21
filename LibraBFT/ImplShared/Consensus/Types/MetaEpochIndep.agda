@@ -52,16 +52,3 @@ mvmVoteWithMeta = mkLens' g s
 
   s : VoteMsgWithMeta → VoteWithMeta → VoteMsgWithMeta
   s vm v = VoteMsgWithMeta∙new ((vm ^∙ mvmVoteMsg) & vmVote ∙~ v ^∙ mvVote) (v ^∙ mvSrc)
-
-data Output : Set where
-  BroadcastProposal : ProposalMsg                   → Output
-  LogErr            : String                        → Output
-  -- LogInfo           : InfoLog a                  → Output
-  SendVote          : VoteMsgWithMeta → List Author → Output
-open Output public
-
-SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
-SendVote-inj-v refl = refl
-
-SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
-SendVote-inj-si refl = refl

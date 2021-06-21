@@ -16,6 +16,7 @@ open import LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElec
 open import LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState hiding (processCertificatesM)
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -36,6 +37,7 @@ open RWST-do
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
 processCommitM finalityProof = pure []
 
+-- IMPL-TODO: implement this
 processNewRoundEventM : Instant → NewRoundEvent → LBFT Unit
 processNewRoundEventM now nre = pure unit
 
@@ -52,15 +54,15 @@ executeAndVoteM       : Block                                         → LBFT (
 processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
 processProposalMsgM now {- from -} pm =
   case pm ^∙ pmProposer of λ where
-    nothing        → pure unit -- log: info: proposal with no author
+    nothing        → logInfo -- log: info: proposal with no author
     (just pAuthor) →
       ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
                             pAuthor true >>= λ where
-      (inj₁ _)     → pure unit -- log: error: <propagate error>
+      (inj₁ _)     → logErr -- log: error: <propagate error>
       (inj₂ true)  → processProposalM (pm ^∙ pmProposal)
       (inj₂ false) → do
         currentRound ← use (lRoundState ∙ rsCurrentRound)
-        pure unit -- log: info: dropping proposal for old round
+        logInfo -- log: info: dropping proposal for old round
 
 ------------------------------------------------------------------------------
 
@@ -106,15 +108,15 @@ module ProcessProposalM (proposal : Block) where
     step₁{s} bs vp
   step₁ bs vp =
     ifM‖ is-nothing (proposal ^∙ bAuthor) ≔
-         pure unit -- log: error: proposal does not have an author
+         logErr -- log: error: proposal does not have an author
        ‖ not vp ≔
-         pure unit -- log: error: proposer for block is not valid for this round
+         logErr -- log: error: proposer for block is not valid for this round
        ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs) ≔
-         pure unit -- log: error: QC of parent is not in BS
+         logErr -- log: error: QC of parent is not in BS
        ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
               λ parentBlock →
                 ⌊ parentBlock ^∙ ebRound <?ℕ proposal ^∙ bRound ⌋) ≔
-         pure unit -- log: error: parentBlock < proposalRound
+         logErr -- log: error: parentBlock < proposalRound
        ‖ otherwise≔
          step₂
   step₂ = do
@@ -124,7 +126,7 @@ module ProcessProposalM (proposal : Block) where
          -- is translated to the following.
          r ← executeAndVoteM proposal
          caseM⊎ r of λ where
-           (inj₁ _) → pure unit -- <propagate error>
+           (inj₁ _) → logErr -- <propagate error>
            (inj₂ vote) → step₃ vote
   step₃ vote = do
              RoundState.recordVote (unmetaVote vote)
@@ -183,7 +185,7 @@ processVoteM now vote =
     -- v ← ProposerElection.isValidProposer <$> (use lProposerElection
     --                                      <*> use (lRoundManager.pgAuthor) <*> pure nextRound)
     let v = true
-    if v then continue else pure unit)
+    if v then continue else logErr)
   else
     continue
  where
@@ -193,8 +195,8 @@ processVoteM now vote =
     s ← get
     let bs = _epBlockStore (_rmWithEC s)
     if true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
-      then pure unit
-      else addVoteM now vote
+      then logInfo
+      else addVoteM now vote -- TODO-1: logging
 
 addVoteM now vote = do
   s ← get
@@ -202,7 +204,7 @@ addVoteM now vote = do
   {- IMPL-TODO make this commented code work then remove the 'continue' after the comment
   maybeS nothing (bs ^∙ bsHighestTimeoutCert) continue λ tc →
     if-dec vote ^∙ vRound =? tc ^∙ tcRound
-    then pure unit
+    then logInfo
     else continue
   -}
   continue
@@ -222,10 +224,10 @@ addVoteM now vote = do
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where
-    (inj₁ e)    → pure unit -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (inj₁ e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
     (inj₂ unit) → processCertificatesM now
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
-    (inj₁ e)    → pure unit -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (inj₁ e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
     (inj₂ unit) → processCertificatesM now
