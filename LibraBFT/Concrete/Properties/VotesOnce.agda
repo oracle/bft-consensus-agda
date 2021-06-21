@@ -8,7 +8,6 @@ open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.ImplFake.NetworkMsg
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
 open import LibraBFT.ImplShared.Base.Types
@@ -170,7 +169,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
       with sameSig⇒sameVoteDataNoCol (msgSigned msv)  vv  (msgSameSig msv )
          | sameSig⇒sameVoteDataNoCol (msgSigned msv') vv' (msgSameSig msv')
     ...| refl | refl
-       with ∈GenInfo? (₋vSignature (msgPart msv)) | ∈GenInfo? (₋vSignature (msgPart msv'))
+       with ∈GenInfo? (_vSignature (msgPart msv)) | ∈GenInfo? (_vSignature (msgPart msv'))
     ...| yes init  | yes init' =  genVotesConsistent (msgPart msv) (msgPart msv') init init'
        -- A signature in GenInfo is for a vote with round 0, and a signature for which we have a
        -- MsgWithSig∈ that is not in GenInfo and is for an honest PK is for a round ≢ 0, so we can

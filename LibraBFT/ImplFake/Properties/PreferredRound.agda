@@ -42,10 +42,10 @@ module LibraBFT.ImplFake.Properties.PreferredRound (𝓔 : EpochConfig) where
                                                                              -- contradicting
                                                                              -- vround<
   ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inV qc∈m')
-       rewrite cong ₋vSignature v≈rbld'
+       rewrite cong _vSignature v≈rbld'
        = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) qc∈m'
          in ⊥-elim (v'new (qcVotesSentB4 r psI qc∈rm' vs∈qc' ¬gen'))
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) | _
-       rewrite cong ₋vSignature v≈rbld
+       rewrite cong _vSignature v≈rbld
        = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
          in ⊥-elim (vnew (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))

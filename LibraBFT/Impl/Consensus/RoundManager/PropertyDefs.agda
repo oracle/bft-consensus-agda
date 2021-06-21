@@ -22,12 +22,11 @@ module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 -- source meta-data. The actual statement of the property depends on the
 -- stateful computation we are considering (e.g., whether the vote is being
 -- returned or emitted as output).
-VoteSrcCorrectCod : (pre post : RoundManager) → VoteWithMeta → Set
-VoteSrcCorrectCod pre post (VoteWithMeta∙new vote mvsNew) =
-  just vote ≡ post ^∙ lSafetyData ∙ sdLastVote
-VoteSrcCorrectCod pre post (VoteWithMeta∙new vote mvsLastVote) =
-  just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
-  × pre ≡L post at (lSafetyData ∙ sdLastVote)
+
+data VoteSrcCorrectCod (pre post : RoundManager) (vote : Vote) : Set where
+  mvsNew :      just vote ≡ post ^∙ lSafetyData ∙ sdLastVote → VoteSrcCorrectCod pre post vote
+  mvsLastVote : just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
+              → pre ≡L post at (lSafetyData ∙ sdLastVote)    → VoteSrcCorrectCod pre post vote
 
 voteSrcCorrectCod-substRm
   : ∀ {pre₁ pre₂ post₁ post₂ mv}
@@ -35,5 +34,5 @@ voteSrcCorrectCod-substRm
     → post₁ ≡L post₂ at (lSafetyData ∙ sdLastVote)
     → VoteSrcCorrectCod pre₁ post₁ mv
     → VoteSrcCorrectCod pre₂ post₂ mv
-voteSrcCorrectCod-substRm {mv = VoteWithMeta∙new vote mvsNew} pre≡ refl pf = pf
-voteSrcCorrectCod-substRm {mv = VoteWithMeta∙new vote mvsLastVote} refl refl pf = pf
+voteSrcCorrectCod-substRm refl refl (mvsNew x) = mvsNew x
+voteSrcCorrectCod-substRm refl refl (mvsLastVote x x₁) = mvsLastVote x x₁

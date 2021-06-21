@@ -3,6 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 -- This module contains properties that are only about the behavior of the handlers, nothing to do
 -- with system state
@@ -33,7 +34,8 @@ module ExecuteAndVoteMSpec (b : Block) where
   open import LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
   open import LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties
 
-  record Contract (pre : RoundManager) (r : ErrLog ⊎ VoteWithMeta) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (r : ErrLog ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
     field
       noOutput       : outs ≡ []
       voteSrcCorrect : ConstructAndSignVoteM.VoteSrcCorrect pre r post
@@ -41,11 +43,11 @@ module ExecuteAndVoteMSpec (b : Block) where
   contract : ∀ pre → RWST-weakestPre (executeAndVoteM b) (Contract pre) unit pre
   contract pre =
     ExecuteAndInsertBlockM.contract b (RWST-weakestPre-ebindPost unit (ExecuteAndVoteM.step₁ b) _) pre
-      (record { noOutput = refl ; voteSrcCorrect = unit })
+      (mkContract refl unit)
       (λ where
         eb bs ._ refl cr cr≡ vs vs≡ so so≡ →
-          (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
-          , λ _ → (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+          (λ _ → mkContract refl unit)
+          , λ _ → (λ _ → mkContract refl unit)
           , (λ _ →
                let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
                    st₁                      = rmSetBlockStore pre bs in
@@ -57,15 +59,12 @@ module ExecuteAndVoteMSpec (b : Block) where
            → ConstructAndSignVoteM.Contract (rmSetBlockStore pre bs) r st outs
            → _
     help bs (inj₁ _) st outs pf =
-      record { noOutput = ConstructAndSignVoteM.Contract.noOutput pf ; voteSrcCorrect = unit }
+      mkContract (ConstructAndSignVoteM.Contract.noOutput pf) unit
     help bs (inj₂ vote) st outs pf ._ refl =
-      SaveVoteM.contract (unmetaVote vote) (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
-        (record { noOutput = noo
-                ; voteSrcCorrect = unit })
+      SaveVoteM.contract vote (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
+        (mkContract noo unit)
         λ where
-          bs' unit _ →
-            record { noOutput = noo
-                   ; voteSrcCorrect = voteSrcCorrectCod-substRm refl refl vsc }
+          bs' unit _ → mkContract noo (voteSrcCorrectCod-substRm refl refl vsc)
       where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
@@ -74,14 +73,29 @@ module ProcessProposalMSpec (proposal : Block) where
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
 
+  -- TODO-2: this needs to change because processProposalM can have logging outputs; an attempt below
   OutputSpec : ErrLog ⊎ Unit → List Output → Set
   OutputSpec (inj₁ _) outs = outs ≡ []
   OutputSpec (inj₂ _) outs = ∃₂ λ mv pid → outs ≡ SendVote mv pid ∷ []
 
+  -- TODO-1: this should be near the definition of Output
+  isSendVote : Output → Set
+  isSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
+
+  isSendVote? : (out : Output) → Dec(isSendVote out)
+  isSendVote? (BroadcastProposal _) = no λ ()
+  isSendVote? (LogErr _)            = no λ ()
+  isSendVote? (LogInfo _)           = no λ ()
+  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
+
+  OutputSpec2 : ErrLog ⊎ Unit → List Output → Set
+  OutputSpec2 (inj₁ _) outs = List-filter isSendVote? outs ≡ []                -- No SendVote
+  OutputSpec2 (inj₂ _) outs = ∃[ sv ](List-filter isSendVote? outs ≡ sv ∷ [])  -- Exactly one SendVote
+
   record Contract (pre : RoundManager) (r : ErrLog ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
     field
       output         : OutputSpec r outs
-      voteSrcCorrect : ∀ mv pid → SendVote mv pid ∈ outs → VoteSrcCorrectCod pre post (mv ^∙ mvmVoteWithMeta)
+      voteSrcCorrect : ∀ vm pid → SendVote vm pid ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ vmVote)
       -- TODO-2: We will also want, likely as a separate field, that the vote is being sent to the correct peer.
 
 {-
@@ -91,9 +105,9 @@ module ProcessProposalM (proposal : Block) where
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
-  c₁ : ErrLog ⊎ VoteWithMeta → LBFT Unit
+  c₁ : ErrLog ⊎ Vote → LBFT Unit
   c₁ _r =
     caseM⊎ (_r) of λ where
       (inj₁ _) → pure unit
@@ -103,7 +117,7 @@ module ProcessProposalM (proposal : Block) where
         recipient ← ProposerElection.getValidProposer
                       <$> use lProposerElection
                       <*> pure (proposal ^∙ bRound + 1)
-        act (SendVote (VoteMsgWithMeta∙fromVoteWithMeta vote si) (recipient ∷ []))
+        act (SendVote (VoteMsgWithMeta∙fromVote vote si) (recipient ∷ []))
 
   voteSrcCorrect
     : ∀ pre → RWST-weakestPre (processProposalM proposal) (VoteSrcCorrect pre) unit pre
@@ -122,11 +136,11 @@ module ProcessProposalM (proposal : Block) where
            → (outs ≡ [] × ExecuteAndVoteM.VoteSrcCorrect proposal pre x st outs)
            → RWST-weakestPre-bindPost unit c₁ (VoteSrcCorrect pre) x st outs
     proj₁ (impl x st .[] (refl , pf) .x refl) unit _ _ _ ()
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsNew) refl unit _ =
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsNew) refl unit _ =
       GetSyncInfo.contract _ st λ where
         _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsNew) .(_ ∷ []) (here refl) →
           pf
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (VoteWithMeta∙new vote mvsLastVote) refl unit _ =
+    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsLastVote) refl unit _ =
       GetSyncInfo.contract _ st λ where
         _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsLastVote) ._ (here refl) →
           pf
@@ -143,12 +157,12 @@ module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
 
   VoteSrcCorrect : RoundManager → LBFT-Post Unit
   VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
   Contract : RoundManager → LBFT-Post Unit
   Contract pre x post outs =
     ∀ m → m ∈ outs →
-    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVoteWithMeta)
+    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
 
   postulate
     contract

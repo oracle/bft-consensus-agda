@@ -60,9 +60,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
-      ₋biEpoch : Epoch
-      ₋biRound : Round
-      ₋biId    : HashValue
+      _biEpoch : Epoch
+      _biRound : Round
+      _biId    : HashValue
       -- This has more fields...
   open BlockInfo public
   unquoteDecl biEpoch   biRound   biId = mkLens (quote BlockInfo)
@@ -76,8 +76,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record LedgerInfo : Set where
     constructor LedgerInfo∙new
     field
-      ₋liCommitInfo        : BlockInfo
-      ₋liConsensusDataHash : HashValue
+      _liCommitInfo        : BlockInfo
+      _liConsensusDataHash : HashValue
   open LedgerInfo public
   unquoteDecl liCommitInfo   liConsensusDataHash = mkLens (quote LedgerInfo)
              (liCommitInfo ∷ liConsensusDataHash ∷ [])
@@ -93,8 +93,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record LedgerInfoWithSignatures : Set where
     constructor LedgerInfoWithSignatures∙new
     field
-      ₋liwsLedgerInfo : LedgerInfo
-      ₋liwsSignatures : KVMap Author Signature
+      _liwsLedgerInfo : LedgerInfo
+      _liwsSignatures : KVMap Author Signature
   open LedgerInfoWithSignatures public
   unquoteDecl liwsLedgerInfo   liwsSignatures = mkLens (quote LedgerInfoWithSignatures)
              (liwsLedgerInfo ∷ liwsSignatures ∷ [])
@@ -107,8 +107,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record VoteData : Set where
     constructor VoteData∙new
     field
-      ₋vdProposed : BlockInfo
-      ₋vdParent   : BlockInfo
+      _vdProposed : BlockInfo
+      _vdParent   : BlockInfo
   open VoteData public
   unquoteDecl vdProposed   vdParent = mkLens (quote VoteData)
              (vdProposed ∷ vdParent ∷ [])
@@ -118,17 +118,17 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              → (VoteData∙new pr1 par1) ≡ (VoteData∙new pr2 par2)
   VoteData-η refl refl = refl
 
-  -- DESIGN NOTE: The ₋vAuthor field is included only to facilitate lookup of the public key against
+  -- DESIGN NOTE: The _vAuthor field is included only to facilitate lookup of the public key against
   -- which to verify the signature.  An alternative would be to use an index into the members of the
   -- epoch config, which would save message space and therefore bandwidth.
   record Vote : Set where
     constructor Vote∙new
     field
-      ₋vVoteData         : VoteData
-      ₋vAuthor           : Author
-      ₋vLedgerInfo       : LedgerInfo
-      ₋vSignature        : Signature
-      ₋vTimeoutSignature : Maybe Signature
+      _vVoteData         : VoteData
+      _vAuthor           : Author
+      _vLedgerInfo       : LedgerInfo
+      _vSignature        : Signature
+      _vTimeoutSignature : Maybe Signature
   open Vote public
   unquoteDecl vVoteData   vAuthor   vLedgerInfo   vSignature   vTimeoutSignature = mkLens (quote Vote)
              (vVoteData ∷ vAuthor ∷ vLedgerInfo ∷ vSignature ∷ vTimeoutSignature ∷ [])
@@ -161,8 +161,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record QuorumCert : Set where
     constructor QuorumCert∙new
     field
-      ₋qcVoteData         : VoteData
-      ₋qcSignedLedgerInfo : LedgerInfoWithSignatures
+      _qcVoteData         : VoteData
+      _qcSignedLedgerInfo : LedgerInfoWithSignatures
   open QuorumCert public
   unquoteDecl qcVoteData   qcSignedLedgerInfo = mkLens (quote QuorumCert)
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
@@ -188,21 +188,21 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- Constructs a 'vote' that was gathered in a QC.
   rebuildVote : QuorumCert → Author × Signature → Vote
   rebuildVote qc (α , sig)
-    = record { ₋vVoteData         = ₋qcVoteData qc
-             ; ₋vAuthor           = α
-             ; ₋vLedgerInfo       = qc ^∙ (qcSignedLedgerInfo ∙ liwsLedgerInfo)
-             ; ₋vSignature        = sig
-             ; ₋vTimeoutSignature = nothing -- Is this correct?  The original vote may have had a
+    = record { _vVoteData         = _qcVoteData qc
+             ; _vAuthor           = α
+             ; _vLedgerInfo       = qc ^∙ (qcSignedLedgerInfo ∙ liwsLedgerInfo)
+             ; _vSignature        = sig
+             ; _vTimeoutSignature = nothing -- Is this correct?  The original vote may have had a
                                             -- timeout signature, but we don't know.  Does it
                                             -- matter?
              }
 
   -- Two votes are equivalent if they are identical except they may differ on timeout signature
   _≈Vote_ : (v1 v2 : Vote) → Set
-  v1 ≈Vote v2 = v2 ≡ record v1 { ₋vTimeoutSignature = ₋vTimeoutSignature v2 }
+  v1 ≈Vote v2 = v2 ≡ record v1 { _vTimeoutSignature = _vTimeoutSignature v2 }
 
   qcVotesKV : QuorumCert → KVMap Author Signature
-  qcVotesKV = ₋liwsSignatures ∘ ₋qcSignedLedgerInfo
+  qcVotesKV = _liwsSignatures ∘ _qcSignedLedgerInfo
 
   qcVotes : QuorumCert → List (Author × Signature)
   qcVotes qc = kvm-toList (qcVotesKV qc)
@@ -213,11 +213,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   qcRound : Lens QuorumCert Round
   qcRound = qcVoteData ∙ vdProposed ∙ biRound
 
-  ₋qcCertifies : QuorumCert → Hash
-  ₋qcCertifies q = q ^∙ qcCertifies
+  _qcCertifies : QuorumCert → Hash
+  _qcCertifies q = q ^∙ qcCertifies
 
-  ₋qcRound : QuorumCert → Round
-  ₋qcRound q = q ^∙ qcRound
+  _qcRound : QuorumCert → Round
+  _qcRound q = q ^∙ qcRound
 
   ------------
   -- Blocks --
@@ -232,13 +232,13 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record BlockData : Set where
     constructor BlockData∙new
     field
-      ₋bdEpoch      : Epoch
-      ₋bdRound      : Round
+      _bdEpoch      : Epoch
+      _bdRound      : Round
       -- QUESTION: How do we represent a block that extends the
       -- genesis block, which doesn't come with a QC.  Maybe the
       -- genesis block has an associated QC established for the epoch?
-      ₋bdQuorumCert : QuorumCert
-      ₋bdBlockType  : BlockType
+      _bdQuorumCert : QuorumCert
+      _bdBlockType  : BlockType
   open BlockData public
   unquoteDecl bdEpoch   bdRound   bdQuorumCert   bdBlockType = mkLens (quote BlockData)
              (bdEpoch ∷ bdRound ∷ bdQuorumCert ∷ bdBlockType ∷ [])
@@ -276,9 +276,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record Block : Set where
     constructor Block∙new
     field
-      ₋bId        : HashValue
-      ₋bBlockData : BlockData
-      ₋bSignature : Maybe Signature
+      _bId        : HashValue
+      _bBlockData : BlockData
+      _bSignature : Maybe Signature
   open Block public
   unquoteDecl bId   bBlockData   bSignature = mkLens (quote Block)
              (bId ∷ bBlockData ∷ bSignature ∷ [])
@@ -303,8 +303,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
     field
-      ₋brDeadline      : Instant
-      ₋brPreferredPeer : Author
+      _brDeadline      : Instant
+      _brPreferredPeer : Author
   open BlockRetriever public
   unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
              (brDeadline ∷ brPreferredPeer ∷ [])
@@ -312,9 +312,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record VoteProposal : Set where
     constructor VoteProposal∙new
     field
-      -- ₋vpAccumulatorExtensionProof : AccumulatorExtensionProof
-      ₋vpBlock : Block
-      -- ₋vpNextEpochState : Maybe EpochState
+      -- _vpAccumulatorExtensionProof : AccumulatorExtensionProof
+      _vpBlock : Block
+      -- _vpNextEpochState : Maybe EpochState
   open VoteProposal public
   unquoteDecl  vpBlock = mkLens (quote VoteProposal)
               (vpBlock ∷ [])
@@ -322,36 +322,36 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record MaybeSignedVoteProposal : Set where
     constructor MaybeSignedVoteProposal∙new
     field
-      ₋msvpVoteProposal : VoteProposal
-      ₋msvpSignature : Maybe Signature
+      _msvpVoteProposal : VoteProposal
+      _msvpSignature : Maybe Signature
   open MaybeSignedVoteProposal public
   unquoteDecl  msvpVoteProposal   msvpSignature = mkLens (quote MaybeSignedVoteProposal)
               (msvpVoteProposal ∷ msvpSignature ∷ [])
-
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
                            -- constructor SyncInfo∙new is below
     field
-      ₋siHighestQuorumCert  : QuorumCert
-      ₋siHighestCommitCert  : Maybe QuorumCert
-      -- ₋siHighestTimeoutCert : Mabe TimeoutCert -- Not used yet.
+      _siHighestQuorumCert  : QuorumCert
+      _sixxxHighestCommitCert  : Maybe QuorumCert
+      -- _siHighestTimeoutCert : Maybe TimeoutCert -- Not used yet.
   open SyncInfo public
   -- Note that we do not automatically derive a lens for siHighestCommitCert;
   -- it is defined manually below.
-  unquoteDecl siHighestQuorumCert   = mkLens (quote SyncInfo)
-             (siHighestQuorumCert ∷ [])
+  unquoteDecl siHighestQuorumCert   sixxxHighestCommitCert = mkLens (quote SyncInfo)
+             (siHighestQuorumCert ∷ sixxxHighestCommitCert ∷ [])
   postulate instance enc-SyncInfo : Encoder SyncInfo
 
   SyncInfo∙new : QuorumCert → QuorumCert → SyncInfo
   SyncInfo∙new highestQuorumCert highestCommitCert =
-    record { ₋siHighestQuorumCert = highestQuorumCert
-           ; ₋siHighestCommitCert = if highestQuorumCert QCBoolEq highestCommitCert
-                                    then nothing else (just highestCommitCert) }
+    record { _siHighestQuorumCert    = highestQuorumCert
+           ; _sixxxHighestCommitCert = if highestQuorumCert QCBoolEq highestCommitCert
+                                       then nothing else (just highestCommitCert) }
 
   siHighestCommitCert : Lens SyncInfo QuorumCert
-  siHighestCommitCert = mkLens' (λ x → fromMaybe (x ^∙ siHighestQuorumCert) (₋siHighestCommitCert x))
-                                (λ x si → record x { ₋siHighestCommitCert = just si })
+  siHighestCommitCert =
+    mkLens' (λ x → fromMaybe (x ^∙ siHighestQuorumCert) (x ^∙ sixxxHighestCommitCert))
+            (λ x si → record x { _sixxxHighestCommitCert = just si })
 
   siHighestCommitRound : Lens SyncInfo Round
   siHighestCommitRound = siHighestCommitCert ∙ qcCommitInfo ∙ biRound
@@ -363,8 +363,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ProposalMsg : Set where
     constructor ProposalMsg∙new
     field
-      ₋pmProposal : Block
-      ₋pmSyncInfo : SyncInfo
+      _pmProposal : Block
+      _pmSyncInfo : SyncInfo
   open ProposalMsg public
   unquoteDecl pmProposal   pmSyncInfo = mkLens (quote ProposalMsg)
              (pmProposal ∷ pmSyncInfo ∷ [])
@@ -376,8 +376,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record VoteMsg : Set where
     constructor  VoteMsg∙new
     field
-      ₋vmVote     : Vote
-      ₋vmSyncInfo : SyncInfo
+      _vmVote     : Vote
+      _vmSyncInfo : SyncInfo
   open VoteMsg public
   unquoteDecl vmVote   vmSyncInfo = mkLens (quote VoteMsg)
              (vmVote ∷ vmSyncInfo ∷ [])
@@ -396,11 +396,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record CommitMsg : Set where
     constructor CommitMsg∙new
     field
-      ₋cmEpoch   : Epoch
-      ₋cmAuthor  : NodeId
-      ₋cmRound   : Round
-      ₋cmCert    : QuorumCert  -- We assume for now that a CommitMsg contains the QuorumCert of the head of the 3-chain
-      ₋cmSigMB   : Maybe Signature
+      _cmEpoch   : Epoch
+      _cmAuthor  : NodeId
+      _cmRound   : Round
+      _cmCert    : QuorumCert  -- We assume for now that a CommitMsg contains the QuorumCert of the head of the 3-chain
+      _cmSigMB   : Maybe Signature
   open CommitMsg public
   unquoteDecl cmEpoch   cmAuthor   cmRound   cmCert   cmSigMB = mkLens (quote CommitMsg)
              (cmEpoch ∷ cmAuthor ∷ cmRound ∷ cmCert ∷ cmSigMB ∷ [])
@@ -409,9 +409,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record LastVoteInfo : Set where
     constructor LastVoteInfo∙new
     field
-      ₋lviLiDigest  : HashValue
-      ₋lviRound     : Round
-      ₋lviIsTimeout : Bool
+      _lviLiDigest  : HashValue
+      _lviRound     : Round
+      _lviIsTimeout : Bool
   open LastVoteInfo public
 
   record Timeout : Set where
@@ -423,8 +423,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record TimeoutCertificate : Set where
     constructor mkTimeoutCertificate
     field
-      ₋tcTimeout    : Timeout
-      ₋tcSignatures : KVMap Author Signature
+      _tcTimeout    : Timeout
+      _tcSignatures : KVMap Author Signature
   open TimeoutCertificate public
   unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
              (tcTimeout ∷ tcSignatures ∷ [])
@@ -435,9 +435,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record PendingVotes : Set where
     constructor PendingVotes∙new
     field
-      ₋pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
-      ₋pvMaybePartialTC    : Maybe TimeoutCertificate
-      ₋pvAuthorToVote      : KVMap Author Vote
+      _pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
+      _pvMaybePartialTC    : Maybe TimeoutCertificate
+      _pvAuthorToVote      : KVMap Author Vote
   open PendingVotes public
   unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
              (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
@@ -451,8 +451,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ExecutedBlock : Set where
     constructor ExecutedBlock∙new
     field
-      ₋ebBlock  : Block
-      ₋ebOutput : StateComputeResult
+      _ebBlock  : Block
+      _ebOutput : StateComputeResult
   open ExecutedBlock public
   unquoteDecl ebBlock   ebOutput = mkLens (quote ExecutedBlock)
              (ebBlock ∷ ebOutput ∷ [])
@@ -472,10 +472,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 -- ------------------------------------------------------------------------------
 
   record LinkableBlock : Set where
-    constructor LinkableBlock₋new
+    constructor LinkableBlock∙new
     field
-      ₋lbExecutedBlock : ExecutedBlock
-      -- ₋lbChildren      : Set HashValue
+      _lbExecutedBlock : ExecutedBlock
+      -- _lbChildren      : Set HashValue
   open LinkableBlock public
   unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
              (lbExecutedBlock ∷ [])
@@ -490,10 +490,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record SafetyData : Set where
     constructor SafetyData∙new
     field
-      ₋sdEpoch          : Epoch
-      ₋sdLastVotedRound : Round
-      ₋sdPreferredRound : Round
-      ₋sdLastVote       : Maybe Vote
+      _sdEpoch          : Epoch
+      _sdLastVotedRound : Round
+      _sdPreferredRound : Round
+      _sdLastVote       : Maybe Vote
   open SafetyData public
   unquoteDecl sdEpoch sdLastVotedRound sdPreferredRound sdLastVote =
     mkLens (quote SafetyData)
@@ -502,9 +502,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record PersistentSafetyStorage : Set where
     constructor PersistentSafetyStorage∙new
     field
-      ₋pssSafetyData : SafetyData
-      ₋pssAuthor     : Author
-      -- ₋pssWaypoint : Waypoint
+      _pssSafetyData : SafetyData
+      _pssAuthor     : Author
+      -- _pssWaypoint : Waypoint
   open PersistentSafetyStorage public
   unquoteDecl pssSafetyData pssAuthor = mkLens (quote PersistentSafetyStorage)
     (pssSafetyData ∷ pssAuthor ∷ [])
@@ -512,8 +512,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorSigner : Set where
     constructor ValidatorSigner∙new
     field
-      ₋vsAuthor     : AccountAddress
-      ₋vsPrivateKey : SK      -- Note that the SystemModel doesn't
+      _vsAuthor     : AccountAddress
+      _vsPrivateKey : SK      -- Note that the SystemModel doesn't
                               -- allow one node to examine another's
                               -- state, so we don't model someone being
                               -- able to impersonate someone else unless
@@ -527,7 +527,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-     ₋vcConsensusPublicKey : PK
+     _vcConsensusPublicKey : PK
   open ValidatorConfig public
   unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
     (vcConsensusPublicKey ∷ [])
@@ -535,16 +535,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
     field
-      -- ₋viAccountAddress       : AccountAddress
-      -- ₋viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
-      ₋viConfig : ValidatorConfig
+      -- _viAccountAddress       : AccountAddress
+      -- _viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
+      _viConfig : ValidatorConfig
   open ValidatorInfo public
 
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
-     ₋vciPublicKey   : PK
-     ₋vciVotingPower : U64
+     _vciPublicKey   : PK
+     _vciVotingPower : U64
   open ValidatorConsensusInfo public
   unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
              (vciPublicKey ∷ vciVotingPower ∷ [])
@@ -560,8 +560,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorVerifier : Set where
     constructor ValidatorVerifier∙new
     field
-      ₋vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
-      ₋vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
+      _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
   unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
@@ -570,9 +570,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record SafetyRules : Set where
     constructor SafetyRules∙new
     field
-      ₋srPersistentStorage  : PersistentSafetyStorage
-      ₋srExecutionPublicKey : Maybe PK
-      ₋srValidatorSigner   : Maybe ValidatorSigner
+      _srPersistentStorage  : PersistentSafetyStorage
+      _srExecutionPublicKey : Maybe PK
+      _srValidatorSigner   : Maybe ValidatorSigner
   open SafetyRules public
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
