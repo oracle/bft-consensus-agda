@@ -97,6 +97,28 @@ constructAndSignVoteM-continue0 voteProposal validatorSigner = do
           else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
       nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 
+module constructAndSignVoteM-continue1
+  (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
+  (proposedBlock : Block)        (safetyData0     : SafetyData) where
+
+  step₀ : LBFT (ErrLog ⊎ Vote)
+  step₁ : LBFT (ErrLog ⊎ Vote)
+  step₂ : ValidatorVerifier → LBFT (ErrLog ⊎ Vote)
+  step₃ : LBFT (ErrLog ⊎ Vote)
+
+  step₀ =
+    verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
+  step₁ = do
+      validatorVerifier ← gets rmGetValidatorVerifier
+      step₂ validatorVerifier
+  step₂ validatorVerifier =
+      pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
+  step₃ =
+        verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
+        constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
+
+constructAndSignVoteM-continue1 = constructAndSignVoteM-continue1.step₀
+
 module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
                                        (proposedBlock : Block) (safetyData : SafetyData) where
   step₀ : LBFT (ErrLog ⊎ Vote)
@@ -121,13 +143,5 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
-
-constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0 =
-  verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → do
-    validatorVerifier ← gets rmGetValidatorVerifier
-    pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ →
-      verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
-      constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
-
 
 

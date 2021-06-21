@@ -506,20 +506,7 @@ module ConstructAndSignVoteM where
     (safetyData0 : SafetyData)
     where
 
-    c₃ : Unit → LBFT (ErrLog ⊎ Vote)
-    c₃ _ =
-      verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
-        constructAndSignVoteM-continue2.step₀ voteProposal validatorSigner proposedBlock
-
-    c₂ : ValidatorVerifier → LBFT (ErrLog ⊎ Vote)
-    c₂ validatorVerifier =
-      pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙
-        c₃
-
-    c₁ : LBFT (ErrLog ⊎ Vote)
-    c₁ = do
-      validatorVerifier ← gets rmGetValidatorVerifier
-      c₂ validatorVerifier
+    open constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 
     contract
       : ∀ pre
@@ -528,29 +515,28 @@ module ConstructAndSignVoteM where
             (Contract pre) unit pre
     contract pre =
       VerifyQcM.contract (proposedBlock ^∙ bQuorumCert)
-        (RWST-weakestPre-ebindPost unit (λ _ → c₁) _) pre
-        (mkContract refl unit)
-        λ where
-          unit _ validatorVerifier vv≡ →
-            either{C = λ x → RWST-weakestPre (pure x ∙?∙ c₃) (Contract pre) _ _}
-              (λ _ → mkContract refl unit)
-              (λ where
-                unit unit _ →
-                  VerifyAndUpdatePreferredRoundM.contract (proposedBlock ^∙ bQuorumCert) safetyData0
-                    (RWST-weakestPre-ebindPost unit (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock) _)
-                    pre
+        (RWST-weakestPre-ebindPost unit (λ _ → step₁) (Contract pre)) pre
+          (mkContract refl unit)
+          λ where
+            unit _ validatorVerifier validatorVerifier≡ →
+              either {C = λ x → RWST-weakestPre (pure x ∙?∙ (λ _ → step₃)) (Contract pre) _ _}
+                (λ _ → mkContract refl unit)
+                (λ where
+                  unit unit _ →
+                    VerifyAndUpdatePreferredRoundM.contract (proposedBlock ^∙ bQuorumCert) safetyData0
+                    (RWST-weakestPre-ebindPost unit (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock) _) pre
                     (λ _ → mkContract refl unit)
-                    λ _ →
+                    (λ _ →
                       -- Though this appears repetitive now, in the future the
                       -- contract will likely be refined to consider when and
                       -- how the preferred round is updated.
                       (λ twoChainRound>preferredRound safetyData1 safetyData1≡ →
                          Continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre pre)
-                      , (λ twoChainRound<preferredRound safetyData1 safetyData1≡ →
-                           Continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre pre)
-                      , λ twoChainRound=preferredRound safetyData1 safetyData1≡ →
-                          Continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre pre)
-              (Block.validateSignature proposedBlock validatorVerifier)
+                      , ((λ twoChainRound<preferredRound safetyData1 safetyData1≡ →
+                         Continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre pre)
+                      , (λ twoChainRound=preferredRound safetyData1 safetyData1≡ →
+                         Continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre pre))))
+                (Block.validateSignature proposedBlock validatorVerifier)
 
   module Continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
 
