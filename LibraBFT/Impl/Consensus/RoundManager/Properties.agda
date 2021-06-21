@@ -64,7 +64,7 @@ module ExecuteAndVoteMSpec (b : Block) where
       SaveVoteM.contract vote (RWST-weakestPre-ebindPost unit (λ _ → ok vote) _) st
         (mkContract noo unit)
         λ where
-          bs' unit _ → mkContract noo {! vsc !}  -- Ran out of time here.  Worked without more general definition of VoteSrcCorrectCod.
+          bs' unit _ → mkContract noo (voteSrcCorrectCod-substRm refl refl vsc)
       where
       noo = cong (_++ []) (ConstructAndSignVoteM.Contract.noOutput pf)
       vsc = ConstructAndSignVoteM.Contract.voteSrcCorrect pf
