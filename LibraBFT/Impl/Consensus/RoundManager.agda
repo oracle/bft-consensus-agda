@@ -43,7 +43,6 @@ processNewRoundEventM now nre = pure unit
 
 ------------------------------------------------------------------------------
 
-syncUpM               : Instant → SyncInfo → Author                   → LBFT (FakeErr ⊎ Unit)
 ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (FakeErr ⊎ Bool)
 processProposalM      : Block                                         → LBFT Unit
 executeAndVoteM       : Block                                         → LBFT (FakeErr ⊎ Vote)
@@ -51,35 +50,60 @@ executeAndVoteM       : Block                                         → LBFT (
 -- external entry point
 -- TODO-2: The sync info that the peer requests if it discovers that its round
 -- state is behind the sender's should be sent as an additional argument, for now.
-processProposalMsgM : Instant → {- Author → -} ProposalMsg → LBFT Unit
-processProposalMsgM now {- from -} pm =
-  case pm ^∙ pmProposer of λ where
-    nothing        → logInfo -- log: info: proposal with no author
-    (just pAuthor) →
-      ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
-                            pAuthor true >>= λ where
-      (inj₁ _)     → logErr -- log: error: <propagate error>
-      (inj₂ true)  → processProposalM (pm ^∙ pmProposal)
-      (inj₂ false) → do
-        currentRound ← use (lRoundState ∙ rsCurrentRound)
-        logInfo -- log: info: dropping proposal for old round
+module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
+  step₀ : LBFT Unit
+  step₁ : Author → LBFT Unit
+  step₂ : FakeErr ⊎ Bool → LBFT Unit
+
+  step₀ =
+    caseMM pm ^∙ pmProposer of λ where
+      nothing → logInfo -- log: info: proposal with no author
+      (just pAuthor) → step₁ pAuthor
+  step₁ pAuthor =
+        ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
+                              pAuthor true >>= step₂
+  step₂ r =
+        -- IMPL-DIFF: We use `ifM` to test whether the round of the proposal is
+        -- current, to take advantage of the obligations `RWST-weakestPre` generates.
+        caseM⊎ r of λ where
+        (inj₁ _) → logErr -- log: error: <propagate error>
+        (inj₂ pmCurrent) →
+          ifM pmCurrent
+            then processProposalM (pm ^∙ pmProposal)
+            else do
+              currentRound ← use (lRoundState ∙ rsCurrentRound)
+              logInfo  -- log: info: dropping proposal for old round
+
+processProposalMsgM = processProposalMsgM.step₀
 
 ------------------------------------------------------------------------------
 
 -- TODO-2: Implement this.
-syncUpM now syncInfo author = ok unit
+postulate
+  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (FakeErr ⊎ Unit)
 
 ------------------------------------------------------------------------------
 
-ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
-  currentRound ← use (lRoundState ∙ rsCurrentRound)
-  if ⌊ messageRound <? currentRound ⌋
-     then ok false
-     else syncUpM now syncInfo author ∙?∙ λ _ → do
-       currentRound' ← use (lRoundState ∙ rsCurrentRound)
-       if not ⌊ messageRound ≟ℕ currentRound' ⌋
-         then bail fakeErr  -- error: after sync, round does not match local
-         else ok true
+module ensureRoundAndSyncUpM
+  (now : Instant) (messageRound : Round) (syncInfo : SyncInfo) (author : Author) (helpRemote : Bool) where
+  step₀ : LBFT (FakeErr ⊎ Bool)
+  step₁ : LBFT (FakeErr ⊎ Bool)
+  step₂ : LBFT (FakeErr ⊎ Bool)
+
+  step₀ = do
+    currentRound ← use (lRoundState ∙ rsCurrentRound)
+    ifM messageRound <? currentRound
+      then ok false
+      else step₁
+  step₁ =
+        syncUpM now syncInfo author helpRemote ∙?∙ λ _ → step₂
+  step₂ = do
+          currentRound' ← use (lRoundState ∙ rsCurrentRound)
+          ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
+            then bail fakeErr -- error: after sync, round does not match local
+            else ok true
+
+ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
 
 ------------------------------------------------------------------------------
 

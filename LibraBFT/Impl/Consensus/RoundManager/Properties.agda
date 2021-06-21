@@ -90,8 +90,8 @@ module ProcessProposalMSpec (proposal : Block) where
       voteSrcCorrect : ∀ vm pid → SendVote vm pid ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ vmVote)
       -- TODO-2: We will also want, likely as a separate field, that the vote is
       -- being sent to the correct peer.
-      -- TODO-2: And that if we return an error, we do not modify the lastVote
-      -- field.
+      -- TODO-2: And we will want that if we return an error, we do not modify
+      -- the lastVote field.
 
   contract : ∀ pre → RWST-weakestPre (processProposalM proposal) (Contract pre) unit pre
   contract pre ._ refl =
@@ -140,6 +140,59 @@ module ProcessProposalMSpec (proposal : Block) where
                              mkContract
                                (inj₂ ((SendVote (VoteMsg∙new vote si) _) , refl))
                                λ where ._ ._ (here refl) → voteSrcCorrect)
+
+module syncUpMSpec (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
+  OutputSpec : List Output → Set
+  OutputSpec outs = outs ≡ []
+
+  StateSpec : (pre post : RoundManager) → Set
+  StateSpec pre post = pre ≡L post at lSafetyData ∙ sdLastVote
+
+  record Contract (pre : RoundManager) (r : FakeErr ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
+    field
+       outputSpec : OutputSpec outs
+       postSpec   : StateSpec pre post
+
+  -- TODO-2: Prove this, after `syncUpM` has been implemented
+  postulate
+    contract : ∀ pre → RWST-weakestPre (syncUpM now syncInfo author _helpRemote) (Contract pre) unit pre
+
+  contract⇒ : ∀ pre Post → (∀ r st outs → Contract pre r st outs → Post r st outs)
+              → RWST-weakestPre (syncUpM now syncInfo author _helpRemote) Post unit pre
+  contract⇒ pre Post pf = RWST-impl _ _ pf (syncUpM now syncInfo author _helpRemote) unit pre (contract pre)
+
+module ensureRoundAndSyncUpMSpec
+  (now : Instant) (messageRound : Round) (syncInfo : SyncInfo) (author : Author) (helpRemote : Bool) where
+  open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
+
+  OutputSpec : List Output → Set
+  OutputSpec outs = outs ≡ []
+
+  StateSpec : (pre post : RoundManager) → Set
+  StateSpec pre post = pre ≡L post at lSafetyData ∙ sdLastVote
+
+  record Contract (pre : RoundManager) (r : FakeErr ⊎ Bool) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
+    field
+      output : OutputSpec outs
+      state  : StateSpec pre post
+
+  contract : ∀ pre
+             → RWST-weakestPre
+                 (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote)
+                 (Contract pre) unit pre
+  proj₁ (contract pre ._ refl) messageRound<currentRound = mkContract refl refl
+  proj₂ (contract pre ._ refl) messageRound≥currentRound =
+    syncUpMSpec.contract⇒ now syncInfo author helpRemote pre
+      (RWST-weakestPre-ebindPost unit (λ _ → step₂) (Contract pre))
+      (λ where
+        (inj₁ x) st .[] (syncUpMSpec.mkContract refl postSpec) → mkContract refl postSpec
+        (inj₂ _) st .[] (syncUpMSpec.mkContract refl postSpec) _ _ currentRound' ≡currentRound' →
+          (λ _ → mkContract refl postSpec) , λ _ → mkContract refl postSpec)
+
+module processProposalMsgMSpec (now : Instant) (pm : ProposalMsg) where
+
 
 {-
 module ProcessProposalM (proposal : Block) where
