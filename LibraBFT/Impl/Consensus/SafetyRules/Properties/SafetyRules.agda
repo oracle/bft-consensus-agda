@@ -126,24 +126,7 @@ module ConstructAndSignVoteM where
 
     C₁ = ⌊ round >? lastVotedRound ⌋ ≡_
 
-    c₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
-    c₃ safetyData1 voteData author ledgerInfo = do
-      let signature = ValidatorSigner.sign validatorSigner ledgerInfo
-          vote      = Vote.newWithSignature voteData author ledgerInfo signature
-      lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
-      ok (VoteWithMeta∙new vote mvsNew)
-
-    c₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ VoteWithMeta)
-    c₂ safetyData1 voteData = do
-      let author = validatorSigner ^∙ vsAuthor
-      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
-        c₃ safetyData1 voteData author ledgerInfo
-
-    c₁ : SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
-    c₁ safetyData1 = do
-      lSafetyData ∙= safetyData1
-      extensionCheckM voteProposal ∙?∙ λ voteData → do
-        c₂ safetyData1 voteData
+    open constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData
 
     contract
       : ∀ pre
@@ -152,17 +135,17 @@ module ConstructAndSignVoteM where
             (Contract pre) unit pre
     contract pre =
       VerifyAndUpdateLastVoteRoundM.contract round safetyData
-        (RWST-weakestPre-ebindPost unit c₁ (Contract pre)) pre
+        (RWST-weakestPre-ebindPost unit step₁ (Contract pre)) pre
         (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
         λ _ safetyData1 safetyData1≡ → λ where
           ._ refl unit _ →
             let st₁ = pre & lSafetyData ∙~ safetyData1 in
             ExtensionCheckM.contract voteProposal
-              (RWST-weakestPre-ebindPost unit (c₂ safetyData1) _) st₁
+              (RWST-weakestPre-ebindPost unit (step₂ safetyData1) _) st₁
               (record { noOutput = refl ; voteSrcCorrect = unit })
               λ _ voteData _ →
                 ConstructLedgerInfoM.contract proposedBlock (Crypto.hashVD voteData)
-                  (RWST-weakestPre-ebindPost _ (c₃ safetyData1 voteData author) _) st₁
+                  (RWST-weakestPre-ebindPost _ (step₃ safetyData1 voteData author) _) st₁
                   (record { noOutput = refl ; voteSrcCorrect = unit })
                   (λ _ ledgerInfo _ → λ _ _ _ _ →
                     record { noOutput = refl ; voteSrcCorrect = refl })
