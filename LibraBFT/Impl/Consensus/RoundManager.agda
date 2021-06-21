@@ -43,10 +43,10 @@ processNewRoundEventM now nre = pure unit
 
 ------------------------------------------------------------------------------
 
-syncUpM               : Instant → SyncInfo → Author                   → LBFT (ErrLog ⊎ Unit)
-ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (ErrLog ⊎ Bool)
+syncUpM               : Instant → SyncInfo → Author                   → LBFT (FakeErr ⊎ Unit)
+ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (FakeErr ⊎ Bool)
 processProposalM      : Block                                         → LBFT Unit
-executeAndVoteM       : Block                                         → LBFT (ErrLog ⊎ Vote)
+executeAndVoteM       : Block                                         → LBFT (FakeErr ⊎ Vote)
 
 -- external entry point
 -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -78,7 +78,7 @@ ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote = do
      else syncUpM now syncInfo author ∙?∙ λ _ → do
        currentRound' ← use (lRoundState ∙ rsCurrentRound)
        if not ⌊ messageRound ≟ℕ currentRound' ⌋
-         then bail unit  -- error: after sync, round does not match local
+         then bail fakeErr  -- error: after sync, round does not match local
          else ok true
 
 ------------------------------------------------------------------------------
@@ -141,10 +141,10 @@ processProposalM = ProcessProposalM.step₀
 
 ------------------------------------------------------------------------------
 module ExecuteAndVoteM (b : Block) where
-  step₀ :                 LBFT (ErrLog ⊎ Vote)
-  step₁ : ExecutedBlock → LBFT (ErrLog ⊎ Vote)
-  step₂ : ExecutedBlock → LBFT (ErrLog ⊎ Vote)
-  step₃ : Vote  → LBFT (ErrLog ⊎ Vote)
+  step₀ :                 LBFT (FakeErr ⊎ Vote)
+  step₁ : ExecutedBlock → LBFT (FakeErr ⊎ Vote)
+  step₂ : ExecutedBlock → LBFT (FakeErr ⊎ Vote)
+  step₃ : Vote  → LBFT (FakeErr ⊎ Vote)
 
   step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
   step₁ eb = do
@@ -152,9 +152,9 @@ module ExecuteAndVoteM (b : Block) where
     vs ← use (lRoundState ∙ rsVoteSent)
     so ← use lSyncOnly
     ifM‖ is-just vs
-         ≔ bail unit -- already voted this round
+         ≔ bail fakeErr -- error: already voted this round
        ‖ so
-         ≔ bail unit -- sync-only set
+         ≔ bail fakeErr -- error: sync-only set
        ‖ otherwise≔ step₂ eb
   step₂ eb = do
            let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb

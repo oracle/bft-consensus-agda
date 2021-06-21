@@ -36,7 +36,7 @@ module VerifyAndUpdatePreferredRoundM (quorumCert : QuorumCert) (safetyData : Sa
   postulate
     contract
       : ∀ P pre
-        → (C₁ true → P (inj₁ unit) pre [])
+        → (C₁ true → P (inj₁ fakeErr) pre [])
         → (C₁ false
           → (C₂ true → P (inj₂ (safetyData & sdPreferredRound ∙~ twoChainRound)) pre [])
             × (C₃ true → P (inj₂ safetyData) pre [])
@@ -62,7 +62,7 @@ module ExtensionCheckM (voteProposal : VoteProposal) where
   postulate
     contract
       : ∀ P pre
-        → P (inj₁ unit) pre []
+        → P (inj₁ fakeErr) pre []
         → (∀ voteData → P (inj₂ voteData) pre [])
         → RWST-weakestPre (extensionCheckM voteProposal) P unit pre
 
@@ -70,14 +70,14 @@ module ConstructLedgerInfoM (proposedBlock : Block) (consensusDataHash : HashVal
   postulate
     contract
       : ∀ P pre
-        → P (inj₁ unit) pre []
+        → P (inj₁ fakeErr) pre []
         → (∀ ledgerInfo → P (inj₂ ledgerInfo) pre [])
         → RWST-weakestPre (constructLedgerInfoM proposedBlock consensusDataHash) P unit pre
 
 module VerifyEpochM (epoch : Epoch) (safetyData : SafetyData) where
   contract
     : ∀ P pre
-      → P (inj₁ unit) pre []
+      → P (inj₁ fakeErr) pre []
       → P (inj₂ unit) pre []
       → RWST-weakestPre (verifyEpochM epoch safetyData) P unit pre
   proj₁ (contract Post pre b o) _ = b
@@ -90,7 +90,7 @@ module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) w
 
   contract
     : ∀ P pre
-      → (C₁ false → P (inj₁ unit) pre [])
+      → (C₁ false → P (inj₁ fakeErr) pre [])
       → (C₁ true → P (inj₂ (safetyData & sdLastVotedRound ∙~ round)) pre [])
       → RWST-weakestPre (verifyAndUpdateLastVoteRoundM round safetyData) P unit pre
   proj₁ (contract P₁ pre b o) c₁t = o c₁t
@@ -101,16 +101,16 @@ module VerifyQcM (qc : QuorumCert) where
     -- TODO-2: needs refining, when verifyQcM is implemented
     contract
       : ∀ P pre
-        → (P (inj₁ unit) pre [])
+        → (P (inj₁ fakeErr) pre [])
         → (P (inj₂ unit) pre [])
         → RWST-weakestPre (verifyQcM qc) P unit pre
 
 module ConstructAndSignVoteM where
-  VoteSrcCorrect : RoundManager → (ErrLog ⊎ Vote) → RoundManager → Set
+  VoteSrcCorrect : RoundManager → (FakeErr ⊎ Vote) → RoundManager → Set
   VoteSrcCorrect pre (inj₁ _) post = Unit
   VoteSrcCorrect pre (inj₂ v) post = VoteSrcCorrectCod pre post v
 
-  record Contract (pre : RoundManager) (r : ErrLog ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (r : FakeErr ⊎ Vote) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noOutput       : outs ≡ []

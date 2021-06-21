@@ -21,6 +21,6 @@ module SaveVoteM (vote : Vote) where
   postulate
     contract
       : ∀ P pre
-        → P (inj₁ unit) pre []
+        → P (inj₁ fakeErr) pre []
         → (∀ blockStore → P (inj₂ unit) (rmSetBlockStore pre blockStore) [])
         → RWST-weakestPre (saveVoteM vote) P unit pre

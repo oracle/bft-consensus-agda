@@ -23,19 +23,19 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
-  extensionCheckM : VoteProposal → LBFT (ErrLog ⊎ VoteData)
-  constructLedgerInfoM : Block → HashValue → LBFT (ErrLog ⊎ LedgerInfo)
-  verifyQcM : QuorumCert → LBFT (ErrLog ⊎ Unit)
+  extensionCheckM : VoteProposal → LBFT (FakeErr ⊎ VoteData)
+  constructLedgerInfoM : Block → HashValue → LBFT (FakeErr ⊎ LedgerInfo)
+  verifyQcM : QuorumCert → LBFT (FakeErr ⊎ Unit)
 
 ------------------------------------------------------------------------------
 
-signer : SafetyRules → ErrLog ⊎ ValidatorSigner
-signer self = maybeS (self ^∙ srValidatorSigner) (inj₁ unit) inj₂
+signer : SafetyRules → FakeErr ⊎ ValidatorSigner
+signer self = maybeS (self ^∙ srValidatorSigner) (inj₁ fakeErr {- error: signer not initialized -}) inj₂
 
 ------------------------------------------------------------------------------
 
 -- PREFERRED ROUND RULE (2nd VOTING RULE) : this avoids voting to commit a conflicting Block
-verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (ErrLog ⊎ SafetyData)
+verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (FakeErr ⊎ SafetyData)
 verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   let preferredRound = safetyData ^∙ sdPreferredRound
       oneChainRound  = quorumCert ^∙ qcCertifiedBlock ∙ biRound
@@ -43,7 +43,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   -- LBFT-ALGO v3:p6: "... votes in round k only if the QC inside the k proposal
   -- is at least" PreferredRound."
   ifM oneChainRound <? preferredRound
-    then bail unit -- error: incorrect preferred round, QC round does not match preferred round
+    then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← ifM‖ twoChainRound >? preferredRound ≔
                      pure (safetyData & sdPreferredRound ∙~ twoChainRound) -- log: info: updated preferred round
@@ -55,40 +55,40 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 
 ------------------------------------------------------------------------------
 
-verifyEpochM : Epoch → SafetyData → LBFT (ErrLog ⊎ Unit)
+verifyEpochM : Epoch → SafetyData → LBFT (FakeErr ⊎ Unit)
 verifyEpochM epoch safetyData =
   ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
-    then bail unit -- log: error: incorrect epoch
+    then bail fakeErr -- log: error: incorrect epoch
     else ok unit
 
 ------------------------------------------------------------------------------
 
 -- INCREASING ROUND RULE (1st VOTING RULE) : ensures voting only ONCE per round
-verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (ErrLog ⊎ SafetyData)
+verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (FakeErr ⊎ SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
   ifM round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
-    else bail unit -- log: error: incorrect last vote round
+    else bail fakeErr -- log: error: incorrect last vote round
 
 ------------------------------------------------------------------------------
 
-constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ Vote)
-constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ Vote)
-constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ Vote)
+constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (FakeErr ⊎ Vote)
+constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (FakeErr ⊎ Vote)
+constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (FakeErr ⊎ Vote)
 
-constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ Vote)
+constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (FakeErr ⊎ Vote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   caseMM vs of λ where
-    nothing → bail unit -- error: srValidatorSigner is nothing
+    nothing → bail fakeErr -- error: srValidatorSigner is nothing
     (just validatorSigner) → do
       let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
       constructAndSignVoteM-continue0 voteProposal validatorSigner
 
 module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
-  step₀ : LBFT (ErrLog ⊎ Vote)
-  step₁ : SafetyData → LBFT (ErrLog ⊎ Vote)
+  step₀ : LBFT (FakeErr ⊎ Vote)
+  step₁ : SafetyData → LBFT (FakeErr ⊎ Vote)
 
   proposedBlock = voteProposal ^∙ vpBlock
   step₀ = do
@@ -108,10 +108,10 @@ module constructAndSignVoteM-continue1
   (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
   (proposedBlock : Block)        (safetyData0     : SafetyData) where
 
-  step₀ : LBFT (ErrLog ⊎ Vote)
-  step₁ : LBFT (ErrLog ⊎ Vote)
-  step₂ : ValidatorVerifier → LBFT (ErrLog ⊎ Vote)
-  step₃ : LBFT (ErrLog ⊎ Vote)
+  step₀ : LBFT (FakeErr ⊎ Vote)
+  step₁ : LBFT (FakeErr ⊎ Vote)
+  step₂ : ValidatorVerifier → LBFT (FakeErr ⊎ Vote)
+  step₃ : LBFT (FakeErr ⊎ Vote)
 
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
@@ -128,10 +128,10 @@ constructAndSignVoteM-continue1 = constructAndSignVoteM-continue1.step₀
 
 module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
                                        (proposedBlock : Block) (safetyData : SafetyData) where
-  step₀ : LBFT (ErrLog ⊎ Vote)
-  step₁ : SafetyData → LBFT (ErrLog ⊎ Vote)
-  step₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ Vote)
-  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ Vote)
+  step₀ : LBFT (FakeErr ⊎ Vote)
+  step₁ : SafetyData → LBFT (FakeErr ⊎ Vote)
+  step₂ : SafetyData → VoteData → LBFT (FakeErr ⊎ Vote)
+  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (FakeErr ⊎ Vote)
 
   step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
