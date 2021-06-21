@@ -74,7 +74,7 @@ module LibraBFT.Yasm.System
    field
      msgWhole   : Msg
      msgPart    : Part
-     msg⊆       : msgPart ⊂Msg msgWhole
+     msg⊆       : msgPart ⊂MsgG msgWhole
      msgSender  : PeerId
      msg∈pool   : (msgSender , msgWhole) ∈ pool
      msgSigned  : WithVerSig pk msgPart
@@ -129,7 +129,6 @@ module LibraBFT.Yasm.System
  open SystemState public
 
  module WithInitAndHandlers (iiah : SystemInitAndHandlers ℓ-PeerState parms) where
-
    open SystemInitAndHandlers iiah
 
    -- * Forbidding the Forging of Signatures
@@ -181,7 +180,7 @@ module LibraBFT.Yasm.System
    -- that epoch using a cheat step.
    CheatPartConstraint : SentMessages → Part → Set
    CheatPartConstraint pool m = ∀{pk} → (ver : WithVerSig pk m)
-                                      → ¬ ∈GenInfo (ver-signature ver)
+                                      → ¬ ∈GenInfo genInfo (ver-signature ver)
                                       → Meta-Dishonest-PK pk
                                       ⊎ MsgWithSig∈ pk (ver-signature ver) pool
 
@@ -190,7 +189,7 @@ module LibraBFT.Yasm.System
    -- * the signature on any part of the message satisfies CheatCanSign, meaning
    --   that it is not a new signature for an honest public key
    CheatMsgConstraint : SentMessages → Msg → Set
-   CheatMsgConstraint pool m = ∀{part} → part ⊂Msg m → CheatPartConstraint pool part
+   CheatMsgConstraint pool m = ∀{part} → part ⊂MsgG m → CheatPartConstraint pool part
 
    initialState : SystemState
    initialState = record

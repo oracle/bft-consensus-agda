@@ -15,13 +15,16 @@ import      LibraBFT.Yasm.System as LYS
 module LibraBFT.Yasm.Yasm
    (ℓ-PeerState : Level)
    (ℓ-VSFP      : Level)
-   (parms       : LYB.SystemParameters ℓ-PeerState)
-   (ValidSenderForPK        : LYS.ValidSenderForPK-type        ℓ-PeerState ℓ-VSFP parms)
-   (ValidSenderForPK-stable : LYS.ValidSenderForPK-stable-type ℓ-PeerState ℓ-VSFP parms ValidSenderForPK)
+   (parms       : LYB.SystemTypeParameters ℓ-PeerState)
+   (iiah  : LYB.SystemInitAndHandlers ℓ-PeerState parms)
+   (ValidSenderForPK        : LYS.WithInitAndHandlers.ValidSenderForPK-type        ℓ-PeerState ℓ-VSFP parms iiah)
+   (ValidSenderForPK-stable : LYS.WithInitAndHandlers.ValidSenderForPK-stable-type ℓ-PeerState ℓ-VSFP parms iiah ValidSenderForPK)
   where
- open LYB.SystemParameters parms
- open import LibraBFT.Yasm.Base                                                                        public
- open import LibraBFT.Yasm.Types                                                                       public
- open import LibraBFT.Yasm.System     ℓ-PeerState ℓ-VSFP parms                                          public
- open import LibraBFT.Yasm.Properties ℓ-PeerState ℓ-VSFP parms ValidSenderForPK ValidSenderForPK-stable public
- open import Util.FunctionOverride    PeerId _≟PeerId_                                                 public
+ open LYB.SystemTypeParameters  parms
+ open LYB.SystemInitAndHandlers iiah
+ open import LibraBFT.Yasm.Base                                                                              public
+ open import LibraBFT.Yasm.Types                                                                             public
+ open import LibraBFT.Yasm.System     ℓ-PeerState ℓ-VSFP parms                                               public
+ open import LibraBFT.Yasm.Properties ℓ-PeerState ℓ-VSFP parms iiah ValidSenderForPK ValidSenderForPK-stable public
+ open        WithInitAndHandlers iiah                                                                        public
+ open import Util.FunctionOverride    PeerId _≟PeerId_                                                       public
