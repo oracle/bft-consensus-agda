@@ -533,13 +533,13 @@ module ConstructAndSignVoteM where
         λ where
           unit _ validatorVerifier vv≡ →
             either{C = λ x → RWST-weakestPre (pure x ∙?∙ c₃) (Contract pre) _ _}
-              (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+              (λ _ → mkContract refl unit)
               (λ where
                 unit unit _ →
                   VerifyAndUpdatePreferredRoundM.contract (proposedBlock ^∙ bQuorumCert) safetyData0
                     (RWST-weakestPre-ebindPost unit (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock) _)
                     pre
-                    (λ _ → record { noOutput = refl ; voteSrcCorrect = unit })
+                    (λ _ → mkContract refl unit)
                     λ _ →
                       -- Though this appears repetitive now, in the future the
                       -- contract will likely be refined to consider when and
@@ -569,11 +569,11 @@ module ConstructAndSignVoteM where
       : ∀ pre
         → RWST-weakestPre (constructAndSignVoteM-continue0 voteProposal validatorSigner)
             (Contract pre) unit pre
-    proj₁ (contract pre safetyData0@._ refl) c₁≡true = record { noOutput = refl ; voteSrcCorrect = unit }
+    proj₁ (contract pre safetyData0@._ refl) c₁≡true = mkContract refl unit
     proj₁ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) ≡nothing =
       Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
     proj₁ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j j≡) c₂≡true =
-      record { noOutput = refl ; voteSrcCorrect = sym j≡ , refl }
+      mkContract refl (sym j≡ , refl)
     proj₂ (proj₂ (proj₂ (contract pre safetyData0@._ refl) c₁≡false unit _) j j≡) c₂≡false =
       Continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
 
