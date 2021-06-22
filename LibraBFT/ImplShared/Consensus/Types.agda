@@ -34,7 +34,6 @@ module LibraBFT.ImplShared.Consensus.Types where
   open import LibraBFT.ImplShared.NetworkMsg                     public
   open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
-  open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
   open import LibraBFT.ImplShared.Consensus.Types.EpochDep       public
   open import LibraBFT.ImplShared.Util.Crypto                    public
 
@@ -281,3 +280,38 @@ module LibraBFT.ImplShared.Consensus.Types where
     genVotesConsistent : (v1 v2 : Vote)
                        → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
+
+  -- These are placeholders so that we can model error and logging outputs even
+  -- though we don't yet model them in detail.
+  postulate
+    FakeInfo FakeErr : Set
+    fakeErr          : FakeErr
+    fakeInfo         : FakeInfo
+
+  data Output : Set where
+    BroadcastProposal : ProposalMsg                   → Output
+    LogErr            : FakeErr                       → Output
+    LogInfo           : FakeInfo                      → Output
+    SendVote          : VoteMsg → List Author → Output
+  open Output public
+
+  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
+  SendVote-inj-v refl = refl
+
+  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
+  SendVote-inj-si refl = refl
+
+  IsSendVote : Output → Set
+  IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
+
+  isSendVote? : (out : Output) → Dec (IsSendVote out)
+  isSendVote? (BroadcastProposal _) = no λ ()
+  isSendVote? (LogErr _)            = no λ ()
+  isSendVote? (LogInfo _)           = no λ ()
+  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
+
+  SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
+  SendVote∉Output () (here refl)
+  SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
+     with isSendVote? x
+  ... | no proof = SendVote∉Output eq vm∈outs

@@ -65,7 +65,7 @@ processProposalMsg inst pm = do
       st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (_rmEC st) rm' refl rmc)
                                  (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
   put st'
-  tell1 (SendVote (VoteMsgWithMeta∙new (VoteMsg∙new sv si) mvsNew) (fakeAuthor ∷ []))
+  tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
   pure unit
 
 processVote : Instant → VoteMsg → LBFT Unit
