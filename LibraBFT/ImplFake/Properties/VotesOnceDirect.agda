@@ -3,8 +3,6 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
-
 
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
@@ -20,8 +18,11 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open        ParamsWithInitAndHandlers FakeInitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
+
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
+                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 
 -- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
@@ -36,7 +37,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                        → StepPeerState pid (msgPool st) (initialised st)
                                        (peerStates st pid) (s' , outs)
                        → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
-                       → Meta-Honest-PK pk → ¬ (∈GenInfo (ver-signature sig))
+                       → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                        → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                        → v ^∙ vEpoch ≡ (_rmEC s') ^∙ rmEpoch
                        → v ^∙ vRound ≡ (_rmEC s') ^∙ rmLastVotedRound
@@ -59,7 +60,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   MsgWithSig⇒ValidSenderInitialised : ∀ {st v pk}
                                     → ReachableSystemState st
                                     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                                    → ¬ (∈GenInfo (ver-signature sig))
+                                    → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                                     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                                     → ∃[ pid ] ( initialised st pid ≡ initd
                                                × PeerCanSignForPK st v pid pk )
@@ -70,7 +71,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   ...| inj₁ (m∈outs , pcsN , newV)
      with stP
   ...| step-msg _ initP
-      with PerState.sameSig⇒sameVoteDataNoCol st (step-s r step) (msgSigned msv) sig (msgSameSig msv)
+      with PerReachableState.sameSig⇒sameVoteDataNoCol (step-s r step) (msgSigned msv) sig (msgSameSig msv)
   ...| refl = pid , peersRemainInitialized step initP , peerCanSignEp≡ pcsN refl
   MsgWithSig⇒ValidSenderInitialised {st} {v} (step-s r step@(step-peer (step-honest stP))) pkH sig ¬gen msv
      | refl
@@ -118,7 +119,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                  → ReachableSystemState st
                  → PeerCanSignForPK st v pid pk
                  → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                 → ¬ (∈GenInfo (ver-signature sig))
+                 → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                  → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                  → initialised st pid ≡ initd
   msg∈pool⇒initd {pid'} {st = st} step@(step-s r (step-peer {pid} (step-honest stPeer))) pcs pkH sig ¬gen msv
@@ -127,7 +128,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
      with newMsg⊎msgSentB4 r stPeer pkH (msgSigned msv) ¬gen (msg⊆ msv) (msg∈pool msv)
   ...| inj₁ (m∈outs , pcsN , newV)
      with sameSig⇒sameVoteData (msgSigned msv) sig (msgSameSig msv)
-  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr st step hb)
+  ...| inj₁ hb = ⊥-elim (PerReachableState.meta-sha256-cr step hb)
   ...| inj₂ refl
      with stPeer
   ...| step-msg _ initP
@@ -157,7 +158,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                                        (peerStates st pid) (s' , outs))
                 → PeerCanSignForPK st v pid pk
                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                → ¬ ∈GenInfo (ver-signature sig)
+                → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig)
                 → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
                 → (_rmEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
                 → (_rmEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
@@ -169,7 +170,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   oldVoteRound≤lvr : ∀ {pid pk v}{pre : SystemState}
                    → (r : ReachableSystemState pre)
                    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                   → ¬ (∈GenInfo (ver-signature sig))
+                   → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK pre v pid pk
                    → (_rmEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
@@ -200,7 +201,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
      | refl
      | inj₁ (m∈outs , vspkN , newV)
      with sameSig⇒sameVoteData (msgSigned msv) sig (msgSameSig msv)
-  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre step hb)
+  ...| inj₁ hb = ⊥-elim (PerReachableState.meta-sha256-cr step hb)
   ...| inj₂ refl
      with pid ≟ pid'
   ...| yes refl = ≡⇒≤ (newVoteEpoch≡⇒Round≡ r stPeer (msg⊆ msv) m∈outs (msgSigned msv)
@@ -208,7 +209,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
-  votesOnce₁ : VO.ImplObligation₁ 𝓔
+  votesOnce₁ : VO.ImplObligation₁ FakeInitAndHandlers 𝓔
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
              pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
      with v⊂m
@@ -225,7 +226,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                      rv'<rv = oldVoteRound≤lvr r pkH sv' ¬gen' m'mwsb vspre' eid≡
                  in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
 
-  votesOnce₂ : VO.ImplObligation₂ 𝓔
+  votesOnce₂ : VO.ImplObligation₂ FakeInitAndHandlers 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew
              vpk v'⊂m' m'∈outs sig' ¬gen' v'new vpk' es≡ rnds≡
      with m∈outs | m'∈outs
