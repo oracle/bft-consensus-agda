@@ -34,8 +34,8 @@ module LibraBFT.ImplShared.Consensus.Types where
   open import LibraBFT.ImplShared.NetworkMsg                     public
   open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
-  open import LibraBFT.ImplShared.Consensus.Types.MetaEpochIndep public
   open import LibraBFT.ImplShared.Consensus.Types.EpochDep       public
+  open import LibraBFT.ImplShared.Util.Crypto                    public
 
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
 
@@ -242,6 +242,44 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   lSafetyData : Lens RoundManager SafetyData
   lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData
+
+  record GenesisInfo : Set where
+    constructor mkGenInfo
+    field
+      -- TODO-1 : Nodes, PKs for initial epoch
+      -- TODO-1 : Faults to tolerate (or quorum size?)
+      genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
+                                         -- highestCommitCert.
+  open GenesisInfo
+
+  postulate -- valid assumption
+    -- We postulate the existence of GenesisInfo known to all
+    -- TODO: construct one or write a function that generates one from some parameters.
+    genesisInfo : GenesisInfo
+
+  postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+    initVV  : GenesisInfo → ValidatorVerifier
+    init-EC : GenesisInfo → EpochConfig
+
+  data ∈GenInfo-impl (gi : GenesisInfo) : Signature → Set where
+   inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC gi) → ∈GenInfo-impl gi (proj₂ vs)
+
+  open import LibraBFT.Abstract.Records UID _≟UID_ NodeId
+                                        (init-EC genesisInfo)
+                                        (ConcreteVoteEvidence (init-EC genesisInfo))
+                                        as Abs using ()
+
+  postulate -- TODO-1 : prove
+    ∈GenInfo?-impl : (gi : GenesisInfo) (sig : Signature) → Dec (∈GenInfo-impl gi sig)
+
+  postulate -- TODO-1: prove after defining genInfo
+    genVotesRound≡0     : ∀ {pk v}
+                       → (wvs : WithVerSig pk v)
+                       → ∈GenInfo-impl genesisInfo (ver-signature wvs)
+                       → v ^∙ vRound ≡ 0
+    genVotesConsistent : (v1 v2 : Vote)
+                       → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
+                     → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
   -- These are placeholders so that we can model error and logging outputs even
   -- though we don't yet model them in detail.

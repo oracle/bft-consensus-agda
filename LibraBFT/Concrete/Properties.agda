@@ -12,7 +12,8 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Base
+open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 -- In this module, we assume that the implementation meets its
 -- obligations, and use this assumption to prove that, in any reachable
@@ -20,14 +21,12 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- conditions proved in Abstract.Properties.  It can be extended to other
 -- properties later.
 module LibraBFT.Concrete.Properties
-         (st : SystemState)
-         (r : ReachableSystemState st)
-         (𝓔 : EpochConfig)
-         (impl-correct : ImplObligations 𝓔)
+         (iiah         : SystemInitAndHandlers ℓ-RoundManager ConcSysParms)
+         (st           : SystemState)
+         (r            : WithInitAndHandlers.ReachableSystemState iiah st)
+         (𝓔           : EpochConfig)
+         (impl-correct : ImplObligations iiah 𝓔)
          where
-    open        ImplObligations impl-correct
-    open        PerState st r
-    open        PerEpoch 𝓔
 
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
@@ -35,6 +34,12 @@ module LibraBFT.Concrete.Properties
     import      LibraBFT.Concrete.Obligations.PreferredRound     𝓔 (ConcreteVoteEvidence 𝓔) as PR-obl
     open import LibraBFT.Concrete.Properties.VotesOnce                                       as VO
     open import LibraBFT.Concrete.Properties.PreferredRound                                  as PR
+    open import LibraBFT.ImplShared.Util.HashCollisions iiah
+
+    open        ImplObligations impl-correct
+    open        PerState st
+    open        PerReachableState r
+    open        PerEpoch 𝓔
 
     --------------------------------------------------------------------------------------------
     -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
@@ -46,18 +51,10 @@ module LibraBFT.Concrete.Properties
         vss-preferred-round : PR-obl.Type 𝓢
     open ValidSysState public
 
-    -- TODO-2 : This should be provided as a module parameter here, and the
-    -- proofs provided to instantiate it should be refactored into LibraBFT.ImplFake.
-    -- However, see the TODO-3 in LibraBFT.Concrete.Intermediate, which suggests
-    -- that those proofs may change, perhaps some parts of them will remain in
-    -- Concrete and others should be in Impl, depending on how that TODO-3 is
-    -- addressed.  There is not much point in doing said refactoring until we
-    -- make progress on that question.
-
     validState : ValidSysState intSystemState
     validState = record
-      { vss-votes-once      = VO.Proof.voo 𝓔 sps-cor vo₁ vo₂ st r
-      ; vss-preferred-round = PR.Proof.prr 𝓔 sps-cor pr₁ pr₂ st r
+      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor gvc gvr v≢0 ∈GI? vo₁ vo₂ st r
+      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor pr₁ pr₂ st r
       }
 
     open IntermediateSystemState intSystemState

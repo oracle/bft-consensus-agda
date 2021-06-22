@@ -7,16 +7,7 @@
 -- of a system state.  The goal is to enable proving for a particular implementation
 -- the properties required to provide to Abstract.Properties in order to get the high
 -- level correctness conditions, while moving the obligations for the implementation
--- closer to notions more directly provable for an implementation.  However, as our
--- experience has developed with this, it seems that this was not a very effective
--- choice, as it leaves too much burden on the implementation (e.g., proving
--- ∈QC⇒HasBeenSent). Therefore, ...
---
--- TODO-3: Revisit assumptions of the IntermediateSystemState to enable more proof work
--- to be done under Concrete, which can be used by multiple implementations.  As it
--- currently stands, we have specific notions under LibraBFT.Impl that possibly should
--- be provided as module parameters to LibraBFT.Concrete (including IsValidVote and
--- α-ValidVote)
+-- closer to notions more directly provable for an implementation.
 
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Prelude
