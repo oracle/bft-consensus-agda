@@ -6,7 +6,6 @@
 
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Prelude
@@ -22,8 +21,8 @@ open import LibraBFT.Yasm.Base ℓ-RoundManager
 -- implementation.
 
 module LibraBFT.Concrete.System.Parameters where
- ConcSysParms : SystemParameters
- ConcSysParms = mkSysParms
+ ConcSysParms : SystemTypeParameters
+ ConcSysParms = mkSysTypeParms
                  NodeId
                  _≟NodeId_
                  GenesisInfo
@@ -32,16 +31,10 @@ module LibraBFT.Concrete.System.Parameters where
                  Vote
                  sig-Vote
                  _⊂Msg_
-                 genInfo
-                 ∈GenInfo
-                 initRM
-                 initWrapper
-                 peerStep
 
  open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
- module _ (iiah : SystemInitAndHandlers ConcSysParms) where
-
+ module ParamsWithInitAndHandlers (iiah : SystemInitAndHandlers ConcSysParms) where
    open WithInitAndHandlers iiah
 
    -- What EpochConfigs are known in the system?  For now, only the
