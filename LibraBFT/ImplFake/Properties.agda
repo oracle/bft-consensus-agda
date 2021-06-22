@@ -7,6 +7,7 @@
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
 import      LibraBFT.ImplFake.Properties.VotesOnce      as VO
 import      LibraBFT.ImplFake.Properties.PreferredRound as PR
@@ -18,7 +19,7 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- "implementation" into the structure required by Concrete.Properties.
 
 module LibraBFT.ImplFake.Properties (𝓔 : EpochConfig) where
-  theImplObligations : ImplObligations 𝓔
+  theImplObligations : ImplObligations FakeInitAndHandlers 𝓔
   theImplObligations = record { sps-cor = impl-sps-avp
                               ; vo₁     = VO.vo₁ 𝓔
                               ; vo₂     = VO.vo₂ 𝓔

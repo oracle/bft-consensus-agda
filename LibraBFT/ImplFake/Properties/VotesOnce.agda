@@ -8,7 +8,6 @@
 
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-import      LibraBFT.Concrete.Properties.VotesOnce as VO
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
@@ -20,12 +19,14 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
+open import LibraBFT.Yasm.Base
 open import Optics.All
 
-open        EpochConfig
-open import LibraBFT.Yasm.Types
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
+open        ParamsWithInitAndHandlers FakeInitAndHandlers
+import      LibraBFT.Concrete.Properties.VotesOnce FakeInitAndHandlers as VO
+open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
+                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments
@@ -34,6 +35,7 @@ open        Structural impl-sps-avp
 -- ambitious properties.
 
 module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
+  open        Structural impl-sps-avp
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
@@ -155,7 +157,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with sameSig⇒sameVoteData (msgSigned mws) sig' (msgSameSig mws)
-  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
+  ...| inj₁ hb = ⊥-elim (PerReachableState.meta-sha256-cr r hb)
   ...| inj₂ refl
      with msgSender mws ≟NodeId pid
   ...| no neq =
