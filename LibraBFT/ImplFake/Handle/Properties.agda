@@ -23,14 +23,16 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
+
+open import LibraBFT.ImplFake.Consensus.RoundManager
+open import LibraBFT.ImplFake.Handle
+open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open        PeerCanSignForPK
 
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 module LibraBFT.ImplFake.Handle.Properties where
-  open import LibraBFT.ImplFake.Consensus.RoundManager
-  open import LibraBFT.ImplFake.Handle
 
   -- This proof is complete except for pieces that are directly about the handlers.  Our
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.

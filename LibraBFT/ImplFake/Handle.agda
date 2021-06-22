@@ -7,6 +7,8 @@ open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -14,6 +16,7 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
+open import LibraBFT.Yasm.Base
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
@@ -101,4 +104,11 @@ module LibraBFT.ImplFake.Handle where
  -- Here, we just pass 0 to `handle`.
  peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
  peerStep nid msg st = runHandler st (handle nid msg 0)
+
+ FakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+ FakeInitAndHandlers = mkSysInitAndHandlers
+                         genesisInfo
+                         initRM
+                         initWrapper
+                         peerStep
 
