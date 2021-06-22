@@ -12,6 +12,7 @@ open import LibraBFT.ImplFake.Handle.Properties
 import      LibraBFT.ImplFake.Properties.VotesOnce      as VO
 import      LibraBFT.ImplFake.Properties.PreferredRound as PR
 open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types hiding (EpochConfig)
 open import LibraBFT.Prelude
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
@@ -21,6 +22,10 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 module LibraBFT.ImplFake.Properties (𝓔 : EpochConfig) where
   theImplObligations : ImplObligations FakeInitAndHandlers 𝓔
   theImplObligations = record { sps-cor = impl-sps-avp
+                              ; gvc     = genVotesConsistent
+                              ; gvr     = genVotesRound≡0
+                              ; v≢0     = ¬genVotesRound≢0
+                              ; ∈GI?    = ∈GenInfo?-impl genesisInfo
                               ; vo₁     = VO.vo₁ 𝓔
                               ; vo₂     = VO.vo₂ 𝓔
                               ; pr₁     = PR.pr₁ 𝓔
