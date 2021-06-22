@@ -26,6 +26,7 @@ module LibraBFT.Concrete.System.Parameters where
                  NodeId
                  _≟NodeId_
                  GenesisInfo
+                 ∈GenInfo-impl
                  RoundManager
                  NetworkMsg
                  Vote
@@ -35,6 +36,7 @@ module LibraBFT.Concrete.System.Parameters where
  open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
  module ParamsWithInitAndHandlers (iiah : SystemInitAndHandlers ConcSysParms) where
+   open SystemInitAndHandlers iiah
    open WithInitAndHandlers iiah
 
    -- What EpochConfigs are known in the system?  For now, only the

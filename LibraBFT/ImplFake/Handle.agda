@@ -26,44 +26,6 @@ module LibraBFT.ImplFake.Handle where
 
  open EpochConfig
 
- record GenesisInfo : Set where
-   constructor mkGenInfo
-   field
-     -- TODO-1 : Nodes, PKs for initial epoch
-     -- TODO-1 : Faults to tolerate (or quorum size?)
-     genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
-                                        -- highestCommitCert.
- open GenesisInfo
-
- postulate -- valid assumption
-   -- We postulate the existence of GenesisInfo known to all
-   -- TODO: construct one or write a function that generates one from some parameters.
-   genInfo : GenesisInfo
-
- postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-   initVV  : GenesisInfo → ValidatorVerifier
-   init-EC : GenesisInfo → EpochConfig
-
- data ∈GenInfo : Signature → Set where
-  inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC genInfo) → ∈GenInfo (proj₂ vs)
-
- open import LibraBFT.Abstract.Records UID _≟UID_ NodeId
-                                       (init-EC genInfo)
-                                       (ConcreteVoteEvidence (init-EC genInfo))
-                                       as Abs using ()
-
- postulate -- TODO-1 : prove
-   ∈GenInfo? : (sig : Signature) → Dec (∈GenInfo sig)
-
- postulate -- TODO-1: prove after defining genInfo
-   genVotesRound≡0     : ∀ {pk v}
-                      → (wvs : WithVerSig pk v)
-                      → ∈GenInfo (ver-signature wvs)
-                      → v ^∙ vRound ≡ 0
-   genVotesConsistent : (v1 v2 : Vote)
-                      → ∈GenInfo (_vSignature v1) → ∈GenInfo (_vSignature v2)
-                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
-
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
            -- it by construction; eventually we will construct an entire RoundManager, so
            -- this won't be needed
@@ -88,10 +50,10 @@ module LibraBFT.ImplFake.Handle where
  initRS = RoundState∙new 0 0 initPV nothing
 
  initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genInfo)) initRS initPE initSR false
+ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
 
  postulate -- TODO-2 : prove these once initRMEC is defined directly
-   init-EC-epoch-1  : epoch (init-EC genInfo) ≡ 1
+   init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
    initRMEC-correct : RoundManagerEC-correct initRMEC
 
  initRM : RoundManager
@@ -139,3 +101,4 @@ module LibraBFT.ImplFake.Handle where
  -- Here, we just pass 0 to `handle`.
  peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
  peerStep nid msg st = runHandler st (handle nid msg 0)
+

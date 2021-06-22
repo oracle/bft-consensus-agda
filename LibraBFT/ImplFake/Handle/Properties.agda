@@ -103,7 +103,7 @@ module LibraBFT.ImplFake.Handle.Properties where
                  → initialised st pid ≡ initd
                  → qc ∈RoundManager (peerStates st pid)
                  → vs ∈ qcVotes qc
-                 → ¬ (∈GenInfo (proj₂ vs))
+                 → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
   -- We can prove this easily because we don't yet do epoch changes,
@@ -169,7 +169,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
-                               → ¬ (∈GenInfo (_vSignature v))
+                               → ¬ (∈GenInfo-impl genesisInfo (_vSignature v))
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
