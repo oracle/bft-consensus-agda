@@ -3,22 +3,20 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.ImplFake.Handle
-open import LibraBFT.ImplFake.Handle.Properties
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
+open import LibraBFT.Yasm.Base
 open import Optics.All
 
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we define two "implementation obligations"
 -- (ImplObligationᵢ for i ∈ {1 , 2}), which are predicates over
@@ -43,13 +41,43 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSig
 -- EpochConfig.  We introduce the EpochConfig at the top of this
 -- module for consistency with the PreferredRound rule so that the
 -- order of parameters to invoke the respective proofs is consistent.
-module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
+module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
+ open        SystemTypeParameters ConcSysParms
+ open        SystemInitAndHandlers iiah
+ open        ParamsWithInitAndHandlers iiah
+ open import LibraBFT.ImplShared.Util.HashCollisions iiah
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+
  -- TODO-3: This may not be the best way to state the implementation obligation.  Why not reduce
  -- this as much as possible before giving the obligation to the implementation?  For example, this
  -- will still require the implementation to deal with hash collisons (v and v' could be different,
  -- but yield the same bytestring and therefore same signature).  Also, avoid the need for the
  -- implementation to reason about messages sent by step-cheat, or give it something to make this
  -- case easy to eliminate.
+
+ ImplObl-genVotesRound≡0 : Set
+ ImplObl-genVotesRound≡0 = ∀ {pk v}
+                         → (wvs : WithVerSig pk v)
+                         → ∈GenInfo genInfo (ver-signature wvs)
+                         → v ^∙ vRound ≡ 0
+
+ ImplObl-genVotesConsistent : Set
+ ImplObl-genVotesConsistent = (v1 v2 : Vote)
+                             → ∈GenInfo genInfo (_vSignature v1) → ∈GenInfo genInfo (_vSignature v2)
+                             → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
+
+ ImplObl-NewVoteSignedAndRound≢0 : Set (ℓ+1 ℓ-RoundManager)
+ ImplObl-NewVoteSignedAndRound≢0 =
+   ∀{pid s' outs pk}{pre : SystemState}
+   → ReachableSystemState pre
+   -- For any honest call to /handle/ or /init/,
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+   → ∀{v m} → Meta-Honest-PK pk
+   -- For signed every vote v of every outputted message
+   → v ⊂Msg m → send m ∈ outs
+   → (wvs : WithVerSig pk v)
+   → (¬ ∈GenInfo genInfo (ver-signature wvs))
+   → v ^∙ vRound ≢ 0
 
  ImplObligation₁ : Set (ℓ+1 ℓ-RoundManager)
  ImplObligation₁ =
@@ -60,12 +88,12 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ ∈GenInfo genInfo (ver-signature sig)
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v ^∙ vRound ≡ v' ^∙ vRound
@@ -83,13 +111,13 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
    → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ (∈GenInfo genInfo (ver-signature sig))
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
 
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
 
    -- If v and v' share the same epoch and round
@@ -102,6 +130,10 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
  -- Next, we prove that, given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
+   (Impl-gvc : ImplObl-genVotesConsistent)
+   (Impl-gvr : ImplObl-genVotesRound≡0)
+   (Impl-v≢0 : ImplObl-NewVoteSignedAndRound≢0)
+   (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
    (Impl-VO1 : ImplObligation₁)
    (Impl-VO2 : ImplObligation₂)
    where
@@ -111,7 +143,8 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
 
    open Structural sps-corr
    -- Bring in intSystemState
-   open PerState st r
+   open PerState st
+   open PerReachableState r
    open PerEpoch 𝓔
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
@@ -153,6 +186,19 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     -- (Impl-VO2).
 
 
+    -- If a Vote signed for an honest PK has been sent, and it is not in genInfo, then
+    -- it is for a round > 0
+
+    -- TODO-1: prove using Impl-v≢0
+    postulate
+      NewVoteRound≢0 : ∀ {v pk} {st : SystemState}
+                     → ReachableSystemState st
+                     → Meta-Honest-PK pk
+                     → (vv  : WithVerSig pk v)
+                     → ¬ ∈GenInfo genInfo (ver-signature vv)
+                     → MsgWithSig∈ pk (ver-signature vv) (msgPool st)
+                     → v ^∙ vRound ≢ 0
+
     VotesOnceProof :
        ∀ {v v' pk} {st : SystemState}
        → ReachableSystemState st
@@ -166,16 +212,22 @@ module LibraBFT.Concrete.Properties.VotesOnce (𝓔 : EpochConfig) where
     VotesOnceProof {v} {v'} (step-s r theStep) pkH vv msv vv' msv' eid≡ r≡
        with msgSameSig msv | msgSameSig msv'
     ...| refl | refl
-      with sameSig⇒sameVoteDataNoCol (msgSigned msv)  vv  (msgSameSig msv )
-         | sameSig⇒sameVoteDataNoCol (msgSigned msv') vv' (msgSameSig msv')
+      with sameSig⇒sameVoteDataNoCol (msgSigned msv ) vv  refl
+         | sameSig⇒sameVoteDataNoCol (msgSigned msv') vv' refl
     ...| refl | refl
-       with ∈GenInfo? (_vSignature (msgPart msv)) | ∈GenInfo? (_vSignature (msgPart msv'))
-    ...| yes init  | yes init' =  genVotesConsistent (msgPart msv) (msgPart msv') init init'
+       with Impl-∈GI? (_vSignature (msgPart msv)) | Impl-∈GI? (_vSignature (msgPart msv'))
+    ...| yes init  | yes init' = Impl-gvc (msgPart msv) (msgPart msv') init init'
        -- A signature in GenInfo is for a vote with round 0, and a signature for which we have a
        -- MsgWithSig∈ that is not in GenInfo and is for an honest PK is for a round ≢ 0, so we can
        -- derive a contradiction using r≡.
-    ...| yes init  | no  ¬init = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv' ¬init ((trans (sym r≡) (genVotesRound≡0 vv  init))))
-    ...| no  ¬init | yes init  = ⊥-elim (¬genVotesRound≢0 (step-s r theStep) pkH msv  ¬init ((trans r≡       (genVotesRound≡0 vv' init))))
+
+    -- TODO-2: See comment at
+    -- https://github.com/oracle/bft-consensus-agda/pull/43#discussion_r652231471 regarding
+    -- eliminating ¬genVotesround≢0.  That comment might be a bit confused, coming back to this
+    -- later.
+
+    ...| yes init  | no  ¬init = ⊥-elim (NewVoteRound≢0 (step-s r theStep) pkH vv' ¬init msv' (trans (sym r≡) (Impl-gvr vv  init)))
+    ...| no  ¬init | yes init  = ⊥-elim (NewVoteRound≢0 (step-s r theStep) pkH vv  ¬init msv  (trans      r≡  (Impl-gvr vv' init)))
     ...| no  ¬init | no ¬init'
        with theStep
     ...| step-peer cheat@(step-cheat c)

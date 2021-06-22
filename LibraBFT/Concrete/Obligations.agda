@@ -4,20 +4,27 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-import      LibraBFT.Concrete.Properties.VotesOnce      as VO
-import      LibraBFT.Concrete.Properties.PreferredRound as PR
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.System
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
-
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Base
 
 -- This module collects in one place the obligations an
 -- implementation must meet in order to enjoy the properties
 -- proved in Abstract.Properties.
 
-module LibraBFT.Concrete.Obligations (𝓔 : EpochConfig) where
+module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
+  import      LibraBFT.Concrete.Properties.PreferredRound iiah as PR
+  import      LibraBFT.Concrete.Properties.VotesOnce      iiah as VO
+
+  open        SystemTypeParameters ConcSysParms
+  open        SystemInitAndHandlers iiah
+  open        ParamsWithInitAndHandlers iiah
+  open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah
+                                 PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+
   record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field
       -- Structural obligations:
@@ -26,6 +33,11 @@ module LibraBFT.Concrete.Obligations (𝓔 : EpochConfig) where
       -- Semantic obligations:
       --
       -- VotesOnce:
+
+      gvc  : VO.ImplObl-genVotesConsistent 𝓔
+      gvr  : VO.ImplObl-genVotesRound≡0 𝓔
+      v≢0  : VO.ImplObl-NewVoteSignedAndRound≢0 𝓔
+      ∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig)
       vo₁ : VO.ImplObligation₁ 𝓔
       vo₂ : VO.ImplObligation₂ 𝓔
 
