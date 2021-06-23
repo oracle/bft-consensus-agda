@@ -144,7 +144,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ (step₃ safetyData1 voteData author)
 
   step₃ safetyData1 voteData author ledgerInfo = do
-        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+        let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
         ok vote
