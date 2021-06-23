@@ -90,7 +90,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| eids≡
      with newVoteSameEpochGreaterRound r hstep (¬subst ¬init (msgSameSig mws)) hpk (msg⊆ mws) nm∈outs (msgSigned mws)
                                                (¬subst ¬sentb4 (msgSameSig mws))
-  ...| refl , refl , newlvr
+  ...| refl , newlvr
      with StepPeer-post-lemma pstep
   ...| post≡ = r , ¬sentb4 , mkCarrier (step-s r (step-peer (step-honest hstep)))
                                        mws
@@ -143,10 +143,6 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   -- they contain will be from GenesisInfo.
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
       {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' ¬init' refl
-     with msgsToSendWereSent {pid} {nm} m∈outs
-  ...| _ , vm , _ , _
-     with newVoteSameEpochGreaterRound r (step-msg m∈pool pidini) ¬init hpk v⊂m m∈outs sig ¬sentb4
-  ...| eIds≡' , suclvr≡v'rnd , _
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to
      -- prove that going from the poststate of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of the peer that
@@ -177,20 +173,14 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
                                                     (trans (pk≡ (pcs4in𝓔 vpf'')) (sym (pk≡ (pcs4in𝓔 vpb))))))
                             (nid≡ (pcs4in𝓔 vpb))))
 
-  vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
-      {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' _ refl
-     | _ , _ , _ , refl
-     | eIds≡' , _ , refl
-     | mkCarrier r' mws ini vpf' preprop
-     | inj₂ refl
-     | yes refl
+  ...| yes refl -- Same peer sends both v and v'
+     with newVoteSameEpochGreaterRound r (step-msg m∈pool ini) ¬init hpk v⊂m m∈outs sig ¬sentb4
+  ...| eIds≡' , refl
+     with msgsToSendWereSent {pid} {nm} m∈outs
+  ...| _ , _ , _ , refl
      with preprop
   ...| inj₁ diffEpoch = ⊥-elim (diffEpoch eIds≡')
-  ...| inj₂ (sameEpoch , v'rnd≤lvr)
-                    -- So we have proved both that the round of v' is ≤ the lastVotedRound of
-                    -- the peer's state and that the round of v' is one greater than that value,
-                    -- which leads to a contradiction
-                    = inj₁ (s≤s v'rnd≤lvr)
+  ...| inj₂ (sameEpoch , v'rnd≤lvr) = inj₁ (s≤s v'rnd≤lvr)
 
   -- TODO-1: This proof should be refactored to reduce redundant reasoning about the two votes.  The
   -- newVoteSameEpochGreaterRound property uses similar reasoning.
