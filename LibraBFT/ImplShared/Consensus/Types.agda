@@ -198,10 +198,6 @@ module LibraBFT.ImplShared.Consensus.Types where
   -- we instead define a function such as rmGetBlockStore below
   -- and "use" it like this:
   --
-  --   bs ← gets rmGetBlockStore
-  --
-  -- or sometimes (when we need to name the state):
-  --
   --   s ← get
   --   let bs = rmGetBlockStore s
 
@@ -210,6 +206,13 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   rmSetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm) → RoundManager
   rmSetBlockStore rm bs = record rm { _rmWithEC = RoundManagerWithEC∙new bs }
+
+  -- In some cases, the getting operation is not dependent but a lens still
+  -- cannot be defined because the *setting* operation would require dependent
+  -- types. Below, `rmGetValidatorVerifier` is an example of this situation, and
+  -- we would "use" it like this
+  --
+  --    vv ← gets rmGetValidatorVerifier
 
   rmGetValidatorVerifier : RoundManager → ValidatorVerifier
   rmGetValidatorVerifier rm = _esVerifier (_rmEpochState (_rmEC rm))
