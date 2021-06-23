@@ -146,8 +146,7 @@ module ProcessProposalM (proposal : Block) where
          -- distinction operators, so the Haskell
          -- > executeAndVoteM proposal >>= \case
          -- is translated to the following.
-         r ← executeAndVoteM proposal
-         step₂ r
+           executeAndVoteM proposal >>= step₂
   step₂ r =
          case r of λ where
            (inj₁ _) → logErr -- <propagate error>
