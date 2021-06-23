@@ -150,13 +150,13 @@ module ConstructAndSignVoteM where
     {-
     The proof can be as simple as this:
 
-       = λ _ _ _ _ → mkContract refl refl
+       = λ _ _ _ _ → mkContract refl (mvsNew refl)
 
     Easy, right?!  Oh, you want a little more detail?  Sure here you go:
 
        = λ where .pre refl →
                   λ where .unit refl →
-                           mkContract refl refl     -- Indenting important for parsing
+                           mkContract refl (mvsNew refl)   -- Indenting important for parsing
 
     Still not crystal clear?  OK, let's explore in a little more detail.
 
@@ -188,10 +188,8 @@ module ConstructAndSignVoteM where
        (λ _ →
           RWST-return
           (inj₂
-           (Vote∙new
-            (Vote.newWithSignature voteData author ledgerInfo
-             (ValidatorSigner.sign validatorSigner ledgerInfo))
-            mvsNew)))
+           (Vote.newWithSignature voteData author ledgerInfo
+            (ValidatorSigner.sign validatorSigner ledgerInfo))))
        (Contract rm))
       pre pre []
 
@@ -211,10 +209,12 @@ module ConstructAndSignVoteM where
       (RWST-bind
          (RWST-bind
             RWST-get
-            (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)"))   -- modifies the state returned by
-                                                                              -- RWST-get
-         (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))            -- The Unit returned by RWST-bind
+            (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)"))   -- modifies the state returned by RWST-get
+         (λ _ → RWST-return (inj₂ vote))                                      -- The Unit returned by RWST-bind
                                                                               -- via RWST-put is ignored
+
+      Note that "vote" is: Vote.newWithSignature voteData author ledgerInfo
+                             (ValidatorSigner.sign validatorSigner ledgerInfo)
 
    Rewriting our goal with this yields (the annotations on the right
    show how we instantiate the rules in the next step):
@@ -224,7 +224,7 @@ module ConstructAndSignVoteM where
          (RWST-bind                                                              = m
             RWST-get
             (RWST-put "lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])"))
-         (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))               = f
+         (λ _ → RWST-return (inj₂ vote))                                         = f
       (Contract rm)                                                              = P
       unit                                                                       = ev
       pre                                                                        = st
@@ -236,7 +236,7 @@ module ConstructAndSignVoteM where
             RWST-get                                                             = m
             (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)"))      = f
        (RWST-weakestPre-bindPost unit                                            = P
-         (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+         (λ _ → RWST-return (inj₂ vote))
          (Contract rm))
        unit                                                                      = ev
        pre                                                                       = pre
@@ -248,7 +248,7 @@ module ConstructAndSignVoteM where
        (RWST-weakestPre-bindPost unit                                            = P
          (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)")
          (RWST-weakestPre-bindPost unit
-           (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+           (λ _ → RWST-return (inj₂ vote))
            (Contract rm)))
        unit                                                                      = ev
        pre                                                                       = pre
@@ -259,7 +259,7 @@ module ConstructAndSignVoteM where
          unit                                                                    = ev
          (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)")          = f
          (RWST-weakestPre-bindPost unit                                          = Post
-           (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+           (λ _ → RWST-return (inj₂ vote))
            (Contract rm)))
        pre                                                                       = x
        pre                                                                       = post
@@ -275,7 +275,7 @@ module ConstructAndSignVoteM where
          (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
          (RWST-Post++
            (RWST-weakestPre-bindPost unit                                        = P
-             (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+             (λ _ → RWST-return (inj₂ vote))
              (Contract rm))
            [])                                                                   = outs
          unit
@@ -287,7 +287,7 @@ module ConstructAndSignVoteM where
        RWST-weakestPre
          (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
          (λ x post outs₁ → (RWST-weakestPre-bindPost unit
-                             (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+                             (λ _ → RWST-return (inj₂ vote))
                              (Contract rm)) x post ([] ++ outs₁))
          unit
          pre
@@ -303,26 +303,33 @@ module ConstructAndSignVoteM where
 
    At this point, our goal looks like (using C-u C-c C-,):
 
-    RWST-weakestPre
-      (RWST-put
-       (over lSafetyData
-        (λ _ →
-           safetyData &
-           sdLastVote ?~
-           Vote.newWithSignature voteData author ledgerInfo
-           (ValidatorSigner.sign validatorSigner ledgerInfo))
-        pre))
-      (λ x post outs₁ →
-         RWST-weakestPre-bindPost unit
+    RWST-weakestPre-bindPost unit
+      (λ _ →
+         RWST-return
+         (inj₂
+          (Vote.newWithSignature voteData author ledgerInfo
+           (ValidatorSigner.sign validatorSigner ledgerInfo))))
+      (Contract rm) unit
+      (LibraBFT.ImplShared.Consensus.Types.s pre
+       ((λ { F rf f (SafetyRules∙new v vv vvv)
+               → (rf Category.Functor.RawFunctor.<$>
+                  (λ y' → SafetyRules∙new y' vv vvv))
+                 (f v)
+           })
+        (λ x → x) Optics.Functorial.if
+        ((λ { F rf f (PersistentSafetyStorage∙new v vv)
+                → (rf Category.Functor.RawFunctor.<$>
+                   (λ y' → PersistentSafetyStorage∙new y' vv))
+                  (f v)
+            })
+         (λ x → x) Optics.Functorial.if
          (λ _ →
-            RWST-return
-            (inj₂
-             (Vote∙new
-              (Vote.newWithSignature voteData author ledgerInfo
-               (ValidatorSigner.sign validatorSigner ledgerInfo))
-              mvsNew)))
-         (Contract rm) x post ([] ++ outs₁))
-      unit pre
+            safetyData &
+            sdLastVote ?~
+            Vote.newWithSignature voteData author ledgerInfo
+            (ValidatorSigner.sign validatorSigner ledgerInfo)))
+        (LibraBFT.ImplShared.Consensus.Types.g pre)))
+      []
 
    We can see that this is a more precise version of what we have above (without the shorthand),
    repeated here:
@@ -330,7 +337,7 @@ module ConstructAndSignVoteM where
        RWST-weakestPre
          (RWST-put "lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)   = post
          (λ x post outs₁ → (RWST-weakestPre-bindPost unit                     = P
-                             (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+                             (λ _ → RWST-return (inj₂ vote))
                              (Contract rm)) x post ([] ++ outs₁))
          unit
          pre
@@ -338,7 +345,7 @@ module ConstructAndSignVoteM where
    Next, we apply the defintion of RWST-weakestPre (RWST-put ...)
 
       (λ x post outs₁ → (RWST-weakestPre-bindPost unit
-                          (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))
+                          (λ _ → RWST-return (inj₂ vote))
                           (Contract rm)) x post ([] ++ outs₁))
       unit
       ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
@@ -348,7 +355,7 @@ module ConstructAndSignVoteM where
 
       RWST-weakestPre-bindPost
        unit                                                                   = ev
-       (λ _ → RWST-return (inj₂ "Vote∙new vote mvsNew"))              = f
+       (λ _ → RWST-return (inj₂ vote))                                        = f
        (Contract rm)                                                          = Post
        unit                                                                   = x
        ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)              = post
@@ -357,7 +364,7 @@ module ConstructAndSignVoteM where
     Applying the definition of RWST-weakestPre-bindPost once again, we have:
 
       ∀ r → r ≡ unit → RWST-weakestPre
-                         (RWST-return (inj₂ "Vote∙new vote mvsNew"))
+                         (RWST-return (inj₂ vote))
                          (RWST-Post++
                            (Contract rm)                                      = P
                            ([] ++ [])))                                       = outs
@@ -367,62 +374,93 @@ module ConstructAndSignVoteM where
     And applying the definition of RWST-Post++ yields:
 
       ∀ r → r ≡ unit → RWST-weakestPre
-                         (RWST-return (inj₂ "Vote∙new vote mvsNew"))
+                         (RWST-return (inj₂ vote))
                          (λ x post outs₁ → VotesCorrect rm x post ([] ++ [] ++ outs₁))
                          unit
                          ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
 
     Peeling off another couple of parameters (the first must be unit because of the second):
-   -}
+ -}
 
                       λ where .unit refl →
 
 
-  {-
+ {-
 
-  The goal now looks like (using C-u C-c C-,):
+ The goal now looks like (using C-c C-,):
+
+    Contract rm
+      (inj₂
+       (Vote.newWithSignature voteData author ledgerInfo
+        (ValidatorSigner.sign validatorSigner ledgerInfo)))
+      (LibraBFT.ImplShared.Consensus.Types.s pre
+       ((λ { F rf f (SafetyRules∙new v vv vvv)
+               → (rf Category.Functor.RawFunctor.<$>
+                  (λ y' → SafetyRules∙new y' vv vvv))
+                 (f v)
+           })
+        (λ x → x) Optics.Functorial.if
+        ((λ { F rf f (PersistentSafetyStorage∙new v vv)
+                → (rf Category.Functor.RawFunctor.<$>
+                   (λ y' → PersistentSafetyStorage∙new y' vv))
+                  (f v)
+            })
+         (λ x → x) Optics.Functorial.if
+         (λ _ →
+            safetyData &
+            sdLastVote ?~
+            Vote.newWithSignature voteData author ledgerInfo
+            (ValidatorSigner.sign validatorSigner ledgerInfo)))
+        (LibraBFT.ImplShared.Consensus.Types.g pre)))
+      []
+
+ Applying our shorthand, this yields:
+
+    Contract rm
+      (inj₂ vote)
+      ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
+      []
+
+ Or (using C-u C-c C-,), we have the following goal:
 
     RWST-weakestPre
-        (RWST-return
-         (inj₂
-          (Vote∙new
-           (Vote.newWithSignature voteData author ledgerInfo
-            (ValidatorSigner.sign validatorSigner ledgerInfo))
-           mvsNew)))
-        (λ x post outs₁ → Contract rm x post (([] ++ []) ++ outs₁))
-        unit
-        (over lSafetyData
-         (λ _ →
-            set? sdLastVote
-            (Vote.newWithSignature voteData author ledgerInfo
-             (ValidatorSigner.sign validatorSigner ledgerInfo))
-            safetyData)
-         pre)
+      (RWST-return
+       (inj₂
+        (Vote.newWithSignature voteData author ledgerInfo
+         (ValidatorSigner.sign validatorSigner ledgerInfo))))
+      (λ x post outs₁ → Contract rm x post (([] ++ []) ++ outs₁)) unit
+      (over lSafetyData
+       (λ _ →
+          safetyData &
+          sdLastVote ?~
+          Vote.newWithSignature voteData author ledgerInfo
+          (ValidatorSigner.sign validatorSigner ledgerInfo))
+       pre)
 
-   Again, this looks like what we expect from above, so we can press
-   on.  Returning to our shorthand version:
+ Applying our shorthand, this yields:
 
      RWST-weakestPre
-       (RWST-return (inj₂ "Vote∙new vote mvsNew"))               = x
+       (RWST-return (inj₂ "Vote∙new vote mvsNew"))                       = x
        (λ x post outs₁ → Contract rm x post ([] ++ [] ++ outs₁))         = P
        unit                                                              = ev
        ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)         = pre
 
-   Now applying the definition of RWST-weakestPre (RWST-return ...):
+   Again, this looks like what we expect from above, so we can press
+   on.  Now, applying the definition of RWST-weakestPre (RWST-return ...):
 
      (λ x post outs₁ → Contract rm x post ([] ++ [] ++ outs₁))
-        (RWST-return (inj₂ "Vote∙new vote mvsNew"))
+        (RWST-return (inj₂ vote))
         ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)
         []
 
-   To prove this, we need to provide two proofs to mkContract, the first of which (for noOutput).
+   To prove this, we need to provide two proofs to mkContract, the first of which (for noOutput)
    is simply [] ++ [] ++ [] ≡ [], which is easily dispatched with refl.
 
    The other is
 
      VoteSrcCorrect
        rm                                                                = pre
-       (inj₂ "Vote∙new vote mvsNew")                             = inj₂ mv
+       (inj₂ vote)                                                       = inj₂ mv
        ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)         = post
        ([] ++ [] ++ []))                                                 = outs
 
@@ -431,9 +469,10 @@ module ConstructAndSignVoteM where
         VoteSrcCorrectCod
           rm                                                             = pre
           ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)" pre)      = post
-          ("Vote∙new vote mvsNew")
+          vote
 
-   By definition of VoteSrcCorrectCod, this is:
+   Because the post state is achieved by update the sdLastVote field to vote, we can easily fulfil
+   the requirements of the mvsNew constructor, namely:
 
         just vote ≡ ("lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote) rm") ^∙ lSafetyData ∙ sdLastVote
 
