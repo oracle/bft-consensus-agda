@@ -5,6 +5,7 @@
 -}
 open import LibraBFT.Prelude
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 
 -- This module defines the LBFT monad used by our (fake/simple,
 -- for now) "implementation", along with some utility functions
