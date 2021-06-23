@@ -124,9 +124,7 @@ module ProcessProposalM (proposal : Block) where
   step₄ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
-  -- DIFF: We cannot define a lens for the block store without dependent lenses,
-  -- so here we first get the state.
-    s ← get
+    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = rmGetBlockStore s
     vp ← ProposerElection.isValidProposalM proposal
     step₁{s} bs vp
@@ -217,14 +215,14 @@ processVoteM now vote =
   continue : LBFT Unit
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
-    s ← get
+    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = _epBlockStore (_rmWithEC s)
     if true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
       then logInfo
       else addVoteM now vote -- TODO-1: logging
 
 addVoteM now vote = do
-  s ← get
+  s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
   let bs = _epBlockStore (_rmWithEC s)
   {- IMPL-TODO make this commented code work then remove the 'continue' after the comment
   maybeS nothing (bs ^∙ bsHighestTimeoutCert) continue λ tc →
@@ -236,7 +234,7 @@ addVoteM now vote = do
  where
   continue : LBFT Unit
   continue = do
-    rm ← get
+    rm ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let verifier = _esVerifier (_rmEpochState (_rmEC rm))
     r ← RoundState.insertVoteM vote verifier
     case r of λ where

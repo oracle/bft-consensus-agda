@@ -116,7 +116,7 @@ module constructAndSignVoteM-continue1
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
   step₁ = do
-      validatorVerifier ← gets rmGetValidatorVerifier
+      validatorVerifier ← gets rmGetValidatorVerifier -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
       step₂ validatorVerifier
   step₂ validatorVerifier =
       pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
