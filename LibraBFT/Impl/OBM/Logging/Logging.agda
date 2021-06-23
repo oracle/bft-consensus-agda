@@ -4,11 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                           as PKCS hiding (sign)
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
-module LibraBFT.Impl.Types.ValidatorSigner where
 
-  sign : {C : Set} ⦃ enc : Encoder C ⦄ → ValidatorSigner → C → Signature
-  sign (ValidatorSigner∙new _ sk) c = PKCS.sign-encodable c sk
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Prelude
+
+module LibraBFT.Impl.OBM.Logging.Logging where
+
+  open RWST-do
+
+  logErr : LBFT Unit
+  logErr = tell1 (LogErr fakeErr)
+
+  logInfo : LBFT Unit
+  logInfo = tell1 (LogInfo fakeInfo)

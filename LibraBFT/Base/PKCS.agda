@@ -88,6 +88,9 @@ module LibraBFT.Base.PKCS where
  Meta-Honest-PK : PK → Set
  Meta-Honest-PK  = ¬_ ∘ Meta-Dishonest-PK
 
+ sign-encodable : ∀ {c C} → ⦃ Encoder {c} C ⦄ → C → SK → Signature
+ sign-encodable = sign-raw ∘ encode
+
  -- A datatype C might that might carry values with
  -- signatures should be an instance of 'WithSig' below.
  record WithSig (C : Set) : Set₁ where
