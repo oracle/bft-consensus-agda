@@ -101,6 +101,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
    (Impl-gvr : ImplObl-genVotesRound≡0)
+   (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
    (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
    (Impl-IRO : IncreasingRoundObligation)
    (Impl-PR1 : ImplObligation₁)
@@ -108,13 +109,13 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    where
   -- Any reachable state satisfies the PR rule for any epoch in the system.
   module _ (st : SystemState)(r : ReachableSystemState st) where
-   -- Bring in 'unwind', 'ext-unforgeability' and friends
+   -- Bring in newMsg⊎msgSentB4
    open Structural sps-corr
    -- Bring in intSystemState
    open        PerState st
    open        PerReachableState r
    open        PerEpoch 𝓔
-   open        ConcreteCommonProperties st r Impl-gvr
+   open        ConcreteCommonProperties st r Impl-gvr Impl-nvr≢0
 
 
    α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)

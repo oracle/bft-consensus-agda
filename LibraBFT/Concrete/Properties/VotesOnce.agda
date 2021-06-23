@@ -84,13 +84,13 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
 
  -- Next, we prove that, given the necessary obligations,
  module Proof
-   (sps-corr : StepPeerState-AllValidParts)
-   (Impl-gvc : ImplObl-genVotesConsistent)
-   (Impl-gvr : ImplObl-genVotesRound≡0)
-   (Impl-v≢0 : ImplObl-NewVoteSignedAndRound≢0)
-   (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
-   (Impl-IRO : IncreasingRoundObligation)
-   (Impl-VO2 : ImplObligation₂)
+   (sps-corr   : StepPeerState-AllValidParts)
+   (Impl-gvc   : ImplObl-genVotesConsistent)
+   (Impl-gvr   : ImplObl-genVotesRound≡0)
+   (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
+   (Impl-∈GI?  : (sig : Signature) → Dec (∈GenInfo genInfo sig))
+   (Impl-IRO   : IncreasingRoundObligation)
+   (Impl-VO2   : ImplObligation₂)
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
@@ -101,7 +101,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    open PerState st
    open PerReachableState r
    open PerEpoch 𝓔
-   open ConcreteCommonProperties st r Impl-gvr
+   open ConcreteCommonProperties st r Impl-gvr Impl-nvr≢0
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 
