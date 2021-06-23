@@ -3,14 +3,15 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
-open import LibraBFT.Hash
+
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
+open import LibraBFT.Hash
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module postulates a collision-resistant cryptographic hash
 -- function (we call it sha256 for concreteness, but it could be any
@@ -18,7 +19,7 @@ open import LibraBFT.Impl.Consensus.Types.EpochIndep
 -- functions used in (an earlier version of) LibraBFT, properties
 -- about it, and how Votes and Blocks are signed.
 
-module LibraBFT.Impl.Util.Crypto where
+module LibraBFT.ImplShared.Util.Crypto where
   -- Note that this is an abstraction of a collision-resistant hash function.  It could be any such
   -- hash function, not necessarily sha256.  We just call it sha256 for "concreteness", to remind
   -- ourselves it's modeling such a function.
@@ -108,16 +109,16 @@ module LibraBFT.Impl.Util.Crypto where
      = inj₂ (LedgerInfo-η cis≡ cdh≡)
 
   constructLI : Vote → LedgerInfo
-  constructLI v = LedgerInfo∙new (₋liCommitInfo (₋vLedgerInfo v)) (hashVD (₋vVoteData v))
+  constructLI v = LedgerInfo∙new (_liCommitInfo (_vLedgerInfo v)) (hashVD (_vVoteData v))
 
   hashVote : Vote → HashValue
   hashVote = hashLI ∘ constructLI
 
   hashVote-inj1 : ∀ {v1 v2} → hashVote v1 ≡ hashVote v2
-                → NonInjective-≡ sha256 ⊎ ₋vVoteData v1 ≡ ₋vVoteData v2
+                → NonInjective-≡ sha256 ⊎ _vVoteData v1 ≡ _vVoteData v2
   hashVote-inj1 {v1} {v2} hyp with hashLI-inj {constructLI v1} {constructLI v2} hyp
   ...| inj₁ hb = inj₁ hb
-  ...| inj₂ ok = hashVD-inj {₋vVoteData v1} {₋vVoteData v2} (cong ₋liConsensusDataHash ok)
+  ...| inj₂ ok = hashVD-inj {_vVoteData v1} {_vVoteData v2} (cong _liConsensusDataHash ok)
 
   -- A vote is always signed; as seen by the 'Unit'
   -- in the definition of Signed.
@@ -127,7 +128,7 @@ module LibraBFT.Impl.Util.Crypto where
        { Signed         = λ _ → Unit
        ; Signed-pi      = λ _ _ _ → Unit-pi
        ; isSigned?      = λ _ → yes unit
-       ; signature      = λ v _ → ₋vSignature v
+       ; signature      = λ v _ → _vSignature v
        ; signableFields = encodeH ∘ hashVote
        }
 
@@ -145,10 +146,10 @@ module LibraBFT.Impl.Util.Crypto where
 
   -- Captures a proof that a vote was cast by α by recording that 'verify' returns true.
   VoteSigVerifies : PK → Vote → Set
-  VoteSigVerifies pk v = T (verify (signableFields ⦃ sig-Vote ⦄ v) (₋vSignature v) pk)
+  VoteSigVerifies pk v = T (verify (signableFields ⦃ sig-Vote ⦄ v) (_vSignature v) pk)
 
   Signed-pi-Blk : (b : Block)
-                → (is1 is2 : (Is-just ∘ ₋bSignature) b)
+                → (is1 is2 : (Is-just ∘ _bSignature) b)
                 → is1 ≡ is2
   Signed-pi-Blk (Block∙new _ _ .(just _)) (just _) (just _) = cong just refl
 
@@ -156,9 +157,9 @@ module LibraBFT.Impl.Util.Crypto where
   instance
     sig-Block : WithSig Block
     sig-Block = record
-       { Signed         = Is-just ∘ ₋bSignature
+       { Signed         = Is-just ∘ _bSignature
        ; Signed-pi      = Signed-pi-Blk
        ; isSigned?      = λ b → Maybe-Any-dec (λ _ → yes tt) (b ^∙ bSignature)
        ; signature      = λ { _ prf → to-witness prf }
-       ; signableFields = λ b → concat (encodeH (₋bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
+       ; signableFields = λ b → concat (encodeH (_bId b) ∷ encode (b ^∙ bBlockData) ∷ [])
        }

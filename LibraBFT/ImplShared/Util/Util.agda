@@ -4,15 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
-open import LibraBFT.Impl.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types
 
 -- This module defines the LBFT monad used by our (fake/simple,
 -- for now) "implementation", along with some utility functions
 -- to facilitate reasoning about it.
 
-module LibraBFT.Impl.Util.Util where
+module LibraBFT.ImplShared.Util.Util where
   open import Optics.All
-  open import LibraBFT.Impl.Util.RWST ℓ-RoundManager public
+  open import LibraBFT.ImplShared.Util.RWST ℓ-RoundManager public
   ----------------
   -- LBFT Monad --
   ----------------
@@ -23,6 +23,9 @@ module LibraBFT.Impl.Util.Util where
 
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
+
+  LBFT-result : ∀ {A} → LBFT A → RoundManager → A
+  LBFT-result m rm = proj₁ (LBFT-run m rm)
 
   LBFT-post : ∀ {A} → LBFT A → RoundManager → RoundManager
   LBFT-post m rm = proj₁ (proj₂ (LBFT-run m rm))
@@ -44,9 +47,9 @@ module LibraBFT.Impl.Util.Util where
   -- define the epoch config is easy
   liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
   liftEC f = rwst λ _ st
-    → let ec                 = α-EC (₋rmEC st , ₋rmEC-correct st)
-          res , stec' , acts = RWST-run (f ec) unit (₋rmWithEC st)
-       in res , record st { ₋rmWithEC = stec' } , acts
+    → let ec                 = α-EC (_rmEC st , _rmEC-correct st)
+          res , stec' , acts = RWST-run (f ec) unit (_rmWithEC st)
+       in res , record st { _rmWithEC = stec' } , acts
 
   -- Type that captures a proof that a computation in the LBFT monad
   -- satisfies a given contract.
@@ -67,6 +70,9 @@ module LibraBFT.Impl.Util.Util where
   use : ∀ {A} → Lens RoundManager A → LBFT A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
 
-  modify' : ∀ {A} → Lens RoundManager A → A → LBFT Unit
-  modify' l val = modify λ x → x [ l := val ]
+  modify' : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
+  modify' l f = modify (over l f)
+  syntax modify' l f = l %= f
 
+  _∙=_ : ∀ {A} → Lens RoundManager A → A → LBFT Unit
+  l ∙= a = modify' l (const a)

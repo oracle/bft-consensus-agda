@@ -3,9 +3,10 @@
    Copyright (c) 2020 Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Level
-open import Function
 open import Category.Functor
+open import Data.Maybe
+open import Function
+open import Level
 open import Relation.Binary.PropositionalEquality
 
 module Optics.Functorial where
@@ -48,17 +49,25 @@ module Optics.Functorial where
 
   set : ∀{S A} → Lens S A → A → S → S
   set (lens p) a s = p id if (const a) s
-  syntax set p a s = s [ p := a ]
+
+  infixr 4 _∙~_
+  _∙~_ = set
+
+  -- _|>_ is renamed to _&_ by LibraBFT.Prelude
+  set? : ∀{S A} → Lens S (Maybe A) → A → S → S
+  set? l a s = s |> l ∙~ just a
+
+  infixr 4 _?~_
+  _?~_ = set?
 
   -- Modifier:
-
   over : ∀{S A} → Lens S A → (A → A) → S → S
   over (lens p) f s = p id if f s
-  syntax over p f s = s [ p %~ f ]
 
+  infixr 4 _%~_
+  _%~_ = over
 
   -- Composition
-
   infixr 30 _∙_
   _∙_ : ∀{S A B} → Lens S A → Lens A B → Lens S B
   (lens p) ∙ (lens q) = lens (λ F rf x x₁ → p F rf (q F rf x) x₁)

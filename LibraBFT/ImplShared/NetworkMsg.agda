@@ -3,24 +3,25 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
-open import LibraBFT.Hash
-open import LibraBFT.Base.Types
+
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.Base.Types
+open import LibraBFT.Hash
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module defines the types of messages that the implementation
 -- can send, along with properties defining ways in which votes can be
 -- represented in them, some useful functions, and definitions of how
 -- NetworkMsgs are signed.
 
-module LibraBFT.Impl.NetworkMsg where
+module LibraBFT.ImplShared.NetworkMsg where
   data NetworkMsg : Set where
     P : ProposalMsg → NetworkMsg
     V : VoteMsg     → NetworkMsg
@@ -40,7 +41,7 @@ module LibraBFT.Impl.NetworkMsg where
      -- Note that we do not use the Lens here, because the Lens returns the siHighestQuorumcert in
      -- case siHighestCommitcert is nothing, and it was easier to directly handle the just case.  We
      -- could use the Lens, and fix the proofs, but it seems simpler this way.
-     withVoteSIHighCC : ₋siHighestCommitCert si ≡ just qc → qc QC∈SyncInfo si
+     withVoteSIHighCC : _sixxxHighestCommitCert si ≡ just qc → qc QC∈SyncInfo si
 
   data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
      inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
@@ -85,7 +86,7 @@ module LibraBFT.Impl.NetworkMsg where
   -----------------------------------------------------------------------
 
   Signed-pi-CommitMsg : (cm : CommitMsg)
-                      → (is1 is2 : (Is-just ∘ ₋cmSigMB) cm)
+                      → (is1 is2 : (Is-just ∘ _cmSigMB) cm)
                       → is1 ≡ is2
   Signed-pi-CommitMsg (CommitMsg∙new _ _ _ _ .(just _)) (just _) (just _) = cong just refl
 
@@ -94,25 +95,25 @@ module LibraBFT.Impl.NetworkMsg where
    -- is proposing.
    sig-ProposalMsg : WithSig ProposalMsg
    sig-ProposalMsg = record
-      { Signed         = Signed         ∘ ₋pmProposal
-      ; Signed-pi      = Signed-pi-Blk  ∘ ₋pmProposal
-      ; isSigned?      = isSigned?      ∘ ₋pmProposal
-      ; signature      = signature      ∘ ₋pmProposal
-      ; signableFields = signableFields ∘ ₋pmProposal
+      { Signed         = Signed         ∘ _pmProposal
+      ; Signed-pi      = Signed-pi-Blk  ∘ _pmProposal
+      ; isSigned?      = isSigned?      ∘ _pmProposal
+      ; signature      = signature      ∘ _pmProposal
+      ; signableFields = signableFields ∘ _pmProposal
       }
 
    sig-VoteMsg : WithSig VoteMsg
    sig-VoteMsg = record
-      { Signed         = Signed         ∘ ₋vmVote
+      { Signed         = Signed         ∘ _vmVote
       ; Signed-pi      = λ _ _ _ → Unit-pi
-      ; isSigned?      = isSigned?      ∘ ₋vmVote
-      ; signature      = signature      ∘ ₋vmVote
-      ; signableFields = signableFields ∘ ₋vmVote
+      ; isSigned?      = isSigned?      ∘ _vmVote
+      ; signature      = signature      ∘ _vmVote
+      ; signableFields = signableFields ∘ _vmVote
       }
 
    sig-CommitMsg : WithSig CommitMsg
    sig-CommitMsg = record
-      { Signed         = Is-just ∘ ₋cmSigMB
+      { Signed         = Is-just ∘ _cmSigMB
       ; Signed-pi      = Signed-pi-CommitMsg
       ; isSigned?      = λ cm → Maybe-Any-dec (λ _ → yes tt) (cm ^∙ cmSigMB)
       ; signature      = λ { _ prf → to-witness prf }

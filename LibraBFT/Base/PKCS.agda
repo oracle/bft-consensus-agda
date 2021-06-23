@@ -3,10 +3,11 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Base.Encode
+
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.Encode
+open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 
 -- This module contains a model of cryptographic signatures on
 -- certain data structures, and creation and verification
@@ -86,6 +87,9 @@ module LibraBFT.Base.PKCS where
 
  Meta-Honest-PK : PK → Set
  Meta-Honest-PK  = ¬_ ∘ Meta-Dishonest-PK
+
+ sign-encodable : ∀ {c C} → ⦃ Encoder {c} C ⦄ → C → SK → Signature
+ sign-encodable = sign-raw ∘ encode
 
  -- A datatype C might that might carry values with
  -- signatures should be an instance of 'WithSig' below.

@@ -3,15 +3,17 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types.EpochIndep
-open import LibraBFT.Impl.Util.Crypto
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This module defines the types that depend on an EpochConfig,
@@ -34,7 +36,7 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -- module inside Consensus.Types called EpochDep will break
 -- mkLens (not sure why).
 
-module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
+module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
   open WithAbsVote 𝓔
 
@@ -76,23 +78,23 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
     constructor IsValidVote∙new
     inductive
     field
-      ₋ivvMember   : Member
-      ₋ivvAuthor   : isMember? (₋vAuthor v) ≡ just ₋ivvMember
-      ₋ivvSigned   : WithVerSig (getPubKey ₋ivvMember) v
+      _ivvMember   : Member
+      _ivvAuthor   : isMember? (_vAuthor v) ≡ just _ivvMember
+      _ivvSigned   : WithVerSig (getPubKey _ivvMember) v
 
-      ₋ivvVDhash   : v ^∙ vLedgerInfo ∙ liConsensusDataHash ≡ hashVD (v ^∙ vVoteData)
+      _ivvVDhash   : v ^∙ vLedgerInfo ∙ liConsensusDataHash ≡ hashVD (v ^∙ vVoteData)
 
       -- A valid vote must vote for a block that exists and is
       -- inserted in a RecordChain.
-      ₋ivvBlock    : Abs.Block
-      ₋ivvBlockId  : v ^∙ vProposedId ≡ Abs.bId ₋ivvBlock
+      _ivvBlock    : Abs.Block
+      _ivvBlockId  : v ^∙ vProposedId ≡ Abs.bId _ivvBlock
 
       -- Moreover; we must check that the 'parent' field of the vote is coherent.
-      ₋ivvCoherent : VoteCoherence v ₋ivvBlock
+      _ivvCoherent : VoteCoherence v _ivvBlock
 
       -- Finally, the vote is for the correct epoch
-      ₋ivvEpoch    : v ^∙ vEpoch ≡ epoch
-      ₋ivvEpoch2   : v ^∙ vParent ∙ biEpoch ≡ epoch  -- Not needed?
+      _ivvEpoch    : v ^∙ vEpoch ≡ epoch
+      _ivvEpoch2   : v ^∙ vParent ∙ biEpoch ≡ epoch  -- Not needed?
   open IsValidVote public
 
   -- A valid vote can be directly mapped to an AbsVoteData. Abstraction of QCs
@@ -105,10 +107,10 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
 
   -- α-ValidVote is the same for two votes that have the same vAuthor, vdProposed and vOrder
   α-ValidVote-≡ : ∀ {cv v'} {m : Member}
-                → ₋vdProposed (₋vVoteData cv) ≡ ₋vdProposed (₋vVoteData v')
+                → _vdProposed (_vVoteData cv) ≡ _vdProposed (_vVoteData v')
                 → α-ValidVote cv m ≡ α-ValidVote v' m
   α-ValidVote-≡ {cv} {v'} prop≡ =
-    AbsVoteData-η (cong ₋biRound prop≡) refl (cong ₋biId prop≡)
+    AbsVoteData-η (cong _biRound prop≡) refl (cong _biId prop≡)
 
   -- Finally; evidence for some abstract vote consists of a concrete valid vote
   -- that is coherent with the abstract vote data.
@@ -116,44 +118,44 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
     constructor CVE∙new
     inductive
     field
-      ₋cveVote        : Vote
-      ₋cveIsValidVote : IsValidVote ₋cveVote
-      ₋cveIsAbs       : α-ValidVote ₋cveVote (₋ivvMember ₋cveIsValidVote) ≡ vd
+      _cveVote        : Vote
+      _cveIsValidVote : IsValidVote _cveVote
+      _cveIsAbs       : α-ValidVote _cveVote (_ivvMember _cveIsValidVote) ≡ vd
   open ConcreteVoteEvidence public
 
   -- Gets the signature of a concrete vote evidence
-  ₋cveSignature : ∀{vd} → ConcreteVoteEvidence vd → Signature
-  ₋cveSignature = ₋vSignature ∘ ₋cveVote
+  _cveSignature : ∀{vd} → ConcreteVoteEvidence vd → Signature
+  _cveSignature = _vSignature ∘ _cveVote
 
   -- A valid quorum certificate contains a collection of valid votes, such that
   -- the members represented by those votes (which exist because the votes are valid)
   -- constitutes a quorum.
   record MetaIsValidQC (qc : QuorumCert) : Set where
     field
-      ₋ivqcMetaVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
-      ₋ivqcMetaIsQuorum        : IsQuorum (All-reduce ₋ivvMember ₋ivqcMetaVotesValid)
+      _ivqcMetaVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
+      _ivqcMetaIsQuorum        : IsQuorum (All-reduce _ivvMember _ivqcMetaVotesValid)
   open MetaIsValidQC public
 
   vqcMember : (qc : QuorumCert) → MetaIsValidQC qc
              → ∀ {as} → as ∈ qcVotes qc → Member
-  vqcMember qc v {α , _ , _} as∈qc with All-lookup (₋ivqcMetaVotesValid v) as∈qc
-  ...| prf = ₋ivvMember prf
+  vqcMember qc v {α , _ , _} as∈qc with All-lookup (_ivqcMetaVotesValid v) as∈qc
+  ...| prf = _ivvMember prf
 
   -- A block tree depends on a epoch config but works regardlesss of which
   -- EpochConfig we have.
   record BlockTree : Set where
     constructor BlockTree∙new
     field
-      ₋btIdToBlock               : KVMap HashValue LinkableBlock
-      ₋btRootId                  : HashValue
-      ₋btHighestCertifiedBlockId : HashValue
-      ₋btHighestQuorumCert       : QuorumCert
+      _btIdToBlock               : KVMap HashValue LinkableBlock
+      _btRootId                  : HashValue
+      _btHighestCertifiedBlockId : HashValue
+      _btHighestQuorumCert       : QuorumCert
       -- btHighestTimeoutCert      : Maybe TimeoutCertificate
-      ₋btHighestCommitCert       : QuorumCert
-      ₋btPendingVotes            : PendingVotes
-      ₋btPrunedBlockIds          : List HashValue
-      ₋btMaxPrunedBlocksInMem    : ℕ
-      ₋btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
+      _btHighestCommitCert       : QuorumCert
+      _btPendingVotes            : PendingVotes
+      _btPrunedBlockIds          : List HashValue
+      _btMaxPrunedBlocksInMem    : ℕ
+      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
   open BlockTree public
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
               btHighestCommitCert   btPendingVotes   btPrunedBlockIds
@@ -165,7 +167,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   record BlockStore : Set where
     constructor BlockStore∙new
     field
-      ₋bsInner         : BlockTree
+      _bsInner         : BlockTree
       -- bsStateComputer : StateComputer
       -- bsStorage       : CBPersistentStorage
   open BlockStore public
@@ -179,7 +181,7 @@ module LibraBFT.Impl.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   record RoundManagerWithEC : Set where
     constructor RoundManagerWithEC∙new
     field
-      ₋epBlockStore   : BlockStore
+      _epBlockStore   : BlockStore
   open RoundManagerWithEC public
   unquoteDecl epBlockStore = mkLens (quote RoundManagerWithEC)
     (epBlockStore ∷ [])

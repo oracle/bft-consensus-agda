@@ -7,22 +7,22 @@
 -- This module contains properties that are only about the behavior of the handlers, nothing to do
 -- with system state
 
-open import Optics.All
-open import LibraBFT.Prelude
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Prelude
+open import Optics.All
 
-module LibraBFT.Impl.Consensus.RoundManager.Properties where
+module LibraBFT.ImplFake.Consensus.RoundManager.Properties where
 
-  open import LibraBFT.Impl.Consensus.RoundManager
+  open import LibraBFT.ImplFake.Consensus.RoundManager
 
   voteForCurrentEpoch : ∀ {ts pm pre vm αs}
                       → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-                      → (₋rmEC pre) ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
+                      → (_rmEC pre) ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
   voteForCurrentEpoch (here refl) = refl
 
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state.
@@ -31,5 +31,5 @@ module LibraBFT.Impl.Consensus.RoundManager.Properties where
   -- when the real handler will be much more complicated and this proof may no longer be trivial.
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (₋rmHighestQC pre) (₋rmHighestCommitQC pre)
+               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (_rmHighestQC pre) (_rmHighestCommitQC pre)
   procPMCerts≡ (here refl) = refl

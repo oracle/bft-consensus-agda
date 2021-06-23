@@ -123,6 +123,10 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  maybeS : ∀ {a b} {A : Set a} {B : Maybe A → Set b} →
+           (x : Maybe A) → B nothing → ((x : A) → B (just x)) → B x
+  maybeS {B = B} x f t = maybe {B = B} t f x
+
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
     hiding (map; zip; zipWith; unzip ; unzipWith)
@@ -174,9 +178,16 @@ module LibraBFT.Prelude where
     renaming ([_,_] to either; map to ⊎-map; map₂ to ⊎-map₂)
     public
 
-  open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const)
+  open import Data.Sum.Properties
+    using (inj₁-injective ; inj₂-injective)
     public
+
+  open import Function
+    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
+    public
+
+  infixl 1 _&_
+  _&_ = Function._|>_
 
   open import Data.Product
     renaming (map to ×-map; map₂ to ×-map₂; map₁ to ×-map₁; <_,_> to split; swap to ×-swap)
@@ -194,13 +205,17 @@ module LibraBFT.Prelude where
     hiding (map)
     public
 
+  infix 4 _<?ℕ_
+  _<?ℕ_ : Decidable _<_
+  m <?ℕ n = suc m ≤?ℕ n
+
   infix 0 if-yes_then_else_
   infix 0 if-dec_then_else_
-  if-yes_then_else_ : {A B : Set} → Dec A → (A → B) → (¬ A → B) → B
+  if-yes_then_else_ : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} → Dec A → (A → B) → (¬ A → B) → B
   if-yes (yes prf) then f else _ = f prf
   if-yes (no  prf) then _ else g = g prf
 
-  if-dec_then_else_ : {A B : Set} → Dec A → B → B → B
+  if-dec_then_else_ : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} → Dec A → B → B → B
   if-dec x then f else g = if-yes x then const f else const g
 
   open import Relation.Nullary.Negation
@@ -300,20 +315,20 @@ module LibraBFT.Prelude where
     ToBool-Dec = record { toBool = ⌊_⌋ }
 
   infix 3 _≔_
-  data GuardClause {a}(A : Set a) : Set (ℓ+1 a) where
-    _≔_ : {B : Set a}{{ bb : ToBool B }} → B → A → GuardClause A
+  data GuardClause {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
+    _≔_ : {B : Set b}{{ bb : ToBool B }} → B → A → GuardClause A
 
   infix 3 otherwise≔_
-  data Guards {a}(A : Set a) : Set (ℓ+1 a) where
+  data Guards {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
    otherwise≔_ : A → Guards A
-   clause     : GuardClause A → Guards A → Guards A
+   clause     : GuardClause{a}{b} A → Guards{a}{b} A → Guards A
 
   infixr 2 _‖_
-  _‖_ : ∀{a}{A : Set a} → GuardClause A → Guards A → Guards A
+  _‖_ : ∀{a}{b}{A : Set a} → GuardClause{a}{b} A → Guards A → Guards A
   _‖_ = clause
 
   infix 1 grd‖_
-  grd‖_ : ∀{a}{A : Set a} → Guards A → A
+  grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
   grd‖_ (otherwise≔ a) = a
   grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
 

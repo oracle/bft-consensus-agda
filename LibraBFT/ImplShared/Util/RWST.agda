@@ -3,15 +3,16 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
+
 open import LibraBFT.Prelude
+open import Optics.All
 
 -- This module defines syntax and functionality modeling an RWST monad,
 -- which we use to define an implementation.
 -- TODO-2: this module is independent of any particular implementation
 -- and arguably belongs somewhere more general, such as next to Optics.
 
-module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
+module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
 
   ----------------
   -- RWST Monad --
@@ -32,9 +33,10 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   private
    variable
     Ev Wr : Set
-    ℓ-A ℓ-B : Level
+    ℓ-A ℓ-B ℓ-C : Level
     A : Set ℓ-A
     B : Set ℓ-B
+    C : Set ℓ-C
     St : Set ℓ-State
 
   RWST-run : RWST Ev Wr St A → Ev → St → (A × St × List Wr)
@@ -70,7 +72,7 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
    be more painful than it's worth, at least until we have a
    compelling use case for St to be at a higher level.  In the
    meantime, we have defined use and modify' specifically for our
-   state type, which is in Set; see LibraBFT.Impl.Util.Util.
+   state type, which is in Set; see LibraBFT.ImplFake.Util.Util.
 
   use : Lens St A → RWST Ev Wr St A
   use f = RWST-bind get (RWST-return ∘ (_^∙ f))
@@ -95,9 +97,16 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
   tell1 : Wr → RWST Ev Wr St Unit
   tell1 wr = tell (wr ∷ [])
 
+  act = tell1
 
   ask : RWST Ev Wr St Ev
   ask = rwst (λ ev st → (ev , st , []))
+
+  ok : ∀ {B : Set ℓ-B} → A → RWST Ev Wr St (B ⊎ A)
+  ok = RWST-return ∘ inj₂
+
+  bail : B → RWST Ev Wr St (B ⊎ A)
+  bail = RWST-return ∘ inj₁
 
   -- Easy to use do notation; i.e.;
   module RWST-do where
@@ -114,9 +123,16 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
     pure : A → RWST Ev Wr St A
     pure = return
 
-    infixr 4 _<$>_
+    infixl 4 _<$>_
     _<$>_ : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
     _<$>_ = RWST-map
+
+    infixl 4 _<*>_
+    _<*>_ : RWST Ev Wr St (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+    fs <*> xs = do
+      f ← fs
+      x ← xs
+      pure (f x)
 
   private
     ex₀ : RWST ℕ Wr (Lift ℓ-State ℕ) ℕ
@@ -127,13 +143,37 @@ module LibraBFT.Impl.Util.RWST (ℓ-State : Level) where
        where open RWST-do
 
   -- Derived Functionality
+  maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+  maybeSM mma mb f = do
+    x ← mma
+    case x of λ where
+      nothing → mb
+      (just j) → f j
+    where
+    open RWST-do
 
-  maybeMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
+  maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
           → RWST Ev Wr St B
-  maybeMP ma b f = do
+  maybeSMP ma b f = do
     x ← ma
-    case x of
-      λ { (just r) → f r
-        ; nothing  → return b
-        }
+    case x of λ where
+      nothing → return b
+      (just j) → f j
+    where open RWST-do
+
+  infixl 4 _∙?∙_
+  _∙?∙_ : RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
+  m ∙?∙ f = do
+    r ← m
+    case r of λ where
+      (inj₁ c) → pure (inj₁ c)
+      (inj₂ a) → f a
+    where open RWST-do
+
+  _∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
+  m ∙^∙ f = do
+    x ← m
+    case x of λ where
+      (inj₁ e) → pure (inj₁ (f e))
+      (inj₂ r) → pure (inj₂ r)
     where open RWST-do

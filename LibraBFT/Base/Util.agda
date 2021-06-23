@@ -3,6 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 open import Level using (0ℓ)
 
 -- This module defines utility functions to help working on proofs.

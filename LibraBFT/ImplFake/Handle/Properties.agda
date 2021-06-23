@@ -8,28 +8,31 @@
 -- This module provides some scaffolding to define the handlers for our fake/simple "implementation"
 -- and connect them to the interface of the SystemModel.
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
-open import LibraBFT.Impl.Base.Types
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open        PeerCanSignForPK
-open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Hash
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import Optics.All
 
-module LibraBFT.Impl.Handle.Properties where
-  open import LibraBFT.Impl.Consensus.RoundManager
-  open import LibraBFT.Impl.Handle
+open import LibraBFT.ImplFake.Consensus.RoundManager
+open import LibraBFT.ImplFake.Handle
+open        ParamsWithInitAndHandlers FakeInitAndHandlers
+open        PeerCanSignForPK
+
+open        EpochConfig
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+
+module LibraBFT.ImplFake.Handle.Properties where
 
   -- This proof is complete except for pieces that are directly about the handlers.  Our
   -- fake/simple handler does not yet obey the needed properties, so we can't finish this yet.
@@ -87,8 +90,8 @@ module LibraBFT.Impl.Handle.Properties where
   ----- Properties that relate handler to system state -----
 
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ ₋rmHighestQC rm       → qc ∈RoundManager rm
-    inHCC : qc ≡ ₋rmHighestCommitQC rm → qc ∈RoundManager rm
+    inHQC : qc ≡ _rmHighestQC rm       → qc ∈RoundManager rm
+    inHCC : qc ≡ _rmHighestCommitQC rm → qc ∈RoundManager rm
 
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
@@ -102,7 +105,7 @@ module LibraBFT.Impl.Handle.Properties where
                  → initialised st pid ≡ initd
                  → qc ∈RoundManager (peerStates st pid)
                  → vs ∈ qcVotes qc
-                 → ¬ (∈GenInfo (proj₂ vs))
+                 → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
   -- We can prove this easily because we don't yet do epoch changes,
@@ -123,7 +126,7 @@ module LibraBFT.Impl.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
+                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
      with m
@@ -168,13 +171,13 @@ module LibraBFT.Impl.Handle.Properties where
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
-                               → ¬ (∈GenInfo (₋vSignature v))
+                               → ¬ (∈GenInfo-impl genesisInfo (_vSignature v))
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → v ^∙ vEpoch ≡ (₋rmEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((₋rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
-                               × v ^∙ vRound ≡ ((₋rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+                               → v ^∙ vEpoch ≡ (_rmEC (peerStates pre pid)) ^∙ rmEpoch
+                               × suc ((_rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
+                               × v ^∙ vRound ≡ ((_rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
@@ -188,7 +191,7 @@ module LibraBFT.Impl.Handle.Properties where
        -- assumption that v's signature has not been sent before.
   ...| vote∈vm {si} = refl , refl , refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
+                  rewrite cong _vSignature v≈rbld
     with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
   ...| sentb4 = ⊥-elim (vnew sentb4)
 
@@ -198,8 +201,8 @@ module LibraBFT.Impl.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (₋rmEC ppre) ^∙ rmEpoch ≡ (₋rmEC ppost) ^∙ rmEpoch
-                     → (₋rmEC ppre) ^∙ rmLastVotedRound ≤ (₋rmEC ppost) ^∙ rmLastVotedRound
+                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
+                     → (_rmEC ppre) ^∙ rmLastVotedRound ≤ (_rmEC ppost) ^∙ rmLastVotedRound
   lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
      with m
@@ -208,10 +211,14 @@ module LibraBFT.Impl.Handle.Properties where
   ...| C c = const (≤-reflexive refl)
 
   postulate -- TODO-1: prove it
-    ¬genVotesRound≢0  : ∀ {pk v m pid}{st : SystemState}
-                      → ReachableSystemState st
-                      → Meta-Honest-PK pk
-                      → (sig : WithVerSig pk v)
-                      → v ⊂Msg m → (pid , m) ∈ msgPool st
-                      → ¬ (∈GenInfo (ver-signature sig))
+
+    ¬genVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
+                      → ReachableSystemState pre
+                      -- For any honest call to /handle/ or /init/,
+                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+                      → ∀{v m} → Meta-Honest-PK pk
+                      -- For signed every vote v of every outputted message
+                      → v ⊂Msg m → send m ∈ outs
+                      → (wvs : WithVerSig pk v)
+                      → (¬ ∈GenInfo-impl genesisInfo (ver-signature wvs))
                       → v ^∙ vRound ≢ 0

@@ -5,28 +5,29 @@
 -}
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
-
-import      LibraBFT.Concrete.Properties.VotesOnce as VO
-open import LibraBFT.Impl.Base.Types
-
-open import LibraBFT.Impl.Consensus.Types
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
-open import LibraBFT.Impl.NetworkMsg
-open import LibraBFT.Impl.Util.Crypto
-open import LibraBFT.Impl.Util.Util
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open        EpochConfig
-open import LibraBFT.Yasm.Types
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
+open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
+open import LibraBFT.ImplFake.Handle
+open import LibraBFT.ImplFake.Handle.Properties
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
+open import LibraBFT.Yasm.Base
+open import Optics.All
+
+open        ParamsWithInitAndHandlers FakeInitAndHandlers
+import      LibraBFT.Concrete.Properties.Common FakeInitAndHandlers as Common
+import      LibraBFT.Concrete.Properties.VotesOnce FakeInitAndHandlers as VO
+open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
+                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments
@@ -34,14 +35,16 @@ open        Structural impl-sps-avp
 -- implementation (or some variant on it) and streamline the proof before we proceed to tackle more
 -- ambitious properties.
 
-module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
+
+module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
+  open        Structural impl-sps-avp
 
   -- This is the information we can establish about the state after the first time a signature is
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
   LvrProp : CarrierProp
-  LvrProp v rm = (  v ^∙ vEpoch ≢ (₋rmEC rm) ^∙ rmEpoch
-                 ⊎ (v ^∙ vEpoch ≡ (₋rmEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (₋rmEC rm) ^∙ rmLastVotedRound))
+  LvrProp v rm = (  v ^∙ vEpoch ≢ (_rmEC rm) ^∙ rmEpoch
+                 ⊎ (v ^∙ vEpoch ≡ (_rmEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (_rmEC rm) ^∙ rmLastVotedRound))
 
   LvrCarrier = PropCarrier LvrProp
 
@@ -50,14 +53,14 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   firstSendEstablishes   v' pk origSt sysStep@(step-peer {pid'} {pre = pre} pstep@(step-honest _)) =
                          ( ReachableSystemState pre
                          × ¬ MsgWithSig∈ pk (signature v' unit) (msgPool pre)
-                         × LvrCarrier pk (₋vSignature v') (StepPeer-post pstep)
+                         × LvrCarrier pk (_vSignature v') (StepPeer-post pstep)
                          )
   open PeerCanSignForPK
   open PeerCanSignForPKinEpoch
 
   isValidNewPart⇒fSE : ∀ {pk v'}{pre : SystemState} {post : SystemState} {theStep : Step pre post}
                      → Meta-Honest-PK pk
-                     → (ivnp : IsValidNewPart (₋vSignature v') pk theStep)
+                     → (ivnp : IsValidNewPart (_vSignature v') pk theStep)
                      → firstSendEstablishes v' pk pre theStep
   isValidNewPart⇒fSE {pre = pre} {theStep = step-peer {pid = β} {outs = outs} pstep} hpk (_ , ¬init , ¬sentb4 , mws , _)
      with Any-++⁻ (actionsToSentMessages β outs) (msg∈pool mws)
@@ -95,8 +98,8 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
                                        vpk'
                                        (inj₂ ( trans eids≡ (auxEid post≡)
                                              , ≤-reflexive (trans newlvr (auxLvr post≡))))
-                                       where auxEid = cong (_^∙ rmEpoch ∘ ₋rmEC)
-                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ ₋rmEC)
+                                       where auxEid = cong (_^∙ rmEpoch ∘ _rmEC)
+                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ _rmEC)
 
   ImplPreservesLvr : PeerStepPreserves LvrProp
   -- We don't have a real model for the initial peer state, so we can't prove this case yet.
@@ -111,7 +114,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
      with preprop
   ...| inj₁ diffEpoch = inj₁ λ x → diffEpoch (trans x (sym eids≡))
   ...| inj₂ (sameEpoch , rnd≤ppre)
-     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (₋rmEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
+     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (_rmEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
   ...| no neq = ⊥-elim (neq sameEpoch)
   ...| yes refl
      with lastVoteRound-mono r refl (step-msg m∈pool inited) (carrInitd prop)
@@ -135,7 +138,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   fSE⇒rnd≤lvr hpk {theStep = step-peer (step-honest _)} (_ , _ , lvrc) step* = LvrCarrier-transp* lvrc step*
 
   postulate
-    vo₁ : VO.IncreasingRoundObligation 𝓔
+    vo₁ : Common.IncreasingRoundObligation 𝓔
   -- Initialization doesn't send any messages at all so far; Agda figures that out so no proof
   -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
   -- they contain will be from GenesisInfo.
@@ -149,7 +152,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
      -- prove that going from the poststate of that step to pre results in a state in which the
      -- round of v' is at most the last voted round recorded in the peerState of the peer that
      -- sent v'
-     with Any-Step-elim {Q = LvrCarrier pk (₋vSignature v') pre}
+     with Any-Step-elim {Q = LvrCarrier pk (_vSignature v') pre}
                         (fSE⇒rnd≤lvr {v'} hpk)
                         (Any-Step-map (λ _ ivnp → isValidNewPart⇒fSE {v' = v'} hpk ivnp)
                                       (unwind r hpk v'⊂m' m'∈pool sig' ¬init'))
@@ -157,7 +160,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
      -- The fake/trivial handler always sends a vote for its current epoch, but for a
      -- round greater than its last voted round
      with sameSig⇒sameVoteData (msgSigned mws) sig' (msgSameSig mws)
-  ...| inj₁ hb = ⊥-elim (PerState.meta-sha256-cr pre r hb)
+  ...| inj₁ hb = ⊥-elim (PerReachableState.meta-sha256-cr r hb)
   ...| inj₂ refl
      with msgSender mws ≟NodeId pid
   ...| no neq =
@@ -176,7 +179,11 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
                             (nid≡ (pcs4in𝓔 vpb))))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
+<<<<<<< HEAD:LibraBFT/Impl/Properties/VotesOnce.agda
       {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' _ refl
+=======
+      {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 v'⊂m' m'∈pool sig' _ refl rnds≡
+>>>>>>> mainUpstream:LibraBFT/ImplFake/Properties/VotesOnce.agda
      | _ , vm , _ , _
      | eIds≡' , suclvr≡v'rnd , _
      | mkCarrier r' mws ini vpf' preprop
@@ -194,6 +201,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
   -- TODO-1: This proof should be refactored to reduce redundant reasoning about the two votes.  The
   -- newVoteSameEpochGreaterRound property uses similar reasoning.
 -}
+
   vo₂ : VO.ImplObligation₂ 𝓔
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m}
       hpk v⊂m m∈outs sig ¬init vnew vpk v'⊂m' m'∈outs sig' ¬init' v'new vpk' es≡ rnds≡
@@ -207,7 +215,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
        -- those QCS have signatures that have been sent before, contradicting the
        -- assumption that v's signature has not been sent before.
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
+                  rewrite cong _vSignature v≈rbld
      with qcVotesSentB4 r pinit
                         (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v⊂m m∈outs qc∈m) vs∈qc ¬init
   ...| mws = ⊥-elim (vnew mws)
@@ -224,7 +232,7 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
      with v'⊂m'
   ...| vote∈vm = refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
-                  rewrite cong ₋vSignature v≈rbld
+                  rewrite cong _vSignature v≈rbld
      with qcVotesSentB4 r pinit
                        (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v'⊂m' m'∈outs qc∈m) vs∈qc ¬init'
   ...| mws = ⊥-elim (v'new mws)
