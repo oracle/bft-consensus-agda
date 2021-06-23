@@ -85,11 +85,11 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
  -- Next, we prove that, given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-IRO : IncreasingRoundObligation)
    (Impl-gvc : ImplObl-genVotesConsistent)
    (Impl-gvr : ImplObl-genVotesRound≡0)
    (Impl-v≢0 : ImplObl-NewVoteSignedAndRound≢0)
    (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
+   (Impl-IRO : IncreasingRoundObligation)
    (Impl-VO2 : ImplObligation₂)
    where
 

@@ -98,11 +98,11 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
            (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
 
   -- Next, we prove that given the necessary obligations,
- module PR-Proof
+ module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-IRO : IncreasingRoundObligation)
    (Impl-gvr : ImplObl-genVotesRound≡0)
    (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
+   (Impl-IRO : IncreasingRoundObligation)
    (Impl-PR1 : ImplObligation₁)
    (Impl-PR2 : ImplObligation₂)
    where

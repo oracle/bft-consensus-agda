@@ -21,18 +21,11 @@ open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 -- conditions proved in Abstract.Properties.  It can be extended to other
 -- properties later.
 module LibraBFT.Concrete.Properties
-<<<<<<< HEAD
-         (st : SystemState)
-         (r : ReachableSystemState st)
-         (𝓔 : EpochConfig) 
-         (impl-correct : ImplObligations 𝓔)
-=======
          (iiah         : SystemInitAndHandlers ℓ-RoundManager ConcSysParms)
          (st           : SystemState)
          (r            : WithInitAndHandlers.ReachableSystemState iiah st)
          (𝓔           : EpochConfig)
          (impl-correct : ImplObligations iiah 𝓔)
->>>>>>> mainUpstream
          where
 
     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
@@ -60,13 +53,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState intSystemState
     validState = record
-<<<<<<< HEAD
-      { vss-votes-once      = VO.Proof.voo 𝓔 sps-cor vo₁ vo₂ st r
-      ; vss-preferred-round = PR.PR-Proof.prr 𝓔 sps-cor vo₁ pr₁ pr₂ st r
-=======
-      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor gvc gvr v≢0 ∈GI? vo₁ vo₂ st r
-      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor pr₁ pr₂ st r
->>>>>>> mainUpstream
+      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor gvc gvr v≢0 ∈GI? iro vo₂ st r
+      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor gvr ∈GI? iro pr₁ pr₂ st r
       }
 
     open IntermediateSystemState intSystemState
