@@ -136,7 +136,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
   step₁ safetyData1 = do
-    lSafetyData ∙= safetyData1
+    lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
     extensionCheckM voteProposal ∙?∙ (step₂ safetyData1)
 
   step₂ safetyData1 voteData = do
