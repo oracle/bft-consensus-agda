@@ -309,31 +309,3 @@ module LibraBFT.ImplShared.Consensus.Types where
     FakeInfo FakeErr : Set
     fakeErr          : FakeErr
     fakeInfo         : FakeInfo
-
-  data Output : Set where
-    BroadcastProposal : ProposalMsg                   → Output
-    LogErr            : FakeErr                       → Output
-    LogInfo           : FakeInfo                      → Output
-    SendVote          : VoteMsg → List Author → Output
-  open Output public
-
-  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
-  SendVote-inj-v refl = refl
-
-  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
-  SendVote-inj-si refl = refl
-
-  IsSendVote : Output → Set
-  IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
-
-  isSendVote? : (out : Output) → Dec (IsSendVote out)
-  isSendVote? (BroadcastProposal _) = no λ ()
-  isSendVote? (LogErr _)            = no λ ()
-  isSendVote? (LogInfo _)           = no λ ()
-  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
-
-  SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
-  SendVote∉Output () (here refl)
-  SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
-     with isSendVote? x
-  ... | no proof = SendVote∉Output eq vm∈outs

@@ -12,6 +12,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
@@ -80,20 +81,6 @@ module LibraBFT.ImplFake.Handle where
 
  initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
  initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
-
- -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
- -- it is included in the model only to facilitate future work on liveness properties, when we will need
- -- assumptions about message delivery between honest peers.
- outputToActions : RoundManager → Output → List (LYT.Action NetworkMsg)
- outputToActions rm (BroadcastProposal p) = List-map (const (LYT.send (P p)))
-                                                     (List-map proj₁
-                                                               (kvm-toList (_vvAddressToValidatorInfo (_esVerifier (_rmEpochState (_rmEC rm))))))
- outputToActions _  (LogErr x)            = []
- outputToActions _  (LogInfo x)           = []
- outputToActions _  (SendVote vm toList)  = List-map (const (LYT.send (V vm))) toList
-
- outputsToActions : ∀ {State} → List Output → List (LYT.Action NetworkMsg)
- outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
