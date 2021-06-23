@@ -181,8 +181,30 @@ module LibraBFT.ImplShared.Consensus.Types where
                         (λ (RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new bsInner'))) qc
                           → RoundManager∙new ec ecc (RoundManagerWithEC∙new (BlockStore∙new (record bsInner' {_btHighestCommitCert = qc}))))
 
-  -- TODO-1? We would need lenses to be dependent to make a lens from round
-  -- managers to block stores.
+  -- NO-DEPENDENT-LENSES (don't change this without searching for other instances of it and treating
+  -- them consistently).
+  --
+  -- Because our RoundManager is in three pieces to enable constructing an abstract EpochConfig in
+  -- which parts of it depend, we would like to have something like:
+  --
+  --   Lens (rm : RoundManager) (BlockStore (α-EC-RM rm))
+  --
+  -- However, our rudimentary Lens support does not enable such dependent lenses.  Therefore, where
+  -- the Haskell code we are modeling defines a Lens from RoundManager to BlockStore (called
+  -- lBlockStore), enabling code like:
+  --
+  --   bs <- use lBlockStore
+  --
+  -- we instead define a function such as rmGetBlockStore below
+  -- and "use" it like this:
+  --
+  --   bs ← gets rmGetBlockStore
+  --
+  -- or sometimes (when we need to name the state):
+  --
+  --   s ← get
+  --   let bs = rmGetBlockStore s
+
   rmGetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm)
   rmGetBlockStore rm = (_rmWithEC rm) ^∙ (epBlockStore (α-EC-RM rm))
 
@@ -287,31 +309,3 @@ module LibraBFT.ImplShared.Consensus.Types where
     FakeInfo FakeErr : Set
     fakeErr          : FakeErr
     fakeInfo         : FakeInfo
-
-  data Output : Set where
-    BroadcastProposal : ProposalMsg                   → Output
-    LogErr            : FakeErr                       → Output
-    LogInfo           : FakeInfo                      → Output
-    SendVote          : VoteMsg → List Author → Output
-  open Output public
-
-  SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
-  SendVote-inj-v refl = refl
-
-  SendVote-inj-si : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → y1 ≡ y2
-  SendVote-inj-si refl = refl
-
-  IsSendVote : Output → Set
-  IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
-
-  isSendVote? : (out : Output) → Dec (IsSendVote out)
-  isSendVote? (BroadcastProposal _) = no λ ()
-  isSendVote? (LogErr _)            = no λ ()
-  isSendVote? (LogInfo _)           = no λ ()
-  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
-
-  SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
-  SendVote∉Output () (here refl)
-  SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
-     with isSendVote? x
-  ... | no proof = SendVote∉Output eq vm∈outs

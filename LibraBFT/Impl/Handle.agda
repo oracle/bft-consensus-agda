@@ -10,6 +10,8 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
+open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -21,13 +23,14 @@ open import LibraBFT.Yasm.Base
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
--- This module provides some scaffolding to define the handlers for our fake/simple
--- "implementation" and connect them to the interface of the SystemModel.
+-- This module provides scaffolding to define the handlers for our implementation model and connect
+-- them to the interface of the SystemModel.  Initially it inherits a bunch of postulated stuff for
+-- initial state from the fake implementation, but these will evolve here, while the fake one
+-- probably won't.  There is probably more refactoring we can do with FakeImpl too (see comment
+-- below).
 
-module LibraBFT.ImplFake.Handle where
- open import LibraBFT.ImplFake.Consensus.RoundManager
+module LibraBFT.Impl.Handle where
  open RWST-do
-
  open EpochConfig
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
@@ -43,9 +46,8 @@ module LibraBFT.ImplFake.Handle where
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (_rmSafetyRules (_rmEC fakeRM)))
 
- -- TODO-1: Implement this.
- initPE : ProposerElection
- initPE = obm-dangerous-magic!
+ postulate -- TODO-1: Implement this.
+   initPE : ProposerElection
 
  initPV : PendingVotes
  initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
@@ -72,16 +74,14 @@ module LibraBFT.ImplFake.Handle where
      → RoundManager × List NetworkMsg
  initialRoundManagerAndMessages a _ = initRM , []
 
- handle : NodeId → NetworkMsg → Instant → LBFT Unit
- handle _self msg now
-    with msg
- ...| P p = processProposalMsg now p
- ...| V v = processVote now v
- ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
+ -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
+ -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
+ -- be renamed?)
 
  initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
  initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
+ -- Here we invoke the handler that models the real implementation handler.
  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
@@ -93,10 +93,10 @@ module LibraBFT.ImplFake.Handle where
  peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
  peerStep nid msg st = runHandler st (handle nid msg 0)
 
- FakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
- FakeInitAndHandlers = mkSysInitAndHandlers
-                         genesisInfo
-                         initRM
-                         initWrapper
-                         peerStep
+ InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+ InitAndHandlers = mkSysInitAndHandlers
+                     genesisInfo
+                     initRM
+                     initWrapper
+                     peerStep
 

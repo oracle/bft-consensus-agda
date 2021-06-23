@@ -10,6 +10,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 import      LibraBFT.ImplShared.Util.Crypto                         as Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner

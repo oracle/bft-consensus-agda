@@ -19,6 +19,7 @@ open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.RWST
 open import LibraBFT.ImplShared.Util.Util
@@ -125,9 +126,7 @@ module ProcessProposalM (proposal : Block) where
   step₄ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
-  -- DIFF: We cannot define a lens for the block store without dependent lenses,
-  -- so here we first get the state.
-    s ← get
+    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = rmGetBlockStore s
     vp ← ProposerElection.isValidProposalM proposal
     step₁{s} bs vp
@@ -147,8 +146,7 @@ module ProcessProposalM (proposal : Block) where
          -- distinction operators, so the Haskell
          -- > executeAndVoteM proposal >>= \case
          -- is translated to the following.
-         r ← executeAndVoteM proposal
-         step₂ r
+           executeAndVoteM proposal >>= step₂
   step₂ r =
          caseM⊎ r of λ where
            (inj₁ _) → logErr -- <propagate error>
@@ -219,14 +217,14 @@ processVoteM now vote =
   continue : LBFT Unit
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
-    s ← get
+    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = _epBlockStore (_rmWithEC s)
     if true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
       then logInfo
       else addVoteM now vote -- TODO-1: logging
 
 addVoteM now vote = do
-  s ← get
+  s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
   let bs = _epBlockStore (_rmWithEC s)
   {- IMPL-TODO make this commented code work then remove the 'continue' after the comment
   maybeS nothing (bs ^∙ bsHighestTimeoutCert) continue λ tc →
@@ -238,7 +236,7 @@ addVoteM now vote = do
  where
   continue : LBFT Unit
   continue = do
-    rm ← get
+    rm ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let verifier = _esVerifier (_rmEpochState (_rmEC rm))
     r ← RoundState.insertVoteM vote verifier
     case r of λ where

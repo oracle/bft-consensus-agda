@@ -15,6 +15,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore       as BlockStore
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock  as ExecutedBlock

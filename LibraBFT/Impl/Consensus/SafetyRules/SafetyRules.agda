@@ -116,7 +116,7 @@ module constructAndSignVoteM-continue1
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
   step₁ = do
-      validatorVerifier ← gets rmGetValidatorVerifier
+      validatorVerifier ← gets rmGetValidatorVerifier -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
       step₂ validatorVerifier
   step₂ validatorVerifier =
       pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
@@ -136,7 +136,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
   step₁ safetyData1 = do
-    lSafetyData ∙= safetyData1
+    lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
     extensionCheckM voteProposal ∙?∙ (step₂ safetyData1)
 
   step₂ safetyData1 voteData = do
@@ -144,7 +144,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ (step₃ safetyData1 voteData author)
 
   step₃ safetyData1 voteData author ledgerInfo = do
-        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+        let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
         ok vote
