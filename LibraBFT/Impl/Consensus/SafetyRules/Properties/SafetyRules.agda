@@ -337,7 +337,7 @@ module ConstructAndSignVoteM where
          unit
          pre
 
-   Next, we apply the defintion of RWST-weakestPre (RWST-put ...)
+   Next, we apply the definition of RWST-weakestPre (RWST-put ...)
 
       (λ x post outs₁ → (RWST-weakestPre-bindPost unit
                           (λ _ → RWST-return (inj₂ "vote"))
