@@ -30,15 +30,6 @@ module IsValidProposalM (b : Block) where
         → (Maybe-Any (getValidProposer pe r ≡_) ma → Post true pre [])
         → RWST-weakestPre (isValidProposalM b) Post unit pre
 
-
-  ≡-dec⇒true  : ∀ {m n : ℕ} → (myDec : Dec (m ≡ n)) → m ≡ n → isYes myDec ≡ true
-  ≢-dec⇒false : ∀ {m n : ℕ} → (myDec : Dec (m ≡ n)) → m ≢ n → isYes myDec ≡ false
-
-  ≡-dec⇒true  (yes refl) _   = refl
-  ≡-dec⇒true  (no  neq') neq = ⊥-elim (neq' neq)
-  ≢-dec⇒false (yes refl) neq = ⊥-elim (neq refl)
-  ≢-dec⇒false (no  _   ) _   = refl
-
   -- isValidProposalM is a caseMM, so by definition of RWST-weakestPre (RWST-maybe ...), we need two
   -- properties; the first is:
   --   b ^∙ bAuthor ≡ nothing → RWST-weakestPre (RWST-return false) Post unit pre
@@ -55,14 +46,15 @@ module IsValidProposalM (b : Block) where
        ...| NilBlock = ⊥-elim (maybe-⊥ ma≡justa refl)
        ...| Genesis  = ⊥-elim (maybe-⊥ ma≡justa refl)
        ...| Proposal _ auth rewrite just-injective ma≡justa
-          with getValidProposer pe (b ^∙ bRound) ≟ℕ a
-       ...| no neq =
+          with  getValidProposer pe (b ^∙ bRound) ≟ℕ a | inspect
+               (getValidProposer pe (b ^∙ bRound) ≟ℕ_) a
+       ...| yes refl | [ R ] =
               λ where ivppeFn refl proposer refl ivppea refl bRnd refl →
                        subst (λ b → Post b pre [])
-                             (sym (≢-dec⇒false (getValidProposer pe (b ^∙ bRound) ≟ℕ a) neq))
+                             (subst ((true ≡_) ∘ isYes) (sym R) refl)
+                             (prfT (Maybe-Any.just refl))
+       ...| no neq | [ R ] =
+              λ where ivppeFn refl proposer refl ivppea refl bRnd refl →
+                       subst (λ b → Post b pre [])
+                             (subst ((false ≡_) ∘ isYes) (sym R) refl)
                              (prfF (inj₂ (Maybe-Any.just neq)))
-       ...| yes isProposer =
-              λ where ivppeFn refl proposer refl ivppea refl bRnd refl →
-                       subst (λ b → Post b pre [])
-                             (sym (≡-dec⇒true (getValidProposer pe (b ^∙ bRound) ≟ℕ a) isProposer))
-                             (prfT (Maybe-Any.just isProposer))
