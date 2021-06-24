@@ -176,7 +176,6 @@ module LibraBFT.ImplFake.Handle.Properties where
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                                → v ^∙ vEpoch ≡ (_rmEC (peerStates pre pid)) ^∙ rmEpoch
-                               × suc ((_rmEC (peerStates pre pid)) ^∙ rmLastVotedRound) ≡ v ^∙ vRound  -- New vote for higher round than last voted
                                × v ^∙ vRound ≡ ((_rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
@@ -189,7 +188,7 @@ module LibraBFT.ImplFake.Handle.Properties where
        -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
        -- those QCS have signatures that have been sent before, contradicting the
        -- assumption that v's signature has not been sent before.
-  ...| vote∈vm {si} = refl , refl , refl
+  ...| vote∈vm {si} = refl , refl
   ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
                   rewrite cong _vSignature v≈rbld
     with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
@@ -211,6 +210,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   ...| C c = const (≤-reflexive refl)
 
   postulate -- TODO-1: prove it
+
     ¬genVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
                       → ReachableSystemState pre
                       -- For any honest call to /handle/ or /init/,

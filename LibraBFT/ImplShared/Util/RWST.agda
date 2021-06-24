@@ -24,10 +24,11 @@ data RWST (Ev Wr St : Set) : Set → Set₁ where
   RWST-tell   : List Wr                                           → RWST Ev Wr St Unit
   -- Branching combinators (used for creating more convenient contracts)
   RWST-if     : ∀ {A} → Guards (RWST Ev Wr St A)                  → RWST Ev Wr St A
-  RWST-either : ∀ {A B C} → B ⊎ C
+  RWST-either : ∀ {A B C} → Either B C
                 → (B → RWST Ev Wr St A) → (C → RWST Ev Wr St A)   → RWST Ev Wr St A
   RWST-ebind  : ∀ {A B C}
-                → RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
+                → RWST Ev Wr St (Either C A)
+                → (A → RWST Ev Wr St (Either C B))                → RWST Ev Wr St (Either C B)
   RWST-maybe  : ∀ {A B} → Maybe B
                 → (RWST Ev Wr St A) → (B → RWST Ev Wr St A)       → RWST Ev Wr St A
 
@@ -50,12 +51,12 @@ RWST-run (RWST-tell outs) ev st = unit , st , outs
 RWST-run (RWST-if (clause (b ≔ c) gs)) ev st =
   if toBool b then RWST-run c ev st else RWST-run (RWST-if gs) ev st
 RWST-run (RWST-if (otherwise≔ c)) ev st = RWST-run c ev st
-RWST-run (RWST-either (inj₁ x) f₁ f₂) ev st = RWST-run (f₁ x) ev st
-RWST-run (RWST-either (inj₂ y) f₁ f₂) ev st = RWST-run (f₂ y) ev st
+RWST-run (RWST-either (Left x) f₁ f₂) ev st = RWST-run (f₁ x) ev st
+RWST-run (RWST-either (Right y) f₁ f₂) ev st = RWST-run (f₂ y) ev st
 RWST-run (RWST-ebind m f) ev st
    with RWST-run m ev st
-...| inj₁ c , st₁ , outs₁ = inj₁ c , st₁ , outs₁
-...| inj₂ a , st₁ , outs₁
+...| Left c , st₁ , outs₁ = Left c , st₁ , outs₁
+...| Right a , st₁ , outs₁
    with RWST-run (f a) ev st₁
 ...| r , st₂ , outs₂ = r , st₂ , outs₁ ++ outs₂
 RWST-run (RWST-maybe nothing f₁ f₂) ev st = RWST-run f₁ ev st
@@ -99,21 +100,21 @@ RWST-weakestPre (RWST-if (clause (b ≔ c) gs)) P ev pre =
 RWST-weakestPre (RWST-if (otherwise≔ c)) P ev pre =
   RWST-weakestPre c P ev pre
 RWST-weakestPre (RWST-either e f₁ f₂) P ev pre =
-    (∀ x → (e ≡ inj₁ x) →
+    (∀ x → (e ≡ Left x) →
       RWST-weakestPre (f₁ x) P ev pre)
-  × (∀ y → (e ≡ inj₂ y) →
+  × (∀ y → (e ≡ Right y) →
        RWST-weakestPre (f₂ y) P ev pre)
 RWST-weakestPre (RWST-ebind m f) P ev pre =
   RWST-weakestPre m (RWST-weakestPre-ebindPost ev f P) ev pre
-  -- (RWST-weakestPre m (λ x post outs → ∀ c → x ≡ inj₁ c → P (inj₁ c) post outs) ev pre)
-  -- × (RWST-weakestPre m (λ x post outs → ∀ b → x ≡ inj₂ b → RWST-weakestPre (f b) (RWST-Post++ P outs) ev post) ev pre)
+  -- (RWST-weakestPre m (λ x post outs → ∀ c → x ≡ Left c → P (Left c) post outs) ev pre)
+  -- × (RWST-weakestPre m (λ x post outs → ∀ b → x ≡ Right b → RWST-weakestPre (f b) (RWST-Post++ P outs) ev post) ev pre)
 RWST-weakestPre (RWST-maybe m f₁ f₂) P ev pre =
   (m ≡ nothing → RWST-weakestPre f₁ P ev pre)
   × (∀ j → m ≡ just j → RWST-weakestPre (f₂ j) P ev pre)
 
-RWST-weakestPre-ebindPost ev f Post (inj₁ r) post outs =
-  Post (inj₁ r) post outs
-RWST-weakestPre-ebindPost ev f Post (inj₂ r) post outs =
+RWST-weakestPre-ebindPost ev f Post (Left r) post outs =
+  Post (Left r) post outs
+RWST-weakestPre-ebindPost ev f Post (Right r) post outs =
   ∀ c → c ≡ r → RWST-weakestPre (f c) (RWST-Post++ Post outs) ev post
 
 RWST-weakestPre-bindPost ev f Post x post outs =
@@ -147,16 +148,16 @@ RWST-contract{Ev}{Wr}{St}{A} (RWST-if gs) P ev pre wp = RWST-contract-if gs P ev
   ...| false = RWST-contract-if gs _ ev pre (wp₂ refl)
   RWST-contract-if (otherwise≔ x) P ev pre wp =
     RWST-contract x P ev pre wp
-RWST-contract (RWST-either (inj₁ x) f₁ f₂) P ev pre (wp₁ , wp₂) =
+RWST-contract (RWST-either (Left x) f₁ f₂) P ev pre (wp₁ , wp₂) =
   RWST-contract (f₁ x) _ ev pre (wp₁ x refl)
-RWST-contract (RWST-either (inj₂ y) f₁ f₂) P ev pre (wp₁ , wp₂) =
+RWST-contract (RWST-either (Right y) f₁ f₂) P ev pre (wp₁ , wp₂) =
   RWST-contract (f₂ y) _ ev pre (wp₂ y refl)
 RWST-contract (RWST-ebind m f) P ev pre wp
    with RWST-contract m _ ev pre wp
 ...| con
    with RWST-run m ev pre
-... | inj₁ x , st₁ , outs₁ = con
-... | inj₂ y , st₁ , outs₁ = RWST-contract (f y) _ ev st₁ (con y refl)
+... | Left x , st₁ , outs₁ = con
+... | Right y , st₁ , outs₁ = RWST-contract (f y) _ ev st₁ (con y refl)
 RWST-contract (RWST-maybe nothing f₁ f₂) P ev pre (wp₁ , wp₂)
   = RWST-contract f₁ _ ev pre (wp₁ refl)
 RWST-contract (RWST-maybe (just x) f₁ f₂) P ev pre (wp₁ , wp₂) =
@@ -212,27 +213,27 @@ module RWST-do where
        ‖ otherwise≔ c₂
 
   infix 0 caseM⊎_of_
-  caseM⊎_of_ : B ⊎ C → (B ⊎ C → RWST Ev Wr St A) → RWST Ev Wr St A
-  caseM⊎ e of f = RWST-either e (f ∘ inj₁) (f ∘ inj₂)
+  caseM⊎_of_ : Either B C → (Either B C → RWST Ev Wr St A) → RWST Ev Wr St A
+  caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
 
   caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
   caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
 
   -- Composition with error monad
   ok : A → RWST Ev Wr St (B ⊎ A)
-  ok = return ∘ inj₂
+  ok = return ∘ Right
 
   bail : B → RWST Ev Wr St (B ⊎ A)
-  bail = return ∘ inj₁
+  bail = return ∘ Left
 
   infixl 4 _∙?∙_
-  _∙?∙_ : RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
+  _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
   _∙?∙_ = RWST-ebind
   -- m ∙?∙ f = do
   --   r ← m
   --   caseM⊎ r of λ where
-  --     (inj₁ c) → pure (inj₁ c)
-  --     (inj₂ a) → f a
+  --     (Left c) → pure (Left c)
+  --     (Right a) → f a
 
   -- Functorial functionality.
   infixl 4 _<$>_ _<*>_
@@ -290,16 +291,16 @@ RWST-impl P Q impl (RWST-if (otherwise≔ x)) ev st pre = RWST-impl _ _ impl x e
 RWST-impl P Q impl (RWST-if (clause (b ≔ c) cs)) ev st (pre₁ , pre₂) =
   (λ pf → RWST-impl _ _ impl c ev st (pre₁ pf))
   , λ pf → RWST-impl _ _ impl (RWST-if cs) ev st (pre₂ pf)
-proj₁ (RWST-impl P Q impl (RWST-either (inj₁ x) f₁ f₂) ev st (pre₁ , pre₂)) x₁ x₁≡ =
+proj₁ (RWST-impl P Q impl (RWST-either (Left x) f₁ f₂) ev st (pre₁ , pre₂)) x₁ x₁≡ =
   RWST-impl _ _ impl (f₁ x₁) ev st (pre₁ x₁ x₁≡)
-proj₂ (RWST-impl P Q impl (RWST-either (inj₁ x) f₁ f₂) ev st (pre₁ , pre₂)) y ()
-proj₁ (RWST-impl P Q impl (RWST-either (inj₂ y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ ()
-proj₂ (RWST-impl P Q impl (RWST-either (inj₂ y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ y₁≡ =
+proj₂ (RWST-impl P Q impl (RWST-either (Left x) f₁ f₂) ev st (pre₁ , pre₂)) y ()
+proj₁ (RWST-impl P Q impl (RWST-either (Right y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ ()
+proj₂ (RWST-impl P Q impl (RWST-either (Right y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ y₁≡ =
   RWST-impl _ _ impl (f₂ y₁) ev st (pre₂ y₁ y₁≡)
 RWST-impl P Q impl (RWST-ebind m f) ev st pre =
   RWST-impl _ _
-    (λ { (inj₁ x₁) st₁ outs x → impl _ _ _ x
-       ; (inj₂ y) st₁ outs x → λ c x₁ →
+    (λ { (Left x₁) st₁ outs x → impl _ _ _ x
+       ; (Right y) st₁ outs x → λ c x₁ →
            RWST-impl _ _ (λ r st₂ outs₁ x₂ → impl r st₂ (outs ++ outs₁) x₂) (f c) ev st₁ (x c x₁)})
     m ev st pre
 proj₁ (RWST-impl P Q impl (RWST-maybe x m f) ev st (pre₁ , pre₂)) ≡nothing = RWST-impl _ _ impl m ev st (pre₁ ≡nothing)
@@ -338,8 +339,8 @@ RWST-× P Q (RWST-ebind m f) ev st p q
 ...| res =
   RWST-impl _ _
     (λ where
-      (inj₁ c) st₁ outs pf → pf
-      (inj₂ a) st₁ outs (p' , q') c c≡ →
+      (Left c) st₁ outs pf → pf
+      (Right a) st₁ outs (p' , q') c c≡ →
         RWST-× _ _ (f c) ev st₁ (p' c c≡) (q' c c≡))
     m ev st res
 RWST-× P Q (RWST-maybe m c₁ c₂) ev st p q =
@@ -365,11 +366,11 @@ maybeSMP ma b f = do
     (just j) → f j
   where open RWST-do
 
-_∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
+_∙^∙_ : RWST Ev Wr St (Either B A) → (B → B) → RWST Ev Wr St (Either B A)
 m ∙^∙ f = do
   x ← m
   case x of λ where
-    (inj₁ e) → pure (inj₁ (f e))
-    (inj₂ r) → pure (inj₂ r)
+    (Left e) → pure (Left (f e))
+    (Right r) → pure (Right r)
   where open RWST-do
 

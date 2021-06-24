@@ -21,8 +21,8 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 open RWST-do
 
 postulate
-  executeAndInsertBlockM : Block → LBFT (FakeErr ⊎ ExecutedBlock)
-  insertTimeoutCertificateM : TimeoutCertificate → LBFT (FakeErr ⊎ Unit)
+  executeAndInsertBlockM : Block → LBFT (Either FakeErr ExecutedBlock)
+  insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either FakeErr Unit)
   getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
   syncInfoM : LBFT SyncInfo

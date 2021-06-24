@@ -17,6 +17,13 @@ module LibraBFT.Prelude where
   open import Agda.Builtin.Unit
     public
 
+  open import Function
+    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
+    public
+
+  infixl 1 _&_
+  _&_ = Function._|>_
+
   open import Data.Unit.NonEta
     public
 
@@ -163,7 +170,6 @@ module LibraBFT.Prelude where
     renaming (cong to ≅-cong; cong₂ to ≅-cong₂)
     public
 
-
   open import Relation.Binary
     public
 
@@ -174,20 +180,27 @@ module LibraBFT.Prelude where
                    → to-witness x ≡ a → f ≡ just a
   to-witness-lemma (just x) refl = refl
 
+  open import Relation.Nullary
+    hiding (Irrelevant; proof)
+    public
+
+  open import Relation.Nullary.Decidable
+    hiding (map)
+    public
+
   open import Data.Sum
-    renaming ([_,_] to either; map to ⊎-map)
+    renaming ([_,_] to either; map to ⊎-map; map₂ to ⊎-map₂)
     public
 
   open import Data.Sum.Properties
     using (inj₁-injective ; inj₂-injective)
     public
 
-  open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
-    public
+  ⊎-elimˡ : ∀ {ℓ₀ ℓ₁}{A₀ : Set ℓ₀}{A₁ : Set ℓ₁} → ¬ A₀ → A₀ ⊎ A₁ → A₁
+  ⊎-elimˡ ¬a = either (⊥-elim ∘ ¬a) id
 
-  infixl 1 _&_
-  _&_ = Function._|>_
+  ⊎-elimʳ : ∀ {ℓ₀ ℓ₁}{A₀ : Set ℓ₀}{A₁ : Set ℓ₁} → ¬ A₁ → A₀ ⊎ A₁ → A₀
+  ⊎-elimʳ ¬a = either id (⊥-elim ∘ ¬a)
 
   open import Data.Product
     renaming (map to ×-map; map₂ to ×-map₂; map₁ to ×-map₁; <_,_> to split; swap to ×-swap)
@@ -195,14 +208,6 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Product.Properties
-    public
-
-  open import Relation.Nullary
-    hiding (Irrelevant; proof)
-    public
-
-  open import Relation.Nullary.Decidable
-    hiding (map)
     public
 
   infix 4 _<?ℕ_
@@ -278,6 +283,12 @@ module LibraBFT.Prelude where
         → C ⊎ A → (A → C ⊎ B) → C ⊎ B
   (inj₁ x) ⊎⟫= _ = inj₁ x
   (inj₂ a) ⊎⟫= f = f a
+
+  -- Syntactic support for more faithful model of Haskell code
+  Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
+  Either A B = A ⊎ B
+  pattern Left  x = inj₁ x
+  pattern Right x = inj₂ x
 
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that

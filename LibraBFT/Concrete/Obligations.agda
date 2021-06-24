@@ -15,9 +15,12 @@ open import LibraBFT.Yasm.Base
 -- implementation must meet in order to enjoy the properties
 -- proved in Abstract.Properties.
 
+
 module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
   import      LibraBFT.Concrete.Properties.PreferredRound iiah as PR
   import      LibraBFT.Concrete.Properties.VotesOnce      iiah as VO
+  import      LibraBFT.Concrete.Properties.Common         iiah as Common
+
 
   open        SystemTypeParameters ConcSysParms
   open        SystemInitAndHandlers iiah
@@ -33,12 +36,11 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
       -- Semantic obligations:
       --
       -- VotesOnce:
-
-      gvc  : VO.ImplObl-genVotesConsistent 𝓔
-      gvr  : VO.ImplObl-genVotesRound≡0 𝓔
-      v≢0  : VO.ImplObl-NewVoteSignedAndRound≢0 𝓔
+      gvc  : Common.ImplObl-genVotesConsistent 𝓔
+      gvr  : Common.ImplObl-genVotesRound≡0 𝓔
+      v≢0  : Common.ImplObl-NewVoteRound≢0 𝓔
       ∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig)
-      vo₁ : VO.ImplObligation₁ 𝓔
+      iro : Common.IncreasingRoundObligation 𝓔
       vo₂ : VO.ImplObligation₂ 𝓔
 
       -- PreferredRound:

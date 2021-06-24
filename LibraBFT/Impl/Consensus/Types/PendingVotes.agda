@@ -50,11 +50,11 @@ insertVoteM vote vv = do
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
     lPendingVotes ∙ pvLiDigestToVotes %= Map.kvm-insert-Haskell liDigest liWithSig
     case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
-      (inj₂ unit) →
+      (Right unit) →
         pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
-      (inj₁ (TooLittleVotingPower votingPower _)) →
+      (Left (TooLittleVotingPower votingPower _)) →
         continue2 votingPower
-      (inj₁ _) →
+      (Left _) →
         pure VRR_TODO
 
   continue2 qcVotingPower =
@@ -66,11 +66,11 @@ insertVoteM vote vv = do
                                      (pv ^∙ pvMaybePartialTC))
         lPendingVotes ∙ pvMaybePartialTC %= const (just partialTc)
         case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
-          (inj₂ unit) →
+          (Right unit) →
             pure (NewTimeoutCertificate partialTc)
-          (inj₁ (TooLittleVotingPower votingPower _)) →
+          (Left (TooLittleVotingPower votingPower _)) →
             pure (TCVoteAdded votingPower)
-          (inj₁ _) →
+          (Left _) →
             pure VRR_TODO
       nothing →
         pure (QCVoteAdded qcVotingPower)
