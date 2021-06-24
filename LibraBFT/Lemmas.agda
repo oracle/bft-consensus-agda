@@ -100,15 +100,6 @@ module LibraBFT.Lemmas where
  _ : Maybe-map toℕ (List-index _≟_ 4 (nats 4)) ≡ nothing
  _ = refl
 
- -- TODO-2: There's probably something equivalent in the standard library
- ⊎-elimˡ : ∀ {ℓ₀ ℓ₁}{A₀ : Set ℓ₀}{A₁ : Set ℓ₁} → ¬ A₀ → A₀ ⊎ A₁ → A₁
- ⊎-elimˡ _  (inj₂ a) = a
- ⊎-elimˡ ¬a (inj₁ a) = ⊥-elim (¬a a)
-
- ⊎-elimʳ : ∀ {ℓ₀ ℓ₁}{A₀ : Set ℓ₀}{A₁ : Set ℓ₁} → ¬ A₁ → A₀ ⊎ A₁ → A₀
- ⊎-elimʳ _  (inj₁ a) = a
- ⊎-elimʳ ¬a (inj₂ a) = ⊥-elim (¬a a)
-
  allDistinct : ∀ {A : Set} → List A → Set
  allDistinct l = ∀ (i j : Σ ℕ (_< length l)) →
                    proj₁ i ≡ proj₁ j

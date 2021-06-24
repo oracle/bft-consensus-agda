@@ -102,11 +102,11 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
   ask : RWST Ev Wr St Ev
   ask = rwst (λ ev st → (ev , st , []))
 
-  ok : ∀ {B : Set ℓ-B} → A → RWST Ev Wr St (B ⊎ A)
-  ok = RWST-return ∘ inj₂
+  ok : ∀ {B : Set ℓ-B} → A → RWST Ev Wr St (Either B A)
+  ok = RWST-return ∘ Right
 
-  bail : B → RWST Ev Wr St (B ⊎ A)
-  bail = RWST-return ∘ inj₁
+  bail : B → RWST Ev Wr St (Either B A)
+  bail = RWST-return ∘ Left
 
   -- Easy to use do notation; i.e.;
   module RWST-do where
@@ -162,18 +162,18 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
     where open RWST-do
 
   infixl 4 _∙?∙_
-  _∙?∙_ : RWST Ev Wr St (C ⊎ A) → (A → RWST Ev Wr St (C ⊎ B)) → RWST Ev Wr St (C ⊎ B)
+  _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
   m ∙?∙ f = do
     r ← m
     case r of λ where
-      (inj₁ c) → pure (inj₁ c)
-      (inj₂ a) → f a
+      (Left c) → pure (Left c)
+      (Right a) → f a
     where open RWST-do
 
-  _∙^∙_ : RWST Ev Wr St (B ⊎ A) → (B → B) → RWST Ev Wr St (B ⊎ A)
+  _∙^∙_ : RWST Ev Wr St (Either A B) → (A → A) → RWST Ev Wr St (Either A B)
   m ∙^∙ f = do
     x ← m
     case x of λ where
-      (inj₁ e) → pure (inj₁ (f e))
-      (inj₂ r) → pure (inj₂ r)
+      (Left  e) → pure (Left (f e))
+      (Right r) → pure (Right r)
     where open RWST-do

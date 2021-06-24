@@ -14,17 +14,17 @@ module LibraBFT.Impl.Types.ValidatorVerifier where
 
 getVotingPower : ValidatorVerifier → AccountAddress → Maybe U64
 
-checkVotingPower : ValidatorVerifier → List AccountAddress → VerifyError ⊎ Unit
+checkVotingPower : ValidatorVerifier → List AccountAddress → Either VerifyError Unit
 checkVotingPower self authors = loop authors 0
  where
-  loop : List AccountAddress → U64 → VerifyError ⊎ Unit
+  loop : List AccountAddress → U64 → Either VerifyError Unit
   loop (a ∷ as) acc = case getVotingPower self a of λ where
-                        nothing  → inj₁ (UnknownAuthor (a ^∙ aAuthorName))
+                        nothing  → Left (UnknownAuthor (a ^∙ aAuthorName))
                         (just n) → loop as (n + acc)
   loop [] aggregatedVotingPower =
     if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
-    then inj₁ (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower))
-    else inj₂ unit
+    then Left (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower))
+    else Right unit
 
 getVotingPower self author =
 --  (λ a → a ^∙ vciVotingPower) <$> (Map.lookup author (self ^∙ vvAddressToValidatorInfo))
