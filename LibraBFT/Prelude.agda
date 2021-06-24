@@ -118,6 +118,10 @@ module LibraBFT.Prelude where
     hiding (_≤?_; _<_; _<?_; _≤_)
     public
 
+  open import Data.Bool.Properties
+    using (T-≡)
+    public
+
   open import Data.Maybe
     renaming (map to Maybe-map; zip to Maybe-zip ; _>>=_ to _Maybe->>=_)
     hiding (align; alignWith; zipWith)
@@ -184,6 +188,10 @@ module LibraBFT.Prelude where
 
   open import Function
     using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
+    public
+
+  open import Function.Equivalence
+    using (_⇔_)
     public
 
   infixl 1 _&_
