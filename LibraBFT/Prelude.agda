@@ -175,7 +175,7 @@ module LibraBFT.Prelude where
   to-witness-lemma (just x) refl = refl
 
   open import Data.Sum
-    renaming ([_,_] to either; map to ⊎-map)
+    renaming ([_,_] to either; map to ⊎-map; map₂ to ⊎-map₂)
     public
 
   open import Data.Sum.Properties

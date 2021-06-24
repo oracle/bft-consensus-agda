@@ -83,6 +83,24 @@ module LibraBFT.Yasm.Properties
  ...| inj₁ dis = ⊥-elim (hpk dis)
  ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
+
+ ¬cheatForgeNewSig : ∀ {p m sndr pid pk mst outs}{st : SystemState}
+                    → (r : ReachableSystemState st)
+                    → (sp : StepPeer st pid mst outs)
+                    → (ic : isCheat sp)
+                    → Meta-Honest-PK pk
+                    → (sig : WithVerSig pk p)
+                    → p ⊂MsgG m → (sndr , m) ∈ msgPool (StepPeer-post sp)
+                    → ¬ ∈GenInfo genInfo (ver-signature sig)
+                    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+ ¬cheatForgeNewSig {p} {m} {sndr} r (step-cheat chConstraint) ic pkH sig p⊂m m∈pool ¬init
+   with m∈pool
+ ... | there m∈preSt = mkMsgWithSig∈ m p p⊂m sndr m∈preSt sig refl
+ ... | here refl
+   with chConstraint p⊂m sig ¬init
+ ... | inj₁ dis = ⊥-elim (pkH dis)
+ ... | inj₂ msv = msv
+
  ValidSenderForPK-stable-* : ∀{st : SystemState}{st' : SystemState}
                            → ReachableSystemState st
                            → Step* st st' → ∀{part α pk}

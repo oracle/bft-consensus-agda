@@ -23,6 +23,7 @@ open import LibraBFT.Yasm.Base
 open import Optics.All
 
 open        ParamsWithInitAndHandlers FakeInitAndHandlers
+import      LibraBFT.Concrete.Properties.Common FakeInitAndHandlers as Common
 import      LibraBFT.Concrete.Properties.VotesOnce FakeInitAndHandlers as VO
 open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
@@ -33,6 +34,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAn
 -- in Concrete.VotesOnce.  We will want to prove these obligations for the fake/simple
 -- implementation (or some variant on it) and streamline the proof before we proceed to tackle more
 -- ambitious properties.
+
 
 module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   open        Structural impl-sps-avp
@@ -135,12 +137,13 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
               → LvrCarrier pk (signature v' unit) final
   fSE⇒rnd≤lvr hpk {theStep = step-peer (step-honest _)} (_ , _ , lvrc) step* = LvrCarrier-transp* lvrc step*
 
-  vo₁ : VO.ImplObligation₁ 𝓔
+  postulate
+    vo₁ : Common.IncreasingRoundObligation 𝓔
   -- Initialization doesn't send any messages at all so far; Agda figures that out so no proof
   -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
   -- they contain will be from GenesisInfo.
-  vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
-      {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 v'⊂m' m'∈pool sig' ¬init' refl rnds≡
+{-  vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
+      {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' ¬init' refl
      with msgsToSendWereSent {pid} {nm} m∈outs
   ...| _ , vm , _ , _
      with newVoteSameEpochGreaterRound r (step-msg m∈pool pidini) ¬init hpk v⊂m m∈outs sig ¬sentb4
@@ -176,7 +179,11 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
                             (nid≡ (pcs4in𝓔 vpb))))
 
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg m∈pool ps≡)
+<<<<<<< HEAD:LibraBFT/Impl/Properties/VotesOnce.agda
+      {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' _ refl
+=======
       {v' = v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 v'⊂m' m'∈pool sig' _ refl rnds≡
+>>>>>>> mainUpstream:LibraBFT/ImplFake/Properties/VotesOnce.agda
      | _ , vm , _ , _
      | eIds≡' , suclvr≡v'rnd , _
      | mkCarrier r' mws ini vpf' preprop
@@ -188,11 +195,12 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
                     -- So we have proved both that the round of v' is ≤ the lastVotedRound of
                     -- the peer's state and that the round of v' is one greater than that value,
                     -- which leads to a contradiction
-                    = ⊥-elim (1+n≰n (≤-trans (≤-reflexive suclvr≡v'rnd)
-                                             (≤-trans (≤-reflexive rnds≡) v'rnd≤lvr)))
+                    = inj₁ {!!} --⊥-elim (1+n≰n (≤-trans (≤-reflexive suclvr≡v'rnd)
+                                           --  (≤-trans (≤-reflexive rnds≡) v'rnd≤lvr)))
 
   -- TODO-1: This proof should be refactored to reduce redundant reasoning about the two votes.  The
   -- newVoteSameEpochGreaterRound property uses similar reasoning.
+-}
 
   vo₂ : VO.ImplObligation₂ 𝓔
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m}

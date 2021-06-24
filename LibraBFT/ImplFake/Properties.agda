@@ -9,6 +9,7 @@ open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
+import      LibraBFT.ImplFake.Properties.VotesOnce      as Common
 import      LibraBFT.ImplFake.Properties.VotesOnce      as VO
 import      LibraBFT.ImplFake.Properties.PreferredRound as PR
 open import LibraBFT.ImplShared.Base.Types
@@ -26,7 +27,7 @@ module LibraBFT.ImplFake.Properties (𝓔 : EpochConfig) where
                               ; gvr     = genVotesRound≡0
                               ; v≢0     = ¬genVotesRound≢0
                               ; ∈GI?    = ∈GenInfo?-impl genesisInfo
-                              ; vo₁     = VO.vo₁ 𝓔
+                              ; iro     = Common.vo₁ 𝓔
                               ; vo₂     = VO.vo₂ 𝓔
                               ; pr₁     = PR.pr₁ 𝓔
                               ; pr₂     = PR.pr₂ 𝓔

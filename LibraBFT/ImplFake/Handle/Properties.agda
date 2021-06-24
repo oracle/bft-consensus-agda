@@ -211,6 +211,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   ...| C c = const (≤-reflexive refl)
 
   postulate -- TODO-1: prove it
+
     ¬genVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
                       → ReachableSystemState pre
                       -- For any honest call to /handle/ or /init/,

@@ -53,8 +53,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState intSystemState
     validState = record
-      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor gvc gvr v≢0 ∈GI? vo₁ vo₂ st r
-      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor pr₁ pr₂ st r
+      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor gvc gvr v≢0 ∈GI? iro vo₂ st r
+      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor gvr ∈GI? iro pr₁ pr₂ st r
       }
 
     open IntermediateSystemState intSystemState
