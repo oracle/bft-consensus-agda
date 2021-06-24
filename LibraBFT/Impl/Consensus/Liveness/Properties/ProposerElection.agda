@@ -29,32 +29,32 @@ module IsValidProposalM (b : Block) where
         (ma ≡ nothing ⊎ Maybe-Any (getValidProposer pe r ≢_) ma → Post false pre [])
         → (Maybe-Any (getValidProposer pe r ≡_) ma → Post true pre [])
         → RWST-weakestPre (isValidProposalM b) Post unit pre
+  -- 1. `isValidProposalM` begins with `caseMM`, so we must provide two cases:
+  --    one where `b ^∙ bAuthor` is `nothing` and one where it is `just`
+  --    something
+  -- 2. When it is nothing, we appeal to the assumed proof for the false case
+  proj₁ (contract Post pre prfF prfT) ma≡nothing = prfF (inj₁ ma≡nothing)
+  -- 3. When it is something, we step into `isValidProposerM`. This means:
+  --    - we use the proposer election of the round manager (`pe` and `pe≡`)
+  --    - we apply `isValidProposer` to `pe`  (`isvp-pe` and `isvp-pe≡`)
+  --    - we push the pure value `a` into the LBFT monad and apply `isvp-pe` to
+  --      it (`.a`, `isvp-pe-a`, and `isvp-pe-a≡`)
+  --    - we push the pure value `b ^∙ bRound` (`r` and `r≡`) into the LBFT
+  --      monad, and the returned value is the result of applying `isvp-pe-a` to
+  --      this
+  -- > proj₂ (contract Post pre prfF prfT) a ma≡just-a pe pe≡ isvp-pe isvp-pe≡ .a refl isvp-pe-a isvp-pe-a≡ r r≡ = {!!}
+  -- 4. Since the returned value we want to reason about is directly related to
+  --    the behavior of these bound functions which are partial applications of
+  --    `isValidProposer`, we perform case-analysis on each of the equality
+  --    proofs (we can't pattern match on `ma≡just-a` directly)
+  proj₂ (contract Post pre prfF prfT) ._ ma≡just-a ._ refl ._ refl ._ refl ._ refl ._ refl
+  -- 5. To proceed, abstract over the expression that is blocking case analysis on `ma≡just-a`
+     with b ^∙ bAuthor
+  proj₂ (contract Post pre prfF prfT) ._ refl ._ refl ._ refl _ refl ._ refl ._ refl | just a
+  -- 6. Now test whether `a` is the valid proposer for the round
+     with getValidProposer (pre ^∙ lProposerElection) (b ^∙ bRound) ≟ℕ a
+  -- 7. If not, we appeal to the proof for the false case again.
+  ...| no ¬vp = prfF (inj₂ (just ¬vp))
+  -- 8. If so, we appeal to the proof for the true case
+  ...| yes vp = prfT (just vp)
 
-  -- isValidProposalM is a caseMM, so by definition of RWST-weakestPre (RWST-maybe ...), we need two
-  -- properties; the first is:
-  --   b ^∙ bAuthor ≡ nothing → RWST-weakestPre (RWST-return false) Post unit pre
-  -- = b ^∙ bAuthor ≡ nothing → P false pre []
-  -- We can get this from the provided property for the false case:
-  proj₁ (contract Post pre prfF _) = prfF ∘ inj₁
-  -- The second property we need is:
-  -- (∀ j → b ^∙ bAuthor ≡ just j → RWST-weakestPre (isValidProposerM j (b ^∙ bRound)) Post unit pre)
-  proj₂ (contract Post pre prfF prfT) = λ where a ma≡justa → aux ma≡justa
-     where
-       aux : ∀ {a} → b ^∙ bAuthor ≡ just a → RWST-weakestPre (isValidProposerM a (b ^∙ bRound)) Post unit pre
-       aux {a} ma≡justa pe refl
-          with b ^∙ bBlockData ∙ bdBlockType
-       ...| NilBlock = ⊥-elim (maybe-⊥ ma≡justa refl)
-       ...| Genesis  = ⊥-elim (maybe-⊥ ma≡justa refl)
-       ...| Proposal _ auth rewrite just-injective ma≡justa
-          with  getValidProposer pe (b ^∙ bRound) ≟ℕ a | inspect
-               (getValidProposer pe (b ^∙ bRound) ≟ℕ_) a
-       ...| yes refl | [ R ] =
-              λ where ivppeFn refl proposer refl ivppea refl bRnd refl →
-                       subst (λ b → Post b pre [])
-                             (subst ((true ≡_) ∘ isYes) (sym R) refl)
-                             (prfT (Maybe-Any.just refl))
-       ...| no neq | [ R ] =
-              λ where ivppeFn refl proposer refl ivppea refl bRnd refl →
-                       subst (λ b → Post b pre [])
-                             (subst ((false ≡_) ∘ isYes) (sym R) refl)
-                             (prfF (inj₂ (Maybe-Any.just neq)))
