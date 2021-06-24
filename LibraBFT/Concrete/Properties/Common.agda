@@ -1,3 +1,9 @@
+{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
+
+   Copyright (c) 2021, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
+-}
+
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
@@ -12,7 +18,8 @@ open        EpochConfig
 open import LibraBFT.Concrete.System
 open import LibraBFT.Yasm.Base
 
-
+-- This module contains definitions and proofs used by both the VotesOnce and PreferredRoundRule
+-- proofs.
 
 module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
  open        SystemTypeParameters ConcSysParms
