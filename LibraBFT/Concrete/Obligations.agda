@@ -38,7 +38,7 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
       -- VotesOnce:
       gvc  : Common.ImplObl-genVotesConsistent 𝓔
       gvr  : Common.ImplObl-genVotesRound≡0 𝓔
-      v≢0  : Common.ImplObl-NewVoteSignedAndRound≢0 𝓔
+      v≢0  : Common.ImplObl-NewVoteRound≢0 𝓔
       ∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig)
       iro : Common.IncreasingRoundObligation 𝓔
       vo₂ : VO.ImplObligation₂ 𝓔

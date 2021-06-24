@@ -1,3 +1,9 @@
+{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
+
+   Copyright (c) 2021, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
+-}
+
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
@@ -12,14 +18,16 @@ open        EpochConfig
 open import LibraBFT.Concrete.System
 open import LibraBFT.Yasm.Base
 
-
+-- This module contains definitions and proofs used by both the VotesOnce and PreferredRoundRule
+-- proofs.
 
 module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
  open        SystemTypeParameters ConcSysParms
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
  open import LibraBFT.ImplShared.Util.HashCollisions iiah
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK
+                                (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
  record VoteForRound∈ (pk : PK)(round : ℕ)(epoch : ℕ)(bId : HashValue)(pool : SentMessages) : Set where
    constructor mkVoteForRound∈
@@ -46,8 +54,8 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
                              → ∈GenInfo genInfo (_vSignature v1) → ∈GenInfo genInfo (_vSignature v2)
                              → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
- ImplObl-NewVoteSignedAndRound≢0 : Set (ℓ+1 ℓ-RoundManager)
- ImplObl-NewVoteSignedAndRound≢0 =
+ ImplObl-NewVoteRound≢0 : Set (ℓ+1 ℓ-RoundManager)
+ ImplObl-NewVoteRound≢0 =
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
@@ -80,9 +88,10 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
      ⊎ VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
 
  module ConcreteCommonProperties
-        (st : SystemState)
-        (r  : ReachableSystemState st)
-        (Impl-gvr : ImplObl-genVotesRound≡0)
+        (st         : SystemState)
+        (r          : ReachableSystemState st)
+        (Impl-gvr   : ImplObl-genVotesRound≡0)
+        (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
    where
 
    open PerReachableState r
@@ -98,8 +107,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
 
     -- If a Vote signed for an honest PK has been sent, and it is not in genInfo, then
     -- it is for a round > 0
-    -- TODO-1: prove using Impl-v≢0
-   postulate
+   postulate -- TODO-1: prove using Impl-nvr≢0
       NewVoteRound≢0 : ∀ {pk round epoch bId} {st : SystemState}
                      → ReachableSystemState st
                      → Meta-Honest-PK pk
