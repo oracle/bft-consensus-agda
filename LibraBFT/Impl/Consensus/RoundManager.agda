@@ -43,9 +43,9 @@ processNewRoundEventM now nre = pure unit
 
 ------------------------------------------------------------------------------
 
-ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (FakeErr ⊎ Bool)
+ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (Either FakeErr Bool)
 processProposalM      : Block                                         → LBFT Unit
-executeAndVoteM       : Block                                         → LBFT (FakeErr ⊎ Vote)
+executeAndVoteM       : Block                                         → LBFT (Either FakeErr Vote)
 
 -- external entry point
 -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -53,7 +53,7 @@ executeAndVoteM       : Block                                         → LBFT (
 module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₀ : LBFT Unit
   step₁ : Author → LBFT Unit
-  step₂ : FakeErr ⊎ Bool → LBFT Unit
+  step₂ : Either FakeErr Bool → LBFT Unit
 
   step₀ =
     case pm ^∙ pmProposer of λ where
@@ -66,8 +66,8 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
         -- IMPL-DIFF: We use `ifM` to test whether the round of the proposal is
         -- current, to take advantage of the obligations `RWST-weakestPre` generates.
         case r of λ where
-        (inj₁ _) → logErr -- log: error: <propagate error>
-        (inj₂ pmCurrent) →
+        (Left _) → logErr -- log: error: <propagate error>
+        (Right pmCurrent) →
           if pmCurrent
             then processProposalM (pm ^∙ pmProposal)
             else do
@@ -80,15 +80,15 @@ processProposalMsgM = processProposalMsgM.step₀
 
 -- TODO-2: Implement this.
 postulate
-  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (FakeErr ⊎ Unit)
+  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either FakeErr Unit)
 
 ------------------------------------------------------------------------------
 
 module ensureRoundAndSyncUpM
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo) (author : Author) (helpRemote : Bool) where
-  step₀ : LBFT (FakeErr ⊎ Bool)
-  step₁ : LBFT (FakeErr ⊎ Bool)
-  step₂ : LBFT (FakeErr ⊎ Bool)
+  step₀ : LBFT (Either FakeErr Bool)
+  step₁ : LBFT (Either FakeErr Bool)
+  step₂ : LBFT (Either FakeErr Bool)
 
   step₀ = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
@@ -120,7 +120,7 @@ processCertificatesM now = do
 module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
-  step₂ : FakeErr ⊎ Vote → LBFT Unit
+  step₂ : Either FakeErr Vote → LBFT Unit
   step₃ : Vote → LBFT Unit
   step₄ : Vote → SyncInfo → LBFT Unit
 
@@ -128,7 +128,7 @@ module ProcessProposalM (proposal : Block) where
     s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = rmGetBlockStore s
     vp ← ProposerElection.isValidProposalM proposal
-    step₁{s} bs vp
+    step₁ {s} bs vp
   step₁ bs vp =
     grd‖ is-nothing (proposal ^∙ bAuthor) ≔
          logErr -- log: error: proposal does not have an author
@@ -148,8 +148,8 @@ module ProcessProposalM (proposal : Block) where
            executeAndVoteM proposal >>= step₂
   step₂ r =
          case r of λ where
-           (inj₁ _) → logErr -- <propagate error>
-           (inj₂ vote) → step₃ vote
+           (Left _) → logErr -- <propagate error>
+           (Right vote) → step₃ vote
   step₃ vote = do
              RoundState.recordVote vote
              si ← BlockStore.syncInfoM
@@ -165,10 +165,10 @@ processProposalM = ProcessProposalM.step₀
 
 ------------------------------------------------------------------------------
 module ExecuteAndVoteM (b : Block) where
-  step₀ :                 LBFT (FakeErr ⊎ Vote)
-  step₁ : ExecutedBlock → LBFT (FakeErr ⊎ Vote)
-  step₂ : ExecutedBlock → LBFT (FakeErr ⊎ Vote)
-  step₃ : Vote  → LBFT (FakeErr ⊎ Vote)
+  step₀ :                 LBFT (Either FakeErr Vote)
+  step₁ : ExecutedBlock → LBFT (Either FakeErr Vote)
+  step₂ : ExecutedBlock → LBFT (Either FakeErr Vote)
+  step₃ : Vote          → LBFT (Either FakeErr Vote)
 
   step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
   step₁ eb = do
@@ -253,5 +253,5 @@ newQcAggregatedM now qc a =
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
-    (inj₁ e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
-    (inj₂ unit) → processCertificatesM now
+    (Left e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Right unit) → processCertificatesM now

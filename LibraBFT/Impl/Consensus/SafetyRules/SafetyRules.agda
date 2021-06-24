@@ -23,19 +23,19 @@ open RWST-do
 
 postulate
   obmCheckSigner : SafetyRules → Bool
-  extensionCheckM : VoteProposal → LBFT (FakeErr ⊎ VoteData)
-  constructLedgerInfoM : Block → HashValue → LBFT (FakeErr ⊎ LedgerInfo)
-  verifyQcM : QuorumCert → LBFT (FakeErr ⊎ Unit)
+  extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)
+  constructLedgerInfoM : Block → HashValue → LBFT (Either FakeErr LedgerInfo)
+  verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
 
 ------------------------------------------------------------------------------
 
-signer : SafetyRules → FakeErr ⊎ ValidatorSigner
-signer self = maybeS (self ^∙ srValidatorSigner) (inj₁ fakeErr {- error: signer not initialized -}) inj₂
+signer : SafetyRules → Either FakeErr ValidatorSigner
+signer self = maybeS (self ^∙ srValidatorSigner) (Left fakeErr {- error: signer not initialized -}) Right
 
 ------------------------------------------------------------------------------
 
 -- PREFERRED ROUND RULE (2nd VOTING RULE) : this avoids voting to commit a conflicting Block
-verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (FakeErr ⊎ SafetyData)
+verifyAndUpdatePreferredRoundM : QuorumCert → SafetyData → LBFT (Either FakeErr SafetyData)
 verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   let preferredRound = safetyData ^∙ sdPreferredRound
       oneChainRound  = quorumCert ^∙ qcCertifiedBlock ∙ biRound
@@ -55,7 +55,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 
 ------------------------------------------------------------------------------
 
-verifyEpochM : Epoch → SafetyData → LBFT (FakeErr ⊎ Unit)
+verifyEpochM : Epoch → SafetyData → LBFT (Either FakeErr Unit)
 verifyEpochM epoch safetyData =
   if not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
     then bail fakeErr -- log: error: incorrect epoch
@@ -64,7 +64,7 @@ verifyEpochM epoch safetyData =
 ------------------------------------------------------------------------------
 
 -- INCREASING ROUND RULE (1st VOTING RULE) : ensures voting only ONCE per round
-verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (FakeErr ⊎ SafetyData)
+verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (Either FakeErr SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
   if ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋
@@ -73,11 +73,11 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 
 ------------------------------------------------------------------------------
 
-constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (FakeErr ⊎ Vote)
-constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (FakeErr ⊎ Vote)
-constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (FakeErr ⊎ Vote)
+constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner                       → LBFT (Either FakeErr Vote)
+constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (Either FakeErr Vote)
+constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (Either FakeErr Vote)
 
-constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (FakeErr ⊎ Vote)
+constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either FakeErr Vote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   case vs of λ where
@@ -87,8 +87,8 @@ constructAndSignVoteM maybeSignedVoteProposal = do
       constructAndSignVoteM-continue0 voteProposal validatorSigner
 
 module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
-  step₀ : LBFT (FakeErr ⊎ Vote)
-  step₁ : SafetyData → LBFT (FakeErr ⊎ Vote)
+  step₀ : LBFT (Either FakeErr Vote)
+  step₁ : SafetyData → LBFT (Either FakeErr Vote)
 
   proposedBlock = voteProposal ^∙ vpBlock
   step₀ = do
@@ -108,10 +108,10 @@ module constructAndSignVoteM-continue1
   (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
   (proposedBlock : Block)        (safetyData0     : SafetyData) where
 
-  step₀ : LBFT (FakeErr ⊎ Vote)
-  step₁ : LBFT (FakeErr ⊎ Vote)
-  step₂ : ValidatorVerifier → LBFT (FakeErr ⊎ Vote)
-  step₃ : LBFT (FakeErr ⊎ Vote)
+  step₀ : LBFT (Either FakeErr Vote)
+  step₁ : LBFT (Either FakeErr Vote)
+  step₂ : ValidatorVerifier → LBFT (Either FakeErr Vote)
+  step₃ : LBFT (Either FakeErr Vote)
 
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
@@ -128,10 +128,10 @@ constructAndSignVoteM-continue1 = constructAndSignVoteM-continue1.step₀
 
 module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
                                        (proposedBlock : Block) (safetyData : SafetyData) where
-  step₀ : LBFT (FakeErr ⊎ Vote)
-  step₁ : SafetyData → LBFT (FakeErr ⊎ Vote)
-  step₂ : SafetyData → VoteData → LBFT (FakeErr ⊎ Vote)
-  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (FakeErr ⊎ Vote)
+  step₀ : LBFT (Either FakeErr Vote)
+  step₁ : SafetyData → LBFT (Either FakeErr Vote)
+  step₂ : SafetyData → VoteData → LBFT (Either FakeErr Vote)
+  step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (Either FakeErr Vote)
 
   step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
