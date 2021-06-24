@@ -352,4 +352,22 @@ module LibraBFT.Prelude where
   f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
   f-sum f = sum ∘ List-map f
 
+  record Monad {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
+    infixl 1 _>>=_ _>>_
+    field
+      return : ∀ {A : Set ℓ₁} → A → M A
+      _>>=_  : ∀ {A B : Set ℓ₁} → M A → (A → M B) → M B
+
+    _>>_ : ∀ {A B : Set ℓ₁} → M A → M B → M B
+    m₁ >> m₂ = m₁ >>= λ _ → m₂
+
+  open Monad ⦃ ... ⦄ public
+
+  open import Category.Monad
+  import      Data.Sum.Categorical.Left
+  instance
+    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Error{ℓ}{C}) = RawMonad.return (Data.Sum.Categorical.Left.monad C ℓ)
+    Monad._>>=_ (Monad-Error{ℓ}{C}) = RawMonad._>>=_ (Data.Sum.Categorical.Left.monad C ℓ)
+
   open import LibraBFT.Base.Util public

@@ -33,27 +33,24 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
   private
    variable
     Ev Wr : Set
-    ℓ-A ℓ-B ℓ-C : Level
-    A : Set ℓ-A
-    B : Set ℓ-B
-    C : Set ℓ-C
+    ℓ-Result : Level
     St : Set ℓ-State
 
-  RWST-run : RWST Ev Wr St A → Ev → St → (A × St × List Wr)
+  RWST-run : ∀ {A : Set ℓ-Result} → RWST Ev Wr St A → Ev → St → (A × St × List Wr)
   RWST-run (rwst f) = f
 
-  RWST-bind : RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+  RWST-bind : ∀ {A B : Set ℓ-Result} → RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
   RWST-bind x f = rwst (λ ev st →
     let (a , st'  , wr₀) = RWST-run x     ev st
         (b , st'' , wr₁) = RWST-run (f a) ev st'
      in b , st'' , wr₀ ++ wr₁)
 
-  RWST-return : A → RWST Ev Wr St A
+  RWST-return : ∀ {A : Set ℓ-Result} → A → RWST Ev Wr St A
   RWST-return x = rwst (λ _ st → x , st , [])
 
   -- Functorial Functionality
 
-  RWST-map : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+  RWST-map : ∀ {A B : Set ℓ-Result} → (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
   RWST-map f x = rwst (λ ev st →
     let (a , st' , wr) = RWST-run x ev st
      in f a , st' , wr)
@@ -63,8 +60,8 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
   get : RWST Ev Wr St {ℓ-State} St
   get = rwst (λ _ st → st , st , [])
 
-  gets : (St → A) → RWST Ev Wr St A
-  gets f = RWST-bind get (RWST-return ∘ f)
+  gets : ∀ {A : Set ℓ-Result} → (St → A) → RWST Ev Wr St A
+  gets f = rwst λ ev st → f st , st , []
 
 {- TODO-2: extend Lens to work with different levels and reinstate this
 
@@ -102,48 +99,35 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
   ask : RWST Ev Wr St Ev
   ask = rwst (λ ev st → (ev , st , []))
 
-  ok : ∀ {B : Set ℓ-B} → A → RWST Ev Wr St (Either B A)
+  ok : ∀ {A B : Set ℓ-Result} → A → RWST Ev Wr St (Either B A)
   ok = RWST-return ∘ Right
 
-  bail : B → RWST Ev Wr St (Either B A)
+  bail : ∀ {A B : Set ℓ-Result} → B → RWST Ev Wr St (Either B A)
   bail = RWST-return ∘ Left
 
-  -- Easy to use do notation; i.e.;
+  -- Access do-notation with
+  -- > open RWST-do
   module RWST-do where
-    infixl 1 _>>=_ _>>_
-    _>>=_  : RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
-    _>>=_  = RWST-bind
+    instance
+      RWST-Monad : ∀ {ℓ-Result} → Monad{ℓ-Result}{ℓ-State ℓ⊔ ℓ-Result} (RWST Ev Wr St)
+      RWST-Monad = record { return = RWST-return ; _>>=_ = RWST-bind }
 
-    _>>_   : RWST Ev Wr St A → RWST Ev Wr St B → RWST Ev Wr St B
-    x >> y = x >>= λ _ → y
-
-    return : A → RWST Ev Wr St A
-    return = RWST-return
-
-    pure : A → RWST Ev Wr St A
+    pure : ∀ {A : Set ℓ-Result} → A → RWST Ev Wr St A
     pure = return
 
     infixl 4 _<$>_
-    _<$>_ : (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+    _<$>_ : ∀ {A B : Set ℓ-Result} → (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
     _<$>_ = RWST-map
 
     infixl 4 _<*>_
-    _<*>_ : RWST Ev Wr St (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
-    fs <*> xs = do
+    _<*>_ : ∀ {A B : Set ℓ-Result} → RWST Ev Wr St (A → B) → RWST Ev Wr St A → RWST Ev Wr St B
+    _<*>_{Ev}{Wr}{St}{A}{B} fs xs = do
       f ← fs
       x ← xs
       pure (f x)
 
-  private
-    ex₀ : RWST ℕ Wr (Lift ℓ-State ℕ) ℕ
-    ex₀ = do
-       x₁ ← get
-       x₂ ← ask
-       return (lower x₁ + x₂)
-       where open RWST-do
-
   -- Derived Functionality
-  maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+  maybeSM : ∀ {A B : Set ℓ-Result} → RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
   maybeSM mma mb f = do
     x ← mma
     case x of λ where
@@ -152,8 +136,9 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
     where
     open RWST-do
 
-  maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
-          → RWST Ev Wr St B
+  maybeSMP
+    : ∀ {A B : Set ℓ-Result} → RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
+      → RWST Ev Wr St B
   maybeSMP ma b f = do
     x ← ma
     case x of λ where
@@ -162,7 +147,7 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
     where open RWST-do
 
   infixl 4 _∙?∙_
-  _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
+  _∙?∙_ : ∀ {A B C : Set ℓ-Result} → RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
   m ∙?∙ f = do
     r ← m
     case r of λ where
@@ -170,7 +155,7 @@ module LibraBFT.ImplShared.Util.RWST (ℓ-State : Level) where
       (Right a) → f a
     where open RWST-do
 
-  _∙^∙_ : RWST Ev Wr St (Either A B) → (A → A) → RWST Ev Wr St (Either A B)
+  _∙^∙_ : ∀ {A B : Set ℓ-Result} → RWST Ev Wr St (Either A B) → (A → A) → RWST Ev Wr St (Either A B)
   m ∙^∙ f = do
     x ← m
     case x of λ where
