@@ -248,8 +248,8 @@ addVoteM now vote = do
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where
-    (inj₁ e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
-    (inj₂ unit) → processCertificatesM now
+    (Left e)     → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Right unit) → processCertificatesM now
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
