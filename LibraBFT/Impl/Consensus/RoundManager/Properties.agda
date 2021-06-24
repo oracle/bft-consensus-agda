@@ -127,20 +127,14 @@ module ProcessProposalMSpec (proposal : Block) where
         , (λ _ →
            ExecuteAndVoteMSpec.contract⇒ proposal pre
              (RWST-weakestPre-bindPost unit step₂ (Contract pre))
-              λ where
-                (inj₁ x) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
-                  (λ where ._ refl → errContract)
-                  , λ where ._ ()
-                (inj₂ vote) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
-                  (λ where _ ())
-                  , λ where
-                     ._ refl unit _ →
-                       syncInfoMSpec.contract (RWST-weakestPre-bindPost unit (step₄ vote ) (Contract pre)) st
-                         λ where
-                           si ._ refl ._ refl ._ refl ._ refl ._ refl →
-                             mkContract
-                               (inj₂ ((SendVote (VoteMsg∙new vote si) _) , refl))
-                               λ where ._ ._ (here refl) → voteSrcCorrect)
+             λ where
+               (inj₁ _) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl →
+                 mkContract (inj₁ refl) (λ where vm pid (here ()))
+               (inj₂ vote) st .[] (ExecuteAndVoteMSpec.mkContract refl voteSrcCorrect) ._ refl ._ refl →
+                 syncInfoMSpec.contract (RWST-weakestPre-bindPost unit (step₃ vote) (Contract pre)) st
+                   (λ where
+                     si ._ refl ._ refl ._ refl ._ refl ._ refl →
+                       mkContract (Right (_ , refl)) (λ where vm pid (here refl) → voteSrcCorrect)))
 
 module syncUpMSpec (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
   OutputSpec : List Output → Set

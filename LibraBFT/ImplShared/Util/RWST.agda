@@ -348,10 +348,16 @@ RWST-× P Q (RWST-maybe m c₁ c₂) ev st p q =
   , (λ j j≡ → RWST-× P Q (c₂ j) ev st (proj₂ p j j≡) (proj₂ q j j≡))
 
 -- Derived Functionality
+maybeS-RWST : Maybe A → (RWST Ev Wr St B) → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+maybeS-RWST ma n j =
+  caseMM ma of λ where
+    nothing → n
+    (just x) → j x
+
 maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
 maybeSM mma mb f = do
   x ← mma
-  case x of λ where
+  caseMM x of λ where
     nothing → mb
     (just j) → f j
   where
@@ -361,7 +367,7 @@ maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
            → RWST Ev Wr St B
 maybeSMP ma b f = do
   x ← ma
-  case x of λ where
+  caseMM x of λ where
     nothing → return b
     (just j) → f j
   where open RWST-do

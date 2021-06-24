@@ -80,7 +80,10 @@ constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block �
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either FakeErr Vote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
-  caseMM vs of λ where
+  -- NOTE: It's OK to use `case` here, rather than `caseMM`, becase we are
+  -- splitting on /precisely/ the expression that is given to us by the
+  -- preceding bind.
+  case vs of λ where
     nothing → bail fakeErr -- error: srValidatorSigner is nothing
     (just validatorSigner) → do
       let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal

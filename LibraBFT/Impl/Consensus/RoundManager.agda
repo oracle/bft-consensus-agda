@@ -63,17 +63,16 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₁ pAuthor =
         ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
                               pAuthor true >>= step₂
-  step₂ r =
-        -- IMPL-DIFF: We use `ifM` to test whether the round of the proposal is
-        -- current, to take advantage of the obligations `RWST-weakestPre` generates.
-        caseM⊎ r of λ where
-        (Left _) → logErr -- log: error: <propagate error>
-        (Right pmCurrent) →
-          ifM pmCurrent
-            then processProposalM (pm ^∙ pmProposal)
-            else do
-              currentRound ← use (lRoundState ∙ rsCurrentRound)
-              logInfo  -- log: info: dropping proposal for old round
+  step₂ = λ where
+          -- IMPL-DIFF: We use `ifM` to test whether the round of the proposal is
+          -- current, to take advantage of the obligations `RWST-weakestPre` generates.
+          (Left _) → logErr -- log: error: <propagate error>
+          (Right pmCurrent) →
+            ifM pmCurrent
+              then processProposalM (pm ^∙ pmProposal)
+              else do
+                currentRound ← use (lRoundState ∙ rsCurrentRound)
+                logInfo  -- log: info: dropping proposal for old round
 
 processProposalMsgM = processProposalMsgM.step₀
 
@@ -122,8 +121,7 @@ module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
   step₂ : Either FakeErr Vote → LBFT Unit
-  step₃ : Vote → LBFT Unit
-  step₄ : Vote → SyncInfo → LBFT Unit
+  step₃ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
     s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
@@ -147,20 +145,18 @@ module ProcessProposalM (proposal : Block) where
          -- > executeAndVoteM proposal >>= \case
          -- is translated to the following.
            executeAndVoteM proposal >>= step₂
-  step₂ r =
-         caseM⊎ r of λ where
-           (Left _) → logErr -- <propagate error>
-           (Right vote) → step₃ vote
-  step₃ vote = do
-             RoundState.recordVote vote
-             si ← BlockStore.syncInfoM
-             step₄ vote si
-  step₄ vote si = do
-             recipient ← ProposerElection.getValidProposer
-                         <$> use lProposerElection
-                         <*> pure (proposal ^∙ bRound + 1)
-             act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
-             -- TODO-2:                                                mkNodesInOrder1 recipient
+  step₂ =  λ where
+            (Left _) → logErr -- <propagate error>
+            (Right vote) → do
+              RoundState.recordVote vote
+              si ← BlockStore.syncInfoM
+              step₃ vote si
+  step₃ vote si = do
+              recipient ← ProposerElection.getValidProposer
+                          <$> use lProposerElection
+                          <*> pure (proposal ^∙ bRound + 1)
+              act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
+              -- TODO-2:                           mkNodesInOrder1 recipient
 
 processProposalM = ProcessProposalM.step₀
 

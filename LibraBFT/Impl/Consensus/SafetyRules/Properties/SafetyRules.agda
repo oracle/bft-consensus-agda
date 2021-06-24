@@ -599,8 +599,8 @@ module ConstructAndSignVoteM where
     voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
 
     contract : ∀ pre → RWST-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre) unit pre
-    proj₁ (contract pre vs vs≡) vs≡nothing = mkContract refl unit
-    proj₂ (contract pre vs vs≡) j j≡ = Continue0.contract voteProposal j pre
+    contract pre nothing vs≡ = mkContract refl unit
+    contract pre (just validatorSigner) vs≡ = Continue0.contract voteProposal validatorSigner pre
 
     contract⇒ : ∀ pre Post
                 → (∀ r st outs → Contract pre r st outs → Post r st outs)
