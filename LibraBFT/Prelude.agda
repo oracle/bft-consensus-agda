@@ -279,6 +279,12 @@ module LibraBFT.Prelude where
   (inj₁ x) ⊎⟫= _ = inj₁ x
   (inj₂ a) ⊎⟫= f = f a
 
+  -- Syntactic support for more faithful model of Haskell code
+  Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
+  Either A B = A ⊎ B
+  pattern Left  x = inj₁ x
+  pattern Right x = inj₂ x
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?
