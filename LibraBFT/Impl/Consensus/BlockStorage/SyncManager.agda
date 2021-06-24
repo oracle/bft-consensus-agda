@@ -22,4 +22,4 @@ module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 open RWST-do
 
 postulate
-  insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (FakeErr ⊎ Unit)
+  insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (Either FakeErr Unit)

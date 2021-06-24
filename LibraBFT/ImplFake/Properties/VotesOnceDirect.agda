@@ -7,6 +7,7 @@
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+import      LibraBFT.Concrete.Properties.Common as Common
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
 open import LibraBFT.ImplFake.Handle
@@ -30,7 +31,6 @@ open        Structural impl-sps-avp
 -- inductively on the ReachableSystemState.
 
 module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
-
 
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
                        → ReachableSystemState st
@@ -209,9 +209,9 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   ...| no  pid≢ = ⊥-elim (pid≢ (peerCanSignPK-Inj step pkH vspk vspkN refl))
 
 
-  votesOnce₁ : VO.ImplObligation₁ FakeInitAndHandlers 𝓔
+  votesOnce₁ : Common.IncreasingRoundObligation FakeInitAndHandlers 𝓔
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
-             pkH v⊂m (here refl) sv ¬gen ¬msb v'⊂m' m'∈pool sv' ¬gen' eid≡ r≡
+             pkH v⊂m (here refl) sv ¬gen ¬msb vspk v'⊂m' m'∈pool sv' ¬gen' eid≡
      with v⊂m
   ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong _vSignature v≈rbld
      = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
@@ -224,7 +224,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                      step   = step-peer (step-honest stMsg)
                      vspre' = peerCanSign-Msb4 r step vspkv' pkH sv' m'mwsb
                      rv'<rv = oldVoteRound≤lvr r pkH sv' ¬gen' m'mwsb vspre' eid≡
-                 in ⊥-elim (<⇒≢ (s≤s rv'<rv) (sym r≡))
+                 in inj₁ (s≤s rv'<rv)
 
   votesOnce₂ : VO.ImplObligation₂ FakeInitAndHandlers 𝓔
   votesOnce₂ {pk = pk} {st} r stMsg@(step-msg {_ , P m} m∈pool psI) pkH v⊂m m∈outs sig ¬gen vnew

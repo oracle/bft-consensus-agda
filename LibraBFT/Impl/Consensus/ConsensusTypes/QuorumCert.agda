@@ -13,5 +13,5 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
 
 postulate
-  verify : QuorumCert → ValidatorVerifier → FakeErr ⊎ Unit
+  verify : QuorumCert → ValidatorVerifier → Either FakeErr Unit
 
