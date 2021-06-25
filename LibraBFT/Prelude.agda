@@ -290,6 +290,32 @@ module LibraBFT.Prelude where
   pattern Left  x = inj₁ x
   pattern Right x = inj₂ x
 
+  open import Data.String as String
+    hiding (_==_)
+
+  check : Bool → List String → Either String Unit
+  check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
+
+  record Eq {ℓ : Level} (A : Set ℓ) : Set ℓ where
+    infix 4 _==_
+    field
+      _==_ : (a b : A) → Dec (a ≡ b)
+  open Eq ⦃ ... ⦄ public
+
+  instance
+    Eq-Nat : Eq ℕ
+    Eq._==_ Eq-Nat = _≟ℕ_
+
+    -- TODO-1: Data.Maybe.Relation.Binary.Pointwise
+    Eq-Maybe : ∀ {ℓ} {A : Set ℓ} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
+    (Eq-Maybe Eq.== nothing) nothing = yes refl
+    (Eq-Maybe Eq.== nothing) (just x) = no λ where ()
+    (Eq-Maybe Eq.== just x) nothing = no λ where ()
+    (Eq-Maybe Eq.== just a) (just b)
+      with a == b
+    ... | no  proof = no (λ where refl → proof refl)
+    ... | yes proof = yes (cong just proof)
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?
