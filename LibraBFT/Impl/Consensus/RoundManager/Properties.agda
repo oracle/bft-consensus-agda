@@ -81,8 +81,8 @@ module ProcessProposalMSpec (proposal : Block) where
 
   OutputSpec : List Output → Set
   OutputSpec outs =
-    let msgs = List-filter isSendVote? outs in
-    msgs ≡ [] ⊎ ∃[ sv ] (msgs ≡ sv ∷ []) -- No SendVote, or exactly one SendVote
+    let msgs = List-filter isOutputMsg? outs in
+    msgs ≡ [] ⊎ ∃₂ λ vm pid → (msgs ≡ SendVote vm (pid ∷ []) ∷ []) -- No SendVote, or exactly one SendVote
 
   record Contract (pre : RoundManager) (r : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
@@ -134,14 +134,14 @@ module ProcessProposalMSpec (proposal : Block) where
                  syncInfoMSpec.contract (RWST-weakestPre-bindPost unit (step₃ vote) (Contract pre)) st
                    (λ where
                      si ._ refl ._ refl ._ refl ._ refl ._ refl →
-                       mkContract (Right (_ , refl)) (λ where vm pid (here refl) → voteSrcCorrect)))
+                       mkContract (Right (_ , _ , refl)) λ where vm pid (here refl) → voteSrcCorrect))
 
 module syncUpMSpec (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
   OutputSpec : List Output → Set
   OutputSpec outs = outs ≡ []
 
   StateSpec : (pre post : RoundManager) → Set
-  StateSpec pre post = pre ≡L post at lSafetyData ∙ sdLastVote
+  StateSpec pre post = pre ≡L post at₁ lSafetyData ∙ sdLastVote
 
   record Contract (pre : RoundManager) (r : FakeErr ⊎ Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
@@ -165,7 +165,7 @@ module ensureRoundAndSyncUpMSpec
   OutputSpec outs = outs ≡ []
 
   StateSpec : (pre post : RoundManager) → Set
-  StateSpec pre post = pre ≡L post at lSafetyData ∙ sdLastVote
+  StateSpec pre post = pre ≡L post at₁ lSafetyData ∙ sdLastVote
 
   record Contract (pre : RoundManager) (r : FakeErr ⊎ Bool) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
@@ -186,154 +186,36 @@ module ensureRoundAndSyncUpMSpec
         (inj₂ _) st .[] (syncUpMSpec.mkContract refl postSpec) _ _ currentRound' ≡currentRound' →
           (λ _ → mkContract refl postSpec) , λ _ → mkContract refl postSpec)
 
+  contract⇒ : ∀ pre Post
+              → (∀ r st outs → Contract pre r st outs → Post r st outs)
+              → RWST-weakestPre
+                  (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote)
+                  Post unit pre
+  contract⇒ pre Post pf = RWST-impl _ Post pf step₀ unit pre (contract pre)
+
+
 module processProposalMsgMSpec (now : Instant) (pm : ProposalMsg) where
 
+  record Contract-HasOuts
+    (pre : RoundManager) (_ : Unit) (post : RoundManager) (msgs : List Output)
+    (vm : VoteMsg) (pid : NodeId) : Set where
+    constructor mkContract-HasOuts
+    field
+      msgs≡    : msgs ≡ SendVote vm (pid ∷ []) ∷ []
+      ep≡      : pm ≡L vm at (pmProposal ∙ bBlockData ∙ bdEpoch , vmVote ∙ vEpoch)
+      lvr-pre  : pre ^∙ lSafetyData ∙ sdLastVotedRound < vm ^∙ vmVote ∙ vRound
+                 ⊎ just (vm ^∙ vmVote) ≡ (pre ^∙ lSafetyData ∙ sdLastVote)
+      lvr-post : just (vm ^∙ vmVote) ≡ (post ^∙ lSafetyData ∙ sdLastVote)
 
-{-
-module ProcessProposalM (proposal : Block) where
-  open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
-  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
+  Contract : (pre : RoundManager) (r : Unit) (post : RoundManager) (outs : List Output) → Set
+  Contract pre r post outs =
+    let msgs = List-filter isOutputMsg? outs in
+    msgs ≡ [] ⊎ ∃₂ λ vm pid → Contract-HasOuts pre r post msgs vm pid
 
-  VoteSrcCorrect : RoundManager → LBFT-Post Unit
-  VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
-
-  c₁ : ErrLog ⊎ Vote → LBFT Unit
-  c₁ _r =
-    caseM⊎ (_r) of λ where
-      (inj₁ _) → pure unit
-      (inj₂ vote) → do
-        RoundState.recordVote (unmetaVote vote)
-        si ← BlockStore.syncInfo
-        recipient ← ProposerElection.getValidProposer
-                      <$> use lProposerElection
-                      <*> pure (proposal ^∙ bRound + 1)
-        act (SendVote (VoteMsgWithMeta∙fromVote vote si) (recipient ∷ []))
-
-  voteSrcCorrect
-    : ∀ pre → RWST-weakestPre (processProposalM proposal) (VoteSrcCorrect pre) unit pre
-  voteSrcCorrect pre ._ refl =
-    IsValidProposalM.contract proposal _ pre λ where
-      b _ refl →
-        (λ where _ _ _ ())
-        , λ _ → (λ where _ _ _ ())
-          , λ _ → (λ where _ _ _ ())
-            , λ _ → (λ where _ _ _ ())
-              , (λ _ → vsc)
-    where
-    -- TODO-3: This is unprovable without knowing that `outs` is [], i.e., that
-    -- `executeAndVoteM` produces no output.
-    impl : ∀ x st outs
-           → (outs ≡ [] × ExecuteAndVoteM.VoteSrcCorrect proposal pre x st outs)
-           → RWST-weakestPre-bindPost unit c₁ (VoteSrcCorrect pre) x st outs
-    proj₁ (impl x st .[] (refl , pf) .x refl) unit _ _ _ ()
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsNew) refl unit _ =
-      GetSyncInfo.contract _ st λ where
-        _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsNew) .(_ ∷ []) (here refl) →
-          pf
-    proj₂ (impl ._ st .[] (refl , pf) .(inj₂ _) refl) (Vote∙new vote mvsLastVote) refl unit _ =
-      GetSyncInfo.contract _ st λ where
-        _ r _ _ _ _ _ _ _ _ _ _ _ .(VoteMsgWithMeta∙new (VoteMsg∙new vote r) mvsLastVote) ._ (here refl) →
-          pf
-
-    vsc : RWST-weakestPre (executeAndVoteM proposal) _ unit pre
-    vsc = RWST-impl _ _ impl (executeAndVoteM proposal) unit pre
-            (RWST-× _ _ (executeAndVoteM proposal) unit pre
-              (ExecuteAndVoteM.noOuts proposal pre)
-              (ExecuteAndVoteM.voteSrcCorrect proposal pre))
-           -- RWST-impl _ _ impl (executeAndVoteM proposal) unit pre
-           -- {!!} -- (ExecuteAndVoteM.voteSrcCorrect proposal pre)
-
-module ProcessProposalMsgM (now : Instant) (pm : ProposalMsg) where
-
-  VoteSrcCorrect : RoundManager → LBFT-Post Unit
-  VoteSrcCorrect pre x post outs =
-    ∀ vm αs → SendVote vm αs ∈ outs → VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
-
-  Contract : RoundManager → LBFT-Post Unit
-  Contract pre x post outs =
-    ∀ m → m ∈ outs →
-    ∃₂ λ vm αs → m ≡ SendVote vm αs × VoteSrcCorrectCod pre post (vm ^∙ mvmVote)
-
+  -- TODO-1: Prove this
   postulate
-    contract
-      : ∀ pre → RWST-weakestPre (processProposalMsgM now pm) (Contract pre) unit pre
+    contract : ∀ pre → RWST-weakestPre (processProposalMsgM now pm) (Contract pre) unit pre
 
-  contract! : ∀ pre
-              → let x    = RWST-result (processProposalMsgM now pm) unit pre
-                    post = RWST-post   (processProposalMsgM now pm) unit pre
-                    outs = RWST-outs   (processProposalMsgM now pm) unit pre in
-                Contract pre x post outs
-  contract! pre = RWST-contract (processProposalMsgM now pm) (Contract pre) unit pre (contract pre)
-
-{-
-  m∈outs⇒ : ∀ {nm ts pm pre} → nm ∈ LBFT-outs (processProposalMsgM ts pm) pre
-            → let messageRound = pm ^∙ pmProposal ∙ bRound
-                  syncInfo     = pm ^∙ pmSyncInfo
-                  currentRound = pre ^∙ lRoundState ∙ rsCurrentRound in
-              Σ[ a ∈ Author ]
-                (just a ≡ pm ^∙ pmProposer
-                  × ¬ (messageRound < currentRound)
-                  × nm ∈ LBFT-outs (ensureRoundAndSyncUpM-check₁ ts messageRound syncInfo a true
-                                    >>= processProposalMsgM-check₁-cont ts pm a)
-                                   pre)
-  m∈outs⇒{nm}{ts}{pm}{pre} m∈outs
-     with pm ^∙ pmProposer
-  ... | just author
-     with (pm ^∙ pmProposal ∙ bRound) <? (pre ^∙ lRoundState ∙ rsCurrentRound)
-  ... | no proof = author , refl , proof , m∈outs
-
-  voteSrcCorrect₁ : ∀ {ts pm pre vm αs}
-                  → (SendVote vm αs) ∈ LBFT-outs (processProposalMsgM ts pm) pre
-                  → (vm ^∙ mvmSrc) ≡ mvsLastVote
-                  → let lastVote = pre ^∙ lPersistentSafetyStorage ∙ pssSafetyData ∙ sdLastVote
-                    in just (unmetaVoteMsg vm ^∙ vmVote) ≡ lastVote
-  voteSrcCorrect₁{ts}{pm}{pre}{vm}{αs} vm∈outs src≡LastVote
-     with m∈outs⇒{ts = ts}{pm} vm∈outs
-  ...| a , pmAuth , mr≥cr , m∈outs₁
-     with (pm ^∙ pmProposal ∙ bRound) ≟ℕ (pre ^∙ lRoundState ∙ rsCurrentRound)
-  ...| yes proof₁
-     with pm ^∙ pmProposer
-  ...| just a'
-     with ProposerElection.getValidProposer (pre ^∙ lProposerElection) (pm ^∙ pmProposal ∙ bRound)
-  ...| a“
-     with a“ ≟ℕ a'
-  ...| yes proof₂
-     with BlockStore.getQuorumCertForBlock (pm ^∙ pmProposal ∙ bParentId) (rmGetBlockStore pre)
-  ...| just _
-     with BlockStore.getBlock (pm ^∙ pmProposal ∙ bParentId) (rmGetBlockStore pre)
-  ... | just parentBlock
-     with (parentBlock ^∙ ebRound) <?ℕ (pm ^∙ pmProposal ∙ bRound)
-  ... | yes proof
-     with BlockStoreSpec.executeAndInsertBlockM-noOutput (pm ^∙ pmProposal) pre
-      |   BlockStoreSpec.executeAndInsertBlockM-RW       (pm ^∙ pmProposal) pre
-  ... | noOuts | eaib-rw
-     with LBFT-run (BlockStore.executeAndInsertBlockM (pm ^∙ pmProposal)) pre
-  voteSrcCorrect₁ vm∈outs src≡LastVote
-      | a , pmAuth , mr≥cr , m∈outs₁ | yes proof₁ | just a' | a“ | yes proof₂ | just _ | just parentBlock | yes proof | refl | eaib-rw | inj₁ _ , rm₁ , .[] =
-      ⊥-elim (¬Any[] m∈outs₁)
-  voteSrcCorrect₁{ts}{pm}{pre}{vm}{αs} vm∈outs src≡LastVote
-      | a , pmAuth , mr≥cr , m∈outs₁ | yes proof₁ | just a' | a“ | yes proof₂ | just _ | just parentBlock | yes proof | refl | eaib-rw | inj₂ eb , rm₁ , .[]
-      with rm₁ ^∙ lRoundState ∙ rsVoteSent
-  ... | nothing
-      with rm₁ ^∙ lSyncOnly
-  ... | false
-      with ExecutedBlock.maybeSignedVoteProposal eb
-  ... | maybeSignedVoteProposal'
-      with SafetyRulesSpec.constructAndSignVoteM-voteSrcCorrect maybeSignedVoteProposal' rm₁
-  ... | csv-vsc
-      with SafetyRulesSpec.constructAndSignVoteM-noOutput maybeSignedVoteProposal' rm₁
-  ... | noOuts
-      with LBFT-run (SafetyRules.constructAndSignVoteM maybeSignedVoteProposal') rm₁
-  voteSrcCorrect₁ vm∈outs src≡LastVote
-      | a , pmAuth , mr≥cr , m∈outs₁ | yes proof₁ | just a' | a“ | yes proof₂ | just _ | just parentBlock | yes proof | refl | eaib-rw | inj₂ eb , rm₁ , .[]
-      | nothing | false | maybeSignedVoteProposal' | csv-vsc | refl | inj₂ mv , rm₂ , .[]
-      with BlockStoreSpec.syncInfo-noOutput rm₂
-  ... | noOuts
-      with LBFT-run BlockStore.syncInfo rm₂
-  voteSrcCorrect₁ vm∈outs src≡LastVote
-      | a , pmAuth , mr≥cr , here refl | yes proof₁ | just a' | a“ | yes proof₂ | just _ | just parentBlock | yes proof | refl | eaib-rw | inj₂ eb , rm₁ , .[]
-      | nothing | false | maybeSignedVoteProposal' | csv-vsc | refl | inj₂ mv , rm₂ , .[]
-      | refl | si , rm₃ , .[] rewrite sym eaib-rw = csv-vsc src≡LastVote
--}
--}
+  contract⇒ : ∀ pre Post → (∀ r st outs → Contract pre r st outs → Post r st outs)
+              → RWST-weakestPre (processProposalMsgM now pm) Post unit pre
+  contract⇒ pre Post pf = RWST-impl (Contract pre) Post pf (processProposalMsgM now pm) unit pre (contract pre)

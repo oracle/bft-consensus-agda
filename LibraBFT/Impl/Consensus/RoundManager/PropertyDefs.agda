@@ -26,12 +26,12 @@ module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 data VoteSrcCorrectCod (pre post : RoundManager) (vote : Vote) : Set where
   mvsNew :      just vote ≡ post ^∙ lSafetyData ∙ sdLastVote → VoteSrcCorrectCod pre post vote
   mvsLastVote : just vote ≡ pre ^∙ lSafetyData ∙ sdLastVote
-              → pre ≡L post at (lSafetyData ∙ sdLastVote)    → VoteSrcCorrectCod pre post vote
+              → pre ≡L post at₁ (lSafetyData ∙ sdLastVote)    → VoteSrcCorrectCod pre post vote
 
 voteSrcCorrectCod-substRm
   : ∀ {pre₁ pre₂ post₁ post₂ mv}
-    → pre₁ ≡L pre₂ at (lSafetyData ∙ sdLastVote)
-    → post₁ ≡L post₂ at (lSafetyData ∙ sdLastVote)
+    → pre₁ ≡L pre₂ at₁ (lSafetyData ∙ sdLastVote)
+    → post₁ ≡L post₂ at₁ (lSafetyData ∙ sdLastVote)
     → VoteSrcCorrectCod pre₁ post₁ mv
     → VoteSrcCorrectCod pre₂ post₂ mv
 voteSrcCorrectCod-substRm refl refl (mvsNew x) = mvsNew x

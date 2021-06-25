@@ -235,6 +235,14 @@ module LibraBFT.Prelude where
     using (Setoid; IsPreorder)
     public
 
+  open import Relation.Unary
+    using (_∪_)
+    public
+
+  open import Relation.Unary.Properties
+    using (_∪?_)
+    public
+
   -- Evidence that a function is not injective
   NonInjective : ∀{a b c}{A : Set a}{B : Set b}
                → (_≈_ : Rel A c)
