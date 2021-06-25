@@ -115,7 +115,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    open        PerState st
    open        PerReachableState r
    open        PerEpoch 𝓔
-   open        ConcreteCommonProperties st r Impl-gvr Impl-nvr≢0
+   open        ConcreteCommonProperties st r sps-corr Impl-gvr Impl-nvr≢0
 
 
    α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)

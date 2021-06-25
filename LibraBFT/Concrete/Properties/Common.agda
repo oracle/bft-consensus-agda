@@ -90,10 +90,12 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
  module ConcreteCommonProperties
         (st         : SystemState)
         (r          : ReachableSystemState st)
+        (sps-corr   : StepPeerState-AllValidParts)
         (Impl-gvr   : ImplObl-genVotesRound≡0)
         (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
    where
 
+   open Structural sps-corr
    open PerReachableState r
 
    msgSentB4⇒VoteRound∈ : ∀ {v pk pool}
@@ -102,18 +104,39 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
                          → VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) pool
    msgSentB4⇒VoteRound∈ {v} vv m
        with sameSig⇒sameVoteDataNoCol (msgSigned m) vv (msgSameSig m)
-   ... | refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
+   ...| refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
                                 (msg∈pool m) (msgSigned m) refl refl refl
 
     -- If a Vote signed for an honest PK has been sent, and it is not in genInfo, then
     -- it is for a round > 0
-   postulate -- TODO-1: prove using Impl-nvr≢0
-      NewVoteRound≢0 : ∀ {pk round epoch bId} {st : SystemState}
+   NewVoteRound≢0 : ∀ {pk round epoch bId} {st : SystemState}
                      → ReachableSystemState st
                      → Meta-Honest-PK pk
                      → (v : VoteForRound∈ pk round epoch bId (msgPool st))
                      → ¬ ∈GenInfo genInfo (ver-signature (msgSigned v))
                      → round ≢ 0
+   NewVoteRound≢0 (step-s r (step-peer (step-honest stP))) pkH v ¬gen r≡0
+     with msgRound≡ v
+   ...| refl
+     with newMsg⊎msgSentB4 r stP pkH (msgSigned v) ¬gen (msg⊆ v) (msg∈pool v)
+   ...| Left (m∈outs , _ , _) = ⊥-elim (Impl-nvr≢0 r stP pkH (msg⊆ v) m∈outs
+                                                    (msgSigned v) ¬gen r≡0)
+   ...| Right m
+      with msgSameSig m
+   ...| refl
+      with sameSig⇒sameVoteDataNoCol (msgSigned m) (msgSigned v) (msgSameSig m)
+   ...| refl = let vsb4 = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
+                                          (msg∈pool m) (msgSigned m) refl refl refl
+               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬gen r≡0)
+   NewVoteRound≢0 (step-s r (step-peer cheat@(step-cheat c))) pkH v ¬gen r≡0
+     with ¬cheatForgeNewSig r cheat unit pkH (msgSigned v) (msg⊆ v) (msg∈pool v) ¬gen
+   ...| m
+     with msgSameSig m
+   ...| refl
+      with sameSig⇒sameVoteDataNoCol (msgSigned m) (msgSigned v) (msgSameSig m)
+   ...| refl = let vsb4 = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
+                                       (msg∈pool m) (msgSigned m) refl refl refl
+               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬gen (trans (msgRound≡ v) r≡0))
 
 
    ¬Gen∧Round≡⇒¬Gen : ∀ {v pk round epoch bId} {st : SystemState}
