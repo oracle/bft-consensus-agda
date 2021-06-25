@@ -95,6 +95,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
              (esEpoch ∷ esVerifier ∷ [])
 
+  postulate -- one valid assumption, one that can be proved using it
+    instance
+      Enc-EpochState   : Encoder EpochState
+      Enc-EpochStateMB : Encoder (Maybe EpochState)  -- TODO-1: make combinator to build this
+
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
