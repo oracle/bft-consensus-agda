@@ -25,7 +25,6 @@ postulate
   obmCheckSigner : SafetyRules → Bool
   extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (Either FakeErr LedgerInfo)
-  verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
 
 ------------------------------------------------------------------------------
 
@@ -70,6 +69,13 @@ verifyAndUpdateLastVoteRoundM round safetyData =
   ifM round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail fakeErr -- log: error: incorrect last vote round
+
+------------------------------------------------------------------------------
+
+verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
+verifyQcM qc = do
+  validatorVerifier ← gets rmGetValidatorVerifier -- See DEPENDENT-LENSES-COMMENT
+  pure (QuorumCert.verify qc validatorVerifier)   -- TODO-1: withErrCtx
 
 ------------------------------------------------------------------------------
 

@@ -28,6 +28,11 @@ module LibraBFT.ImplFake.Consensus.RoundManager where
 
 open RWST-do
 
+postulate -- TODO-1: these are temporary scaffolding for the fake implementation
+  fakeSK  : SK
+  fakeSig : Signature
+  fakeHash : HashValue
+
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
 processCommitM finalityProof = pure []
 
@@ -35,14 +40,10 @@ fakeAuthor : Author
 fakeAuthor = 0
 
 fakeBlockInfo : Epoch → Round → ProposalMsg → BlockInfo
-fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId)
+fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId) fakeHash (mkVersion 0 0) nothing
 
 fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
 fakeLedgerInfo bi pm = LedgerInfo∙new bi (pm ^∙ pmProposal ∙ bId)
-
-postulate -- TODO-1: these are temporary scaffolding for the fake implementation
-  fakeSK  : SK
-  fakeSig : Signature
 
 processProposalMsg : Instant → ProposalMsg → LBFT Unit
 processProposalMsg inst pm = do

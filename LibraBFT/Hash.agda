@@ -37,6 +37,10 @@ module LibraBFT.Hash where
  ...| yes refl = yes (cong (_,_ l) (≡-pi pl pm))
  ...| no  abs  = no (abs ∘ ,-injectiveˡ)
 
+ instance
+   Eq-Hash : Eq Hash
+   Eq._==_ Eq-Hash = _≟Hash_
+
  encodeH : Hash → ByteString
  encodeH (bs , _) = bs
 

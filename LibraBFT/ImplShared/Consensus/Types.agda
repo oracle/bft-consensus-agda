@@ -39,15 +39,6 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   open import LibraBFT.Abstract.Types.EpochConfig UID NodeId     public
 
-  record EpochState : Set where
-    constructor EpochState∙new
-    field
-      _esEpoch    : Epoch
-      _esVerifier : ValidatorVerifier
-  open EpochState public
-  unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
-             (esEpoch ∷ esVerifier ∷ [])
-
   data NewRoundReason : Set where
     QCReady : NewRoundReason
     TOReady : NewRoundReason
@@ -214,6 +205,7 @@ module LibraBFT.ImplShared.Consensus.Types where
   --
   --    vv ← gets rmGetValidatorVerifier
 
+  -- We cannot have a srValidatorVerifier lens (see above for reasons), therefore we instead have:
   rmGetValidatorVerifier : RoundManager → ValidatorVerifier
   rmGetValidatorVerifier rm = _esVerifier (_rmEpochState (_rmEC rm))
 
@@ -225,6 +217,9 @@ module LibraBFT.ImplShared.Consensus.Types where
 
     s : RoundManager → ProposerElection → RoundManager
     s rm pe = record rm { _rmEC = (_rmEC rm) & rmProposerElection ∙~ pe }
+
+  rmGetRoundManagerEC : RoundManager → RoundManagerEC
+  rmGetRoundManagerEC = _rmEC
 
   lRoundState : Lens RoundManager RoundState
   lRoundState = mkLens' g s

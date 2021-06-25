@@ -20,5 +20,6 @@ addSignature validator sig liws =
     nothing  →
       liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
-
+postulate -- TODO-1: implement
+  verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → Either FakeErr Unit
 
