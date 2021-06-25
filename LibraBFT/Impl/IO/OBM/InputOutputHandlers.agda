@@ -30,7 +30,7 @@ module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
   handleProposal : Instant → ProposalMsg → LBFT Unit
   handleProposal now pm = do
     (myEpoch , vv) ← epvv
-    case Network.processProposal pm myEpoch vv of λ where
+    case Network.processProposal {- {!!} -} pm myEpoch vv of λ where
       (Left (Left _)) → logErr
       (Left (Right _)) → logInfo
       (Right _)        → RoundManager.processProposalMsgM now pm

@@ -164,15 +164,11 @@ RWST-contract (RWST-maybe (just x) f₁ f₂) P ev pre (wp₁ , wp₂) =
   RWST-contract (f₂ x) _ ev pre (wp₂ x refl)
 
 module RWST-do where
-  infixl 1 _>>=_ _>>_
-  _>>=_ : RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
-  _>>=_ = RWST-bind
 
-  _>>_ : RWST Ev Wr St A → RWST Ev Wr St B → RWST Ev Wr St B
-  x >> y = x >>= const y
-
-  return : A → RWST Ev Wr St A
-  return = RWST-return
+  instance
+    RWST-Monad : Monad (RWST Ev Wr St)
+    Monad.return RWST-Monad = RWST-return
+    Monad._>>=_ RWST-Monad = RWST-bind
 
   pure = return
 
