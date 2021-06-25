@@ -101,7 +101,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    open PerState st
    open PerReachableState r
    open PerEpoch 𝓔
-   open ConcreteCommonProperties st r Impl-gvr Impl-nvr≢0
+   open ConcreteCommonProperties st r sps-corr Impl-gvr Impl-nvr≢0
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 
