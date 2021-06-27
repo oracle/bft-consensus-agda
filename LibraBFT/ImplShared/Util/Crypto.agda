@@ -43,9 +43,11 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| final = inj₂ (BlockInfo-η (encode-inj (proj₁ (∷-injective final)))
                                  (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective final)))))
                                  (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))
-                                 obm-dangerous-magic!
-                                 obm-dangerous-magic!
-                                 obm-dangerous-magic!)
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))))
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))))))
+                                 -- TODO-2: this cannot be proved because hashBI does not cover the _biNextEpochState : Maybe EpochState field;
+                                 -- we need to confirm if this is accurate, if so, if it is correct, and either way, what to do about it
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective obm-dangerous-magic! ))))))))))))
 
   voteDataHashList : VoteData → List Hash
   voteDataHashList (VoteData∙new proposed parent) =
