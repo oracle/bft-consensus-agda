@@ -21,8 +21,6 @@ open import Optics.All
 
 module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
 
-  open RWST-do
-
   epvv : LBFT (Epoch × ValidatorVerifier)
   epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
              <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)

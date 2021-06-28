@@ -18,8 +18,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Types.PendingVotes where
 
-open RWST-do
-
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)

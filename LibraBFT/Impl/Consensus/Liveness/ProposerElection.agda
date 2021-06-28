@@ -13,8 +13,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Liveness.ProposerElection where
 
-open RWST-do
-
 postulate
   getValidProposer : ProposerElection → Round → Author
 

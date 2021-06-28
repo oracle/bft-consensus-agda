@@ -19,8 +19,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
-open RWST-do
-
 postulate
   obmCheckSigner : SafetyRules → Bool
   extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)

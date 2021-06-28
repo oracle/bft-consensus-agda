@@ -30,8 +30,6 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Consensus.RoundManager where
 
-open RWST-do
-
 ------------------------------------------------------------------------------
 
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)

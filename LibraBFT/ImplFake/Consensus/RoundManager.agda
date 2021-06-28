@@ -26,8 +26,6 @@ open import Optics.All
 
 module LibraBFT.ImplFake.Consensus.RoundManager where
 
-open RWST-do
-
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
 processCommitM finalityProof = pure []
 

@@ -19,7 +19,5 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 
-open RWST-do
-
 postulate
   insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (Either ErrLog Unit)
