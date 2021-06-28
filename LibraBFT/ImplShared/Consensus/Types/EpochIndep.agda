@@ -592,7 +592,3 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     TooLittleVotingPower : U64 → U64 →     VerifyError
     TooManySignatures    : Usize → Usize → VerifyError
     InvalidSignature     :                 VerifyError
-
-  -- TODO-1: Implement this (low priority)
-  ErrLog : Set
-  ErrLog = Unit

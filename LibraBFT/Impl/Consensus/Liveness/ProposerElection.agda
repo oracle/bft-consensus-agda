@@ -20,7 +20,7 @@ isValidProposerM : Author → Round → LBFT Bool
 isValidProposer : ProposerElection → Author → Round → Bool
 
 isValidProposalM : Block → LBFT Bool
-isValidProposalM b = maybeS (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
+isValidProposalM b = maybeS-RWST (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
 
 isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
 
