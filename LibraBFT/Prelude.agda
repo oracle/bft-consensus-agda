@@ -389,11 +389,9 @@ module LibraBFT.Prelude where
       x ← xs
       return (f x)
 
-  open import Category.Monad
-  import      Data.Sum.Categorical.Left
   instance
     Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Error{ℓ}{C}) = RawMonad.return (Data.Sum.Categorical.Left.monad C ℓ)
-    Monad._>>=_ (Monad-Error{ℓ}{C}) = RawMonad._>>=_ (Data.Sum.Categorical.Left.monad C ℓ)
+    Monad.return (Monad-Error{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
 
   open import LibraBFT.Base.Util public
