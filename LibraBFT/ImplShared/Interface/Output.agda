@@ -31,11 +31,25 @@ module LibraBFT.ImplShared.Interface.Output where
   IsSendVote : Output → Set
   IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
 
+  IsBroadcastProposal : Output → Set
+  IsBroadcastProposal out = ∃[ pm ] (out ≡ BroadcastProposal pm)
+
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
   isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
+
+  isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
+  isBroadcastProposal? (BroadcastProposal pm) = yes (pm , refl)
+  isBroadcastProposal? (LogErr _) = no λ ()
+  isBroadcastProposal? (LogInfo _) = no λ ()
+  isBroadcastProposal? (SendVote _ _) = no λ ()
+
+  IsOutputMsg : Output → Set
+  IsOutputMsg = IsBroadcastProposal ∪ IsSendVote
+
+  isOutputMsg? = isBroadcastProposal? ∪? isSendVote?
 
   SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
   SendVote∉Output () (here refl)
@@ -59,3 +73,23 @@ module LibraBFT.ImplShared.Interface.Output where
   outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
+  send∉actions : ∀ {m outs st} → List-filter isOutputMsg? outs ≡ [] → ¬ (send m ∈ outputsToActions{st} outs)
+  send∉actions {m} {LogErr  x ∷ outs} {st} msgs≡[] = send∉actions{outs = outs} msgs≡[]
+  send∉actions {m} {LogInfo x ∷ outs} {st} msgs≡[] = send∉actions{outs = outs} msgs≡[]
+
+  sendV∈actions : ∀ {vm pids outs m st}
+                  → SendVote vm pids ∷ [] ≡ List-filter isOutputMsg? outs
+                  → send m ∈ outputsToActions{st} outs
+                  → m ≡ V vm
+  sendV∈actions {vm} {pids} {LogErr x ∷ outs} {m} {st} outs≡ m∈acts = sendV∈actions{outs = outs} outs≡ m∈acts
+  sendV∈actions {vm} {pids} {LogInfo x ∷ outs} {m} {st} outs≡ m∈acts = sendV∈actions{outs = outs} outs≡ m∈acts
+  sendV∈actions {vm} {pids} {SendVote vm' pids' ∷ outs} {m} {st} outs≡ m∈acts
+     with ∷-injective outs≡
+  ...| refl , tl≡
+     with Any-++⁻ (List-map (λ _ → send (V vm)) pids) m∈acts
+  ... | Left m∈acts₁ = help pids m∈acts₁
+    where
+      help : ∀ pids → send m ∈ List-map (λ _ → send (V vm')) pids → m ≡ V vm'
+      help (x ∷ pids) (here refl) = refl
+      help (x ∷ pids) (there m∈outs) = help pids m∈outs
+  ... | Right m∈acts₂ = ⊥-elim (send∉actions{outs = outs} (sym tl≡) m∈acts₂)

@@ -5,6 +5,7 @@
 -}
 open import Category.Functor
 open import Data.Maybe
+open import Data.Product
 open import Function
 open import Level
 open import Relation.Binary.PropositionalEquality
@@ -73,5 +74,8 @@ module Optics.Functorial where
   (lens p) ∙ (lens q) = lens (λ F rf x x₁ → p F rf (q F rf x) x₁)
 
   -- Equality of fields
-  _≡L_at_ : ∀ {S A} (s₁ s₂ : S) → Lens S A → Set
-  s₁ ≡L s₂ at l = s₁ ^∙ l ≡ s₂ ^∙ l
+  _≡L_at_ : ∀ {S₁ S₂ A} → S₁ → S₂ → Lens S₁ A × Lens S₂ A → Set
+  s₁ ≡L s₂ at (l₁ , l₂) = s₁ ^∙ l₁ ≡ s₂ ^∙ l₂
+
+  _≡L_at₁_ : ∀ {S A} → (s₁ s₂ : S) → Lens S A → Set
+  s₁ ≡L s₂ at₁ l = s₁ ≡L s₂ at (l , l)
