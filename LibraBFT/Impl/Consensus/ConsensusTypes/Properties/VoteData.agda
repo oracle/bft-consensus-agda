@@ -26,15 +26,14 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData (self : VoteDa
   open Contract
 
   contract
-      : (        VoteData.verify self ≡ Right unit →   Contract)
-      × (∀ err → VoteData.verify self ≡ Left err   → ¬ Contract)
+      : VoteData.verify self ≡ Right unit → Contract
   contract
      with self ^∙ vdParent ∙ biEpoch ≟ self ^∙ vdProposed ∙ biEpoch
-  ...| no neq = (λ ()) , (λ _ _ z → neq (ep≡ z))
+  ...| no neq = (λ ())
   ...| yes refl
      with self ^∙ vdParent ∙ biRound <? self ^∙ vdProposed ∙ biRound
-  ...| no ¬par<prop = (λ ()) , λ _ _ z → ¬par<prop (parRnd< z)
+  ...| no ¬par<prop = (λ ())
   ...| yes par<prop
      with (self ^∙ vdParent ∙ biVersion) ≤?-Version (self ^∙ vdProposed ∙ biVersion)
-  ...| no ¬parVer≤ = (λ ()) , λ _ _ z → ¬parVer≤ (parVer≤ z)
-  ...| yes parVer≤ = (λ x → mkContract refl par<prop parVer≤) , λ _ ()
+  ...| no ¬parVer≤ = (λ ())
+  ...| yes parVer≤ = (λ x → mkContract refl par<prop parVer≤)

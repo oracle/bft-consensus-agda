@@ -57,9 +57,8 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
       ¬rnd0   : ¬ rnd≡0 → rnd≢0Props
   open Contract
 
-  contract :           (QuorumCert.verify self vv ≡ Right unit →   Contract)
-             × (∀ err → QuorumCert.verify self vv ≡ Left err   → ¬ Contract)
-  proj₁ contract
+  contract : QuorumCert.verify self vv ≡ Right unit → Contract
+  contract
      with (self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash) ≟Hash (hashVD (self ^∙ qcVoteData))
   ...| no neq = λ ()
   ...| yes refl
@@ -74,8 +73,7 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
      with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
   ...| yes noSigs = λ x → mkContract refl (λ _ → mkRnd≡0Props refl refl noSigs)
                                           (λ rnd≢0 → ⊥-elim (rnd≢0 refl))
-
-  proj₁ contract
+  contract
      | yes refl
      | no neq
      with  LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)  vv | inspect
@@ -86,32 +84,5 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
           VoteData.verify (self ^∙ qcVoteData)
   ...| Left err   | _ = λ ()
   ...| Right unit | [ R' ] = λ _ → mkContract refl (⊥-elim ∘ neq)
-                                              λ x → mkRnd≢0Props (proj₁ (LedgerInfoWithSignaturesProps.contract (self ^∙ qcLedgerInfo) vv) R)
-                                                                 (proj₁ (VoteDataProps.contract (self ^∙ qcVoteData)) R')
-
-  proj₂ contract
-     with (self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash) ≟Hash (hashVD (self ^∙ qcVoteData))
-  ...| no neq = λ _ _ → ⊥-elim ∘ neq ∘ lihash≡
-  ...| yes refl
-     with self ^∙ qcCertifiedBlock ∙ biRound ≟ 0
-  ...| yes refl
-     with (self ^∙ qcParentBlock) ≟-BlockInfo (self ^∙ qcCertifiedBlock)
-  ...| no neq = λ _ _ z → neq (par≡cert (rnd0 z refl))
-  ...| yes refl
-     with (self ^∙ qcCertifiedBlock) ≟-BlockInfo (self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo)
-  ...| no neq = λ _ _ z → neq (cert≡li (rnd0 z refl))
-  ...| yes refl
-     with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
-  ...| no neq = λ _ _ z → neq (noSigs (rnd0 z refl))
-
-  proj₂ contract
-     | yes refl
-     | no neq
-     with  LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)  vv | inspect
-          (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)) vv
-  ...| Left  err  | [ R ] = λ _ _ z → proj₂ (LedgerInfoWithSignaturesProps.contract (self ^∙ qcLedgerInfo) vv) err R (sigProp (¬rnd0 z neq))
-  ...| Right unit | _
-     with VoteData.verify (self ^∙ qcVoteData) | inspect
-          VoteData.verify (self ^∙ qcVoteData)
-  ...| Left err   | [ R' ] = λ _ _ z → proj₂ (VoteDataProps.contract (self ^∙ qcVoteData)) err R' (vdProp (¬rnd0 z neq))
-  ...| Right unit | _      = λ _ ()
+                                              λ x → mkRnd≢0Props (LedgerInfoWithSignaturesProps.contract (self ^∙ qcLedgerInfo) vv R)
+                                                                 (VoteDataProps.contract (self ^∙ qcVoteData) R')

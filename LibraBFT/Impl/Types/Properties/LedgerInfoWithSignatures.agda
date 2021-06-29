@@ -25,6 +25,4 @@ module LibraBFT.Impl.Types.Properties.LedgerInfoWithSignatures (self : LedgerInf
 
     Contract : Set
 
-    contract
-        : (        LedgerInfoWithSignatures.verifySignatures self vv ≡ Right unit →   Contract)
-        × (∀ err → LedgerInfoWithSignatures.verifySignatures self vv ≡ Left err   → ¬ Contract)
+    contract : LedgerInfoWithSignatures.verifySignatures self vv ≡ Right unit → Contract
