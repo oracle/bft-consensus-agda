@@ -11,7 +11,7 @@ open import LibraBFT.Prelude
 -- programs written using this RWST monad. The main definitions are:
 -- 1. RWST, a datatype for the ASTs of stateful programs that read from an
 --    environment and produce output.
---    This datatype includes constructors for branching code, to aide in the
+--    This datatype includes constructors for branching code, to aid in the
 --    verification effort (see below).
 -- 2. RWST-weakestPre, a large elimination that, given an RWST program and a
 --    post condition for the program, produces the weakest precondition needed
@@ -56,7 +56,7 @@ private
     Ev Wr St : Set
     A B C    : Set
 
--- To execute an RWST program, you prove an environment and prestate. This
+-- To execute an RWST program, you provide an environment and prestate. This
 -- produces a result value, poststate, and list of outputs.
 RWST-run : RWST Ev Wr St A → Ev → St → A × St × List Wr
 RWST-run (RWST-return x) ev st  = x , st , []
@@ -157,7 +157,8 @@ RWST-weakestPre-bindPost ev f Post x post outs =
 -- For every RWST computation `m`, `RWST-Contract m` is the type of proofs that,
 -- for all post conditions `P`, starting environments `ev` and prestates `pre`,
 -- to prove that `P` holds after running `m` in `ev` and `pre`, it suffices to
--- provide the weakest precondition for `P` with respect to `m`, `ev`, and `pre`.
+-- provide a proof of the weakest precondition for `P` with respect to `m`,
+-- `ev`, and `pre`.
 RWST-Contract : (m : RWST Ev Wr St A) → Set₁
 RWST-Contract{Ev}{Wr}{St}{A} m =
   (P : RWST-Post Wr St A)
@@ -165,7 +166,10 @@ RWST-Contract{Ev}{Wr}{St}{A} m =
   → let (x , post , outs) = RWST-run m ev pre in
     P x post outs
 
--- This proves `RWST-Contract m` for arbitrary `m`.
+-- This proves that `RWST-weakestPre` gives a *sufficient* precondition for
+-- establishing a desired postcondition. Note thought that it does not prove
+-- that this precondition is the weakest such one; even though this is true, it
+-- is not important for our purposes.
 RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
 RWST-contract (RWST-return x₁) P ev pre wp = wp
 RWST-contract (RWST-bind m f) P ev pre wp
