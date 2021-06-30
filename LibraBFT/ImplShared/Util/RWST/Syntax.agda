@@ -105,9 +105,7 @@ infixl 4 _∙^∙_
 _∙^∙_ : RWST Ev Wr St (Either B A) → (B → B) → RWST Ev Wr St (Either B A)
 m ∙^∙ f = do
   x ← m
-  caseM⊎ x of λ where
-    (Left e) → pure (Left (f e))
-    (Right r) → pure (Right r)
+  either (bail ∘ f) ok x
 
 -- Lens functionality
 --
