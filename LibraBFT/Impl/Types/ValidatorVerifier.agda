@@ -4,17 +4,68 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                          as Map
-open import LibraBFT.Impl.Types.LedgerInfoWithSignatures as LedgerInfoWithSignatures
+open import LibraBFT.Base.KVMap                            as Map
+open import LibraBFT.Base.PKCS                             hiding (verify)
+import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Types.ValidatorVerifier where
 
-getVotingPower : ValidatorVerifier → AccountAddress → Maybe U64
+checkNumOfSignatures : ValidatorVerifier → KVMap AccountAddress Signature → Either FakeErr Unit
+checkVotingPower     : ValidatorVerifier → List AccountAddress → Either VerifyError Unit
+getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
+getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
 
-checkVotingPower : ValidatorVerifier → List AccountAddress → Either VerifyError Unit
+verifyIfAuthor
+  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
+  → {-Text →-} ValidatorVerifier → AccountAddress → v → Signature
+  → Either FakeErr Unit
+verifyIfAuthor {-msg-} self author v signature = case getPublicKey self author of λ where
+  (just pk) → case Crypto.verify {-msg-} pk signature v of λ where
+                (Left  e)    → Left fakeErr -- (ErrVerify e InvalidSignature)
+                (Right unit) → Right unit
+  nothing  → Left fakeErr -- Left (ErrVerify (msg:known) (UnknownAuthor (author^.aAuthorName)))
+-- where
+--  known = fmap _aAuthorName (Map.keys (self^.vvAddressToValidatorInfo))
+
+verify
+  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
+  → ValidatorVerifier → AccountAddress → v → Signature
+  → Either FakeErr Unit
+verify = verifyIfAuthor -- (icSemi ["ValidatorVerifier", "verifySignature"])
+
+verifyAggregatedStructSignature
+  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
+  → ValidatorVerifier → v → KVMap AccountAddress Signature
+  → Either FakeErr Unit
+verifyAggregatedStructSignature self v aggregatedSignature = do
+  checkNumOfSignatures self aggregatedSignature
+  case checkVotingPower self (Map.kvm-keys aggregatedSignature) of λ where
+     (Left  _)    → Left fakeErr
+     (Right unit) → loop (Map.kvm-toList aggregatedSignature)
+ where
+  loop : List (Author × Signature) → Either FakeErr Unit
+  loop  []  = Right unit
+  loop ((author , signature) ∷ xs) =
+    if true -- verify self author v signature
+    then loop xs
+    else Left fakeErr
+
+batchVerifyAggregatedSignatures
+  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
+  → ValidatorVerifier → v → KVMap AccountAddress Signature
+  → Either FakeErr Unit
+batchVerifyAggregatedSignatures = verifyAggregatedStructSignature
+
+checkNumOfSignatures self aggregatedSignature =
+  if-dec Map.kvm-size aggregatedSignature >? Map.kvm-size (self ^∙ vvAddressToValidatorInfo)
+    then Left fakeErr -- ErrVerify TooManySignatures (Map.size aggregatedSignature)
+                      -- (Map.size (self^.vvAddressToValidatorInfo)
+    else Right unit
+
 checkVotingPower self authors = loop authors 0
  where
   loop : List AccountAddress → U64 → Either VerifyError Unit
@@ -25,6 +76,12 @@ checkVotingPower self authors = loop authors 0
     if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
     then Left (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower))
     else Right unit
+
+getPublicKey self author =
+--  (^.vciPublicKey) <$> Map.lookup author (self^.vvAddressToValidatorInfo)
+  case Map.lookup author (self ^∙ vvAddressToValidatorInfo) of λ where
+    nothing  → nothing
+    (just a) → just (a ^∙ vciPublicKey)
 
 getVotingPower self author =
 --  (λ a → a ^∙ vciVotingPower) <$> (Map.lookup author (self ^∙ vvAddressToValidatorInfo))

@@ -4,8 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap           as Map
+open import LibraBFT.Base.KVMap                   as Map
 open import LibraBFT.Base.PKCS
+import      LibraBFT.Impl.OBM.Crypto              as Crypto
+open import LibraBFT.Impl.Types.ValidatorVerifier as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -20,5 +22,9 @@ addSignature validator sig liws =
     nothing  →
       liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
-
+verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → Either FakeErr Unit
+verifySignatures self validator = -- withErrCtx'
+  -- ["LedgerInfoWithSignatures", "verify"]
+  ValidatorVerifier.batchVerifyAggregatedSignatures
+     validator (self ^∙ liwsLedgerInfo) (self ^∙ liwsSignatures)
 
