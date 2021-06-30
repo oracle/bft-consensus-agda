@@ -30,8 +30,6 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Consensus.RoundManager where
 
-open RWST-do
-
 ------------------------------------------------------------------------------
 
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
@@ -56,23 +54,19 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₂ : Either FakeErr Bool → LBFT Unit
 
   step₀ =
-    case pm ^∙ pmProposer of λ where
+    caseMM pm ^∙ pmProposer of λ where
       nothing → logInfo -- log: info: proposal with no author
       (just pAuthor) → step₁ pAuthor
   step₁ pAuthor =
         ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
                               pAuthor true >>= step₂
-  step₂ r =
-        -- IMPL-DIFF: We use `ifM` to test whether the round of the proposal is
-        -- current, to take advantage of the obligations `RWST-weakestPre` generates.
-        case r of λ where
-        (Left _) → logErr -- log: error: <propagate error>
-        (Right pmCurrent) →
-          if pmCurrent
-            then processProposalM (pm ^∙ pmProposal)
-            else do
-              currentRound ← use (lRoundState ∙ rsCurrentRound)
-              logInfo  -- log: info: dropping proposal for old round
+  step₂ =
+        λ where
+          (Left e)      → logErr -- log: error: <propagate error>
+          (Right true)  → processProposalM (pm ^∙ pmProposal)
+          (Right false) → do
+            currentRound ← use (lRoundState ∙ rsCurrentRound)
+            logInfo              -- log: info: dropping proposal for old round
 
 processProposalMsgM = processProposalMsgM.step₀
 
@@ -92,14 +86,14 @@ module ensureRoundAndSyncUpM
 
   step₀ = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
-    if ⌊ messageRound <? currentRound ⌋
+    ifM messageRound <? currentRound
       then ok false
       else step₁
   step₁ =
         syncUpM now syncInfo author helpRemote ∙?∙ λ _ → step₂
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          if not ⌊ messageRound ≟ℕ currentRound' ⌋
+          ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
@@ -121,8 +115,7 @@ module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
   step₂ : Either FakeErr Vote → LBFT Unit
-  step₃ : Vote → LBFT Unit
-  step₄ : Vote → SyncInfo → LBFT Unit
+  step₃ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
     s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
@@ -130,7 +123,7 @@ module ProcessProposalM (proposal : Block) where
     vp ← ProposerElection.isValidProposalM proposal
     step₁ {s} bs vp
   step₁ bs vp =
-    grd‖ is-nothing (proposal ^∙ bAuthor) ≔
+    ifM‖ is-nothing (proposal ^∙ bAuthor) ≔
          logErr -- log: error: proposal does not have an author
        ‖ not vp ≔
          logErr -- log: error: proposer for block is not valid for this round
@@ -141,25 +134,19 @@ module ProcessProposalM (proposal : Block) where
                 ⌊ parentBlock ^∙ ebRound <?ℕ proposal ^∙ bRound ⌋) ≔
          logErr -- log: error: parentBlock < proposalRound
        ‖ otherwise≔ do
-         -- DIFF: For the verification effort, we use special-purpose case
-         -- distinction operators, so the Haskell
-         -- > executeAndVoteM proposal >>= \case
-         -- is translated to the following.
            executeAndVoteM proposal >>= step₂
-  step₂ r =
-         case r of λ where
-           (Left _) → logErr -- <propagate error>
-           (Right vote) → step₃ vote
-  step₃ vote = do
-             RoundState.recordVote vote
-             si ← BlockStore.syncInfoM
-             step₄ vote si
-  step₄ vote si = do
-             recipient ← ProposerElection.getValidProposer
-                         <$> use lProposerElection
-                         <*> pure (proposal ^∙ bRound + 1)
-             act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
-             -- TODO-2:                                                mkNodesInOrder1 recipient
+  step₂ =  λ where
+             (Left _)     → logErr -- log: error: <propagate error>
+             (Right vote) → do
+               RoundState.recordVote vote
+               si ← BlockStore.syncInfoM
+               step₃ vote si
+  step₃ vote si = do
+               recipient ← ProposerElection.getValidProposer
+                           <$> use lProposerElection
+                           <*> pure (proposal ^∙ bRound + 1)
+               act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
+               -- TODO-2:                           mkNodesInOrder1 recipient
 
 processProposalM = ProcessProposalM.step₀
 
@@ -175,10 +162,10 @@ module ExecuteAndVoteM (b : Block) where
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
     so ← use lSyncOnly
-    grd‖ is-just vs
-         ≔ bail fakeErr -- error: already voted this round
-       ‖ so
-         ≔ bail fakeErr -- error: sync-only set
+    ifM‖ is-just vs ≔
+         bail fakeErr -- error: already voted this round
+       ‖ so ≔
+         bail fakeErr -- error: sync-only set
        ‖ otherwise≔ step₂ eb
   step₂ eb = do
            let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
@@ -202,7 +189,7 @@ processVoteMsgM now voteMsg = do
   processVoteM now (voteMsg ^∙ vmVote)
 
 processVoteM now vote =
-  if not (Vote.isTimeout vote)
+  ifM not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
     -- IMPL-TODO pgAuthor
@@ -218,7 +205,7 @@ processVoteM now vote =
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
     s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
     let bs = _epBlockStore (_rmWithEC s)
-    if true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
+    ifM true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
       then logInfo
       else addVoteM now vote -- TODO-1: logging
 

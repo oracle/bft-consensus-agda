@@ -352,4 +352,46 @@ module LibraBFT.Prelude where
   f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
   f-sum f = sum ∘ List-map f
 
+  record Functor  {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
+    infixl 4 _<$>_
+    field
+      _<$>_ : ∀ {A B : Set ℓ₁} → (A → B) → F A → F B
+
+  open Functor ⦃ ... ⦄ public
+
+  record Applicative {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
+    infixl 4 _<*>_
+    field
+      pure  : ∀ {A : Set ℓ₁} → A → F A
+      _<*>_ : ∀ {A B : Set ℓ₁} → F (A → B) → F A → F B
+
+  open Applicative ⦃ ... ⦄ public
+  instance
+    ApplicativeFunctor : ∀ {ℓ₁ ℓ₂} {F : Set ℓ₁ → Set ℓ₂} ⦃ _ : Applicative F ⦄ → Functor F
+    Functor._<$>_ ApplicativeFunctor f xs = pure f <*> xs
+
+  record Monad {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
+    infixl 1 _>>=_ _>>_
+    field
+      return : ∀ {A : Set ℓ₁} → A → M A
+      _>>=_  : ∀ {A B : Set ℓ₁} → M A → (A → M B) → M B
+
+    _>>_ : ∀ {A B : Set ℓ₁} → M A → M B → M B
+    m₁ >> m₂ = m₁ >>= λ _ → m₂
+
+  open Monad ⦃ ... ⦄ public
+
+  instance
+    MonadApplicative : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → Applicative M
+    Applicative.pure MonadApplicative = return
+    Applicative._<*>_ MonadApplicative fs xs = do
+      f ← fs
+      x ← xs
+      return (f x)
+
+  instance
+    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Error{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
+
   open import LibraBFT.Base.Util public

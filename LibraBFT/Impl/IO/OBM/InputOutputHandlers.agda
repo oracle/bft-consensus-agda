@@ -21,8 +21,6 @@ open import Optics.All
 
 module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
 
-  open RWST-do
-
   epvv : LBFT (Epoch × ValidatorVerifier)
   epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
              <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)
@@ -30,8 +28,8 @@ module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
   handleProposal : Instant → ProposalMsg → LBFT Unit
   handleProposal now pm = do
     (myEpoch , vv) ← epvv
-    case Network.processProposal pm myEpoch vv of λ where
-      (Left (Left _)) → logErr
+    caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+      (Left (Left _))  → logErr
       (Left (Right _)) → logInfo
       (Right _)        → RoundManager.processProposalMsgM now pm
 

@@ -21,8 +21,6 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Consensus.Liveness.RoundState where
 
-open RWST-do
-
 ------------------------------------------------------------------------------
 
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)

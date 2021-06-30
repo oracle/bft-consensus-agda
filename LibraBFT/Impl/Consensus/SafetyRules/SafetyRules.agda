@@ -19,13 +19,10 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
-open RWST-do
-
 postulate
   obmCheckSigner : SafetyRules → Bool
   extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (Either FakeErr LedgerInfo)
-  verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
 
 ------------------------------------------------------------------------------
 
@@ -42,10 +39,10 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
       twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
   -- LBFT-ALGO v3:p6: "... votes in round k only if the QC inside the k proposal
   -- is at least" PreferredRound."
-  if ⌊ oneChainRound <? preferredRound ⌋
+  ifM oneChainRound <? preferredRound
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
-      updated ← grd‖ twoChainRound >? preferredRound ≔
+      updated ← ifM‖ twoChainRound >? preferredRound ≔
                      pure (safetyData & sdPreferredRound ∙~ twoChainRound) -- log: info: updated preferred round
                    ‖ twoChainRound <? preferredRound ≔
                      pure safetyData                                       -- log: info: 2-chain round is lower than preferred round, but 1-chain is higher
@@ -57,7 +54,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 
 verifyEpochM : Epoch → SafetyData → LBFT (Either FakeErr Unit)
 verifyEpochM epoch safetyData =
-  if not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
+  ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
     then bail fakeErr -- log: error: incorrect epoch
     else ok unit
 
@@ -67,9 +64,16 @@ verifyEpochM epoch safetyData =
 verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (Either FakeErr SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
-  if ⌊ round >? (safetyData ^∙ sdLastVotedRound) ⌋
+  ifM round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail fakeErr -- log: error: incorrect last vote round
+
+------------------------------------------------------------------------------
+
+verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
+verifyQcM qc = do
+  validatorVerifier ← gets rmGetValidatorVerifier -- See DEPENDENT-LENSES-COMMENT
+  pure (QuorumCert.verify qc validatorVerifier)   -- TODO-1: withErrCtx
 
 ------------------------------------------------------------------------------
 
@@ -80,6 +84,9 @@ constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block �
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either FakeErr Vote)
 constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
+  -- NOTE: It's OK to use `case` here, rather than `caseMM`, becase we are
+  -- splitting on /precisely/ the expression that is given to us by the
+  -- preceding bind.
   case vs of λ where
     nothing → bail fakeErr -- error: srValidatorSigner is nothing
     (just validatorSigner) → do
@@ -95,9 +102,9 @@ module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorS
     safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
     verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ → step₁ safetyData0
   step₁ safetyData0 = do
-      case (safetyData0 ^∙ sdLastVote) of λ where
+      caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
-          if ⌊ vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ (proposedBlock ^∙ bRound) ⌋
+          ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ (proposedBlock ^∙ bRound)
             then ok vote
             else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
         nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0

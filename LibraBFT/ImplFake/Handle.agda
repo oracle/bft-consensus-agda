@@ -26,7 +26,6 @@ open import Optics.All
 
 module LibraBFT.ImplFake.Handle where
  open import LibraBFT.ImplFake.Consensus.RoundManager
- open RWST-do
 
  open EpochConfig
 

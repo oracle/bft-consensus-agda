@@ -13,13 +13,14 @@ open import LibraBFT.ImplShared.Interface.Output
 
 module LibraBFT.ImplShared.Util.Util where
   open import Optics.All
-  open import LibraBFT.ImplShared.Util.RWST ℓ-RoundManager public
+  open import LibraBFT.ImplShared.Util.RWST        public
+  open import LibraBFT.ImplShared.Util.RWST.Syntax public
   ----------------
   -- LBFT Monad --
   ----------------
 
   -- Global 'LBFT'; works over the whole state.
-  LBFT : Set → Set
+  LBFT : Set → Set₁
   LBFT = RWST Unit Output RoundManager
 
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
@@ -41,39 +42,36 @@ module LibraBFT.ImplShared.Util.Util where
   -- This is very convenient to define functions that
   -- do not alter the ec.
 
-  LBFT-ec : EpochConfig → Set → Set
+  LBFT-ec : EpochConfig → Set → Set₁
   LBFT-ec ec = RWST Unit Output (RoundManagerWithEC ec)
 
   -- Lifting a function that does not alter the pieces that
   -- define the epoch config is easy
   liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
-  liftEC f = rwst λ _ st
-    → let ec                 = α-EC (_rmEC st , _rmEC-correct st)
-          res , stec' , acts = RWST-run (f ec) unit (_rmWithEC st)
-       in res , record st { _rmWithEC = stec' } , acts
+  liftEC f = do
+    st ← get
+    let ec                 = α-EC (_rmEC st , _rmEC-correct st)
+        r₁ , stec₁ , outs₁ = RWST-run (f ec) unit (_rmWithEC st)
+    tell outs₁
+    put (record st { _rmWithEC = stec₁ })
+    return r₁
 
-  -- Type that captures a proof that a computation in the LBFT monad
-  -- satisfies a given contract.
-  LBFT-Contract : ∀{A} → LBFT A
-                → (RoundManager → Set)
-                → (RoundManager → Set)
-                → Set
-  LBFT-Contract f Pre Post =
-    ∀ rm → Pre rm × Post (proj₁ (proj₂ (RWST-run f unit rm)))
+  LBFT-weakestPre : ∀ {A} (m : LBFT A)
+                    → (Post : RWST-Post Output RoundManager A)
+                    → RoundManager → Set
+  LBFT-weakestPre m Post pre = RWST-weakestPre m Post unit pre
 
-  -- Because we made RWST work for different level State types, but broke use
-  -- and modify' because Lens does not support different levels, we define use
-  -- and modify' here for RoundManager.  This will work as long as we can keep
-  -- RoundManager in Set.  If we ever need to make RoundManager at some higher
-  -- Level, we will have to consider making Lens level-agnostic.  Preliminary
-  -- exploration by @cwjnkins showed this to be somewhat painful in particular
-  -- around composition, so we are not pursuing it for now.
-  use : ∀ {A} → Lens RoundManager A → LBFT A
-  use f = RWST-bind get (RWST-return ∘ (_^∙ f))
+  LBFT-Contract : ∀ {A} (m : LBFT A) → Set₁
+  LBFT-Contract{A} m =
+    (Post : RWST-Post Output RoundManager A)
+    → (pre : RoundManager) → LBFT-weakestPre m Post pre
+    → let (x , post , outs) = LBFT-run m pre in
+      Post x post outs
 
-  modify' : ∀ {A} → Lens RoundManager A → (A → A) → LBFT Unit
-  modify' l f = modify (over l f)
-  syntax modify' l f = l %= f
+  LBFT-contract : ∀ {A} (m : LBFT A) → LBFT-Contract m
+  LBFT-contract m Post pre pf = RWST-contract m Post unit pre pf
 
-  _∙=_ : ∀ {A} → Lens RoundManager A → A → LBFT Unit
-  l ∙= a = modify' l (const a)
+  LBFT-⇒
+    : ∀ {A} (P Q : RWST-Post Output RoundManager A) → (∀ r st outs → P r st outs → Q r st outs)
+    → ∀ m pre → LBFT-weakestPre m P pre → LBFT-weakestPre m Q pre
+  LBFT-⇒ Post₁ Post₂ f m pre pf = RWST-⇒ Post₁ Post₂ f m unit pre pf

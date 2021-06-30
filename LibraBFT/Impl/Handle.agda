@@ -30,7 +30,6 @@ open import Optics.All
 -- below).
 
 module LibraBFT.Impl.Handle where
- open RWST-do
  open EpochConfig
 
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove

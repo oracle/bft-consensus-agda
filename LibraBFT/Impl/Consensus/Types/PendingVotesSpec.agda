@@ -24,8 +24,6 @@ open import Data.Vec as Vec using (Vec; lookup)
 
 module LibraBFT.Impl.Consensus.Types.PendingVotesSpec where
 
-open RWST-do
-
 gs : ∀ {A : Set} {n : ℕ} → Vec A n → Fin n → A
 gs = Vec.lookup
 

@@ -12,8 +12,6 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Logging.Logging where
 
-  open RWST-do
-
   logErr : LBFT Unit
   logErr = tell1 (LogErr fakeErr)
 

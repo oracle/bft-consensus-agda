@@ -13,8 +13,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
-open RWST-do
-
 -- TODO-3?: Implement this
 postulate
   saveVoteM : Vote → LBFT (Either FakeErr Unit)

@@ -18,8 +18,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
-open RWST-do
-
 postulate
   executeAndInsertBlockM : Block → LBFT (Either FakeErr ExecutedBlock)
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either FakeErr Unit)
