@@ -301,9 +301,13 @@ module LibraBFT.ImplShared.Consensus.Types where
                        → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
+  data FakeErr : Set where
+    ErrVerify : VerifyError → FakeErr
+
   -- These are placeholders so that we can model error and logging outputs even
   -- though we don't yet model them in detail.
   postulate
-    FakeInfo FakeErr : Set
+    FakeInfo         : Set
     fakeErr          : FakeErr
     fakeInfo         : FakeInfo
+

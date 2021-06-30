@@ -15,7 +15,7 @@ open import Optics.All
 module LibraBFT.Impl.Types.ValidatorVerifier where
 
 checkNumOfSignatures : ValidatorVerifier → KVMap AccountAddress Signature → Either FakeErr Unit
-checkVotingPower     : ValidatorVerifier → List AccountAddress → Either VerifyError Unit
+checkVotingPower     : ValidatorVerifier → List AccountAddress → Either FakeErr Unit
 getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
 getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
 
@@ -43,9 +43,8 @@ verifyAggregatedStructSignature
   → Either FakeErr Unit
 verifyAggregatedStructSignature self v aggregatedSignature = do
   checkNumOfSignatures self aggregatedSignature
-  case checkVotingPower self (Map.kvm-keys aggregatedSignature) of λ where
-     (Left  _)    → Left fakeErr
-     (Right unit) → loop (Map.kvm-toList aggregatedSignature)
+  checkVotingPower self (Map.kvm-keys aggregatedSignature)
+  loop (Map.kvm-toList aggregatedSignature)
  where
   loop : List (Author × Signature) → Either FakeErr Unit
   loop  []  = Right unit
@@ -68,13 +67,13 @@ checkNumOfSignatures self aggregatedSignature =
 
 checkVotingPower self authors = loop authors 0
  where
-  loop : List AccountAddress → U64 → Either VerifyError Unit
+  loop : List AccountAddress → U64 → Either FakeErr Unit
   loop (a ∷ as) acc = case getVotingPower self a of λ where
-                        nothing  → Left (UnknownAuthor (a ^∙ aAuthorName))
+                        nothing  → Left (ErrVerify (UnknownAuthor (a ^∙ aAuthorName)))
                         (just n) → loop as (n + acc)
   loop [] aggregatedVotingPower =
     if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
-    then Left (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower))
+    then Left (ErrVerify (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
     else Right unit
 
 getPublicKey self author =

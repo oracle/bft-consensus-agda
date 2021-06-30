@@ -52,7 +52,7 @@ insertVoteM vote vv = do
     case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
       (Right unit) →
         pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
-      (Left (TooLittleVotingPower votingPower _)) →
+      (Left (ErrVerify (TooLittleVotingPower votingPower _))) →
         continue2 votingPower
       (Left _) →
         pure VRR_TODO
@@ -68,7 +68,7 @@ insertVoteM vote vv = do
         case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
           (Right unit) →
             pure (NewTimeoutCertificate partialTc)
-          (Left (TooLittleVotingPower votingPower _)) →
+          (Left (ErrVerify (TooLittleVotingPower votingPower _))) →
             pure (TCVoteAdded votingPower)
           (Left _) →
             pure VRR_TODO
