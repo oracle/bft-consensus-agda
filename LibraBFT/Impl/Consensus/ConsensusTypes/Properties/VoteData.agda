@@ -18,7 +18,6 @@ open RWST-do
 module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData (self : VoteData) where
 
   record Contract : Set where
-    constructor mkContract
     field
       ep≡     : self ^∙ vdParent ∙ biEpoch ≡ self ^∙ vdProposed ∙ biEpoch
       parRnd< : self ^∙ vdParent ∙ biRound < self ^∙ vdProposed ∙ biRound
@@ -36,4 +35,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData (self : VoteDa
   ...| yes par<prop
      with (self ^∙ vdParent ∙ biVersion) ≤?-Version (self ^∙ vdProposed ∙ biVersion)
   ...| no ¬parVer≤ = (λ ())
-  ...| yes parVer≤ = (λ x → mkContract refl par<prop parVer≤)
+  ...| yes parVer≤ = (λ x → record { ep≡ = refl
+                                   ; parRnd< = par<prop
+                                   ; parVer≤ = parVer≤ })
