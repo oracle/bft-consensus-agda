@@ -7,16 +7,22 @@
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.KVMap                               as Map
 open import LibraBFT.Base.Types
+open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
-import      LibraBFT.ImplShared.Util.Crypto                         as Crypto
+import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
 open import LibraBFT.ImplShared.Util.Util
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures      as LedgerInfoWithSignatures
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert as QuorumCertProps
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VotaDataProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
 open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
 
@@ -100,14 +106,73 @@ module VerifyAndUpdateLastVoteRoundM (round : Round) (safetyData : SafetyData) w
   proj₁ (contract P₁ pre b o) c₁t = o c₁t
   proj₂ (contract P₁ pre b o) c₁f = b c₁f
 
-module VerifyQcM (qc : QuorumCert) where
-  postulate
-    -- TODO-2: needs refining, when verifyQcM is implemented
-    contract
-      : ∀ P pre
-        → (P (inj₁ fakeErr) pre [])
-        → (P (inj₂ unit) pre [])
-        → RWST-weakestPre (verifyQcM qc) P unit pre
+module VerifyQcM (self : QuorumCert) where
+
+  getVv = rmGetValidatorVerifier
+
+  -- See comment on contract below to understand the motivation for stating and proving the property
+  -- this way.
+
+  P' : RoundManager → RWST-Post Output RoundManager (Either FakeErr Unit)
+  P' pre = (λ { (Left x)  post outs → LBFT-NoEffect pre post outs
+              ; (Right _) post outs → LBFT-NoEffect pre post outs
+                                    × QuorumCertProps.Contract self (getVv pre) })
+
+  contract' : ∀ pre → RWST-weakestPre (verifyQcM self) (P' pre) unit pre
+  contract' pre _vv ._
+     with self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash == hashVD (self ^∙ qcVoteData)
+  ...| no neq = refl , refl
+  ...| yes refl
+     with self ^∙ qcCertifiedBlock ∙ biRound == 0
+  ...| yes refl
+     with self ^∙ qcParentBlock == self ^∙ qcCertifiedBlock
+  ...| no neq = refl , refl
+  ...| yes refl
+     with self ^∙ qcCertifiedBlock == self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
+  ...| no neq = refl , refl
+  ...| yes refl
+     with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) == 0
+  ...| no neq = refl , refl
+  ...| yes noSigs = (refl , refl) , record { lihash≡ = refl
+                                           ; rnd0    = λ _ → record { par≡cert = refl
+                                                                    ; cert≡li = refl
+                                                                    ; noSigs = noSigs }
+                                           ; ¬rnd0   = λ x → ⊥-elim (x refl) }
+  contract' pre vv refl
+     | yes refl
+     | no neq
+     with  LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)  vv | inspect
+          (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)) vv
+  ...| Left e     | _ = refl , refl
+  ...| Right unit | [ R ]
+     with VoteData.verify (self ^∙ qcVoteData) | inspect
+          VoteData.verify (self ^∙ qcVoteData)
+  ...| Left e     | _ = refl , refl
+  ...| Right unit | [ R' ] = (refl , refl)
+                           , record { lihash≡ = refl
+                                    ; rnd0    = ⊥-elim ∘ neq
+                                    ; ¬rnd0   = λ _ → record { sigProp = R
+                                                             ; vdProp = VotaDataProps.contract (self ^∙ qcVoteData) R' } }
+
+  -- Suppose verifyQcM runs from prestate pre, and we wish to ensure that postcondition Post holds
+  -- afterwards.  If P holds provided verifyQcM does not modify the state and does not produce any
+  -- Outputs, and, if verifyQcM succeeds (returns Right unit), P holds provided
+  -- QuorumCertProps.Contract holds for the given QuorumCert and the ValidatorVerifier of the
+  -- prestate, then verifyQcM ensures P holds.  Proving this directly is painful because it's
+  -- difficult to construct a QuorumCertProps.Contract self (getVv pre) that Agda understands allows
+  -- us to invoke the rPrf (condition on P in case verifyQcM succeeds).  Therefore, we restate the
+  -- conditions on P (as P', above) and prove that P' implies P, and then use RWST-impl to achieve
+  -- the desired result.
+
+  contract
+    : ∀ P pre
+    → (∀ {e} → P (Left e) pre [])
+    → (QuorumCertProps.Contract self (getVv pre) → P (Right unit) pre [])
+    → RWST-weakestPre (verifyQcM self) P unit pre
+  contract Post pre lPrf rPrf = RWST-impl (P' pre) Post
+                                       (λ { (Left x₁) st outs (refl , refl)            → lPrf
+                                          ; (Right unit) st outs ((refl , refl) , prf) → rPrf prf })
+                                       (verifyQcM self) unit pre (contract' pre)
 
 module ConstructAndSignVoteM where
   VoteSrcCorrect : RoundManager → (FakeErr ⊎ Vote) → RoundManager → Set
@@ -555,7 +620,7 @@ module ConstructAndSignVoteM where
         (RWST-weakestPre-ebindPost unit (λ _ → step₁) (Contract pre)) pre
           (mkContract refl unit)
           λ where
-            unit _ validatorVerifier validatorVerifier≡ →
+            _ unit _ validatorVerifier _ →
               either {C = λ x → RWST-weakestPre (pure x ∙?∙ (λ _ → step₃)) (Contract pre) _ _}
                 (λ _ → mkContract refl unit)
                 (λ where

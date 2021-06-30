@@ -62,6 +62,9 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-Post : Set → Set₁
   LBFT-Post A = (x : A) (post : RoundManager) (outs : List Output) → Set
 
+  LBFT-NoEffect : RoundManager → RoundManager → List Output → Set
+  LBFT-NoEffect = RWST-NoEffect
+
   LBFT-Contract : ∀ {A} → LBFT A → LBFT-Pre → LBFT-Post A → Set
   LBFT-Contract m Pre Post =
     ∀ pre →

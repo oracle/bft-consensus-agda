@@ -77,6 +77,9 @@ RWST-Pre Ev St = (ev : Ev) (pre : St) → Set
 RWST-Post : (Wr St A : Set) → Set₁
 RWST-Post Wr St A = (x : A) (post : St) (outs : List Wr) → Set
 
+RWST-NoEffect : St → St → List Wr → Set
+RWST-NoEffect pre post outs = post ≡ pre × outs ≡ []
+
 RWST-Post++ : ∀ {Wr St A} → RWST-Post Wr St A → List Wr → RWST-Post Wr St A
 RWST-Post++ P outs x post outs₁ = P x post (outs ++ outs₁)
 
