@@ -20,8 +20,8 @@ getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
 getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
 
 verifyIfAuthor
-  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
-  → {-Text →-} ValidatorVerifier → AccountAddress → v → Signature
+  : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
+  → {-Text →-} ValidatorVerifier → AccountAddress → V → Signature
   → Either FakeErr Unit
 verifyIfAuthor {-msg-} self author v signature = case getPublicKey self author of λ where
   (just pk) → case Crypto.verify {-msg-} pk signature v of λ where
@@ -32,14 +32,14 @@ verifyIfAuthor {-msg-} self author v signature = case getPublicKey self author o
 --  known = fmap _aAuthorName (Map.keys (self^.vvAddressToValidatorInfo))
 
 verify
-  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
-  → ValidatorVerifier → AccountAddress → v → Signature
+  : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
+  → ValidatorVerifier → AccountAddress → V → Signature
   → Either FakeErr Unit
 verify = verifyIfAuthor -- (icSemi ["ValidatorVerifier", "verifySignature"])
 
 verifyAggregatedStructSignature
-  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
-  → ValidatorVerifier → v → KVMap AccountAddress Signature
+  : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
+  → ValidatorVerifier → V → KVMap AccountAddress Signature
   → Either FakeErr Unit
 verifyAggregatedStructSignature self v aggregatedSignature = do
   checkNumOfSignatures self aggregatedSignature
@@ -55,8 +55,8 @@ verifyAggregatedStructSignature self v aggregatedSignature = do
     else Left fakeErr
 
 batchVerifyAggregatedSignatures
-  : {v : Set} ⦃ cryptoHashV : Crypto.CryptoHash v ⦄
-  → ValidatorVerifier → v → KVMap AccountAddress Signature
+  : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
+  → ValidatorVerifier → V → KVMap AccountAddress Signature
   → Either FakeErr Unit
 batchVerifyAggregatedSignatures = verifyAggregatedStructSignature
 
