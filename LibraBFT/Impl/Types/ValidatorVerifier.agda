@@ -50,9 +50,9 @@ verifyAggregatedStructSignature self v aggregatedSignature = do
   loop : List (Author × Signature) → Either FakeErr Unit
   loop  []  = Right unit
   loop ((author , signature) ∷ xs) =
-    if true -- verify self author v signature
-    then loop xs
-    else Left fakeErr
+    case verify self author v signature of λ where
+      (Right unit) → loop xs
+      l            → l
 
 batchVerifyAggregatedSignatures
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
