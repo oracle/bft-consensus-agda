@@ -55,30 +55,25 @@ batchVerifyAggregatedSignatures = verifyAggregatedStructSignature
 
 checkNumOfSignatures self aggregatedSignature =
   if-dec Map.kvm-size aggregatedSignature >? Map.kvm-size (self ^∙ vvAddressToValidatorInfo)
-    then Left fakeErr -- ErrVerify TooManySignatures (Map.size aggregatedSignature)
-                      -- (Map.size (self^.vvAddressToValidatorInfo)
+    then Left (ErrVerify
+                 (TooManySignatures
+                   (Map.kvm-size aggregatedSignature)
+                   (Map.kvm-size (self ^∙ vvAddressToValidatorInfo))))
     else Right unit
 
-checkVotingPower self authors =
+checkVotingPower self authors = do
   let go : AccountAddress → U64 → Either FakeErr U64
       go a acc = case getVotingPower self a of λ where
          nothing  → Left (ErrVerify (UnknownAuthor (a ^∙ aAuthorName)))
          (just n) → Right (n + acc)
-   in foldrM go 0 authors >>= λ aggregatedVotingPower →
-        if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
-        then Left (ErrVerify
-                    (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
-        else Right unit
+  aggregatedVotingPower ← foldrM go 0 authors
+  if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
+    then Left (ErrVerify
+               (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
+    else Right unit
 
 getPublicKey self author =
---  (^.vciPublicKey) <$> Map.lookup author (self^.vvAddressToValidatorInfo)
-  case Map.lookup author (self ^∙ vvAddressToValidatorInfo) of λ where
-    nothing  → nothing
-    (just a) → just (a ^∙ vciPublicKey)
+  (_^∙ vciPublicKey) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
 
 getVotingPower self author =
---  (λ a → a ^∙ vciVotingPower) <$> (Map.lookup author (self ^∙ vvAddressToValidatorInfo))
-  case Map.lookup author (self ^∙ vvAddressToValidatorInfo) of λ where
-    nothing  → nothing
-    (just a) → just (a ^∙ vciVotingPower)
-
+  (_^∙ vciVotingPower) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
