@@ -18,6 +18,11 @@ logErr = tell1 (LogErr fakeErr)
 logInfo : LBFT Unit
 logInfo = tell1 (LogInfo fakeInfo)
 
+-- NOTE: The logging functionality below has been added because, in the future,
+-- we may wish to model and reason about errors and logging in more detail.
+-- Logging operations change the structure of the program, and proofs about peer
+-- operations are sensitive to this structure. Therefore, we add a "skeleton" of
+-- logging operations so that future refinements do not break existing proofs.
 withErrCtxt : FakeErr → FakeErr
 withErrCtxt = id
 

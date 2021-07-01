@@ -112,9 +112,11 @@ module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorS
   step₁ : SafetyData → LBFT (Either FakeErr Vote)
 
   proposedBlock = voteProposal ^∙ vpBlock
+
   step₀ = do
     safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
     verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ → step₁ safetyData0
+
   step₁ safetyData0 = do
       caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
@@ -136,11 +138,14 @@ module constructAndSignVoteM-continue1
 
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
+
   step₁ = do
       validatorVerifier ← gets rmGetValidatorVerifier -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
       step₂ validatorVerifier
+
   step₂ validatorVerifier =
       pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
+
   step₃ =
         verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
         constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
@@ -154,15 +159,18 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₂ : SafetyData → VoteData → LBFT (Either FakeErr Vote)
   step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (Either FakeErr Vote)
 
-  step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
+  step₀ =
+    verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
   step₁ safetyData1 = do
     lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
     extensionCheckM voteProposal ∙?∙ (step₂ safetyData1)
+
   step₂ safetyData1 voteData = do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData)
                            ∙^∙ withErrCtxt ∙?∙ (step₃ safetyData1 voteData author)
+
   step₃ safetyData1 voteData author ledgerInfo = do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
@@ -171,5 +179,3 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
-
-

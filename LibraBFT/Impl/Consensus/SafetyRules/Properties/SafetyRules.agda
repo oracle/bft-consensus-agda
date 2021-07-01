@@ -139,19 +139,15 @@ module constructAndSignVoteMSpec where
   ResultCorrect pre post epoch round (Right v) = VoteCorrect pre post epoch round v
 
   record Contract (pre : RoundManager) (epoch : Epoch) (round : Round) (r : Either FakeErr Vote) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
     field
       noOuts        : NoMsgOuts outs
-      inv           : Invariant₂ pre post
+      inv           : NoEpochChange pre post
       resultCorrect : ResultCorrect pre post epoch round r
 
   private
     contractEasy : ∀ {pre e epoch round} → Contract pre epoch round (Left e) pre []
-    Contract.noOuts contractEasy = refl
-    Invariant₂.es≡₁ (Contract.inv contractEasy) = refl
-    Invariant₂.es≡₂ (Contract.inv contractEasy) = refl
-    NoVoteCorrect.lv≡ (Contract.resultCorrect contractEasy) = refl
-    NoVoteCorrect.lvr≤ (Contract.resultCorrect contractEasy) = ≤-refl
-
+    contractEasy = mkContract refl (record { es≡₁ = refl ; es≡₂ = refl }) (record { lv≡ = refl ; lvr≤ = ≤-refl })
 
   module continue2
     (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
@@ -160,8 +156,9 @@ module constructAndSignVoteMSpec where
     open constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData
 
     record Requirements (pre : RoundManager) : Set where
+      constructor mkRequirements
       field
-        es≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdEpoch -- pre ^∙ lSafetyData ∙ sdEpoch ≡ safetyData ^∙ sdEpoch at (lSafetyData ∙ sdEpoch , sdEpoch)
+        es≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdEpoch
         lv≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVote
         lvr≡ : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVotedRound
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
@@ -169,6 +166,7 @@ module constructAndSignVoteMSpec where
     epoch = voteProposal ^∙ vpBlock ∙ bEpoch
     round = voteProposal ^∙ vpBlock ∙ bRound
 
+    -- TODO-1: Break this down into smaller pieces.
     contract
       : ∀ pre
         → Requirements pre
@@ -188,23 +186,16 @@ module constructAndSignVoteMSpec where
                       let author = validatorSigner ^∙ vsAuthor
                           st₁    = pre & (lSafetyData ∙~ safetyData1) in
                       constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
-                        (RWST-weakestPre-bindPost unit
-                          (either (bail ∘ withErrCtxt) ok)
-                          (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre epoch round))) st₁
-                          (λ where .(Left fakeErr) refl → bailAfterSetSafetyData r>lvr)
-                          λ where
-                            ledgerInfo ._ refl ._ refl ._ refl .unit refl .unit refl →
-                              record { noOuts = refl
-                                     ; inv =
-                                       record { es≡₁ = refl
-                                              ; es≡₂ = Requirements.es≡ reqs }
-                                     ; resultCorrect =
-                                       record { round≡ = refl
-                                              ; postLv≡ = refl
-                                              ; voteSrc =
-                                                Right (record { epoch≡ = refl
-                                                              ; lvr< = lvr<pbr r>lvr
-                                                              ; postLvr≡ = vpr≡pbr })}})
+                        (RWST-weakestPre-∙^∙Post unit withErrCtxt
+                          (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre epoch round)))
+                        st₁
+                        (λ where .(Left fakeErr) refl → bailAfterSetSafetyData r>lvr)
+                         λ where
+                           ledgerInfo ._ refl ._ refl ._ refl .unit refl .unit refl →
+                             mkContract refl
+                               (mkNoEpochChange refl (Requirements.es≡ reqs))
+                               (mkVoteCorrect refl refl
+                                 (Right (mkVoteCorrectNew refl (lvr<pbr r>lvr) vpr≡pbr))))
           λ r≤lvr → contractEasy
       where
       vpr≡pbr : (voteProposal ^∙ vpBlock) ≡L proposedBlock at bRound
@@ -218,15 +209,14 @@ module constructAndSignVoteMSpec where
                 → pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
       lvr≤pbr r>lvr = <⇒≤ (lvr<pbr r>lvr)
 
+      preUpdatedSD = pre & lSafetyData ∙~ verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData
+
       bailAfterSetSafetyData
         : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-          → Contract pre epoch round (Left fakeErr) (pre & lSafetyData ∙~ verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData) []
-      Contract.noOuts (bailAfterSetSafetyData r>lvr) = refl
-      Invariant₂.es≡₁ (Contract.inv (bailAfterSetSafetyData r>lvr)) = refl
-      Invariant₂.es≡₂ (Contract.inv (bailAfterSetSafetyData r>lvr)) = Requirements.es≡ reqs
-      NoVoteCorrect.lv≡ (Contract.resultCorrect (bailAfterSetSafetyData r>lvr)) = Requirements.lv≡ reqs
-      NoVoteCorrect.lvr≤ (Contract.resultCorrect (bailAfterSetSafetyData r>lvr)) = lvr≤pbr r>lvr
-
+          → Contract pre epoch round (Left fakeErr) preUpdatedSD []
+      bailAfterSetSafetyData r>lvr =
+        mkContract refl (mkNoEpochChange refl (Requirements.es≡ reqs))
+          (mkNoVoteCorrect (Requirements.lv≡ reqs) (lvr≤pbr r>lvr))
 
   module continue1
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
@@ -238,25 +228,12 @@ module constructAndSignVoteMSpec where
     round = voteProposal ^∙ vpBlock ∙ bRound
 
     record Requirements (pre : RoundManager) : Set where
+      constructor mkRequirements
       field
         sd≡   : pre ^∙ lSafetyData ≡ safetyData0
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
 
-    private
-      convReq₁ : ∀ {pre}
-                → Requirements pre
-                → continue2.Requirements voteProposal validatorSigner proposedBlock safetyData0 pre
-      convReq₁ record { sd≡ = refl ; vp≡pb = vp≡pb } =
-        record { es≡ = refl ; lv≡ = refl ; lvr≡ = refl ; vp≡pb = vp≡pb }
-
-      convReq₂ : ∀ {pre}
-                 → Requirements pre
-                 → continue2.Requirements voteProposal validatorSigner proposedBlock
-                     (verifyAndUpdatePreferredRoundMSpec.safetyData' (proposedBlock ^∙ bQuorumCert) safetyData0)
-                     pre
-      convReq₂ record { sd≡ = refl ; vp≡pb = vp≡pb } =
-        record { es≡ = refl ; lv≡ = refl ; lvr≡ = refl ; vp≡pb = vp≡pb }
-
+    -- TODO-1: Break this down into smaller pieces.
     contract
       : ∀ pre
         → Requirements pre
@@ -297,14 +274,14 @@ module constructAndSignVoteMSpec where
       reqs₁ : continue2.Requirements voteProposal validatorSigner proposedBlock safetyData0 pre
       reqs₁
          with Requirements.sd≡ reqs
-      ...| refl = record { es≡ = refl ; lv≡ = refl ; lvr≡ = refl ; vp≡pb = Requirements.vp≡pb reqs }
+      ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
 
       reqs₂ : continue2.Requirements voteProposal validatorSigner proposedBlock
                 (verifyAndUpdatePreferredRoundMSpec.safetyData' (proposedBlock ^∙ bQuorumCert) safetyData0)
                 pre
       reqs₂
          with Requirements.sd≡ reqs
-      ...| refl = record { es≡ = refl ; lv≡ = refl ; lvr≡ = refl ; vp≡pb = Requirements.vp≡pb reqs }
+      ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
 
   module continue0
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner) where
@@ -326,19 +303,12 @@ module constructAndSignVoteMSpec where
           e≡sde .unit refl →
             (λ ≡nothing →
               continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-                (record { sd≡ = refl ; vp≡pb = refl }))
+                (continue1.mkRequirements refl refl))
             , λ vote vote≡ →
               (λ lvr≡pbr →
-                record { noOuts = refl
-                       ; inv =
-                         record { es≡₁ = refl
-                                ; es≡₂ = refl }
-                                ; resultCorrect =
-                                  record { round≡ = toWitnessT lvr≡pbr
-                                         ; postLv≡ = sym vote≡
-                                         ; voteSrc = inj₁
-                                           (record { lvr≡ = refl
-                                                   ; lv≡ = refl }) } })
+                mkContract refl (mkNoEpochChange refl refl)
+                  (mkVoteCorrect (toWitnessT lvr≡pbr) (sym vote≡)
+                    (Left (mkVoteCorrectOld refl refl))))
               , λ lvr≢pbr →
                 continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
                   (record { sd≡ = refl ; vp≡pb = refl })
@@ -349,11 +319,12 @@ module constructAndSignVoteMSpec where
     epoch = voteProposal ^∙ vpBlock ∙ bEpoch
     round = voteProposal ^∙ vpBlock ∙ bRound
 
+    -- TODO-1: Break this down into smaller pieces.
     contract
       : ∀ pre
         → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre epoch round) pre
     contract pre .unit refl nothing vs≡ ._ refl .unit refl =
-      record { noOuts = refl ; inv = record { es≡₁ = refl ; es≡₂ = refl } ; resultCorrect = record { lv≡ = refl ; lvr≤ = ≤-refl } }
+      mkContract refl (mkNoEpochChange refl refl) (mkNoVoteCorrect refl ≤-refl)
     contract pre .unit refl (just validatorSigner) vs≡ =
       RWST-⇒
         (Contract pre epoch round) Post pf
@@ -370,9 +341,8 @@ module constructAndSignVoteMSpec where
       convNoOuts{outs} pf rewrite List-filter-++ isOutputMsg? outs (LogInfo fakeInfo ∷ []) | pf = refl
 
       pf : ∀ r st outs → Contract pre epoch round r st outs → Post r st outs
-      pf r st outs record { noOuts = noOuts ; inv = inv ; resultCorrect = resultCorrect } .r refl .unit refl =
-        record { noOuts = convNoOuts{outs} noOuts
-               ; inv = inv ; resultCorrect = resultCorrect }
+      pf r st outs (mkContract noOuts inv resultCorrect) .r refl .unit refl =
+        mkContract (convNoOuts{outs} noOuts) inv resultCorrect
 
 private
   module Tutorial
@@ -409,14 +379,13 @@ private
     {-
     The proof can be as simple as this:
 
-       = λ _ _ _ _ _ _ → refl
+       = λ _ _ _ _ → refl
 
     Easy, right?!  Oh, you want a little more detail?  Sure here you go:
 
        = λ where .pre refl →
                   λ where .unit refl →
-                           λ where .unit refl →
-                                    refl   -- Indenting important for parsing
+                           refl   -- Indenting important for parsing
 
     Still not crystal clear?  OK, let's explore in a little more detail.
 

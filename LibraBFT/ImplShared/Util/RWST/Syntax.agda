@@ -107,6 +107,10 @@ m ∙^∙ f = do
   x ← m
   either (bail ∘ f) ok x
 
+RWST-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWST-Post Wr St (C ⊎ A) → RWST-Post Wr St (C ⊎ A)
+RWST-weakestPre-∙^∙Post ev e Post =
+  RWST-weakestPre-bindPost ev (either (bail ∘ e) ok) Post
+
 -- Lens functionality
 --
 -- If we make RWST work for different level State types, we will break use and

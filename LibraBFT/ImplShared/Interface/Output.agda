@@ -29,22 +29,28 @@ module LibraBFT.ImplShared.Interface.Output where
   SendVote-inj-si refl = refl
 
   IsSendVote : Output → Set
-  IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
+  IsSendVote (BroadcastProposal _) = ⊥
+  IsSendVote (LogErr _) = ⊥
+  IsSendVote (LogInfo _) = ⊥
+  IsSendVote (SendVote _ _) = ⊤
 
   IsBroadcastProposal : Output → Set
-  IsBroadcastProposal out = ∃[ pm ] (out ≡ BroadcastProposal pm)
+  IsBroadcastProposal (BroadcastProposal _) = ⊤
+  IsBroadcastProposal (LogErr _) = ⊥
+  IsBroadcastProposal (LogInfo _) = ⊥
+  IsBroadcastProposal (SendVote _ _) = ⊥
 
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
-  isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
+  isSendVote? (SendVote mv pid)     = yes tt
 
   isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
-  isBroadcastProposal? (BroadcastProposal pm) = yes (pm , refl)
-  isBroadcastProposal? (LogErr _) = no λ ()
-  isBroadcastProposal? (LogInfo _) = no λ ()
-  isBroadcastProposal? (SendVote _ _) = no λ ()
+  isBroadcastProposal? (BroadcastProposal _) = yes tt
+  isBroadcastProposal? (LogErr _)            = no λ ()
+  isBroadcastProposal? (LogInfo _)           = no λ ()
+  isBroadcastProposal? (SendVote _ _)        = no λ ()
 
   IsOutputMsg : Output → Set
   IsOutputMsg = IsBroadcastProposal ∪ IsSendVote
