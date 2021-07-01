@@ -398,11 +398,11 @@ module LibraBFT.Prelude where
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
 
-  forM_ : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → List A → (A → m B) → m Unit
+  forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
 
-  foldrM : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → (A → B → m B) → B → List A → m B
+  foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
 
