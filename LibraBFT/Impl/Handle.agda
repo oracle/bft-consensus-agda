@@ -3,6 +3,7 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
@@ -30,72 +31,73 @@ open import Optics.All
 -- below).
 
 module LibraBFT.Impl.Handle where
- open EpochConfig
 
- postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
-           -- it by construction; eventually we will construct an entire RoundManager, so
-           -- this won't be needed
+open EpochConfig
 
- -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
- -- the initial RoundManager for every peer until it is initialised.
-   fakeRM : RoundManager
+postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
+          -- it by construction; eventually we will construct an entire RoundManager, so
+          -- this won't be needed
 
- initSR : SafetyRules
- initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
-                (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
-                      (_rmSafetyRules (_rmEC fakeRM)))
+  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
+  -- the initial RoundManager for every peer until it is initialised.
+  fakeRM : RoundManager
 
- postulate -- TODO-1: Implement this.
-   initPE : ProposerElection
+initSR : SafetyRules
+initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
+               (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
+                     (_rmSafetyRules (_rmEC fakeRM)))
 
- initPV : PendingVotes
- initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
+postulate -- TODO-1: Implement this.
+  initPE : ProposerElection
 
- initRS : RoundState
- initRS = RoundState∙new 0 0 initPV nothing
+initPV : PendingVotes
+initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
 
- initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
+initRS : RoundState
+initRS = RoundState∙new 0 0 initPV nothing
 
- postulate -- TODO-2 : prove these once initRMEC is defined directly
-   init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
-   initRMEC-correct : RoundManagerEC-correct initRMEC
+initRMEC : RoundManagerEC
+initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
 
- initRM : RoundManager
- initRM = fakeRM
+postulate -- TODO-2 : prove these once initRMEC is defined directly
+  init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
+  initRMEC-correct : RoundManagerEC-correct initRMEC
 
- -- Eventually, the initialization should establish some properties we care about, but for now we
- -- just initialise again to fakeRM, which means we cannot prove the base case for various
- -- properties, e.g., in Impl.Properties.VotesOnce
- -- TODO: create real RoundManager using GenesisInfo
- initialRoundManagerAndMessages
-     : (a : Author) → GenesisInfo
-     → RoundManager × List NetworkMsg
- initialRoundManagerAndMessages a _ = initRM , []
+initRM : RoundManager
+initRM = fakeRM
 
- -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
- -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
- -- be renamed?)
+-- Eventually, the initialization should establish some properties we care about, but for now we
+-- just initialise again to fakeRM, which means we cannot prove the base case for various
+-- properties, e.g., in Impl.Properties.VotesOnce
+-- TODO: create real RoundManager using GenesisInfo
+initialRoundManagerAndMessages
+  : (a : Author) → GenesisInfo
+  → RoundManager × List NetworkMsg
+initialRoundManagerAndMessages a _ = initRM , []
 
- initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
- initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
+-- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
+-- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
+-- be renamed?)
 
- -- Here we invoke the handler that models the real implementation handler.
- runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
- runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
+initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
- -- And ultimately, the all-knowing system layer only cares about the
- -- step function.
- --
- -- Note that we currently do not do anything non-trivial with the timestamp.
- -- Here, we just pass 0 to `handle`.
- peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
- peerStep nid msg st = runHandler st (handle nid msg 0)
+-- Here we invoke the handler that models the real implementation handler.
+runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
+runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
- InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
- InitAndHandlers = mkSysInitAndHandlers
-                     genesisInfo
-                     initRM
-                     initWrapper
-                     peerStep
+-- And ultimately, the all-knowing system layer only cares about the
+-- step function.
+--
+-- Note that we currently do not do anything non-trivial with the timestamp.
+-- Here, we just pass 0 to `handle`.
+peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
+peerStep nid msg st = runHandler st (handle nid msg 0)
+
+InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+InitAndHandlers = mkSysInitAndHandlers
+                    genesisInfo
+                    initRM
+                    initWrapper
+                    peerStep
 

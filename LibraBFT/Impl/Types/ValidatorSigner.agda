@@ -8,7 +8,8 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS                           as PKCS hiding (sign)
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
+
 module LibraBFT.Impl.Types.ValidatorSigner where
 
-  sign : {C : Set} ⦃ enc : Encoder C ⦄ → ValidatorSigner → C → Signature
-  sign (ValidatorSigner∙new _ sk) c = PKCS.sign-encodable c sk
+sign : {C : Set} ⦃ enc : Encoder C ⦄ → ValidatorSigner → C → Signature
+sign (ValidatorSigner∙new _ sk) c = PKCS.sign-encodable c sk
