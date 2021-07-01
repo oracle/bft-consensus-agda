@@ -44,14 +44,8 @@ verifyAggregatedStructSignature
 verifyAggregatedStructSignature self v aggregatedSignature = do
   checkNumOfSignatures self aggregatedSignature
   checkVotingPower self (Map.kvm-keys aggregatedSignature)
-  loop (Map.kvm-toList aggregatedSignature)
- where
-  loop : List (Author × Signature) → Either FakeErr Unit
-  loop  []  = Right unit
-  loop ((author , signature) ∷ xs) =
-    case verify self author v signature of λ where
-      (Right unit) → loop xs
-      l            → l
+  forM_ (Map.kvm-toList aggregatedSignature) λ (author , signature) →
+    verify self author v signature
 
 batchVerifyAggregatedSignatures
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
