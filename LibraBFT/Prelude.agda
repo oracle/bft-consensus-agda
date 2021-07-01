@@ -40,7 +40,7 @@ module LibraBFT.Prelude where
 
   open import Data.List
     renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
-              tabulate to List-tabulate)
+              tabulate to List-tabulate ; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
 
@@ -407,5 +407,9 @@ module LibraBFT.Prelude where
     Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
     Monad.return (Monad-Error{ℓ}{C}) = RawMonad.return (Data.Sum.Categorical.Left.monad C ℓ)
     Monad._>>=_ (Monad-Error{ℓ}{C}) = RawMonad._>>=_ (Data.Sum.Categorical.Left.monad C ℓ)
+
+  forM_ : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → List A → (A → m B) → m Unit
+  forM_      []  _ = return unit
+  forM_ (x ∷ xs) f = f x >> forM_ xs f
 
   open import LibraBFT.Base.Util public
