@@ -54,12 +54,15 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₂ : Either ErrLog Bool → LBFT Unit
 
   step₀ =
+
     caseMM pm ^∙ pmProposer of λ where
       nothing → logInfo -- log: info: proposal with no author
       (just pAuthor) → step₁ pAuthor
+
   step₁ pAuthor =
         ensureRoundAndSyncUpM now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo)
                               pAuthor true >>= step₂
+
   step₂ =
         λ where
           (Left e)      → logErr -- log: error: <propagate error>
@@ -89,8 +92,10 @@ module ensureRoundAndSyncUpM
     ifM messageRound <? currentRound
       then ok false
       else step₁
+
   step₁ =
         syncUpM now syncInfo author helpRemote ∙?∙ λ _ → step₂
+
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
           ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
@@ -122,6 +127,7 @@ module ProcessProposalM (proposal : Block) where
     let bs = rmGetBlockStore s
     vp ← ProposerElection.isValidProposalM proposal
     step₁ {s} bs vp
+
   step₁ bs vp =
     ifM‖ is-nothing (proposal ^∙ bAuthor) ≔
          logErr -- log: error: proposal does not have an author
@@ -135,12 +141,14 @@ module ProcessProposalM (proposal : Block) where
          logErr -- log: error: parentBlock < proposalRound
        ‖ otherwise≔ do
            executeAndVoteM proposal >>= step₂
+
   step₂ =  λ where
              (Left _)     → logErr -- log: error: <propagate error>
              (Right vote) → do
                RoundState.recordVote vote
                si ← BlockStore.syncInfoM
                step₃ vote si
+
   step₃ vote si = do
                recipient ← ProposerElection.getValidProposer
                            <$> use lProposerElection
@@ -157,7 +165,9 @@ module ExecuteAndVoteM (b : Block) where
   step₂ : ExecutedBlock → LBFT (Either ErrLog Vote)
   step₃ : Vote          → LBFT (Either ErrLog Vote)
 
-  step₀ = BlockStore.executeAndInsertBlockM b ∙?∙ step₁
+  step₀ =
+    BlockStore.executeAndInsertBlockM b ∙?∙ step₁
+
   step₁ eb = do
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
@@ -167,10 +177,12 @@ module ExecuteAndVoteM (b : Block) where
        ‖ so ≔
          bail fakeErr -- error: sync-only set
        ‖ otherwise≔ step₂ eb
+
   step₂ eb = do
            let maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
            SafetyRules.constructAndSignVoteM maybeSignedVoteProposal' {- ∙^∙ logging -}
              ∙?∙ step₃
+
   step₃ vote =   PersistentLivenessStorage.saveVoteM vote
              ∙?∙ λ _ → ok vote
 

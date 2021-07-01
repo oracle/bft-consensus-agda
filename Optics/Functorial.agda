@@ -71,3 +71,10 @@ module Optics.Functorial where
   infixr 30 _∙_
   _∙_ : ∀{S A B} → Lens S A → Lens A B → Lens S B
   (lens p) ∙ (lens q) = lens (λ F rf x x₁ → p F rf (q F rf x) x₁)
+
+  -- Relation between the same field of two states
+  _[_]L_at_ : ∀ {ℓ} {S A} → S → (A → A → Set ℓ) → S → Lens S A → Set ℓ
+  s₁ [ _~_ ]L s₂ at l = (s₁ ^∙ l) ~ (s₂ ^∙ l)
+
+  _≡L_at_ : ∀ {S A} → (s₁ s₂ : S) → Lens S A → Set
+  _≡L_at_ = _[ _≡_ ]L_at_

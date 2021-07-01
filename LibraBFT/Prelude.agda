@@ -18,7 +18,7 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_)
+    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
     public
 
   infixl 1 _&_
@@ -45,7 +45,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List.Properties
-    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose)
+    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
     public
 
@@ -231,6 +231,14 @@ module LibraBFT.Prelude where
     using (Setoid; IsPreorder)
     public
 
+  open import Relation.Unary
+    using (_∪_)
+    public
+
+  open import Relation.Unary.Properties
+    using (_∪?_)
+    public
+
   -- Evidence that a function is not injective
   NonInjective : ∀{a b c}{A : Set a}{B : Set b}
                → (_≈_ : Rel A c)
@@ -324,6 +332,12 @@ module LibraBFT.Prelude where
 
     ToBool-Dec : ∀{a}{A : Set a} → ToBool (Dec A)
     ToBool-Dec = record { toBool = ⌊_⌋ }
+
+  toWitnessT : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ true → P
+  toWitnessT {d = yes proof} _ = proof
+
+  toWitnessF : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ false → ¬ P
+  toWitnessF{d = no proof} _ = proof
 
   infix 3 _≔_
   data GuardClause {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
