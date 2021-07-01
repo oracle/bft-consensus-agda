@@ -40,7 +40,7 @@ module LibraBFT.Prelude where
 
   open import Data.List
     renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
-              tabulate to List-tabulate ; foldl to List-foldl)
+              tabulate to List-tabulate)
     hiding (fromMaybe; [_])
     public
 
@@ -411,5 +411,9 @@ module LibraBFT.Prelude where
   forM_ : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → List A → (A → m B) → m Unit
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
+
+  foldrM : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → (A → B → m B) → B → List A → m B
+  foldrM _ b      []  = return b
+  foldrM f b (a ∷ as) = foldrM f b as >>= λ b' -> f a b'
 
   open import LibraBFT.Base.Util public
