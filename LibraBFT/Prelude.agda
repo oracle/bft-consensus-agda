@@ -394,6 +394,10 @@ module LibraBFT.Prelude where
     Monad.return (Monad-Error{ℓ}{C}) = inj₂
     Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
 
+    Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
+    Monad.return (Monad-Maybe{ℓ}) = just
+    Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
   forM_ : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → List A → (A → m B) → m Unit
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
