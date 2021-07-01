@@ -14,7 +14,7 @@ module LibraBFT.Impl.OBM.Crypto where
 record CryptoHash (A : Set) : Set where
   field
     sign        : SK → A → Signature
-    verify      : {-Text-} PK → Signature → A → Either FakeErr Unit
+    verify      : {-Text-} PK → Signature → A → Either ErrLog Unit
     ⦃ encodeA ⦄ : Encoder A
 
 open CryptoHash ⦃ ... ⦄ public

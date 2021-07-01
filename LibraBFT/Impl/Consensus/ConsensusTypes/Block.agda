@@ -13,5 +13,5 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.ConsensusTypes.Block where
 
 postulate
-  validateSignature : Block → ValidatorVerifier → Either FakeErr Unit
+  validateSignature : Block → ValidatorVerifier → Either ErrLog Unit
 

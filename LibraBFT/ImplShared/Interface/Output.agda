@@ -17,8 +17,8 @@ module LibraBFT.ImplShared.Interface.Output where
 
   data Output : Set where
     BroadcastProposal : ProposalMsg                   → Output
-    LogErr            : FakeErr                       → Output
-    LogInfo           : FakeInfo                      → Output
+    LogErr            : ErrLog                        → Output
+    LogInfo           : InfoLog                       → Output
     SendVote          : VoteMsg → List Author → Output
   open Output public
 

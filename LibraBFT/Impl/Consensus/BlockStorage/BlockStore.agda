@@ -19,8 +19,8 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
-  executeAndInsertBlockM : Block → LBFT (Either FakeErr ExecutedBlock)
-  insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either FakeErr Unit)
+  executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
+  insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
   syncInfoM : LBFT SyncInfo
