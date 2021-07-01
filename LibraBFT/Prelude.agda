@@ -400,6 +400,6 @@ module LibraBFT.Prelude where
 
   foldrM : ∀ {A B : Set} {m : Set → Set} ⦃ _ : Monad m ⦄ → (A → B → m B) → B → List A → m B
   foldrM _ b      []  = return b
-  foldrM f b (a ∷ as) = foldrM f b as >>= λ b' -> f a b'
+  foldrM f b (a ∷ as) = foldrM f b as >>= f a
 
   open import LibraBFT.Base.Util public
