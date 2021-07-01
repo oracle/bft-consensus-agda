@@ -12,8 +12,14 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Logging.Logging where
 
-  logErr : LBFT Unit
-  logErr = tell1 (LogErr fakeErr)
+logErr : LBFT Unit
+logErr = tell1 (LogErr fakeErr)
 
-  logInfo : LBFT Unit
-  logInfo = tell1 (LogInfo fakeInfo)
+logInfo : LBFT Unit
+logInfo = tell1 (LogInfo fakeInfo)
+
+withErrCtxt : FakeErr → FakeErr
+withErrCtxt = id
+
+logEE : ∀ {A} → LBFT A → LBFT A
+logEE f = logInfo >> f >>= λ r → logInfo >> pure r
