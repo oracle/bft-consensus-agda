@@ -31,11 +31,25 @@ module LibraBFT.ImplShared.Interface.Output where
   IsSendVote : Output → Set
   IsSendVote out = ∃₂ λ mv pid → out ≡ SendVote mv pid
 
+  IsBroadcastProposal : Output → Set
+  IsBroadcastProposal out = ∃[ pm ] (out ≡ BroadcastProposal pm)
+
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
   isSendVote? (SendVote mv pid)     = yes (mv , pid , refl)
+
+  isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
+  isBroadcastProposal? (BroadcastProposal pm) = yes (pm , refl)
+  isBroadcastProposal? (LogErr _) = no λ ()
+  isBroadcastProposal? (LogInfo _) = no λ ()
+  isBroadcastProposal? (SendVote _ _) = no λ ()
+
+  IsOutputMsg : Output → Set
+  IsOutputMsg = IsBroadcastProposal ∪ IsSendVote
+
+  isOutputMsg? = isBroadcastProposal? ∪? isSendVote?
 
   SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
   SendVote∉Output () (here refl)
