@@ -59,16 +59,16 @@ checkNumOfSignatures self aggregatedSignature =
                       -- (Map.size (self^.vvAddressToValidatorInfo)
     else Right unit
 
-checkVotingPower self authors = loop authors 0
- where
-  loop : List AccountAddress → U64 → Either FakeErr Unit
-  loop (a ∷ as) acc = case getVotingPower self a of λ where
-                        nothing  → Left (ErrVerify (UnknownAuthor (a ^∙ aAuthorName)))
-                        (just n) → loop as (n + acc)
-  loop [] aggregatedVotingPower =
-    if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
-    then Left (ErrVerify (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
-    else Right unit
+checkVotingPower self authors =
+  let go : AccountAddress → U64 → Either FakeErr U64
+      go a acc = case getVotingPower self a of λ where
+         nothing  → Left (ErrVerify (UnknownAuthor (a ^∙ aAuthorName)))
+         (just n) → Right (n + acc)
+   in foldrM go 0 authors >>= λ aggregatedVotingPower →
+        if-dec aggregatedVotingPower <? self ^∙ vvQuorumVotingPower
+        then Left (ErrVerify
+                    (TooLittleVotingPower aggregatedVotingPower (self ^∙ vvQuorumVotingPower)))
+        else Right unit
 
 getPublicKey self author =
 --  (^.vciPublicKey) <$> Map.lookup author (self^.vvAddressToValidatorInfo)
