@@ -15,3 +15,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Block where
 postulate
   validateSignature : Block → ValidatorVerifier → Either FakeErr Unit
 
+genBlockInfo : Block → {- HashValue → -} {- Version → -} {- Maybe EpochState → -} BlockInfo
+genBlockInfo b {- executedStateId -} {- version -} {- nextEpochState -} = BlockInfo∙new
+  (b ^∙ bEpoch) (b ^∙ bRound) (b ^∙ bId)
