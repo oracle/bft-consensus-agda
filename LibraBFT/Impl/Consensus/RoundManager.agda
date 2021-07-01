@@ -41,9 +41,9 @@ processNewRoundEventM now nre = pure unit
 
 ------------------------------------------------------------------------------
 
-ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (Either FakeErr Bool)
+ensureRoundAndSyncUpM : Instant → Round    → SyncInfo → Author → Bool → LBFT (Either ErrLog Bool)
 processProposalM      : Block                                         → LBFT Unit
-executeAndVoteM       : Block                                         → LBFT (Either FakeErr Vote)
+executeAndVoteM       : Block                                         → LBFT (Either ErrLog Vote)
 
 -- external entry point
 -- TODO-2: The sync info that the peer requests if it discovers that its round
@@ -51,7 +51,7 @@ executeAndVoteM       : Block                                         → LBFT (
 module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₀ : LBFT Unit
   step₁ : Author → LBFT Unit
-  step₂ : Either FakeErr Bool → LBFT Unit
+  step₂ : Either ErrLog Bool → LBFT Unit
 
   step₀ =
 
@@ -77,15 +77,15 @@ processProposalMsgM = processProposalMsgM.step₀
 
 -- TODO-2: Implement this.
 postulate
-  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either FakeErr Unit)
+  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
 
 ------------------------------------------------------------------------------
 
 module ensureRoundAndSyncUpM
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo) (author : Author) (helpRemote : Bool) where
-  step₀ : LBFT (Either FakeErr Bool)
-  step₁ : LBFT (Either FakeErr Bool)
-  step₂ : LBFT (Either FakeErr Bool)
+  step₀ : LBFT (Either ErrLog Bool)
+  step₁ : LBFT (Either ErrLog Bool)
+  step₂ : LBFT (Either ErrLog Bool)
 
   step₀ = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
@@ -119,7 +119,7 @@ processCertificatesM now = do
 module ProcessProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
-  step₂ : Either FakeErr Vote → LBFT Unit
+  step₂ : Either ErrLog Vote → LBFT Unit
   step₃ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
@@ -160,10 +160,10 @@ processProposalM = ProcessProposalM.step₀
 
 ------------------------------------------------------------------------------
 module ExecuteAndVoteM (b : Block) where
-  step₀ :                 LBFT (Either FakeErr Vote)
-  step₁ : ExecutedBlock → LBFT (Either FakeErr Vote)
-  step₂ : ExecutedBlock → LBFT (Either FakeErr Vote)
-  step₃ : Vote          → LBFT (Either FakeErr Vote)
+  step₀ :                 LBFT (Either ErrLog Vote)
+  step₁ : ExecutedBlock → LBFT (Either ErrLog Vote)
+  step₂ : ExecutedBlock → LBFT (Either ErrLog Vote)
+  step₃ : Vote          → LBFT (Either ErrLog Vote)
 
   step₀ =
     BlockStore.executeAndInsertBlockM b ∙?∙ step₁

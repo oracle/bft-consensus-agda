@@ -23,7 +23,7 @@ logInfo = tell1 (LogInfo fakeInfo)
 -- Logging operations change the structure of the program, and proofs about peer
 -- operations are sensitive to this structure. Therefore, we add a "skeleton" of
 -- logging operations so that future refinements do not break existing proofs.
-withErrCtxt : FakeErr → FakeErr
+withErrCtxt : ErrLog → ErrLog
 withErrCtxt = id
 
 logEE : ∀ {A} → LBFT A → LBFT A

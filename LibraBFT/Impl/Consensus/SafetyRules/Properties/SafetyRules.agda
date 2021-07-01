@@ -134,11 +134,11 @@ module verifyQcMSpec (qc : QuorumCert) where
 
 module constructAndSignVoteMSpec where
 
-  ResultCorrect : (pre post : RoundManager) (epoch : Epoch) (round : Round) (r : Either FakeErr Vote) → Set
+  ResultCorrect : (pre post : RoundManager) (epoch : Epoch) (round : Round) (r : Either ErrLog Vote) → Set
   ResultCorrect pre post epoch round (Left e) = NoVoteCorrect pre post
   ResultCorrect pre post epoch round (Right v) = VoteCorrect pre post epoch round v
 
-  record Contract (pre : RoundManager) (epoch : Epoch) (round : Round) (r : Either FakeErr Vote) (post : RoundManager) (outs : List Output) : Set where
+  record Contract (pre : RoundManager) (epoch : Epoch) (round : Round) (r : Either ErrLog Vote) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noOuts        : NoMsgOuts outs
@@ -331,7 +331,7 @@ module constructAndSignVoteMSpec where
         (constructAndSignVoteM-continue0 voteProposal validatorSigner) unit pre
         (continue0.contract voteProposal validatorSigner pre)
       where
-      Post : LBFT-Post (Either FakeErr Vote)
+      Post : LBFT-Post (Either ErrLog Vote)
       Post x post outs =
         RWST-weakestPre-bindPost unit
           (λ r → logInfo >> pure r) (Contract pre epoch round)
@@ -360,10 +360,10 @@ private
     -- For this example, we will prove that `step₃` of (and old version of)
     -- `constructAndSignVoteM-continue2` produces no output.
 
-    Contract : LBFT-Post (Either FakeErr Vote)
+    Contract : LBFT-Post (Either ErrLog Vote)
     Contract x post outs = outs ≡ []
 
-    step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (Either FakeErr Vote)
+    step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (Either ErrLog Vote)
     step₃ safetyData1 voteData author ledgerInfo = do
       let signature = ValidatorSigner.sign validatorSigner ledgerInfo
           vote      = Vote.newWithSignature voteData author ledgerInfo signature

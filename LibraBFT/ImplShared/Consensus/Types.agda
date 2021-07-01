@@ -306,14 +306,19 @@ module LibraBFT.ImplShared.Consensus.Types where
                        → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
-  -- The Haskell implementation has many more constructors.  We are adding them incrementally as
-  -- needed for the verification effort.  To enable modeling errors that we have not yet added, we
-  -- postulate an inhabitant of FakeErr below.
-  data FakeErr : Set where    -- TODO-2: soon to be renamed to ErrLog for consistency with the Haskell code
-    ErrVerify : VerifyError → FakeErr
+  -- The Haskell implementation has many more constructors.
+  -- Constructors are being added incrementally as needed for the verification effort.
+  data ErrLog : Set where
+    ErrVerify : VerifyError → ErrLog
 
+  -- To enable modeling of logging errors that have not been added yet,
+  -- an inhabitant of ErrLog is postulated.
   postulate
-    FakeInfo         : Set
-    fakeErr          : FakeErr
-    fakeInfo         : FakeInfo
+    fakeErr : ErrLog
+
+  -- To enable modeling of logging info that has not been added yet,
+  -- InfoLog and an inhabitant is postulated.
+  postulate
+    InfoLog  : Set
+    fakeInfo : InfoLog
 

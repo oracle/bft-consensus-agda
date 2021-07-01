@@ -20,4 +20,4 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 
 postulate
-  insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (Either FakeErr Unit)
+  insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (Either ErrLog Unit)

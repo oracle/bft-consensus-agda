@@ -14,15 +14,15 @@ open import Optics.All
 
 module LibraBFT.Impl.Types.ValidatorVerifier where
 
-checkNumOfSignatures : ValidatorVerifier → KVMap AccountAddress Signature → Either FakeErr Unit
-checkVotingPower     : ValidatorVerifier → List AccountAddress → Either FakeErr Unit
+checkNumOfSignatures : ValidatorVerifier → KVMap AccountAddress Signature → Either ErrLog Unit
+checkVotingPower     : ValidatorVerifier → List AccountAddress → Either ErrLog Unit
 getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
 getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
 
 verifyIfAuthor
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
   → {-Text →-} ValidatorVerifier → AccountAddress → V → Signature
-  → Either FakeErr Unit
+  → Either ErrLog Unit
 verifyIfAuthor {-msg-} self author v signature = case getPublicKey self author of λ where
   (just pk) → case Crypto.verify {-msg-} pk signature v of λ where
                 (Left  e)    → Left fakeErr -- (ErrVerify e InvalidSignature)
@@ -34,13 +34,13 @@ verifyIfAuthor {-msg-} self author v signature = case getPublicKey self author o
 verify
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
   → ValidatorVerifier → AccountAddress → V → Signature
-  → Either FakeErr Unit
+  → Either ErrLog Unit
 verify = verifyIfAuthor -- (icSemi ["ValidatorVerifier", "verifySignature"])
 
 verifyAggregatedStructSignature
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
   → ValidatorVerifier → V → KVMap AccountAddress Signature
-  → Either FakeErr Unit
+  → Either ErrLog Unit
 verifyAggregatedStructSignature self v aggregatedSignature = do
   checkNumOfSignatures self aggregatedSignature
   checkVotingPower self (Map.kvm-keys aggregatedSignature)
@@ -50,7 +50,7 @@ verifyAggregatedStructSignature self v aggregatedSignature = do
 batchVerifyAggregatedSignatures
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
   → ValidatorVerifier → V → KVMap AccountAddress Signature
-  → Either FakeErr Unit
+  → Either ErrLog Unit
 batchVerifyAggregatedSignatures = verifyAggregatedStructSignature
 
 checkNumOfSignatures self aggregatedSignature =
@@ -62,7 +62,7 @@ checkNumOfSignatures self aggregatedSignature =
     else Right unit
 
 checkVotingPower self authors = do
-  let go : AccountAddress → U64 → Either FakeErr U64
+  let go : AccountAddress → U64 → Either ErrLog U64
       go a acc = case getVotingPower self a of λ where
          nothing  → Left (ErrVerify (UnknownAuthor (a ^∙ aAuthorName)))
          (just n) → Right (n + acc)

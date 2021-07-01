@@ -15,4 +15,4 @@ module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
 -- TODO-3?: Implement this
 postulate
-  saveVoteM : Vote → LBFT (Either FakeErr Unit)
+  saveVoteM : Vote → LBFT (Either ErrLog Unit)

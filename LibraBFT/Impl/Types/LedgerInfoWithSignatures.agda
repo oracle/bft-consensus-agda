@@ -22,7 +22,7 @@ addSignature validator sig liws =
     nothing  →
       liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
-verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → Either FakeErr Unit
+verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → Either ErrLog Unit
 verifySignatures self validator = -- withErrCtx'
   -- ["LedgerInfoWithSignatures", "verify"]
   ValidatorVerifier.batchVerifyAggregatedSignatures
