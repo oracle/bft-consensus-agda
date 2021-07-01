@@ -105,9 +105,11 @@ infixl 4 _∙^∙_
 _∙^∙_ : RWST Ev Wr St (Either B A) → (B → B) → RWST Ev Wr St (Either B A)
 m ∙^∙ f = do
   x ← m
-  caseM⊎ x of λ where
-    (Left e) → pure (Left (f e))
-    (Right r) → pure (Right r)
+  either (bail ∘ f) ok x
+
+RWST-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWST-Post Wr St (C ⊎ A) → RWST-Post Wr St (C ⊎ A)
+RWST-weakestPre-∙^∙Post ev e Post =
+  RWST-weakestPre-bindPost ev (either (bail ∘ e) ok) Post
 
 -- Lens functionality
 --

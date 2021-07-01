@@ -56,9 +56,11 @@ module LibraBFT.ImplShared.Util.Util where
     put (record st { _rmWithEC = stec₁ })
     return r₁
 
+  LBFT-Pre  = RoundManager → Set
+  LBFT-Post = RWST-Post Output RoundManager
+
   LBFT-weakestPre : ∀ {A} (m : LBFT A)
-                    → (Post : RWST-Post Output RoundManager A)
-                    → RoundManager → Set
+                    → LBFT-Post A → LBFT-Pre
   LBFT-weakestPre m Post pre = RWST-weakestPre m Post unit pre
 
   LBFT-Contract : ∀ {A} (m : LBFT A) → Set₁

@@ -9,6 +9,8 @@ open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -21,13 +23,27 @@ module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
 postulate
   obmCheckSigner : SafetyRules → Bool
-  extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)
   constructLedgerInfoM : Block → HashValue → LBFT (Either FakeErr LedgerInfo)
 
 ------------------------------------------------------------------------------
 
 signer : SafetyRules → Either FakeErr ValidatorSigner
 signer self = maybeS (self ^∙ srValidatorSigner) (Left fakeErr {- error: signer not initialized -}) Right
+
+------------------------------------------------------------------------------
+
+extensionCheckM : VoteProposal → LBFT (Either FakeErr VoteData)
+extensionCheckM voteProposal = do
+  let proposedBlock = voteProposal ^∙ vpBlock
+   {- obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof -}
+  -- IMPL-TODO: verify .accumulator_extension_proof().verify ...
+  ok (VoteData.new
+       (Block.genBlockInfo
+         proposedBlock
+         -- OBM-LBFT-DIFF: completely different
+         {- (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves)) -}
+         {- (voteProposal ^∙ vpNextEpochState) -})
+       (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
 
 ------------------------------------------------------------------------------
 
@@ -42,10 +58,12 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   ifM oneChainRound <? preferredRound
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
-      updated ← ifM‖ twoChainRound >? preferredRound ≔
-                     pure (safetyData & sdPreferredRound ∙~ twoChainRound) -- log: info: updated preferred round
-                   ‖ twoChainRound <? preferredRound ≔
-                     pure safetyData                                       -- log: info: 2-chain round is lower than preferred round, but 1-chain is higher
+      updated ← ifM‖ twoChainRound >? preferredRound ≔ (do
+                     logInfo  -- updated preferred round
+                     pure (safetyData & sdPreferredRound ∙~ twoChainRound))
+                   ‖ twoChainRound <? preferredRound ≔ (do
+                     logInfo -- 2-chain round is lower than preferred round, but 1-chain is higher
+                     pure safetyData)
                    ‖ otherwise≔
                      pure safetyData
       ok updated
@@ -55,7 +73,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 verifyEpochM : Epoch → SafetyData → LBFT (Either FakeErr Unit)
 verifyEpochM epoch safetyData =
   ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
-    then bail fakeErr -- log: error: incorrect epoch
+    then bail fakeErr -- incorrect epoch
     else ok unit
 
 ------------------------------------------------------------------------------
@@ -66,14 +84,14 @@ verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
   ifM round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
-    else bail fakeErr -- log: error: incorrect last vote round
+    else bail fakeErr -- incorrect last vote round
 
 ------------------------------------------------------------------------------
 
 verifyQcM : QuorumCert → LBFT (Either FakeErr Unit)
 verifyQcM qc = do
   validatorVerifier ← gets rmGetValidatorVerifier -- See DEPENDENT-LENSES-COMMENT
-  pure (QuorumCert.verify qc validatorVerifier)   -- TODO-1: withErrCtx
+  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtxt
 
 ------------------------------------------------------------------------------
 
@@ -82,25 +100,23 @@ constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block �
 constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (Either FakeErr Vote)
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either FakeErr Vote)
-constructAndSignVoteM maybeSignedVoteProposal = do
+constructAndSignVoteM maybeSignedVoteProposal =
+  logEE $ do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
-  -- NOTE: It's OK to use `case` here, rather than `caseMM`, becase we are
-  -- splitting on /precisely/ the expression that is given to us by the
-  -- preceding bind.
-  case vs of λ where
-    nothing → bail fakeErr -- error: srValidatorSigner is nothing
-    (just validatorSigner) → do
-      let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
-      constructAndSignVoteM-continue0 voteProposal validatorSigner
+  maybeS vs (bail fakeErr {- srValidatorSigner is nothing -}) λ validatorSigner → do
+    let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
+    constructAndSignVoteM-continue0 voteProposal validatorSigner
 
 module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner) where
   step₀ : LBFT (Either FakeErr Vote)
   step₁ : SafetyData → LBFT (Either FakeErr Vote)
 
   proposedBlock = voteProposal ^∙ vpBlock
+
   step₀ = do
     safetyData0 ← use (lPersistentSafetyStorage ∙ pssSafetyData)
     verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ → step₁ safetyData0
+
   step₁ safetyData0 = do
       caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
@@ -122,11 +138,14 @@ module constructAndSignVoteM-continue1
 
   step₀ =
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
+
   step₁ = do
       validatorVerifier ← gets rmGetValidatorVerifier -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
       step₂ validatorVerifier
+
   step₂ validatorVerifier =
       pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
+
   step₃ =
         verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
         constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
@@ -140,7 +159,8 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₂ : SafetyData → VoteData → LBFT (Either FakeErr Vote)
   step₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (Either FakeErr Vote)
 
-  step₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
+  step₀ =
+    verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
   step₁ safetyData1 = do
     lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
@@ -148,14 +168,14 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
 
   step₂ safetyData1 voteData = do
       let author = validatorSigner ^∙ vsAuthor
-      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ (step₃ safetyData1 voteData author)
+      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData)
+                           ∙^∙ withErrCtxt ∙?∙ (step₃ safetyData1 voteData author)
 
   step₃ safetyData1 voteData author ledgerInfo = do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
+        logInfo -- InfoUpdateLastVotedRound
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
-
-
