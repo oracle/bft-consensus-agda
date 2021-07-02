@@ -220,7 +220,11 @@ processVoteM now vote =
     let bs = rmGetBlockStore s
     ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
       then logInfo
-      else addVoteM now vote -- TODO-1: logging
+      else do
+      logInfo
+      addVoteM now vote
+      pvA ← use lPendingVotes
+      logInfo
 
 addVoteM now vote = do
   s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
