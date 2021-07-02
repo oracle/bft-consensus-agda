@@ -417,8 +417,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record Timeout : Set where
     constructor Timeout∙new
     field
-      -toEpoch : Epoch
-      -toRound : Round
+      _toEpoch : Epoch
+      _toRound : Round
+  open Timeout public
+  unquoteDecl toEpoch   toRound = mkLens (quote Timeout)
+             (toEpoch ∷ toRound ∷ [])
+  postulate instance enc-Timeout : Encoder Timeout
 
   record TimeoutCertificate : Set where
     constructor mkTimeoutCertificate
@@ -431,6 +435,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   TimeoutCertificate∙new : Timeout → TimeoutCertificate
   TimeoutCertificate∙new to = mkTimeoutCertificate to KVMap.empty
+
+  -- IMPL-DIFF : only a getter in haskell
+  tcEpoch : Lens TimeoutCertificate Epoch
+  tcEpoch = tcTimeout ∙ toEpoch
+
+  -- IMPL-DIFF : only a getter in haskell
+  tcRound : Lens TimeoutCertificate Round
+  tcRound = tcTimeout ∙ toRound
 
   record PendingVotes : Set where
     constructor PendingVotes∙new

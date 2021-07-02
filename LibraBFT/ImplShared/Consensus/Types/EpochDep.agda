@@ -150,7 +150,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
       _btRootId                  : HashValue
       _btHighestCertifiedBlockId : HashValue
       _btHighestQuorumCert       : QuorumCert
-      -- btHighestTimeoutCert      : Maybe TimeoutCertificate
+      _btHighestTimeoutCert      : Maybe TimeoutCertificate
       _btHighestCommitCert       : QuorumCert
       _btPendingVotes            : PendingVotes
       _btPrunedBlockIds          : List HashValue
@@ -158,9 +158,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
       _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
   open BlockTree public
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert
               btHighestCommitCert   btPendingVotes   btPrunedBlockIds
               btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
              (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestTimeoutCert ∷
               btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
               btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
@@ -173,6 +175,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open BlockStore public
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestTimeoutCert : BlockStore → Maybe TimeoutCertificate
+  bsHighestTimeoutCert =  _^∙ bsInner ∙ btHighestTimeoutCert
 
   -- These are the parts of the RoundManager that depend on an
   -- EpochConfig. We do not particularly care which EpochConfig
