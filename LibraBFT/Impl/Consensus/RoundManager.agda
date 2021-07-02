@@ -225,13 +225,10 @@ processVoteM now vote =
 addVoteM now vote = do
   s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
   let bs = rmGetBlockStore s
-  -- CHRIS: could you uncomment this (and remove the continue below)
-  -- and then help me understand the type checking problems?
-  -- maybeS (bsHighestTimeoutCert bs) continue λ tc →
-  --   if-dec (vote ^∙ vRound) ≟ tc ^∙ tcRound
-  --     then logInfo -- "block already has TC", "dropping unneeded vote"
-  --     else continue
-  continue
+  maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
+    ifM vote ^∙ vRound ≟ℕ tc ^∙ tcRound
+      then logInfo -- "block already has TC", "dropping unneeded vote"
+      else continue
  where
   continue : LBFT Unit
   continue = do
