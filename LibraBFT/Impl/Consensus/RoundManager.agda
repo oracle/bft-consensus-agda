@@ -204,11 +204,12 @@ processVoteM now vote =
   ifM not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
-    -- IMPL-TODO pgAuthor
-    -- v ← ProposerElection.isValidProposer <$> (use lProposerElection
-    --                                      <*> use (lRoundManager.pgAuthor) <*> pure nextRound)
-    let v = true
-    if v then continue else logErr)
+    gets rmPgAuthor >>= λ where
+      nothing       → logErr -- "lRoundManager.pgAuthor", "Nothing"
+      (just author) → do
+        v ← ProposerElection.isValidProposer <$> use lProposerElection
+                                             <*> pure author <*> pure nextRound
+        if v then continue else logErr)
   else
     continue
  where
@@ -247,10 +248,10 @@ addVoteM now vote = do
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where
-    (Left e)     → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Left e)     → logErr
     (Right unit) → processCertificatesM now
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
-    (Left e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Left e)     → logErr
     (Right unit) → processCertificatesM now

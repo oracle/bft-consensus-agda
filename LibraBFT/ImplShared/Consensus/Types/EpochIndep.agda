@@ -572,7 +572,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     field
       _srPersistentStorage  : PersistentSafetyStorage
       _srExecutionPublicKey : Maybe PK
-      _srValidatorSigner   : Maybe ValidatorSigner
+      _srValidatorSigner    : Maybe ValidatorSigner
   open SafetyRules public
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])

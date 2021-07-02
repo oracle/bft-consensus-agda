@@ -265,6 +265,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
 
+  -- IMPL-DIFF : this is defined as a lens getter only (no setter) in Haskell.
+  rmPgAuthor : RoundManager → Maybe Author
+  rmPgAuthor rm =
+    maybeS (_rmEC rm ^∙ rmSafetyRules ∙ srValidatorSigner) nothing (just ∘ (_^∙ vsAuthor))
+
   lSafetyData : Lens RoundManager SafetyData
   lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData
 
