@@ -40,6 +40,12 @@ module LibraBFT.Lemmas where
  ++-abs [] ()
  ++-abs (x ∷ m) imp ()
 
+ filter-++-[]
+   : ∀ {a p} {A : Set a} {P : (a : A) → Set p}
+     → ∀ xs ys (p : (a : A) → Dec (P a))
+     → List-filter p xs ≡ [] → List-filter p ys ≡ []
+     → List-filter p (xs ++ ys) ≡ []
+ filter-++-[] xs ys p pf₁ pf₂ rewrite List-filter-++ p xs ys | pf₁ | pf₂ = refl
 
  data All-vec {ℓ} {A : Set ℓ} (P : A → Set ℓ) : ∀ {n} → Vec {ℓ} A n → Set (Level.suc ℓ) where
    []  : All-vec P []
