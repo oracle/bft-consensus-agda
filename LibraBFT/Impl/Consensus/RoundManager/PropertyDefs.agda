@@ -32,11 +32,20 @@ NoMsgOuts outs = List-filter isOutputMsg? outs ≡ []
 VoteMsgOuts : List Output → VoteMsg → List Author → Set
 VoteMsgOuts outs vm pids = List-filter isOutputMsg? outs ≡ (SendVote vm pids ∷ [])
 
+++-NoMsgOuts-VoteMsgOuts : ∀ xs ys vm pids → NoMsgOuts xs → VoteMsgOuts ys vm pids → VoteMsgOuts (xs ++ ys) vm pids
+++-NoMsgOuts-VoteMsgOuts xs ys vm pids nmo vmo
+  rewrite List-filter-++ isOutputMsg? xs ys
+  |       nmo
+  |       vmo = refl
+
 record NoEpochChange (pre post : RoundManager) : Set where
   constructor mkNoEpochChange
   field
     es≡₁ : (_rmEC pre) ≡L (_rmEC post) at rmEpoch
     es≡₂ : pre ≡L post at lSafetyData ∙ sdEpoch
+
+reflNoEpochChange : ∀ {pre} → NoEpochChange pre pre
+reflNoEpochChange = mkNoEpochChange refl refl
 
 transNoEpochChange : ∀ {s₁ s₂ s₃} → NoEpochChange s₁ s₂ → NoEpochChange s₂ s₃ → NoEpochChange s₁ s₃
 transNoEpochChange (mkNoEpochChange es≡₁ es≡₂) (mkNoEpochChange es≡₃ es≡₄) =
@@ -89,6 +98,9 @@ record NoVoteCorrect (pre post : RoundManager) : Set where
   field
     lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
     lvr≤ : pre [ _≤_ ]L post at lSafetyData ∙ sdLastVotedRound
+
+reflNoVoteCorrect : ∀ {pre} → NoVoteCorrect pre pre
+reflNoVoteCorrect = mkNoVoteCorrect refl ≤-refl
 
 transNoVoteCorrect : ∀ {s₁ s₂ s₃} → NoVoteCorrect s₁ s₂ → NoVoteCorrect s₂ s₃ → NoVoteCorrect s₁ s₃
 transNoVoteCorrect (mkNoVoteCorrect lv≡ lvr≤) (mkNoVoteCorrect lv≡₁ lvr≤₁) =

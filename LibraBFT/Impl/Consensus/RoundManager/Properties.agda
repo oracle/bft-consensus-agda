@@ -3,10 +3,6 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
-
--- This module contains properties that are only about the behavior of the handlers, nothing to do
--- with system state
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
@@ -29,6 +25,9 @@ import      LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules as Safety
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
+
+-- This module contains properties that are only about the behavior of the handlers, nothing to do
+-- with system state
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
 
@@ -114,3 +113,78 @@ module executeAndVoteMSpec (b : Block) where
       → LBFT-weakestPre (executeAndVoteM b) Post pre
   contract pre Post pf =
     RWST-⇒ (Contract pre) Post pf (executeAndVoteM b) unit pre (contract' pre)
+
+module processProposalMSpec (proposal : Block) where
+  open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
+  open        LibraBFT.Impl.Consensus.RoundManager.processProposalM proposal
+
+  epoch = proposal ^∙ bEpoch
+  round = proposal ^∙ bRound
+
+  record NoMsgOutsCorrect (pre post : RoundManager) (outs : List Output) : Set where
+    constructor mkNoOutsCorrect
+    field
+      noMsgOuts : NoMsgOuts outs
+      nvc⊎vns   : NoVoteCorrect pre post ⊎ VoteNotSaved pre post epoch round
+
+  record VoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output)  : Set where
+    constructor mkVoteMsgOutsCorrect
+    field
+      vm          : VoteMsg
+      pid         : Author
+      voteMsgOuts : VoteMsgOuts outs vm (pid ∷ [])
+      outCorrect  : VoteCorrect pre post epoch round (vm ^∙ vmVote)
+
+  OutsCorrect : (pre post : RoundManager) (outs : List Output) → Set
+  OutsCorrect pre post outs = NoMsgOutsCorrect pre post outs ⊎ VoteMsgOutsCorrect pre post outs
+
+  record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
+    field
+      noOuts        : OutsCorrect pre post outs
+      inv           : NoEpochChange pre post
+
+  contract : ∀ pre → LBFT-weakestPre (processProposalM proposal) (Contract pre) pre
+  contract pre ._ refl =
+    isValidProposalMSpec.contract proposal pre
+      (RWST-weakestPre-bindPost unit (step₁{pre} (rmGetBlockStore pre)) (Contract pre))
+      (λ where
+        mAuthor≡nothing ._ refl  →
+          (λ _ → contractBail refl)
+          , (λ where ()))
+      (λ where
+        notValid ._ refl →
+          (λ _ → contractBail refl)
+          , (λ where ()))
+      λ where
+        vp ._ refl →
+          (λ where ())
+          , (λ _ →
+            (λ _ → contractBail refl)
+            , λ _ →
+              (λ _ → contractBail refl)
+              , λ _ → executeAndVoteMSpec.contract proposal pre
+                        (RWST-weakestPre-bindPost unit step₂ (Contract pre))
+                        pf)
+    where
+    contractBail : ∀ {outs} → NoMsgOuts outs → Contract pre unit pre outs
+    contractBail nmo =
+      mkContract (Left (mkNoOutsCorrect nmo (Left reflNoVoteCorrect))) reflNoEpochChange
+
+    pf : ∀ r st outs
+         → executeAndVoteMSpec.Contract proposal pre r st outs
+         → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs
+    pf (Left x) st outs (executeAndVoteMSpec.mkContract noOuts inv resultCorrect) .(Left x) refl =
+      mkContract (Left (mkNoOutsCorrect (++-NoMsgOuts outs (LogErr fakeErr ∷ []) noOuts refl) resultCorrect)) inv
+    pf (Right vote) st outs (executeAndVoteMSpec.mkContract noOuts inv resultCorrect) ._ refl ._ refl ._ refl =
+      syncInfoMSpec.contract (st & rsVoteSent-rm ∙~ just vote)
+        (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ (Contract pre) outs))
+        λ where
+          si si≡ ._ refl ._ refl ._ refl ._ refl recipient@._ refl →
+            let vm = VoteMsg∙new vote si in
+            mkContract (Right (mkVoteMsgOutsCorrect vm recipient
+                                (++-NoMsgOuts-VoteMsgOuts outs (SendVote vm (recipient ∷ []) ∷ []) vm (recipient ∷ [])
+                                   noOuts refl)
+                                (substVoteCorrect refl refl refl refl refl refl resultCorrect)))
+              (transNoEpochChange inv (mkNoEpochChange refl refl))

@@ -22,3 +22,12 @@ module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 module executeAndInsertBlockESpec {𝓔 : EpochConfig} (bs : BlockStore 𝓔) (b : Block) where
   postulate
     ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
+
+module syncInfoMSpec where
+  syncInfo : RoundManager → SyncInfo
+  syncInfo pre =
+    SyncInfo∙new   (bsHighestQuorumCert _ ∘ rmGetBlockStore $ pre)
+                 $  bsHighestCommitCert _ ∘ rmGetBlockStore $ pre
+
+  contract : ∀ pre Post → (Post (syncInfo pre) pre []) → LBFT-weakestPre syncInfoM Post pre
+  contract pre Post pf ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl = pf
