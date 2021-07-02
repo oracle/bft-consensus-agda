@@ -21,21 +21,21 @@ open import Optics.All
 
 module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
 
-  epvv : LBFT (Epoch × ValidatorVerifier)
-  epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
-             <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)
+epvv : LBFT (Epoch × ValidatorVerifier)
+epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
+           <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)
 
-  handleProposal : Instant → ProposalMsg → LBFT Unit
-  handleProposal now pm = do
-    (myEpoch , vv) ← epvv
-    caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
-      (Left (Left _))  → logErr
-      (Left (Right _)) → logInfo
-      (Right _)        → RoundManager.processProposalMsgM now pm
+handleProposal : Instant → ProposalMsg → LBFT Unit
+handleProposal now pm = do
+  (myEpoch , vv) ← epvv
+  caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+    (Left (Left _))  → logErr
+    (Left (Right _)) → logInfo
+    (Right _)        → RoundManager.processProposalMsgM now pm
 
-  handle : NodeId → NetworkMsg → Instant → LBFT Unit
-  handle _self msg now =
-     case msg of λ where
-       (P pm) → handleProposal now pm
-       (V vm) → {!!} -- TODO-1: processVote now v
-       (C cm) → return unit    -- We don't do anything with commit messages, they are just for defining Correctness.
+handle : NodeId → NetworkMsg → Instant → LBFT Unit
+handle _self msg now =
+  case msg of λ where
+    (P pm) → handleProposal now pm
+    (V vm) → {!!} -- TODO-1: processVote now v
+    (C cm) → return unit    -- We don't do anything with commit messages, they are just for defining Correctness.
