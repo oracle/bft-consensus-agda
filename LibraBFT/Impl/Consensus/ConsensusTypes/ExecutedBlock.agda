@@ -12,6 +12,8 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock where
 
-postulate
-  maybeSignedVoteProposal : ExecutedBlock → MaybeSignedVoteProposal
+maybeSignedVoteProposal : ExecutedBlock → MaybeSignedVoteProposal
+maybeSignedVoteProposal self =
+  MaybeSignedVoteProposal∙new
+    (VoteProposal∙new (self ^∙ ebBlock))
 

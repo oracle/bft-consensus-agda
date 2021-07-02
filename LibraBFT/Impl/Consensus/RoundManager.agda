@@ -116,7 +116,7 @@ processCertificatesM now = do
 -- This function is broken into smaller pieces to aid in the verification
 -- effort. The style of indentation used is to make side-by-side reading of the
 -- Haskell prototype and Agda model easier.
-module ProcessProposalM (proposal : Block) where
+module processProposalM (proposal : Block) where
   step₀ : LBFT Unit
   step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
   step₂ : Either ErrLog Vote → LBFT Unit
@@ -156,17 +156,17 @@ module ProcessProposalM (proposal : Block) where
                act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
                -- TODO-2:                           mkNodesInOrder1 recipient
 
-processProposalM = ProcessProposalM.step₀
+processProposalM = processProposalM.step₀
 
 ------------------------------------------------------------------------------
-module ExecuteAndVoteM (b : Block) where
+module executeAndVoteM (b : Block) where
   step₀ :                 LBFT (Either ErrLog Vote)
   step₁ : ExecutedBlock → LBFT (Either ErrLog Vote)
   step₂ : ExecutedBlock → LBFT (Either ErrLog Vote)
   step₃ : Vote          → LBFT (Either ErrLog Vote)
 
   step₀ =
-    BlockStore.executeAndInsertBlockM b ∙?∙ step₁
+    BlockStore.executeAndInsertBlockM b ∙^∙ withErrCtxt ∙?∙ step₁
 
   step₁ eb = do
     cr ← use (lRoundState ∙ rsCurrentRound)
@@ -186,7 +186,7 @@ module ExecuteAndVoteM (b : Block) where
   step₃ vote =   PersistentLivenessStorage.saveVoteM vote
              ∙?∙ λ _ → ok vote
 
-executeAndVoteM = ExecuteAndVoteM.step₀
+executeAndVoteM = executeAndVoteM.step₀
 
 ------------------------------------------------------------------------------
 
