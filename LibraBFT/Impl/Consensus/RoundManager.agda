@@ -204,33 +204,35 @@ processVoteM now vote =
   ifM not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
-    -- IMPL-TODO pgAuthor
-    -- v ← ProposerElection.isValidProposer <$> (use lProposerElection
-    --                                      <*> use (lRoundManager.pgAuthor) <*> pure nextRound)
-    let v = true
-    if v then continue else logErr)
+    gets rmPgAuthor >>= λ where
+      nothing       → logErr -- "lRoundManager.pgAuthor", "Nothing"
+      (just author) → do
+        v ← ProposerElection.isValidProposer <$> use lProposerElection
+                                             <*> pure author <*> pure nextRound
+        if v then continue else logErr) -- "received vote, but I am not proposer for round"
   else
     continue
  where
   continue : LBFT Unit
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
-    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let bs = _epBlockStore (_rmWithEC s)
-    ifM true -- (is-just (BlockStore.getQuorumCertForBlock blockId {!!})) -- IMPL-TODO
+    s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
+    let bs = rmGetBlockStore s
+    ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
       then logInfo
-      else addVoteM now vote -- TODO-1: logging
+      else do
+      logInfo
+      addVoteM now vote
+      pvA ← use lPendingVotes
+      logInfo
 
 addVoteM now vote = do
-  s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-  let bs = _epBlockStore (_rmWithEC s)
-  {- IMPL-TODO make this commented code work then remove the 'continue' after the comment
-  maybeS nothing (bs ^∙ bsHighestTimeoutCert) continue λ tc →
-    if-dec vote ^∙ vRound =? tc ^∙ tcRound
-    then logInfo
-    else continue
-  -}
-  continue
+  s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
+  let bs = rmGetBlockStore s
+  maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
+    ifM vote ^∙ vRound ≟ℕ tc ^∙ tcRound
+      then logInfo -- "block already has TC", "dropping unneeded vote"
+      else continue
  where
   continue : LBFT Unit
   continue = do
@@ -247,10 +249,10 @@ addVoteM now vote = do
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where
-    (Left e)     → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Left e)     → logErr
     (Right unit) → processCertificatesM now
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
-    (Left e)    → logErr -- TODO : Haskell logs err and returns ().  Do we need to return error?
+    (Left e)     → logErr
     (Right unit) → processCertificatesM now
