@@ -560,6 +560,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
              (vciPublicKey ∷ vciVotingPower ∷ [])
 
+  data ObmNotValidProposerReason : Set where
+    ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
+
   record ProposerElection : Set where
     constructor ProposerElection∙new
     -- field

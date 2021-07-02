@@ -235,6 +235,9 @@ module LibraBFT.ImplShared.Consensus.Types where
     s : RoundManager → RoundState → RoundManager
     s rm rs = record rm { _rmEC = (_rmEC rm) & rmRoundState ∙~ rs }
 
+  rsVoteSent-rm : Lens RoundManager (Maybe Vote)
+  rsVoteSent-rm = lRoundState ∙ rsVoteSent
+
   lSyncOnly : Lens RoundManager Bool
   lSyncOnly = mkLens' g s
     where

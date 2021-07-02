@@ -118,7 +118,7 @@ processCertificatesM now = do
 -- Haskell prototype and Agda model easier.
 module processProposalM (proposal : Block) where
   step₀ : LBFT Unit
-  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → Bool → LBFT Unit
+  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → (Either ObmNotValidProposerReason Unit) → LBFT Unit
   step₂ : Either ErrLog Vote → LBFT Unit
   step₃ : Vote → SyncInfo → LBFT Unit
 
@@ -129,9 +129,7 @@ module processProposalM (proposal : Block) where
     step₁ {s} bs vp
 
   step₁ bs vp =
-    ifM‖ is-nothing (proposal ^∙ bAuthor) ≔
-         logErr -- log: error: proposal does not have an author
-       ‖ not vp ≔
+    ifM‖ isLeft vp ≔
          logErr -- log: error: proposer for block is not valid for this round
        ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs) ≔
          logErr -- log: error: QC of parent is not in BS

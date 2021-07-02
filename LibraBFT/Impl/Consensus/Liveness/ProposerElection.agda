@@ -19,8 +19,15 @@ postulate
 isValidProposerM : Author → Round → LBFT Bool
 isValidProposer : ProposerElection → Author → Round → Bool
 
-isValidProposalM : Block → LBFT Bool
-isValidProposalM b = maybeS-RWST (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
+isValidProposalM : Block → LBFT (Either ObmNotValidProposerReason Unit)
+isValidProposalM b =
+  maybeS-RWST (b ^∙ bAuthor) (bail ProposalDoesNotHaveAnAuthor) $ λ a → do
+    -- IMPL-DIFF: `ifM` in Haskell means something else
+    vp ← isValidProposerM a (b ^∙ bRound)
+    ifM vp
+      then ok unit
+      else bail ProposerForBlockIsNotValidForThisRound
+  -- maybeS-RWST (b ^∙ bAuthor) (pure false) (λ a → isValidProposerM a (b ^∙ bRound))
 
 isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
 

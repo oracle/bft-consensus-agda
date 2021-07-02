@@ -23,7 +23,6 @@ postulate
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
-  syncInfoM : LBFT SyncInfo
 
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
@@ -35,3 +34,9 @@ executeAndInsertBlockM b = do
       put (rmSetBlockStore s bs')
       ok eb
 
+syncInfoM : LBFT SyncInfo
+syncInfoM =
+  -- IMPL-DIFF: See commment NO-DEPENDENT-LENSES
+  SyncInfo∙new <$> (get >>= pure ∘ bsHighestQuorumCert _ ∘ rmGetBlockStore)
+               <*> (get >>= pure ∘ bsHighestCommitCert _ ∘ rmGetBlockStore)
+               -- <*> (get >>= pure ∘ bsHighestTimeoutCert _ ∘ rmGetBlockStore)
