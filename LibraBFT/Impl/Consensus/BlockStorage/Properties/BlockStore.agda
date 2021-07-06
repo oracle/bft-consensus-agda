@@ -26,8 +26,8 @@ module executeAndInsertBlockESpec {𝓔 : EpochConfig} (bs : BlockStore 𝓔) (b
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
   syncInfo pre =
-    SyncInfo∙new   (bsHighestQuorumCert _ ∘ rmGetBlockStore $ pre)
-                 $  bsHighestCommitCert _ ∘ rmGetBlockStore $ pre
+    SyncInfo∙new   (rmGetBlockStore pre ^∙ bsHighestQuorumCert _)
+                 $ (rmGetBlockStore pre ^∙ bsHighestCommitCert _)
 
   contract : ∀ pre Post → (Post (syncInfo pre) pre []) → LBFT-weakestPre syncInfoM Post pre
-  contract pre Post pf ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl = pf
+  contract pre Post pf ._ refl .unit refl .unit refl = pf

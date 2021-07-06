@@ -35,8 +35,6 @@ executeAndInsertBlockM b = do
       ok eb
 
 syncInfoM : LBFT SyncInfo
-syncInfoM =
-  -- IMPL-DIFF: See commment NO-DEPENDENT-LENSES
-  SyncInfo∙new <$> (get >>= pure ∘ bsHighestQuorumCert _ ∘ rmGetBlockStore)
-               <*> (get >>= pure ∘ bsHighestCommitCert _ ∘ rmGetBlockStore)
-               -- <*> (get >>= pure ∘ bsHighestTimeoutCert _ ∘ rmGetBlockStore)
+syncInfoM = liftEC $
+  SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert _)
+               <*> use (lBlockStore ∙ bsHighestCommitCert _)

@@ -207,6 +207,9 @@ module LibraBFT.ImplShared.Consensus.Types where
   rmSetBlockStore : (rm : RoundManager) → BlockStore (α-EC-RM rm) → RoundManager
   rmSetBlockStore rm bs = record rm { _rmWithEC = RoundManagerWithEC∙new bs }
 
+  lBlockStore : ∀ {ec} → Lens (RoundManagerWithEC ec) (BlockStore ec)
+  lBlockStore = epBlockStore _
+
   -- In some cases, the getting operation is not dependent but a lens still
   -- cannot be defined because the *setting* operation would require dependent
   -- types. Below, `rmGetValidatorVerifier` is an example of this situation, and
