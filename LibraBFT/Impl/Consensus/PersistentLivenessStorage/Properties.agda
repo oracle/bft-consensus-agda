@@ -11,6 +11,7 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage
+open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties where
 
@@ -19,6 +20,7 @@ module saveVoteMSpec (vote : Vote) where
   postulate
     contract
       : ∀ P pre
-        → P (inj₁ fakeErr) pre []
-        → (∀ blockStore → P (inj₂ unit) (rmSetBlockStore pre blockStore) [])
+        → (∀ outs → NoMsgOuts outs → NoErrOuts outs → P (inj₁ fakeErr) pre outs)
+        → (∀ outs blockStore → NoMsgOuts outs → NoErrOuts outs
+           → P (inj₂ unit) (rmSetBlockStore pre blockStore) outs)
         → RWST-weakestPre (saveVoteM vote) P unit pre

@@ -38,6 +38,9 @@ VoteMsgOuts outs vm pids = List-filter isOutputMsg? outs ≡ (SendVote vm pids �
   |       nmo
   |       vmo = refl
 
+NoErrOuts : List Output → Set
+NoErrOuts outs = List-filter isLogErr? outs ≡ []
+
 record NoEpochChange (pre post : RoundManager) : Set where
   constructor mkNoEpochChange
   field

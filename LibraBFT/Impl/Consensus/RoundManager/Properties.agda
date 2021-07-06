@@ -88,16 +88,17 @@ module executeAndVoteMSpec (b : Block) where
       mkContract noOuts (mkNoEpochChange es≡₁ es≡₂) (inj₁ (mkNoVoteCorrect lv≡ lvr≤))
     pf (Right vote) st outs (constructAndSignVoteMSpec.mkContract noOuts nec vc) ._ refl =
       PersistentLivenessStorageProps.saveVoteMSpec.contract vote
-        (RWST-weakestPre-ebindPost unit (λ _ → ok vote) Contract-++outs) st
-        (mkContract
-          (++-NoMsgOuts outs [] noOuts refl)
+      (RWST-weakestPre-ebindPost unit (λ _ → ok vote) Contract-++outs) st
+      (λ outs₁ noMsgOuts₁ noErrOuts₁ →
+        mkContract (++-NoMsgOuts outs outs₁ noOuts noMsgOuts₁)
           (transNoEpochChange noEpochChange-pre-preUpdated nec)
           (Right voteNotSaved))
-        λ where
-          _ .unit refl →
-            mkContract (++-NoMsgOuts outs [] noOuts refl)
-              (transNoEpochChange (noEpochChange-pre-preUpdated) (transNoEpochChange nec (mkNoEpochChange refl refl)))
-              voteSaved
+      λ where
+        outs₁ bs noMsgOuts₁ noErrOuts₁ .unit refl →
+          mkContract
+            (++-NoMsgOuts outs _ noOuts (++-NoMsgOuts outs₁ [] noMsgOuts₁ refl))
+            (transNoEpochChange noEpochChange-pre-preUpdated (transNoEpochChange nec (mkNoEpochChange refl refl)))
+            voteSaved
       where
       Contract-++outs = RWST-Post++ (Contract pre) outs
 

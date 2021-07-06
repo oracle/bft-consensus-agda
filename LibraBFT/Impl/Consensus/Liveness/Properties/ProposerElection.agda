@@ -43,8 +43,8 @@ module isValidProposalMSpec (b : Block) where
   --    - we push the pure value `b ^∙ bRound` (`r` and `r≡`) into the LBFT
   --      monad, and the returned value is the result of applying `isvp-pe-a` to
   --      this
-  --    - now out of `isValidProposalM`, we are given an alias `r'` for ``
-  -- > proj₂ (contract Post pre prfF prfT) a ma≡just-a isvp isvp≡ pe pe≡ isvp-pe isvp-pe≡ .a refl isvp-pe-a isvp-pe-a≡ r r≡ r' r'≡ = {!!}
+  --    - now out of `isValidProposalM`, we are given an alias `r'` for `r`
+  -- > proj₂ (contract Post pre pfNone pf≢ pfOk) a ma≡just-a isvp isvp≡ pe pe≡ isvp-pe isvp-pe≡ .a refl isvp-pe-a isvp-pe-a≡ r r≡ r' r'≡ = {!!}
   -- 4. Since the returned value we want to reason about is directly related to
   --    the behavior of these bound functions which are partial applications of
   --    `isValidProposer`, we perform case-analysis on each of the equality
