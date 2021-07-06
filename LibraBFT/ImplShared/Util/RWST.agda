@@ -101,6 +101,9 @@ RWST-Pre Ev St = (ev : Ev) (pre : St) → Set
 RWST-Post : (Wr St A : Set) → Set₁
 RWST-Post Wr St A = (x : A) (post : St) (outs : List Wr) → Set
 
+RWST-Post-⇒ : (P Q : RWST-Post Wr St A) → Set
+RWST-Post-⇒ P Q = ∀ r st outs → P r st outs → Q r st outs
+
 -- RWST-weakestPre computes a predicate transformer: it maps a RWST
 -- computation `m` and desired postcondition `Post` to the weakest precondition
 -- needed to prove `P` holds after running `m`.
@@ -210,7 +213,7 @@ RWST-contract (RWST-maybe (just x) f₁ f₂) P ev pre (wp₁ , wp₂) =
 -- computation `m` and show that that proof implies a property concerning a
 -- larger computation which contains `m`.
 RWST-⇒
-  : (P Q : RWST-Post Wr St A) → (∀ r st outs → P r st outs → Q r st outs)
+  : (P Q : RWST-Post Wr St A) → (RWST-Post-⇒ P Q)
     → ∀ m (ev : Ev) st → RWST-weakestPre m P ev st → RWST-weakestPre m Q ev st
 RWST-⇒ P Q pf (RWST-return x) ev st pre = pf x st [] pre
 RWST-⇒ P Q pf (RWST-bind m f) ev st pre =
@@ -242,3 +245,21 @@ RWST-⇒ P Q pf (RWST-ebind m f) ev st pre =
     m ev st pre
 proj₁ (RWST-⇒ P Q pf (RWST-maybe x m f) ev st (pre₁ , pre₂)) ≡nothing = RWST-⇒ _ _ pf m ev st (pre₁ ≡nothing)
 proj₂ (RWST-⇒ P Q pf (RWST-maybe x m f) ev st (pre₁ , pre₂)) b b≡ = RWST-⇒ _ _ pf (f b) ev st (pre₂ b b≡)
+
+RWST-⇒-bind
+  : (P : RWST-Post Wr St A) (Q : RWST-Post Wr St B)
+    → (f : A → RWST Ev Wr St B) (ev : Ev)
+    → RWST-Post-⇒ P (RWST-weakestPre-bindPost ev f Q)
+    → ∀ m st → RWST-weakestPre m P ev st
+    → RWST-weakestPre (RWST-bind m f) Q ev st
+RWST-⇒-bind P Q f ev pf m st con =
+  RWST-⇒ P ((RWST-weakestPre-bindPost ev f Q)) pf m ev st con
+
+RWST-⇒-ebind
+  : (P : RWST-Post Wr St (Either C A)) (Q : RWST-Post Wr St (Either C B))
+    → (f : A → RWST Ev Wr St (Either C B)) (ev : Ev)
+    → RWST-Post-⇒ P (RWST-weakestPre-ebindPost ev f Q)
+    → ∀ m st → RWST-weakestPre m P ev st
+    → RWST-weakestPre (RWST-ebind m f) Q ev st
+RWST-⇒-ebind P Q f ev pf m st con =
+  RWST-⇒ P ((RWST-weakestPre-ebindPost ev f Q)) pf m ev st con

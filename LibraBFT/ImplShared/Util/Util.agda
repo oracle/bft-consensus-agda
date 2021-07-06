@@ -74,6 +74,21 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-contract m Post pre pf = RWST-contract m Post unit pre pf
 
   LBFT-⇒
-    : ∀ {A} (P Q : RWST-Post Output RoundManager A) → (∀ r st outs → P r st outs → Q r st outs)
+    : ∀ {A} (P Q : LBFT-Post A) → (RWST-Post-⇒ P Q)
     → ∀ m pre → LBFT-weakestPre m P pre → LBFT-weakestPre m Q pre
   LBFT-⇒ Post₁ Post₂ f m pre pf = RWST-⇒ Post₁ Post₂ f m unit pre pf
+
+  LBFT-⇒-bind
+    : ∀ {A B} (P : LBFT-Post A) (Q : LBFT-Post B) (f : A → LBFT B)
+      → (RWST-Post-⇒ P (RWST-weakestPre-bindPost unit f Q))
+      → ∀ m st → LBFT-weakestPre m P st → LBFT-weakestPre (m >>= f) Q st
+  LBFT-⇒-bind Post Q f pf m st con = RWST-⇒-bind Post Q f unit pf m st con
+
+  LBFT-⇒-ebind
+    : ∀ {A B C} (P : LBFT-Post (Either C A)) (Q : LBFT-Post (Either C B))
+      → (f : A → LBFT (Either C B))
+      → RWST-Post-⇒ P (RWST-weakestPre-ebindPost unit f Q)
+      → ∀ m st → LBFT-weakestPre m P st
+      → LBFT-weakestPre (m ∙?∙ f) Q st
+  LBFT-⇒-ebind Post Q f pf m st con =
+    RWST-⇒-ebind Post Q f unit pf m st con
