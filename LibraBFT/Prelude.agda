@@ -122,7 +122,7 @@ module LibraBFT.Prelude where
 
   open import Data.Bool
     renaming (_≟_ to _≟Bool_)
-    hiding (_≤?_; _<_; _<?_; _≤_)
+    hiding (_≤?_; _<_; _<?_; _≤_; not)
     public
 
   open import Data.Maybe
@@ -130,9 +130,9 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
-  maybeS : ∀ {a b} {A : Set a} {B : Maybe A → Set b} →
-           (x : Maybe A) → B nothing → ((x : A) → B (just x)) → B x
-  maybeS {B = B} x f t = maybe {B = B} t f x
+  maybeS : ∀ {a b} {A : Set a} {B : Set b} →
+           (x : Maybe A) → B → ((x : A) → B) → B
+  maybeS {B = B} x f t = maybe {B = const B} t f x
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
@@ -303,7 +303,7 @@ module LibraBFT.Prelude where
   isLeft (Right _) = false
 
   isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
-  isRight = not ∘ isLeft
+  isRight = Data.Bool.not ∘ isLeft
 
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
@@ -332,6 +332,9 @@ module LibraBFT.Prelude where
     field
       toBool : A → Bool
   open ToBool {{ ... }} public
+
+  not : ∀ {b} {B : Set b} ⦃ _ : ToBool B ⦄ → B → Bool
+  not b = Data.Bool.not (toBool b)
 
   instance
     ToBool-Bool : ToBool Bool
@@ -428,3 +431,25 @@ module LibraBFT.Prelude where
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
 
   open import LibraBFT.Base.Util public
+
+  record Eq {a} (A : Set a) : Set a where
+    infix 4 _==_ _/=_
+    field
+      _==_ : (a b : A) → Dec (a ≡ b)
+
+    _/=_ : A → A → Bool
+    a /= b = not (a == b)
+  open Eq ⦃ ... ⦄ public
+
+  instance
+    Eq-Nat : Eq ℕ
+    Eq._==_ Eq-Nat = _≟ℕ_
+
+    Eq-Maybe : ∀ {a} {A : Set a} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
+    Eq._==_ Eq-Maybe nothing nothing = yes refl
+    Eq._==_ Eq-Maybe (just _) nothing = no λ ()
+    Eq._==_ Eq-Maybe nothing (just _) = no λ ()
+    Eq._==_ Eq-Maybe (just a) (just b)
+       with a == b
+    ... | no  proof = no λ where refl → proof refl
+    ... | yes refl = yes refl

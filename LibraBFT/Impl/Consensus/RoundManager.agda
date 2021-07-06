@@ -54,7 +54,6 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₂ : Either ErrLog Bool → LBFT Unit
 
   step₀ =
-
     caseMM pm ^∙ pmProposer of λ where
       nothing → logInfo -- log: info: proposal with no author
       (just pAuthor) → step₁ pAuthor
@@ -98,7 +97,7 @@ module ensureRoundAndSyncUpM
 
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
+          ifM messageRound /= currentRound'
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
