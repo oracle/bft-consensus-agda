@@ -47,11 +47,11 @@ module LibraBFT.ImplShared.Util.Util where
 
   -- Lifting a function that does not alter the pieces that
   -- define the epoch config is easy
-  liftEC : {A : Set}(f : ∀ ec → LBFT-ec ec A) → LBFT A
+  liftEC : {A : Set}(f : ∀ {ec} → LBFT-ec ec A) → LBFT A
   liftEC f = do
     st ← get
     let ec                 = α-EC (_rmEC st , _rmEC-correct st)
-        r₁ , stec₁ , outs₁ = RWST-run (f ec) unit (_rmWithEC st)
+        r₁ , stec₁ , outs₁ = RWST-run (f {ec}) unit (_rmWithEC st)
     tell outs₁
     put (record st { _rmWithEC = stec₁ })
     return r₁

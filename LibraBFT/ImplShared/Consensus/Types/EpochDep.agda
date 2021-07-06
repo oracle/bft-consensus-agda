@@ -177,6 +177,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
              (bsInner ∷ [])
 
   -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestCommitCert : Lens BlockStore QuorumCert
+  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestQuorumCert : Lens BlockStore QuorumCert
+  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
   bsHighestTimeoutCert : BlockStore → Maybe TimeoutCertificate
   bsHighestTimeoutCert =  _^∙ bsInner ∙ btHighestTimeoutCert
 

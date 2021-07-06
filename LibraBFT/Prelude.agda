@@ -298,6 +298,13 @@ module LibraBFT.Prelude where
   pattern Left  x = inj₁ x
   pattern Right x = inj₂ x
 
+  isLeft : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
+  isLeft (Left _)  = true
+  isLeft (Right _) = false
+
+  isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
+  isRight = not ∘ isLeft
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?

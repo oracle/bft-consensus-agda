@@ -5,7 +5,6 @@
 -}
 
 open import Optics.All
-open import LibraBFT.Prelude
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
@@ -21,6 +20,8 @@ open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 
@@ -194,7 +195,7 @@ module constructAndSignVoteMSpec where
                            ledgerInfo ._ refl ._ refl ._ refl .unit refl .unit refl →
                              mkContract refl
                                (mkNoEpochChange refl (Requirements.es≡ reqs))
-                               (mkVoteCorrect refl refl
+                               (mkVoteCorrect (mkVoteCorrectInv refl refl)
                                  (Right (mkVoteCorrectNew refl (lvr<pbr r>lvr) vpr≡pbr))))
           λ r≤lvr → contractEasy
       where
@@ -307,7 +308,8 @@ module constructAndSignVoteMSpec where
             , λ vote vote≡ →
               (λ lvr≡pbr →
                 mkContract refl (mkNoEpochChange refl refl)
-                  (mkVoteCorrect (toWitnessT lvr≡pbr) (sym vote≡)
+                  (mkVoteCorrect
+                    (mkVoteCorrectInv (toWitnessT lvr≡pbr) (sym vote≡))
                     (Left (mkVoteCorrectOld refl refl))))
               , λ lvr≢pbr →
                 continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
@@ -320,12 +322,12 @@ module constructAndSignVoteMSpec where
     round = voteProposal ^∙ vpBlock ∙ bRound
 
     -- TODO-1: Break this down into smaller pieces.
-    contract
+    contract'
       : ∀ pre
         → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre epoch round) pre
-    contract pre .unit refl nothing vs≡ ._ refl .unit refl =
+    contract' pre .unit refl nothing vs≡ ._ refl .unit refl =
       mkContract refl (mkNoEpochChange refl refl) (mkNoVoteCorrect refl ≤-refl)
-    contract pre .unit refl (just validatorSigner) vs≡ =
+    contract' pre .unit refl (just validatorSigner) vs≡ =
       RWST-⇒
         (Contract pre epoch round) Post pf
         (constructAndSignVoteM-continue0 voteProposal validatorSigner) unit pre
@@ -337,12 +339,16 @@ module constructAndSignVoteMSpec where
           (λ r → logInfo >> pure r) (Contract pre epoch round)
           x post (LogInfo fakeInfo ∷ outs)
 
-      convNoOuts : ∀ {outs} → NoMsgOuts outs  → NoMsgOuts (LogInfo fakeInfo ∷ outs ++ LogInfo fakeInfo ∷ [])
-      convNoOuts{outs} pf rewrite List-filter-++ isOutputMsg? outs (LogInfo fakeInfo ∷ []) | pf = refl
-
       pf : ∀ r st outs → Contract pre epoch round r st outs → Post r st outs
       pf r st outs (mkContract noOuts inv resultCorrect) .r refl .unit refl =
-        mkContract (convNoOuts{outs} noOuts) inv resultCorrect
+        mkContract (++-NoMsgOuts outs (LogInfo fakeInfo ∷ []) noOuts refl) inv resultCorrect
+
+    contract
+      : ∀ pre Post → (∀ r st outs → Contract pre epoch round r st outs → Post r st outs)
+        → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) Post pre
+    contract pre Post pf =
+      RWST-⇒ (Contract pre epoch round) Post pf (constructAndSignVoteM maybeSignedVoteProposal) unit pre
+        (contract' pre)
 
 private
   module Tutorial

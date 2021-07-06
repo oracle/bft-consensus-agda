@@ -40,6 +40,12 @@ module LibraBFT.ImplShared.Interface.Output where
   IsBroadcastProposal (LogInfo _) = ⊥
   IsBroadcastProposal (SendVote _ _) = ⊥
 
+  IsLogErr : Output → Set
+  IsLogErr (BroadcastProposal _) = ⊥
+  IsLogErr (LogErr _)            = ⊤
+  IsLogErr (LogInfo _)           = ⊥
+  IsLogErr (SendVote _ _)        = ⊥
+
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
@@ -51,6 +57,12 @@ module LibraBFT.ImplShared.Interface.Output where
   isBroadcastProposal? (LogErr _)            = no λ ()
   isBroadcastProposal? (LogInfo _)           = no λ ()
   isBroadcastProposal? (SendVote _ _)        = no λ ()
+
+  isLogErr? : (out : Output) → Dec (IsLogErr out)
+  isLogErr? (BroadcastProposal x) = no λ ()
+  isLogErr? (LogErr x)            = yes tt
+  isLogErr? (LogInfo x)           = no λ ()
+  isLogErr? (SendVote x x₁)       = no λ ()
 
   IsOutputMsg : Output → Set
   IsOutputMsg = IsBroadcastProposal ∪ IsSendVote

@@ -19,8 +19,22 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
-  executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
+  executeAndInsertBlockE : ∀ {𝓔} → BlockStore 𝓔 → Block → Either ErrLog (BlockStore 𝓔 × ExecutedBlock)
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
-  syncInfoM : LBFT SyncInfo
+
+executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
+executeAndInsertBlockM b = do
+  s ← get
+  let bs = rmGetBlockStore s
+  caseM⊎ executeAndInsertBlockE bs b of λ where
+    (Left e) → bail e
+    (Right (bs' , eb)) → do
+      put (rmSetBlockStore s bs')
+      ok eb
+
+syncInfoM : LBFT SyncInfo
+syncInfoM = liftEC $
+  SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert _)
+               <*> use (lBlockStore ∙ bsHighestCommitCert _)

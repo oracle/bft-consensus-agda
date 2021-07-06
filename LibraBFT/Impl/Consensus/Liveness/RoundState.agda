@@ -44,5 +44,5 @@ insertVoteM vote verifier = do
 -- TODO-1: Implement this.
 -- > recordVote v = rsVoteSent ∙= just v
 recordVote : Vote → LBFT Unit
-recordVote v = pure unit
+recordVote v = rsVoteSent-rm ∙= just v
 

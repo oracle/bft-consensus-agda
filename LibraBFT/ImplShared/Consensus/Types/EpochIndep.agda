@@ -323,10 +323,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     constructor MaybeSignedVoteProposal∙new
     field
       _msvpVoteProposal : VoteProposal
-      _msvpSignature : Maybe Signature
   open MaybeSignedVoteProposal public
-  unquoteDecl  msvpVoteProposal   msvpSignature = mkLens (quote MaybeSignedVoteProposal)
-              (msvpVoteProposal ∷ msvpSignature ∷ [])
+  unquoteDecl  msvpVoteProposal = mkLens (quote MaybeSignedVoteProposal)
+              (msvpVoteProposal ∷ [])
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
@@ -560,6 +559,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open ValidatorConsensusInfo public
   unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
              (vciPublicKey ∷ vciVotingPower ∷ [])
+
+  data ObmNotValidProposerReason : Set where
+    ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
 
   record ProposerElection : Set where
     constructor ProposerElection∙new
