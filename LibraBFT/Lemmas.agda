@@ -47,6 +47,20 @@ module LibraBFT.Lemmas where
      → List-filter p (xs ++ ys) ≡ []
  filter-++-[] xs ys p pf₁ pf₂ rewrite List-filter-++ p xs ys | pf₁ | pf₂ = refl
 
+ filter-∪?-[]₂
+   : ∀ {a p} {A : Set a} {P Q : (a : A) → Set p}
+     → ∀ xs (p : (a : A) → Dec (P a)) (q : (a : A) → Dec (Q a))
+     → List-filter (p ∪? q) xs ≡ []
+     → List-filter q xs ≡ []
+ filter-∪?-[]₂ [] p q pf = refl
+ filter-∪?-[]₂ (x ∷ xs) p q pf
+   with p x
+ ...| no  proof₁
+   with q x
+ ...| no  proof₂ = filter-∪?-[]₂ xs p q pf
+ filter-∪?-[]₂ (x ∷ xs) p q () | no proof₁ | yes proof₂
+ filter-∪?-[]₂ (x ∷ xs) p q () | yes proof
+
  data All-vec {ℓ} {A : Set ℓ} (P : A → Set ℓ) : ∀ {n} → Vec {ℓ} A n → Set (Level.suc ℓ) where
    []  : All-vec P []
    _∷_ : ∀ {x n} {xs : Vec A n} (px : P x) (pxs : All-vec P xs) → All-vec P (x ∷ xs)

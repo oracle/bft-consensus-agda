@@ -23,8 +23,14 @@ module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 NoOutputs : List Output → Set
 NoOutputs outs = outs ≡ []
 
+NoVoteOuts : List Output → Set
+NoVoteOuts outs = List-filter isSendVote? outs ≡ []
+
 NoMsgOuts : List Output → Set
 NoMsgOuts outs = List-filter isOutputMsg? outs ≡ []
+
+NoMsgOuts⇒NoVoteOuts : ∀ {outs} → NoMsgOuts outs → NoVoteOuts outs
+NoMsgOuts⇒NoVoteOuts{outs} pf = filter-∪?-[]₂ outs isBroadcastProposal? isSendVote? pf
 
 ++-NoMsgOuts : ∀ xs ys → NoMsgOuts xs → NoMsgOuts ys → NoMsgOuts (xs ++ ys)
 ++-NoMsgOuts xs ys nmo₁ nmo₂ = filter-++-[] xs ys isOutputMsg? nmo₁ nmo₂
