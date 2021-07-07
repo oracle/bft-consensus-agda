@@ -16,25 +16,15 @@ open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
--- This module defines the types that depend on an EpochConfig,
--- but never inspect it. Consequently, we define everyting over
--- an abstract 𝓔 passed around as a module parameter.
---
--- Importantly, though, we are connecting abstract and concrete
+-- This module defines types for connecting abstract and concrete
 -- votes by defining what constitutes enough "evidence" that a
 -- vote was cast, which is passed around in the abstract model as
 -- the variable (𝓥 : VoteEvidence); here we instantiate it to
 -- 'ConcreteVoteEvidence'.
 --
--- TODO-3: update types to reflect more recent version of LibraBFT.
--- This is a substantial undertaking that should probably be led by
--- someone who can access our internal implementation.
---
--- TODO-4: Make the Optics.Reflection stuff work with record
--- parameters, so we can merge all modules back into Types.  For
--- now, this is the easiest way to avoid the issue that making a
--- module inside Consensus.Types called EpochDep will break
--- mkLens (not sure why).
+-- The types in this module depend on an EpochConfig, but never
+-- inspect it. Consequently, we define everything over an abstract 𝓔
+-- passed around as a module parameter.
 
 module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
