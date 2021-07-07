@@ -82,13 +82,14 @@ module LibraBFT.ImplShared.Consensus.Types where
     constructor RoundManagerEC∙new
     field
       _rmEpochState       : EpochState
+      _rmBlockStore       : BlockStore
       _rmRoundState       : RoundState
       _rmProposerElection : ProposerElection
       _rmSafetyRules      : SafetyRules
       _rmSyncOnly         : Bool
   open RoundManagerEC public
-  unquoteDecl rmEpochState   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManagerEC)
-             (rmEpochState ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
+  unquoteDecl rmEpochState   rmBlockStore   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManagerEC)
+             (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
   rmEpoch : Lens RoundManagerEC Epoch
   rmEpoch = rmEpochState ∙ esEpoch
@@ -139,6 +140,25 @@ module LibraBFT.ImplShared.Consensus.Types where
   α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
   -}
 
+  hasValidQCs : EpochConfig → BlockStore → Set
+  hasValidQCs 𝓔 bs = ∀ {bid qc}
+                     → (bid , qc) ∈ (kvm-toList (bs ^∙ bsInner ∙ btIdToQuorumCert))
+                     → MetaIsValidQC 𝓔 qc
+
+  hasValidQCs-subst : (𝓔₁ : EpochConfig) → (bs1 : BlockStore)
+                    → (𝓔₂ : EpochConfig) → (bs2 : BlockStore)
+                    → 𝓔₁ ≡ 𝓔₂
+                    → bs1 ≡ bs2
+                    → hasValidQCs 𝓔₁ bs1
+                    → hasValidQCs 𝓔₂ bs2
+  hasValidQCs-subst _ _ _ _ refl refl hvq = hvq
+
+  record RoundManagerMetaWithEC (rmec : RoundManagerEC) (rmecc : RoundManagerEC-correct rmec) : Set where
+    constructor RoundManagerWithEC∙new
+    field
+      _rmecMetaQCsValid : hasValidQCs (α-EC (rmec , rmecc)) (rmec ^∙ rmBlockStore)
+  open RoundManagerMetaWithEC public
+  -- Note: no lens because our lens support does not work for dependent types
   -- Finally, the RoundManager is split in two pieces: those that are used to make an EpochConfig
   -- versus those that use an EpochConfig.  The reason is that the *abstract* EpochConfig is a
   -- function of some parts of the RoundManager (_rmEC), and some parts depend on the abstract
@@ -149,7 +169,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     field
       _rmEC           : RoundManagerEC
       _rmEC-correct   : RoundManagerEC-correct _rmEC
-      _rmWithEC       : RoundManagerWithEC (α-EC (_rmEC , _rmEC-correct))
+      _rmMetaWithEC   : RoundManagerMetaWithEC _rmEC _rmEC-correct
      -- If we want to add pieces that neither contribute to the
      -- construction of the EC nor need one, they should be defined in
      -- RoundManager directly

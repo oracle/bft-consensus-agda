@@ -654,17 +654,3 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bsHighestTimeoutCert : BlockStore → Maybe TimeoutCertificate
   bsHighestTimeoutCert =  _^∙ bsInner ∙ btHighestTimeoutCert
 
-  -- These are the parts of the RoundManager that depend on an
-  -- EpochConfig. We do not particularly care which EpochConfig
-  -- they care about yet.
-  --
-  record RoundManagerWithEC : Set where
-    constructor RoundManagerWithEC∙new
-    field
-      _epBlockStore   : BlockStore
-  open RoundManagerWithEC public
-  unquoteDecl epBlockStore = mkLens (quote RoundManagerWithEC)
-    (epBlockStore ∷ [])
-
-  lBlockTree : Lens RoundManagerWithEC BlockTree
-  lBlockTree = epBlockStore ∙ bsInner
