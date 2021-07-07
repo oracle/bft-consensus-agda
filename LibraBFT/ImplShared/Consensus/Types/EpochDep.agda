@@ -155,7 +155,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
       _btPendingVotes            : PendingVotes
       _btPrunedBlockIds          : List HashValue
       _btMaxPrunedBlocksInMem    : ℕ
-      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
+      _btIdToQuorumCert          : KVMap HashValue QuorumCert
   open BlockTree public
   unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
               btHighestTimeoutCert
