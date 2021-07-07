@@ -60,8 +60,6 @@ esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-ho
 ... | step-msg {fst , P pm} m∈pool ini
   with handleProposalSpec.contract!-NoEpochChange 0 pm (peerStates pre' pid)
 ... | mkNoEpochChange es≡₁ es≡₂
-  with esEpoch≡sdEpoch pid pre' preach
-... | ih
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
   = trans (sym es≡₁) (trans (esEpoch≡sdEpoch pid pre' preach) es≡₂)
 esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} _)))

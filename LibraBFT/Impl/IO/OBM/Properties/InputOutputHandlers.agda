@@ -20,9 +20,6 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
--- This module defines the handler for our implementation.  For most message types, it does some
--- initial validation before passing the message on to the proper handlers.
-
 module LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers where
 
 module handleProposalSpec (now : Instant) (pm : ProposalMsg) where

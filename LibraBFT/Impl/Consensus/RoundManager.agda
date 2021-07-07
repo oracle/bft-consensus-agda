@@ -231,7 +231,7 @@ addVoteM now vote = do
   s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
   let bs = rmGetBlockStore s
   maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
-    ifM vote ^∙ vRound ≟ℕ tc ^∙ tcRound
+    ifM vote ^∙ vRound == tc ^∙ tcRound
       then logInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where
