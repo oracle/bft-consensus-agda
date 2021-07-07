@@ -59,6 +59,11 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-Pre  = RoundManager → Set
   LBFT-Post = RWST-Post Output RoundManager
 
+  LBFT-Post-True : ∀ {A} → LBFT-Post A → LBFT A → RoundManager → Set
+  LBFT-Post-True Post m pre =
+    let (x , post , outs) = LBFT-run m pre in
+    Post x post outs
+
   LBFT-weakestPre : ∀ {A} (m : LBFT A)
                     → LBFT-Post A → LBFT-Pre
   LBFT-weakestPre m Post pre = RWST-weakestPre m Post unit pre
@@ -67,8 +72,7 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-Contract{A} m =
     (Post : RWST-Post Output RoundManager A)
     → (pre : RoundManager) → LBFT-weakestPre m Post pre
-    → let (x , post , outs) = LBFT-run m pre in
-      Post x post outs
+    → LBFT-Post-True Post m pre
 
   LBFT-contract : ∀ {A} (m : LBFT A) → LBFT-Contract m
   LBFT-contract m Post pre pf = RWST-contract m Post unit pre pf

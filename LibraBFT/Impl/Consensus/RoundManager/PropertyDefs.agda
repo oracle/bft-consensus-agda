@@ -36,12 +36,12 @@ NoMsgOuts⇒NoVoteOuts{outs} pf = filter-∪?-[]₂ outs isBroadcastProposal? is
 ++-NoMsgOuts xs ys nmo₁ nmo₂ = filter-++-[] xs ys isOutputMsg? nmo₁ nmo₂
 
 VoteMsgOuts : List Output → VoteMsg → List Author → Set
-VoteMsgOuts outs vm pids = List-filter isOutputMsg? outs ≡ (SendVote vm pids ∷ [])
+VoteMsgOuts outs vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])
 
 ++-NoMsgOuts-VoteMsgOuts : ∀ xs ys vm pids → NoMsgOuts xs → VoteMsgOuts ys vm pids → VoteMsgOuts (xs ++ ys) vm pids
 ++-NoMsgOuts-VoteMsgOuts xs ys vm pids nmo vmo
-  rewrite List-filter-++ isOutputMsg? xs ys
-  |       nmo
+  rewrite List-filter-++ isSendVote? xs ys
+  |       filter-∪?-[]₂ xs isBroadcastProposal? isSendVote? nmo
   |       vmo = refl
 
 NoErrOuts : List Output → Set

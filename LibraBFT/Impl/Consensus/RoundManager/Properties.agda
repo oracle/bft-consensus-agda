@@ -143,8 +143,8 @@ module processProposalMSpec (proposal : Block) where
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
-      noOuts        : OutsCorrect pre post outs
-      inv           : NoEpochChange pre post
+      outsCorrect : OutsCorrect pre post outs
+      inv         : NoEpochChange pre post
 
   contract : ∀ pre → LBFT-weakestPre (processProposalM proposal) (Contract pre) pre
   contract pre ._ refl =
