@@ -23,6 +23,10 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT : Set → Set₁
   LBFT = RWST Unit Output RoundManager
 
+  LBFT-Monad : Monad LBFT
+  Monad.return LBFT-Monad = RWST-return
+  Monad._>>=_  LBFT-Monad = RWST-bind
+
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
 
@@ -42,8 +46,9 @@ module LibraBFT.ImplShared.Util.Util where
   -- This is very convenient to define functions that
   -- do not alter the ec.
 
+{-  This is broken now, not sure if we will still want/need it
   LBFT-ec : EpochConfig → Set → Set₁
-  LBFT-ec ec = RWST Unit Output (RoundManagerWithEC ec)
+  LBFT-ec ec = RWST Unit Output (WithEpochConfig.RoundManagerMetaWithEC ec)
 
   -- Lifting a function that does not alter the pieces that
   -- define the epoch config is easy
@@ -51,10 +56,82 @@ module LibraBFT.ImplShared.Util.Util where
   liftEC f = do
     st ← get
     let ec                 = α-EC (_rmEC st , _rmEC-correct st)
-        r₁ , stec₁ , outs₁ = RWST-run (f {ec}) unit (_rmWithEC st)
+        r₁ , stec₁ , outs₁ = RWST-run (f {ec}) unit (_rmMetaWithEC st)
     tell outs₁
     put (record st { _rmWithEC = stec₁ })
     return r₁
+-}
+
+
+
+-- Lens functionality
+--
+-- If we make RWST work for different level State types, we will break use and
+-- modify because Lens does not support different levels, we define use and
+-- modify' here for RoundManager. We are ok as long as we can keep
+-- RoundManager in Set. If we ever need to make RoundManager at some higher
+-- Level, we will have to consider making Lens level-agnostic. Preliminary
+-- exploration by @cwjnkins showed this to be somewhat painful in particular
+-- around composition, so we are not pursuing it for now.
+  LBFT-use : ∀ {A}
+           → Lens RoundManagerEC A
+           → LBFT A
+  LBFT-use l = gets ((_^∙ l) ∘ _rmEC)
+
+  LBFT-modify : (RoundManager → RoundManager) → LBFT Unit
+  LBFT-modify f = do
+    st ← get
+    -- Here apply f to rmEC st, use (something) to transform so we know it's the same epochconfig.
+    -- Note: we will have to deal differently with any change to the validQCs too.  Tricky!
+    put (f st)
+
+  LBFT-modifyL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → (A → A) → LBFT Unit
+  LBFT-modifyL l ⦃ gl ⦄ f = LBFT-modify λ rm → proj₁ (GoodLens.getRM gl rm f)
+  syntax LBFT-modifyL l f = l LBFT-%= f
+
+  LBFT-setL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → A → LBFT Unit
+  LBFT-setL l x = l LBFT-%= const x
+  syntax LBFT-setL l x = l LBFT-∙= x
+
+  postulate
+    st : RoundManager
+
+  testIt1 : Bool → LBFT Unit
+  testIt1 b = do
+    rmSyncOnly-manual LBFT-∙= b
+
+  _ : (_rmEC (LBFT-post (testIt1 false) st)) ^∙ rmSyncOnly ≡ false
+  _ = refl
+
+  testIt2 : LBFT Unit
+  testIt2 = do
+    rmSyncOnly LBFT-∙= false
+
+  _ : (_rmEC (LBFT-post testIt2 st)) ^∙ rmSyncOnly ≡ false
+  _ = refl
+
+  testIt3 : LBFT Bool
+  testIt3 = do
+    testIt1 false
+    x ← LBFT-use rmSyncOnly'  -- Only the primed version works see comment in Types.agda
+    return x
+
+  _ : (_rmEC (LBFT-post testIt3 st)) ^∙ rmSyncOnly ≡ false
+  _ = refl
+
+  testIt4 : LBFT Bool
+  testIt4 = do
+    testIt1 false
+    x ← LBFT-use rmSyncOnly'
+    testIt1 true
+    x' ← LBFT-use rmSyncOnly'
+    if x then return false
+         else if x'
+              then return true
+              else return false
+
+  _ : (_rmEC (LBFT-post testIt4 st)) ^∙ rmSyncOnly ≡ true
+  _ = refl
 
   LBFT-Pre  = RoundManager → Set
   LBFT-Post = RWST-Post Output RoundManager
