@@ -70,7 +70,11 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
             currentRound ← use (lRoundState ∙ rsCurrentRound)
             logInfo              -- log: info: dropping proposal for old round
 
-processProposalMsgM = processProposalMsgM.step₀
+abstract
+  processProposalMsgM = processProposalMsgM.step₀
+
+  processProposalMsgM≡ : processProposalMsgM ≡ processProposalMsgM.step₀
+  processProposalMsgM≡ = refl
 
 ------------------------------------------------------------------------------
 
