@@ -62,7 +62,7 @@ executeAndInsertBlockE bs0 block =
         (Right res) → Right res
         (Left (ErrBlockNotFound parentBlockId)) → do
           eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
-            case forM' blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+            case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
               (Left  e) → Left e
               (Right _) → executeBlockE bs0 block
         (Left err) → Left err

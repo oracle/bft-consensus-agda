@@ -433,12 +433,14 @@ module LibraBFT.Prelude where
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
 
-  -- NOTE: this is call forM (no prime) in Haskell.  But because of above forM_ that does not work.
-  forM' : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M (List B)
-  forM'      []  _ = return []
-  forM' (x ∷ xs) f = do
+  -- NOTE: because 'forM_' is defined above, it is necessary to
+  -- call 'forM' with parenthesis (e.g., recursive call in definition)
+  -- to disambiguate it for the Agda parser.
+  forM : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M (List B)
+  forM      []  _ = return []
+  forM (x ∷ xs) f = do
     fx  ← f x
-    fxs ← forM' xs f
+    fxs ← (forM) xs f
     return (fx ∷ fxs)
 
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B

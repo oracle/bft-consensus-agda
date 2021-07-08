@@ -39,7 +39,7 @@ module LibraBFT.Hash where
 
  instance
    Eq-Hash : Eq Hash
-   Eq._≟_ Eq-Hash l r = l ≟Hash r
+   Eq._≟_ Eq-Hash = _≟Hash_
 
  encodeH : Hash → ByteString
  encodeH (bs , _) = bs
