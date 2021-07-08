@@ -54,7 +54,6 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₂ : Either ErrLog Bool → LBFT Unit
 
   step₀ =
-
     caseMM pm ^∙ pmProposer of λ where
       nothing → logInfo -- log: info: proposal with no author
       (just pAuthor) → step₁ pAuthor
@@ -71,7 +70,11 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
             currentRound ← use (lRoundState ∙ rsCurrentRound)
             logInfo              -- log: info: dropping proposal for old round
 
-processProposalMsgM = processProposalMsgM.step₀
+abstract
+  processProposalMsgM = processProposalMsgM.step₀
+
+  processProposalMsgM≡ : processProposalMsgM ≡ processProposalMsgM.step₀
+  processProposalMsgM≡ = refl
 
 ------------------------------------------------------------------------------
 
@@ -98,7 +101,7 @@ module ensureRoundAndSyncUpM
 
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
+          ifM messageRound /= currentRound'
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
@@ -228,7 +231,7 @@ addVoteM now vote = do
   s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
   let bs = rmGetBlockStore s
   maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
-    ifM vote ^∙ vRound ≟ℕ tc ^∙ tcRound
+    ifM vote ^∙ vRound == tc ^∙ tcRound
       then logInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where

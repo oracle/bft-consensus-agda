@@ -43,9 +43,11 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   fakeRM : RoundManager
 
 initSR : SafetyRules
-initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
-               (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
-                     (_rmSafetyRules (_rmEC fakeRM)))
+initSR =
+  let sd = fakeRM ^∙ lSafetyRules
+      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
+      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1 in
+  sd
 
 postulate -- TODO-1: Implement this.
   initPE : ProposerElection
@@ -62,9 +64,10 @@ initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS
 postulate -- TODO-2 : prove these once initRMEC is defined directly
   init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
   initRMEC-correct : RoundManagerEC-correct initRMEC
+  initRMWithEC     : RoundManagerWithEC (α-EC (initRMEC , initRMEC-correct))
 
 initRM : RoundManager
-initRM = fakeRM
+initRM = RoundManager∙new initRMEC initRMEC-correct initRMWithEC
 
 -- Eventually, the initialization should establish some properties we care about, but for now we
 -- just initialise again to fakeRM, which means we cannot prove the base case for various

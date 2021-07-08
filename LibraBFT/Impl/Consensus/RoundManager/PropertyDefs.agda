@@ -23,19 +23,25 @@ module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 NoOutputs : List Output → Set
 NoOutputs outs = outs ≡ []
 
+NoVoteOuts : List Output → Set
+NoVoteOuts outs = List-filter isSendVote? outs ≡ []
+
 NoMsgOuts : List Output → Set
 NoMsgOuts outs = List-filter isOutputMsg? outs ≡ []
+
+NoMsgOuts⇒NoVoteOuts : ∀ {outs} → NoMsgOuts outs → NoVoteOuts outs
+NoMsgOuts⇒NoVoteOuts{outs} pf = filter-∪?-[]₂ outs isBroadcastProposal? isSendVote? pf
 
 ++-NoMsgOuts : ∀ xs ys → NoMsgOuts xs → NoMsgOuts ys → NoMsgOuts (xs ++ ys)
 ++-NoMsgOuts xs ys nmo₁ nmo₂ = filter-++-[] xs ys isOutputMsg? nmo₁ nmo₂
 
 VoteMsgOuts : List Output → VoteMsg → List Author → Set
-VoteMsgOuts outs vm pids = List-filter isOutputMsg? outs ≡ (SendVote vm pids ∷ [])
+VoteMsgOuts outs vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])
 
 ++-NoMsgOuts-VoteMsgOuts : ∀ xs ys vm pids → NoMsgOuts xs → VoteMsgOuts ys vm pids → VoteMsgOuts (xs ++ ys) vm pids
 ++-NoMsgOuts-VoteMsgOuts xs ys vm pids nmo vmo
-  rewrite List-filter-++ isOutputMsg? xs ys
-  |       nmo
+  rewrite List-filter-++ isSendVote? xs ys
+  |       filter-∪?-[]₂ xs isBroadcastProposal? isSendVote? nmo
   |       vmo = refl
 
 NoErrOuts : List Output → Set

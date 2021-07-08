@@ -72,7 +72,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
 
 verifyEpochM : Epoch → SafetyData → LBFT (Either ErrLog Unit)
 verifyEpochM epoch safetyData =
-  ifM not ⌊ epoch ≟ℕ safetyData ^∙ sdEpoch ⌋
+  ifM epoch /= safetyData ^∙ sdEpoch
     then bail fakeErr -- incorrect epoch
     else ok unit
 
@@ -120,7 +120,7 @@ module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorS
   step₁ safetyData0 = do
       caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
-          ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ (proposedBlock ^∙ bRound)
+          ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound == proposedBlock ^∙ bRound
             then ok vote
             else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
         nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
