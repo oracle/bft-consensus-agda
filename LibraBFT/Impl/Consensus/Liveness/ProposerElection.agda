@@ -28,6 +28,6 @@ isValidProposalM b =
       then ok unit
       else bail ProposerForBlockIsNotValidForThisRound
 
-isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
+isValidProposerM a r = isValidProposer <$> LBFT-use lProposerElection <*> pure a <*> pure r
 
 isValidProposer pe a r = ⌊ getValidProposer pe r ≟ℕ a ⌋

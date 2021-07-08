@@ -56,8 +56,11 @@ initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
 initRS : RoundState
 initRS = RoundState∙new 0 0 initPV nothing
 
+postulate
+  initBS : BlockStore
+
 initRMEC : RoundManagerEC
-initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
+initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initBS initRS initPE initSR false
 
 postulate -- TODO-2 : prove these once initRMEC is defined directly
   init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1

@@ -25,7 +25,7 @@ module LibraBFT.Impl.Consensus.Liveness.RoundState where
 
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
 processCertificatesM now syncInfo = do
-  rshcr <- use (lRoundState ∙ rsHighestCommittedRound)
+  rshcr <- LBFT-use (lRoundState ∙ rsHighestCommittedRound)
   if-dec (syncInfo ^∙ siHighestCommitRound <? rshcr) -- TODO : define and use 'when'
     then pure unit -- IMPL-TODO ((lRoundState ∙ rsHighestCommittedRound) :=  (syncInfo ^∙ siHighestCommitRound))
     else pure unit
@@ -35,7 +35,7 @@ processCertificatesM now syncInfo = do
 
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote verifier = do
-  currentRound ← use (lRoundState ∙ rsCurrentRound)
+  currentRound ← LBFT-use (lRoundState ∙ rsCurrentRound)
   if-dec vote ^∙ vVoteData ∙ vdProposed ∙ biRound ≟ℕ currentRound
     then PendingVotes.insertVoteM vote verifier
     else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
@@ -44,5 +44,5 @@ insertVoteM vote verifier = do
 -- TODO-1: Implement this.
 -- > recordVote v = rsVoteSent ∙= just v
 recordVote : Vote → LBFT Unit
-recordVote v = rsVoteSent-rm ∙= just v
+recordVote v = rsVoteSent-makeClassy LBFT-∙= just v
 

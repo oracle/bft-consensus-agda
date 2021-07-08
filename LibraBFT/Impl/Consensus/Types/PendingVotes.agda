@@ -21,7 +21,7 @@ module LibraBFT.Impl.Consensus.Types.PendingVotes where
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)
-  atv          ← use (lPendingVotes ∙ pvAuthorToVote)
+  atv          ← LBFT-use (lPendingVotes ∙ pvAuthorToVote)
   case Map.lookup (vote ^∙ vAuthor) atv of λ where
     (just previouslySeenVote) →
       if-dec liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
@@ -41,12 +41,12 @@ insertVoteM vote vv = do
 
   continue1 : HashValue → LBFT VoteReceptionResult
   continue1 liDigest = do
-    pv            ← use lPendingVotes
-    lPendingVotes ∙ pvAuthorToVote %= Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote
+    pv            ← LBFT-use lPendingVotes
+    pvAuthorToVote-makeClassy LBFT-%= Map.kvm-insert-Haskell (vote ^∙ vAuthor) vote
     let liWithSig = CryptoProxies.addToLi (vote ^∙ vAuthor) (vote ^∙ vSignature)
                       (fromMaybe (LedgerInfoWithSignatures∙new (vote ^∙ vLedgerInfo) Map.empty)
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
-    lPendingVotes ∙ pvLiDigestToVotes %= Map.kvm-insert-Haskell liDigest liWithSig
+    pvLiDigestToVotes-makeClassy LBFT-%= Map.kvm-insert-Haskell liDigest liWithSig
     case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
       (Right unit) →
         pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
@@ -58,11 +58,11 @@ insertVoteM vote vv = do
   continue2 qcVotingPower =
     case vote ^∙ vTimeoutSignature of λ where
       (just timeoutSignature) → do
-        pv            ← use lPendingVotes
+        pv            ← LBFT-use lPendingVotes
         let partialTc = TimeoutCertificate.addSignature (vote ^∙ vAuthor) timeoutSignature
                           (fromMaybe (TimeoutCertificate∙new (Vote.timeout vote))
                                      (pv ^∙ pvMaybePartialTC))
-        lPendingVotes ∙ pvMaybePartialTC %= const (just partialTc)
+        pvMaybePartialTC-makeClassy LBFT-?= partialTc
         case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
           (Right unit) →
             pure (NewTimeoutCertificate partialTc)

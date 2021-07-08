@@ -68,7 +68,7 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
           (Left e)      → logErr -- log: error: <propagate error>
           (Right true)  → processProposalM (pm ^∙ pmProposal)
           (Right false) → do
-            currentRound ← use (lRoundState ∙ rsCurrentRound)
+            currentRound ← LBFT-use (lRoundState ∙ rsCurrentRound)
             logInfo              -- log: info: dropping proposal for old round
 
 processProposalMsgM = processProposalMsgM.step₀
@@ -88,7 +88,7 @@ module ensureRoundAndSyncUpM
   step₂ : LBFT (Either ErrLog Bool)
 
   step₀ = do
-    currentRound ← use (lRoundState ∙ rsCurrentRound)
+    currentRound ← LBFT-use (lRoundState ∙ rsCurrentRound)
     ifM messageRound <? currentRound
       then ok false
       else step₁
@@ -97,7 +97,7 @@ module ensureRoundAndSyncUpM
         syncUpM now syncInfo author helpRemote ∙?∙ λ _ → step₂
 
   step₂ = do
-          currentRound' ← use (lRoundState ∙ rsCurrentRound)
+          currentRound' ← LBFT-use (lRoundState ∙ rsCurrentRound)
           ifM not ⌊ messageRound ≟ℕ currentRound' ⌋
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
@@ -118,15 +118,14 @@ processCertificatesM now = do
 -- Haskell prototype and Agda model easier.
 module processProposalM (proposal : Block) where
   step₀ : LBFT Unit
-  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → (Either ObmNotValidProposerReason Unit) → LBFT Unit
+  step₁ : BlockStore → (Either ObmNotValidProposerReason Unit) → LBFT Unit
   step₂ : Either ErrLog Vote → LBFT Unit
   step₃ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
-    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let bs = rmGetBlockStore s
+    bs ← LBFT-use lBlockStore
     vp ← ProposerElection.isValidProposalM proposal
-    step₁ {s} bs vp
+    step₁ bs vp
 
   step₁ bs vp =
     ifM‖ isLeft vp ≔
@@ -149,7 +148,7 @@ module processProposalM (proposal : Block) where
 
   step₃ vote si = do
                recipient ← ProposerElection.getValidProposer
-                           <$> use lProposerElection
+                           <$> LBFT-use lProposerElection
                            <*> pure (proposal ^∙ bRound + 1)
                act (SendVote (VoteMsg∙new vote si) (recipient ∷ []))
                -- TODO-2:                           mkNodesInOrder1 recipient
@@ -167,9 +166,9 @@ module executeAndVoteM (b : Block) where
     BlockStore.executeAndInsertBlockM b ∙^∙ withErrCtxt ∙?∙ step₁
 
   step₁ eb = do
-    cr ← use (lRoundState ∙ rsCurrentRound)
-    vs ← use (lRoundState ∙ rsVoteSent)
-    so ← use lSyncOnly
+    cr ← LBFT-use (lRoundState ∙ rsCurrentRound)
+    vs ← LBFT-use (lRoundState ∙ rsVoteSent)
+    so ← LBFT-use lSyncOnly
     ifM‖ is-just vs ≔
          bail fakeErr -- error: already voted this round
        ‖ so ≔
@@ -202,10 +201,12 @@ processVoteM now vote =
   ifM not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
-    gets rmPgAuthor >>= λ where
+    -- Note: the Haskell code uses a GetterNoFunctor for pgAuthor, but we don't have support for
+    -- that (yet?), so we just 
+    LBFT-gets rmPgAuthor >>= λ where
       nothing       → logErr -- "lRoundManager.pgAuthor", "Nothing"
       (just author) → do
-        v ← ProposerElection.isValidProposer <$> use lProposerElection
+        v ← ProposerElection.isValidProposer <$> LBFT-use lProposerElection
                                              <*> pure author <*> pure nextRound
         if v then continue else logErr) -- "received vote, but I am not proposer for round"
   else
@@ -214,20 +215,18 @@ processVoteM now vote =
   continue : LBFT Unit
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
-    s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let bs = rmGetBlockStore s
+    bs ← LBFT-use lBlockStore
     ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
       then logInfo
       else do
       logInfo
       addVoteM now vote
-      pvA ← use lPendingVotes
+      pvA ← LBFT-use lPendingVotes
       logInfo
 
 addVoteM now vote = do
-  s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-  let bs = rmGetBlockStore s
-  maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
+  bs ← LBFT-use lBlockStore
+  maybeS-RWST (bsHighestTimeoutCert bs) continue λ tc →
     ifM vote ^∙ vRound ≟ℕ tc ^∙ tcRound
       then logInfo -- "block already has TC", "dropping unneeded vote"
       else continue

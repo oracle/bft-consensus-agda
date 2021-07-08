@@ -44,12 +44,10 @@ postulate -- TODO-1: these are temporary scaffolding for the fake implementation
 
 processProposalMsg : Instant → ProposalMsg → LBFT Unit
 processProposalMsg inst pm = do
-  st ← get
+  rm  ← LBFT-get
   --xx ← use rmHighestQC   -- Not used; just a demonstration that our RoundManager-specific "use" works
   --rmHighestQC ∙= xx -- Similarly for modify'
-  let RoundManager∙new rm rmc rmw = st
-      𝓔  = α-EC (rm , rmc)
-      e  = rm ^∙ rmEpoch
+  let e  = rm ^∙ rmEpoch
       nr = suc (rm ^∙ rmLastVotedRound)
       uv = Vote∙new
                   (VoteData∙new (fakeBlockInfo e nr pm) (fakeBlockInfo e 0 pm))
@@ -58,12 +56,9 @@ processProposalMsg inst pm = do
                   fakeSig
                   nothing
       sv = record uv { _vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
-      bt = rmw ^∙ (lBlockTree 𝓔)
+      bt = rm ^∙ lBlockTree
       si = SyncInfo∙new (_btHighestQuorumCert bt) (_btHighestCommitCert bt)
-      rm' = rm & rmLastVotedRound ∙~ nr
-      st' = RoundManager∙new rm' (RoundManagerEC-correct-≡ (_rmEC st) rm' refl rmc)
-                                 (subst RoundManagerWithEC (α-EC-≡ rm rm' refl refl rmc) rmw)
-  put st'
+  rmLastVotedRound LBFT-∙= nr
   tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))
   pure unit
 

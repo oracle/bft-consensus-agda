@@ -48,8 +48,7 @@ mkVote randomLiVd signers i mli =
 
 iv : Vote → LBFT VoteReceptionResult
 iv v = do
-  s ← get
-  let vv = rmGetEpochState s ^∙ esVerifier
+  vv ← LBFT-use (rmEpochState ∙ esVerifier)
   PendingVotes.insertVoteM v vv
 
 {-
