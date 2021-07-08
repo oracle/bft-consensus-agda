@@ -30,4 +30,4 @@ isValidProposalM b =
 
 isValidProposerM a r = isValidProposer <$> use lProposerElection <*> pure a <*> pure r
 
-isValidProposer pe a r = toBool $ getValidProposer pe r == a
+isValidProposer pe a r = getValidProposer pe r == a

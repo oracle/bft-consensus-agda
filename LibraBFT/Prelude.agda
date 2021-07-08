@@ -35,7 +35,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Nat.Properties
-    hiding (≡-irrelevant)
+    hiding (≡-irrelevant ; _≟_)
     public
 
   open import Data.List
@@ -433,9 +433,12 @@ module LibraBFT.Prelude where
   open import LibraBFT.Base.Util public
 
   record Eq {a} (A : Set a) : Set a where
-    infix 4 _==_ _/=_
+    infix 4 _≟_ _==_ _/=_
     field
-      _==_ : (a b : A) → Dec (a ≡ b)
+      _≟_ : (a b : A) → Dec (a ≡ b)
+
+    _==_   : A → A → Bool
+    a == b = toBool $ a ≟ b
 
     _/=_ : A → A → Bool
     a /= b = not (a == b)
@@ -443,13 +446,13 @@ module LibraBFT.Prelude where
 
   instance
     Eq-Nat : Eq ℕ
-    Eq._==_ Eq-Nat = _≟ℕ_
+    Eq._≟_ Eq-Nat = _≟ℕ_
 
     Eq-Maybe : ∀ {a} {A : Set a} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
-    Eq._==_ Eq-Maybe nothing nothing = yes refl
-    Eq._==_ Eq-Maybe (just _) nothing = no λ ()
-    Eq._==_ Eq-Maybe nothing (just _) = no λ ()
-    Eq._==_ Eq-Maybe (just a) (just b)
-       with a == b
+    Eq._≟_ Eq-Maybe nothing nothing = yes refl
+    Eq._≟_ Eq-Maybe (just _) nothing = no λ ()
+    Eq._≟_ Eq-Maybe nothing (just _) = no λ ()
+    Eq._≟_ Eq-Maybe (just a) (just b)
+       with a ≟ b
     ... | no  proof = no λ where refl → proof refl
     ... | yes refl = yes refl

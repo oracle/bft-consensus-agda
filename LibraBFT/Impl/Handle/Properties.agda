@@ -48,7 +48,7 @@ esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-ch
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
   = esEpoch≡sdEpoch pid pre' preach
 esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
-  with pid == pid'
+  with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
   = esEpoch≡sdEpoch pid pre' preach
