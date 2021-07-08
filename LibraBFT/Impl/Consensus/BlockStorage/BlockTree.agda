@@ -31,8 +31,9 @@ pathFromRoot : ∀ {𝓔 : EpochConfig}
              → HashValue → BlockTree  𝓔
              → Either ErrLog (List ExecutedBlock)
 pathFromRoot blockId blockTree =
-  maybeS (blockTree ^∙ btRoot _) (Left fakeErr) $ λ btr → {!!}
-  -- maybeS (loop btr blockId []) (Right []) (pure ∘ continue)
+  maybeS (blockTree ^∙ btRoot _) (Left fakeErr) $ λ btr →
+  maybeS {B = const (Either ErrLog (List ExecutedBlock))}
+         (loop btr blockId []) (Right []) (pure ∘ continue)
  where
   loop : ExecutedBlock → HashValue → List ExecutedBlock → Maybe (HashValue × List ExecutedBlock)
   loop = {!!}
@@ -43,6 +44,6 @@ pathFromRoot blockId blockTree =
   --   nothing      → nothing
   continue : (HashValue × List ExecutedBlock) → List ExecutedBlock
   continue (curBlockId , res) = {!!}
-    -- if curBlockId /= (blockTree ^∙ btRootId)
+    -- if not (curBlockId ≟Hash (blockTree ^∙ btRootId _))
     -- then []
     -- else res
