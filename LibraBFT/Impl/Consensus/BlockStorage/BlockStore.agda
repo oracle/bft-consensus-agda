@@ -36,8 +36,6 @@ executeAndInsertBlockE
 
 executeBlockE : ∀ {𝓔 : EpochConfig} → BlockStore 𝓔 → Block → Either ErrLog ExecutedBlock
 
-
-
 pathFromRoot : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Either ErrLog (List ExecutedBlock)
 
 ------------------------------------------------------------------------------
