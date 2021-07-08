@@ -21,6 +21,9 @@ module saveVoteMSpec (vote : Vote) where
     contract
       : ∀ P pre
         → (∀ outs → NoMsgOuts outs → NoErrOuts outs → P (inj₁ fakeErr) pre outs)
-        → (∀ outs blockStore → NoMsgOuts outs → NoErrOuts outs
-           → P (inj₂ unit) (rmSetBlockStore pre blockStore) outs)
+
+-- This condition is commented out temporarily because we have to figure out how to state contracts
+-- about steps that *do* change the BlockStore and/or EpochConfig.
+--        → (∀ outs blockStore → NoMsgOuts outs → NoErrOuts outs
+--           → P (inj₂ unit) (rmSetBlockStore pre blockStore) outs)
         → RWST-weakestPre (saveVoteM vote) P unit pre

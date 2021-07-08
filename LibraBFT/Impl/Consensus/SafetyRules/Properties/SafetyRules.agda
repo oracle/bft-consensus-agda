@@ -159,9 +159,9 @@ module constructAndSignVoteMSpec where
     record Requirements (pre : RoundManager) : Set where
       constructor mkRequirements
       field
-        es≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdEpoch
-        lv≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVote
-        lvr≡ : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVotedRound
+        es≡  : (_rmEC pre ^∙ lSafetyData) ≡L safetyData at sdEpoch
+        lv≡  : (_rmEC pre ^∙ lSafetyData) ≡L safetyData at sdLastVote
+        lvr≡ : (_rmEC pre ^∙ lSafetyData) ≡L safetyData at sdLastVotedRound
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
 
     epoch = voteProposal ^∙ vpBlock ∙ bEpoch
@@ -203,14 +203,16 @@ module constructAndSignVoteMSpec where
       vpr≡pbr rewrite Requirements.vp≡pb reqs = refl
 
       lvr<pbr : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-                → pre ^∙ lSafetyData ∙ sdLastVotedRound < proposedBlock ^∙ bRound
+                → _rmEC pre ^∙ lSafetyData ∙ sdLastVotedRound < proposedBlock ^∙ bRound
       lvr<pbr r>lvr rewrite (Requirements.lvr≡ reqs) = r>lvr
 
       lvr≤pbr : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-                → pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
+                → _rmEC pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
       lvr≤pbr r>lvr = <⇒≤ (lvr<pbr r>lvr)
 
-      preUpdatedSD = pre & lSafetyData ∙~ verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData
+      -- Another case where we have to fix lSafetyData to be a Lens RoundManager.  We can have this one, because we will be able
+      -- to create a RMLens for it usin
+      preUpdatedSD = ? -- pre & lSafetyData ∙~ verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData
 
       bailAfterSetSafetyData
         : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound

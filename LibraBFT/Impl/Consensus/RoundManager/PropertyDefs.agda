@@ -45,7 +45,7 @@ record NoEpochChange (pre post : RoundManager) : Set where
   constructor mkNoEpochChange
   field
     es≡₁ : (_rmEC pre) ≡L (_rmEC post) at rmEpoch
-    es≡₂ : pre ≡L post at lSafetyData ∙ sdEpoch
+    es≡₂ : (_rmEC pre) ≡L (_rmEC post) at lSafetyData ∙ sdEpoch
 
 reflNoEpochChange : ∀ {pre} → NoEpochChange pre pre
 reflNoEpochChange = mkNoEpochChange refl refl
@@ -62,15 +62,15 @@ record VoteCorrectInv (post : RoundManager) (round : Round) (vote : Vote) : Set 
   constructor mkVoteCorrectInv
   field
     round≡  : vote ^∙ vRound ≡ round
-    postLv≡ : just vote ≡ post ^∙ lSafetyData ∙ sdLastVote
+    postLv≡ : just vote ≡ (_rmEC post) ^∙ lSafetyData ∙ sdLastVote
 
 record VoteCorrectOld (pre post : RoundManager) (vote : Vote) : Set where
   constructor mkVoteCorrectOld
   field
     -- The implementation maintains an invariant that epoch of the vote stored in
     -- `sdLastVote` is the same as the peer's epoch.
-    lvr≡ : pre ≡L post at lSafetyData ∙ sdLastVotedRound
-    lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
+    lvr≡ : (_rmEC pre) ≡L (_rmEC post) at lSafetyData ∙ sdLastVotedRound
+    lv≡  : (_rmEC pre) ≡L (_rmEC post) at lSafetyData ∙ sdLastVote
 
 transVoteCorrectOld
   : ∀ {s₁ s₂ s₃ v}
@@ -83,8 +83,8 @@ record VoteCorrectNew (pre post : RoundManager) (epoch : Epoch) (vote : Vote) : 
   constructor mkVoteCorrectNew
   field
     epoch≡   : vote ^∙ vEpoch ≡ epoch
-    lvr<     : pre [ _<_ ]L post at lSafetyData ∙ sdLastVotedRound
-    postLvr≡ : vote ^∙ vRound ≡ post ^∙ lSafetyData ∙ sdLastVotedRound
+    lvr<     : (_rmEC pre) [ _<_ ]L (_rmEC post) at lSafetyData ∙ sdLastVotedRound
+    postLvr≡ : vote ^∙ vRound ≡ (_rmEC post) ^∙ lSafetyData ∙ sdLastVotedRound
 
 record VoteCorrect (pre post : RoundManager) (epoch : Epoch) (round : Round) (vote : Vote) : Set where
   constructor mkVoteCorrect
@@ -99,8 +99,8 @@ VoteNotSaved pre post epoch round = ∃[ v ] VoteCorrect pre post epoch round v
 record NoVoteCorrect (pre post : RoundManager) : Set where
   constructor mkNoVoteCorrect
   field
-    lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
-    lvr≤ : pre [ _≤_ ]L post at lSafetyData ∙ sdLastVotedRound
+    lv≡  : (_rmEC pre) ≡L (_rmEC post) at lSafetyData ∙ sdLastVote
+    lvr≤ : (_rmEC pre) [ _≤_ ]L (_rmEC post) at lSafetyData ∙ sdLastVotedRound
 
 reflNoVoteCorrect : ∀ {pre} → NoVoteCorrect pre pre
 reflNoVoteCorrect = mkNoVoteCorrect refl ≤-refl
@@ -111,10 +111,10 @@ transNoVoteCorrect (mkNoVoteCorrect lv≡ lvr≤) (mkNoVoteCorrect lv≡₁ lvr�
 
 substVoteCorrect
   : ∀ {pre₁ pre₂ post₁ post₂ e₁ e₂ r₁ r₂ v}
-    → pre₁  ≡L pre₂  at (lSafetyData ∙ sdLastVote)
-    → pre₁  ≡L pre₂  at (lSafetyData ∙ sdLastVotedRound)
-    → post₁ ≡L post₂ at (lSafetyData ∙ sdLastVote)
-    → post₁ ≡L post₂ at (lSafetyData ∙ sdLastVotedRound)
+    → (_rmEC pre₁)  ≡L (_rmEC pre₂)  at (lSafetyData ∙ sdLastVote)
+    → (_rmEC pre₁)  ≡L (_rmEC pre₂)  at (lSafetyData ∙ sdLastVotedRound)
+    → (_rmEC post₁) ≡L (_rmEC post₂) at (lSafetyData ∙ sdLastVote)
+    → (_rmEC post₁) ≡L (_rmEC post₂) at (lSafetyData ∙ sdLastVotedRound)
     → e₁ ≡ e₂ → r₁ ≡ r₂
     → VoteCorrect pre₁ post₁ e₁ r₁ v
     → VoteCorrect pre₂ post₂ e₂ r₂ v

@@ -18,7 +18,7 @@ module LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection where
 -- TUTORIAL
 module isValidProposalMSpec (b : Block) where
 
-  pe      = _^∙ lProposerElection
+  pe      = _^∙ lProposerElection ∘ _rmEC
   mAuthor = b ^∙ bAuthor
   round   = b ^∙ bRound
 

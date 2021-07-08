@@ -3,7 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -93,12 +93,13 @@ module executeAndVoteMSpec (b : Block) where
         mkContract (++-NoMsgOuts outs outs₁ noOuts noMsgOuts₁)
           (transNoEpochChange noEpochChange-pre-preUpdated nec)
           (Right voteNotSaved))
-      λ where
+      -- This is temporarily commented out because one of the contract's conditions is commented out.  See comment there.
+      {- λ where
         outs₁ bs noMsgOuts₁ noErrOuts₁ .unit refl →
           mkContract
             (++-NoMsgOuts outs _ noOuts (++-NoMsgOuts outs₁ [] noMsgOuts₁ refl))
             (transNoEpochChange noEpochChange-pre-preUpdated (transNoEpochChange nec (mkNoEpochChange refl refl)))
-            voteSaved
+            voteSaved -}
       where
       Contract-++outs = RWST-Post++ (Contract pre) outs
 
