@@ -4,9 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
--- REVIEW-TODO
-{-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
@@ -24,10 +21,11 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
-  getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
   getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
 
 ------------------------------------------------------------------------------
+
+getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
 
 executeAndInsertBlockE
   : ∀ {𝓔}
@@ -53,7 +51,7 @@ executeAndInsertBlockM b = do
 executeAndInsertBlockE bs0 block =
   maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
  where
-  continue : ∀ {𝓔} → Either ErrLog (BlockStore 𝓔 × ExecutedBlock)
+  continue : Either ErrLog (BlockStore _ × ExecutedBlock)
   continue =
     maybeS (bs0 ^∙ bsRoot _) (Left fakeErr) λ bsr →
     let btRound = bsr ^∙ ebRound in
@@ -70,10 +68,7 @@ executeAndInsertBlockE bs0 block =
         (Left err) → Left err
       -- bs1 <- withErrCtx' (here []) (PersistentLivenessStorage.saveTreeE bs0 [eb^.ebBlock] [])
       (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner _)
-      let xxx = bs0 & bsInner _ ∙~  bt'
-      -- REVIEW-TODO : the expression assigned to xxx should go into the following hole.
-      -- The the epoch configs have different levels.
-      pure ({!!} , eb')
+      pure ((bs0 & bsInner _ ∙~  bt') , eb')
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)
@@ -85,7 +80,7 @@ executeBlockE bs block =
 
 ------------------------------------------------------------------------------
 
--- getBlock {𝓔} = {!!} -- btGetBlock hv (bs ^∙ bsInner _)
+getBlock hv bs = btGetBlock _ hv (bs ^∙ bsInner _)
 
 pathFromRoot hv bs = BlockTree.pathFromRoot hv (bs ^∙ bsInner _)
 

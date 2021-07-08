@@ -130,6 +130,7 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  -- a non-dependent eliminator
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
@@ -305,7 +306,7 @@ module LibraBFT.Prelude where
   isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
   isRight = Data.Bool.not ∘ isLeft
 
-  -- a non-dependent eliminator - TODO-1 : should it be a dependent eliminator (like maybeS above)?
+  -- a non-dependent eliminator
   eitherS : ∀ {A B C : Set} (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
