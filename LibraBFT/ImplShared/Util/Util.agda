@@ -23,10 +23,6 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT : Set → Set₁
   LBFT = RWST Unit Output RoundManager
 
-  LBFT-Monad : Monad LBFT
-  Monad.return LBFT-Monad = RWST-return
-  Monad._>>=_  LBFT-Monad = RWST-bind
-
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = RWST-run m unit
 
@@ -78,15 +74,8 @@ module LibraBFT.ImplShared.Util.Util where
            → LBFT A
   LBFT-use l = gets ((_^∙ l) ∘ _rmEC)
 
-  LBFT-modify : (RoundManager → RoundManager) → LBFT Unit
-  LBFT-modify f = do
-    st ← get
-    -- Here apply f to rmEC st, use (something) to transform so we know it's the same epochconfig.
-    -- Note: we will have to deal differently with any change to the validQCs too.  Tricky!
-    put (f st)
-
   LBFT-modifyL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → (A → A) → LBFT Unit
-  LBFT-modifyL l ⦃ gl ⦄ f = LBFT-modify λ rm → proj₁ (GoodLens.getRM gl rm f)
+  LBFT-modifyL l ⦃ gl ⦄ f = modify λ rm → proj₁ (GoodLens.getRM gl rm f)
   syntax LBFT-modifyL l f = l LBFT-%= f
 
   LBFT-setL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → A → LBFT Unit
