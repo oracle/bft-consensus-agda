@@ -375,7 +375,8 @@ module LibraBFT.ImplShared.Consensus.Types where
     rmLens-6 : RMLens rsVoteSent-makeClassy
     rmLens-6 = RMLens-∙ rmRoundState' rsVoteSent'
 
-{- Hopefully these will become obsolete
+{- Hopefully these will become obsolete.  They are still in use by ImplFake proofs, which therefore
+   don't work at the moment.
 
   _rmHighestQC : (rm : RoundManager) → QuorumCert
   _rmHighestQC rm = _btHighestQuorumCert ((_rmWithEC rm) ^∙ (lBlockTree (α-EC-RM rm)))

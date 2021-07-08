@@ -30,7 +30,9 @@ module LibraBFT.ImplFake.Consensus.RoundManager.Properties where
   -- This is no longer used because matching m∈outs parameters to here refl eliminated the need for
   -- it, at least for our simple handler.  I'm keeping it, though, as it may be needed in future
   -- when the real handler will be much more complicated and this proof may no longer be trivial.
+  {- Not used
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
                → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (_rmHighestQC pre) (_rmHighestCommitQC pre)
   procPMCerts≡ (here refl) = refl
+  -}
