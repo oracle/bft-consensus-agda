@@ -4,9 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+-- REVIEW-TODO : remove after unsolved addressed
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Crypto
@@ -166,6 +169,28 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
               btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
               btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
+  btGetLinkableBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockTree → Maybe LinkableBlock
+  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
+
+  btGetBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockTree → Maybe ExecutedBlock
+  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  btRoot : Lens BlockTree (Maybe ExecutedBlock)
+  btRoot = mkLens' g s
+    where
+    g : BlockTree → Maybe ExecutedBlock
+    g bt = btGetBlock (bt ^∙ btRootId) bt
+
+    -- REVIEW-TODO : the setter is not needed/defined in Haskell
+    -- Defining it just to make progress, but it can't be defined
+    -- correctly in terms of type correctness (let alone setting a new root!)
+    s : BlockTree → Maybe ExecutedBlock → BlockTree
+    s bt (just eb) =
+      let itb = Map.insert (bt ^∙ btRootId) (LinkableBlock∙new eb) (bt ^∙ btIdToBlock)
+       in record bt { _btIdToBlock = itb }
+    s bt nothing = {!!}
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
@@ -175,6 +200,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   open BlockStore public
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
+  bsRoot = bsInner ∙ btRoot
 
   -- IMPL-DIFF : this is a getter only in Haskell
   bsHighestCommitCert : Lens BlockStore QuorumCert

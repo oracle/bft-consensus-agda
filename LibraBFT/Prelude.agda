@@ -31,7 +31,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Nat
-    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
+    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_)
     public
 
   open import Data.Nat.Properties
@@ -305,6 +305,12 @@ module LibraBFT.Prelude where
   isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
   isRight = Data.Bool.not ∘ isLeft
 
+  -- a non-dependent eliminator - TODO-1 : should it be a dependent eliminator (like maybeS above)?
+  eitherS : ∀ {A B C : Set} (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
+  eitherS eab fa fb = case eab of λ where
+    (Left  a) → fa a
+    (Right b) → fb b
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?
@@ -425,6 +431,14 @@ module LibraBFT.Prelude where
   forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
+
+  -- NOTE: this is call forM (no prime) in Haskell.  But because of above forM_ that does not work.
+  forM' : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M (List B)
+  forM'      []  _ = return []
+  forM' (x ∷ xs) f = do
+    fx  ← f x
+    fxs ← forM' xs f
+    return (fx ∷ fxs)
 
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
