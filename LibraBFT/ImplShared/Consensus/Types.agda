@@ -207,6 +207,20 @@ module LibraBFT.ImplShared.Consensus.Types where
     field
       getRM : ∀ (rm : RoundManager) (f : A → A)
             → Σ RoundManager (λ rm' → _rmEC rm' ≡ over l f (_rmEC rm))
+  open GoodLens public
+
+  GoodLens-∙ : ∀ {A B} (l : Lens RoundManagerEC A)
+             → ⦃ gl : GoodLens l ⦄
+             → (l' : Lens A B)
+             → GoodLens (l ∙ l')
+  GoodLens-∙ {A} {B} l ⦃ gl ⦄ l' =
+    record { getRM = λ rm f → help rm f }
+    where
+      help : (rm : RoundManager) → (f : B → B)
+           → Σ RoundManager (λ rm' → (rm' rmEC) ≡ over (l ∙ l') f (_rmEC rm))
+      help rm f
+         with getRM gl rm (_& l' %~ f)
+      ... | rm' , prf = rm' , trans prf (over-∙ l l' f (_rmEC rm))
 
   -- These are the parts of the RoundManager that depend on an
   -- EpochConfig. We do not particularly care which EpochConfig
