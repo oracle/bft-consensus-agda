@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 open import LibraBFT.Prelude
+open import LibraBFT.Base.Types  -- temporary for testing
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 
@@ -69,25 +70,39 @@ module LibraBFT.ImplShared.Util.Util where
 -- Level, we will have to consider making Lens level-agnostic. Preliminary
 -- exploration by @cwjnkins showed this to be somewhat painful in particular
 -- around composition, so we are not pursuing it for now.
+
+  LBFT-get : LBFT RoundManagerEC
+  LBFT-get = gets _rmEC
+
+  LBFT-gets : ∀ {A} → (RoundManagerEC → A) → LBFT A
+  LBFT-gets f = gets (f ∘ _rmEC)
+
+  LBFT-getWithMeta : LBFT RoundManager
+  LBFT-getWithMeta = get
+
   LBFT-use : ∀ {A}
            → Lens RoundManagerEC A
            → LBFT A
   LBFT-use l = gets ((_^∙ l) ∘ _rmEC)
 
-  LBFT-modifyL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → (A → A) → LBFT Unit
-  LBFT-modifyL l ⦃ gl ⦄ f = modify λ rm → proj₁ (GoodLens.getRM gl rm f)
+  LBFT-modifyL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : RMLens l ⦄ → (A → A) → LBFT Unit
+  LBFT-modifyL l ⦃ gl ⦄ f = modify λ rm → proj₁ (RMLens.getRM gl rm f)
   syntax LBFT-modifyL l f = l LBFT-%= f
 
-  LBFT-setL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : GoodLens l ⦄ → A → LBFT Unit
+  LBFT-setL : ∀ {A} → (l : Lens RoundManagerEC A) → ⦃ goodLens : RMLens l ⦄ → A → LBFT Unit
   LBFT-setL l x = l LBFT-%= const x
   syntax LBFT-setL l x = l LBFT-∙= x
+
+  LBFT-setLMaybe : ∀ {A} → (l : Lens RoundManagerEC (Maybe A)) → ⦃ goodLens : RMLens l ⦄ → A → LBFT Unit
+  LBFT-setLMaybe l x = LBFT-setL l (just x)
+  syntax LBFT-setLMaybe l x = l LBFT-?= x
 
   postulate
     st : RoundManager
 
   testIt1 : Bool → LBFT Unit
   testIt1 b = do
-    rmSyncOnly-manual LBFT-∙= b
+    rmSyncOnly LBFT-∙= b
 
   _ : (_rmEC (LBFT-post (testIt1 false) st)) ^∙ rmSyncOnly ≡ false
   _ = refl
@@ -121,6 +136,19 @@ module LibraBFT.ImplShared.Util.Util where
 
   _ : (_rmEC (LBFT-post testIt4 st)) ^∙ rmSyncOnly ≡ true
   _ = refl
+
+  testIt5 : SafetyRules → LBFT Unit
+  testIt5 sr = do
+    rmSafetyRules' LBFT-∙= sr
+
+  testIt6 : Round → LBFT Unit
+  testIt6 rnd = do
+    rmSafetyRules' LBFT-%= (_& (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) ∙~ rnd)
+
+  testIt7 : Round → LBFT Unit
+  testIt7 rnd = do
+    rmSafetyRules' LBFT-%= (_& (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) ∙~ rnd)
+
 
   LBFT-Pre  = RoundManager → Set
   LBFT-Post = RWST-Post Output RoundManager
