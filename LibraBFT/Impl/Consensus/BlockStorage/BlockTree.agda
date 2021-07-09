@@ -72,6 +72,6 @@ pathFromRoot blockId blockTree =
 
   continue : (HashValue × List ExecutedBlock) → List ExecutedBlock
   continue (curBlockId , res) =
-    if not (curBlockId ≟ (blockTree ^∙ btRootId _))
+    if not (curBlockId /= (blockTree ^∙ btRootId _))
     then []
     else res

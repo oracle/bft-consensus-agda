@@ -8,8 +8,9 @@ open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree as BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote    as Vote
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+open import LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -66,7 +67,9 @@ executeAndInsertBlockE bs0 block =
               (Left  e) → Left e
               (Right _) → executeBlockE bs0 block
         (Left err) → Left err
-      -- bs1 <- withErrCtx' (here []) (PersistentLivenessStorage.saveTreeE bs0 [eb^.ebBlock] [])
+      bs1 ← {-withErrCtx' (here [])-}
+            -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
+            (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
       (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner _)
       pure ((bs0 & bsInner _ ∙~  bt') , eb')
 

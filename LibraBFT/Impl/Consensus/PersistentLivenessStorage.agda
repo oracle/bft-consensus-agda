@@ -13,6 +13,8 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
--- TODO-3?: Implement this
 postulate
+  saveTreeE : ∀ {𝓔 : EpochConfig}
+            → BlockStore 𝓔 → List Block → List QuorumCert
+            → Either ErrLog (BlockStore 𝓔)
   saveVoteM : Vote → LBFT (Either ErrLog Unit)
