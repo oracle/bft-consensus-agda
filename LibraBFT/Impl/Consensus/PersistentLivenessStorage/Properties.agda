@@ -22,5 +22,5 @@ module saveVoteMSpec (vote : Vote) where
       : ∀ P pre
         → (∀ outs → NoMsgOuts outs → NoErrOuts outs → P (inj₁ fakeErr) pre outs)
         → (∀ outs blockStore → NoMsgOuts outs → NoErrOuts outs
-           → P (inj₂ unit) (rmSetBlockStore pre blockStore) outs)
+           → P (inj₂ unit) (pre & lBlockStore ∙~ blockStore) outs)
         → RWST-weakestPre (saveVoteM vote) P unit pre

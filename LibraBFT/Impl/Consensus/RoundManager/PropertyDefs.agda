@@ -50,7 +50,7 @@ NoErrOuts outs = List-filter isLogErr? outs ≡ []
 record NoEpochChange (pre post : RoundManager) : Set where
   constructor mkNoEpochChange
   field
-    es≡₁ : (_rmEC pre) ≡L (_rmEC post) at rmEpoch
+    es≡₁ : pre ≡L post at rmEpoch
     es≡₂ : pre ≡L post at lSafetyData ∙ sdEpoch
 
 reflNoEpochChange : ∀ {pre} → NoEpochChange pre pre

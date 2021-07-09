@@ -19,7 +19,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
-module executeAndInsertBlockESpec {𝓔 : EpochConfig} (bs : BlockStore 𝓔) (b : Block) where
+module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
   postulate
     ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
 

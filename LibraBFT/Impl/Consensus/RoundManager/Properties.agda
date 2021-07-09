@@ -65,7 +65,7 @@ module executeAndVoteMSpec (b : Block) where
       pf
     where
     maybeSignedVoteProposal' = ExecutedBlock.maybeSignedVoteProposal eb
-    preUpdated = rmSetBlockStore pre bs'
+    preUpdated = record pre { _rmBlockStore = bs' }
 
     constructAndSignVoteMSpec-Contract =
       constructAndSignVoteMSpec.Contract preUpdated
@@ -75,7 +75,7 @@ module executeAndVoteMSpec (b : Block) where
     noEpochChange-pre-preUpdated : NoEpochChange pre preUpdated
     noEpochChange-pre-preUpdated = mkNoEpochChange refl refl
 
-    eb≡b = (BlockStoreProps.executeAndInsertBlockESpec.ebBlock≡ (rmGetBlockStore pre) b isOk)
+    eb≡b = (BlockStoreProps.executeAndInsertBlockESpec.ebBlock≡ (pre ^∙ lBlockStore) b isOk)
 
     eb≡b-epoch : (eb ^∙ ebBlock) ≡L b at bEpoch
     eb≡b-epoch rewrite eb≡b = refl
@@ -105,7 +105,7 @@ module executeAndVoteMSpec (b : Block) where
       voteNotSaved : VoteNotSaved pre st epoch round
       voteNotSaved = vote , substVoteCorrect refl refl refl refl eb≡b-epoch eb≡b-round vc
 
-      voteSaved : ∀ {bs} → VoteCorrect pre (rmSetBlockStore st bs) epoch round vote
+      voteSaved : ∀ {bs} → VoteCorrect pre (record st {_rmBlockStore =  bs}) epoch round vote
       voteSaved = substVoteCorrect refl refl refl refl eb≡b-epoch eb≡b-round vc
 
   contract
@@ -149,7 +149,7 @@ module processProposalMSpec (proposal : Block) where
   contract : ∀ pre → LBFT-weakestPre (processProposalM proposal) (Contract pre) pre
   contract pre ._ refl =
     isValidProposalMSpec.contract proposal pre
-      (RWST-weakestPre-bindPost unit (step₁{pre} (rmGetBlockStore pre)) (Contract pre))
+      (RWST-weakestPre-bindPost unit (step₁ (pre ^∙ lBlockStore)) (Contract pre))
       (λ where
         mAuthor≡nothing ._ refl  →
           (λ _ → contractBail refl)
