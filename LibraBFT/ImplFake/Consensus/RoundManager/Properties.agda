@@ -23,8 +23,15 @@ module LibraBFT.ImplFake.Consensus.RoundManager.Properties where
 
   voteForCurrentEpoch : ∀ {ts pm pre vm αs}
                       → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-                      → (_rmEC pre) ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
+                      → pre ^∙ rmEpoch ≡ vm ^∙ vmVote ∙ vEpoch
   voteForCurrentEpoch (here refl) = refl
+
+  -- These are used only by the property below, which itself is not used.
+  rmHighestQC : Lens RoundManager QuorumCert
+  rmHighestQC = lBlockStore ∙ bsInner ∙ btHighestQuorumCert
+
+  rmHighestCommitQC : Lens RoundManager QuorumCert
+  rmHighestCommitQC = lBlockStore ∙ bsInner ∙ btHighestCommitCert
 
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state.
   -- This is no longer used because matching m∈outs parameters to here refl eliminated the need for
@@ -32,5 +39,5 @@ module LibraBFT.ImplFake.Consensus.RoundManager.Properties where
   -- when the real handler will be much more complicated and this proof may no longer be trivial.
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (_rmHighestQC pre) (_rmHighestCommitQC pre)
+               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (pre ^∙ rmHighestQC) (pre ^∙ rmHighestCommitQC)
   procPMCerts≡ (here refl) = refl

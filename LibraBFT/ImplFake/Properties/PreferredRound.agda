@@ -3,11 +3,14 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 

@@ -35,27 +35,6 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-outs : ∀ {A} → LBFT A → RoundManager → List Output
   LBFT-outs m rm = proj₂ (proj₂ (LBFT-run m rm))
 
-  -- Local 'LBFT' monad; which operates only over the part of
-  -- the state that /depends/ on the ec; not the part
-  -- of the state that /defines/ the ec.
-  --
-  -- This is very convenient to define functions that
-  -- do not alter the ec.
-
-  LBFT-ec : EpochConfig → Set → Set₁
-  LBFT-ec ec = RWST Unit Output (RoundManagerWithEC ec)
-
-  -- Lifting a function that does not alter the pieces that
-  -- define the epoch config is easy
-  liftEC : {A : Set}(f : ∀ {ec} → LBFT-ec ec A) → LBFT A
-  liftEC f = do
-    st ← get
-    let ec                 = α-EC (_rmEC st , _rmEC-correct st)
-        r₁ , stec₁ , outs₁ = RWST-run (f {ec}) unit (_rmWithEC st)
-    tell outs₁
-    put (record st { _rmWithEC = stec₁ })
-    return r₁
-
   LBFT-Pre  = RoundManager → Set
   LBFT-Post = RWST-Post Output RoundManager
 

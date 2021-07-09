@@ -19,7 +19,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
-module executeAndInsertBlockESpec {𝓔 : EpochConfig} (bs : BlockStore 𝓔) (b : Block) where
+module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
   postulate
     ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
 
@@ -27,19 +27,19 @@ module executeAndInsertBlockMSpec (b : Block) where
   -- NOTE: This function returns any errors, rather than producing them as output.
   contract
     : ∀ pre Post
-      → (∀ e → Left e ≡ executeAndInsertBlockE (rmGetBlockStore pre) b → Post (Left e) pre [])
-      → (∀ bs' eb → Right (bs' , eb) ≡ executeAndInsertBlockE (rmGetBlockStore pre) b
-         → Post (Right eb) (rmSetBlockStore pre bs') [])
+      → (∀ e → Left e ≡ executeAndInsertBlockE (pre ^∙ lBlockStore) b → Post (Left e) pre [])
+      → (∀ bs' eb → Right (bs' , eb) ≡ executeAndInsertBlockE (pre ^∙ lBlockStore) b
+         → Post (Right eb) (pre & lBlockStore ∙~ bs') [])
       → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
   proj₁ (contract pre Post pfBail pfOk ._ refl) e eaibLeft = pfBail e (sym eaibLeft)
-  proj₂ (contract pre Post pfBail pfOk ._ refl) (bs' , eb) eaibRight ._ refl =
+  proj₂ (contract pre Post pfBail pfOk ._ refl) (bs' , eb) eaibRight ._ refl ._ refl =
     pfOk bs' eb (sym eaibRight)
 
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
   syncInfo pre =
-    SyncInfo∙new   (rmGetBlockStore pre ^∙ bsHighestQuorumCert _)
-                 $ (rmGetBlockStore pre ^∙ bsHighestCommitCert _)
+    SyncInfo∙new (pre ^∙ lBlockStore ∙ bsHighestQuorumCert)
+                 (pre ^∙ lBlockStore ∙ bsHighestCommitCert)
 
   contract : ∀ pre Post → (Post (syncInfo pre) pre []) → LBFT-weakestPre syncInfoM Post pre
-  contract pre Post pf ._ refl .unit refl .unit refl = pf
+  contract pre Post pf ._ refl ._ refl ._ refl ._ refl = pf

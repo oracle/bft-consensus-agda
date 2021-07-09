@@ -4,12 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -102,6 +107,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    open PerReachableState r
    open PerEpoch 𝓔
    open ConcreteCommonProperties st r sps-corr Impl-gvr Impl-nvr≢0
+   open WithEC
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
 

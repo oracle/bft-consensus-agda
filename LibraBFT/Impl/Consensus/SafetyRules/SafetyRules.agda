@@ -90,7 +90,7 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 
 verifyQcM : QuorumCert → LBFT (Either ErrLog Unit)
 verifyQcM qc = do
-  validatorVerifier ← gets rmGetValidatorVerifier -- See DEPENDENT-LENSES-COMMENT
+  validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
   pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtxt
 
 ------------------------------------------------------------------------------
@@ -140,7 +140,7 @@ module constructAndSignVoteM-continue1
     verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → step₁
 
   step₁ = do
-      validatorVerifier ← gets rmGetValidatorVerifier -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
+      validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
       step₂ validatorVerifier
 
   step₂ validatorVerifier =

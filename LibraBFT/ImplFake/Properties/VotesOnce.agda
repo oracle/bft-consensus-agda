@@ -5,7 +5,9 @@
 -}
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
+open import LibraBFT.ImplShared.Base.Types
 
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
@@ -13,7 +15,6 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
@@ -43,8 +44,8 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   -- sent, and that we can carry forward to subsequent states, so we can use it to prove
   -- VO.ImplObligation₁.
   LvrProp : CarrierProp
-  LvrProp v rm = (  v ^∙ vEpoch ≢ (_rmEC rm) ^∙ rmEpoch
-                 ⊎ (v ^∙ vEpoch ≡ (_rmEC rm) ^∙ rmEpoch × v ^∙ vRound ≤ (_rmEC rm) ^∙ rmLastVotedRound))
+  LvrProp v rm = (  v ^∙ vEpoch ≢ rm ^∙ rmEpoch
+                 ⊎ (v ^∙ vEpoch ≡ rm ^∙ rmEpoch × v ^∙ vRound ≤ rm ^∙ rmLastVotedRound))
 
   LvrCarrier = PropCarrier LvrProp
 
@@ -98,8 +99,8 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
                                        vpk'
                                        (inj₂ ( trans eids≡ (auxEid post≡)
                                              , ≤-reflexive (trans newlvr (auxLvr post≡))))
-                                       where auxEid = cong (_^∙ rmEpoch ∘ _rmEC)
-                                             auxLvr = cong (_^∙ rmLastVotedRound ∘ _rmEC)
+                                       where auxEid = cong (_^∙ rmEpoch)
+                                             auxLvr = cong (_^∙ rmLastVotedRound)
 
   ImplPreservesLvr : PeerStepPreserves LvrProp
   -- We don't have a real model for the initial peer state, so we can't prove this case yet.
@@ -114,7 +115,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
      with preprop
   ...| inj₁ diffEpoch = inj₁ λ x → diffEpoch (trans x (sym eids≡))
   ...| inj₂ (sameEpoch , rnd≤ppre)
-     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (_rmEC (peerStates pre (msgSender (carrSent prop)))) ^∙ rmEpoch
+     with (msgPart (carrSent prop)) ^∙ vEpoch ≟ (peerStates pre (msgSender (carrSent prop))) ^∙ rmEpoch
   ...| no neq = ⊥-elim (neq sameEpoch)
   ...| yes refl
      with lastVoteRound-mono r refl (step-msg m∈pool inited) (carrInitd prop)

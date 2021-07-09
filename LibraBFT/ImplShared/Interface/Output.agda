@@ -12,6 +12,7 @@ open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import LibraBFT.Yasm.Types
+open import Optics.All
 
 module LibraBFT.ImplShared.Interface.Output where
 
@@ -83,7 +84,7 @@ module LibraBFT.ImplShared.Interface.Output where
                                                       (List-map proj₁
                                                                 (kvm-toList (_vvAddressToValidatorInfo
                                                                               (_esVerifier
-                                                                                (_rmEpochState (_rmEC rm))))))
+                                                                                (_rmEpochState rm)))))
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
   outputToActions _  (SendVote vm toList)  = List-map (const (send (V vm))) toList
@@ -95,7 +96,7 @@ module LibraBFT.ImplShared.Interface.Output where
   outputToActions-sendVote∉actions
     : ∀ {out vm st} → ¬ (IsSendVote out) → ¬ (send (V vm) ∈ outputToActions st out)
   outputToActions-sendVote∉actions {BroadcastProposal pm}{vm}{st} ¬sv m∈acts =
-    help (kvm-toList (_vvAddressToValidatorInfo (_esVerifier (_rmEpochState (_rmEC st))))) m∈acts
+    help (kvm-toList (st ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)) m∈acts
     where
     help : ∀ xs → ¬ (send (V vm) ∈ List-map (const (send (P pm))) (List-map proj₁ xs))
     help (x ∷ xs) (there m∈acts) = help xs m∈acts

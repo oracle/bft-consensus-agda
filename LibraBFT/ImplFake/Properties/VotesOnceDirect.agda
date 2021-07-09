@@ -4,6 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -39,8 +42,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                        → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                        → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                        → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                       → v ^∙ vEpoch ≡ (_rmEC s') ^∙ rmEpoch
-                       → v ^∙ vRound ≡ (_rmEC s') ^∙ rmLastVotedRound
+                       → v ^∙ vEpoch ≡ s' ^∙ rmEpoch
+                       → v ^∙ vRound ≡ s' ^∙ rmLastVotedRound
   newVoteEpoch≡⇒Round≡ r step@(step-msg {_ , P pm} _ pinit) v⊂m (here refl)
                        sig pkH ¬gen vnew ep≡
      with v⊂m
@@ -160,8 +163,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                 → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig)
                 → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-                → (_rmEC s') ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                → (_rmEC (peerStates st pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                → s' ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                → (peerStates st pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
   noEpochChange r (step-init uni) pcs pkH sig ∉gen msv eid≡
     = ⊥-elim (uninitd≢initd (trans (sym uni) (msg∈pool⇒initd r pcs pkH sig ∉gen msv)))
   noEpochChange r sm@(step-msg _ ini) pcs pkH sig ∉gen msv eid≡
@@ -173,8 +176,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                    → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
                    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
                    → PeerCanSignForPK pre v pid pk
-                   → (_rmEC (peerStates pre pid)) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-                   → v ^∙ vRound ≤ (_rmEC (peerStates pre pid)) ^∙ rmLastVotedRound
+                   → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+                   → v ^∙ vRound ≤ (peerStates pre pid) ^∙ rmLastVotedRound
   oldVoteRound≤lvr {pid'} (step-s r step@(step-peer {pid = pid} cheat@(step-cheat c)))
                    pkH sig ¬gen msv vspk eid≡
      with ¬cheatForgeNew cheat refl unit pkH msv (¬subst ¬gen (msgSameSig msv))

@@ -9,6 +9,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
@@ -66,12 +67,12 @@ module executeAndVoteMSpec (b : Block) where
     contractBail outs noMsgOuts = mkContract noMsgOuts reflNoEpochChange true (Left reflNoVoteCorrect)
 
     module _
-      (bs' : BlockStore (α-EC-RM pre)) (eb : ExecutedBlock)
-      (eaibRight : Right (bs' , eb) ≡ BlockStore.executeAndInsertBlockE (rmGetBlockStore pre) b) where
+      (bs' : BlockStore) (eb : ExecutedBlock)
+      (eaibRight : Right (bs' , eb) ≡ BlockStore.executeAndInsertBlockE (pre ^∙ lBlockStore) b) where
 
-      preUpdateBS = rmSetBlockStore pre bs'
+      preUpdateBS = pre & lBlockStore ∙~ bs'
 
-      eb≡b = (BlockStoreProps.executeAndInsertBlockESpec.ebBlock≡ (rmGetBlockStore pre) b (sym eaibRight))
+      eb≡b = (BlockStoreProps.executeAndInsertBlockESpec.ebBlock≡ (pre ^∙ lBlockStore) b (sym eaibRight))
 
       eb≡b-epoch : (eb ^∙ ebBlock) ≡L b at bEpoch
       eb≡b-epoch rewrite eb≡b = refl
@@ -151,7 +152,7 @@ module processProposalMSpec (proposal : Block) where
   contract' : ∀ pre → LBFT-weakestPre (processProposalM proposal) (Contract pre) pre
   contract' pre ._ refl =
     isValidProposalMSpec.contract proposal pre
-      (RWST-weakestPre-bindPost unit (step₁ {pre} (rmGetBlockStore pre)) (Contract pre))
+      (RWST-weakestPre-bindPost unit (step₁ (pre ^∙ lBlockStore)) (Contract pre))
       (λ where
         mAuthor≡nothing ._ refl → (λ _ → contractBail refl) , (λ where ()))
       (λ where

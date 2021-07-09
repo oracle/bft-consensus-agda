@@ -3,6 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.Network            as Network
@@ -27,7 +28,7 @@ module epvvSpec where
   contract
     : ∀ pre Post
       → let ep = pre ^∙ lSafetyData ∙ sdEpoch
-            vv = (_rmEC pre) ^∙ rmEpochState ∙ esVerifier in
+            vv = pre ^∙ rmEpochState ∙ esVerifier in
         (Post (ep , vv) pre [])
       → LBFT-weakestPre epvv Post pre
   contract pre Post pf ._ refl ._ refl ._ refl ._ refl = pf
@@ -53,6 +54,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
+      inv           : RMPreservesInvariant pre post
       noEpochChange : NoEpochChange pre post
       outsCorrect   : NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
       sdEpoch≡      : VoteMsg⊎VoteNotSaved-sdEpoch pre post outs outsCorrect
@@ -71,10 +73,10 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     where
     contractBail : ∀ outs → NoVoteOuts outs → Contract pre unit pre outs
     contractBail outs noVoteOuts =
-      mkContract reflNoEpochChange (Left (true , mkNoVoteMsgOutsCorrect noVoteOuts (Left reflNoVoteCorrect))) tt
+      mkContract {!!} reflNoEpochChange (Left (true , mkNoVoteMsgOutsCorrect noVoteOuts (Left reflNoVoteCorrect))) tt
 
     myEpoch = pre ^∙ lSafetyData ∙ sdEpoch
-    vv      = _rmEC pre ^∙ rmEpochState ∙ esVerifier
+    vv      = pre ^∙ rmEpochState ∙ esVerifier
 
     ProcessProposalOk = processProposal pm myEpoch vv ≡ Right unit
 
@@ -86,14 +88,17 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
     pf : ProcessProposalOk → RWST-Post-⇒ (processProposalMsgMSpec.Contract now pm pre) (Contract pre)
     pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Left noVoteCorrect)))) =
-      mkContract inv nv⊎vmoc tt
+      mkContract {!!} inv nv⊎vmoc tt
     pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Right voteNotSaved)))) =
-      mkContract inv nv⊎vmoc (epoch≡ ppo)
+      mkContract {!!} inv nv⊎vmoc (epoch≡ ppo)
     pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Right voteMsgOutsCorrect)) =
-      mkContract inv nv⊎vmoc (epoch≡ ppo)
+      mkContract {!!} inv nv⊎vmoc (epoch≡ ppo)
 
   contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleProposal now pm) pre
   contract! pre = LBFT-contract (handleProposal now pm) (Contract pre) pre (contract pre)
 
   contract!-NoEpochChange : ∀ pre → LBFT-Post-True (λ r st outs → NoEpochChange pre st) (handleProposal now pm) pre
   contract!-NoEpochChange pre = Contract.noEpochChange (contract! pre)
+
+  contract!-RMPreservesInvariant : ∀ pre → LBFT-Post-True (λ r st outs → RMPreservesInvariant pre st) (handleProposal now pm) pre
+  contract!-RMPreservesInvariant pre = Contract.inv (contract! pre)

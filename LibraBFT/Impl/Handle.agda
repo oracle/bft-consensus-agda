@@ -4,6 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap as KVMap
@@ -13,7 +16,6 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.Consensus.RoundManager
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
@@ -42,6 +44,9 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   -- the initial RoundManager for every peer until it is initialised.
   fakeRM : RoundManager
 
+postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+  initVV  : GenesisInfo → ValidatorVerifier
+
 initSR : SafetyRules
 initSR =
   let sd = fakeRM ^∙ lSafetyRules
@@ -51,6 +56,7 @@ initSR =
 
 postulate -- TODO-1: Implement this.
   initPE : ProposerElection
+  initBS : BlockStore
 
 initPV : PendingVotes
 initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
@@ -58,16 +64,8 @@ initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
 initRS : RoundState
 initRS = RoundState∙new 0 0 initPV nothing
 
-initRMEC : RoundManagerEC
-initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
-
-postulate -- TODO-2 : prove these once initRMEC is defined directly
-  init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
-  initRMEC-correct : RoundManagerEC-correct initRMEC
-  initRMWithEC     : RoundManagerWithEC (α-EC (initRMEC , initRMEC-correct))
-
 initRM : RoundManager
-initRM = RoundManager∙new initRMEC initRMEC-correct initRMWithEC
+initRM = RoundManager∙new (EpochState∙new 1 (initVV genesisInfo)) initBS initRS initPE initSR false
 
 -- Eventually, the initialization should establish some properties we care about, but for now we
 -- just initialise again to fakeRM, which means we cannot prove the base case for various

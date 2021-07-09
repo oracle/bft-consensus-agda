@@ -11,12 +11,14 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Prelude
 open import LibraBFT.Lemmas
 open import Optics.All
 
-open        EpochConfig
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open EpochConfig
 
 -- This module defines an abstract system state (represented by a value of type
 -- 'IntermediateSystemState') for a given concrete state.  The culminaton of this
@@ -32,6 +34,7 @@ module LibraBFT.Concrete.System where
  module PerState (st : SystemState) where
     module PerEpoch (𝓔 : EpochConfig) where
 
+     open WithEC
      open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
      open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
      open import LibraBFT.Concrete.Records                        𝓔

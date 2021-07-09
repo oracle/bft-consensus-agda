@@ -4,6 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -12,10 +15,8 @@ open import LibraBFT.ImplFake.Handle.Properties
 import      LibraBFT.ImplFake.Properties.VotesOnce      as Common
 import      LibraBFT.ImplFake.Properties.VotesOnce      as VO
 import      LibraBFT.ImplFake.Properties.PreferredRound as PR
-open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types hiding (EpochConfig)
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 -- This module collects the implementation obligations for our (fake/simple, for now)
 -- "implementation" into the structure required by Concrete.Properties.

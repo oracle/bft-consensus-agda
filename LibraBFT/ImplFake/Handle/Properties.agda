@@ -8,6 +8,9 @@
 -- This module provides some scaffolding to define the handlers for our fake/simple "implementation"
 -- and connect them to the interface of the SystemModel.
 
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap
@@ -16,7 +19,6 @@ open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
@@ -90,8 +92,8 @@ module LibraBFT.ImplFake.Handle.Properties where
   ----- Properties that relate handler to system state -----
 
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ _rmHighestQC rm       → qc ∈RoundManager rm
-    inHCC : qc ≡ _rmHighestCommitQC rm → qc ∈RoundManager rm
+    inHQC : qc ≡ rm ^∙ rmHighestQC       → qc ∈RoundManager rm
+    inHCC : qc ≡ rm ^∙ rmHighestCommitQC → qc ∈RoundManager rm
 
   postulate -- TODO-2: this will be proved for the implementation, confirming that honest
             -- participants only store QCs comprising votes that have actually been sent.
@@ -126,7 +128,7 @@ module LibraBFT.ImplFake.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
+                     → ppre ^∙ rmEpoch ≡ ppost ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   noEpochIdChangeYet _ ppre≡ (step-msg {(_ , m)} _ _) ini
      with m
@@ -175,8 +177,8 @@ module LibraBFT.ImplFake.Handle.Properties where
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-                               → v ^∙ vEpoch ≡ (_rmEC (peerStates pre pid)) ^∙ rmEpoch
-                               × v ^∙ vRound ≡ ((_rmEC s') ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
+                               → v ^∙ vEpoch ≡ (peerStates pre pid) ^∙ rmEpoch
+                               × v ^∙ vRound ≡ (s' ^∙ rmLastVotedRound)     -- Last voted round is round of new vote
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
@@ -200,8 +202,8 @@ module LibraBFT.ImplFake.Handle.Properties where
                      → ppre ≡ peerStates pre pid
                      → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
                      → initialised pre pid ≡ initd
-                     → (_rmEC ppre) ^∙ rmEpoch ≡ (_rmEC ppost) ^∙ rmEpoch
-                     → (_rmEC ppre) ^∙ rmLastVotedRound ≤ (_rmEC ppost) ^∙ rmLastVotedRound
+                     → ppre ^∙ rmEpoch ≡ ppost ^∙ rmEpoch
+                     → ppre ^∙ rmLastVotedRound ≤ ppost ^∙ rmLastVotedRound
   lastVoteRound-mono _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
   lastVoteRound-mono _ ppre≡ (step-msg {(_ , m)} _ _) _
      with m

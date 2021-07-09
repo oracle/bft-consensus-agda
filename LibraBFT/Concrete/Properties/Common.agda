@@ -4,19 +4,21 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Optics.All
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+open import LibraBFT.ImplShared.Base.Types
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open        EpochConfig
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Concrete.System.Parameters
-open        EpochConfig
-open import LibraBFT.Concrete.System
+open import LibraBFT.Lemmas
+open import LibraBFT.Prelude
 open import LibraBFT.Yasm.Base
+open import Optics.All
 
 -- This module contains definitions and proofs used by both the VotesOnce and PreferredRoundRule
 -- proofs.
