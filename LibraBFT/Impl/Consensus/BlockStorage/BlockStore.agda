@@ -26,10 +26,6 @@ postulate
     : LedgerInfoWithSignatures
     → LBFT (Either ErrLog Unit)
 
-  insertSingleQuorumCertM
-    : QuorumCert
-    → LBFT (Either ErrLog Unit)
-
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 
@@ -92,6 +88,19 @@ insertSingleQuorumCertE
   : ∀ {𝓔 : EpochConfig}
   → BlockStore 𝓔 → QuorumCert
   → Either ErrLog (BlockStore 𝓔)  {- Haskell returns ([InfoLog a], BlockStore a)-}
+
+insertSingleQuorumCertM
+  : QuorumCert
+  → LBFT (Either ErrLog Unit)
+insertSingleQuorumCertM qc = do
+  s ← get
+  let bs = rmGetBlockStore s
+  case insertSingleQuorumCertE bs qc of λ where
+    (Left  e)   → bail e
+    (Right bs') → do
+      put (rmSetBlockStore s bs')
+      ok unit
+
 insertSingleQuorumCertE bs qc =
   maybeS (getBlock (qc ^∙ qcCertifiedBlock ∙ biId) bs)
          (Left (ErrBlockNotFound
