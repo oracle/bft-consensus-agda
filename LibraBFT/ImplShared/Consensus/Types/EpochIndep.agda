@@ -606,3 +606,51 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     TooLittleVotingPower : U64 → U64 →     VerifyError
     TooManySignatures    : Usize → Usize → VerifyError
     InvalidSignature     :                 VerifyError
+
+  -- A block tree depends on a epoch config but works regardlesss of which
+  -- EpochConfig we have.
+  record BlockTree : Set where
+    constructor BlockTree∙new
+    field
+      _btIdToBlock               : KVMap HashValue LinkableBlock
+      _btRootId                  : HashValue
+      _btHighestCertifiedBlockId : HashValue
+      _btHighestQuorumCert       : QuorumCert
+      _btHighestTimeoutCert      : Maybe TimeoutCertificate
+      _btHighestCommitCert       : QuorumCert
+      _btPendingVotes            : PendingVotes
+      _btPrunedBlockIds          : List HashValue
+      _btMaxPrunedBlocksInMem    : ℕ
+      _btIdToQuorumCert          : KVMap HashValue QuorumCert
+  open BlockTree public
+  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert
+              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
+              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
+             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestTimeoutCert ∷
+              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
+
+  record BlockStore : Set where
+    constructor BlockStore∙new
+    field
+      _bsInner         : BlockTree
+      -- bsStateComputer : StateComputer
+      -- bsStorage       : CBPersistentStorage
+  open BlockStore public
+  unquoteDecl bsInner = mkLens (quote BlockStore)
+             (bsInner ∷ [])
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestCommitCert : Lens BlockStore QuorumCert
+  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestQuorumCert : Lens BlockStore QuorumCert
+  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
+  bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
+
