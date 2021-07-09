@@ -136,7 +136,3 @@ module LibraBFT.ImplShared.Interface.Output where
     help : ∀ pids → send (V vm') ∈ List-map (const (send (V vm“))) pids → vm' ≡ vm“
     help (_ ∷ pids) (here refl) = refl
     help (_ ∷ pids) (there m∈acts) = help pids m∈acts
-
-  -- sendVote∈actions {pids = _} {SendVote vm' [] ∷ outs} outs≡ m∈acts | refl , outsTl≡ = ⊥-elim (sendVote∉actions{outs} outsTl≡ m∈acts)
-  -- sendVote∈actions {pids = _} {SendVote vm' (x ∷ pids') ∷ outs} outs≡ (here px) | refl , outsTl≡ = {!!}
-  -- sendVote∈actions {pids = _} {SendVote vm' (x ∷ pids') ∷ outs} outs≡ (there m∈acts) | refl , outsTl≡ = {!!}
