@@ -5,7 +5,9 @@
 -}
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
+open import LibraBFT.ImplShared.Base.Types
 
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
@@ -13,7 +15,6 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplFake.Consensus.RoundManager.Properties
 open import LibraBFT.ImplFake.Handle
 open import LibraBFT.ImplFake.Handle.Properties
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util

@@ -27,8 +27,6 @@ open import Optics.All
 module LibraBFT.ImplFake.Handle where
  open import LibraBFT.ImplFake.Consensus.RoundManager
 
- open EpochConfig
-
  postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
            -- it by construction; eventually we will construct an entire RoundManager, so
            -- this won't be needed
@@ -36,6 +34,10 @@ module LibraBFT.ImplFake.Handle where
  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
  -- the initial RoundManager for every peer until it is initialised.
    fakeRM : RoundManager
+   initBS : BlockStore
+
+ postulate -- Only in fake implementation. 
+   initVV  : GenesisInfo → ValidatorVerifier
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
