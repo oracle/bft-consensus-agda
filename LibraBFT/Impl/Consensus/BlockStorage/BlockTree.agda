@@ -32,39 +32,36 @@ postulate
 
 ------------------------------------------------------------------------------
 
-insertBlockE : ∀ {𝓔 : EpochConfig}
-             → ExecutedBlock → BlockTree 𝓔
-             → Either ErrLog (BlockTree 𝓔 × ExecutedBlock)
+insertBlockE : ExecutedBlock → BlockTree
+               → Either ErrLog (BlockTree × ExecutedBlock)
 insertBlockE block bt = do
   let blockId = block ^∙ ebId
-  case btGetBlock _ blockId bt of λ where
+  case btGetBlock blockId bt of λ where
     (just existingBlock) → pure (bt , existingBlock)
-    nothing → case btGetLinkableBlock _ (block ^∙ ebParentId) bt of λ where
+    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
       nothing → Left fakeErr
       (just parentBlock) → (do
         parentBlock' ← addChild parentBlock blockId
-        let bt'  = bt & btIdToBlock _ ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock _)
-        pure ( (bt' & btIdToBlock _ ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock _))
+        let bt'  = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+        pure ( (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
 
 ------------------------------------------------------------------------------
 
-module pathFromRoot {𝓔 : EpochConfig} (blockId : HashValue) (blockTree : BlockTree 𝓔) where
+module pathFromRoot (blockId : HashValue) (blockTree : BlockTree) where
 
   -- TODO-1 PROVE IT TERMINATES
   {-# TERMINATING #-}
   loop : ExecutedBlock → HashValue → List ExecutedBlock → Maybe (HashValue × List ExecutedBlock)
-  loop btr curBlockId res = case btGetBlock _ curBlockId blockTree of λ where
+  loop btr curBlockId res = case btGetBlock curBlockId blockTree of λ where
     (just block) → if-dec (block ^∙ ebRound) ≤?ℕ (btr ^∙ ebRound)
                      then just (curBlockId , res)
                      else loop btr (block ^∙ ebParentId) (block ∷ res)
     nothing      → nothing
 
-pathFromRoot : ∀ {𝓔 : EpochConfig}
-             → HashValue → BlockTree  𝓔
-             → Either ErrLog (List ExecutedBlock)
+pathFromRoot : HashValue → BlockTree → Either ErrLog (List ExecutedBlock)
 pathFromRoot blockId blockTree =
-  maybeS (blockTree ^∙ btRoot _) (Left fakeErr) $ λ btr →
+  maybeS (blockTree ^∙ btRoot) (Left fakeErr) $ λ btr →
   maybeS (loop btr blockId []) (Right []) (pure ∘ continue)
  where
 
@@ -72,6 +69,6 @@ pathFromRoot blockId blockTree =
 
   continue : (HashValue × List ExecutedBlock) → List ExecutedBlock
   continue (curBlockId , res) =
-    if not (curBlockId /= (blockTree ^∙ btRootId _))
+    if not (curBlockId /= (blockTree ^∙ btRootId))
     then []
     else res

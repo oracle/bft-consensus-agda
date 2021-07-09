@@ -22,39 +22,35 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
-  getQuorumCertForBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe QuorumCert
+  getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 
 ------------------------------------------------------------------------------
 
-getBlock : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Maybe ExecutedBlock
+getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
-executeAndInsertBlockE
-  : ∀ {𝓔}
-  → BlockStore 𝓔 → Block
-  → Either ErrLog (BlockStore 𝓔 × ExecutedBlock)
+executeAndInsertBlockE : BlockStore → Block → Either ErrLog (BlockStore × ExecutedBlock)
 
-executeBlockE : ∀ {𝓔 : EpochConfig} → BlockStore 𝓔 → Block → Either ErrLog ExecutedBlock
+executeBlockE : BlockStore → Block → Either ErrLog ExecutedBlock
 
-pathFromRoot : ∀ {𝓔 : EpochConfig} → HashValue → BlockStore 𝓔 → Either ErrLog (List ExecutedBlock)
+pathFromRoot : HashValue → BlockStore → Either ErrLog (List ExecutedBlock)
 
 ------------------------------------------------------------------------------
 
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
-  s ← get
-  let bs = rmGetBlockStore s
+  bs ← use lBlockStore
   caseM⊎ executeAndInsertBlockE bs b of λ where
     (Left e) → bail e
     (Right (bs' , eb)) → do
-      put (rmSetBlockStore s bs')
+      lBlockStore ∙= bs'
       ok eb
 
 executeAndInsertBlockE bs0 block =
   maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
  where
-  continue : Either ErrLog (BlockStore _ × ExecutedBlock)
+  continue : Either ErrLog (BlockStore × ExecutedBlock)
   continue =
-    maybeS (bs0 ^∙ bsRoot _) (Left fakeErr) λ bsr →
+    maybeS (bs0 ^∙ bsRoot) (Left fakeErr) λ bsr →
     let btRound = bsr ^∙ ebRound in
     if-dec btRound ≥?ℕ block ^∙ bRound
     then Left fakeErr -- block with old round
@@ -70,8 +66,8 @@ executeAndInsertBlockE bs0 block =
       bs1 ← {-withErrCtx' (here [])-}
             -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
             (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
-      (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner _)
-      pure ((bs0 & bsInner _ ∙~  bt') , eb')
+      (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
+      pure ((bs0 & bsInner ∙~  bt') , eb')
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)
@@ -83,13 +79,13 @@ executeBlockE bs block =
 
 ------------------------------------------------------------------------------
 
-getBlock hv bs = btGetBlock _ hv (bs ^∙ bsInner _)
+getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
-pathFromRoot hv bs = BlockTree.pathFromRoot hv (bs ^∙ bsInner _)
+pathFromRoot hv bs = BlockTree.pathFromRoot hv (bs ^∙ bsInner)
 
 ------------------------------------------------------------------------------
 
 syncInfoM : LBFT SyncInfo
-syncInfoM = liftEC $
-  SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert _)
-               <*> use (lBlockStore ∙ bsHighestCommitCert _)
+syncInfoM =
+  SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert)
+               <*> use (lBlockStore ∙ bsHighestCommitCert)

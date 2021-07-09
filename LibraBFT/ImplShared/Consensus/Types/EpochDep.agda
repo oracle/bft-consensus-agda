@@ -3,12 +3,12 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -16,27 +16,73 @@ open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
--- This module defines the types that depend on an EpochConfig,
--- but never inspect it. Consequently, we define everyting over
--- an abstract 𝓔 passed around as a module parameter.
---
--- Importantly, though, we are connecting abstract and concrete
+-- This module defines types for connecting abstract and concrete
 -- votes by defining what constitutes enough "evidence" that a
 -- vote was cast, which is passed around in the abstract model as
 -- the variable (𝓥 : VoteEvidence); here we instantiate it to
 -- 'ConcreteVoteEvidence'.
 --
--- TODO-3: update types to reflect more recent version of LibraBFT.
--- This is a substantial undertaking that should probably be led by
--- someone who can access our internal implementation.
---
--- TODO-4: Make the Optics.Reflection stuff work with record
--- parameters, so we can merge all modules back into Types.  For
--- now, this is the easiest way to avoid the issue that making a
--- module inside Consensus.Types called EpochDep will break
--- mkLens (not sure why).
+-- Some of the types in this module depend on an EpochConfig, but
+-- never inspect it. Consequently, we define everything over an
+-- abstract 𝓔 passed around as module parameter to an inner module
+-- WithEC.  Before that, we define some definitions relevant to
+-- constructing EpochConfigs from RoundManager.
 
-module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
+module LibraBFT.ImplShared.Consensus.Types.EpochDep where
+
+-- Note that the definitions below are relevant only to the verificat, not the implementation.
+-- They should probably move somewhere else.
+
+-- We need enough authors to withstand the desired number of
+-- byzantine failures.  We enforce this with a predicate over
+-- 'RoundManager'.
+ValidatorVerifier-correct : ValidatorVerifier → Set
+ValidatorVerifier-correct vv =
+  let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
+      qsize      = vv ^∙ vvQuorumVotingPower
+      bizF       = numAuthors ∸ qsize
+   in suc (3 * bizF) ≤ numAuthors
+
+RoundManager-correct : RoundManager → Set
+RoundManager-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
+
+RoundManager-correct-≡ : (rmec1 : RoundManager)
+                           → (rmec2 : RoundManager)
+                           → (rmec1 ^∙ rmEpochState ∙ esVerifier) ≡ (rmec2 ^∙ rmEpochState ∙ esVerifier)
+                           → RoundManager-correct rmec1
+                           → RoundManager-correct rmec2
+RoundManager-correct-≡ rmec1 rmec2 refl = id
+
+-- Given a well-formed set of definitions that defines an EpochConfig,
+-- α-EC will compute this EpochConfig by abstracting away the unecessary
+-- pieces from RoundManager.
+-- TODO-2: update and complete when definitions are updated to more recent version
+α-EC : Σ RoundManager RoundManager-correct → EpochConfig
+α-EC (rmec , ok) =
+  let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+      qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+      bizF       = numAuthors ∸ qsize
+   in (EpochConfig∙new {! someHash?!}
+              (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+
+postulate
+  α-EC-≡ : (rmec1  : RoundManager)
+         → (rmec2  : RoundManager)
+         → (vals≡  : rmec1 ^∙ rmEpochState ∙ esVerifier ≡ rmec2 ^∙ rmEpochState ∙ esVerifier)
+         →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
+         → (rmec1-corr : RoundManager-correct rmec1)
+         → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManager-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
+{-
+α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
+-}
+
+α-EC-RM : (rm : RoundManager) → RoundManager-correct rm → EpochConfig
+α-EC-RM rm rmc = α-EC (rm , rmc)
+
+postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
+  init-EC : GenesisInfo → EpochConfig
+
+module WithEC (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
   open WithAbsVote 𝓔
 
@@ -141,87 +187,3 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep (𝓔 : EpochConfig) where
   vqcMember qc v {α , _ , _} as∈qc with All-lookup (_ivqcMetaVotesValid v) as∈qc
   ...| prf = _ivvMember prf
 
-  -- A block tree depends on a epoch config but works regardlesss of which
-  -- EpochConfig we have.
-  record BlockTree : Set where
-    constructor BlockTree∙new
-    field
-      _btIdToBlock               : KVMap HashValue LinkableBlock
-      _btRootId                  : HashValue
-      _btHighestCertifiedBlockId : HashValue
-      _btHighestQuorumCert       : QuorumCert
-      _btHighestTimeoutCert      : Maybe TimeoutCertificate
-      _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
-      _btIdToQuorumCert          : KVMap HashValue (Σ QuorumCert MetaIsValidQC)
-  open BlockTree public
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestTimeoutCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
-             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestTimeoutCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
-
-  btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
-  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
-
-  btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
-  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
-
-  -- IMPL-DIFF : this is a getter only in Haskell
-  btRoot : Lens BlockTree (Maybe ExecutedBlock)
-  btRoot = mkLens' g s
-    where
-    g : BlockTree → Maybe ExecutedBlock
-    g bt = btGetBlock (bt ^∙ btRootId) bt
-
-    -- TODO-1 : the setter is not needed/defined in Haskell
-    -- Defining it just to make progress, but it can't be defined
-    -- correctly in terms of type correctness (let alone setting a new root!)
-    s : BlockTree → Maybe ExecutedBlock → BlockTree
-    s bt _ = bt
-
-  record BlockStore : Set where
-    constructor BlockStore∙new
-    field
-      _bsInner         : BlockTree
-      -- bsStateComputer : StateComputer
-      -- bsStorage       : CBPersistentStorage
-  open BlockStore public
-  unquoteDecl bsInner = mkLens (quote BlockStore)
-             (bsInner ∷ [])
-
-  -- IMPL-DIFF : this is a getter only in Haskell
-  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
-  bsRoot = bsInner ∙ btRoot
-
-  -- IMPL-DIFF : this is a getter only in Haskell
-  bsHighestCommitCert : Lens BlockStore QuorumCert
-  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
-
-  -- IMPL-DIFF : this is a getter only in Haskell
-  bsHighestQuorumCert : Lens BlockStore QuorumCert
-  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
-
-  -- IMPL-DIFF : this is a getter only in Haskell
-  bsHighestTimeoutCert : BlockStore → Maybe TimeoutCertificate
-  bsHighestTimeoutCert =  _^∙ bsInner ∙ btHighestTimeoutCert
-
-  -- These are the parts of the RoundManager that depend on an
-  -- EpochConfig. We do not particularly care which EpochConfig
-  -- they care about yet.
-  --
-  record RoundManagerWithEC : Set where
-    constructor RoundManagerWithEC∙new
-    field
-      _epBlockStore   : BlockStore
-  open RoundManagerWithEC public
-  unquoteDecl epBlockStore = mkLens (quote RoundManagerWithEC)
-    (epBlockStore ∷ [])
-
-  lBlockTree : Lens RoundManagerWithEC BlockTree
-  lBlockTree = epBlockStore ∙ bsInner

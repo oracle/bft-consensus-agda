@@ -83,7 +83,7 @@ module LibraBFT.ImplShared.Interface.Output where
                                                       (List-map proj₁
                                                                 (kvm-toList (_vvAddressToValidatorInfo
                                                                               (_esVerifier
-                                                                                (_rmEpochState (_rmEC rm))))))
+                                                                                (_rmEpochState rm)))))
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
   outputToActions _  (SendVote vm toList)  = List-map (const (send (V vm))) toList

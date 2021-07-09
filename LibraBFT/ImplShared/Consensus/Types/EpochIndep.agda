@@ -5,7 +5,7 @@
 -}
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap            as KVMap
+open import LibraBFT.Base.KVMap            as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -433,7 +433,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (tcTimeout ∷ tcSignatures ∷ [])
 
   TimeoutCertificate∙new : Timeout → TimeoutCertificate
-  TimeoutCertificate∙new to = mkTimeoutCertificate to KVMap.empty
+  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
 
   -- IMPL-DIFF : only a getter in haskell
   tcEpoch : Lens TimeoutCertificate Epoch
@@ -606,3 +606,74 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     TooLittleVotingPower : U64 → U64 →     VerifyError
     TooManySignatures    : Usize → Usize → VerifyError
     InvalidSignature     :                 VerifyError
+
+  -- A block tree depends on a epoch config but works regardlesss of which
+  -- EpochConfig we have.
+  record BlockTree : Set where
+    constructor BlockTree∙new
+    field
+      _btIdToBlock               : KVMap HashValue LinkableBlock
+      _btRootId                  : HashValue
+      _btHighestCertifiedBlockId : HashValue
+      _btHighestQuorumCert       : QuorumCert
+      _btHighestTimeoutCert      : Maybe TimeoutCertificate
+      _btHighestCommitCert       : QuorumCert
+      _btPendingVotes            : PendingVotes
+      _btPrunedBlockIds          : List HashValue
+      _btMaxPrunedBlocksInMem    : ℕ
+      _btIdToQuorumCert          : KVMap HashValue QuorumCert
+  open BlockTree public
+  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert
+              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
+              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
+             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestTimeoutCert ∷
+              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
+
+  btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
+  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
+
+  btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
+  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  btRoot : Lens BlockTree (Maybe ExecutedBlock)
+  btRoot = mkLens' g s
+    where
+    g : BlockTree → Maybe ExecutedBlock
+    g bt = btGetBlock (bt ^∙ btRootId) bt
+
+    -- TODO-1 : the setter is not needed/defined in Haskell
+    -- Defining it just to make progress, but it can't be defined
+    -- correctly in terms of type correctness (let alone setting a new root!)
+    s : BlockTree → Maybe ExecutedBlock → BlockTree
+    s bt _ = bt
+
+  record BlockStore : Set where
+    constructor BlockStore∙new
+    field
+      _bsInner         : BlockTree
+      -- bsStateComputer : StateComputer
+      -- bsStorage       : CBPersistentStorage
+  open BlockStore public
+  unquoteDecl bsInner = mkLens (quote BlockStore)
+             (bsInner ∷ [])
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
+  bsRoot = bsInner ∙ btRoot
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestCommitCert : Lens BlockStore QuorumCert
+  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestQuorumCert : Lens BlockStore QuorumCert
+  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
+  bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
+

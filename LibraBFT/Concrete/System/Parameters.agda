@@ -7,10 +7,12 @@
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.Prelude
 open import Optics.All
 
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        EpochConfig
 open import LibraBFT.Yasm.Base ℓ-RoundManager
 

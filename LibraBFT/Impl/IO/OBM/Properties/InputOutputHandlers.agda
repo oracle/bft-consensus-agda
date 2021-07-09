@@ -48,6 +48,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
+      inv           : RMPreservesInvariant pre post
       noEpochChange : NoEpochChange pre post
       outsCorrect   : OutsCorrect pre post outs
 
@@ -60,3 +61,6 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
   contract!-NoEpochChange : ∀ pre → LBFT-Post-True (λ r st outs → NoEpochChange pre st) (handleProposal now pm) pre
   contract!-NoEpochChange pre = Contract.noEpochChange (contract! pre)
+
+  contract!-RMPreservesInvariant : ∀ pre → LBFT-Post-True (λ r st outs → RMPreservesInvariant pre st) (handleProposal now pm) pre
+  contract!-RMPreservesInvariant pre = Contract.inv (contract! pre)
