@@ -145,6 +145,24 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
               → BlockInfo∙new e1 r1 i1 x1 v1 n1 ≡ BlockInfo∙new e2 r2 i2 x2 v2 n2
   BlockInfo-η refl refl refl refl refl refl = refl
 
+{-
+  _≟BlockInfo_ : (b₁ b₂ : BlockInfo) → Dec (b₁ ≡ b₂)
+  l ≟BlockInfo r with ((l ^∙ biEpoch) ≟ (r ^∙ biEpoch))
+  ...| no  no-e = no  λ where refl → no-e refl
+  ...| yes refl with ((l ^∙ biRound)  ≟ (r ^∙ biRound))
+  ...| no  no-r = no  λ where refl → no-r refl
+  ...| yes refl with ((l ^∙ biId)     ≟ (r ^∙ biId))
+  ...| no  no-i = no  λ where refl → no-i refl
+  ...| yes refl = yes refl
+
+  instance
+    Eq-BlockInfo : Eq BlockInfo
+    Eq._≟_ Eq-BlockInfo = _≟BlockInfo_
+
+  BlockInfo-η : ∀{e1 e2 r1 r2 i1 i2} → e1 ≡ e2 → r1 ≡ r2 → i1 ≡ i2
+              → BlockInfo∙new e1 r1 i1 ≡ BlockInfo∙new e2 r2 i2
+  BlockInfo-η refl refl refl = refl
+-}
 
   record LedgerInfo : Set where
     constructor LedgerInfo∙new

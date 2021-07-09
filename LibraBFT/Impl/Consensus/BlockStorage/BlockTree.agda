@@ -22,6 +22,11 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 postulate
   addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 
+  insertQuorumCertE
+    : ∀ {𝓔 : EpochConfig}
+    → QuorumCert → BlockTree 𝓔
+    → Either ErrLog (BlockTree 𝓔)
+
 ------------------------------------------------------------------------------
 
 -- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock

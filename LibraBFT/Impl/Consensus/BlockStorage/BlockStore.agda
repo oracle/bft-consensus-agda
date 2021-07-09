@@ -8,9 +8,10 @@ open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-open import LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree       as BlockTree
+open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
+open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -84,6 +85,31 @@ executeBlockE bs block =
       let compute            = bs ^. bsStateComputer.scCompute
           stateComputeResult = compute (bs^.bsStateComputer) block (block^.bParentId) -}
       pure (ExecutedBlock∙new block stateComputeResult)
+
+------------------------------------------------------------------------------
+
+insertSingleQuorumCertE
+  : ∀ {𝓔 : EpochConfig}
+  → BlockStore 𝓔 → QuorumCert
+  → Either ErrLog (BlockStore 𝓔)  {- Haskell returns ([InfoLog a], BlockStore a)-}
+insertSingleQuorumCertE bs qc =
+  maybeS (getBlock (qc ^∙ qcCertifiedBlock ∙ biId) bs)
+         (Left (ErrBlockNotFound
+                  -- (here ["insert QC without having the block in store first"])
+                  (qc ^∙ qcCertifiedBlock ∙ biId)))
+         (λ executedBlock ->
+             if ExecutedBlock.blockInfo executedBlock == qc ^∙ qcCertifiedBlock
+             then Left fakeErr
+ --                      (ErrL (here [ "QC for block has different BlockInfo than EB"
+ --                                  , "QC certified BI", show (qc^.qcCertifiedBlock)
+ --                                  , "EB BI", show (ExecutedBlock.blockInfo executedBlock)
+ --                                  , "EB", show executedBlock ]))
+
+             else (do
+                    bs' ← {-withErrCtx' (here [])-}
+                          (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
+                    bt  ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner _)
+                    pure (bs' & bsInner _ ∙~ bt)))
 
 ------------------------------------------------------------------------------
 
