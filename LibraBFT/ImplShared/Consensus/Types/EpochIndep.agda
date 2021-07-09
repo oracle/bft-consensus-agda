@@ -175,6 +175,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
   postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
+  -- GETTER only in Haskell
+  liConsensusBlockId : Lens LedgerInfo HashValue
+  liConsensusBlockId = liCommitInfo ∙ biId
+
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
              → cdh1 ≡ cdh2

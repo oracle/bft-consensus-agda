@@ -22,10 +22,6 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
-  commitM
-    : LedgerInfoWithSignatures
-    → LBFT (Either ErrLog Unit)
-
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 
@@ -35,9 +31,45 @@ getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
 executeAndInsertBlockE : BlockStore → Block → Either ErrLog (BlockStore × ExecutedBlock)
 
+<<<<<<< HEAD
 executeBlockE : BlockStore → Block → Either ErrLog ExecutedBlock
 
 pathFromRoot : HashValue → BlockStore → Either ErrLog (List ExecutedBlock)
+=======
+executeBlockE
+  : ∀ {𝓔 : EpochConfig}
+  → BlockStore 𝓔 → Block
+  → Either ErrLog ExecutedBlock
+
+pathFromRoot
+  : ∀ {𝓔 : EpochConfig}
+  → HashValue → BlockStore 𝓔
+  → Either ErrLog (List ExecutedBlock)
+
+pathFromRootM
+  : HashValue
+  → LBFT (Either ErrLog (List ExecutedBlock))
+
+------------------------------------------------------------------------------
+
+commitM
+  : LedgerInfoWithSignatures
+  → LBFT (Either ErrLog Unit)
+commitM finalityProof = do
+  s ← get
+  let bs = rmGetBlockStore s
+  maybeS (bs ^∙ bsRoot _) (bail fakeErr) $ λ bsr → do
+    let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
+    case getBlock {α-EC-RM s} blockIdToCommit bs of λ where
+      nothing →
+        bail (ErrBlockNotFound blockIdToCommit)
+      (just blockToCommit) →
+        if-dec blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound
+        then bail fakeErr -- "commit block round lower than root"
+        else pathFromRootM blockIdToCommit >>= λ where
+          (Left  e) → bail e
+          (Right r) → {!!} -- HC RIGHT HERE
+>>>>>>> cb48585... working on BlockStore.commitM; Signed-off-by: Harold Carr harold.carr@oracle.com
 
 ------------------------------------------------------------------------------
 
@@ -123,6 +155,13 @@ insertSingleQuorumCertE bs qc =
 ------------------------------------------------------------------------------
 
 getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
+
+pathFromRootM hv = do
+  s ← get
+  let bs = rmGetBlockStore s
+  case pathFromRoot {α-EC-RM s} hv bs of λ where
+    (Left  e) → bail e
+    (Right r) → ok r
 
 pathFromRoot hv bs = BlockTree.pathFromRoot hv (bs ^∙ bsInner)
 
