@@ -22,8 +22,8 @@ open import Optics.All
 module LibraBFT.Impl.IO.OBM.InputOutputHandlers where
 
 epvv : LBFT (Epoch × ValidatorVerifier)
-epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
-           <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)
+epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch)
+           <*> gets (_^∙ rmEpochState ∙ esVerifier)
 
 handleProposal : Instant → ProposalMsg → LBFT Unit
 handleProposal now pm = do

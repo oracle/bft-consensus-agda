@@ -44,7 +44,7 @@ module LibraBFT.Impl.Handle.Properties where
 esEpoch≡sdEpoch
   : ∀ pid (pre : SystemState)
     → ReachableSystemState pre
-    → rmGetEpochState (peerStates pre pid) ^∙ esEpoch ≡ (peerStates pre pid) ^∙ lSafetyData ∙ sdEpoch
+    → (peerStates pre pid) ^∙ rmEpochState ∙ esEpoch ≡ (peerStates pre pid) ^∙ lSafetyData ∙ sdEpoch
 esEpoch≡sdEpoch pid pre@._ step-0 = refl
 esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit

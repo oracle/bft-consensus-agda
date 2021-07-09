@@ -42,7 +42,7 @@ module LibraBFT.ImplFake.Handle where
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
-                      (_rmSafetyRules (_rmEC fakeRM)))
+                      (_rmSafetyRules fakeRM))
 
  -- TODO-1: Implement this.
  initPE : ProposerElection
@@ -54,15 +54,8 @@ module LibraBFT.ImplFake.Handle where
  initRS : RoundState
  initRS = RoundState∙new 0 0 initPV nothing
 
- initRMEC : RoundManagerEC
- initRMEC = RoundManagerEC∙new (EpochState∙new 1 (initVV genesisInfo)) initRS initPE initSR false
-
- postulate -- TODO-2 : prove these once initRMEC is defined directly
-   init-EC-epoch-1  : epoch (init-EC genesisInfo) ≡ 1
-   initRMEC-correct : RoundManagerEC-correct initRMEC
-
  initRM : RoundManager
- initRM = fakeRM
+ initRM = RoundManager∙new (EpochState∙new 1 (initVV genesisInfo)) initBS initRS initPE initSR false
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various

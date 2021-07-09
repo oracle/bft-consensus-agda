@@ -121,15 +121,14 @@ processCertificatesM now = do
 -- Haskell prototype and Agda model easier.
 module processProposalM (proposal : Block) where
   step₀ : LBFT Unit
-  step₁ : ∀ {pre} → BlockStore (α-EC-RM pre) → (Either ObmNotValidProposerReason Unit) → LBFT Unit
+  step₁ : BlockStore → (Either ObmNotValidProposerReason Unit) → LBFT Unit
   step₂ : Either ErrLog Vote → LBFT Unit
   step₃ : Vote → SyncInfo → LBFT Unit
 
   step₀ = do
-    s ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let bs = rmGetBlockStore s
+    bs ← use lBlockStore
     vp ← ProposerElection.isValidProposalM proposal
-    step₁ {s} bs vp
+    step₁ bs vp
 
   step₁ bs vp =
     ifM‖ isLeft vp ≔
@@ -217,8 +216,7 @@ processVoteM now vote =
   continue : LBFT Unit
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
-    s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let bs = rmGetBlockStore s
+    bs ← use lBlockStore
     ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
       then logInfo
       else do
@@ -228,17 +226,15 @@ processVoteM now vote =
       logInfo
 
 addVoteM now vote = do
-  s ← get -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-  let bs = rmGetBlockStore s
-  maybeS-RWST (bsHighestTimeoutCert _ bs) continue λ tc →
+  bs ← use lBlockStore
+  maybeS-RWST (bs ^∙ bsHighestTimeoutCert) continue λ tc →
     ifM vote ^∙ vRound == tc ^∙ tcRound
       then logInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where
   continue : LBFT Unit
   continue = do
-    rm ← get  -- IMPL-DIFF: see comment NO-DEPENDENT-LENSES
-    let verifier = _esVerifier (_rmEpochState (_rmEC rm))
+    verifier ← use (rmEpochState ∙ esVerifier)
     r ← RoundState.insertVoteM vote verifier
     case r of λ where
       (NewQuorumCertificate qc) →
