@@ -6,7 +6,7 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto

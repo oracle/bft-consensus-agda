@@ -5,7 +5,7 @@
 -}
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap            as KVMap
+open import LibraBFT.Base.KVMap            as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -433,7 +433,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (tcTimeout ∷ tcSignatures ∷ [])
 
   TimeoutCertificate∙new : Timeout → TimeoutCertificate
-  TimeoutCertificate∙new to = mkTimeoutCertificate to KVMap.empty
+  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
 
   -- IMPL-DIFF : only a getter in haskell
   tcEpoch : Lens TimeoutCertificate Epoch
@@ -632,6 +632,25 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
               btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
               btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
 
+  btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
+  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
+
+  btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
+  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  btRoot : Lens BlockTree (Maybe ExecutedBlock)
+  btRoot = mkLens' g s
+    where
+    g : BlockTree → Maybe ExecutedBlock
+    g bt = btGetBlock (bt ^∙ btRootId) bt
+
+    -- TODO-1 : the setter is not needed/defined in Haskell
+    -- Defining it just to make progress, but it can't be defined
+    -- correctly in terms of type correctness (let alone setting a new root!)
+    s : BlockTree → Maybe ExecutedBlock → BlockTree
+    s bt _ = bt
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
@@ -641,6 +660,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open BlockStore public
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
+
+  -- IMPL-DIFF : this is a getter only in Haskell
+  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
+  bsRoot = bsInner ∙ btRoot
 
   -- IMPL-DIFF : this is a getter only in Haskell
   bsHighestCommitCert : Lens BlockStore QuorumCert

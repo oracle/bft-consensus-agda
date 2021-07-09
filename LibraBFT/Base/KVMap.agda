@@ -51,6 +51,8 @@ module LibraBFT.Base.KVMap  where
    ∈KV-empty-⊥    : k ∈KV (empty {Val = Val}) → ⊥
 
    lookup         : Key → KVMap Key Val → Maybe Val
+   insert         : (k : Key)(v : Val)(kvm : KVMap Key Val)
+                  → KVMap Key Val
    kvm-insert     : (k : Key)(v : Val)(kvm : KVMap Key Val)
                   → lookup k kvm ≡ nothing
                   → KVMap Key Val

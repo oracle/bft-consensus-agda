@@ -174,7 +174,8 @@ module LibraBFT.ImplShared.Consensus.Types where
   -- The Haskell implementation has many more constructors.
   -- Constructors are being added incrementally as needed for the verification effort.
   data ErrLog : Set where
-    ErrVerify : VerifyError → ErrLog
+    ErrBlockNotFound : HashValue   → ErrLog
+    ErrVerify        : VerifyError → ErrLog
 
   -- To enable modeling of logging errors that have not been added yet,
   -- an inhabitant of ErrLog is postulated.
