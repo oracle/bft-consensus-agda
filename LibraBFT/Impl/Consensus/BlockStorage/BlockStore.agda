@@ -21,6 +21,14 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
+  commitM
+    : LedgerInfoWithSignatures
+    → LBFT (Either ErrLog Unit)
+
+  insertSingleQuorumCertM
+    : QuorumCert
+    → LBFT (Either ErrLog Unit)
+
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 

@@ -259,6 +259,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   qcParentBlock : Lens QuorumCert BlockInfo
   qcParentBlock = qcVoteData ∙ vdParent
 
+  -- This is a GETTER only in Haskell
+  qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
+  qcLedgerInfo = qcSignedLedgerInfo
+
   qcCommitInfo : Lens QuorumCert BlockInfo
   qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
 
