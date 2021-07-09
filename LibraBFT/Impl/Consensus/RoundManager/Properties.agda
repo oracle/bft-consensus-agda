@@ -55,11 +55,11 @@ module executeAndVoteMSpec (b : Block) where
       → LBFT-weakestPre (executeAndVoteM b) (Contract pre) pre
   proj₁ (contract' pre ._ refl) err isErr ._ refl =
     mkContract refl (mkNoEpochChange refl refl) (inj₁ (mkNoVoteCorrect refl ≤-refl))
-  proj₁ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _ =
+  proj₁ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _ =
     mkContract refl (mkNoEpochChange refl refl) (inj₁ (mkNoVoteCorrect refl ≤-refl))
-  proj₁ (proj₂ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _) _ =
-    mkContract refl (mkNoEpochChange refl refl) (inj₁ (mkNoVoteCorrect refl ≤-refl))
-  proj₂ (proj₂ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _) _ =
+  proj₁ (proj₂ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _) _
+    = mkContract refl (mkNoEpochChange refl refl) (inj₁ (mkNoVoteCorrect refl ≤-refl))
+  proj₂ (proj₂ (proj₂ (contract' pre ._ refl) (bs' , eb) isOk ._ refl ._ refl ._ refl .eb refl cr cr≡ vs vs≡ so so≡) _) _ =
     constructAndSignVoteMSpec.contract maybeSignedVoteProposal' preUpdated
       (RWST-weakestPre-ebindPost unit step₃ (Contract pre))
       pf
