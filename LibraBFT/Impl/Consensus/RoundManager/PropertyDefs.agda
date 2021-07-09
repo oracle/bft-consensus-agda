@@ -8,15 +8,19 @@
 -- handlers, nothing concerning the system state.
 
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.KVMap as Map
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
+
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
 
@@ -128,3 +132,41 @@ substVoteCorrect refl refl refl refl refl refl (mkVoteCorrect (mkVoteCorrectInv 
   mkVoteCorrect (mkVoteCorrectInv round≡ postLv≡) (Left (mkVoteCorrectOld lvr≡ lv≡))
 substVoteCorrect refl refl refl refl refl refl (mkVoteCorrect (mkVoteCorrectInv round≡ postLv≡) (Right (mkVoteCorrectNew epoch≡ lvr< postLvr≡))) =
   mkVoteCorrect (mkVoteCorrectInv round≡ postLv≡) (Right (mkVoteCorrectNew epoch≡ lvr< postLvr≡))
+
+AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
+AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
+
+record BlockTreeCorrect (rm : RoundManager) : Set where
+  constructor mkBlockTreeCorrect
+  field
+    allValidQCs : (rmC : RoundManager-correct rm) → AllValidQCs (α-EC-RM rm rmC) (rm ^∙ rmBlockStore ∙ bsInner)
+
+ES-SD-EpochsMatch : RoundManager → Set
+ES-SD-EpochsMatch rm = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ lSafetyData ∙ sdEpoch
+
+record RMInvariant (rm : RoundManager) : Set where
+  constructor mkRMInvariant
+  field
+    rmCorrect       : RoundManager-correct rm
+    blockTreeInv    : BlockTreeCorrect rm
+    esEpoch≡sdEpoch : ES-SD-EpochsMatch rm
+
+RMPreserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
+RMPreserves Pred pre post = Pred pre → Pred post
+
+RMPreservesInvariant = RMPreserves RMInvariant
+
+mkRMPreservesInvariant
+  : ∀ {pre post}
+    → (RMPreserves RoundManager-correct pre post)
+    → (RMPreserves BlockTreeCorrect pre post)
+    → (RMPreserves ES-SD-EpochsMatch pre post)
+    → RMPreservesInvariant pre post
+mkRMPreservesInvariant rmc btc epsm (mkRMInvariant rmCorrect blockTreeInv esEpoch≡sdEpoch) =
+  mkRMInvariant (rmc rmCorrect) (btc blockTreeInv) (epsm esEpoch≡sdEpoch)
+
+reflRMPreservesInvariant : Reflexive RMPreservesInvariant
+reflRMPreservesInvariant = id
+
+transRMPreservesInvariant : Transitive RMPreservesInvariant
+transRMPreservesInvariant rmp₁ rmp₂ = rmp₂ ∘ rmp₁

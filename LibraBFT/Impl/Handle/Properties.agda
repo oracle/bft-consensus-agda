@@ -20,6 +20,7 @@ open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
@@ -41,33 +42,36 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 
 module LibraBFT.Impl.Handle.Properties where
 
-esEpoch≡sdEpoch
+-- TODO-2: Prove these once `initRM` in `LibraBFT.Impl.Handle` is sufficiently implemented
+postulate
+  initRM-correct           : RoundManager-correct initRM
+  initRM-blockTree-correct : BlockTreeCorrect initRM
+
+initRMSatisfiesInv : RMInvariant initRM
+initRMSatisfiesInv = mkRMInvariant initRM-correct initRM-blockTree-correct refl
+
+invariantsCorrect
   : ∀ pid (pre : SystemState)
-    → ReachableSystemState pre
-    → (peerStates pre pid) ^∙ rmEpochState ∙ esEpoch ≡ (peerStates pre pid) ^∙ lSafetyData ∙ sdEpoch
-esEpoch≡sdEpoch pid pre@._ step-0 = refl
-esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
+    → ReachableSystemState pre → RMInvariant (peerStates pre pid)
+invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
-  = esEpoch≡sdEpoch pid pre' preach
-esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
+  = invariantsCorrect pid pre' preach
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
   with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
-  = esEpoch≡sdEpoch pid pre' preach
-...| yes refl
-  with sps
-... | step-init ini
+  = invariantsCorrect pid pre' preach
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini)))) | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
-  = refl
-... | step-msg {fst , P pm} m∈pool ini
-  with handleProposalSpec.contract!-NoEpochChange 0 pm (peerStates pre' pid)
-... | mkNoEpochChange es≡₁ es≡₂
+  = initRMSatisfiesInv
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , P pm} m∈pool ini)))) | yes refl
+  with handleProposalSpec.contract!-RMPreservesInvariant 0 pm (peerStates pre' pid)
+... | invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
-  = trans (sym es≡₁) (trans (esEpoch≡sdEpoch pid pre' preach) es≡₂)
-esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} _)))
-  | yes refl | step-msg {fst , V x} m∈pool ini = {!!}
-esEpoch≡sdEpoch pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} _)))
-  | yes refl | step-msg {fst , C x} m∈pool ini = {!!}
+  = invPres (invariantsCorrect pid pre' preach)
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
 -- TODO-3: Prove this
 postulate
