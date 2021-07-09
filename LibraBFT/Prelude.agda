@@ -31,7 +31,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Nat
-    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_)
+    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_)
     public
 
   open import Data.Nat.Properties
@@ -130,6 +130,7 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
+  -- a non-dependent eliminator
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
@@ -305,6 +306,12 @@ module LibraBFT.Prelude where
   isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
   isRight = Data.Bool.not ∘ isLeft
 
+  -- a non-dependent eliminator
+  eitherS : ∀ {A B C : Set} (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
+  eitherS eab fa fb = case eab of λ where
+    (Left  a) → fa a
+    (Right b) → fb b
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?
@@ -425,6 +432,16 @@ module LibraBFT.Prelude where
   forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
   forM_      []  _ = return unit
   forM_ (x ∷ xs) f = f x >> forM_ xs f
+
+  -- NOTE: because 'forM_' is defined above, it is necessary to
+  -- call 'forM' with parenthesis (e.g., recursive call in definition)
+  -- to disambiguate it for the Agda parser.
+  forM : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M (List B)
+  forM      []  _ = return []
+  forM (x ∷ xs) f = do
+    fx  ← f x
+    fxs ← (forM) xs f
+    return (fx ∷ fxs)
 
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
