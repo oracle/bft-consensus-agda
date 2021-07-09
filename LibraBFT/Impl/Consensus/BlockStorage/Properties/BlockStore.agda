@@ -23,6 +23,18 @@ module executeAndInsertBlockESpec {𝓔 : EpochConfig} (bs : BlockStore 𝓔) (b
   postulate
     ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
 
+module executeAndInsertBlockMSpec (b : Block) where
+  -- NOTE: This function returns any errors, rather than producing them as output.
+  contract
+    : ∀ pre Post
+      → (∀ e → Left e ≡ executeAndInsertBlockE (rmGetBlockStore pre) b → Post (Left e) pre [])
+      → (∀ bs' eb → Right (bs' , eb) ≡ executeAndInsertBlockE (rmGetBlockStore pre) b
+         → Post (Right eb) (rmSetBlockStore pre bs') [])
+      → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
+  proj₁ (contract pre Post pfBail pfOk ._ refl) e eaibLeft = pfBail e (sym eaibLeft)
+  proj₂ (contract pre Post pfBail pfOk ._ refl) (bs' , eb) eaibRight ._ refl =
+    pfOk bs' eb (sym eaibRight)
+
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
   syncInfo pre =

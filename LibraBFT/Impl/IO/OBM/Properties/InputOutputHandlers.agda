@@ -22,38 +22,75 @@ open import Optics.All
 
 module LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers where
 
+module epvvSpec where
+
+  contract
+    : ∀ pre Post
+      → let ep = pre ^∙ lSafetyData ∙ sdEpoch
+            vv = (_rmEC pre) ^∙ rmEpochState ∙ esVerifier in
+        (Post (ep , vv) pre [])
+      → LBFT-weakestPre epvv Post pre
+  contract pre Post pf ._ refl ._ refl ._ refl ._ refl = pf
+
 module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
+
+  open handleProposal now pm
 
   epoch = pm ^∙ pmProposal ∙ bEpoch
   round = pm ^∙ pmProposal ∙ bRound
 
-  record NoVoteOutsCorrect (pre post : RoundManager) (outs : List Output) : Set where
-    constructor mkNoOutsCorrect
-    field
-      noVoteOuts : NoVoteOuts outs
-      nvc⊎vns    : NoVoteCorrect pre post ⊎ VoteNotSaved pre post epoch round
-
-  record VoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output)  : Set where
-    constructor mkVoteMsgOutsCorrect
-    field
-      vm          : VoteMsg
-      pid         : Author
-      voteMsgOuts : VoteMsgOuts outs vm (pid ∷ [])
-      outCorrect  : VoteCorrect pre post epoch round (vm ^∙ vmVote)
-      sdEpoch≡    : pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
-
-  OutsCorrect : (pre post : RoundManager) (outs : List Output) → Set
-  OutsCorrect pre post outs = NoVoteOutsCorrect pre post outs ⊎ VoteMsgOutsCorrect pre post outs
+  VoteMsg⊎VoteNotSaved-sdEpoch
+    : (pre post : RoundManager) (outs : List Output)
+      → NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
+      → Set
+  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Left _))) =
+    ⊤
+  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Right _))) =
+    pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
+  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Right _) =
+    pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
 
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noEpochChange : NoEpochChange pre post
-      outsCorrect   : OutsCorrect pre post outs
+      outsCorrect   : NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
+      sdEpoch≡      : VoteMsg⊎VoteNotSaved-sdEpoch pre post outs outsCorrect
 
-  -- TODO-2: Prove this
-  postulate
-    contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
+  contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
+  contract pre =
+    epvvSpec.contract pre (RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) (Contract pre))
+      λ where
+        ._ refl →
+          (λ where
+            (Left _)  eq → contractBail _ refl
+            (Right _) eq → contractBail _ refl)
+          , λ where
+              unit eq →
+                processProposalMsgMSpec.contract now pm pre (Contract pre) (pf eq)
+    where
+    contractBail : ∀ outs → NoVoteOuts outs → Contract pre unit pre outs
+    contractBail outs noVoteOuts =
+      mkContract reflNoEpochChange (Left (true , mkNoVoteMsgOutsCorrect noVoteOuts (Left reflNoVoteCorrect))) tt
+
+    myEpoch = pre ^∙ lSafetyData ∙ sdEpoch
+    vv      = _rmEC pre ^∙ rmEpochState ∙ esVerifier
+
+    ProcessProposalOk = processProposal pm myEpoch vv ≡ Right unit
+
+    epoch≡ : ProcessProposalOk → pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
+    epoch≡ eq
+       with processProposalSpec.contract pm myEpoch vv
+    ...| con
+       rewrite eq = sym con
+
+    pf : ProcessProposalOk → RWST-Post-⇒ (processProposalMsgMSpec.Contract now pm pre) (Contract pre)
+    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Left noVoteCorrect)))) =
+      mkContract inv nv⊎vmoc tt
+    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Right voteNotSaved)))) =
+      mkContract inv nv⊎vmoc (epoch≡ ppo)
+    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Right voteMsgOutsCorrect)) =
+      mkContract inv nv⊎vmoc (epoch≡ ppo)
 
   contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleProposal now pm) pre
   contract! pre = LBFT-contract (handleProposal now pm) (Contract pre) pre (contract pre)

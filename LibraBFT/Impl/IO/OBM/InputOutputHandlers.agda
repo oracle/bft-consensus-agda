@@ -25,13 +25,22 @@ epvv : LBFT (Epoch × ValidatorVerifier)
 epvv = _,_ <$> gets (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∘ _rmEC)
            <*> gets (_^∙ rmEpochState ∙ esVerifier ∘ _rmEC)
 
+module handleProposal (now : Instant) (pm : ProposalMsg) where
+  step₀ : LBFT Unit
+  step₁ : Epoch → ValidatorVerifier → LBFT Unit
+
+  step₀ = do
+    (myEpoch , vv) ← epvv
+    step₁ myEpoch vv
+
+  step₁ myEpoch vv = do
+    caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+      (Left (Left _))  → logErr
+      (Left (Right _)) → logInfo
+      (Right _)        → RoundManager.processProposalMsgM now pm
+
 handleProposal : Instant → ProposalMsg → LBFT Unit
-handleProposal now pm = do
-  (myEpoch , vv) ← epvv
-  caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
-    (Left (Left _))  → logErr
-    (Left (Right _)) → logInfo
-    (Right _)        → RoundManager.processProposalMsgM now pm
+handleProposal = handleProposal.step₀
 
 handle : NodeId → NetworkMsg → Instant → LBFT Unit
 handle _self msg now =

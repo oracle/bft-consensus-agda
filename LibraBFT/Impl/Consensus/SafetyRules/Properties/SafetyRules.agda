@@ -135,20 +135,21 @@ module verifyQcMSpec (qc : QuorumCert) where
 
 module constructAndSignVoteMSpec where
 
-  ResultCorrect : (pre post : RoundManager) (epoch : Epoch) (round : Round) (r : Either ErrLog Vote) → Set
-  ResultCorrect pre post epoch round (Left e) = NoVoteCorrect pre post
-  ResultCorrect pre post epoch round (Right v) = VoteCorrect pre post epoch round v
+  ResultCorrect : (pre post : RoundManager) (strict : Bool) (epoch : Epoch) (round : Round) (r : Either ErrLog Vote) → Set
+  ResultCorrect pre post strict epoch round (Left e) = NoVoteCorrect pre post strict
+  ResultCorrect pre post strict epoch round (Right v) = VoteCorrect pre post epoch round v
 
   record Contract (pre : RoundManager) (epoch : Epoch) (round : Round) (r : Either ErrLog Vote) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
       noOuts        : NoMsgOuts outs
       inv           : NoEpochChange pre post
-      resultCorrect : ResultCorrect pre post epoch round r
+      lvrStrict?    : Bool
+      resultCorrect : ResultCorrect pre post lvrStrict? epoch round r
 
   private
-    contractEasy : ∀ {pre e epoch round} → Contract pre epoch round (Left e) pre []
-    contractEasy = mkContract refl (record { es≡₁ = refl ; es≡₂ = refl }) (record { lv≡ = refl ; lvr≤ = ≤-refl })
+    contractBail : ∀ {pre e epoch round} → Contract pre epoch round (Left e) pre []
+    contractBail = mkContract refl reflNoEpochChange true reflNoVoteCorrect
 
   module continue2
     (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
@@ -167,7 +168,6 @@ module constructAndSignVoteMSpec where
     epoch = voteProposal ^∙ vpBlock ∙ bEpoch
     round = voteProposal ^∙ vpBlock ∙ bRound
 
-    -- TODO-1: Break this down into smaller pieces.
     contract
       : ∀ pre
         → Requirements pre
@@ -177,47 +177,55 @@ module constructAndSignVoteMSpec where
     contract pre reqs =
       verifyAndUpdateLastVoteRoundMSpec.contract (proposedBlock ^∙ bRound) safetyData
         (RWST-weakestPre-ebindPost unit step₁ (Contract pre epoch round)) pre
-          (λ where
-            r>lvr safetyData1@._ refl ._ refl .unit refl →
-              extensionCheckMSpec.contract voteProposal
-                (RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre epoch round)) (pre & lSafetyData ∙~ safetyData1)
-                  (bailAfterSetSafetyData r>lvr)
-                  λ where
-                    voteData@._ refl →
-                      let author = validatorSigner ^∙ vsAuthor
-                          st₁    = pre & (lSafetyData ∙~ safetyData1) in
-                      constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
-                        (RWST-weakestPre-∙^∙Post unit withErrCtxt
-                          (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre epoch round)))
-                        st₁
-                        (λ where .(Left fakeErr) refl → bailAfterSetSafetyData r>lvr)
-                         λ where
-                           ledgerInfo ._ refl ._ refl ._ refl .unit refl .unit refl →
-                             mkContract refl
-                               (mkNoEpochChange refl (Requirements.es≡ reqs))
-                               (mkVoteCorrect (mkVoteCorrectInv refl refl)
-                                 (Right (mkVoteCorrectNew refl (lvr<pbr r>lvr) vpr≡pbr))))
-          λ r≤lvr → contractEasy
+        contract-step₁
+        (λ r≤lvr → contractBail)
       where
-      vpr≡pbr : (voteProposal ^∙ vpBlock) ≡L proposedBlock at bRound
-      vpr≡pbr rewrite Requirements.vp≡pb reqs = refl
+      module _ (r>lvr : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound) where
+        safetyData1 = verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData
+        preUpdatedSD = pre & lSafetyData ∙~ safetyData1
+        author = validatorSigner ^∙ vsAuthor
 
-      lvr<pbr : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-                → pre ^∙ lSafetyData ∙ sdLastVotedRound < proposedBlock ^∙ bRound
-      lvr<pbr r>lvr rewrite (Requirements.lvr≡ reqs) = r>lvr
+        lvr<pbr : pre ^∙ lSafetyData ∙ sdLastVotedRound < proposedBlock ^∙ bRound
+        lvr<pbr rewrite (Requirements.lvr≡ reqs) = r>lvr
 
-      lvr≤pbr : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-                → pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
-      lvr≤pbr r>lvr = <⇒≤ (lvr<pbr r>lvr)
+        lvr≤pbr : pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
+        lvr≤pbr = <⇒≤ lvr<pbr
 
-      preUpdatedSD = pre & lSafetyData ∙~ verifyAndUpdateLastVoteRoundMSpec.safetyData' (proposedBlock ^∙ bRound) safetyData
+        vpr≡pbr : (voteProposal ^∙ vpBlock) ≡L proposedBlock at bRound
+        vpr≡pbr rewrite Requirements.vp≡pb reqs = refl
 
-      bailAfterSetSafetyData
-        : proposedBlock ^∙ bRound > safetyData ^∙ sdLastVotedRound
-          → Contract pre epoch round (Left fakeErr) preUpdatedSD []
-      bailAfterSetSafetyData r>lvr =
-        mkContract refl (mkNoEpochChange refl (Requirements.es≡ reqs))
-          (mkNoVoteCorrect (Requirements.lv≡ reqs) (lvr≤pbr r>lvr))
+        bailAfterSetSafetyData : Contract pre epoch round (Left fakeErr) preUpdatedSD []
+        bailAfterSetSafetyData =
+          mkContract refl (mkNoEpochChange refl (Requirements.es≡ reqs))
+            false (mkNoVoteCorrect (Requirements.lv≡ reqs) lvr≤pbr)
+
+        contract-step₁ : RWST-weakestPre-ebindPost unit step₁ (Contract pre epoch round) (Right _) pre []
+        contract-step₂ : RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre epoch round) (Right _) preUpdatedSD []
+        contract-step₃
+          : ∀ ledgerInfo
+            → RWST-weakestPre-∙^∙Post unit withErrCtxt
+                (RWST-weakestPre-ebindPost unit (step₃ safetyData1 _ author) (Contract pre epoch round))
+                (Right ledgerInfo) preUpdatedSD []
+
+        contract-step₁ ._ refl ._ refl .unit refl =
+          extensionCheckMSpec.contract voteProposal
+            (RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre epoch round)) preUpdatedSD
+            bailAfterSetSafetyData
+            contract-step₂
+
+        contract-step₂ voteData@._ refl =
+          constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
+            (RWST-weakestPre-∙^∙Post unit withErrCtxt
+              (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre epoch round))) preUpdatedSD
+              (λ where .(Left fakeErr) refl → bailAfterSetSafetyData)
+              contract-step₃
+
+        contract-step₃ ledgerInfo ._ refl ._ refl ._ refl .unit refl unit refl =
+          mkContract refl (mkNoEpochChange refl (Requirements.es≡ reqs))
+            false
+            (mkVoteCorrect
+              (mkVoteCorrectInv refl refl)
+              (Right (mkVoteCorrectNew refl lvr<pbr vpr≡pbr)))
 
   module continue1
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
@@ -244,11 +252,11 @@ module constructAndSignVoteMSpec where
     contract pre reqs =
       verifyQcMSpec.contract (proposedBlock ^∙ bQuorumCert)
         (RWST-weakestPre-ebindPost unit (λ _ → step₁) (Contract pre epoch round)) pre
-          contractEasy
+          contractBail
           λ where
             ._ refl validatorVerifier@._ refl →
               either{C = λ x → RWST-weakestPre (pure x ∙?∙ λ _ → step₃) (Contract pre epoch round) _ _}
-                (λ _ → contractEasy)
+                (λ _ → contractBail)
                 (λ where
                   unit .unit refl →
                     verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0
@@ -256,7 +264,7 @@ module constructAndSignVoteMSpec where
                         (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock)
                         (Contract pre epoch round))
                       pre
-                      (λ r≤pr → contractEasy)
+                      (λ r≤pr → contractBail)
                       λ r>pr →
                         (  λ where
                             2cr>pr safetyData1@._ refl →
@@ -297,23 +305,25 @@ module constructAndSignVoteMSpec where
         → LBFT-weakestPre
             (constructAndSignVoteM-continue0 voteProposal validatorSigner) (Contract pre epoch round) pre
     contract pre safetyData0@._ refl =
+      -- NOTE: There is a redundant check for this (that the proposal epoch
+      -- matches the safety data epoch) in `LibraBFT.Impl.Consensus.Network`
       verifyEpochMSpec.contract (proposedBlock ^∙ bEpoch) safetyData0
-        (RWST-weakestPre-ebindPost unit (λ _ → step₁ safetyData0 ) (Contract pre epoch round)) pre
-        (λ e≢sde → contractEasy)
-        λ where
-          e≡sde .unit refl →
-            (λ ≡nothing →
-              continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-                (continue1.mkRequirements refl refl))
-            , λ vote vote≡ →
-              (λ lvr≡pbr →
-                mkContract refl (mkNoEpochChange refl refl)
-                  (mkVoteCorrect
-                    (mkVoteCorrectInv (toWitnessT lvr≡pbr) (sym vote≡))
-                    (Left (mkVoteCorrectOld refl refl))))
-              , λ lvr≢pbr →
-                continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-                  (record { sd≡ = refl ; vp≡pb = refl })
+        (RWST-weakestPre-ebindPost unit (const (step₁ safetyData0)) (Contract pre epoch round)) pre
+        (λ e≢sde → contractBail)
+        λ e≡sde → contract-step₁
+      where
+      contract-step₁
+        : RWST-weakestPre-ebindPost unit (const (step₁ safetyData0)) (Contract pre epoch round) (Right unit) pre []
+      proj₁ (contract-step₁ .unit refl) ≡nothing =
+        continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+          (continue1.mkRequirements refl refl)
+      proj₁ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≡pbr =
+        mkContract refl reflNoEpochChange true
+          (mkVoteCorrect (mkVoteCorrectInv (toWitnessT lvr≡pbr) (sym vote≡))
+            (Left reflVoteCorrectOld))
+      proj₂ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≢pbr =
+        continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+          (continue1.mkRequirements refl refl)
 
   module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
 
@@ -321,12 +331,11 @@ module constructAndSignVoteMSpec where
     epoch = voteProposal ^∙ vpBlock ∙ bEpoch
     round = voteProposal ^∙ vpBlock ∙ bRound
 
-    -- TODO-1: Break this down into smaller pieces.
     contract'
       : ∀ pre
         → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre epoch round) pre
     contract' pre .unit refl nothing vs≡ ._ refl .unit refl =
-      mkContract refl (mkNoEpochChange refl refl) (mkNoVoteCorrect refl ≤-refl)
+      mkContract refl reflNoEpochChange true reflNoVoteCorrect
     contract' pre .unit refl (just validatorSigner) vs≡ =
       RWST-⇒
         (Contract pre epoch round) Post pf
@@ -340,8 +349,8 @@ module constructAndSignVoteMSpec where
           x post (LogInfo fakeInfo ∷ outs)
 
       pf : ∀ r st outs → Contract pre epoch round r st outs → Post r st outs
-      pf r st outs (mkContract noOuts inv resultCorrect) .r refl .unit refl =
-        mkContract (++-NoMsgOuts outs (LogInfo fakeInfo ∷ []) noOuts refl) inv resultCorrect
+      pf r st outs (mkContract noOuts inv lvrStrict? resultCorrect) ._ refl .unit refl =
+        mkContract (++-NoMsgOuts outs (LogInfo fakeInfo ∷ []) noOuts refl) inv lvrStrict? resultCorrect
 
     contract
       : ∀ pre Post → (∀ r st outs → Contract pre epoch round r st outs → Post r st outs)
