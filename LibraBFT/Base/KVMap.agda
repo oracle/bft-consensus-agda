@@ -56,6 +56,7 @@ module LibraBFT.Base.KVMap  where
    kvm-insert     : (k : Key)(v : Val)(kvm : KVMap Key Val)
                   → lookup k kvm ≡ nothing
                   → KVMap Key Val
+   elems          : KVMap Key Val → List Val
 
    -- TODO-3: update properties to reflect kvm-update, consider combining insert/update
    kvm-update     : (k : Key)(v : Val)(kvm : KVMap Key Val)

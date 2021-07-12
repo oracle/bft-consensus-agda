@@ -10,8 +10,11 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
+open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
@@ -21,10 +24,6 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
 postulate
   addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
-
-  insertQuorumCertE
-    : QuorumCert → BlockTree
-    → Either ErrLog BlockTree
 
 ------------------------------------------------------------------------------
 
@@ -54,6 +53,56 @@ insertBlockE block bt = do
         let bt'  = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
         pure ( (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
+
+------------------------------------------------------------------------------
+
+-- IMPL-DIFF
+--
+-- In Haskell the "E" version
+-- - either returns error OR info and an updated block tree
+-- - is implemented in terms of the "M" version
+-- In Haskell the "M" version does the work
+--
+-- Here it is just the opposite
+-- - the "E" version does the work - BUT DOES NOT LOG INFO (that is the main difference)
+-- - the "M" just updates the state
+--
+
+insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog BlockTree
+insertQuorumCertE qc bt = do
+  let blockId = qc ^∙ qcCertifiedBlock ∙ biId
+  case safetyInvariant bt of λ where
+    (Left  e)    → Left fakeErr
+    (Right unit) → case btGetBlock blockId bt of λ where
+      nothing      → Left fakeErr
+      (just block) → maybeS (bt ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
+        if-dec block ^∙ ebRound ≥? hcb ^∙ ebRound
+        then (do
+          let bt' = record bt { _btHighestCertifiedBlockId = block ^∙ ebId
+                              ; _btHighestQuorumCert       = qc
+                              ; _btIdToQuorumCert = Map.insert blockId qc (bt ^∙ btIdToQuorumCert)
+                              }
+          if-dec bt' ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound <?
+                 qc  ^∙                       qcCommitInfo ∙ biRound
+            then pure (record bt' { _btHighestCommitCert   = qc })
+            else pure bt')
+        else
+          pure bt
+ where
+  safetyInvariant : BlockTree → Either ErrLog Unit
+  safetyInvariant bt = forM_ (Map.elems (bt ^∙ btIdToQuorumCert)) $ \x →
+    lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
+            ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
+            ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
+            /=  qc ^∙ qcCertifiedBlock ∙ biRound))
+           fakeErr
+
+insertQuorumCertM : QuorumCert → LBFT Unit
+insertQuorumCertM qc = do
+  bt ← use lBlockTree
+  case insertQuorumCertE qc bt of λ where
+    (Left e)    → logErr
+    (Right bt') → lBlockTree ∙= bt'
 
 ------------------------------------------------------------------------------
 

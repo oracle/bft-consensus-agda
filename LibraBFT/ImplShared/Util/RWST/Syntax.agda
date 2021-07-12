@@ -67,6 +67,9 @@ caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
 caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
 caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
 
+when : Bool → RWST Ev Wr St Unit → RWST Ev Wr St Unit
+when b f = if b then f else pure unit
+
 -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)
 ok = return ∘ Right

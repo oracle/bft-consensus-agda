@@ -40,7 +40,7 @@ module LibraBFT.Prelude where
 
   open import Data.List
     renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
-              tabulate to List-tabulate)
+              tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
 

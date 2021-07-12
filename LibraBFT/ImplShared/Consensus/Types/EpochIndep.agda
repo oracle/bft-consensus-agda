@@ -751,6 +751,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → Maybe ExecutedBlock → BlockTree
     s bt _ = bt
 
+  -- GETTER ONLY in haskell
+  btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
+  btHighestCertifiedBlock = mkLens' g s
+    where
+    g : BlockTree → (Maybe ExecutedBlock)
+    g bt = btGetBlock (bt ^∙ btHighestCertifiedBlockId) bt
+
+    s : BlockTree → (Maybe ExecutedBlock) → BlockTree
+    s bt _ = bt
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
