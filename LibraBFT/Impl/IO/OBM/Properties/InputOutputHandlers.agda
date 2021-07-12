@@ -44,9 +44,9 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     : (pre post : RoundManager) (outs : List Output)
       → NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
       → Set
-  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Left _))) =
+  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Left _))) =
     ⊤
-  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Right _))) =
+  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Right _))) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
   VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Right _) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
@@ -87,9 +87,9 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
        rewrite eq = sym con
 
     pf : ProcessProposalOk → RWST-Post-⇒ (processProposalMsgMSpec.Contract now pm pre) (Contract pre)
-    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Left noVoteCorrect)))) =
+    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Left noVoteCorrect)))) =
       mkContract {!!} inv nv⊎vmoc tt
-    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (strict? , mkNoVoteMsgOutsCorrect noVoteOuts (Right voteNotSaved)))) =
+    pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Right voteNotSaved)))) =
       mkContract {!!} inv nv⊎vmoc (epoch≡ ppo)
     pf ppo r st outs (processProposalMsgMSpec.mkContract inv nv⊎vmoc@(Right voteMsgOutsCorrect)) =
       mkContract {!!} inv nv⊎vmoc (epoch≡ ppo)

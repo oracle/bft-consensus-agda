@@ -134,24 +134,37 @@ record VoteCorrect (pre post : RoundManager) (epoch : Epoch) (round : Round) (vo
 VoteNotSaved : (pre post : RoundManager) (epoch : Epoch) (round : Round) → Set
 VoteNotSaved pre post epoch round = ∃[ v ] VoteCorrect pre post epoch round v
 
-record NoVoteCorrect (pre post : RoundManager) (strict : Bool) : Set where
+-- In
+-- `LibraBFT.Impl.Consensus.SafetyRules.SafetyRules.agda::contructAndSignVoteM`,
+-- it is possible for us to update the field `lSafetyData ∙ sdLastVotedRound`
+-- without actually returning a vote. Therefore, the most we can say after
+-- returing from this function is that this field in the poststate is greater
+-- than or equal to the value it started at in the prestate.
+--
+-- However, it is also possible to return a vote *without* updating the last
+-- voted round. Many functions in `LibraBFT.Impl.Consensus.RoundManager` neither
+-- return a vote nor update the last voted round, and the lemma
+-- `pseudotransVoteCorrect` in those cases -- but is unprovable if we do not
+-- distinguish the cases where the last voted round cannot be increased.
+-- Therefore, it is convenient to track in the type of `NoVoteCorrect`, with the
+-- parameter `lvr≡?`, which case we are dealing with
+record NoVoteCorrect (pre post : RoundManager) (lvr≡? : Bool) : Set where
   constructor mkNoVoteCorrect
   field
     lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
-    lvr≡≤ : pre [ if strict then _≡_ else _≤_ ]L post at lSafetyData ∙ sdLastVotedRound
+    lvr≤ : pre [ if lvr≡? then _≡_ else _<_ ]L post at lSafetyData ∙ sdLastVotedRound
 
-reflNoVoteCorrect : ∀ {pre strict} → NoVoteCorrect pre pre strict
-reflNoVoteCorrect{strict = true} = mkNoVoteCorrect refl refl
-reflNoVoteCorrect{strict = false} = mkNoVoteCorrect refl ≤-refl
+reflNoVoteCorrect : ∀ {pre} → NoVoteCorrect pre pre true
+reflNoVoteCorrect = mkNoVoteCorrect refl refl
 
-transNoVoteCorrect : ∀ {s₁ s₂ s₃ strict₁ strict₂} → NoVoteCorrect s₁ s₂ strict₁ → NoVoteCorrect s₂ s₃ strict₂ → NoVoteCorrect s₁ s₃ (strict₁ ∧ strict₂)
-transNoVoteCorrect {strict₁ = false} {false} (mkNoVoteCorrect lv≡ lvr≡≤) (mkNoVoteCorrect lv≡₁ lvr≡≤₁) =
-  mkNoVoteCorrect (trans lv≡ lv≡₁) (≤-trans lvr≡≤ lvr≡≤₁)
-transNoVoteCorrect {strict₁ = false} {true} (mkNoVoteCorrect lv≡ lvr≤) (mkNoVoteCorrect lv≡₁ lvr≡₁) =
-  mkNoVoteCorrect (trans lv≡ lv≡₁) (≤-trans lvr≤ (≡⇒≤ lvr≡₁))
-transNoVoteCorrect {strict₁ = true} {false} (mkNoVoteCorrect lv≡ lvr≡) (mkNoVoteCorrect lv≡₁ lvr≤₁) =
-  mkNoVoteCorrect (trans lv≡ lv≡₁) (≤-trans (≡⇒≤ lvr≡) lvr≤₁)
-transNoVoteCorrect {strict₁ = true} {true} (mkNoVoteCorrect lv≡ lvr≡) (mkNoVoteCorrect lv≡₁ lvr≡₁) =
+transNoVoteCorrect : ∀ {s₁ s₂ s₃ lvr≡?₁ lvr≡?₂} → NoVoteCorrect s₁ s₂ lvr≡?₁ → NoVoteCorrect s₂ s₃ lvr≡?₂ → NoVoteCorrect s₁ s₃ (lvr≡?₁ ∧ lvr≡?₂)
+transNoVoteCorrect {lvr≡?₁ = false} {false} (mkNoVoteCorrect lv≡ lvr≤) (mkNoVoteCorrect lv≡₁ lvr≤₁) =
+  mkNoVoteCorrect (trans lv≡ lv≡₁) (<-trans lvr≤ lvr≤₁)
+transNoVoteCorrect {lvr≡?₁ = false} {true} (mkNoVoteCorrect lv≡ lvr≤) (mkNoVoteCorrect lv≡₁ lvr≤₁) =
+  mkNoVoteCorrect (trans lv≡ lv≡₁) (≤-trans lvr≤ (≡⇒≤ lvr≤₁))
+transNoVoteCorrect {lvr≡?₁ = true} {false} (mkNoVoteCorrect lv≡ lvr≡) (mkNoVoteCorrect lv≡₁ lvr≤₁) =
+  mkNoVoteCorrect (trans lv≡ lv≡₁) (≤-trans (s≤s (≡⇒≤ lvr≡)) lvr≤₁)
+transNoVoteCorrect {lvr≡?₁ = true} {true} (mkNoVoteCorrect lv≡ lvr≡) (mkNoVoteCorrect lv≡₁ lvr≡₁) =
   mkNoVoteCorrect (trans lv≡ lv≡₁) (trans lvr≡ lvr≡₁)
 
 pseudotransVoteCorrect
@@ -191,25 +204,25 @@ record VoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output) (epoch 
     voteMsgOuts : VoteMsgOuts outs vm (pid ∷ [])
     voteCorrect : VoteCorrect pre post epoch round (vm ^∙ vmVote)
 
-record NoVoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output) (strict : Bool) (epoch : Epoch) (round : Round) : Set where
+record NoVoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output) (lvr≡? : Bool) (epoch : Epoch) (round : Round) : Set where
   constructor mkNoVoteMsgOutsCorrect
   field
     noVoteOuts : NoVoteOuts outs
-    nvc⊎vns    : NoVoteCorrect pre post strict ⊎ VoteNotSaved pre post epoch round
+    nvc⊎vns    : NoVoteCorrect pre post lvr≡? ⊎ VoteNotSaved pre post epoch round
 
 pseudotransNoVoteMsgOutsCorrect
-  : ∀ {s₁ s₂ s₃ outs₁ outs₂ strict epoch round}
-    → NoVoteOuts outs₁ → NoVoteCorrect s₁ s₂ true → NoVoteMsgOutsCorrect s₂ s₃ outs₂ strict epoch round
-    → NoVoteMsgOutsCorrect s₁ s₃ (outs₁ ++ outs₂) strict epoch round
-pseudotransNoVoteMsgOutsCorrect{outs₁ = outs₁}{outs₂}{strict} nvo nvc (mkNoVoteMsgOutsCorrect nvo' (Left nvc')) =
+  : ∀ {s₁ s₂ s₃ outs₁ outs₂ lvr≡? epoch round}
+    → NoVoteOuts outs₁ → NoVoteCorrect s₁ s₂ true → NoVoteMsgOutsCorrect s₂ s₃ outs₂ lvr≡? epoch round
+    → NoVoteMsgOutsCorrect s₁ s₃ (outs₁ ++ outs₂) lvr≡? epoch round
+pseudotransNoVoteMsgOutsCorrect{outs₁ = outs₁}{outs₂}{lvr≡?} nvo nvc (mkNoVoteMsgOutsCorrect nvo' (Left nvc')) =
   mkNoVoteMsgOutsCorrect (++-NoVoteOuts outs₁ outs₂ nvo nvo')
     (Left (transNoVoteCorrect nvc nvc'))
-pseudotransNoVoteMsgOutsCorrect{outs₁ = outs₁}{outs₂}{strict} nvo nvc (mkNoVoteMsgOutsCorrect nvo' (Right vns)) =
+pseudotransNoVoteMsgOutsCorrect{outs₁ = outs₁}{outs₂}{lvr≡?} nvo nvc (mkNoVoteMsgOutsCorrect nvo' (Right vns)) =
   mkNoVoteMsgOutsCorrect (++-NoVoteOuts outs₁ outs₂ nvo nvo') (Right (pseudotransVoteNotSaved nvc vns))
 
 NoVote⊎VoteMsgOutsCorrect : (pre post : RoundManager) (outs : List Output) (epoch : Epoch) (round : Round) → Set
 NoVote⊎VoteMsgOutsCorrect pre post outs epoch round =
-  (Σ[ strict ∈ Bool ] NoVoteMsgOutsCorrect pre post outs strict epoch round)
+  (Σ[ lvr≡? ∈ Bool ] NoVoteMsgOutsCorrect pre post outs lvr≡? epoch round)
   ⊎ VoteMsgOutsCorrect pre post outs epoch round
 
 AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set

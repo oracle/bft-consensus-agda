@@ -51,8 +51,8 @@ module executeAndVoteMSpec (b : Block) where
     field
       noOuts        : NoMsgOuts outs
       inv           : NoEpochChange pre post
-      lvrStrict?    : Bool
-      resultCorrect : ResultCorrect pre post lvrStrict? r
+      lvr≡?    : Bool
+      resultCorrect : ResultCorrect pre post lvr≡? r
 
   contract'
     : ∀ pre
@@ -102,12 +102,12 @@ module executeAndVoteMSpec (b : Block) where
         pf : RWST-Post-⇒
                (constructAndSignVoteMSpec.Contract preUpdateBS _ _)
                (RWST-weakestPre-ebindPost unit step₃ (Contract pre))
-        pf (Left x) st outs (constructAndSignVoteMSpec.mkContract noOuts inv lvrStrict? resultCorrect) =
+        pf (Left x) st outs (constructAndSignVoteMSpec.mkContract noOuts inv lvr≡? resultCorrect) =
           mkContract noOuts
             (transNoEpochChange (mkNoEpochChange refl refl) inv)
-            lvrStrict?
+            lvr≡?
             (Left (transNoVoteCorrect (mkNoVoteCorrect refl refl) resultCorrect))
-        pf (Right vote) st outs (constructAndSignVoteMSpec.mkContract noOuts inv lvrStrict? resultCorrect) ._ refl =
+        pf (Right vote) st outs (constructAndSignVoteMSpec.mkContract noOuts inv lvr≡? resultCorrect) ._ refl =
           PersistentLivenessStorageProps.saveVoteMSpec.contract vote
             (RWST-weakestPre-ebindPost unit (const (ok vote)) (RWST-Post++ (Contract pre) outs)) st
             (λ outs₁ noMsgOuts noErrOuts →
@@ -179,11 +179,11 @@ module processProposalMSpec (proposal : Block) where
         (RWST-weakestPre-bindPost unit step₂ (Contract pre)) pf
       where
       pf : RWST-Post-⇒ (executeAndVoteMSpec.Contract proposal pre) (RWST-weakestPre-bindPost unit step₂ (Contract pre))
-      pf (Left x) st outs (executeAndVoteMSpec.mkContract noOuts inv lvrStrict? resultCorrect) ._ refl =
+      pf (Left x) st outs (executeAndVoteMSpec.mkContract noOuts inv lvr≡? resultCorrect) ._ refl =
         mkContract inv
           (++-NoMsgOuts-NoBroadcastOuts outs (LogErr fakeErr ∷ []) noOuts refl)
-          (Left (lvrStrict? , mkNoVoteMsgOutsCorrect (++-NoMsgOuts-NoVoteOuts outs _ noOuts refl) resultCorrect))
-      pf (Right vote) st outs (executeAndVoteMSpec.mkContract noOuts inv lvrStrict? resultCorrect) ._ refl ._ refl ._ refl =
+          (Left (lvr≡? , mkNoVoteMsgOutsCorrect (++-NoMsgOuts-NoVoteOuts outs _ noOuts refl) resultCorrect))
+      pf (Right vote) st outs (executeAndVoteMSpec.mkContract noOuts inv lvr≡? resultCorrect) ._ refl ._ refl ._ refl =
         syncInfoMSpec.contract (st & rsVoteSent-rm ∙~ just vote)
           (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ (Contract pre) outs))
           λ si si≡ → contract-step₃ si

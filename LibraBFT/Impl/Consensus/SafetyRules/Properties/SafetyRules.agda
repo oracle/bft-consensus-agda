@@ -144,8 +144,8 @@ module constructAndSignVoteMSpec where
     field
       noOuts        : NoMsgOuts outs
       inv           : NoEpochChange pre post
-      lvrStrict?    : Bool
-      resultCorrect : ResultCorrect pre post lvrStrict? epoch round r
+      lvr≡?    : Bool
+      resultCorrect : ResultCorrect pre post lvr≡? epoch round r
 
   private
     contractBail : ∀ {pre e epoch round} → Contract pre epoch round (Left e) pre []
@@ -188,16 +188,13 @@ module constructAndSignVoteMSpec where
         lvr<pbr : pre ^∙ lSafetyData ∙ sdLastVotedRound < proposedBlock ^∙ bRound
         lvr<pbr rewrite (Requirements.lvr≡ reqs) = r>lvr
 
-        lvr≤pbr : pre ^∙ lSafetyData ∙ sdLastVotedRound ≤ proposedBlock ^∙ bRound
-        lvr≤pbr = <⇒≤ lvr<pbr
-
         vpr≡pbr : (voteProposal ^∙ vpBlock) ≡L proposedBlock at bRound
         vpr≡pbr rewrite Requirements.vp≡pb reqs = refl
 
         bailAfterSetSafetyData : Contract pre epoch round (Left fakeErr) preUpdatedSD []
         bailAfterSetSafetyData =
           mkContract refl (mkNoEpochChange refl (Requirements.es≡ reqs))
-            false (mkNoVoteCorrect (Requirements.lv≡ reqs) lvr≤pbr)
+            false (mkNoVoteCorrect (Requirements.lv≡ reqs) lvr<pbr)
 
         contract-step₁ : RWST-weakestPre-ebindPost unit step₁ (Contract pre epoch round) (Right _) pre []
         contract-step₂ : RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre epoch round) (Right _) preUpdatedSD []
@@ -349,8 +346,8 @@ module constructAndSignVoteMSpec where
           x post (LogInfo fakeInfo ∷ outs)
 
       pf : ∀ r st outs → Contract pre epoch round r st outs → Post r st outs
-      pf r st outs (mkContract noOuts inv lvrStrict? resultCorrect) ._ refl .unit refl =
-        mkContract (++-NoMsgOuts outs (LogInfo fakeInfo ∷ []) noOuts refl) inv lvrStrict? resultCorrect
+      pf r st outs (mkContract noOuts inv lvr≡? resultCorrect) ._ refl .unit refl =
+        mkContract (++-NoMsgOuts outs (LogInfo fakeInfo ∷ []) noOuts refl) inv lvr≡? resultCorrect
 
     contract
       : ∀ pre Post → (∀ r st outs → Contract pre epoch round r st outs → Post r st outs)
