@@ -31,19 +31,12 @@ getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
 executeAndInsertBlockE : BlockStore → Block → Either ErrLog (BlockStore × ExecutedBlock)
 
-<<<<<<< HEAD
-executeBlockE : BlockStore → Block → Either ErrLog ExecutedBlock
-
-pathFromRoot : HashValue → BlockStore → Either ErrLog (List ExecutedBlock)
-=======
 executeBlockE
-  : ∀ {𝓔 : EpochConfig}
-  → BlockStore 𝓔 → Block
+  : BlockStore → Block
   → Either ErrLog ExecutedBlock
 
 pathFromRoot
-  : ∀ {𝓔 : EpochConfig}
-  → HashValue → BlockStore 𝓔
+  : HashValue → BlockStore
   → Either ErrLog (List ExecutedBlock)
 
 pathFromRootM
@@ -68,8 +61,14 @@ commitM finalityProof = do
         then bail fakeErr -- "commit block round lower than root"
         else pathFromRootM blockIdToCommit >>= λ where
           (Left  e) → bail e
-          (Right r) → {!!} -- HC RIGHT HERE
->>>>>>> cb48585... working on BlockStore.commitM; Signed-off-by: Harold Carr harold.carr@oracle.com
+          (Right r) → continue blockToCommit r
+ where
+  continue : ExecutedBlock → List ExecutedBlock → LBFT (Either ErrLog Unit)
+  continue blockToCommit blocksToCommit = do
+    -- NOTE: Haskell tells the "StateComputer" to commit 'blocksToCommit'.
+    -- TODO-1: The StateComputer might indicate an epoch change.
+    -- NO NEED FOR PRUNING: pruneTreeM blockToCommit
+    ok unit
 
 ------------------------------------------------------------------------------
 
