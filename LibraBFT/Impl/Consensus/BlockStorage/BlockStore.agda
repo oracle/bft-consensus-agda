@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -23,7 +24,6 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 postulate
   insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
-  getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 
 ------------------------------------------------------------------------------
 
@@ -151,6 +151,9 @@ insertSingleQuorumCertE bs qc =
 ------------------------------------------------------------------------------
 
 getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
+
+getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
+getQuorumCertForBlock hv bs = Map.lookup hv (bs ^∙ bsInner ∙ btIdToQuorumCert)
 
 pathFromRootM hv = do
   bs ← use lBlockStore
