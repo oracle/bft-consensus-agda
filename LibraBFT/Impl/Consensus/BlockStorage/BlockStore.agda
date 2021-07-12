@@ -13,6 +13,7 @@ import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree       as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -21,9 +22,6 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
-
-postulate
-  insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
 
 ------------------------------------------------------------------------------
 
@@ -147,6 +145,18 @@ insertSingleQuorumCertE bs qc =
                           (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
                     bt  ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
                     pure (bs' & bsInner ∙~ bt)))
+
+------------------------------------------------------------------------------
+
+insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
+insertTimeoutCertificateM tc = do
+  curTcRound ← maybeHsk {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
+  if-dec tc ^∙ tcRound ≤?ℕ curTcRound
+    then ok unit
+    else
+      PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtxt ∙?∙ λ _ → do
+        BlockTree.replaceTimeoutCertM tc
+        ok unit
 
 ------------------------------------------------------------------------------
 

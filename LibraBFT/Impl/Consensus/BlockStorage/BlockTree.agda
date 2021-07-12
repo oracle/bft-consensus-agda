@@ -34,6 +34,11 @@ postulate
 --   then Left  fakeErr
 --   else Right (lb & lbChildren %~ Set.insert hv)
 
+replaceTimeoutCertM : TimeoutCertificate → LBFT Unit
+replaceTimeoutCertM tc = do
+  lBlockStore ∙ bsInner ∙ btHighestTimeoutCert ∙= just tc
+  -- logInfo lTO (InfoUpdateHighestTimeoutCert (Just tc))
+
 ------------------------------------------------------------------------------
 
 insertBlockE : ExecutedBlock → BlockTree
