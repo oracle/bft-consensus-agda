@@ -40,15 +40,12 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   epoch = pm ^∙ pmProposal ∙ bEpoch
   round = pm ^∙ pmProposal ∙ bRound
 
-  VoteMsg⊎VoteNotSaved-sdEpoch
-    : (pre post : RoundManager) (outs : List Output)
-      → NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
-      → Set
-  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Left _))) =
+  VoteMsg⊎VoteNotSaved-sdEpoch : ∀ {pre post outs} → NoVote⊎VoteMsgOutsCorrect pre post outs epoch round → Set
+  VoteMsg⊎VoteNotSaved-sdEpoch (Left (_ , mkNoVoteMsgOutsCorrect _ (Left _))) =
     ⊤
-  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Left (lvr≡? , mkNoVoteMsgOutsCorrect noVoteOuts (Right _))) =
+  VoteMsg⊎VoteNotSaved-sdEpoch{pre} (Left (_ , mkNoVoteMsgOutsCorrect _ (Right _))) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
-  VoteMsg⊎VoteNotSaved-sdEpoch pre post outs (Right _) =
+  VoteMsg⊎VoteNotSaved-sdEpoch{pre} (Right _) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
 
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
@@ -57,7 +54,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       inv           : RMPreservesInvariant pre post
       noEpochChange : NoEpochChange pre post
       outsCorrect   : NoVote⊎VoteMsgOutsCorrect pre post outs epoch round
-      sdEpoch≡      : VoteMsg⊎VoteNotSaved-sdEpoch pre post outs outsCorrect
+      sdEpoch≡      : VoteMsg⊎VoteNotSaved-sdEpoch outsCorrect
 
   contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
   contract pre =
