@@ -49,11 +49,10 @@ commitM
   : LedgerInfoWithSignatures
   → LBFT (Either ErrLog Unit)
 commitM finalityProof = do
-  s ← get
-  let bs = rmGetBlockStore s
-  maybeS (bs ^∙ bsRoot _) (bail fakeErr) $ λ bsr → do
+  bs ← use lBlockStore
+  maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
-    case getBlock {α-EC-RM s} blockIdToCommit bs of λ where
+    case getBlock blockIdToCommit bs of λ where
       nothing →
         bail (ErrBlockNotFound blockIdToCommit)
       (just blockToCommit) →
@@ -116,20 +115,18 @@ executeBlockE bs block =
 ------------------------------------------------------------------------------
 
 insertSingleQuorumCertE
-  : ∀ {𝓔 : EpochConfig}
-  → BlockStore 𝓔 → QuorumCert
-  → Either ErrLog (BlockStore 𝓔)  {- Haskell returns ([InfoLog a], BlockStore a)-}
+  : BlockStore → QuorumCert
+  → Either ErrLog BlockStore {- Haskell returns ([InfoLog a], BlockStore a)-}
 
 insertSingleQuorumCertM
   : QuorumCert
   → LBFT (Either ErrLog Unit)
 insertSingleQuorumCertM qc = do
-  s ← get
-  let bs = rmGetBlockStore s
+  bs ← use lBlockStore
   case insertSingleQuorumCertE bs qc of λ where
     (Left  e)   → bail e
     (Right bs') → do
-      put (rmSetBlockStore s bs')
+      lBlockStore ∙= bs'
       ok unit
 
 insertSingleQuorumCertE bs qc =
@@ -148,17 +145,16 @@ insertSingleQuorumCertE bs qc =
              else (do
                     bs' ← {-withErrCtx' (here [])-}
                           (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
-                    bt  ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner _)
-                    pure (bs' & bsInner _ ∙~ bt)))
+                    bt  ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
+                    pure (bs' & bsInner ∙~ bt)))
 
 ------------------------------------------------------------------------------
 
 getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
 pathFromRootM hv = do
-  s ← get
-  let bs = rmGetBlockStore s
-  case pathFromRoot {α-EC-RM s} hv bs of λ where
+  bs ← use lBlockStore
+  case pathFromRoot hv bs of λ where
     (Left  e) → bail e
     (Right r) → ok r
 

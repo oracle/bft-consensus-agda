@@ -31,8 +31,7 @@ postulate
     → LBFT (Either ErrLog Unit)
 
   needFetchForQuorumCert
-    : ∀ {𝓔 : EpochConfig}
-    → QuorumCert → BlockStore 𝓔
+    : QuorumCert → BlockStore
     → Either ErrLog NeedFetchResult
 
 ------------------------------------------------------------------------------
@@ -41,8 +40,7 @@ insertQuorumCertM
   : QuorumCert → BlockRetriever
   → LBFT (Either ErrLog Unit)
 insertQuorumCertM qc retriever = do
-  s ← get
-  let bs = rmGetBlockStore s
+  bs ← use lBlockStore
   _ ← case needFetchForQuorumCert qc bs of \where
     (Left e) →
       bail e
@@ -54,7 +52,7 @@ insertQuorumCertM qc retriever = do
       ok unit
     (Right _) →
       ok unit
-  maybeS (bs ^∙ bsRoot _) (bail fakeErr) $ λ bsr →
+  maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
     if-dec (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
       then (do
         let finalityProof = qc ^∙ qcLedgerInfo

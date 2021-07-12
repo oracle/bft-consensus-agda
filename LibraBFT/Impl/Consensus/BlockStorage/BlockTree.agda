@@ -23,9 +23,8 @@ postulate
   addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 
   insertQuorumCertE
-    : ∀ {𝓔 : EpochConfig}
-    → QuorumCert → BlockTree 𝓔
-    → Either ErrLog (BlockTree 𝓔)
+    : QuorumCert → BlockTree
+    → Either ErrLog BlockTree
 
 ------------------------------------------------------------------------------
 
@@ -38,7 +37,7 @@ postulate
 ------------------------------------------------------------------------------
 
 insertBlockE : ExecutedBlock → BlockTree
-               → Either ErrLog (BlockTree × ExecutedBlock)
+             → Either ErrLog (BlockTree × ExecutedBlock)
 insertBlockE block bt = do
   let blockId = block ^∙ ebId
   case btGetBlock blockId bt of λ where
