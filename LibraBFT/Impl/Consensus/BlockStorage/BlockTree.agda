@@ -11,7 +11,6 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
