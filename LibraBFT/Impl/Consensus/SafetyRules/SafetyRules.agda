@@ -23,9 +23,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
-postulate
-  obmCheckSigner : SafetyRules → Bool
-
 ------------------------------------------------------------------------------
 
 signer : SafetyRules → Either ErrLog ValidatorSigner
