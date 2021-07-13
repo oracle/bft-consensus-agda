@@ -158,7 +158,7 @@ insertSingleQuorumCertE bs qc =
 insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
 insertTimeoutCertificateM tc = do
   curTcRound ← maybeHsk {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
-  if-dec tc ^∙ tcRound ≤?ℕ curTcRound
+  ifM tc ^∙ tcRound ≤?ℕ curTcRound
     then ok unit
     else
       PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtxt ∙?∙ λ _ → do
