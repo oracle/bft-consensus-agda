@@ -134,3 +134,6 @@ setL : Lens St A → A → RWST Ev Wr St Unit
 setL l x = l %= const x
 syntax setL l x = l ∙= x
 
+setL? : Lens St (Maybe A) → A → RWST Ev Wr St Unit
+setL? l x = l ∙= just x
+syntax setL? l x = l ?= x
