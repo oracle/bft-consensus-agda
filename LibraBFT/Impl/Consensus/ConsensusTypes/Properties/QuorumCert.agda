@@ -34,13 +34,15 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
       vdProp  : VoteDataProps.Contract (self ^∙ qcVoteData)
   open rnd≢0Props
 
-  rnd≡0 = self ^∙ qcCertifiedBlock ∙ biRound ≡ 0
+  ParentProps : Dec (self ^∙ qcCertifiedBlock ∙ biRound ≡ 0) → Set
+  ParentProps (yes _) = rnd≡0Props
+  ParentProps (no  _) = rnd≢0Props
 
   record Contract : Set where
     field
       lihash≡ : self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash ≡ voteHash
-      rnd0    :   rnd≡0 → rnd≡0Props
-      ¬rnd0   : ¬ rnd≡0 → rnd≢0Props
+      rnd≟0   : Dec (self ^∙ qcCertifiedBlock ∙ biRound ≡ 0)
+      parProp : ParentProps rnd≟0
   open Contract
 
   contract : ∀ (r : Either ErrLog Unit) → r ≡ Right unit
@@ -77,8 +79,10 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
      with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
   ...| yes noSigs = λ _ _ →
          record { lihash≡ = refl
-                ; rnd0    = λ _ → record { par≡cert = refl ; cert≡li = refl ; noSigs = noSigs }
-                ; ¬rnd0   = λ x → ⊥-elim (x refl) }
+                ; rnd≟0 = yes refl
+                ; parProp = record { par≡cert = refl
+                                   ; cert≡li = refl
+                                   ; noSigs = noSigs } }
   contract (Right unit)
      | yes refl
      | no neq
@@ -91,7 +95,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : Quor
   ...| Left err   | _ = λ _ ()
   ...| Right unit | [ R' ] = λ _ _ →
          record { lihash≡ = refl
-                ; rnd0    = ⊥-elim ∘ neq
-                ; ¬rnd0   = λ _ →
-                    record { sigProp = R
-                           ; vdProp  = VoteDataProps.contract (self ^∙ qcVoteData) R' }}
+                ; rnd≟0 = no neq
+                ; parProp = record { sigProp = R
+                                   ; vdProp = VoteDataProps.contract (self ^∙ qcVoteData) R' } }

@@ -164,11 +164,13 @@ module verifyQcMSpec (self : QuorumCert) where
   ...| yes refl
      with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
   ...| no neq = λ where _ refl → refl , refl
-  ...| yes noSigs = λ where _ refl → refl , refl , record { lihash≡ = refl
-                                                          ; rnd0    = λ _ → record { par≡cert = refl
-                                                                                   ; cert≡li = refl
-                                                                                   ; noSigs = noSigs }
-                                                          ; ¬rnd0   = λ x → ⊥-elim (x refl) }
+  ...| yes noSigs =
+         λ where _ refl →
+                  refl , refl , record { lihash≡ = refl
+                                       ; rnd≟0 = yes refl
+                                       ; parProp = record { par≡cert = refl
+                                                          ; cert≡li = refl
+                                                          ; noSigs = noSigs } }
   contract' pre vv refl
      | yes refl
      | no neq
@@ -179,13 +181,14 @@ module verifyQcMSpec (self : QuorumCert) where
      with VoteData.verify (self ^∙ qcVoteData) | inspect
           VoteData.verify (self ^∙ qcVoteData)
   ...| Left e     | _ = λ where _ refl → refl , refl
-  ...| Right unit | [ R' ] = λ where _ refl → refl , refl
-                                            , record { lihash≡ = refl
-                                                     ; rnd0    = ⊥-elim ∘ neq
-                                                     ; ¬rnd0   = λ _ → record { sigProp = R
-                                                                              ; vdProp = VoteDataProps.contract
-                                                                                           (self ^∙ qcVoteData)
-                                                                                           R' }}
+  ...| Right unit | [ R' ] =
+         λ where _ refl →
+                  refl , refl , record { lihash≡ = refl
+                                       ; rnd≟0   = no neq
+                                       ; parProp = record { sigProp = R
+                                                          ; vdProp = VoteDataProps.contract
+                                                                       (self ^∙ qcVoteData)
+                                                                       R' }}
 
   -- Suppose verifyQcM runs from prestate pre, and we wish to ensure that postcondition Post holds
   -- afterwards.  If P holds provided verifyQcM does not modify the state and does not produce any
