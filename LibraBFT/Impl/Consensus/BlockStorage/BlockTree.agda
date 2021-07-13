@@ -40,7 +40,7 @@ postulate
 replaceTimeoutCertM : TimeoutCertificate → LBFT Unit
 replaceTimeoutCertM tc = do
   lBlockStore ∙ bsInner ∙ btHighestTimeoutCert ?= tc
-  -- logInfo lTO (InfoUpdateHighestTimeoutCert (Just tc))
+  logInfo -- lTO (InfoUpdateHighestTimeoutCert (Just tc))
 
 ------------------------------------------------------------------------------
 
