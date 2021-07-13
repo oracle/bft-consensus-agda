@@ -54,11 +54,11 @@ commitM finalityProof = do
       nothing →
         bail (ErrBlockNotFound blockIdToCommit)
       (just blockToCommit) →
-        if-dec blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound
-        then bail fakeErr -- "commit block round lower than root"
-        else pathFromRootM blockIdToCommit >>= λ where
-          (Left  e) → bail e
-          (Right r) → continue blockToCommit r
+        ifM‖ ⌊ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ⌋ ≔
+             bail fakeErr -- "commit block round lower than root"
+           ‖ otherwise≔ (pathFromRootM blockIdToCommit >>= λ where
+                           (Left  e) → bail e
+                           (Right r) → continue blockToCommit r)
  where
   continue : ExecutedBlock → List ExecutedBlock → LBFT (Either ErrLog Unit)
   continue blockToCommit blocksToCommit = do
