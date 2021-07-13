@@ -10,6 +10,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
+import      LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 open import LibraBFT.ImplShared.Base.Types
@@ -35,14 +36,15 @@ signer self = maybeS (self ^∙ srValidatorSigner) (Left fakeErr {- error: signe
 extensionCheckM : VoteProposal → LBFT (Either ErrLog VoteData)
 extensionCheckM voteProposal = do
   let proposedBlock = voteProposal ^∙ vpBlock
-   {- obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof -}
+      obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof
   -- IMPL-TODO: verify .accumulator_extension_proof().verify ...
   ok (VoteData.new
        (Block.genBlockInfo
          proposedBlock
          -- OBM-LBFT-DIFF: completely different
-         {- (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves)) -}
-         {- (voteProposal ^∙ vpNextEpochState) -})
+         (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves))
+         (obmAEP ^∙ aepObmNumLeaves)
+         (voteProposal ^∙ vpNextEpochState))
        (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
 
 ------------------------------------------------------------------------------

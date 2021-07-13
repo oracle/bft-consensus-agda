@@ -34,15 +34,6 @@ module LibraBFT.ImplShared.Consensus.Types where
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Util.Crypto                    public
 
-  record EpochState : Set where
-    constructor EpochState∙new
-    field
-      _esEpoch    : Epoch
-      _esVerifier : ValidatorVerifier
-  open EpochState public
-  unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
-             (esEpoch ∷ esVerifier ∷ [])
-
   data NewRoundReason : Set where
     QCReady : NewRoundReason
     TOReady : NewRoundReason

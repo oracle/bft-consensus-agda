@@ -312,6 +312,12 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+  open import Data.String as String
+    hiding (_==_ ; _≟_)
+
+  check : Bool → List String → Either String Unit
+  check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
+
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that
   -- is separate from the main project?
