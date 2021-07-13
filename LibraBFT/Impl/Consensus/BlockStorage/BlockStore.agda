@@ -140,7 +140,7 @@ insertSingleQuorumCertE bs qc =
                   -- (here ["insert QC without having the block in store first"])
                   (qc ^∙ qcCertifiedBlock ∙ biId)))
          (λ executedBlock ->
-             if ExecutedBlock.blockInfo executedBlock == qc ^∙ qcCertifiedBlock
+             if ExecutedBlock.blockInfo executedBlock /= qc ^∙ qcCertifiedBlock
              then Left fakeErr
  --                      (ErrL (here [ "QC for block has different BlockInfo than EB"
  --                                  , "QC certified BI", show (qc^.qcCertifiedBlock)
