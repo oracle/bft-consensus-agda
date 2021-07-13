@@ -121,7 +121,7 @@ executeBlockE bs block =
 
 insertSingleQuorumCertE
   : BlockStore → QuorumCert
-  → Either ErrLog BlockStore {- Haskell returns ([InfoLog a], BlockStore a)-}
+  → Either ErrLog (BlockStore × List InfoLog)
 
 insertSingleQuorumCertM
   : QuorumCert
@@ -130,7 +130,8 @@ insertSingleQuorumCertM qc = do
   bs ← use lBlockStore
   case insertSingleQuorumCertE bs qc of λ where
     (Left  e)   → bail e
-    (Right bs') → do
+    (Right (bs' , info)) → do
+      forM_ info $ (const logInfo)
       lBlockStore ∙= bs'
       ok unit
 
@@ -148,10 +149,10 @@ insertSingleQuorumCertE bs qc =
  --                                  , "EB", show executedBlock ]))
 
              else (do
-                    bs' ← {-withErrCtx' (here [])-}
-                          (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
-                    bt  ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
-                    pure (bs' & bsInner ∙~ bt)))
+                    bs'           ← {-withErrCtx' (here [])-}
+                                    (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
+                    (bt , output) ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
+                    pure (record bs' { _bsInner = bt } , output)))
 
 ------------------------------------------------------------------------------
 

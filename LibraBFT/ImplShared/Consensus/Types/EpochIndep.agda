@@ -146,6 +146,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   BlockInfo-η refl refl refl refl refl refl = refl
 
 {-
+  instance
+    Eq-ByteString : Eq ByteString
+    Eq._≟_ Eq-ByteString = _≟ByteString_
+
   _≟BlockInfo_ : (b₁ b₂ : BlockInfo) → Dec (b₁ ≡ b₂)
   l ≟BlockInfo r with ((l ^∙ biEpoch) ≟ (r ^∙ biEpoch))
   ...| no  no-e = no  λ where refl → no-e refl
@@ -331,6 +335,25 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     NilBlock : BlockType
     Genesis  : BlockType
   postulate instance enc-BlockType : Encoder BlockType
+
+  _≟BlockType_ : (b₁ b₂ : BlockType) → Dec (b₁ ≡ b₂)
+  Genesis          ≟BlockType Genesis          = true because ofʸ refl
+  NilBlock         ≟BlockType NilBlock         = true because ofʸ refl
+  (Proposal t₁ a₁) ≟BlockType (Proposal t₂ a₂) with t₁ ≟ t₂
+  ...| no  no-t = no λ where refl → no-t refl
+  ...| yes refl with a₁ ≟ a₂
+  ...| no  no-a = no λ where refl → no-a refl
+  ...| yes refl = yes refl
+  Genesis          ≟BlockType NilBlock       = no (λ ())
+  Genesis          ≟BlockType (Proposal _ _) = no (λ ())
+  NilBlock         ≟BlockType Genesis        = no (λ ())
+  NilBlock         ≟BlockType (Proposal _ _) = no (λ ())
+  (Proposal _ _)   ≟BlockType Genesis        = no (λ ())
+  (Proposal _ _)   ≟BlockType NilBlock       = no (λ ())
+
+  instance
+    Eq-BlockType : Eq BlockType
+    Eq._≟_ Eq-BlockType = _≟BlockType_
 
   record BlockData : Set where
     constructor BlockData∙new

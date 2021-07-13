@@ -6,7 +6,7 @@
 
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Execution.ExecutorTypes.StateComputeResult as StateComputeResult
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
@@ -14,6 +14,9 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock where
+
+isNilBlock : ExecutedBlock → Bool
+isNilBlock eb = Block.isNilBlock (eb ^∙ ebBlock)
 
 blockInfo : ExecutedBlock → BlockInfo
 blockInfo eb =

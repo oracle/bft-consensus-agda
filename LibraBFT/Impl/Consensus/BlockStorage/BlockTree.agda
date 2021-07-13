@@ -5,12 +5,14 @@
 -}
 
 open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap                         as Map
+open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
+open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -58,57 +60,53 @@ insertBlockE block bt = do
 
 ------------------------------------------------------------------------------
 
--- IMPL-DIFF
---
--- In Haskell the "E" version
--- - either returns error OR info and an updated block tree
--- - is implemented in terms of the "M" version
--- In Haskell the "M" version does the work
---
--- Here it is just the opposite
--- - the "E" version does the work - BUT DOES NOT LOG INFO (that is the main difference)
--- - the "M" just updates the state
---
-
-insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog BlockTree
-insertQuorumCertE qc bt = do
+insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
+insertQuorumCertE qc bt0 = do
   let blockId = qc ^∙ qcCertifiedBlock ∙ biId
-  case safetyInvariant bt of λ where
+
+  let safetyInvariant : Either ErrLog Unit
+      safetyInvariant = forM_ (Map.elems (bt0 ^∙ btIdToQuorumCert)) $ \x →
+        lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
+                ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
+                ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
+                /=  qc ^∙ qcCertifiedBlock ∙ biRound))
+               (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
+
+  case safetyInvariant of λ where
     (Left  e)    → Left fakeErr
-    (Right unit) → case btGetBlock blockId bt of λ where
-      nothing      → Left fakeErr
-      (just block) → maybeS (bt ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
-        if-dec block ^∙ ebRound ≥? hcb ^∙ ebRound
-        then (do
-          let bt' = record bt { _btHighestCertifiedBlockId = block ^∙ ebId
-                              ; _btHighestQuorumCert       = qc
-                              ; _btIdToQuorumCert = Map.insert blockId qc (bt ^∙ btIdToQuorumCert)
-                              }
-          if-dec bt' ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound <?
-                 qc  ^∙                       qcCommitInfo ∙ biRound
-            then pure (record bt' { _btHighestCommitCert   = qc })
-            else pure bt')
-        else
-          pure bt
+    (Right unit) →
+      maybeS (btGetBlock blockId bt0) (Left fakeErr) $ λ block →
+      maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
+      if-dec ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
+      then
+       (let bt   = record bt0 { _btHighestCertifiedBlockId = block ^∙ ebId
+                              ; _btHighestQuorumCert       = qc }
+            info = (fakeInfo ∷ [])
+         in pure (continue1 bt  blockId block info))
+      else  pure (continue1 bt0 blockId block [])
  where
+  continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
+
+  continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
+  continue1 bt blockId block info =
+    continue2 ( record bt { _btIdToQuorumCert = lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert) } )
+              ( (fakeInfo ∷ info) ++ (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [] ))
+  continue2 bt info =
+    if-dec (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
+    then (record bt { _btHighestCommitCert = qc } , info)
+    else (bt , info)
+
   here' : List String.String → List String.String
-
-  safetyInvariant : BlockTree → Either ErrLog Unit
-  safetyInvariant bt = forM_ (Map.elems (bt ^∙ btIdToQuorumCert)) $ \x →
-    lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
-            ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
-            ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
-            /=  qc ^∙ qcCertifiedBlock ∙ biRound))
-           (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
-
   here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
   bt ← use lBlockTree
   case insertQuorumCertE qc bt of λ where
-    (Left e)    → logErr
-    (Right bt') → lBlockTree ∙= bt'
+    (Left  e)   → logErr
+    (Right (bt' , info)) → do
+      forM_ info (const logInfo)
+      lBlockTree ∙= bt'
 
 ------------------------------------------------------------------------------
 
