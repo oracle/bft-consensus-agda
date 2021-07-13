@@ -23,9 +23,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
     lcheck (self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash == voteHash)
            -- (here ["Quorum Cert's hash mismatch LedgerInfo"])
 
-    -- TODO-?: It would be nice to be able to omit the ⌊ ⌋, similar to grd‖ (as in
-    -- Network.processProposal).  We do have ifM* but those are currently available only for the
-    -- RWST monad.
     if (self ^∙ qcCertifiedBlock ∙ biRound == 0)
       -- TODO-?: It would be nice not to require the parens around the do block
       then (do

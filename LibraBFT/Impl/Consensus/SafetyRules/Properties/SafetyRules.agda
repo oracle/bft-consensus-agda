@@ -194,7 +194,7 @@ module verifyQcMSpec (self : QuorumCert) where
   -- prestate, then verifyQcM ensures P holds.  Proving this directly is painful because it's
   -- difficult to construct a QuorumCertProps.Contract self (getVv pre) that Agda understands allows
   -- us to invoke the rPrf (condition on P in case verifyQcM succeeds).  Therefore, we restate the
-  -- conditions on P (as P', above) and prove that P' implies P, and then use RWST-impl to achieve
+  -- conditions on P (as P', above) and prove that P' implies P, and then use LBFT-⇒ to achieve
   -- the desired result.
   contract
     : ∀ P pre
@@ -202,7 +202,7 @@ module verifyQcMSpec (self : QuorumCert) where
     → (QuorumCertProps.Contract self (getVv pre) → P (Right unit) pre [])
     → RWST-weakestPre (verifyQcM self) P unit pre
   contract Post pre lPrf rPrf = LBFT-⇒ (P' pre) Post
-                                       (λ { (Left x₁) st outs (refl , refl)          →  lPrf
+                                       (λ { (Left x₁) st outs (refl , refl)          → lPrf
                                           ; (Right unit) st outs (refl , refl , prf) → rPrf prf })
                                        (verifyQcM self)
                                        pre
