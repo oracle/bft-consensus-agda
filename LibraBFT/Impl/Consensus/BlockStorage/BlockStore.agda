@@ -54,7 +54,7 @@ commitM finalityProof = do
       nothing →
         bail (ErrBlockNotFound blockIdToCommit)
       (just blockToCommit) →
-        ifM‖ ⌊ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ⌋ ≔
+        ifM‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
              bail fakeErr -- "commit block round lower than root"
            ‖ otherwise≔ (pathFromRootM blockIdToCommit >>= λ where
                            (Left  e) → bail e
