@@ -172,11 +172,7 @@ getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 getQuorumCertForBlock : HashValue → BlockStore → Maybe QuorumCert
 getQuorumCertForBlock hv bs = Map.lookup hv (bs ^∙ bsInner ∙ btIdToQuorumCert)
 
-pathFromRootM hv = do
-  bs ← use lBlockStore
-  case pathFromRoot hv bs of λ where
-    (Left  e) → bail e
-    (Right r) → ok r
+pathFromRootM hv = pathFromRoot hv <$> use lBlockStore
 
 pathFromRoot hv bs = BlockTree.pathFromRoot hv (bs ^∙ bsInner)
 
