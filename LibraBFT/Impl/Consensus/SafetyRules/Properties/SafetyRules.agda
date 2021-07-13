@@ -144,12 +144,12 @@ module verifyQcMSpec (self : QuorumCert) where
   -- See comment on contract below to understand the motivation for stating and proving the property
   -- this way.
 
-  P' : RoundManager → RWST-Post Output RoundManager (Either ErrLog Unit)
-  P' pre = (λ { (Left x)  post outs → post ≡ pre × outs ≡ []
-              ; (Right _) post outs → post ≡ pre × outs ≡ []
-                                    × QuorumCertProps.Contract self (getVv pre) })
+  Contract : RoundManager → RWST-Post Output RoundManager (Either ErrLog Unit)
+  Contract pre (Left _)  post outs = post ≡ pre × outs ≡ []
+  Contract pre (Right _) post outs = post ≡ pre × outs ≡ []
+                                   × QuorumCertProps.Contract self (getVv pre)
 
-  contract' : ∀ pre → RWST-weakestPre (verifyQcM self) (P' pre) unit pre
+  contract' : ∀ pre → RWST-weakestPre (verifyQcM self) (Contract pre) unit pre
   contract' pre _vv ._
      with self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash ≟ hashVD (self ^∙ qcVoteData)
   ...| no neq = λ where _ refl → refl , refl
@@ -204,7 +204,7 @@ module verifyQcMSpec (self : QuorumCert) where
     → (∀ {e} → P (Left e) pre [])  -- verifyQcM does not emit any outputs, it just propagates a Left ErrLog, hence [] 
     → (QuorumCertProps.Contract self (getVv pre) → P (Right unit) pre [])
     → RWST-weakestPre (verifyQcM self) P unit pre
-  contract Post pre lPrf rPrf = LBFT-⇒ (P' pre) Post
+  contract Post pre lPrf rPrf = LBFT-⇒ (Contract pre) Post
                                        (λ { (Left x₁) st outs (refl , refl)          → lPrf
                                           ; (Right unit) st outs (refl , refl , prf) → rPrf prf })
                                        (verifyQcM self)
