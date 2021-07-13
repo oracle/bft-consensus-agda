@@ -4,11 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
+------------------------------------------------------------------------------
+open import Data.String as String hiding (_==_ ; _≟_; Left; Right)
 
 module LibraBFT.Impl.OBM.Logging.Logging where
 

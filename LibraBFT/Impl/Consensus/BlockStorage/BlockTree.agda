@@ -18,6 +18,9 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String as String
+
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
@@ -88,13 +91,17 @@ insertQuorumCertE qc bt = do
         else
           pure bt
  where
+  here' : List String.String → List String.String
+
   safetyInvariant : BlockTree → Either ErrLog Unit
   safetyInvariant bt = forM_ (Map.elems (bt ^∙ btIdToQuorumCert)) $ \x →
     lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
             ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
             ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
             /=  qc ^∙ qcCertifiedBlock ∙ biRound))
-           fakeErr
+           (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
+
+  here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
