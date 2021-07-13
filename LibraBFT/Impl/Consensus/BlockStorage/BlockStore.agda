@@ -65,6 +65,13 @@ commitM finalityProof = do
     -- NOTE: Haskell tells the "StateComputer" to commit 'blocksToCommit'.
     -- TODO-1: The StateComputer might indicate an epoch change.
     -- NO NEED FOR PRUNING: pruneTreeM blockToCommit
+    --
+    -- THIS IS WHERE COMMIT IS COMPLETED.
+    -- To connect to the proof's correctness condition, it will be necessary to
+    -- send a CommitMsg, which will carry evidence of the CommitRule
+    -- needed to invoke correctness conditions like ConcCommitsDoNotConflict*.
+    -- The details of this connection yet have not been settled yet.
+    -- TODO-1: Once the details are determined, then make the connection.
     ok unit
 
 ------------------------------------------------------------------------------
