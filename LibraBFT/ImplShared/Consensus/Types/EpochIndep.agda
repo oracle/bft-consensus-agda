@@ -53,9 +53,70 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   Instant : Set
   Instant = ℕ   -- TODO-2: should eventually be a time stamp
 
+  -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
+  record Version : Set where
+    constructor mkVersion
+    field
+      _vVE : Epoch
+      _vVR : Round
+  open Version public
+  postulate instance enc-Version : Encoder Version
+
+  _≤-Version_ : Version → Version → Set
+  v1 ≤-Version v2 = _vVE v1 < _vVE v2
+                  ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 ≤ _vVR v2
+
+  _≤?-Version_ : (v1 v2 : Version) → Dec (v1 ≤-Version v2)
+  v1 ≤?-Version v2
+     with _vVE v1 <? _vVE v2
+  ...| yes prf = yes (inj₁ prf)
+  ...| no  ege
+     with _vVE v1 ≟ _vVE v2
+  ...| no  rneq = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (x , _)) → rneq x })
+  ...| yes refl
+     with _vVR v1 ≤? _vVR v2
+  ...| yes rleq = yes (inj₂ (refl , rleq))
+  ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (_ , x)) → rgt x })
+
   -----------------
   -- Information --
   -----------------
+
+  record ValidatorConsensusInfo : Set where
+    constructor ValidatorConsensusInfo∙new
+    field
+     _vciPublicKey   : PK
+     _vciVotingPower : U64
+  open ValidatorConsensusInfo public
+  unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
+             (vciPublicKey ∷ vciVotingPower ∷ [])
+
+  record ValidatorVerifier : Set where
+    constructor ValidatorVerifier∙new
+    field
+      _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
+      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
+  open ValidatorVerifier public
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+
+
+  record EpochState : Set where
+    constructor EpochState∙new
+    field
+      _esEpoch    : Epoch
+      _esVerifier : ValidatorVerifier
+  open EpochState public
+  unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
+             (esEpoch ∷ esVerifier ∷ [])
+
+  postulate -- one valid assumption, one that can be proved using it
+    instance
+      Enc-EpochState   : Encoder EpochState
+      Enc-EpochStateMB : Encoder (Maybe EpochState)  -- TODO-1: make combinator to build this
 
   record BlockInfo : Set where
     constructor BlockInfo∙new
@@ -63,15 +124,27 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _biEpoch : Epoch
       _biRound : Round
       _biId    : HashValue
-      -- This has more fields...
+      _biExecutedStateId : HashValue -- aka liTransactionAccumulatorHash
+      _biVersion         : Version
+      --, _biTimestamp       :: Instant
+      _biNextEpochState  : Maybe EpochState
   open BlockInfo public
-  unquoteDecl biEpoch   biRound   biId = mkLens (quote BlockInfo)
-             (biEpoch ∷ biRound ∷ biId ∷ [])
+  unquoteDecl biEpoch   biRound   biId   biExecutedState   biVersion   biNextEpochState = mkLens (quote BlockInfo)
+             (biEpoch ∷ biRound ∷ biId ∷ biExecutedState ∷ biVersion ∷ biNextEpochState ∷ [])
   postulate instance enc-BlockInfo : Encoder BlockInfo
 
-  BlockInfo-η : ∀{e1 e2 r1 r2 i1 i2} → e1 ≡ e2 → r1 ≡ r2 → i1 ≡ i2
-              → BlockInfo∙new e1 r1 i1 ≡ BlockInfo∙new e2 r2 i2
-  BlockInfo-η refl refl refl = refl
+  postulate
+    _≟-BlockInfo_ : (bi1 bi2 : BlockInfo) → Dec (bi1 ≡ bi2)
+
+  instance
+    Eq-BlockInfo : Eq BlockInfo
+    Eq._≟_ Eq-BlockInfo = _≟-BlockInfo_
+
+  BlockInfo-η : ∀{e1 e2 r1 r2 i1 i2 x1 x2 v1 v2 n1 n2}
+              → e1 ≡ e2 → r1 ≡ r2 → i1 ≡ i2 → x1 ≡ x2 → v1 ≡ v2 → n1 ≡ n2
+              → BlockInfo∙new e1 r1 i1 x1 v1 n1 ≡ BlockInfo∙new e2 r2 i2 x2 v2 n2
+  BlockInfo-η refl refl refl refl refl refl = refl
+
 
   record LedgerInfo : Set where
     constructor LedgerInfo∙new
@@ -167,6 +240,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl qcVoteData   qcSignedLedgerInfo = mkLens (quote QuorumCert)
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
   postulate instance enc-QuorumCert : Encoder QuorumCert
+
+  -- For some reason the Haskell code has inconistent names.  This lets us stay consistent with it.
+  qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
+  qcLedgerInfo = qcSignedLedgerInfo
 
   -- Because QuorumCert has an injective encoding (postulated, for now),
   -- we can use it to determine equality of QuorumCerts.
@@ -309,15 +386,23 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
              (brDeadline ∷ brPreferredPeer ∷ [])
 
+  record AccumulatorExtensionProof : Set where
+    constructor AccumulatorExtensionProof∙new
+    field
+      _aepObmNumLeaves : Version
+  open AccumulatorExtensionProof public
+  unquoteDecl aepObmNumLeaves = mkLens (quote AccumulatorExtensionProof)
+             (aepObmNumLeaves ∷ [])
+
   record VoteProposal : Set where
     constructor VoteProposal∙new
     field
-      -- _vpAccumulatorExtensionProof : AccumulatorExtensionProof
+      _vpAccumulatorExtensionProof : AccumulatorExtensionProof
       _vpBlock : Block
-      -- _vpNextEpochState : Maybe EpochState
+      _vpNextEpochState : Maybe EpochState
   open VoteProposal public
-  unquoteDecl  vpBlock = mkLens (quote VoteProposal)
-              (vpBlock ∷ [])
+  unquoteDecl  vpAccumulatorExtensionProof   vpBlock   vpNextEpochState = mkLens (quote VoteProposal)
+              (vpAccumulatorExtensionProof ∷ vpBlock ∷ vpNextEpochState ∷ [])
 
   record MaybeSignedVoteProposal : Set where
     constructor MaybeSignedVoteProposal∙new
@@ -453,20 +538,28 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
              (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
 
+  record StateComputeResult : Set where
+    constructor StateComputeResult∙new
+    field
+      _scrObmNumLeaves : Version
+      _scrEpochState   : Maybe EpochState
+  open StateComputeResult public
+  unquoteDecl scrObmNumLeaves   scrEpochState = mkLens (quote StateComputeResult)
+             (scrObmNumLeaves ∷ scrEpochState ∷ [])
+
   -- Note: this is a placeholder.
   -- We are not concerned for now with executing transactions, just ordering/committing them.
-  -- This is outdated (see comment at top).
-  data StateComputeResult : Set where
+  postulate
     stateComputeResult : StateComputeResult
 
   record ExecutedBlock : Set where
     constructor ExecutedBlock∙new
     field
-      _ebBlock  : Block
-      _ebOutput : StateComputeResult
+      _ebBlock              : Block
+      _ebStateComputeResult : StateComputeResult
   open ExecutedBlock public
-  unquoteDecl ebBlock   ebOutput = mkLens (quote ExecutedBlock)
-             (ebBlock ∷ ebOutput ∷ [])
+  unquoteDecl ebBlock   ebStateComputeResult = mkLens (quote ExecutedBlock)
+             (ebBlock ∷ ebStateComputeResult ∷ [])
 
   ebId : Lens ExecutedBlock HashValue
   ebId = ebBlock ∙ bId
@@ -551,15 +644,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _viConfig : ValidatorConfig
   open ValidatorInfo public
 
-  record ValidatorConsensusInfo : Set where
-    constructor ValidatorConsensusInfo∙new
-    field
-     _vciPublicKey   : PK
-     _vciVotingPower : U64
-  open ValidatorConsensusInfo public
-  unquoteDecl vciPublicKey   vciVotingPower = mkLens (quote ValidatorConsensusInfo)
-             (vciPublicKey ∷ vciVotingPower ∷ [])
-
   data ObmNotValidProposerReason : Set where
     ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
 
@@ -570,16 +654,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       -- :peObmLeaderOfRound : LeaderOfRoundFn
       -- :peObmNodesInORder  : NodesInOrder
   open ProposerElection
-
-  record ValidatorVerifier : Set where
-    constructor ValidatorVerifier∙new
-    field
-      _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
-      _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
-      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
-  open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
-             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
   record SafetyRules : Set where
     constructor SafetyRules∙new
