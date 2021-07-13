@@ -135,6 +135,11 @@ module LibraBFT.Prelude where
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
 
+  maybeHsk : ∀ {A B : Set} → B → (A → B) → Maybe A → B
+  maybeHsk b a→b = λ where
+    nothing  → b
+    (just a) → a→b a
+
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
     hiding (map; zip; zipWith; unzip ; unzipWith)
