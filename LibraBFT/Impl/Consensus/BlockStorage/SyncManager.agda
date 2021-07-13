@@ -53,7 +53,7 @@ insertQuorumCertM qc retriever = do
     (Right _) →
       ok unit
   maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
-    if-dec (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
+    ifM (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
       then (do
         let finalityProof = qc ^∙ qcLedgerInfo
         BlockStore.commitM finalityProof {- (.?. (λ xx →
