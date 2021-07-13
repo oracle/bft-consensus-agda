@@ -16,10 +16,7 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 
 data NeedFetchResult : Set where
-  QCRoundBeforeRoot : NeedFetchResult
-  QCAlreadyExist    : NeedFetchResult
-  QCBlockExist      : NeedFetchResult
-  NeedFetch         : NeedFetchResult
+  QCRoundBeforeRoot QCAlreadyExist QCBlockExist NeedFetch : NeedFetchResult
 
 postulate
 
