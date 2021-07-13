@@ -38,7 +38,7 @@ insertQuorumCertM
   → LBFT (Either ErrLog Unit)
 insertQuorumCertM qc retriever = do
   bs ← use lBlockStore
-  _ ← case needFetchForQuorumCert qc bs of \where
+  _ ← case needFetchForQuorumCert qc bs of λ where
     (Left e) →
       bail e
     (Right NeedFetch) →
