@@ -152,7 +152,7 @@ insertSingleQuorumCertE bs qc =
                     bs'           ← {-withErrCtx' (here [])-}
                                     (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
                     (bt , output) ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
-                    pure (record bs' { _bsInner = bt } , output)))
+                    pure ((bs' & bsInner ∙~ bt) , output)))
 
 ------------------------------------------------------------------------------
 

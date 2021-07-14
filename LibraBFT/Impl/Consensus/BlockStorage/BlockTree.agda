@@ -54,8 +54,8 @@ insertBlockE block bt = do
       nothing → Left fakeErr
       (just parentBlock) → (do
         parentBlock' ← addChild parentBlock blockId
-        let bt'  = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
-        pure ( (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+        let bt' = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+        pure (  (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
 
 ------------------------------------------------------------------------------
@@ -79,8 +79,8 @@ insertQuorumCertE qc bt0 = do
       maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
       if-dec ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
       then
-       (let bt   = record bt0 { _btHighestCertifiedBlockId = block ^∙ ebId
-                              ; _btHighestQuorumCert       = qc }
+       (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                       & btHighestQuorumCert       ∙~ qc
             info = (fakeInfo ∷ [])
          in pure (continue1 bt  blockId block info))
       else  pure (continue1 bt0 blockId block [])
@@ -89,11 +89,11 @@ insertQuorumCertE qc bt0 = do
 
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
   continue1 bt blockId block info =
-    continue2 ( record bt { _btIdToQuorumCert = lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert) } )
+    continue2 ( bt & btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert))
               ( (fakeInfo ∷ info) ++ (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [] ))
   continue2 bt info =
     if-dec (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
-    then (record bt { _btHighestCommitCert = qc } , info)
+    then ((bt & btHighestCommitCert ∙~ qc) , info)
     else (bt , info)
 
   here' : List String.String → List String.String
