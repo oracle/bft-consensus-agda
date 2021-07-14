@@ -12,6 +12,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
 import      LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -21,10 +22,6 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
-
-postulate
-  obmCheckSigner : SafetyRules → Bool
-  constructLedgerInfoM : Block → HashValue → LBFT (Either ErrLog LedgerInfo)
 
 ------------------------------------------------------------------------------
 
@@ -46,6 +43,24 @@ extensionCheckM voteProposal = do
          (obmAEP ^∙ aepObmNumLeaves)
          (voteProposal ^∙ vpNextEpochState))
        (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
+
+------------------------------------------------------------------------------
+
+constructLedgerInfoM : Block → HashValue → LBFT (Either ErrLog LedgerInfo)
+constructLedgerInfoM proposedBlock consensusDataHash = do
+  let block2 = proposedBlock ^∙ bRound
+      block1 = proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock ∙ biRound
+      block0 = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock ∙ biRound
+      commit = (block0 + 1 == block1) ∧ (block1 + 1 == block2)
+  commitInfo ←
+    if commit
+    then (do
+      let c = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock
+      logInfo -- lSR (Info3ChainDetected proposedBlock c)
+      pure c)
+    else
+      pure BlockInfo.empty
+  ok (LedgerInfo∙new commitInfo consensusDataHash)
 
 ------------------------------------------------------------------------------
 
