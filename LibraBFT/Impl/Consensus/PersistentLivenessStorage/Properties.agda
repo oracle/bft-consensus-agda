@@ -16,11 +16,12 @@ open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties where
 
 module saveVoteMSpec (vote : Vote) where
+  open OutputProps
   -- TODO-2: This contract needs refining (after `saveVoteM` is implemented)
   postulate
     contract
       : ∀ P pre
-        → (∀ outs → NoMsgOuts outs → NoErrOuts outs → P (inj₁ fakeErr) pre outs)
-        → (∀ outs → NoMsgOuts outs → NoErrOuts outs
+        → (∀ outs → NoMsgs outs → NoErrors outs → P (inj₁ fakeErr) pre outs)
+        → (∀ outs → NoMsgs outs → NoErrors outs
            → P (inj₂ unit) pre outs)
         → RWST-weakestPre (saveVoteM vote) P unit pre
