@@ -56,6 +56,7 @@ constructLedgerInfoM proposedBlock consensusDataHash = do
     if commit
     then (do
       let c = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock
+      logInfo -- lSR (Info3ChainDetected proposedBlock c)
       pure c)
     else
       pure BlockInfo.empty
