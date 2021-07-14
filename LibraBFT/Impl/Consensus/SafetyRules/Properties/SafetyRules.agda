@@ -31,7 +31,7 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 
-module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData : SafetyData) where
+module verifyAndUpdatePreferredRoundDefs (quorumCert : QuorumCert) (safetyData : SafetyData) where
   preferredRound = safetyData ^∙ sdPreferredRound
   oneChainRound  = quorumCert ^∙ qcCertifiedBlock ∙ biRound
   twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
@@ -43,18 +43,55 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
 
   safetyData' = safetyData & sdPreferredRound ∙~ twoChainRound
 
-  -- Before proving this, we should consider whether to add explicit support for <-cmp to our RWST
-  -- support, to make this proof unroll more "automatically".
+module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData : SafetyData) where
+  open verifyAndUpdatePreferredRoundDefs quorumCert safetyData
 
-  postulate
-    contract
-      : ∀ P pre
-        → ((1cr<pr : C₁) → P (inj₁ fakeErr) pre [])
-        → ((1cr≥pr : ¬ C₁)
-           → ((2cr>pr : C₂) → P (inj₂ safetyData') pre [])
-              × ((2cr<pr : C₃) → P (inj₂ safetyData) pre [])
-              × ((2cr=pr : C₄) → P (inj₂ safetyData) pre []))
-        → LBFT-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData) P pre
+  module _ (pre : RoundManager) where
+    record setPR (sd : SafetyData) : Set where
+      field
+        eff   : sd ≡ safetyData'
+
+    record noChanges (sd : SafetyData) : Set where
+      field
+        noUpd : sd ≡ safetyData
+
+    record ConditionCorrectR (sd : SafetyData) : Set where
+      field
+        ep≡    : sd ≡L safetyData at sdEpoch
+        qcr≤pr : quorumCert ^∙ qcParentBlock ∙ biRound ≤ sd ^∙ sdPreferredRound
+        conds  : noChanges sd ⊎ setPR sd
+    open ConditionCorrectR public
+
+    ConditionCorrect : Either ErrLog SafetyData → Set
+    ConditionCorrect (Left _)   = ⊤
+    ConditionCorrect (Right sd) = ConditionCorrectR sd
+
+    record Contract (r : Either ErrLog SafetyData) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        noOuts        : NoMsgOuts outs
+        noEff         : post ≡ pre
+        condCorr      : ConditionCorrect r
+
+  contract
+      : ∀ pre
+        → LBFT-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData)
+                          (Contract pre) pre
+  proj₁ (contract pre) _ = mkContract refl refl tt
+  proj₂ (contract pre) x rewrite x
+     with <-cmp twoChainRound preferredRound
+  ...| tri< lt _   _  = λ where ._ refl ._ refl → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = <⇒≤ lt
+                                                            ; conds = inj₁ (record { noUpd = refl }) })
+  ...| tri≈ _ refl _  = λ where ._ refl         → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = ≤-refl
+                                                            ; conds = inj₂ (record { eff = refl }) })
+  ...| tri> _ _    gt = λ where ._ refl ._ refl → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = ≤-refl
+                                                            ; conds = inj₂ (record { eff = refl }) })
 
 module extensionCheckMSpec (voteProposal : VoteProposal) where
   proposedBlock = voteProposal ^∙ vpBlock
