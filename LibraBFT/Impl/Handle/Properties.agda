@@ -44,8 +44,7 @@ open StateProps
 
 module LibraBFT.Impl.Handle.Properties where
 
--- TODO-2: Prove these once `initRM` in `LibraBFT.Impl.Handle` is sufficiently implemented
-postulate
+postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct           : RoundManager-correct initRM
   initRM-blockTree-correct : StateInvariants.BlockTreeInv initRM
 
@@ -75,6 +74,6 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
--- TODO-3: Prove this
-postulate
+postulate -- TODO-4: prove (note: very difficult)
+  -- This will likely require major updates to the existing proofs for the peer handlers.
   impl-sps-avp : StepPeerState-AllValidParts

@@ -17,8 +17,7 @@ module LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties where
 
 module saveVoteMSpec (vote : Vote) where
   open OutputProps
-  -- TODO-2: This contract needs refining (after `saveVoteM` is implemented)
-  postulate
+  postulate -- TODO-2: refine and prove
     contract
       : ∀ P pre
         → (∀ outs → NoMsgs outs → NoErrors outs → P (inj₁ fakeErr) pre outs)

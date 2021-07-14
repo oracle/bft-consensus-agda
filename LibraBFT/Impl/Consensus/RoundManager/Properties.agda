@@ -217,9 +217,10 @@ module processProposalMSpec (proposal : Block) where
               contract-step₃
             where
             stUpdateRS = st & rsVoteSent-rm ?~ vote
-            -- TODO-1: Prove this once `α-RM` is implemented (should just be `id`)
-            postulate
+
+            postulate -- TODO-1: prove (waiting on: `α-RM`)
               btInv₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv st stUpdateRS
+           -- btInv₂ = id
 
             module _ (si : SyncInfo) (si≡ : si ≡ SyncInfo∙new (st ^∙ lBlockStore ∙ bsHighestQuorumCert) (st ^∙ lBlockStore ∙ bsHighestCommitCert)) where
               contract-step₃ : RWST-weakestPre (step₃ vote si) (RWST-Post++ (Contract pre) outs) unit stUpdateRS
@@ -239,7 +240,7 @@ module processProposalMSpec (proposal : Block) where
   contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (processProposalM proposal) Post pre
   contract pre Post pf = LBFT-⇒ (Contract pre) Post pf (processProposalM proposal) pre (contract' pre)
 
-module syncUpM
+module syncUpMSpec
   (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
 
   record Contract (pre : RoundManager) (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
@@ -252,8 +253,10 @@ module syncUpM
       -- Voting
       noVote        : StateProps.VoteNotGenerated pre post true
 
-  -- TODO-2: Prove this, once `syncUpM` is implemented
-  postulate
+  postulate -- TODO-3: prove (waiting on: `syncUpM`)
+    -- This is expected to be quite challenging, since syncing up can cause
+    -- significant state changes, and currently (in the Haskell implementation)
+    -- requires backdoor communications with other peers.
     contract' : ∀ pre → LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) (Contract pre) pre
 
   contract
@@ -279,8 +282,9 @@ module ensureRoundAndSyncUpMSpec
       -- Voting
       noVote        : StateProps.VoteNotGenerated pre post true
 
-  -- TODO-2: Prove this.
-  postulate
+  postulate -- TODO-2: prove
+    -- This should be fairly straightforward, appealing to the contract for
+    -- `syncUpM`.
     contract'
       : ∀ pre → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) (Contract pre) pre
 

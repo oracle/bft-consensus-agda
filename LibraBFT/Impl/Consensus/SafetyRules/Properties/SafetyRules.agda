@@ -46,7 +46,7 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
   -- Before proving this, we should consider whether to add explicit support for <-cmp to our RWST
   -- support, to make this proof unroll more "automatically".
 
-  postulate
+  postulate -- TODO-1: prove
     contract
       : ∀ P pre
         → ((1cr<pr : C₁) → P (inj₁ fakeErr) pre [])
@@ -77,9 +77,9 @@ module extensionCheckMSpec (voteProposal : VoteProposal) where
   contract Post pre prfBail prfOk = prfOk
 
 module constructLedgerInfoMSpec (proposedBlock : Block) (consensusDataHash : HashValue) where
-  -- TODO-1: This is a place-holder contract that requires refinement once
+  -- This is a place-holder contract that requires refinement once
   -- `constructLedgerInfoM is implemented.
-  postulate
+  postulate -- TODO-1: refine and prove
     contract
       : ∀ P pre
         → P (inj₁ fakeErr) pre []
@@ -273,9 +273,9 @@ module constructAndSignVoteMSpec where
 
         -- State invariants
         module _ where
-          -- TODO-2: Prove this once `α-EC` is implemented
-          postulate
+          postulate -- TODO-1: prove (waiting on : `α-EC`)
             btip₁ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD
+         -- btip₁ = id
 
           emP : pre ^∙ rmEpoch ≡ pre ^∙ lSafetyData ∙ sdEpoch → pre ^∙ rmEpoch ≡ safetyData ^∙ sdEpoch
           emP eq = trans eq (Requirements.es≡ reqs)
@@ -335,9 +335,9 @@ module constructAndSignVoteMSpec where
 
             -- State invariants
             module _ where
-              -- TODo-2: Prove this once `α-EC` is implemented
-              postulate
+              postulate -- TODO-1: prove (waiting on: `α-EC`)
                 btiP₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD₂
+             -- btiP₂ = id
 
               invP₂ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD₂
               invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP

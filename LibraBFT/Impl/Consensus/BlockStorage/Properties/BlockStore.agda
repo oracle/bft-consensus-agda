@@ -21,8 +21,8 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
 module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
-  -- TODO-2: Prove these.
-  postulate
+  postulate -- TODO-2: prove
+    -- More properties are likely going to required in the future, as well.
     ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
     bs'BlockInv
       : ∀ {bs' eb pre}
