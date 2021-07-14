@@ -31,7 +31,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Nat
-    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_)
+    renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public
 
   open import Data.Nat.Properties
@@ -178,6 +178,16 @@ module LibraBFT.Prelude where
 
   open import Relation.Binary
     public
+
+  data Ordering : Set where
+    LT EQ GT : Ordering
+
+  compare : ℕ → ℕ → Ordering
+  compare m n
+    with <-cmp m n
+  ... | tri< a ¬b ¬c = LT
+  ... | tri≈ ¬a b ¬c = EQ
+  ... | tri> ¬a ¬b c = GT
 
   ≡-irrelevant : ∀{a}{A : Set a} → Irrelevant {a} {A} _≡_
   ≡-irrelevant refl refl = refl

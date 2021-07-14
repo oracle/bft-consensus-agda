@@ -31,7 +31,7 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 
-module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData : SafetyData) where
+module verifyAndUpdatePreferredRoundDefs (quorumCert : QuorumCert) (safetyData : SafetyData) where
   preferredRound = safetyData ^∙ sdPreferredRound
   oneChainRound  = quorumCert ^∙ qcCertifiedBlock ∙ biRound
   twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
@@ -43,18 +43,55 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
 
   safetyData' = safetyData & sdPreferredRound ∙~ twoChainRound
 
-  -- Before proving this, we should consider whether to add explicit support for <-cmp to our RWST
-  -- support, to make this proof unroll more "automatically".
+module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData : SafetyData) where
+  open verifyAndUpdatePreferredRoundDefs quorumCert safetyData
 
-  postulate -- TODO-1: prove
-    contract
-      : ∀ P pre
-        → ((1cr<pr : C₁) → P (inj₁ fakeErr) pre [])
-        → ((1cr≥pr : ¬ C₁)
-           → ((2cr>pr : C₂) → P (inj₂ safetyData') pre [])
-              × ((2cr<pr : C₃) → P (inj₂ safetyData) pre [])
-              × ((2cr=pr : C₄) → P (inj₂ safetyData) pre []))
-        → LBFT-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData) P pre
+  module _ (pre : RoundManager) where
+    record setPR (sd : SafetyData) : Set where
+      field
+        eff   : sd ≡ safetyData'
+
+    record noChanges (sd : SafetyData) : Set where
+      field
+        noUpd : sd ≡ safetyData
+
+    record ConditionCorrectR (sd : SafetyData) : Set where
+      field
+        ep≡    : sd ≡L safetyData at sdEpoch
+        qcr≤pr : quorumCert ^∙ qcParentBlock ∙ biRound ≤ sd ^∙ sdPreferredRound
+        conds  : noChanges sd ⊎ setPR sd
+    open ConditionCorrectR public
+
+    ConditionCorrect : Either ErrLog SafetyData → Set
+    ConditionCorrect (Left _)   = ⊤
+    ConditionCorrect (Right sd) = ConditionCorrectR sd
+
+    record Contract (r : Either ErrLog SafetyData) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        noOuts        : OutputProps.NoMsgs outs
+        noEff         : post ≡ pre
+        condCorr      : ConditionCorrect r
+
+  contract
+      : ∀ pre
+        → LBFT-weakestPre (verifyAndUpdatePreferredRoundM quorumCert safetyData)
+                          (Contract pre) pre
+  proj₁ (contract pre) _ = mkContract refl refl tt
+  proj₂ (contract pre) x rewrite x
+     with <-cmp twoChainRound preferredRound
+  ...| tri< lt _   _  = λ where ._ refl ._ refl → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = <⇒≤ lt
+                                                            ; conds = inj₁ (record { noUpd = refl }) })
+  ...| tri≈ _ refl _  = λ where ._ refl         → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = ≤-refl
+                                                            ; conds = inj₂ (record { eff = refl }) })
+  ...| tri> _ _    gt = λ where ._ refl ._ refl → mkContract refl refl
+                                                    (record { ep≡ = refl
+                                                            ; qcr≤pr = ≤-refl
+                                                            ; conds = inj₂ (record { eff = refl }) })
 
 module extensionCheckMSpec (voteProposal : VoteProposal) where
   proposedBlock = voteProposal ^∙ vpBlock
@@ -252,13 +289,13 @@ module constructAndSignVoteMSpec where
         lvr≡ : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVotedRound
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
 
-    contract
+    contract'
       : ∀ pre
         → Requirements pre
         → LBFT-weakestPre
             (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData)
             (Contract pre proposedBlock) pre
-    contract pre reqs =
+    contract' pre reqs =
       verifyAndUpdateLastVoteRoundMSpec.contract (proposedBlock ^∙ bRound) safetyData
         (RWST-weakestPre-ebindPost unit step₁ (Contract pre proposedBlock)) pre
         contract-step₁
@@ -342,6 +379,17 @@ module constructAndSignVoteMSpec where
               invP₂ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD₂
               invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP
 
+    contract
+      : ∀ pre Post
+        → Requirements pre
+        → RWST-Post-⇒ (Contract pre proposedBlock) Post
+        → LBFT-weakestPre
+            (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData)
+            Post pre
+    contract pre Post reqs pf =
+      LBFT-⇒ (Contract pre proposedBlock) Post pf (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData) pre
+        (contract' pre reqs)
+
   module continue1
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
     (proposedBlock : Block)        (safetyData0     : SafetyData) where
@@ -372,9 +420,12 @@ module constructAndSignVoteMSpec where
         where
         contract-step₃ : RWST-weakestPre step₃ (Contract pre proposedBlock) unit pre
         contract-step₃ =
-          verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0
-            Pred pre (λ r≤pr → contractBail _ refl) cases
+          LBFT-⇒ (VAUPContract pre) Pred pf-step₃ (verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0) pre
+            (verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0 pre) 
+          -- verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0
+          --   Pred pre (λ r≤pr → contractBail _ refl) cases
             where
+            VAUPContract = verifyAndUpdatePreferredRoundMSpec.Contract (proposedBlock ^∙ bQuorumCert) safetyData0
             Pred = RWST-weakestPre-ebindPost unit
                      (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock)
                      (Contract pre proposedBlock)
@@ -385,26 +436,29 @@ module constructAndSignVoteMSpec where
             ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
 
             reqs₂ : continue2.Requirements voteProposal validatorSigner proposedBlock
-                      (verifyAndUpdatePreferredRoundMSpec.safetyData' (proposedBlock ^∙ bQuorumCert) safetyData0)
+                      (verifyAndUpdatePreferredRoundDefs.safetyData' (proposedBlock ^∙ bQuorumCert) safetyData0)
                       pre
             reqs₂
               with Requirements.sd≡ reqs
             ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
 
-            module UPR = verifyAndUpdatePreferredRoundMSpec (proposedBlock ^∙ bQuorumCert) safetyData0
-            module _ (1cr≤pr : ¬ UPR.C₁) where
+            pf-step₃ : ∀ r st outs → VAUPContract pre r st outs → Pred r st outs
+            pf-step₃ r st outs (verifyAndUpdatePreferredRoundMSpec.mkContract noOuts refl condCorr) = pf r condCorr
+              where
+              pf-Con++outs : RWST-Post-⇒ (Contract pre proposedBlock) (RWST-Post++ (Contract pre proposedBlock) outs)
+              pf-Con++outs r' st' outs' (mkContract rmInv noEpochChange noMsgOuts lvr≡? voteResCorrect) =
+                mkContract rmInv noEpochChange (OutputProps.++-NoMsgs outs outs' noOuts noMsgOuts) lvr≡? voteResCorrect
 
-              cases
-                : ((2cr>pr : UPR.C₂) → Pred (inj₂ UPR.safetyData') pre [])
-                  × ((2cr<pr : UPR.C₃) → Pred (inj₂ safetyData0) pre [])
-                  × ((2cr=pr : UPR.C₄) → Pred (inj₂ safetyData0) pre [])
-              proj₁ cases 2cr>pr safetyData1@._ refl =
-                continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre reqs₂
-              proj₁ (proj₂ cases) 2cr<pr safetyData1@._ refl =
-                continue2.contract voteProposal validatorSigner proposedBlock
-                  safetyData1 pre reqs₁
-              proj₂ (proj₂ cases) 2cr=pr safetyData1@._ refl =
-                continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre reqs₁
+              pf : (r : Either ErrLog SafetyData) (cc : verifyAndUpdatePreferredRoundMSpec.ConditionCorrect _ _ pre r) → Pred r st outs
+              pf (Left e) tt = contractBail outs noOuts
+              pf (Right .safetyData0) record { ep≡ = ep≡ ; qcr≤pr = qcr≤pr ; conds = (Left record { noUpd = refl }) } ._ refl =
+                continue2.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+                  (RWST-Post++ (Contract pre proposedBlock) outs) reqs₁
+                  pf-Con++outs
+              pf (Right safetyData1@._) record { ep≡ = ep≡ ; qcr≤pr = qcr≤pr ; conds = (Right record { eff = refl }) } ._ refl =
+                continue2.contract voteProposal validatorSigner proposedBlock safetyData1 pre
+                  (RWST-Post++ (Contract pre proposedBlock) outs)
+                  reqs₂ pf-Con++outs
 
   module continue0
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner) where
