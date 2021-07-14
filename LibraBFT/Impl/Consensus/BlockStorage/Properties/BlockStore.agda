@@ -14,7 +14,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
-open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import Optics.All
 

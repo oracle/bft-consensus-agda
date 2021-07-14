@@ -20,10 +20,10 @@ import      LibraBFT.Impl.Consensus.Liveness.ProposerElection          as Propos
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage          as PersistentLivenessStorage
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties as PersistentLivenessStorageProps
 open import LibraBFT.Impl.Consensus.RoundManager
-open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules            as SafetyRules
 import      LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules as SafetyRulesProps
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All

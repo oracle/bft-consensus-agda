@@ -15,7 +15,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
-open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
 open import LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging

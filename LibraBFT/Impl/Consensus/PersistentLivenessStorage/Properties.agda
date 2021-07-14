@@ -11,7 +11,7 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage
-open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
+open import LibraBFT.Impl.Properties.Util
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties where
 

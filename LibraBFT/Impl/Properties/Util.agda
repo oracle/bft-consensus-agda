@@ -23,7 +23,7 @@ open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-module LibraBFT.Impl.Consensus.RoundManager.PropertyDefs where
+module LibraBFT.Impl.Properties.Util where
 
 module OutputProps where
   module _ (outs : List Output) where
