@@ -9,28 +9,33 @@ open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 ------------------------------------------------------------------------------
-open import Data.String as String hiding (_==_ ; _≟_; Left; Right)
+import      Data.String                          as String
 
 module LibraBFT.Impl.OBM.Logging.Logging where
 
-logErr : LBFT Unit
-logErr = tell1 (LogErr fakeErr)
-
-logInfo : LBFT Unit
-logInfo = tell1 (LogInfo fakeInfo)
-
--- NOTE: The logging functionality below has been added because, in the future,
--- we may wish to model and reason about errors and logging in more detail.
--- Logging operations change the structure of the program, and proofs about peer
+-- NOTE: Logging operations change the structure of the program, and proofs about peer
 -- operations are sensitive to this structure. Therefore, we add a "skeleton" of
 -- logging operations so that future refinements do not break existing proofs.
-withErrCtxt : ErrLog → ErrLog
-withErrCtxt = id
+-- In the future, we may wish to model and reason about errors and logging in more detail.
 
-logEE : ∀ {A} → LBFT A → LBFT A
-logEE f = logInfo >> f >>= λ r → logInfo >> pure r
+logErr : ErrLog → LBFT Unit
+logErr x = tell1 (LogErr x)
 
-lcheck : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → Either ErrLog Unit
+logInfo : InfoLog → LBFT Unit
+logInfo x = tell1 (LogInfo x)
+
+logEE : ∀ {A} → List String.String → LBFT A → LBFT A
+logEE _ f = logInfo fakeInfo >> f >>= λ r → logInfo fakeInfo >> pure r
+
+withErrCtx : List String.String → ErrLog → ErrLog
+withErrCtx _ = id
+
+withErrCtx' : ∀ {A} → List String.String → Either ErrLog A → Either ErrLog A
+withErrCtx' ctx = λ where
+  (Left  e) → Left (withErrCtx ctx e)
+  (Right b) → pure b
+
+lcheck : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String.String → Either ErrLog Unit
 lcheck b t = case check (toBool b) t of λ where
   (Left  e) → Left  fakeErr -- (ErrL [e])
   (Right r) → Right r

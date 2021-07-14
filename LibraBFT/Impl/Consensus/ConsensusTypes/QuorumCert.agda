@@ -37,8 +37,9 @@ verify self validator = do
              (here' ("Genesis QC should not carry signatures" ∷ []))
       )
     else do
-      -- TODO: withErrCtx'
-      (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo) validator)
+      withErrCtx'
+        ("fail to verify QuorumCert" ∷ [])
+        (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo) validator)
       VoteData.verify (self ^∙ qcVoteData)
  where
   here' : List String.String → List String.String
