@@ -77,10 +77,10 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
     else do
       updated ← case (compare twoChainRound preferredRound) of λ where
           GT → do
-            logInfo  -- updated preferred round
+            logInfo fakeInfo -- updated preferred round
             pure (safetyData & sdPreferredRound ∙~ twoChainRound)
           LT → do
-            logInfo  -- 2-chain round is lower than preferred round, but 1-chain is higher
+            logInfo fakeInfo  -- 2-chain round is lower than preferred round, but 1-chain is higher
             pure safetyData
           EQ →
             pure safetyData
