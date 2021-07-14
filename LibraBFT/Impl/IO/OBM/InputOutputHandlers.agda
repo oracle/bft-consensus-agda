@@ -35,8 +35,8 @@ module handleProposal (now : Instant) (pm : ProposalMsg) where
 
   step₁ myEpoch vv = do
     caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
-      (Left (Left _))  → logErr
-      (Left (Right _)) → logInfo
+      (Left (Left e))  → logErr e
+      (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processProposalMsgM now pm
 
 handleProposal : Instant → ProposalMsg → LBFT Unit

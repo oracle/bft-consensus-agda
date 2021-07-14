@@ -306,14 +306,14 @@ module constructAndSignVoteMSpec where
 
         contract-step₂ voteData@._ refl =
           constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
-            (RWST-weakestPre-∙^∙Post unit withErrCtxt
+            (RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
               (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre proposedBlock))) preUpdatedSD
               (λ where .(Left fakeErr) refl → bailAfterSetSafetyData)
               contract-step₃
           where
           contract-step₃
             : ∀ ledgerInfo
-              → RWST-weakestPre-∙^∙Post unit withErrCtxt
+              → RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
                   (RWST-weakestPre-ebindPost unit (step₃ safetyData1 _ author) (Contract pre proposedBlock))
                   (Right ledgerInfo) preUpdatedSD []
           contract-step₃ ledgerInfo ._ refl ._ refl ._ refl .unit refl unit refl =
@@ -459,7 +459,7 @@ module constructAndSignVoteMSpec where
       Post : LBFT-Post (Either ErrLog Vote)
       Post x post outs =
         RWST-weakestPre-bindPost unit
-          (λ r → logInfo >> pure r) (Contract pre proposedBlock)
+          (λ r → logInfo fakeInfo >> pure r) (Contract pre proposedBlock)
           x post (LogInfo fakeInfo ∷ outs)
 
       pf : RWST-Post-⇒ (Contract pre proposedBlock) Post

@@ -56,7 +56,7 @@ constructLedgerInfoM proposedBlock consensusDataHash = do
     if commit
     then (do
       let c = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock
-      logInfo -- lSR (Info3ChainDetected proposedBlock c)
+      logInfo fakeInfo -- lSR (Info3ChainDetected proposedBlock c)
       pure c)
     else
       pure BlockInfo.empty
@@ -76,10 +76,10 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← ifM‖ twoChainRound >? preferredRound ≔ (do
-                     logInfo  -- updated preferred round
+                     logInfo fakeInfo  -- updated preferred round
                      pure (safetyData & sdPreferredRound ∙~ twoChainRound))
                    ‖ twoChainRound <? preferredRound ≔ (do
-                     logInfo -- 2-chain round is lower than preferred round, but 1-chain is higher
+                     logInfo fakeInfo -- 2-chain round is lower than preferred round, but 1-chain is higher
                      pure safetyData)
                    ‖ otherwise≔
                      pure safetyData
@@ -108,7 +108,7 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 verifyQcM : QuorumCert → LBFT (Either ErrLog Unit)
 verifyQcM qc = do
   validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
-  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtxt
+  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtx ("InvalidQuorumCertificate" ∷ [])
 
 ------------------------------------------------------------------------------
 
@@ -118,7 +118,7 @@ constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block �
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either ErrLog Vote)
 constructAndSignVoteM maybeSignedVoteProposal =
-  logEE $ do
+  logEE ("" ∷ []) $ do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   maybeS vs (bail fakeErr {- srValidatorSigner is nothing -}) λ validatorSigner → do
     let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
@@ -186,13 +186,13 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₂ safetyData1 voteData = do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData)
-                           ∙^∙ withErrCtxt ∙?∙ (step₃ safetyData1 voteData author)
+                           ∙^∙ withErrCtx ("" ∷ []) ∙?∙ (step₃ safetyData1 voteData author)
 
   step₃ safetyData1 voteData author ledgerInfo = do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
-        logInfo -- InfoUpdateLastVotedRound
+        logInfo fakeInfo -- InfoUpdateLastVotedRound
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀

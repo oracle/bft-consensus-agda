@@ -20,6 +20,8 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                                          as String
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
@@ -88,6 +90,9 @@ executeAndInsertBlockM b = do
 executeAndInsertBlockE bs0 block =
   maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
  where
+  here' : List String.String → List String.String
+  here' t = "BlockStore" ∷ "executeAndInsertBlockE" {-∷ lsB block-} ∷ t
+
   continue : Either ErrLog (BlockStore × ExecutedBlock)
   continue =
     maybeS (bs0 ^∙ bsRoot) (Left fakeErr) λ bsr →
@@ -103,11 +108,13 @@ executeAndInsertBlockE bs0 block =
               (Left  e) → Left e
               (Right _) → executeBlockE bs0 block
         (Left err) → Left err
-      bs1 ← {-withErrCtx' (here [])-}
-            -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
-            (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
+      bs1 ← withErrCtx'
+              (here' [])
+              -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
+              (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
       (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
       pure ((bs0 & bsInner ∙~  bt') , eb')
+
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)
@@ -131,7 +138,7 @@ insertSingleQuorumCertM qc = do
   case insertSingleQuorumCertE bs qc of λ where
     (Left  e)   → bail e
     (Right (bs' , info)) → do
-      forM_ info $ (const logInfo)
+      forM_ info logInfo
       lBlockStore ∙= bs'
       ok unit
 
@@ -149,10 +156,13 @@ insertSingleQuorumCertE bs qc =
  --                                  , "EB", show executedBlock ]))
 
              else (do
-                    bs'           ← {-withErrCtx' (here [])-}
-                                    (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
+                    bs'           ← withErrCtx' (here' [])
+                                      (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
                     (bt , output) ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
                     pure ((bs' & bsInner ∙~ bt) , output)))
+ where
+  here' : List String.String → List String.String
+  here' t = "BlockStore" ∷ "insertSingleQuorumCertE" ∷ t
 
 ------------------------------------------------------------------------------
 
@@ -162,7 +172,7 @@ insertTimeoutCertificateM tc = do
   ifM tc ^∙ tcRound ≤?ℕ curTcRound
     then ok unit
     else
-      PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtxt ∙?∙ λ _ → do
+      PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtx ("" ∷ []) ∙?∙ λ _ → do
         BlockTree.replaceTimeoutCertM tc
         ok unit
 

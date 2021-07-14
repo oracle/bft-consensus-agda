@@ -61,7 +61,7 @@ module executeAndVoteMSpec (b : Block) where
       → LBFT-weakestPre (executeAndVoteM b) (Contract pre) pre
   contract' pre =
     executeAndInsertBlockMSpec.contract b pre
-      (RWST-weakestPre-∙^∙Post unit withErrCtxt (RWST-weakestPre-ebindPost unit step₁ (Contract pre)))
+      (RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ [])) (RWST-weakestPre-ebindPost unit step₁ (Contract pre)))
         (λ where e e≡ ._ refl → contractBail [] refl)
         contract-step₁
     where
@@ -96,7 +96,7 @@ module executeAndVoteMSpec (b : Block) where
           noMsgOuts true (Left (StateProps.mkVoteNotGenerated refl refl))
 
       contract-step₁
-        : RWST-weakestPre-∙^∙Post unit withErrCtxt
+        : RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
             (RWST-weakestPre-ebindPost unit step₁ (Contract pre)) (Right eb) preUpdateBS []
       contract-step₂
         : RWST-weakestPre (step₂ eb) (Contract pre) unit preUpdateBS
