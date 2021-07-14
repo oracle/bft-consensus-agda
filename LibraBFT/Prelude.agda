@@ -34,9 +34,6 @@ module LibraBFT.Prelude where
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public
 
-  data Ordering : Set where
-    LT EQ GT : Ordering
-
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public
@@ -181,6 +178,9 @@ module LibraBFT.Prelude where
 
   open import Relation.Binary
     public
+
+  data Ordering : Set where
+    LT EQ GT : Ordering
 
   compare : ℕ → ℕ → Ordering
   compare m n
