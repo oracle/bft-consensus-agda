@@ -124,7 +124,7 @@ module pathFromRoot (blockId : HashValue) (blockTree : BlockTree) where
 pathFromRoot : HashValue → BlockTree → Either ErrLog (List ExecutedBlock)
 pathFromRoot blockId blockTree =
   maybeS (blockTree ^∙ btRoot) (Left fakeErr) $ λ btr →
-  maybeS (loop btr blockId []) (Right []) (pure ∘ continue)
+  maybeS (loop btr blockId []) (pure []) (pure ∘ continue)
  where
 
   open pathFromRoot blockId blockTree
