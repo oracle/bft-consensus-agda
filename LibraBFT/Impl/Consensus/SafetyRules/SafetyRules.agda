@@ -60,14 +60,15 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
   ifM oneChainRound <? preferredRound
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
-      updated ← ifM‖ twoChainRound >? preferredRound ≔ (do
-                     logInfo  -- updated preferred round
-                     pure (safetyData & sdPreferredRound ∙~ twoChainRound))
-                   ‖ twoChainRound <? preferredRound ≔ (do
-                     logInfo -- 2-chain round is lower than preferred round, but 1-chain is higher
-                     pure safetyData)
-                   ‖ otherwise≔
-                     pure safetyData
+      updated ← case (compare twoChainRound preferredRound) of λ where
+          GT → do
+            logInfo  -- updated preferred round
+            pure (safetyData & sdPreferredRound ∙~ twoChainRound)
+          LT → do
+            logInfo  -- 2-chain round is lower than preferred round, but 1-chain is higher
+            pure safetyData
+          EQ →
+            pure safetyData
       ok updated
 
 ------------------------------------------------------------------------------
