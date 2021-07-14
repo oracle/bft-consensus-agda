@@ -30,12 +30,30 @@ signer self = maybeS (self ^∙ srValidatorSigner) (Left fakeErr {- error: signe
 
 ------------------------------------------------------------------------------
 
+-- @CWJENKINS : delete this after updating it use in
+-- LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules
+-- to use `extensionCheck`
 extensionCheckM : VoteProposal → LBFT (Either ErrLog VoteData)
 extensionCheckM voteProposal = do
   let proposedBlock = voteProposal ^∙ vpBlock
       obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof
   -- IMPL-TODO: verify .accumulator_extension_proof().verify ...
   ok (VoteData.new
+       (Block.genBlockInfo
+         proposedBlock
+         -- OBM-LBFT-DIFF: completely different
+         (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves))
+         (obmAEP ^∙ aepObmNumLeaves)
+         (voteProposal ^∙ vpNextEpochState))
+       (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
+
+extensionCheck : VoteProposal → Either ErrLog VoteData
+extensionCheck voteProposal = do
+  let proposedBlock = voteProposal ^∙ vpBlock
+      obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof
+  -- IMPL-TODO: verify .accumulator_extension_proof().verify ...
+   in pure
+     (VoteData.new
        (Block.genBlockInfo
          proposedBlock
          -- OBM-LBFT-DIFF: completely different
@@ -182,6 +200,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
 
   step₁ safetyData1 = do
     lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
+    -- @CWJENKINS: replace with `extensionCheckM` (probably needs "fancier" eitherS function)
     extensionCheckM voteProposal ∙?∙ (step₂ safetyData1)
 
   step₂ safetyData1 voteData = do
