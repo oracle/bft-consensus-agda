@@ -46,6 +46,7 @@ insertQuorumCertM qc retriever = do
       ∙^∙ withErrCtxt
     (Right QCBlockExist) →
       BlockStore.insertSingleQuorumCertM qc ∙^∙ withErrCtxt ∙?∙ λ _ → do
+      use lBlockStore >>= const logInfo -- InfoBlockStoreShort (here [lsQC qc])
       ok unit
     (Right _) →
       ok unit
