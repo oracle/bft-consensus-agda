@@ -266,7 +266,7 @@ module constructAndSignVoteMSpec where
                       let author = validatorSigner ^∙ vsAuthor
                           st₁    = pre & (lSafetyData ∙~ safetyData1) in
                       constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
-                        (RWST-weakestPre-∙^∙Post unit withErrCtxt
+                        (RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
                           (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre epoch round)))
                         st₁
                         (λ where .(Left fakeErr) refl → bailAfterSetSafetyData r>lvr)
@@ -418,7 +418,7 @@ module constructAndSignVoteMSpec where
       Post : LBFT-Post (Either ErrLog Vote)
       Post x post outs =
         RWST-weakestPre-bindPost unit
-          (λ r → logInfo >> pure r) (Contract pre epoch round)
+          (λ r → logInfo fakeInfo >> pure r) (Contract pre epoch round)
           x post (LogInfo fakeInfo ∷ outs)
 
       pf : ∀ r st outs → Contract pre epoch round r st outs → Post r st outs

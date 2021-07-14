@@ -55,7 +55,7 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
 
   step₀ =
     caseMM pm ^∙ pmProposer of λ where
-      nothing → logInfo -- log: info: proposal with no author
+      nothing → logInfo fakeInfo -- proposal with no author
       (just pAuthor) → step₁ pAuthor
 
   step₁ pAuthor =
@@ -64,11 +64,11 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
 
   step₂ =
         λ where
-          (Left e)      → logErr -- log: error: <propagate error>
+          (Left e)      → logErr e
           (Right true)  → processProposalM (pm ^∙ pmProposal)
           (Right false) → do
             currentRound ← use (lRoundState ∙ rsCurrentRound)
-            logInfo              -- log: info: dropping proposal for old round
+            logInfo fakeInfo -- dropping proposal for old round
 
 abstract
   processProposalMsgM = processProposalMsgM.step₀
@@ -132,18 +132,18 @@ module processProposalM (proposal : Block) where
 
   step₁ bs vp =
     ifM‖ isLeft vp ≔
-         logErr -- log: error: proposer for block is not valid for this round
+         logErr fakeErr -- proposer for block is not valid for this round
        ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs) ≔
-         logErr -- log: error: QC of parent is not in BS
+         logErr fakeErr -- QC of parent is not in BS
        ‖ not (maybeS (BlockStore.getBlock (proposal ^∙ bParentId) bs) false
               λ parentBlock →
                 ⌊ parentBlock ^∙ ebRound <?ℕ proposal ^∙ bRound ⌋) ≔
-         logErr -- log: error: parentBlock < proposalRound
+         logErr fakeErr -- parentBlock < proposalRound
        ‖ otherwise≔ do
            executeAndVoteM proposal >>= step₂
 
   step₂ =  λ where
-             (Left _)     → logErr -- log: error: <propagate error>
+             (Left e)     → logErr e
              (Right vote) → do
                RoundState.recordVote vote
                si ← BlockStore.syncInfoM
@@ -166,7 +166,7 @@ module executeAndVoteM (b : Block) where
   step₃ : Vote          → LBFT (Either ErrLog Vote)
 
   step₀ =
-    BlockStore.executeAndInsertBlockM b ∙^∙ withErrCtxt ∙?∙ step₁
+    BlockStore.executeAndInsertBlockM b ∙^∙ withErrCtx ("" ∷ []) ∙?∙ step₁
 
   step₁ eb = do
     cr ← use (lRoundState ∙ rsCurrentRound)
@@ -205,11 +205,11 @@ processVoteM now vote =
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
     gets rmPgAuthor >>= λ where
-      nothing       → logErr -- "lRoundManager.pgAuthor", "Nothing"
+      nothing       → logErr fakeErr -- "lRoundManager.pgAuthor", "Nothing"
       (just author) → do
         v ← ProposerElection.isValidProposer <$> use lProposerElection
                                              <*> pure author <*> pure nextRound
-        if v then continue else logErr) -- "received vote, but I am not proposer for round"
+        if v then continue else logErr fakeErr) -- "received vote, but I am not proposer for round"
   else
     continue
  where
@@ -218,18 +218,18 @@ processVoteM now vote =
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
     bs ← use lBlockStore
     ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
-      then logInfo
+      then logInfo fakeInfo -- "block already has QC", "dropping unneeded vote"
       else do
-      logInfo
+      logInfo fakeInfo -- "before"
       addVoteM now vote
       pvA ← use lPendingVotes
-      logInfo
+      logInfo fakeInfo -- "after"
 
 addVoteM now vote = do
   bs ← use lBlockStore
   maybeS-RWST (bs ^∙ bsHighestTimeoutCert) continue λ tc →
     ifM vote ^∙ vRound == tc ^∙ tcRound
-      then logInfo -- "block already has TC", "dropping unneeded vote"
+      then logInfo fakeInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where
   continue : LBFT Unit
@@ -246,10 +246,10 @@ addVoteM now vote = do
 
 newQcAggregatedM now qc a =
   SyncManager.insertQuorumCertM qc (BlockRetriever∙new now a) >>= λ where
-    (Left e)     → logErr
+    (Left e)     → logErr e
     (Right unit) → processCertificatesM now
 
 newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
-    (Left e)     → logErr
+    (Left e)     → logErr e
     (Right unit) → processCertificatesM now

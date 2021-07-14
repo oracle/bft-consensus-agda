@@ -40,7 +40,7 @@ postulate
 replaceTimeoutCertM : TimeoutCertificate → LBFT Unit
 replaceTimeoutCertM tc = do
   lBlockStore ∙ bsInner ∙ btHighestTimeoutCert ?= tc
-  logInfo -- lTO (InfoUpdateHighestTimeoutCert (Just tc))
+  logInfo fakeInfo -- lTO (InfoUpdateHighestTimeoutCert (Just tc))
 
 ------------------------------------------------------------------------------
 
@@ -103,9 +103,9 @@ insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
   bt ← use lBlockTree
   case insertQuorumCertE qc bt of λ where
-    (Left  e)   → logErr
+    (Left  e)   → logErr e
     (Right (bt' , info)) → do
-      forM_ info (const logInfo)
+      forM_ info logInfo
       lBlockTree ∙= bt'
 
 ------------------------------------------------------------------------------
