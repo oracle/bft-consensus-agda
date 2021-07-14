@@ -30,7 +30,7 @@ withErrCtxt = id
 logEE : ∀ {A} → LBFT A → LBFT A
 logEE f = logInfo >> f >>= λ r → logInfo >> pure r
 
-lcheck : ∀ {ℓ} {A : Set ℓ} ⦃ _ : ToBool A ⦄ → A → List String → Either ErrLog Unit
+lcheck : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → Either ErrLog Unit
 lcheck b t = case check (toBool b) t of λ where
-  (Left  e) → Left  e
+  (Left  e) → Left  fakeErr -- (ErrL [e])
   (Right r) → Right r

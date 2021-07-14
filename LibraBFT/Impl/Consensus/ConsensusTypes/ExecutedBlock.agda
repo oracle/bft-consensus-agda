@@ -6,7 +6,8 @@
 
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Execution.ExecutorTypes.StateComputeResult as StateComputeResult
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Block             as Block
+import      LibraBFT.Impl.OBM.Crypto                                 as Crypto
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
@@ -22,10 +23,10 @@ blockInfo : ExecutedBlock → BlockInfo
 blockInfo eb =
   Block.genBlockInfo
     (eb ^∙ ebBlock)
-    -- (Crypto.obmHashVersion -- OBM-LBFT-DIFF - see SafetyRules.extensionCheck
-    --   (eb^.ebStateComputeResult.scrObmNumLeaves))
-    -- (eb^.ebStateComputeResult.scrObmNumLeaves)
-    -- (eb^.ebStateComputeResult.scrEpochState)
+    (Crypto.obmHashVersion -- OBM-LBFT-DIFF - see SafetyRules.extensionCheck
+      (eb ^∙ ebStateComputeResult ∙ scrObmNumLeaves))
+    (eb ^∙ ebStateComputeResult ∙ scrObmNumLeaves)
+    (eb ^∙ ebStateComputeResult ∙ scrEpochState)
 
 maybeSignedVoteProposal : ExecutedBlock → MaybeSignedVoteProposal
 maybeSignedVoteProposal self =

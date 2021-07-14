@@ -38,7 +38,8 @@ postulate -- TODO-1: these are temporary scaffolding for the fake implementation
   fakeHash : Hash
 
 fakeBlockInfo : Epoch → Round → ProposalMsg → BlockInfo
-fakeBlockInfo eid rnd pm = BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId) fakeHash (mkVersion 0 0) nothing
+fakeBlockInfo eid rnd pm =
+  BlockInfo∙new eid rnd (pm ^∙ pmProposal ∙ bId) fakeHash (Version∙new 0 0) nothing
 
 fakeLedgerInfo : BlockInfo → ProposalMsg → LedgerInfo
 fakeLedgerInfo bi pm = LedgerInfo∙new bi (pm ^∙ pmProposal ∙ bId)

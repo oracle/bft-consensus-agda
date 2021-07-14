@@ -14,4 +14,6 @@ empty = BlockInfo∙new
   0                     -- TODO-1 gENESIS_EPOCH
   0                     -- TODO-1 gENESIS_ROUND
   (sha256 (false ∷ [])) -- TODO-1 Hash.valueZero
-
+  (sha256 (false ∷ [])) -- TODO-1 Hash.valueZero
+  (Version∙new 0 0)     -- TODO-1 gENESIS_VERSION
+  nothing

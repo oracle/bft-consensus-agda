@@ -55,7 +55,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
   record Version : Set where
-    constructor mkVersion
+    constructor Version∙new
     field
       _vVE : Epoch
       _vVR : Round
@@ -121,9 +121,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
-      _biEpoch : Epoch
-      _biRound : Round
-      _biId    : HashValue
+      _biEpoch           : Epoch
+      _biRound           : Round
+      _biId              : HashValue
       _biExecutedStateId : HashValue -- aka liTransactionAccumulatorHash
       _biVersion         : Version
       --, _biTimestamp       :: Instant
@@ -145,11 +145,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
               → BlockInfo∙new e1 r1 i1 x1 v1 n1 ≡ BlockInfo∙new e2 r2 i2 x2 v2 n2
   BlockInfo-η refl refl refl refl refl refl = refl
 
-{-
   instance
     Eq-ByteString : Eq ByteString
     Eq._≟_ Eq-ByteString = _≟ByteString_
 
+{-
   _≟BlockInfo_ : (b₁ b₂ : BlockInfo) → Dec (b₁ ≡ b₂)
   l ≟BlockInfo r with ((l ^∙ biEpoch) ≟ (r ^∙ biEpoch))
   ...| no  no-e = no  λ where refl → no-e refl
@@ -266,10 +266,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl qcVoteData   qcSignedLedgerInfo = mkLens (quote QuorumCert)
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
   postulate instance enc-QuorumCert : Encoder QuorumCert
-
-  -- For some reason the Haskell code has inconistent names.  This lets us stay consistent with it.
-  qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
-  qcLedgerInfo = qcSignedLedgerInfo
 
   -- Because QuorumCert has an injective encoding (postulated, for now),
   -- we can use it to determine equality of QuorumCerts.
