@@ -5,21 +5,27 @@
 -}
 
 open import Optics.All
+open import LibraBFT.Base.KVMap                               as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Interface.Output
-import      LibraBFT.ImplShared.Util.Crypto                         as Crypto
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert as QuorumCertProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
 open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
+open import LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures      as LedgerInfoWithSignatures
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
+import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
@@ -52,7 +58,14 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
 
 module extensionCheckMSpec (voteProposal : VoteProposal) where
   proposedBlock = voteProposal ^∙ vpBlock
-  voteData = VoteData.new (Block.genBlockInfo proposedBlock) (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock)
+  obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof
+  voteData = VoteData.new
+               (Block.genBlockInfo
+                 proposedBlock
+                 (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves))
+                 (obmAEP ^∙ aepObmNumLeaves)
+                 (voteProposal ^∙ vpNextEpochState))
+               (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock)
 
   -- TODO-1: This contract requires refinement once `extensionCheckM` is fully
   -- implemented.
@@ -124,14 +137,80 @@ module verifyAndUpdateLastVoteRoundMSpec (round : Round) (safetyData : SafetyDat
   proj₂ (contract Post pre pfOk pfBail) ¬r>lvr = pfBail (toWitnessF ¬r>lvr)
 
 
-module verifyQcMSpec (qc : QuorumCert) where
-  postulate
-    -- TODO-1: This contract needs refinement.
-    contract
-      : ∀ P pre
-        → (P (inj₁ fakeErr) pre [])
-        → (P (inj₂ unit) pre [])
-        → LBFT-weakestPre (verifyQcM qc) P pre
+module verifyQcMSpec (self : QuorumCert) where
+  getVv : RoundManager → ValidatorVerifier
+  getVv = _^∙ (rmEpochState ∙ esVerifier)
+
+  -- See comment on contract below to understand the motivation for stating and proving the property
+  -- this way.
+
+  Contract : RoundManager → RWST-Post Output RoundManager (Either ErrLog Unit)
+  Contract pre (Left _)  post outs = post ≡ pre × outs ≡ []
+  Contract pre (Right _) post outs = post ≡ pre × outs ≡ []
+                                   × QuorumCertProps.Contract self (getVv pre)
+
+  contract' : ∀ pre → RWST-weakestPre (verifyQcM self) (Contract pre) unit pre
+  contract' pre _vv ._
+     with self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash ≟ hashVD (self ^∙ qcVoteData)
+  ...| no neq = λ where _ refl → refl , refl
+  ...| yes refl
+     with self ^∙ qcCertifiedBlock ∙ biRound ≟ 0
+  ...| yes refl
+     with self ^∙ qcParentBlock ≟ self ^∙ qcCertifiedBlock
+  ...| no neq = λ where _ refl → refl , refl
+  ...| yes refl
+     with self ^∙ qcCertifiedBlock ≟ self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
+  ...| no neq = λ where _ refl → refl , refl
+  ...| yes refl
+     with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
+  ...| no neq = λ where _ refl → refl , refl
+  ...| yes noSigs =
+         λ where _ refl →
+                  refl , refl , record { lihash≡ = refl
+                                       ; rnd≟0 = yes refl
+                                       ; parProp = record { par≡cert = refl
+                                                          ; cert≡li = refl
+                                                          ; noSigs = noSigs } }
+  contract' pre vv refl
+     | yes refl
+     | no neq
+     with  LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)  vv | inspect
+          (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)) vv
+  ...| Left e     | _ = λ where _ refl → refl , refl
+  ...| Right unit | [ R ]
+     with VoteData.verify (self ^∙ qcVoteData) | inspect
+          VoteData.verify (self ^∙ qcVoteData)
+  ...| Left e     | _ = λ where _ refl → refl , refl
+  ...| Right unit | [ R' ] =
+         λ where _ refl →
+                  refl , refl , record { lihash≡ = refl
+                                       ; rnd≟0   = no neq
+                                       ; parProp = record { sigProp = R
+                                                          ; vdProp = VoteDataProps.contract
+                                                                       (self ^∙ qcVoteData)
+                                                                       R' }}
+
+  -- Suppose verifyQcM runs from prestate pre, and we wish to ensure that postcondition Post holds
+  -- afterwards.  If P holds provided verifyQcM does not modify the state and does not produce any
+  -- Outputs, and, if verifyQcM succeeds (returns Right unit), P holds provided
+  -- QuorumCertProps.Contract holds for the given QuorumCert and the ValidatorVerifier of the
+  -- prestate, then verifyQcM ensures P holds.  Proving this directly is painful because it's
+  -- difficult to construct a QuorumCertProps.Contract self (getVv pre) that Agda understands allows
+  -- us to invoke the rPrf (condition on P in case verifyQcM succeeds).  Therefore, we restate the
+  -- conditions on P (as P', above) and prove that P' implies P, and then use LBFT-⇒ to achieve
+  -- the desired result.
+  contract
+    : ∀ P pre
+    → (∀ {e} → P (Left e) pre [])  -- verifyQcM does not emit any outputs, it just propagates a Left ErrLog, hence [] 
+    → (QuorumCertProps.Contract self (getVv pre) → P (Right unit) pre [])
+    → RWST-weakestPre (verifyQcM self) P unit pre
+  contract Post pre lPrf rPrf = LBFT-⇒ (Contract pre) Post
+                                       (λ { (Left x₁) st outs (refl , refl)          → lPrf
+                                          ; (Right unit) st outs (refl , refl , prf) → rPrf prf })
+                                       (verifyQcM self)
+                                       pre
+                                       (contract' pre)
+
 
 module constructAndSignVoteMSpec where
 
@@ -248,7 +327,11 @@ module constructAndSignVoteMSpec where
             preUpdatedSD₂ = preUpdatedSD & lSafetyData ∙~ (safetyData1 & sdLastVote ?~ vote)
 
             voteFromBlock : Voting.VoteMadeFromBlock vote proposedBlock
-            voteFromBlock rewrite Requirements.vp≡pb reqs = refl
+            voteFromBlock =
+              Voting.mkVoteMadeFromBlock
+                (cong (_^∙ bEpoch) eq) (cong (_^∙ bRound) eq) (cong (_^∙ bId) eq)
+              where
+              eq = sym (Requirements.vp≡pb reqs)
 
             -- State invariants
             module _ where
@@ -281,8 +364,8 @@ module constructAndSignVoteMSpec where
         (contractBail _ refl)
         contract-step₁
       where
-      contract-step₁ : RWST-weakestPre-ebindPost unit (const step₁) (Contract pre proposedBlock) (Right unit) pre []
-      contract-step₁ ._ refl validatorVerifier@._ refl
+      contract-step₁ : QuorumCertProps.Contract _ _ → RWST-weakestPre-ebindPost unit (const step₁) (Contract pre proposedBlock) (Right unit) pre []
+      contract-step₁ qcCon ._ refl validatorVerifier@._ refl
         with Block.validateSignature proposedBlock validatorVerifier
       ... | Left e = contractBail _ refl
       ... | Right unit = λ where ._ refl → contract-step₃

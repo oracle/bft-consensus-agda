@@ -236,12 +236,15 @@ module Voting where
   VoteRoundIs : (vote : Vote) (r : Round) → Set
   VoteRoundIs vote r = vote ^∙ vRound ≡ r
 
-  VoteMadeFromBlock : (vote : Vote) (block : Block) → Set
-  VoteMadeFromBlock vote block =
-    vote ^∙ vVoteData ≡ VoteData∙new (Block.genBlockInfo block) (block ^∙ bQuorumCert ∙ qcCertifiedBlock)
+  record VoteMadeFromBlock (vote : Vote) (block : Block) : Set where
+    constructor mkVoteMadeFromBlock
+    field
+      epoch≡ : vote ^∙ vEpoch ≡ block ^∙ bEpoch
+      round≡ : vote ^∙ vRound ≡ block ^∙ bRound
+      proposedID : vote ^∙ vProposedId ≡ block ^∙ bId
 
   VoteMadeFromBlock⇒VoteEpochRoundIs : ∀ {v b} → VoteMadeFromBlock v b → VoteEpochIs v (b ^∙ bEpoch) × VoteRoundIs v (b ^∙ bRound)
-  VoteMadeFromBlock⇒VoteEpochRoundIs vifb rewrite vifb = refl , refl
+  VoteMadeFromBlock⇒VoteEpochRoundIs (mkVoteMadeFromBlock epoch≡ round≡ proposedID) = epoch≡ , round≡
 
   VoteTriggeredByBlock : (vote : Vote) (block : Block) (new? : Bool) → Set
   VoteTriggeredByBlock vote block true = VoteMadeFromBlock vote block

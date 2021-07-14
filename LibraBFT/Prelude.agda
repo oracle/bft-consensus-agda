@@ -40,7 +40,7 @@ module LibraBFT.Prelude where
 
   open import Data.List
     renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
-              tabulate to List-tabulate)
+              tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
 
@@ -134,6 +134,11 @@ module LibraBFT.Prelude where
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
+
+  maybeHsk : ∀ {A B : Set} → B → (A → B) → Maybe A → B
+  maybeHsk b a→b = λ where
+    nothing  → b
+    (just a) → a→b a
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
@@ -311,6 +316,12 @@ module LibraBFT.Prelude where
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+  open import Data.String as String
+    hiding (_==_ ; _≟_)
+
+  check : Bool → List String → Either String Unit
+  check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
 
   -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
   -- category as Optics, so maybe should similarly be in a module that

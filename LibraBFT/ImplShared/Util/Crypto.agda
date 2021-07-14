@@ -30,7 +30,8 @@ module LibraBFT.ImplShared.Util.Crypto where
   open WithCryptoHash sha256 sha256-cr
 
   blockInfoBSList : BlockInfo → List ByteString
-  blockInfoBSList (BlockInfo∙new epoch round id) = encode epoch ∷ encode round ∷ encode id ∷ []
+  blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
+    encode epoch ∷ encode round ∷ encode id ∷ encode execStId ∷ encode ver ∷ encode mes ∷ []
 
   hashBI : BlockInfo → HashValue
   hashBI = sha256 ∘ bs-concat ∘ blockInfoBSList
@@ -41,7 +42,10 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| inj₂ res with bs-concat-inj (blockInfoBSList bi1) (blockInfoBSList bi2) res
   ...| final = inj₂ (BlockInfo-η (encode-inj (proj₁ (∷-injective final)))
                                  (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective final)))))
-                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final))))))))
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))))
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final)))))))))))
+                                 (encode-inj (proj₁ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective (proj₂ (∷-injective final))))))))))))))
 
   voteDataHashList : VoteData → List Hash
   voteDataHashList (VoteData∙new proposed parent) =

@@ -67,6 +67,9 @@ caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
 caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
 caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
 
+when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
+when b f = ifM toBool b then f else pure unit
+
 -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)
 ok = return ∘ Right
@@ -131,3 +134,6 @@ setL : Lens St A → A → RWST Ev Wr St Unit
 setL l x = l %= const x
 syntax setL l x = l ∙= x
 
+setL? : Lens St (Maybe A) → A → RWST Ev Wr St Unit
+setL? l x = l ∙= just x
+syntax setL? l x = l ?= x
