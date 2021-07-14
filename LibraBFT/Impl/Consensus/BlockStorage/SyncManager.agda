@@ -54,11 +54,10 @@ insertQuorumCertM qc retriever = do
     ifM (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
       then (do
         let finalityProof = qc ^∙ qcLedgerInfo
-        BlockStore.commitM finalityProof {- (.?. (λ xx →
-          if qc ^∙ qcEndsEpoch
+        BlockStore.commitM finalityProof ∙?∙ λ xx →
+          ifM qc ^∙ qcEndsEpoch
             then ok unit -- TODO-1 EPOCH CHANGE
-            else ok unit))-}
-            )
+            else ok unit)
       else
         ok unit
 
