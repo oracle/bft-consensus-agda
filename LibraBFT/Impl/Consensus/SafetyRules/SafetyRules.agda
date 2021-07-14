@@ -12,6 +12,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
 import      LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
 open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -21,10 +22,6 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
-
-postulate
-  obmCheckSigner : SafetyRules → Bool
-  constructLedgerInfoM : Block → HashValue → LBFT (Either ErrLog LedgerInfo)
 
 ------------------------------------------------------------------------------
 
@@ -46,6 +43,24 @@ extensionCheckM voteProposal = do
          (obmAEP ^∙ aepObmNumLeaves)
          (voteProposal ^∙ vpNextEpochState))
        (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
+
+------------------------------------------------------------------------------
+
+constructLedgerInfoM : Block → HashValue → LBFT (Either ErrLog LedgerInfo)
+constructLedgerInfoM proposedBlock consensusDataHash = do
+  let block2 = proposedBlock ^∙ bRound
+      block1 = proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock ∙ biRound
+      block0 = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock ∙ biRound
+      commit = (block0 + 1 == block1) ∧ (block1 + 1 == block2)
+  commitInfo ←
+    if commit
+    then (do
+      let c = proposedBlock ^∙ bQuorumCert ∙ qcParentBlock
+      logInfo fakeInfo -- lSR (Info3ChainDetected proposedBlock c)
+      pure c)
+    else
+      pure BlockInfo.empty
+  ok (LedgerInfo∙new commitInfo consensusDataHash)
 
 ------------------------------------------------------------------------------
 
@@ -94,7 +109,7 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 verifyQcM : QuorumCert → LBFT (Either ErrLog Unit)
 verifyQcM qc = do
   validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
-  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtxt
+  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtx ("InvalidQuorumCertificate" ∷ [])
 
 ------------------------------------------------------------------------------
 
@@ -104,7 +119,7 @@ constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block �
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either ErrLog Vote)
 constructAndSignVoteM maybeSignedVoteProposal =
-  logEE $ do
+  logEE ("" ∷ []) $ do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   maybeS vs (bail fakeErr {- srValidatorSigner is nothing -}) λ validatorSigner → do
     let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal
@@ -172,13 +187,13 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₂ safetyData1 voteData = do
       let author = validatorSigner ^∙ vsAuthor
       constructLedgerInfoM proposedBlock (Crypto.hashVD voteData)
-                           ∙^∙ withErrCtxt ∙?∙ (step₃ safetyData1 voteData author)
+                           ∙^∙ withErrCtx ("" ∷ []) ∙?∙ (step₃ safetyData1 voteData author)
 
   step₃ safetyData1 voteData author ledgerInfo = do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
         lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
-        logInfo -- InfoUpdateLastVotedRound
+        logInfo fakeInfo -- InfoUpdateLastVotedRound
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀

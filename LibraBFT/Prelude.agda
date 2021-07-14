@@ -43,7 +43,7 @@ module LibraBFT.Prelude where
 
   open import Data.List
     renaming (map to List-map ; filter to List-filter ; lookup to List-lookup;
-              tabulate to List-tabulate)
+              tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
 
@@ -137,6 +137,11 @@ module LibraBFT.Prelude where
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
+
+  maybeHsk : ∀ {A B : Set} → B → (A → B) → Maybe A → B
+  maybeHsk b a→b = λ where
+    nothing  → b
+    (just a) → a→b a
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)

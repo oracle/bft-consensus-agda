@@ -29,8 +29,8 @@ handleProposal : Instant → ProposalMsg → LBFT Unit
 handleProposal now pm = do
   (myEpoch , vv) ← epvv
   caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
-    (Left (Left _))  → logErr
-    (Left (Right _)) → logInfo
+    (Left (Left  e)) → logErr e
+    (Left (Right i)) → logInfo i
     (Right _)        → RoundManager.processProposalMsgM now pm
 
 handle : NodeId → NetworkMsg → Instant → LBFT Unit

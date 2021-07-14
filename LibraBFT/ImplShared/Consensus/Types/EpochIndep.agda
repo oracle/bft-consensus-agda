@@ -55,7 +55,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
   record Version : Set where
-    constructor mkVersion
+    constructor Version∙new
     field
       _vVE : Epoch
       _vVR : Round
@@ -121,9 +121,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
-      _biEpoch : Epoch
-      _biRound : Round
-      _biId    : HashValue
+      _biEpoch           : Epoch
+      _biRound           : Round
+      _biId              : HashValue
       _biExecutedStateId : HashValue -- aka liTransactionAccumulatorHash
       _biVersion         : Version
       --, _biTimestamp       :: Instant
@@ -145,6 +145,28 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
               → BlockInfo∙new e1 r1 i1 x1 v1 n1 ≡ BlockInfo∙new e2 r2 i2 x2 v2 n2
   BlockInfo-η refl refl refl refl refl refl = refl
 
+  instance
+    Eq-ByteString : Eq ByteString
+    Eq._≟_ Eq-ByteString = _≟ByteString_
+
+{-
+  _≟BlockInfo_ : (b₁ b₂ : BlockInfo) → Dec (b₁ ≡ b₂)
+  l ≟BlockInfo r with ((l ^∙ biEpoch) ≟ (r ^∙ biEpoch))
+  ...| no  no-e = no  λ where refl → no-e refl
+  ...| yes refl with ((l ^∙ biRound)  ≟ (r ^∙ biRound))
+  ...| no  no-r = no  λ where refl → no-r refl
+  ...| yes refl with ((l ^∙ biId)     ≟ (r ^∙ biId))
+  ...| no  no-i = no  λ where refl → no-i refl
+  ...| yes refl = yes refl
+
+  instance
+    Eq-BlockInfo : Eq BlockInfo
+    Eq._≟_ Eq-BlockInfo = _≟BlockInfo_
+
+  BlockInfo-η : ∀{e1 e2 r1 r2 i1 i2} → e1 ≡ e2 → r1 ≡ r2 → i1 ≡ i2
+              → BlockInfo∙new e1 r1 i1 ≡ BlockInfo∙new e2 r2 i2
+  BlockInfo-η refl refl refl = refl
+-}
 
   record LedgerInfo : Set where
     constructor LedgerInfo∙new
@@ -156,6 +178,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (liCommitInfo ∷ liConsensusDataHash ∷ [])
   postulate instance enc-LedgerInfo : Encoder LedgerInfo
   postulate instance ws-LedgerInfo  : WithSig LedgerInfo
+
+  -- GETTER only in Haskell
+  liConsensusBlockId : Lens LedgerInfo HashValue
+  liConsensusBlockId = liCommitInfo ∙ biId
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
@@ -241,10 +267,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (qcVoteData ∷ qcSignedLedgerInfo ∷ [])
   postulate instance enc-QuorumCert : Encoder QuorumCert
 
-  -- For some reason the Haskell code has inconistent names.  This lets us stay consistent with it.
-  qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
-  qcLedgerInfo = qcSignedLedgerInfo
-
   -- Because QuorumCert has an injective encoding (postulated, for now),
   -- we can use it to determine equality of QuorumCerts.
   _≟QC_ : (q1 q2 : QuorumCert) → Dec (q1 ≡ q2)
@@ -258,6 +280,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   qcParentBlock : Lens QuorumCert BlockInfo
   qcParentBlock = qcVoteData ∙ vdParent
+
+  -- This is a GETTER only in Haskell
+  qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
+  qcLedgerInfo = qcSignedLedgerInfo
 
   qcCommitInfo : Lens QuorumCert BlockInfo
   qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
@@ -305,6 +331,25 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     NilBlock : BlockType
     Genesis  : BlockType
   postulate instance enc-BlockType : Encoder BlockType
+
+  _≟BlockType_ : (b₁ b₂ : BlockType) → Dec (b₁ ≡ b₂)
+  Genesis          ≟BlockType Genesis          = true because ofʸ refl
+  NilBlock         ≟BlockType NilBlock         = true because ofʸ refl
+  (Proposal t₁ a₁) ≟BlockType (Proposal t₂ a₂) with t₁ ≟ t₂
+  ...| no  no-t = no λ where refl → no-t refl
+  ...| yes refl with a₁ ≟ a₂
+  ...| no  no-a = no λ where refl → no-a refl
+  ...| yes refl = yes refl
+  Genesis          ≟BlockType NilBlock       = no (λ ())
+  Genesis          ≟BlockType (Proposal _ _) = no (λ ())
+  NilBlock         ≟BlockType Genesis        = no (λ ())
+  NilBlock         ≟BlockType (Proposal _ _) = no (λ ())
+  (Proposal _ _)   ≟BlockType Genesis        = no (λ ())
+  (Proposal _ _)   ≟BlockType NilBlock       = no (λ ())
+
+  instance
+    Eq-BlockType : Eq BlockType
+    Eq._≟_ Eq-BlockType = _≟BlockType_
 
   record BlockData : Set where
     constructor BlockData∙new
@@ -723,6 +768,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     -- Defining it just to make progress, but it can't be defined
     -- correctly in terms of type correctness (let alone setting a new root!)
     s : BlockTree → Maybe ExecutedBlock → BlockTree
+    s bt _ = bt
+
+  -- GETTER ONLY in haskell
+  btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
+  btHighestCertifiedBlock = mkLens' g s
+    where
+    g : BlockTree → (Maybe ExecutedBlock)
+    g bt = btGetBlock (bt ^∙ btHighestCertifiedBlockId) bt
+
+    s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt
 
   record BlockStore : Set where

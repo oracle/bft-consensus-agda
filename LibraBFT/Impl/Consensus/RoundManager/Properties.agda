@@ -177,7 +177,7 @@ module processProposalMSpec (proposal : Block) where
          → executeAndVoteMSpec.Contract proposal pre r st outs
          → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs
     pf (Left x) st outs (executeAndVoteMSpec.mkContract noOuts inv resultCorrect) .(Left x) refl =
-      mkContract (Left (mkNoOutsCorrect (++-NoMsgOuts outs (LogErr fakeErr ∷ []) noOuts refl) resultCorrect)) inv
+      mkContract (Left (mkNoOutsCorrect (++-NoMsgOuts outs (LogErr _ ∷ []) noOuts refl) resultCorrect)) inv
     pf (Right vote) st outs (executeAndVoteMSpec.mkContract noOuts inv resultCorrect) ._ refl ._ refl ._ refl =
       syncInfoMSpec.contract (st & rsVoteSent-rm ∙~ just vote)
         (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ (Contract pre) outs))
