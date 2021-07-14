@@ -73,7 +73,7 @@ insertQuorumCertE qc bt0 = do
                (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
 
   case safetyInvariant of λ where
-    (Left  e)    → Left fakeErr
+    (Left  e)    → Left e
     (Right unit) →
       maybeS (btGetBlock blockId bt0) (Left fakeErr) $ λ block →
       maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
