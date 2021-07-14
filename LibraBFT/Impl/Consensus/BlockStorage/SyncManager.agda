@@ -20,9 +20,6 @@ data NeedFetchResult : Set where
 
 postulate
 
-  liNextEpochState : Lens LedgerInfo (Maybe EpochState)
-  qcEndsEpoch      : Lens QuorumCert Bool
-
   fetchQuorumCertM
     : QuorumCert → BlockRetriever
     → LBFT (Either ErrLog Unit)
