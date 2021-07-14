@@ -57,9 +57,9 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
 
     contract-step₁ : _
-    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (Left e)  pp≡Left =
+    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e)  pp≡Left =
       contractBail _ refl
-    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (Right i) pp≡Left =
+    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
       contractBail _ refl
     proj₂ (contract-step₁ (myEpoch@._ , vv@._) refl) unit pp≡Right =
       processProposalMsgMSpec.contract now pm pre (Contract pre) pf

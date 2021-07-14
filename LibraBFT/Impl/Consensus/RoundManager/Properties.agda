@@ -93,7 +93,7 @@ module executeAndVoteMSpec (b : Block) where
       contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre (Left e) preUpdateBS outs
       contractBailSetBS outs noMsgOuts =
         mkContract invP₁ refl
-          noMsgOuts true (Left (StateProps.mkVoteNotGenerated refl refl))
+          noMsgOuts true (inj₁ (StateProps.mkVoteNotGenerated refl refl))
 
       contract-step₁
         : RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
@@ -123,7 +123,7 @@ module executeAndVoteMSpec (b : Block) where
                 → (RWST-weakestPre-ebindPost unit step₃ (Contract pre)) r st outs
           pf' (Left _) vc =
             mkContract invP₂ noEpochChange noMsgOuts lvr≡?
-              (Left (StateProps.transVoteNotGenerated (StateProps.mkVoteNotGenerated refl refl) vc))
+              (inj₁ (StateProps.transVoteNotGenerated (StateProps.mkVoteNotGenerated refl refl) vc))
           pf' (Right vote) vc ._ refl rewrite eb≡b =
             PersistentLivenessStorageProps.saveVoteMSpec.contract vote
               (RWST-weakestPre-ebindPost unit (const (ok vote)) (RWST-Post++ (Contract pre) outs)) st

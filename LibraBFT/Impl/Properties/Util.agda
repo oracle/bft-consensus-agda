@@ -279,9 +279,9 @@ module Voting where
       → StateProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedCorrect s₂ s₃ vote block
       → VoteGeneratedCorrect s₁ s₃ vote block
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (Left oldVG)) blockTriggered) =
+  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
     mkVoteGeneratedCorrect (StateProps.step-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (Right newVG)) blockTriggered) =
+  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
     mkVoteGeneratedCorrect (StateProps.step-VoteNotGenerated-VoteGenerated vng vg)
       blockTriggered
 
@@ -316,10 +316,10 @@ module Voting where
       → StateProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
-  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (Left vng₂)) =
-    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (Left (StateProps.transVoteNotGenerated vng₁ vng₂))
-  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (Right vgus)) =
-    mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (Right (step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
+  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
+    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateProps.transVoteNotGenerated vng₁ vng₂))
+  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
+    mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
   -- The handler correctly attempted to vote on `block`, assuming the safety
   -- data epoch matches the block epoch.
@@ -329,32 +329,32 @@ module Voting where
 
   -- The voting process ended before `lSafetyData` could be updated
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
-  voteAttemptBailed outs noVotesOuts = Left (true , mkVoteUnsentCorrect noVotesOuts (Left StateProps.reflVoteNotGenerated))
+  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateProps.reflVoteNotGenerated))
 
   step-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
       → StateProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
-  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (Left (lvr≡? , vusCorrect)) =
-    Left (lvr≡? , step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nvo vusCorrect)
-  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (Right (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
-    Right (mkVoteSentCorrect vm pid (OutputProps.++-NoVotes-OneVote outs₁ _ nvo voteMsgOuts) (step-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
+  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
+    inj₁ (lvr≡? , step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nvo vusCorrect)
+  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
+    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoVotes-OneVote outs₁ _ nvo voteMsgOuts) (step-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
 
   VoteAttemptEpochReq : ∀ {pre post outs block} → VoteAttemptCorrect pre post outs block → Set
-  VoteAttemptEpochReq (Left (_ , mkVoteUnsentCorrect _ (Left _))) =
+  VoteAttemptEpochReq (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) =
     ⊤
-  VoteAttemptEpochReq{pre}{block = block} (Left (_ , mkVoteUnsentCorrect _ (Right _))) =
+  VoteAttemptEpochReq{pre}{block = block} (inj₁ (_ , mkVoteUnsentCorrect _ (inj₂ _))) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ (block ^∙ bEpoch)
-  VoteAttemptEpochReq{pre}{block = block} (Right _) =
+  VoteAttemptEpochReq{pre}{block = block} (inj₂ _) =
     pre ^∙ lSafetyData ∙ sdEpoch ≡ (block ^∙ bEpoch)
 
   voteAttemptEpochReq!
     : ∀ {pre post outs block} → (vac : VoteAttemptCorrect pre post outs block)
       → pre ^∙ lSafetyData ∙ sdEpoch ≡ block ^∙ bEpoch → VoteAttemptEpochReq vac
-  voteAttemptEpochReq! (Left (_ , mkVoteUnsentCorrect _ (Left _))) eq = tt
-  voteAttemptEpochReq! (Left (_ , mkVoteUnsentCorrect _ (Right _))) eq = eq
-  voteAttemptEpochReq! (Right _) eq = eq
+  voteAttemptEpochReq! (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) eq = tt
+  voteAttemptEpochReq! (inj₁ (_ , mkVoteUnsentCorrect _ (inj₂ _))) eq = eq
+  voteAttemptEpochReq! (inj₂ _) eq = eq
 
   record VoteAttemptCorrectWithEpochReq (pre post : RoundManager) (outs : List Output) (block : Block) : Set where
     constructor mkVoteAttemptCorrectWithEpochReq
