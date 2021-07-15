@@ -40,7 +40,7 @@ open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
-open StateProps
+open StateTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
@@ -74,6 +74,9 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
-postulate -- TODO-4: prove (note: very difficult)
-  -- This will likely require major updates to the existing proofs for the peer handlers.
+postulate -- TODO-3: prove (note: advanced)
+  -- This will require updates to the existing proofs for the peer handlers. We
+  -- will need to show that honest peers sign things only for their only PK, and
+  -- that they either resend messages signed before or if sending a new one,
+  -- that signature hasn't been sent before
   impl-sps-avp : StepPeerState-AllValidParts

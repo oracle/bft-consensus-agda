@@ -41,7 +41,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     field
       -- Genera properties / invariants
       rmInv              : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange      : StateProps.NoEpochChange pre post
+      noEpochChange      : StateTransProps.NoEpochChange pre post
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
 
@@ -53,7 +53,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     where
     contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
     contractBail outs noVotes =
-      mkContract StateInvariants.reflPreservesRoundManagerInv (StateProps.reflNoEpochChange{pre})
+      mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
         (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
 
     contract-step₁ : _

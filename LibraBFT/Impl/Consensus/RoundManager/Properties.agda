@@ -41,7 +41,7 @@ module executeAndVoteMSpec (b : Block) where
 
   VoteResultCorrect : (pre post : RoundManager) (lvr≡? : Bool) (r : Either ErrLog Vote) → Set
   VoteResultCorrect pre post lvr≡? (Left _) =
-    StateProps.VoteNotGenerated pre post lvr≡? ⊎ Voting.VoteGeneratedUnsavedCorrect pre post b
+    StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ Voting.VoteGeneratedUnsavedCorrect pre post b
   VoteResultCorrect pre post lvr≡? (Right vote) =
     Voting.VoteGeneratedCorrect pre post vote b
 
@@ -50,7 +50,7 @@ module executeAndVoteMSpec (b : Block) where
     field
       -- General properties / invariants
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateProps.NoEpochChange pre post
+      noEpochChange : StateTransProps.NoEpochChange pre post
       noMsgOuts     : OutputProps.NoMsgs outs
       -- Voting
       lvr≡?             : Bool
@@ -68,8 +68,8 @@ module executeAndVoteMSpec (b : Block) where
     contractBail : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre (Left e) pre outs
     contractBail outs noMsgOuts =
       mkContract
-        StateInvariants.reflPreservesRoundManagerInv (StateProps.reflNoEpochChange{pre})
-        noMsgOuts true (inj₁ StateProps.reflVoteNotGenerated)
+        StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
+        noMsgOuts true (inj₁ StateTransProps.reflVoteNotGenerated)
 
     module _
       (bs' : BlockStore) (eb : ExecutedBlock)
@@ -93,7 +93,7 @@ module executeAndVoteMSpec (b : Block) where
       contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre (Left e) preUpdateBS outs
       contractBailSetBS outs noMsgOuts =
         mkContract invP₁ refl
-          noMsgOuts true (inj₁ (StateProps.mkVoteNotGenerated refl refl))
+          noMsgOuts true (inj₁ (StateTransProps.mkVoteNotGenerated refl refl))
 
       contract-step₁
         : RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
@@ -123,7 +123,7 @@ module executeAndVoteMSpec (b : Block) where
                 → (RWST-weakestPre-ebindPost unit step₃ (Contract pre)) r st outs
           pf' (Left _) vc =
             mkContract invP₂ noEpochChange noMsgOuts lvr≡?
-              (inj₁ (StateProps.transVoteNotGenerated (StateProps.mkVoteNotGenerated refl refl) vc))
+              (inj₁ (StateTransProps.transVoteNotGenerated (StateTransProps.mkVoteNotGenerated refl refl) vc))
           pf' (Right vote) vc ._ refl rewrite eb≡b =
             PersistentLivenessStorageProps.saveVoteMSpec.contract vote
               (RWST-weakestPre-ebindPost unit (const (ok vote)) (RWST-Post++ (Contract pre) outs)) st
@@ -132,7 +132,7 @@ module executeAndVoteMSpec (b : Block) where
               where
               vgc : Voting.VoteGeneratedCorrect pre st vote _
               vgc = Voting.step-VoteNotGenerated-VoteGeneratedCorrect
-                      (StateProps.mkVoteNotGenerated refl refl) vc
+                      (StateTransProps.mkVoteNotGenerated refl refl) vc
 
               onSaveFailed : _
               onSaveFailed outs₁ noMsgOuts₁ noErrOuts₁ =
@@ -165,7 +165,7 @@ module processProposalMSpec (proposal : Block) where
     field
        -- General properties / invariants
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateProps.NoEpochChange pre post
+      noEpochChange : StateTransProps.NoEpochChange pre post
       noBroadcasts  : OutputProps.NoBroadcasts outs
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
@@ -189,7 +189,7 @@ module processProposalMSpec (proposal : Block) where
     where
     contractBail : ∀ {outs} → OutputProps.NoMsgs outs → Contract pre unit pre outs
     contractBail{outs} nmo =
-      mkContract StateInvariants.reflPreservesRoundManagerInv (StateProps.reflNoEpochChange{pre})
+      mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
         (OutputProps.NoMsgs⇒NoBroadcasts outs nmo)
         (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo))
 
@@ -228,12 +228,12 @@ module processProposalMSpec (proposal : Block) where
                 mkContract
                   (StateInvariants.transPreservesRoundManagerInv rmInv₂
                     (StateInvariants.mkPreservesRoundManagerInv id btInv₂ id))
-                  (StateProps.transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} noEpochChange refl)
+                  (StateTransProps.transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} noEpochChange refl)
                   (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoBroadcasts outs noMsgOuts) refl)
                   (inj₂ (Voting.mkVoteSentCorrect vm recipient
                           (OutputProps.++-NoVotes-OneVote outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl)
                           (Voting.step-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}
-                            vrc (StateProps.mkVoteNotGenerated refl refl))))
+                            vrc (StateTransProps.mkVoteNotGenerated refl refl))))
                 where
                 vm = VoteMsg∙new vote si
 
@@ -248,10 +248,10 @@ module syncUpMSpec
     field
       -- General invariants / properties
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateProps.NoEpochChange pre post
+      noEpochChange : StateTransProps.NoEpochChange pre post
       noVoteOuts    : OutputProps.NoVotes outs
       -- Voting
-      noVote        : StateProps.VoteNotGenerated pre post true
+      noVote        : StateTransProps.VoteNotGenerated pre post true
 
   postulate -- TODO-3: prove (waiting on: `syncUpM`)
     -- This is expected to be quite challenging, since syncing up can cause
@@ -277,10 +277,10 @@ module ensureRoundAndSyncUpMSpec
     field
       -- General invariants / properties
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateProps.NoEpochChange pre post
+      noEpochChange : StateTransProps.NoEpochChange pre post
       noVoteOuts    : OutputProps.NoVotes outs
       -- Voting
-      noVote        : StateProps.VoteNotGenerated pre post true
+      noVote        : StateTransProps.VoteNotGenerated pre post true
 
   postulate -- TODO-2: prove
     -- This should be fairly straightforward, appealing to the contract for
@@ -304,7 +304,7 @@ module processProposalMsgMSpec
     field
       -- General invariants / properties
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateProps.NoEpochChange pre post
+      noEpochChange : StateTransProps.NoEpochChange pre post
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
 
@@ -313,7 +313,7 @@ module processProposalMsgMSpec
     where
     contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
     contractBail outs nvo =
-      mkContract StateInvariants.reflPreservesRoundManagerInv (StateProps.reflNoEpochChange{pre})
+      mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
         (Voting.voteAttemptBailed outs nvo)
 
     contract : LBFT-weakestPre step₀ (Contract pre) pre
@@ -349,7 +349,7 @@ module processProposalMsgMSpec
             pf-step₃ unit st' outs' (processProposalMSpec.mkContract rmInv' noEpochChange' noBroadcasts' voteAttemptCorrect') =
               mkContract
                 (StateInvariants.transPreservesRoundManagerInv rmInv rmInv')
-                (StateProps.transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
+                (StateTransProps.transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
                 (Voting.step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
                   noVote noVoteOuts voteAttemptCorrect')
 

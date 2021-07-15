@@ -119,7 +119,7 @@ module StateInvariants where
   mkPreservesRoundManagerInv prmC pbti pep (mkRoundManagerInv rmCorrect blockTreeInv epochsMatch) =
     mkRoundManagerInv (prmC rmCorrect) (pbti blockTreeInv) (pep epochsMatch)
 
-module StateProps where
+module StateTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
   -- the particular peer handler invoked
 
@@ -253,8 +253,8 @@ module Voting where
   record VoteGeneratedCorrect (pre post : RoundManager) (vote : Vote) (block : Block) : Set where
     constructor mkVoteGeneratedCorrect
     field
-      state          : StateProps.VoteGenerated pre post vote
-    voteNew? = StateProps.isVoteNewGenerated pre post vote state
+      state          : StateTransProps.VoteGenerated pre post vote
+    voteNew? = StateTransProps.isVoteNewGenerated pre post vote state
     field
       blockTriggered : VoteTriggeredByBlock vote block voteNew?
 
@@ -267,27 +267,27 @@ module Voting where
   step-VoteGeneratedCorrect-VoteNotGenerated
     : ∀ {s₁ s₂ s₃ vote block}
       → VoteGeneratedCorrect s₁ s₂ vote block
-      → StateProps.VoteNotGenerated s₂ s₃ true
+      → StateTransProps.VoteNotGenerated s₂ s₃ true
       → VoteGeneratedCorrect s₁ s₃ vote block
-  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
-  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (StateTransProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (StateTransProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
 
   step-VoteNotGenerated-VoteGeneratedCorrect
     : ∀ {s₁ s₂ s₃ vote block}
-      → StateProps.VoteNotGenerated s₁ s₂ true
+      → StateTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedCorrect s₂ s₃ vote block
       → VoteGeneratedCorrect s₁ s₃ vote block
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateProps.step-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateProps.step-VoteNotGenerated-VoteGenerated vng vg)
+  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (StateTransProps.step-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
+  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (StateTransProps.step-VoteNotGenerated-VoteGenerated vng vg)
       blockTriggered
 
   step-VoteNotGenerated-VoteGeneratedUnsavedCorrect
     : ∀ {s₁ s₂ s₃ block}
-      → StateProps.VoteNotGenerated s₁ s₂ true
+      → StateTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedUnsavedCorrect s₂ s₃ block
       → VoteGeneratedUnsavedCorrect s₁ s₃ block
   step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng (mkVoteGeneratedUnsavedCorrect vote voteGenCorrect) =
@@ -309,15 +309,15 @@ module Voting where
     constructor mkVoteUnsentCorrect
     field
       noVoteMsgOuts : OutputProps.NoVotes outs
-      nvg⊎vgusc    : StateProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
+      nvg⊎vgusc    : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
 
   step-VoteNotGenerated-VoteUnsentCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block lvr≡?}
-      → StateProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
   step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
-    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateProps.transVoteNotGenerated vng₁ vng₂))
+    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
   step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
     mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
@@ -329,11 +329,11 @@ module Voting where
 
   -- The voting process ended before `lSafetyData` could be updated
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
-  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateProps.reflVoteNotGenerated))
+  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
 
   step-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
-      → StateProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
   step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
