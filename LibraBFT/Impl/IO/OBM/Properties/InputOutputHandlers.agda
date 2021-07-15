@@ -8,10 +8,10 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager       as RoundManager
-open import LibraBFT.Impl.Consensus.RoundManager.PropertyDefs
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -22,45 +22,63 @@ open import Optics.All
 
 module LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers where
 
+module epvvSpec where
+
+  contract
+    : ∀ pre Post
+      → let ep = pre ^∙ lSafetyData ∙ sdEpoch
+            vv = pre ^∙ rmEpochState ∙ esVerifier in
+        (Post (ep , vv) pre [])
+      → LBFT-weakestPre epvv Post pre
+  contract pre Post pf ._ refl ._ refl ._ refl ._ refl = pf
+
 module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
-  epoch = pm ^∙ pmProposal ∙ bEpoch
-  round = pm ^∙ pmProposal ∙ bRound
-
-  record NoVoteOutsCorrect (pre post : RoundManager) (outs : List Output) : Set where
-    constructor mkNoOutsCorrect
-    field
-      noVoteOuts : NoVoteOuts outs
-      nvc⊎vns    : NoVoteCorrect pre post ⊎ VoteNotSaved pre post epoch round
-
-  record VoteMsgOutsCorrect (pre post : RoundManager) (outs : List Output)  : Set where
-    constructor mkVoteMsgOutsCorrect
-    field
-      vm          : VoteMsg
-      pid         : Author
-      voteMsgOuts : VoteMsgOuts outs vm (pid ∷ [])
-      outCorrect  : VoteCorrect pre post epoch round (vm ^∙ vmVote)
-      sdEpoch≡    : pre ^∙ lSafetyData ∙ sdEpoch ≡ epoch
-
-  OutsCorrect : (pre post : RoundManager) (outs : List Output) → Set
-  OutsCorrect pre post outs = NoVoteOutsCorrect pre post outs ⊎ VoteMsgOutsCorrect pre post outs
+  open handleProposal now pm
 
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
-      inv           : RMPreservesInvariant pre post
-      noEpochChange : NoEpochChange pre post
-      outsCorrect   : OutsCorrect pre post outs
+      -- Genera properties / invariants
+      rmInv              : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
+      noEpochChange      : StateTransProps.NoEpochChange pre post
+      -- Voting
+      voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
 
-  -- TODO-2: Prove this
-  postulate
-    contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
+  contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
+  contract pre =
+    epvvSpec.contract pre
+      (RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) (Contract pre))
+      contract-step₁
+    where
+    contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
+    contractBail outs noVotes =
+      mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
+        (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
+
+    contract-step₁ : _
+    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e)  pp≡Left =
+      contractBail _ refl
+    proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
+      contractBail _ refl
+    proj₂ (contract-step₁ (myEpoch@._ , vv@._) refl) unit pp≡Right =
+      processProposalMsgMSpec.contract now pm pre (Contract pre) pf
+      where
+      module PPM = processProposalMsgMSpec now pm
+
+      sdEpoch≡ : pre ^∙ lSafetyData ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch
+      sdEpoch≡
+        with processProposalSpec.contract pm myEpoch vv
+      ...| con rewrite pp≡Right = sym con
+
+      pf : RWST-Post-⇒ (PPM.Contract pre) (Contract pre)
+      pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect) =
+        mkContract rmInv noEpochChange
+          (Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
+            (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡))
 
   contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleProposal now pm) pre
   contract! pre = LBFT-contract (handleProposal now pm) (Contract pre) pre (contract pre)
 
-  contract!-NoEpochChange : ∀ pre → LBFT-Post-True (λ r st outs → NoEpochChange pre st) (handleProposal now pm) pre
-  contract!-NoEpochChange pre = Contract.noEpochChange (contract! pre)
-
-  contract!-RMPreservesInvariant : ∀ pre → LBFT-Post-True (λ r st outs → RMPreservesInvariant pre st) (handleProposal now pm) pre
-  contract!-RMPreservesInvariant pre = Contract.inv (contract! pre)
+  contract!-RoundManagerInv : ∀ pre → LBFT-Post-True (λ r st outs → StateInvariants.Preserves StateInvariants.RoundManagerInv pre st) (handleProposal now pm) pre
+  contract!-RoundManagerInv pre = Contract.rmInv (contract! pre)

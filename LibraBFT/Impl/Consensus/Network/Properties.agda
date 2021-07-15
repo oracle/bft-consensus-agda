@@ -19,6 +19,6 @@ module processProposalSpec (proposal : ProposalMsg) (myEpoch : Epoch) (vv : Vali
   postulate
     contract
       : case (processProposal proposal myEpoch vv) of λ where
-          (inj₁ _) → Unit
-          (inj₂ _) → proposal ^∙ pmProposal ∙ bEpoch ≡ myEpoch
+          (Left _) → Unit
+          (Right _) → proposal ^∙ pmProposal ∙ bEpoch ≡ myEpoch
 
