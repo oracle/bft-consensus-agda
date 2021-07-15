@@ -14,5 +14,5 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Network where
 
-  postulate  -- TODO-1: implement this
-    processProposal : {- NodeId → -} ProposalMsg → Epoch → ValidatorVerifier → (Either ErrLog InfoLog) ⊎ Unit
+postulate  -- TODO-1: implement this
+  processProposal : {- NodeId → -} ProposalMsg → Epoch → ValidatorVerifier → (Either ErrLog InfoLog) ⊎ Unit

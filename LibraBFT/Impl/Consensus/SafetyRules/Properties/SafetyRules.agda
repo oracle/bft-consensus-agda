@@ -49,6 +49,7 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
   module _ (pre : RoundManager) where
     record setPR (sd : SafetyData) : Set where
       field
+        cond  : C₂
         eff   : sd ≡ safetyData'
 
     record noChanges (sd : SafetyData) : Set where
@@ -87,11 +88,11 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
   ...| tri≈ _ refl _  = λ where ._ refl         → mkContract refl refl
                                                     (record { ep≡ = refl
                                                             ; qcr≤pr = ≤-refl
-                                                            ; conds = inj₂ (record { eff = refl }) })
+                                                            ; conds = inj₁ (record { noUpd = refl }) })
   ...| tri> _ _    gt = λ where ._ refl ._ refl → mkContract refl refl
                                                     (record { ep≡ = refl
                                                             ; qcr≤pr = ≤-refl
-                                                            ; conds = inj₂ (record { eff = refl }) })
+                                                            ; conds = inj₂ (record { cond = gt ; eff = refl }) })
 
 module extensionCheckMSpec (voteProposal : VoteProposal) where
   proposedBlock = voteProposal ^∙ vpBlock

@@ -183,6 +183,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   liConsensusBlockId : Lens LedgerInfo HashValue
   liConsensusBlockId = liCommitInfo ∙ biId
 
+  -- GETTER only in Haskell
+  liNextEpochState : Lens LedgerInfo (Maybe EpochState)
+  liNextEpochState = mkLens' g s
+   where
+    g : LedgerInfo → Maybe EpochState
+    g = (_^∙ liCommitInfo ∙ biNextEpochState)
+    s : LedgerInfo → Maybe EpochState → LedgerInfo
+    s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
+
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
              → cdh1 ≡ cdh2
@@ -287,6 +296,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   qcCommitInfo : Lens QuorumCert BlockInfo
   qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
+
+  -- GETTER only in Haskell
+  qcEndsEpoch : Lens QuorumCert Bool
+  qcEndsEpoch = mkLens' g s
+   where
+    g : QuorumCert → Bool
+    g q = is-just (q ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liNextEpochState)
+
+    s : QuorumCert → Bool → QuorumCert
+    s q _ = q -- TODO-1 : cannot be done: need a way to defined only getters
 
   -- Constructs a 'vote' that was gathered in a QC.
   rebuildVote : QuorumCert → Author × Signature → Vote
@@ -768,7 +787,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     -- Defining it just to make progress, but it can't be defined
     -- correctly in terms of type correctness (let alone setting a new root!)
     s : BlockTree → Maybe ExecutedBlock → BlockTree
-    s bt _ = bt
+    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
   -- GETTER ONLY in haskell
   btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
@@ -778,7 +797,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     g bt = btGetBlock (bt ^∙ btHighestCertifiedBlockId) bt
 
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
-    s bt _ = bt
+    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
   record BlockStore : Set where
     constructor BlockStore∙new
