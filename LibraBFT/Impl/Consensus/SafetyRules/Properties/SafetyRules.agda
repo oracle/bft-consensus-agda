@@ -94,25 +94,26 @@ module verifyAndUpdatePreferredRoundMSpec (quorumCert : QuorumCert) (safetyData 
                                                             ; qcr≤pr = ≤-refl
                                                             ; conds = inj₂ (record { cond = gt ; eff = refl }) })
 
-module extensionCheckMSpec (voteProposal : VoteProposal) where
+module extensionCheckSpec (voteProposal : VoteProposal) where
   proposedBlock = voteProposal ^∙ vpBlock
   obmAEP        = voteProposal ^∙ vpAccumulatorExtensionProof
-  voteData = VoteData.new
-               (Block.genBlockInfo
-                 proposedBlock
-                 (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves))
-                 (obmAEP ^∙ aepObmNumLeaves)
-                 (voteProposal ^∙ vpNextEpochState))
-               (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock)
 
-  -- TODO-1: This contract requires refinement once `extensionCheckM` is fully
-  -- implemented.
-  contract
-    : ∀ P pre
-      → P (inj₁ fakeErr) pre []
-      → P (inj₂ voteData) pre []
-      → LBFT-weakestPre (extensionCheckM voteProposal) P pre
-  contract Post pre prfBail prfOk = prfOk
+  voteData      =
+     (VoteData.new
+       (Block.genBlockInfo
+         proposedBlock
+         -- OBM-LBFT-DIFF: completely different
+         (Crypto.obmHashVersion (obmAEP ^∙ aepObmNumLeaves))
+         (obmAEP ^∙ aepObmNumLeaves)
+         (voteProposal ^∙ vpNextEpochState))
+       (proposedBlock ^∙ bQuorumCert ∙ qcCertifiedBlock))
+
+  contract -- TODO-1: refine (waiting on: extensionCheckM)
+    : ∀ {ℓ} (Post : Either ErrLog VoteData → Set ℓ)
+      → (∀ e → Post (Left e))
+      → (Post (pure voteData))
+      → Post (extensionCheck voteProposal)
+  contract Post pfBail pfOk = pfOk
 
 module constructLedgerInfoMSpec (proposedBlock : Block) (consensusDataHash : HashValue) where
   -- This is a place-holder contract that requires refinement once
@@ -329,24 +330,23 @@ module constructAndSignVoteMSpec where
           vpr≡pbr : (voteProposal ^∙ vpBlock) ≡L proposedBlock at bRound
           vpr≡pbr rewrite Requirements.vp≡pb reqs = refl
 
-        bailAfterSetSafetyData : Contract pre proposedBlock (Left fakeErr) preUpdatedSD []
-        bailAfterSetSafetyData =
+        bailAfterSetSafetyData : ∀ e → Contract pre proposedBlock (Left e) preUpdatedSD []
+        bailAfterSetSafetyData e =
           mkContract invP₁ refl refl false (StateTransProps.mkVoteNotGenerated (Requirements.lv≡ reqs) lvr<pbr)
 
         contract-step₁ : RWST-weakestPre-ebindPost unit step₁ (Contract pre proposedBlock) (Right _) pre []
         contract-step₂ : RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre proposedBlock) (Right _) preUpdatedSD []
 
         contract-step₁ ._ refl ._ refl .unit refl =
-          extensionCheckMSpec.contract voteProposal
-            (RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre proposedBlock)) preUpdatedSD
-            bailAfterSetSafetyData
-            contract-step₂
+          extensionCheckSpec.contract voteProposal
+            (λ r → RWST-weakestPre-ebindPost unit (step₂ safetyData1) (Contract pre proposedBlock) r preUpdatedSD [])
+            bailAfterSetSafetyData contract-step₂
 
         contract-step₂ voteData@._ refl =
           constructLedgerInfoMSpec.contract proposedBlock (hashVD voteData)
             (RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
               (RWST-weakestPre-ebindPost unit (step₃ safetyData1 voteData author) (Contract pre proposedBlock))) preUpdatedSD
-              (λ where .(Left fakeErr) refl → bailAfterSetSafetyData)
+              (λ where .(Left fakeErr) refl → bailAfterSetSafetyData fakeErr)
               contract-step₃
           where
           contract-step₃
