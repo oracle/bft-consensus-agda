@@ -50,6 +50,7 @@ postulate -- TODO-2: define GenesisInfo to match implementation and write these 
 initSR : SafetyRules
 initSR =
   let sd = fakeRM ^∙ lSafetyRules
+      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
       sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
       sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1 in
   sd

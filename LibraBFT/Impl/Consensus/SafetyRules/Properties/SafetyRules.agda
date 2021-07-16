@@ -3,7 +3,6 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
 open import Optics.All
 open import LibraBFT.Base.KVMap                               as Map
 open import LibraBFT.Base.PKCS
@@ -286,7 +285,8 @@ module constructAndSignVoteMSpec where
     record Requirements (pre : RoundManager) : Set where
       constructor mkRequirements
       field
-        es≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdEpoch
+        es≡₁  : (pre ^∙ lSafetyData) ≡L safetyData at sdEpoch
+        es≡₂  : voteProposal ^∙ vpBlock ∙ bEpoch ≡ safetyData ^∙ sdEpoch
         lv≡  : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVote
         lvr≡ : (pre ^∙ lSafetyData) ≡L safetyData at sdLastVotedRound
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
@@ -316,11 +316,27 @@ module constructAndSignVoteMSpec where
             btip₁ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD
          -- btip₁ = id
 
-          emP : pre ^∙ rmEpoch ≡ pre ^∙ lSafetyData ∙ sdEpoch → pre ^∙ rmEpoch ≡ safetyData ^∙ sdEpoch
-          emP eq = trans eq (Requirements.es≡ reqs)
+          emP : StateInvariants.Preserves StateInvariants.EpochsMatch pre preUpdatedSD
+          emP eq = trans eq (Requirements.es≡₁ reqs)
+
+          sdP : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD
+          sdP = StateInvariants.mkPreservesSafetyDataInv epoch≡₁ round≤₁
+            where
+            epoch≡₁ : StateInvariants.PreservesSD StateInvariants.SDLastVoteEpoch≡ pre preUpdatedSD
+            epoch≡₁ epoch≡
+              rewrite sym (Requirements.lv≡ reqs)
+              |       sym (Requirements.es≡₁ reqs)
+              = epoch≡
+            round≤₁ : StateInvariants.PreservesSD StateInvariants.SDLastVoteRound≤ pre preUpdatedSD
+            round≤₁ round≤
+               with pre ^∙ lSafetyData ∙ sdLastVote
+               | inspect (_^∙ lSafetyData ∙ sdLastVote) pre
+            ...| nothing | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) = tt
+            ...| just lv | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
+              ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
           invP₁ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD
-          invP₁ = StateInvariants.mkPreservesRoundManagerInv id btip₁ emP
+          invP₁ = StateInvariants.mkPreservesRoundManagerInv id btip₁ emP sdP
 
         -- Some lemmas
         module _ where
@@ -364,12 +380,12 @@ module constructAndSignVoteMSpec where
             vote = Vote.newWithSignature voteData author ledgerInfo (ValidatorSigner.sign validatorSigner ledgerInfo)
             preUpdatedSD₂ = preUpdatedSD & lSafetyData ∙~ (safetyData1 & sdLastVote ?~ vote)
 
+            pb≡vpb = sym (Requirements.vp≡pb reqs)
+
             voteFromBlock : Voting.VoteMadeFromBlock vote proposedBlock
             voteFromBlock =
               Voting.mkVoteMadeFromBlock
-                (cong (_^∙ bEpoch) eq) (cong (_^∙ bRound) eq) (cong (_^∙ bId) eq)
-              where
-              eq = sym (Requirements.vp≡pb reqs)
+                (cong (_^∙ bEpoch) pb≡vpb) (cong (_^∙ bRound) pb≡vpb) (cong (_^∙ bId) pb≡vpb)
 
             -- State invariants
             module _ where
@@ -377,8 +393,13 @@ module constructAndSignVoteMSpec where
                 btiP₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD₂
              -- btiP₂ = id
 
+              sdP₂ : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD₂
+              sdP₂ = StateInvariants.mkPreservesSafetyDataInv
+                     (const $ Requirements.es≡₂ reqs)
+                     (const $ ≡⇒≤ (cong (_^∙ bRound) pb≡vpb))
+
               invP₂ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD₂
-              invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP
+              invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP sdP₂
 
     contract
       : ∀ pre Post
@@ -401,6 +422,7 @@ module constructAndSignVoteMSpec where
       constructor mkRequirements
       field
         sd≡   : pre ^∙ lSafetyData ≡ safetyData0
+        es≡   : voteProposal ^∙ vpBlock ∙ bEpoch ≡ safetyData0 ^∙ sdEpoch
         vp≡pb : proposedBlock ≡ voteProposal ^∙ vpBlock
 
     contract
@@ -434,14 +456,14 @@ module constructAndSignVoteMSpec where
             reqs₁ : continue2.Requirements voteProposal validatorSigner proposedBlock safetyData0 pre
             reqs₁
               with Requirements.sd≡ reqs
-            ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
+            ...| refl = continue2.mkRequirements refl (Requirements.es≡ reqs) refl refl (Requirements.vp≡pb reqs)
 
             reqs₂ : continue2.Requirements voteProposal validatorSigner proposedBlock
                       (verifyAndUpdatePreferredRoundDefs.safetyData' (proposedBlock ^∙ bQuorumCert) safetyData0)
                       pre
             reqs₂
               with Requirements.sd≡ reqs
-            ...| refl = continue2.mkRequirements refl refl refl (Requirements.vp≡pb reqs)
+            ...| refl = continue2.mkRequirements refl (Requirements.es≡ reqs) refl refl (Requirements.vp≡pb reqs)
 
             pf-step₃ : ∀ r st outs → VAUPContract pre r st outs → Pred r st outs
             pf-step₃ r st outs (verifyAndUpdatePreferredRoundMSpec.mkContract noOuts refl condCorr) = pf r condCorr
@@ -476,22 +498,23 @@ module constructAndSignVoteMSpec where
       verifyEpochMSpec.contract (proposedBlock ^∙ bEpoch) safetyData0
         (RWST-weakestPre-ebindPost unit (const (step₁ safetyData0)) (Contract pre proposedBlock)) pre
         (λ e≢sde → contractBail _ refl)
-        λ e≡sde → contract-step₁
+        contract-step₁
       where
-      contract-step₁
-        : RWST-weakestPre-ebindPost unit (const (step₁ safetyData0)) (Contract pre proposedBlock) (Right unit) pre []
-      proj₁ (contract-step₁ .unit refl) ≡nothing =
-        continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-          (continue1.mkRequirements refl refl)
-      proj₁ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≡pbr =
-        mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre}) refl
-          true (Voting.mkVoteGeneratedCorrect
-                 (StateTransProps.mkVoteGenerated (sym vote≡)
-                   (inj₁ StateTransProps.reflVoteOldGenerated))
-                 (toWitnessT lvr≡pbr))
-      proj₂ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≢pbr =
-        continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
-          (continue1.mkRequirements refl refl)
+      module _ (e≡sde : proposedBlock ^∙ bEpoch ≡ pre ^∙ lSafetyData ∙ sdEpoch) where
+        contract-step₁
+          : RWST-weakestPre-ebindPost unit (const (step₁ safetyData0)) (Contract pre proposedBlock) (Right unit) pre []
+        proj₁ (contract-step₁ .unit refl) ≡nothing =
+          continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+            (continue1.mkRequirements refl e≡sde refl)
+        proj₁ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≡pbr =
+          mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre}) refl
+            true (Voting.mkVoteGeneratedCorrect
+                   (StateTransProps.mkVoteGenerated (sym vote≡)
+                     (inj₁ StateTransProps.reflVoteOldGenerated))
+                   (toWitnessT lvr≡pbr))
+        proj₂ (proj₂ (contract-step₁ .unit refl) vote vote≡) lvr≢pbr =
+          continue1.contract voteProposal validatorSigner proposedBlock safetyData0 pre
+            (continue1.mkRequirements refl e≡sde refl)
 
   module _ (maybeSignedVoteProposal : MaybeSignedVoteProposal) where
 

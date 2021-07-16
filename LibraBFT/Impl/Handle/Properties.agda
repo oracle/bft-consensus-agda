@@ -48,7 +48,9 @@ postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-blockTree-correct : StateInvariants.BlockTreeInv initRM
 
 initRMSatisfiesInv : StateInvariants.RoundManagerInv initRM
-initRMSatisfiesInv = StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
+initRMSatisfiesInv =
+  StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
+    (StateInvariants.mkSafetyDataInv (StateInvariants.mkSDLastVote tt tt))
 
 invariantsCorrect
   : ∀ pid (pre : SystemState)
