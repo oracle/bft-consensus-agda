@@ -75,7 +75,21 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
-postulate -- TODO-3: prove (note: advanced)
+postulate -- TODO-2: prove (waiting on: `handle`)
+  -- Likely the best approach here is to gather all two-state invariants into a
+  -- single record in `LibraBFT.Impl.Properties.Util`, including a
+  -- lexicographical ordering on (rmEpoch, metaRMGetRealLastVotedRound), then
+  -- prove that /all/ of these two-state invariants hold. Then, this follows as
+  -- a relatively simple lemma.
+  lastVotedRound-mono
+    : ∀ pid (pre : SystemState) {ppost} {msgs}
+      → ReachableSystemState pre
+      → initialised pre pid ≡ initd
+      → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
+      → peerStates pre pid ≡L ppost at rmEpoch
+      → metaRMGetRealLastVotedRound (peerStates pre pid) ≤ metaRMGetRealLastVotedRound ppost
+
+postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
   -- will need to show that honest peers sign things only for their only PK, and
   -- that they either resend messages signed before or if sending a new one,
