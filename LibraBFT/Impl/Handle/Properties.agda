@@ -43,6 +43,17 @@ open StateTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
+-- We can prove this easily because we don't yet do epoch changes,
+-- so only the initial EC is relevant.  Later, this will require us to use the fact that
+-- epoch changes require proof of committing an epoch-changing transaction.
+availEpochsConsistent :
+   ∀{pid pid' v v' pk}{st : SystemState}
+   → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+   → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
+
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct           : RoundManager-correct initRM
   initRM-blockTree-correct : StateInvariants.BlockTreeInv initRM

@@ -240,7 +240,75 @@ sameERasLV⇒sameId{pid}{pk = pk} (step-s{pre = pre} preach step@(step-peer sp@(
 
   pcsfpkPre : PeerCanSignForPK pre v pid pk
   pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
-sameERasLV⇒sameId{pid}{pid'} (step-s{pre = pre} preach (step-peer (step-honest (step-msg{pid“ , m} m∈pool ini)))){v} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round = {!!}
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest{pid“}{post} sps@(step-msg{_ , m} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+  with newMsg⊎msgSentB4 preach sps hpk sig' ¬gen v'⊂m' m'∈pool
+... | inj₁ (m∈outs , pcsfpk' , ¬msb4)
+  with pid≡
+  where
+  -- TODO-2: This should be generalized to a lemma.
+  pid≡ : pid ≡ pid“
+  pid≡ = begin
+    pid
+      ≡⟨ sym (nid≡ (pcs4in𝓔 pcsfpk)) ⟩
+    pcsfpk∙pid
+      ≡⟨ PK-inj-same-ECs{pcs4𝓔 pcsfpk}{pcs4𝓔 pcsfpk'}
+           (availEpochsConsistent pcsfpk pcsfpk' ≡epoch)
+           (begin (pcsfpk∙pk  ≡⟨ pk≡ (pcs4in𝓔 pcsfpk) ⟩
+                   pk         ≡⟨ sym (pk≡ (pcs4in𝓔 pcsfpk')) ⟩
+                   pcsfpk'∙pk ∎))
+       ⟩
+    pcsfpk'∙pid
+      ≡⟨ nid≡ (pcs4in𝓔 pcsfpk') ⟩
+    pid“ ∎
+    where
+    open ≡-Reasoning
+    open PeerCanSignForPKinEpoch
+    open PeerCanSignForPK
+    pcsfpk∙pid  = EpochConfig.toNodeId (pcs4𝓔 pcsfpk) (mbr (pcs4in𝓔 pcsfpk))
+    pcsfpk∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk) (mbr (pcs4in𝓔 pcsfpk)))
+    pcsfpk'∙pid = EpochConfig.toNodeId (pcs4𝓔 pcsfpk') (mbr (pcs4in𝓔 pcsfpk'))
+    pcsfpk'∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk') (mbr (pcs4in𝓔 pcsfpk')))
+-- The message is new, and we are splitting on what kind of message triggered it
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach (step-peer (step-honest (step-msg{_ , P pm} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round | inj₁ (m∈outs , pcsfpk' , ¬msb4) | refl
+  with handleProposalSpec.contract! 0 pm (peerStates pre pid)
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _) =
+  ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) {!!})
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Right y) _) = {!!}
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach (step-peer (step-honest (step-msg{_ , V x} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round | inj₁ (m∈outs , pcsfpk' , ¬msb4) | refl = {!!}
+-- The message was sent before
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest{pid“}{post} sps@(step-msg{_ , m} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+  | inj₂ mws∈pool = {!!}
+--   with pid ≟ pid“
+-- ...| yes refl = help-pid≡ m refl ≡pidLV'
+--   where
+--   -- Definitions
+--   rmPre  = peerStates pre pid
+
+--   rmPost : NetworkMsg → RoundManager
+--   rmPost m = LBFT-post (handle pid m 0) rmPre
+
+--   -- Lemmas
+--   ≡pidLV' : just v ≡ rmPost m ^∙ lSafetyData ∙ sdLastVote
+--   ≡pidLV' = trans ≡pidLV (cong (_^∙ lSafetyData ∙ sdLastVote) (sym (StepPeer-post-lemma{pre = pre} sp)))
+
+--   -- Proofs
+--   help-pid≡ : (m“ : NetworkMsg) → (m“ ≡ m) → just v ≡ rmPost m“ ^∙ lSafetyData ∙ sdLastVote → v ≡L v' at vProposedId
+--   help-pid≡ (P pm) m≡ ≡pidLV
+--     with handleProposalSpec.contract! 0 pm rmPre
+--   ... | handleProposalSpec.mkContract _ nec (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts (inj₁ (StateTransProps.mkVoteNotGenerated lv≡ lvr≤)))) _)
+--     with ⊎-elimˡ (m∉outs ∘ proj₁) (newMsg⊎msgSentB4 preach sps hpk sig' ¬gen v'⊂m' m'∈pool)
+--     where
+--     m∉outs : ¬ (send _ ∈ outputsToActions{rmPre} (LBFT-outs (handle pid m 0) rmPre))
+--     m∉outs m'∈acts = sendVote∉actions {!!} {!!}
+
+--   ... | xxx = {!!}
+--   help-pid≡ (P pm) m≡ ≡pidLV | handleProposalSpec.mkContract _ nec (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts (inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote voteGenCorrect)))) _) = {!!}
+--   help-pid≡ (P pm) m≡ ≡pidLV | handleProposalSpec.mkContract _ nec (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ y) _) = {!!}
+
+--   help-pid≡ (V vm) m≡ ≡pidLV = {!!}
+--   help-pid≡ (C cm) m≡ ≡pidLV = {!!}
+
+-- ...| no  pid≢pid“ = {!!}
 
   {-
   -- NOTE: A vote being stored in `sdLastVote` does /not/ mean the vote has been
