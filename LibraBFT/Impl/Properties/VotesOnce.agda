@@ -177,6 +177,71 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
       -- information to prove `VoteForRound∈`?
       = newVote⇒lvr≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
 
+sameERasLV⇒sameId
+  : ∀ {pid pid' pk}{pre : SystemState}
+    → ReachableSystemState pre
+    → ∀{v v' m'} → Meta-Honest-PK pk
+    → just v ≡ peerStates pre pid ^∙ lSafetyData ∙ sdLastVote
+    → (sig : WithVerSig pk v)
+    → PeerCanSignForPK pre v pid pk
+    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
+    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig'))
+    → v ≡L v' at vEpoch → v ≡L v' at vRound
+    → v ≡L v' at vProposedId
+-- Cheat steps cannot be where an honestly signed message originated.
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-cheat  cmc))){v}{v'}{m'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round =
+  trans ih (cong (_^∙ (vdProposed ∙ biId)) ≡voteData)
+  where
+  -- The state of `pid` is unchanged
+  ≡pidLVPre : just v ≡ peerStates pre pid ^∙ lSafetyData ∙ sdLastVote
+  ≡pidLVPre = trans ≡pidLV (cong (_^∙ lSafetyData ∙ sdLastVote) (cheatStepDNMPeerStates₁ sp unit))
+
+  -- Track down the honestly signed message which existed before.
+  mws'∈pool : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
+  mws'∈pool =
+    ¬cheatForgeNew sp refl unit hpk
+      (mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sig' refl)
+      ¬gen
+
+  -- That message has the same signature as `v'`, so it has the same vote data
+  -- (unless there was a collision, which we currently assume does not occur).
+  ≡voteData : msgPart mws'∈pool ≡L v' at vVoteData
+  ≡voteData = ⊎-elimˡ (PerReachableState.meta-sha256-cr preach) (sameSig⇒sameVoteData sig' (msgSigned mws'∈pool) (sym ∘ msgSameSig $ mws'∈pool))
+
+  ¬gen' : ¬ ∈GenInfo-impl genesisInfo (ver-signature ∘ msgSigned $ mws'∈pool)
+  ¬gen' rewrite msgSameSig mws'∈pool = ¬gen
+
+  -- The peer can sign for `v` now, so it can sign for `v` in the preceeding
+  -- step, because there is an honestly signed for with the peer's pubkey in the
+  -- current epoch already in the pool.
+  pcsfpkPre : PeerCanSignForPK pre v pid pk
+  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws'∈pool) (sym ≡epoch)
+
+  -- The proposal `id` for the previous existing message (and thus for v') is the same as the proposal id for `v`
+  ih : v ≡L msgPart mws'∈pool at vProposedId
+  ih =
+    sameERasLV⇒sameId preach hpk ≡pidLVPre sig pcsfpkPre (msg⊆ mws'∈pool) (msg∈pool mws'∈pool) (msgSigned mws'∈pool) ¬gen'
+      (trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData)))
+      (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
+
+sameERasLV⇒sameId{pid}{pk = pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest{pid“} sps@(step-init ini)))){v} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+  with pid ≟ pid“
+-- If this is the initialization of `pid`, then `pid` has `nothing` as its last vote
+...| yes refl
+  rewrite sym (StepPeer-post-lemma sp)
+  = case ≡pidLV of λ ()
+...| no  pid≢
+-- Otherwise, no messages are generated here and the state of `pid` remains the same
+  rewrite sym $ pids≢StepDNMPeerStates{pre = pre} sps pid≢
+  = sameERasLV⇒sameId preach hpk ≡pidLV sig pcsfpkPre v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+  where
+  mws∈pool : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
+  mws∈pool = mkMsgWithSig∈ _ _ v'⊂m' _ m'∈pool sig' refl
+
+  pcsfpkPre : PeerCanSignForPK pre v pid pk
+  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+sameERasLV⇒sameId{pid}{pid'} (step-s{pre = pre} preach (step-peer (step-honest (step-msg{pid“ , m} m∈pool ini)))){v} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round = {!!}
+
   {-
   -- NOTE: A vote being stored in `sdLastVote` does /not/ mean the vote has been
   -- sent, since the peer could have failed to save that vote in its persistent
@@ -198,21 +263,28 @@ votesOnce₁ : Common.IncreasingRoundObligation InitAndHandlers 𝓔
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc x x₁ x₂) m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡ = {!!}
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
-... | handleProposalSpec.mkContract rmInv noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) =
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) =
   ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym noVoteMsgOuts) m∈outs)
-... | handleProposalSpec.mkContract rmInv noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?)
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?)
   with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym voteMsgOuts) m∈outs
 ... | refl = ret
   where
   -- Some definitions
   step = step-peer (step-honest sps)
   rmPre  = peerStates pre pid
+  rmPost = peerStates (StepPeer-post{pre = pre} (step-honest sps)) pid
 
   -- State invariants
   open StateInvariants
   rmInvs      = invariantsCorrect pid pre preach
   epochsMatch = RoundManagerInv.epochsMatch rmInvs
   sdInvs      = RoundManagerInv.sdCorrect   rmInvs
+
+  -- Properties of `handleProposal`
+  postLVR≡ : just v ≡ (rmPost ^∙ lSafetyData ∙ sdLastVote)
+  postLVR≡ =
+    trans (StateTransProps.VoteGenerated.lv≡v ∘ Voting.VoteGeneratedCorrect.state $ vgCorrect)
+      (cong (_^∙ lSafetyData ∙ sdLastVote) (StepPeer-post-lemma (step-honest sps)))
 
   -- The proof
   m'mwsb : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
@@ -265,7 +337,8 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     with <-cmp (v' ^∙ vRound) (v ^∙ vRound)
   ... | tri< rv'<rv _ _ = inj₁ rv'<rv
   ... | tri≈ _ rv'≡rv _
-    = inj₂ (Common.mkVoteForRound∈ _ v' v'⊂m' pid' m'∈pool sig' (sym eid≡) rv'≡rv {!!})
+    = inj₂ (Common.mkVoteForRound∈ _ v' v'⊂m' pid' m'∈pool sig' (sym eid≡) rv'≡rv
+        (sym (sameERasLV⇒sameId (step-s preach step) hpk postLVR≡ sig pcspkv v'⊂m' (Any-++ʳ _ m'∈pool) sig' ¬gen' eid≡ (sym rv'≡rv) )))
   ... | tri> _ _ rv'>rv = ⊥-elim (≤⇒≯ rv'≤rv rv'>rv)
 
 
