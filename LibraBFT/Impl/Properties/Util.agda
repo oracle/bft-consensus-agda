@@ -25,6 +25,13 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Properties.Util where
 
+module Meta where
+  getLastVoteEpoch : RoundManager → Epoch
+  getLastVoteEpoch = maybe{B = const Epoch} (_^∙ vEpoch) 1 ∘ (_^∙ lSafetyData ∙ sdLastVote)
+
+  getLastVoteRound : RoundManager → Round
+  getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ lSafetyData ∙ sdLastVote)
+
 module OutputProps where
   module _ (outs : List Output) where
     None : Set
@@ -76,19 +83,6 @@ module StateInvariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
-  -- SafetyData invariants
-  module _ (safetyData : SafetyData) where
-    SDLastVoteEpoch≡ =
-      maybe{B = const Set} (λ v → v ^∙ vEpoch ≡ safetyData ^∙ sdEpoch)          ⊤ (safetyData ^∙ sdLastVote)
-    SDLastVoteRound≤ =
-      maybe{B = const Set} (λ v → v ^∙ vRound ≤ safetyData ^∙ sdLastVotedRound) ⊤ (safetyData ^∙ sdLastVote)
-
-  record SDLastVote (safetyData : SafetyData) : Set where
-    constructor mkSDLastVote
-    field
-      epoch≡ : SDLastVoteEpoch≡ safetyData
-      round≤ : SDLastVoteRound≤ safetyData
-
   module _ (rm : RoundManager) where
     EpochsMatch : Set
     EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ lSafetyData ∙ sdEpoch
@@ -98,10 +92,17 @@ module StateInvariants where
       field
         allValidQCs : (rmC : RoundManager-correct rm) → AllValidQCs (α-EC-RM rm rmC) (rm ^∙ rmBlockStore ∙ bsInner)
 
+    -- SafetyData invariants
+    record SDLastVote : Set where
+      constructor mkSDLastVote
+      field
+        epoch≡ : Meta.getLastVoteEpoch rm ≡ rm ^∙ lSafetyData ∙ sdEpoch
+        round≤ : Meta.getLastVoteRound rm ≤ rm ^∙ lSafetyData ∙ sdLastVotedRound
+
     record SafetyDataInv : Set where
       constructor mkSafetyDataInv
       field
-        lastVote : SDLastVote (rm ^∙ lSafetyData)
+        lastVote : SDLastVote
 
     -- NOTE: This will be proved by induction on reachable states using the
     -- property that peer handlers preserve invariants. That is to say, many of
@@ -119,9 +120,6 @@ module StateInvariants where
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
-  PreservesSD : ∀ {ℓ} → (P : SafetyData → Set ℓ) (pre post : RoundManager) → Set ℓ
-  PreservesSD Pred = Preserves (Pred ∘ (_^∙ lSafetyData))
-
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
@@ -132,13 +130,22 @@ module StateInvariants where
 
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  substSDLastVote
+    : ∀ {pre post} → pre ≡L post at lSafetyData → Preserves SDLastVote pre post
+  substSDLastVote{pre}{post} eq (mkSDLastVote epoch≡ round≤) = mkSDLastVote epoch≡' round≤'
+    where
+    epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ lSafetyData ∙ sdEpoch
+    epoch≡' rewrite sym eq = epoch≡
+
+    round≤' : Meta.getLastVoteRound post ≤ post ^∙ lSafetyData ∙ sdLastVotedRound
+    round≤' rewrite sym eq = round≤
+
   mkPreservesSafetyDataInv
     : ∀ {pre post}
-      → (PreservesSD SDLastVoteEpoch≡ pre post)
-      → (PreservesSD SDLastVoteRound≤ pre post)
+      → Preserves SDLastVote pre post
       → Preserves SafetyDataInv pre post
-  mkPreservesSafetyDataInv lveP lvrP (mkSafetyDataInv (mkSDLastVote epoch≡ round≤)) =
-    mkSafetyDataInv (mkSDLastVote (lveP epoch≡) (lvrP round≤))
+  mkPreservesSafetyDataInv lvP (mkSafetyDataInv lv) =
+    mkSafetyDataInv (lvP lv)
 
   mkPreservesRoundManagerInv
     : ∀ {pre post}

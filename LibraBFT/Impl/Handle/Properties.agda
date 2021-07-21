@@ -61,7 +61,7 @@ postulate -- TODO-2: prove (waiting on: `initRM`)
 initRMSatisfiesInv : StateInvariants.RoundManagerInv initRM
 initRMSatisfiesInv =
   StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
-    (StateInvariants.mkSafetyDataInv (StateInvariants.mkSDLastVote tt tt))
+    (StateInvariants.mkSafetyDataInv (StateInvariants.mkSDLastVote refl z≤n))
 
 invariantsCorrect
   : ∀ pid (pre : SystemState)

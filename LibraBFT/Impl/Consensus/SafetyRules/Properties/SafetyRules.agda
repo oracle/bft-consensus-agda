@@ -320,19 +320,20 @@ module constructAndSignVoteMSpec where
           emP eq = trans eq (Requirements.es≡₁ reqs)
 
           sdP : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD
-          sdP = StateInvariants.mkPreservesSafetyDataInv epoch≡₁ round≤₁
+          sdP = StateInvariants.mkPreservesSafetyDataInv λ where (StateInvariants.mkSDLastVote epoch≡ round≤) → StateInvariants.mkSDLastVote (epoch≡P epoch≡) (round≤P round≤)
             where
-            epoch≡₁ : StateInvariants.PreservesSD StateInvariants.SDLastVoteEpoch≡ pre preUpdatedSD
-            epoch≡₁ epoch≡
-              rewrite sym (Requirements.lv≡ reqs)
+            epoch≡P : StateInvariants.Preserves (λ rm → Meta.getLastVoteEpoch rm ≡ rm ^∙ lSafetyData ∙ sdEpoch) pre preUpdatedSD
+            epoch≡P epoch≡
+              rewrite sym (Requirements.lv≡  reqs)
               |       sym (Requirements.es≡₁ reqs)
               = epoch≡
-            round≤₁ : StateInvariants.PreservesSD StateInvariants.SDLastVoteRound≤ pre preUpdatedSD
-            round≤₁ round≤
+
+            round≤P : StateInvariants.Preserves (λ rm → Meta.getLastVoteRound rm ≤ rm ^∙ lSafetyData ∙ sdLastVotedRound) pre preUpdatedSD
+            round≤P round≤
                with pre ^∙ lSafetyData ∙ sdLastVote
-               | inspect (_^∙ lSafetyData ∙ sdLastVote) pre
-            ...| nothing | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) = tt
-            ...| just lv | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
+               |    inspect (_^∙ lSafetyData ∙ sdLastVote) pre
+            ... | nothing | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) = z≤n
+            ... | just x  | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
               ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
           invP₁ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD
@@ -395,8 +396,7 @@ module constructAndSignVoteMSpec where
 
               sdP₂ : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD₂
               sdP₂ = StateInvariants.mkPreservesSafetyDataInv
-                     (const $ Requirements.es≡₂ reqs)
-                     (const $ ≡⇒≤ (cong (_^∙ bRound) pb≡vpb))
+                       (const $ StateInvariants.mkSDLastVote (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
 
               invP₂ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD₂
               invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP sdP₂
