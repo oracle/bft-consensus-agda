@@ -72,7 +72,7 @@ newVote⇒lvr≡
     → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    → v ^∙ vRound ≡ metaRMGetRealLastVotedRound s'
+    → v ^∙ vRound ≡ Meta.getLastVoteRound s'
 newVote⇒lvr≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) =
@@ -84,13 +84,13 @@ newVote⇒lvr≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vo
   unsentVoteSent (Voting.mkVoteUnsentCorrect noVoteMsgOuts _) =
     sendVote∉actions{outs = handleOuts}{st = peerStates pre pid}
       (sym noVoteMsgOuts) m∈outs
-... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) =
+... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) =
   sentVoteIsPostLVR
   where
   handlePost = LBFT-post (handle pid (P pm) 0) (peerStates pre pid)
   handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
 
-  sentVoteIsPostLVR : v ^∙ vRound ≡ metaRMGetRealLastVotedRound handlePost
+  sentVoteIsPostLVR : v ^∙ vRound ≡ Meta.getLastVoteRound handlePost
   sentVoteIsPostLVR with Voting.VoteGeneratedCorrect.state vgCorrect
   ... | StateTransProps.mkVoteGenerated lv≡v _ rewrite sym lv≡v =
     cong (_^∙ vmVote ∙ vRound) (sendVote∈actions{outs = handleOuts}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs)
@@ -98,12 +98,12 @@ newVote⇒lvr≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vo
 newVote⇒lvr≡{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4 = TODO
   where
   postulate -- TODO-1: prove (note: no votes sent from processing a vote message) (waiting on: handle)
-    TODO : v ^∙ vRound ≡ metaRMGetRealLastVotedRound s'
+    TODO : v ^∙ vRound ≡ Meta.getLastVoteRound s'
 
 newVote⇒lvr≡{s' = s'}{v = v} preach sps (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = TODO
   where
   postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
-    TODO : v ^∙ vRound ≡ metaRMGetRealLastVotedRound s'
+    TODO : v ^∙ vRound ≡ Meta.getLastVoteRound s'
 
 postulate -- TODO-3: prove
   peerCanSign-Msb4
@@ -165,7 +165,7 @@ oldVoteRound≤lvr
     → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → PeerCanSignForPK pre v pid pk
     → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-    → v ^∙ vRound ≤ metaRMGetRealLastVotedRound (peerStates pre pid)
+    → v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates pre pid)
 oldVoteRound≤lvr{pid} (step-s preach step@(step-peer{pid'} sp@(step-cheat  cmc))) hpk sig ¬gen mws∈pool pcsfpk epoch≡
   -- `pid`'s state is untouched by this step
   rewrite cheatStepDNMPeerStates₁{pid = pid'}{pid' = pid} sp unit
@@ -185,10 +185,10 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    pcsfpkPre : PeerCanSignForPK pre v pid _
    pcsfpkPre = peerCanSign-Msb4 preach step pcsfpk hpk sig msb4
 
-   ovrIH : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch → v ^∙ vRound ≤ metaRMGetRealLastVotedRound (peerStates pre pid)
+   ovrIH : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch → v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates pre pid)
    ovrIH ep≡ = oldVoteRound≤lvr{pre = pre} preach hpk sig ¬gen msb4 pcsfpkPre ep≡
 
-   helpSentB4 : v ^∙ vRound ≤ metaRMGetRealLastVotedRound (peerStates post pid)
+   helpSentB4 : v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates post pid)
    helpSentB4
       with pid ≟ pid'
    -- A step by `pid'` step cannot affect `pid`'s state
@@ -207,7 +207,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
      ini : initialised pre pid' ≡ initd
      ini rewrite sym pid≡ = msg∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
 
-     lvr≤ : metaRMGetRealLastVotedRound (peerStates pre pid) ≤ metaRMGetRealLastVotedRound (peerStates post pid)
+     lvr≤ : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (peerStates post pid)
      lvr≤
        rewrite pid≡
        |       sym (StepPeer-post-lemma{pre = pre} sp)
@@ -222,7 +222,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    with peerCanSignPK-Inj pcsfpk pcsfpkPost refl
 ...| refl = ≡⇒≤ vr≡lvrPost
   where
-    vr≡lvrPost : v ^∙ vRound ≡ metaRMGetRealLastVotedRound (peerStates (StepPeer-post sp) pid)
+    vr≡lvrPost : v ^∙ vRound ≡ Meta.getLastVoteRound (peerStates (StepPeer-post sp) pid)
     vr≡lvrPost
       rewrite sym (StepPeer-post-lemma sp)
       -- TODO-2: Once `newVote⇒lvr≡` is strengthened, do we have enough
@@ -315,9 +315,9 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
   ret : v ≡L v' at vProposedId
   ret
     with voteAttemptCorrect
-  ... | Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
+  ... | Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
     ⊥-elim (sendVote∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
-  ... | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) _
+  ... | Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) _
     with vgCorrect
   ... | Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v _) _ = cong (_^∙ vProposedId) v≡v'
     where
@@ -397,25 +397,24 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
   ih : v ≡L msgPart mws∈pool at vProposedId
   ih
      with voteAttemptCorrect
-  ... | Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) _
+  ... | Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) _
     with nvg⊎vgusc
-  ... | Left (StateTransProps.mkVoteNotGenerated lv≡ lvr≤) =
+  ... | inj₁ (StateTransProps.mkVoteNotGenerated lv≡ lvr≤) =
     sameERasLV⇒sameId preach hpk (≡pidLVPre lv≡) sig pcsfpkPre (msg⊆ mws∈pool) (msg∈pool mws∈pool) (msgSigned mws∈pool) ¬gen'
       (trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData)))
       (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
-  ... | Right (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))
+  ... | inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))
     with voteSrc
-  ... | Left (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) =
+  ... | inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) =
     sameERasLV⇒sameId preach hpk (≡pidLVPre lv≡) sig pcsfpkPre (msg⊆ mws∈pool) (msg∈pool mws∈pool) (msgSigned mws∈pool) ¬gen'
       (trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData)))
       (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
-  ... | Right (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
-    -- TODO-2: Redo `StateInvariants.SDLastVote` so that it is in terms of `metaRMGetRealLastVote`
+  ... | inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
     -- TODO-1: Use ≤-Reasoning
-    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s {!!}) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
+    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (StateInvariants.SDLastVote.round≤ (StateInvariants.SafetyDataInv.lastVote sdCorrect))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
     where
     open ≡-Reasoning
-    rv'≤lvrPre : v' ^∙ vRound ≤ metaRMGetRealLastVotedRound hpPre
+    rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
     rv'≤lvrPre = oldVoteRound≤lvr preach hpk sig' ¬gen mws∈pool (peerCanSignEp≡ pcsfpkPre ≡epoch)
                    (mws∈pool⇒epoch≡ preach (peerCanSignEp≡ pcsfpkPre ≡epoch) hpk sig' ¬gen mws∈pool)
 
@@ -426,19 +425,19 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
       (hpPos                                         ^∙ lSafetyData ∙ sdLastVote) ≡⟨ sym lv≡v ⟩
       just vote                                                                   ∎
 
-  ih | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))) _
+  ih | Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))) _
     with voteSrc
-  ... | Left (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) =
+  ... | inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) =
     sameERasLV⇒sameId preach hpk (≡pidLVPre lv≡) sig pcsfpkPre (msg⊆ mws∈pool) (msg∈pool mws∈pool) (msgSigned mws∈pool) ¬gen'
       (trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData)))
       (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
-  ... | Right (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
-    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s {!!}) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
+  ... | inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
+    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (StateInvariants.SDLastVote.round≤ (StateInvariants.SafetyDataInv.lastVote sdCorrect))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
     where
     vote = vm ^∙ vmVote
 
     open ≡-Reasoning
-    rv'≤lvrPre : v' ^∙ vRound ≤ metaRMGetRealLastVotedRound hpPre
+    rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
     rv'≤lvrPre = oldVoteRound≤lvr preach hpk sig' ¬gen mws∈pool (peerCanSignEp≡ pcsfpkPre ≡epoch)
                    (mws∈pool⇒epoch≡ preach (peerCanSignEp≡ pcsfpkPre ≡epoch) hpk sig' ¬gen mws∈pool)
 
@@ -481,9 +480,9 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     TODO : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
-... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) =
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) =
   ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym noVoteMsgOuts) m∈outs)
-... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?)
+... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?)
   with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym voteMsgOuts) m∈outs
 ... | refl = ret
   where
@@ -525,26 +524,26 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     rmPreSdEpoch≡
        with Voting.VoteGeneratedCorrect.state vgCorrect
        |    Voting.VoteGeneratedCorrect.blockTriggered vgCorrect
-    ...| StateTransProps.mkVoteGenerated lv≡v (Left (StateTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
+    ...| StateTransProps.mkVoteGenerated lv≡v (inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
        with SDLastVote.epoch≡ ∘ SafetyDataInv.lastVote $ sdInvs
     ...| sdEpochInv rewrite trans lv≡ (sym lv≡v) = sym sdEpochInv
     rmPreSdEpoch≡
-       | StateTransProps.mkVoteGenerated lv≡v (Right (StateTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
+       | StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
       trans sdEpoch≡? (sym ∘ proj₁ ∘ Voting.VoteMadeFromBlock⇒VoteEpochRoundIs $ bt)
 
     rmPreEsEpoch≡ : rmPre ^∙ rmEpochState ∙ esEpoch ≡ v ^∙ vEpoch
     rmPreEsEpoch≡ =
       begin rmPre ^∙ rmEpochState ∙ esEpoch ≡⟨ epochsMatch   ⟩
-            rmPre ^∙ lSafetyData ∙ sdEpoch  ≡⟨ rmPreSdEpoch≡ ⟩
-            v ^∙ vEpoch                     ∎
+            rmPre ^∙ lSafetyData  ∙ sdEpoch ≡⟨ rmPreSdEpoch≡ ⟩
+            v     ^∙ vEpoch                 ∎
 
-    realLVR≤rv : metaRMGetRealLastVotedRound rmPre ≤ v ^∙ vRound
+    realLVR≤rv : Meta.getLastVoteRound rmPre ≤ v ^∙ vRound
     realLVR≤rv
       with Voting.VoteGeneratedCorrect.state vgCorrect
-    ...| StateTransProps.mkVoteGenerated lv≡v (Left (StateTransProps.mkVoteOldGenerated lvr≡ lv≡))
+    ...| StateTransProps.mkVoteGenerated lv≡v (inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡))
       rewrite trans lv≡ (sym lv≡v)
         = ≤-refl
-    ...| StateTransProps.mkVoteGenerated lv≡v (Right (StateTransProps.mkVoteNewGenerated lvr< lvr≡))
+    ...| StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡))
       with rmPre ^∙ lSafetyData ∙ sdLastVote
         |    SDLastVote.round≤ ∘ SafetyDataInv.lastVote $ sdInvs
     ...| nothing | _ = z≤n

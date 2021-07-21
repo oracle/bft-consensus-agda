@@ -133,10 +133,6 @@ module LibraBFT.ImplShared.Consensus.Types where
   rmPgAuthor rm =
     maybeS (rm ^∙ rmSafetyRules ∙ srValidatorSigner) nothing (just ∘ (_^∙ vsAuthor))
 
-  -- NOTE: Use only for proofs.
-  metaRMGetRealLastVotedRound : RoundManager → Round
-  metaRMGetRealLastVotedRound = maybe (_^∙ vRound) 0 ∘ (_^∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote)
-
   record GenesisInfo : Set where
     constructor mkGenInfo
     field

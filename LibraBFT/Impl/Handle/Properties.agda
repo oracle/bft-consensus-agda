@@ -98,7 +98,7 @@ postulate -- TODO-2: prove (waiting on: `handle`)
       → initialised pre pid ≡ initd
       → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
       → peerStates pre pid ≡L ppost at rmEpoch
-      → metaRMGetRealLastVotedRound (peerStates pre pid) ≤ metaRMGetRealLastVotedRound ppost
+      → Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound ppost
 
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
