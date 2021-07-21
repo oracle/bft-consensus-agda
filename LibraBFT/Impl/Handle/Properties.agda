@@ -86,19 +86,60 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
-postulate -- TODO-2: prove (waiting on: `handle`)
-  -- Likely the best approach here is to gather all two-state invariants into a
-  -- single record in `LibraBFT.Impl.Properties.Util`, including a
-  -- lexicographical ordering on (rmEpoch, metaRMGetRealLastVotedRound), then
-  -- prove that /all/ of these two-state invariants hold. Then, this follows as
-  -- a relatively simple lemma.
-  lastVotedRound-mono
-    : ∀ pid (pre : SystemState) {ppost} {msgs}
-      → ReachableSystemState pre
-      → initialised pre pid ≡ initd
-      → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
-      → peerStates pre pid ≡L ppost at rmEpoch
-      → Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound ppost
+-- postulate -- TODO-2: prove (waiting on: `handle`)
+--   -- Likely the best approach here is to gather all two-state invariants into a
+--   -- single record in `LibraBFT.Impl.Properties.Util`, including a
+--   -- lexicographical ordering on (rmEpoch, metaRMGetRealLastVotedRound), then
+--   -- prove that /all/ of these two-state invariants hold. Then, this follows as
+--   -- a relatively simple lemma.
+lastVotedRound-mono
+  : ∀ pid (pre : SystemState) {ppost} {msgs}
+    → ReachableSystemState pre
+    → initialised pre pid ≡ initd
+    → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
+    → peerStates pre pid ≡L ppost at rmEpoch
+    → Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound ppost
+lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
+  case (trans (sym ini) ini₁) of λ ()
+lastVotedRound-mono pid pre preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
+  with m
+... | P pm rewrite sym $ StepPeer-post-lemma{pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
+  where
+  hpPre = peerStates pre pid
+  hpPst = LBFT-post (handleProposal 0 pm) hpPre
+  hpOut = LBFT-outs (handleProposal 0 pm) hpPre
+
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  open StateInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
+
+  module VoteOld (lv≡ : hpPre ≡L hpPst at lSafetyData ∙ sdLastVote) where
+    help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
+    help = ≡⇒≤ (cong (maybe{B = const ℕ} (_^∙ vRound) 0) lv≡)
+
+  module VoteNew
+    {vote : Vote} (lv≡v : just vote ≡ hpPst ^∙ lSafetyData ∙ sdLastVote) (lvr< : hpPre [ _<_ ]L hpPst at lSafetyData ∙ sdLastVotedRound)
+    (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ lSafetyData ∙ sdLastVotedRound )
+    where
+    help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
+    help = ≤-trans (StateInvariants.SDLastVote.round≤ ∘ StateInvariants.SafetyDataInv.lastVote $ sdCorrect ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
+
+  help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
+  help
+    with voteAttemptCorrect
+  ...  | Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
+    with nvg⊎vgusc
+  ... | inj₁ (mkVoteNotGenerated lv≡ lvr≤) = VoteOld.help lv≡
+  ... | inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered))
+    with voteSrc
+  ... | inj₁ (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
+  ... | inj₂ (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+  help | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
+    with voteSrc
+  ... | Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
+  ... | Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+
+... | V vm = {!!} -- TODO-2: prove (waiting on: handle)
+... | C cm = {!!} -- Receiving a vote or commit message does not update the last vote
 
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
