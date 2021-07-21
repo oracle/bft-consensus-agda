@@ -24,7 +24,6 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
--- open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Util
@@ -44,12 +43,25 @@ open StateTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
+-- We can prove this easily because we don't yet do epoch changes,
+-- so only the initial EC is relevant.  Later, this will require us to use the fact that
+-- epoch changes require proof of committing an epoch-changing transaction.
+availEpochsConsistent :
+   ∀{pid pid' v v' pk}{st : SystemState}
+   → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+   → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
+
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct           : RoundManager-correct initRM
   initRM-blockTree-correct : StateInvariants.BlockTreeInv initRM
 
 initRMSatisfiesInv : StateInvariants.RoundManagerInv initRM
-initRMSatisfiesInv = StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
+initRMSatisfiesInv =
+  StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
+    (StateInvariants.mkSafetyDataInv (StateInvariants.mkSDLastVote tt tt))
 
 invariantsCorrect
   : ∀ pid (pre : SystemState)
@@ -74,7 +86,21 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
 
-postulate -- TODO-3: prove (note: advanced)
+postulate -- TODO-2: prove (waiting on: `handle`)
+  -- Likely the best approach here is to gather all two-state invariants into a
+  -- single record in `LibraBFT.Impl.Properties.Util`, including a
+  -- lexicographical ordering on (rmEpoch, metaRMGetRealLastVotedRound), then
+  -- prove that /all/ of these two-state invariants hold. Then, this follows as
+  -- a relatively simple lemma.
+  lastVotedRound-mono
+    : ∀ pid (pre : SystemState) {ppost} {msgs}
+      → ReachableSystemState pre
+      → initialised pre pid ≡ initd
+      → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
+      → peerStates pre pid ≡L ppost at rmEpoch
+      → metaRMGetRealLastVotedRound (peerStates pre pid) ≤ metaRMGetRealLastVotedRound ppost
+
+postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
   -- will need to show that honest peers sign things only for their only PK, and
   -- that they either resend messages signed before or if sending a new one,

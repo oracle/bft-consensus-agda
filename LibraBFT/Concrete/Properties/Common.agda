@@ -84,7 +84,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
-   -- If v and v' share the same epoch and round
+   -- If v and v' share the same epoch
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v' ^∙ vRound < v ^∙ vRound
      ⊎ VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)

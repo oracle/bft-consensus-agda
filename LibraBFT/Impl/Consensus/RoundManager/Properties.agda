@@ -89,6 +89,7 @@ module executeAndVoteMSpec (b : Block) where
       invP₁ = StateInvariants.mkPreservesRoundManagerInv id
                 (executeAndInsertBlockESpec.bs'BlockInv (pre ^∙ lBlockStore) b (sym eaibRight) refl)
                 id
+                (StateInvariants.mkPreservesSafetyDataInv id id)
 
       contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre (Left e) preUpdateBS outs
       contractBailSetBS outs noMsgOuts =
@@ -146,7 +147,6 @@ module executeAndVoteMSpec (b : Block) where
                 mkContract invP₂ noEpochChange
                   (OutputProps.++-NoMsgs outs _ noMsgOuts (OutputProps.++-NoMsgs outs₁ _ noMsgOuts₁ refl))
                   lvr≡? vgc
-
 
   contract
     : ∀ pre Post
@@ -218,16 +218,10 @@ module processProposalMSpec (proposal : Block) where
             where
             stUpdateRS = st & rsVoteSent-rm ?~ vote
 
-            postulate -- TODO-1: prove (waiting on: `α-RM`)
-              btInv₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv st stUpdateRS
-           -- btInv₂ = id
-
             module _ (si : SyncInfo) (si≡ : si ≡ SyncInfo∙new (st ^∙ lBlockStore ∙ bsHighestQuorumCert) (st ^∙ lBlockStore ∙ bsHighestCommitCert)) where
               contract-step₃ : RWST-weakestPre (step₃ vote si) (RWST-Post++ (Contract pre) outs) unit stUpdateRS
               contract-step₃ ._ refl ._ refl ._ refl ._ refl recipient@._ refl =
-                mkContract
-                  (StateInvariants.transPreservesRoundManagerInv rmInv₂
-                    (StateInvariants.mkPreservesRoundManagerInv id btInv₂ id))
+                mkContract rmiP
                   (StateTransProps.transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} noEpochChange refl)
                   (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoBroadcasts outs noMsgOuts) refl)
                   (inj₂ (Voting.mkVoteSentCorrect vm recipient
@@ -236,6 +230,19 @@ module processProposalMSpec (proposal : Block) where
                             vrc (StateTransProps.mkVoteNotGenerated refl refl))))
                 where
                 vm = VoteMsg∙new vote si
+
+                -- state invariants
+                module _ where
+                  postulate -- TODO-1: prove (waiting on: `α-RM`)
+                    btInv₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv st stUpdateRS
+                 -- btInv₂ = id
+
+                  sdiP : StateInvariants.Preserves StateInvariants.SafetyDataInv st stUpdateRS
+                  sdiP = StateInvariants.mkPreservesSafetyDataInv id id
+
+                  rmiP : StateInvariants.Preserves StateInvariants.RoundManagerInv pre stUpdateRS
+                  rmiP = StateInvariants.transPreservesRoundManagerInv rmInv₂
+                           (StateInvariants.mkPreservesRoundManagerInv id btInv₂ id sdiP)
 
   contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (processProposalM proposal) Post pre
   contract pre Post pf = LBFT-⇒ (Contract pre) Post pf (processProposalM proposal) pre (contract' pre)
