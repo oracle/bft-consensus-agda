@@ -199,3 +199,11 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
+
+------------------------------------------------------------------------------
+
+postulate
+  signProposalM
+    : BlockData
+    → LBFT (Either ErrLog Block)
+
