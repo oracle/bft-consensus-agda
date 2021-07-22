@@ -49,11 +49,11 @@ postulate -- TODO-2: define GenesisInfo to match implementation and write these 
 
 initSR : SafetyRules
 initSR =
-  let sd = fakeRM ^∙ lSafetyRules
-      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
-      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
-      sd = sd & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1 in
-  sd
+  let sr = fakeRM ^∙ lSafetyRules
+      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
+      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1
+      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
+  in sr
 
 postulate -- TODO-1: Implement this.
   initPE : ProposerElection

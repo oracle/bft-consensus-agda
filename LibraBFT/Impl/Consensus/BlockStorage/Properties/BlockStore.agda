@@ -18,6 +18,8 @@ open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
+open StateInvariants
+
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
 module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
@@ -28,7 +30,7 @@ module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
       : ∀ {bs' eb pre}
         → executeAndInsertBlockE bs b ≡ Right (bs' , eb)
         → bs ≡ pre ^∙ lBlockStore
-        → StateInvariants.Preserves StateInvariants.BlockTreeInv pre (pre & lBlockStore ∙~ bs')
+        → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
 
 module executeAndInsertBlockMSpec (b : Block) where
   -- NOTE: This function returns any errors, rather than producing them as output.

@@ -87,22 +87,22 @@ module StateInvariants where
     EpochsMatch : Set
     EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ lSafetyData ∙ sdEpoch
 
-    record BlockTreeInv : Set where
+    record BlockStoreInv : Set where
       constructor mkBlockTreeInv
       field
         allValidQCs : (rmC : RoundManager-correct rm) → AllValidQCs (α-EC-RM rm rmC) (rm ^∙ rmBlockStore ∙ bsInner)
 
-    -- SafetyData invariants
-    record SDLastVote : Set where
-      constructor mkSDLastVote
-      field
-        epoch≡ : Meta.getLastVoteEpoch rm ≡ rm ^∙ lSafetyData ∙ sdEpoch
-        round≤ : Meta.getLastVoteRound rm ≤ rm ^∙ lSafetyData ∙ sdLastVotedRound
-
+    -- SafetyRules invariants
     record SafetyDataInv : Set where
       constructor mkSafetyDataInv
       field
-        lastVote : SDLastVote
+        lvEpoch≡ : Meta.getLastVoteEpoch rm ≡ rm ^∙ lSafetyData ∙ sdEpoch
+        lvRound≤ : Meta.getLastVoteRound rm ≤ rm ^∙ lSafetyData ∙ sdLastVotedRound
+
+    record SafetyRulesInv : Set where
+      constructor mkSafetyRulesInv
+      field
+        sdInv : SafetyDataInv
 
     -- NOTE: This will be proved by induction on reachable states using the
     -- property that peer handlers preserve invariants. That is to say, many of
@@ -112,10 +112,10 @@ module StateInvariants where
     record RoundManagerInv : Set where
       constructor mkRoundManagerInv
       field
-        rmCorrect    : RoundManager-correct rm
-        blockTreeInv : BlockTreeInv
-        epochsMatch  : EpochsMatch
-        sdCorrect    : SafetyDataInv
+        rmCorrect   : RoundManager-correct rm
+        epochsMatch : EpochsMatch
+        btInv       : BlockStoreInv
+        srInv       : SafetyRulesInv
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
@@ -131,8 +131,8 @@ module StateInvariants where
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
   substSDLastVote
-    : ∀ {pre post} → pre ≡L post at lSafetyData → Preserves SDLastVote pre post
-  substSDLastVote{pre}{post} eq (mkSDLastVote epoch≡ round≤) = mkSDLastVote epoch≡' round≤'
+    : ∀ {pre post} → pre ≡L post at lSafetyData → Preserves SafetyDataInv pre post
+  substSDLastVote{pre}{post} eq (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
     where
     epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ lSafetyData ∙ sdEpoch
     epoch≡' rewrite sym eq = epoch≡
@@ -140,22 +140,21 @@ module StateInvariants where
     round≤' : Meta.getLastVoteRound post ≤ post ^∙ lSafetyData ∙ sdLastVotedRound
     round≤' rewrite sym eq = round≤
 
-  mkPreservesSafetyDataInv
+  mkPreservesSafetyRulesInv
     : ∀ {pre post}
-      → Preserves SDLastVote pre post
       → Preserves SafetyDataInv pre post
-  mkPreservesSafetyDataInv lvP (mkSafetyDataInv lv) =
-    mkSafetyDataInv (lvP lv)
+      → Preserves SafetyRulesInv pre post
+  mkPreservesSafetyRulesInv lvP (mkSafetyRulesInv lv) = mkSafetyRulesInv (lvP lv)
 
   mkPreservesRoundManagerInv
     : ∀ {pre post}
       → Preserves RoundManager-correct pre post
-      → Preserves BlockTreeInv         pre post
       → Preserves EpochsMatch          pre post
-      → Preserves SafetyDataInv        pre post
+      → Preserves BlockStoreInv        pre post
+      → Preserves SafetyRulesInv       pre post
       → Preserves RoundManagerInv      pre post
-  mkPreservesRoundManagerInv prmC pbti pep psdi (mkRoundManagerInv rmCorrect blockTreeInv epochsMatch sdInv) =
-    mkRoundManagerInv (prmC rmCorrect) (pbti blockTreeInv) (pep epochsMatch) (psdi sdInv)
+  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
+    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
 
 module StateTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on

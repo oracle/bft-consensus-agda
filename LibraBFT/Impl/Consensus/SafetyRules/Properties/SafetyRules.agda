@@ -28,6 +28,9 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
+open StateInvariants
+open StateTransProps
+
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 
 module verifyAndUpdatePreferredRoundDefs (quorumCert : QuorumCert) (safetyData : SafetyData) where
@@ -313,14 +316,14 @@ module constructAndSignVoteMSpec where
         -- State invariants
         module _ where
           postulate -- TODO-1: prove (waiting on : `α-EC`)
-            btip₁ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD
+            btip₁ : StateInvariants.Preserves StateInvariants.BlockStoreInv pre preUpdatedSD
          -- btip₁ = id
 
           emP : StateInvariants.Preserves StateInvariants.EpochsMatch pre preUpdatedSD
           emP eq = trans eq (Requirements.es≡₁ reqs)
 
-          sdP : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD
-          sdP = StateInvariants.mkPreservesSafetyDataInv λ where (StateInvariants.mkSDLastVote epoch≡ round≤) → StateInvariants.mkSDLastVote (epoch≡P epoch≡) (round≤P round≤)
+          srP : Preserves SafetyRulesInv pre preUpdatedSD
+          srP = mkPreservesSafetyRulesInv λ where (StateInvariants.mkSafetyDataInv epoch≡ round≤) → StateInvariants.mkSafetyDataInv (epoch≡P epoch≡) (round≤P round≤)
             where
             epoch≡P : StateInvariants.Preserves (λ rm → Meta.getLastVoteEpoch rm ≡ rm ^∙ lSafetyData ∙ sdEpoch) pre preUpdatedSD
             epoch≡P epoch≡
@@ -337,7 +340,7 @@ module constructAndSignVoteMSpec where
               ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
           invP₁ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD
-          invP₁ = StateInvariants.mkPreservesRoundManagerInv id btip₁ emP sdP
+          invP₁ = StateInvariants.mkPreservesRoundManagerInv id emP btip₁ srP
 
         -- Some lemmas
         module _ where
@@ -391,15 +394,15 @@ module constructAndSignVoteMSpec where
             -- State invariants
             module _ where
               postulate -- TODO-1: prove (waiting on: `α-EC`)
-                btiP₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv pre preUpdatedSD₂
+                btiP₂ : StateInvariants.Preserves StateInvariants.BlockStoreInv pre preUpdatedSD₂
              -- btiP₂ = id
 
-              sdP₂ : StateInvariants.Preserves StateInvariants.SafetyDataInv pre preUpdatedSD₂
-              sdP₂ = StateInvariants.mkPreservesSafetyDataInv
-                       (const $ StateInvariants.mkSDLastVote (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
+              srP₂ : Preserves SafetyRulesInv pre preUpdatedSD₂
+              srP₂ = mkPreservesSafetyRulesInv
+                       (const $ mkSafetyDataInv (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
 
               invP₂ : StateInvariants.Preserves StateInvariants.RoundManagerInv pre preUpdatedSD₂
-              invP₂ = StateInvariants.mkPreservesRoundManagerInv id btiP₂ emP sdP₂
+              invP₂ = StateInvariants.mkPreservesRoundManagerInv id emP btiP₂ srP₂
 
     contract
       : ∀ pre Post

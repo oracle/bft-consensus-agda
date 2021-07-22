@@ -39,6 +39,7 @@ open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
+open StateInvariants
 open StateTransProps
 
 module LibraBFT.Impl.Handle.Properties where
@@ -55,17 +56,17 @@ availEpochsConsistent :
 availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
-  initRM-correct           : RoundManager-correct initRM
-  initRM-blockTree-correct : StateInvariants.BlockTreeInv initRM
+  initRM-correct : RoundManager-correct initRM
+  initRM-btInv   : BlockStoreInv initRM
 
 initRMSatisfiesInv : StateInvariants.RoundManagerInv initRM
 initRMSatisfiesInv =
-  StateInvariants.mkRoundManagerInv initRM-correct initRM-blockTree-correct refl
-    (StateInvariants.mkSafetyDataInv (StateInvariants.mkSDLastVote refl z≤n))
+  StateInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
+    (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect
   : ∀ pid (pre : SystemState)
-    → ReachableSystemState pre → StateInvariants.RoundManagerInv (peerStates pre pid)
+    → ReachableSystemState pre → RoundManagerInv (peerStates pre pid)
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
@@ -78,20 +79,20 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-ho
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini)))) | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
   = initRMSatisfiesInv
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , P pm} m∈pool ini)))) | yes refl
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini)))) | yes refl
   with handleProposalSpec.contract!-RoundManagerInv 0 pm (peerStates pre' pid)
 ... | invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
   = invPres (invariantsCorrect pid pre' preach)
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , V x} m∈pool ini)))) | yes refl = {!!}
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{m = sndr , C x} m∈pool ini)))) | yes refl = {!!}
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V x} m∈pool ini)))) | yes refl = TODO
+  where
+  postulate -- TODO-3: prove (waiting on: `handle`)
+    TODO : RoundManagerInv (peerStates pre pid)
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini)))) | yes refl = TODO
+  where
+  postulate -- TODO-3: prove (waiting on: `handle`)
+    TODO : RoundManagerInv (peerStates pre pid)
 
--- postulate -- TODO-2: prove (waiting on: `handle`)
---   -- Likely the best approach here is to gather all two-state invariants into a
---   -- single record in `LibraBFT.Impl.Properties.Util`, including a
---   -- lexicographical ordering on (rmEpoch, metaRMGetRealLastVotedRound), then
---   -- prove that /all/ of these two-state invariants hold. Then, this follows as
---   -- a relatively simple lemma.
 lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
     → ReachableSystemState pre
@@ -101,7 +102,7 @@ lastVotedRound-mono
     → Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound ppost
 lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
   case (trans (sym ini) ini₁) of λ ()
-lastVotedRound-mono pid pre preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
+lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
   with m
 ... | P pm rewrite sym $ StepPeer-post-lemma{pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
   where
@@ -121,7 +122,7 @@ lastVotedRound-mono pid pre preach ini (step-msg{_ , m} m∈pool ini₁) epoch�
     (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ lSafetyData ∙ sdLastVotedRound )
     where
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
-    help = ≤-trans (StateInvariants.SDLastVote.round≤ ∘ StateInvariants.SafetyDataInv.lastVote $ sdCorrect ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
+    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
 
   help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
   help
@@ -138,8 +139,15 @@ lastVotedRound-mono pid pre preach ini (step-msg{_ , m} m∈pool ini₁) epoch�
   ... | Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
   ... | Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
-... | V vm = {!!} -- TODO-2: prove (waiting on: handle)
-... | C cm = {!!} -- Receiving a vote or commit message does not update the last vote
+... | V vm = TODO
+  where
+  postulate -- TODO-2: prove (waiting on: handle)
+    -- Receiving a vote or commit message does not update the last vote
+    TODO : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (LBFT-post (handle pid (V vm) 0) (peerStates pre pid))
+... | C cm = TODO
+  where
+  postulate -- TODO-2: prove (waiting on: handle)
+    TODO : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
 
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We

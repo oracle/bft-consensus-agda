@@ -20,6 +20,9 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
+open StateInvariants
+open StateTransProps
+
 module LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers where
 
 module epvvSpec where
@@ -40,8 +43,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     constructor mkContract
     field
       -- Genera properties / invariants
-      rmInv              : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange      : StateTransProps.NoEpochChange pre post
+      rmInv              : Preserves RoundManagerInv pre post
+      noEpochChange      : NoEpochChange pre post
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
 
@@ -53,7 +56,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     where
     contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
     contractBail outs noVotes =
-      mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
+      mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
         (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
 
     contract-step₁ : _
@@ -80,5 +83,5 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleProposal now pm) pre
   contract! pre = LBFT-contract (handleProposal now pm) (Contract pre) pre (contract pre)
 
-  contract!-RoundManagerInv : ∀ pre → LBFT-Post-True (λ r st outs → StateInvariants.Preserves StateInvariants.RoundManagerInv pre st) (handleProposal now pm) pre
+  contract!-RoundManagerInv : ∀ pre → LBFT-Post-True (λ r st outs → Preserves RoundManagerInv pre st) (handleProposal now pm) pre
   contract!-RoundManagerInv pre = Contract.rmInv (contract! pre)

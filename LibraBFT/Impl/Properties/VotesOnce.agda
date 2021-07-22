@@ -26,6 +26,9 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
+open StateInvariants
+open StateTransProps
+
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 open        ParamsWithInitAndHandlers InitAndHandlers
@@ -411,7 +414,7 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
       (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
   ... | inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
     -- TODO-1: Use ≤-Reasoning
-    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (StateInvariants.SDLastVote.round≤ (StateInvariants.SafetyDataInv.lastVote sdCorrect))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
+    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (SafetyDataInv.lvRound≤ (SafetyRulesInv.sdInv srInv))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
     where
     open ≡-Reasoning
     rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
@@ -432,7 +435,7 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
       (trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData)))
       (trans ≡round (cong (_^∙ vdProposed ∙ biRound) (sym ≡voteData)))
   ... | inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
-    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (StateInvariants.SDLastVote.round≤ (StateInvariants.SafetyDataInv.lastVote sdCorrect))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
+    ⊥-elim (<⇒≢ (≤-trans (s≤s rv'≤lvrPre) (≤-trans (≤-trans (≤-trans (s≤s (SafetyDataInv.lvRound≤ (SafetyRulesInv.sdInv srInv))) lvr<) (≡⇒≤ (sym lvr≡))) (≡⇒≤ (sym (cong (_^∙ vRound) v≡vote))))) (sym ≡round))
     where
     vote = vm ^∙ vmVote
 
@@ -492,10 +495,8 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   rmPost = peerStates (StepPeer-post{pre = pre} (step-honest sps)) pid
 
   -- State invariants
-  open StateInvariants
   rmInvs      = invariantsCorrect pid pre preach
-  epochsMatch = RoundManagerInv.epochsMatch rmInvs
-  sdInvs      = RoundManagerInv.sdCorrect   rmInvs
+  open RoundManagerInv rmInvs
 
   -- Properties of `handleProposal`
   postLVR≡ : just v ≡ (rmPost ^∙ lSafetyData ∙ sdLastVote)
@@ -525,7 +526,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
        with Voting.VoteGeneratedCorrect.state vgCorrect
        |    Voting.VoteGeneratedCorrect.blockTriggered vgCorrect
     ...| StateTransProps.mkVoteGenerated lv≡v (inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
-       with SDLastVote.epoch≡ ∘ SafetyDataInv.lastVote $ sdInvs
+       with SafetyDataInv.lvEpoch≡ ∘ SafetyRulesInv.sdInv $ srInv
     ...| sdEpochInv rewrite trans lv≡ (sym lv≡v) = sym sdEpochInv
     rmPreSdEpoch≡
        | StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
@@ -544,8 +545,8 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
       rewrite trans lv≡ (sym lv≡v)
         = ≤-refl
     ...| StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡))
-      with rmPre ^∙ lSafetyData ∙ sdLastVote
-        |    SDLastVote.round≤ ∘ SafetyDataInv.lastVote $ sdInvs
+       with rmPre ^∙ lSafetyData ∙ sdLastVote
+       |    SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
 
@@ -557,7 +558,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     = inj₂ (Common.mkVoteForRound∈ _ v' v'⊂m' pid' m'∈pool sig' (sym eid≡) rv'≡rv
         (sym (sameERasLV⇒sameId (step-s preach step) hpk postLVR≡ sig pcspkv v'⊂m' (Any-++ʳ _ m'∈pool) sig' ¬gen' eid≡ (sym rv'≡rv) )))
   ... | tri> _ _ rv'>rv = ⊥-elim (≤⇒≯ rv'≤rv rv'>rv)
-votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , V x} m∈pool ini) {v} {m} {v'} {m'} hpk v⊂m m∈outs sig ¬gen ¬msb vspk v'⊂m' m'∈pool sig' ¬gen' eid≡ = TODO
+votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V x} m∈pool ini){v}{m}{v'}{m'} hpk v⊂m m∈outs sig ¬gen ¬msb vspk v'⊂m' m'∈pool sig' ¬gen' eid≡ = TODO
   where
   postulate -- TODO-2: prove (waiting on: vote messages do not trigger a vote message response)
     TODO : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
