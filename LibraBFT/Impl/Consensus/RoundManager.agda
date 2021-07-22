@@ -59,7 +59,7 @@ processNewRoundEventM now nre = do
         generateProposalM now nre >>= λ where
           -- (Left (ErrEpochEndedNoProposals t)) -> logInfoL (lEC.|.lPM) (here ("EpochEnded":t))
           (Left e)            → logErr (withErrCtx (here' ("Error generating proposal" ∷ [])) e)
-          (Right proposalMsg) → act (BroadcastProposal proposalMsg) -- TODO  rcvrs)
+          (Right proposalMsg) → act (BroadcastProposal proposalMsg rcvrs)
  where
   here' : List String.String → List String.String
   here' t = "RoundManager" ∷ "processNewRoundEventM" ∷ t
