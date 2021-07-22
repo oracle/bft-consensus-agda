@@ -92,7 +92,7 @@ module executeAndVoteMSpec (b : Block) where
       invP₁ = mkPreservesRoundManagerInv id
                 id
                 (executeAndInsertBlockESpec.bs'BlockInv (pre ^∙ lBlockStore) b (sym eaibRight) refl)
-                (mkPreservesSafetyRulesInv (substSDLastVote refl))
+                (mkPreservesSafetyRulesInv (substSafetyDataInv refl))
 
       contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre (Left e) preUpdateBS outs
       contractBailSetBS outs noMsgOuts =
@@ -241,7 +241,7 @@ module processProposalMSpec (proposal : Block) where
                  -- btInv₂ = id
 
                   sdiP : Preserves SafetyRulesInv st stUpdateRS
-                  sdiP = mkPreservesSafetyRulesInv (substSDLastVote refl)
+                  sdiP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
 
                   rmiP : Preserves RoundManagerInv pre stUpdateRS
                   rmiP = transPreservesRoundManagerInv rmInv₂

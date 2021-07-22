@@ -130,9 +130,9 @@ module StateInvariants where
 
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
-  substSDLastVote
+  substSafetyDataInv
     : ∀ {pre post} → pre ≡L post at lSafetyData → Preserves SafetyDataInv pre post
-  substSDLastVote{pre}{post} eq (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
+  substSafetyDataInv{pre}{post} eq (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
     where
     epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ lSafetyData ∙ sdEpoch
     epoch≡' rewrite sym eq = epoch≡
