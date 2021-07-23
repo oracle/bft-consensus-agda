@@ -537,6 +537,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmParent : Lens VoteMsg BlockInfo
   vmParent = vmVote ∙ vVoteData ∙ vdParent
 
+  -- IMPL-DIFF: getter-only in Haskell
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
