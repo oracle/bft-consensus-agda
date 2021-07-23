@@ -228,15 +228,15 @@ signProposalM blockData = do
  vs ← use (lSafetyRules ∙ srValidatorSigner)
  maybeS vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner -> do
   safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
-  verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ unit →
-    verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ unit →
+  verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ _ →
+    verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ _ →
       ifM blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
       then bail fakeErr
       -- {-     ErrL (here' [ "InvalidProposal"
       --                    , "Proposed round is not higher than last voted round "
       --                    , lsR (blockData ^∙ bdRound), lsR (safetyData ^∙ sdLastVotedRound) ])-}
       else do
-        verifyQcM (blockData ^∙ bdQuorumCert) ∙?∙ λ unit →
+        verifyQcM (blockData ^∙ bdQuorumCert) ∙?∙ λ _ →
           verifyAndUpdatePreferredRoundM (blockData ^∙ bdQuorumCert) safetyData ∙?∙ λ safetyData1 -> do
             lSafetyData   ∙= safetyData1
             let signature  = ValidatorSigner.sign validatorSigner blockData
