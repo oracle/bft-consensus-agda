@@ -44,9 +44,10 @@ open StateTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
--- We can prove this easily because we don't yet do epoch changes,
--- so only the initial EC is relevant.  Later, this will require us to use the fact that
--- epoch changes require proof of committing an epoch-changing transaction.
+-- We can prove this easily for the Agda model because (unlike the Haskell
+-- prototype) it does not yet do epoch changes, so only the initial EC is
+-- relevant. Later, this will require us to use the fact that epoch changes
+-- require proof of committing an epoch-changing transaction.
 availEpochsConsistent :
    ∀{pid pid' v v' pk}{st : SystemState}
    → (pkvpf  : PeerCanSignForPK st v  pid  pk)
@@ -139,15 +140,15 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   ... | Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
   ... | Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
-... | V vm = TODO
+-- Receiving a vote or commit message does not update the last vote
+... | V vm = ≡⇒≤ TODO
   where
-  postulate -- TODO-2: prove (waiting on: handle)
-    -- Receiving a vote or commit message does not update the last vote
-    TODO : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (LBFT-post (handle pid (V vm) 0) (peerStates pre pid))
-... | C cm = TODO
+  postulate -- TODO-2: prove (waiting on: `handle`)
+    TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (V vm) 0) (peerStates pre pid))
+... | C cm = ≡⇒≤ TODO
   where
-  postulate -- TODO-2: prove (waiting on: handle)
-    TODO : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
+  postulate -- TODO-2: prove (waiting on: `handle`)
+    TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
 
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We

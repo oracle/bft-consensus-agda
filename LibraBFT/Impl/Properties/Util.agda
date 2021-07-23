@@ -27,7 +27,7 @@ module LibraBFT.Impl.Properties.Util where
 
 module Meta where
   getLastVoteEpoch : RoundManager → Epoch
-  getLastVoteEpoch = maybe{B = const Epoch} (_^∙ vEpoch) 1 ∘ (_^∙ lSafetyData ∙ sdLastVote)
+  getLastVoteEpoch rm = maybe{B = const Epoch} (_^∙ vEpoch) (rm ^∙ lSafetyData ∙ sdEpoch) ∘ (_^∙ lSafetyData ∙ sdLastVote) $ rm
 
   getLastVoteRound : RoundManager → Round
   getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ lSafetyData ∙ sdLastVote)
@@ -132,13 +132,13 @@ module StateInvariants where
 
   substSafetyDataInv
     : ∀ {pre post} → pre ≡L post at lSafetyData → Preserves SafetyDataInv pre post
-  substSafetyDataInv{pre}{post} eq (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
+  substSafetyDataInv{pre}{post} sd≡ (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
     where
     epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ lSafetyData ∙ sdEpoch
-    epoch≡' rewrite sym eq = epoch≡
+    epoch≡' rewrite sym sd≡ = epoch≡
 
     round≤' : Meta.getLastVoteRound post ≤ post ^∙ lSafetyData ∙ sdLastVotedRound
-    round≤' rewrite sym eq = round≤
+    round≤' rewrite sym sd≡ = round≤
 
   mkPreservesSafetyRulesInv
     : ∀ {pre post}
@@ -179,9 +179,9 @@ module StateTransProps where
     record VoteOldGenerated : Set where
       constructor mkVoteOldGenerated
       field
-        -- NOTE: The implementation maintains an invariant that the round of the
-        -- vote associated to `sdLastVote` (if it exists) is less than or equal
-        -- to to the field `sdLastVotedRound`.
+        -- NOTE: The implementation maintains an invariant that the round
+        -- associated with `sdLastVote` (if the vote exists) is less than or
+        -- equal to the field `sdLastVotedRound`.
         lvr≡ : pre ≡L post at lSafetyData ∙ sdLastVotedRound
         lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
 
@@ -401,3 +401,10 @@ module Voting where
     field
       voteAttempt : VoteAttemptCorrect pre post outs block
       sdEpoch≡?   : VoteAttemptEpochReq voteAttempt
+
+module QC where
+
+  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
+    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
+    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
+

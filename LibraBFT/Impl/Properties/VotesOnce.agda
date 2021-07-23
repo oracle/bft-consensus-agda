@@ -38,9 +38,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
                                PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 open        Structural impl-sps-avp
 
--- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
--- LibraBFT.ImplFake.Properties.VotesOnce, which is based on unwind, this proof is done
--- inductively on the ReachableSystemState.
+-- This module proves the two "VotesOnce" proof obligations for our handler.
 
 module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
 
@@ -78,8 +76,6 @@ peerCanSignPK-Inj{pid}{pid'}{pk} pcsfpk₁ pcsfpk₂ ≡epoch = begin
   pcsfpk₁∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁)))
   pcsfpk₂∙pid = EpochConfig.toNodeId (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
   pcsfpk₂∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂)))
-
-
 
 module ∉Gen
   {pool : SentMessages}{pk : PK}{v : Vote} (sig : WithVerSig pk v) (¬gen : ¬ ∈GenInfo-impl genesisInfo (ver-signature sig))
@@ -126,12 +122,6 @@ msg∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} s
   mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
   mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
 
------ Properties that relate handler to system state -----
-
-data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-  inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
-  inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
-
 postulate -- TODO-2: prove (waiting on: `handle`)
   -- This will be proved for the implementation, confirming that honest
   -- participants only store QCs comprising votes that have actually been sent.
@@ -143,13 +133,13 @@ postulate -- TODO-2: prove (waiting on: `handle`)
     : ∀ {pid qc vs pk}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ initd
-      → qc ∈RoundManager (peerStates st pid)
+      → qc QC.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
       → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
       → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
 
-newVote⇒lvr≡
+newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' outs v m pk}
     → ReachableSystemState pre
     → StepPeerState pid (msgPool pre) (initialised pre)
@@ -157,8 +147,8 @@ newVote⇒lvr≡
     → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    → v ^∙ vRound ≡ Meta.getLastVoteRound s'
-newVote⇒lvr≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
+    → LastVoteIs s' v
+newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) =
   ⊥-elim (unsentVoteSent voteUnsent)
@@ -170,25 +160,27 @@ newVote⇒lvr≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vo
     sendVote∉actions{outs = handleOuts}{st = peerStates pre pid}
       (sym noVoteMsgOuts) m∈outs
 ... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) =
-  sentVoteIsPostLVR
+  sentVoteIsPostLV
   where
   handlePost = LBFT-post (handle pid (P pm) 0) (peerStates pre pid)
   handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
 
-  sentVoteIsPostLVR : v ^∙ vRound ≡ Meta.getLastVoteRound handlePost
-  sentVoteIsPostLVR with Voting.VoteGeneratedCorrect.state vgCorrect
-  ... | StateTransProps.mkVoteGenerated lv≡v _ rewrite sym lv≡v =
-    cong (_^∙ vmVote ∙ vRound) (sendVote∈actions{outs = handleOuts}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs)
+  sentVoteIsPostLV : LastVoteIs handlePost v
+  sentVoteIsPostLV
+    with Voting.VoteGeneratedCorrect.state vgCorrect
+  ... | StateTransProps.mkVoteGenerated lv≡v _
+    rewrite sym lv≡v
+    = cong (just ∘ _^∙ vmVote) (sendVote∈actions{outs = handleOuts}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs)
 
-newVote⇒lvr≡{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4 = TODO
+newVote⇒lv≡{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4 = TODO
   where
   postulate -- TODO-1: prove (note: no votes sent from processing a vote message) (waiting on: handle)
-    TODO : v ^∙ vRound ≡ Meta.getLastVoteRound s'
+    TODO : LastVoteIs s' v
 
-newVote⇒lvr≡{s' = s'}{v = v} preach sps (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = TODO
+newVote⇒lv≡{s' = s'}{v = v} preach sps (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = TODO
   where
   postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
-    TODO : v ^∙ vRound ≡ Meta.getLastVoteRound s'
+    TODO : LastVoteIs s' v
 
 postulate -- TODO-3: prove
   mws∈pool⇒epoch≡
@@ -268,9 +260,10 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
     vr≡lvrPost : v ^∙ vRound ≡ Meta.getLastVoteRound (peerStates (StepPeer-post sp) pid)
     vr≡lvrPost
       rewrite sym (StepPeer-post-lemma sp)
-      -- TODO-2: Once `newVote⇒lvr≡` is strengthened, do we have enough
+      -- TODO-2: Once `newVote⇒lv≡` is strengthened, do we have enough
       -- information to prove `VoteForRound∈`?
-      = newVote⇒lvr≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
+      = cong (maybe {B = const ℕ} (_^∙ vRound) 0) $
+          newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
 
 sameERasLV⇒sameId
   : ∀ {pid pid' pk}{pre : SystemState}
