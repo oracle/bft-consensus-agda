@@ -170,6 +170,15 @@ module StateTransProps where
   transNoEpochChange : Transitive NoEpochChange
   transNoEpochChange = trans
 
+  NoSafetyDataChange : (pre post : RoundManager) → Set
+  NoSafetyDataChange pre post = pre ≡L post at lSafetyData
+
+  reflNoSafetyDataChange : Reflexive NoSafetyDataChange
+  reflNoSafetyDataChange = refl
+
+  transNoSafetyDataChange : Transitive NoSafetyDataChange
+  transNoSafetyDataChange = trans
+
   -- - state changes from generating or not generating a vote
   LastVoteIs : RoundManager → Vote → Set
   LastVoteIs rm v = just v ≡ rm ^∙ lSafetyData ∙ sdLastVote
