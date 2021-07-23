@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.PKCS hiding (verify)
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -14,6 +14,9 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.Vote where
 newWithSignature : VoteData → Author → LedgerInfo → Signature → Vote
 newWithSignature voteData author ledgerInfo signature =
   Vote∙new voteData author ledgerInfo signature nothing
+
+postulate
+  verify : Vote → ValidatorVerifier → Either ErrLog Unit
 
 timeout : Vote → Timeout
 timeout v =
