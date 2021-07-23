@@ -6,6 +6,7 @@
 
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Types.BlockInfo where
 
@@ -17,3 +18,6 @@ empty = BlockInfo∙new
   (sha256 (false ∷ [])) -- TODO-1 Hash.valueZero
   (Version∙new 0 0)     -- TODO-1 gENESIS_VERSION
   nothing
+
+hasReconfiguration : BlockInfo → Bool
+hasReconfiguration = is-just ∘ (_^∙ biNextEpochState)
