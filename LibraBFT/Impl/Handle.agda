@@ -55,6 +55,9 @@ initSR =
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
   in sr
 
+initPG : ProposalGenerator
+initPG = ProposalGenerator∙new 0
+
 postulate -- TODO-1: Implement this.
   initPE : ProposerElection
   initBS : BlockStore
@@ -66,7 +69,9 @@ initRS : RoundState
 initRS = RoundState∙new 0 0 initPV nothing
 
 initRM : RoundManager
-initRM = RoundManager∙new (EpochState∙new 1 (initVV genesisInfo)) initBS initRS initPE initSR false
+initRM = RoundManager∙new
+           (EpochState∙new 1 (initVV genesisInfo))
+           initBS initRS initPE initPG initSR false
 
 -- Eventually, the initialization should establish some properties we care about, but for now we
 -- just initialise again to fakeRM, which means we cannot prove the base case for various

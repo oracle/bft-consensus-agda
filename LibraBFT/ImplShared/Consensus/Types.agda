@@ -71,17 +71,27 @@ module LibraBFT.ImplShared.Consensus.Types where
       _rmBlockStore       : BlockStore
       _rmRoundState       : RoundState
       _rmProposerElection : ProposerElection
+      _rmProposalGenerator : ProposalGenerator
       _rmSafetyRules      : SafetyRules
       _rmSyncOnly         : Bool
   open RoundManager public
-  unquoteDecl rmEpochState   rmBlockStore   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManager)
-             (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
+  unquoteDecl rmEpochState   rmBlockStore   rmRoundState   rmProposerElection
+              rmProposalGenerator   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManager)
+             (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷
+              rmProposalGenerator ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
+
+  rmObmAllAuthors : RoundManager → List Author
+  rmObmAllAuthors rm =
+    List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo))
 
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
   rmLastVotedRound : Lens RoundManager Round
   rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
+
+  lProposalGenerator : Lens RoundManager ProposalGenerator
+  lProposalGenerator = rmProposalGenerator
 
   lProposerElection : Lens RoundManager ProposerElection
   lProposerElection = rmProposerElection

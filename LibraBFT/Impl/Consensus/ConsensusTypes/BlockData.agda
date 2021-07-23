@@ -5,11 +5,16 @@
 -}
 
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.BlockData where
 
-isNilBlock : BlockData -> Bool
+newProposal : TX → Author → Round → {-Instant →-} QuorumCert → BlockData
+newProposal payload author round {-timestamp-} quorumCert = BlockData∙new
+  (quorumCert ^∙ qcCertifiedBlock ∙ biEpoch) round {-timestamp-} quorumCert (Proposal payload author)
+
+isNilBlock : BlockData → Bool
 isNilBlock bd = bd ^∙ bdBlockType == NilBlock

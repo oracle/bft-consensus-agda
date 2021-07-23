@@ -36,13 +36,16 @@ module LibraBFT.ImplFake.Handle where
    fakeRM : RoundManager
    initBS : BlockStore
 
- postulate -- Only in fake implementation. 
+ postulate -- Only in fake implementation.
    initVV  : GenesisInfo → ValidatorVerifier
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
                 (over (srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound) (const 0)
                       (_rmSafetyRules fakeRM))
+
+ initPG : ProposalGenerator
+ initPG = ProposalGenerator∙new 0
 
  -- TODO-1: Implement this.
  initPE : ProposerElection
@@ -55,7 +58,9 @@ module LibraBFT.ImplFake.Handle where
  initRS = RoundState∙new 0 0 initPV nothing
 
  initRM : RoundManager
- initRM = RoundManager∙new (EpochState∙new 1 (initVV genesisInfo)) initBS initRS initPE initSR false
+ initRM = RoundManager∙new
+            (EpochState∙new 1 (initVV genesisInfo))
+            initBS initRS initPE initPG initSR false
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
