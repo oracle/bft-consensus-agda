@@ -46,12 +46,12 @@ generateProposalM
   → LBFT (Either ErrLog ProposalMsg)
 
 processNewRoundEventM : Instant → NewRoundEvent → LBFT Unit
-processNewRoundEventM now nre = do
+processNewRoundEventM now nre@(NewRoundEvent∙new r _) = do
   logInfo fakeInfo   -- (InfoNewRoundEvent nre)
   gets rmPgAuthor >>= λ where
     nothing       → logErr fakeErr -- (here ["lRoundManager.pgAuthor", "Nothing"])
     (just author) → do
-      v ← ProposerElection.isValidProposer <$> use lProposerElection <*> pure author <*> pure (nre ^∙ nreRound)
+      v ← ProposerElection.isValidProposer <$> use lProposerElection <*> pure author <*> pure r
       when v $ do
         rcvrs ← gets rmObmAllAuthors -- use (lRoundManager.rmObmAllAuthors)
         generateProposalM now nre >>= λ where
