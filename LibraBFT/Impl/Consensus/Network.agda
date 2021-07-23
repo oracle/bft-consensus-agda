@@ -22,7 +22,7 @@ processProposal {- peerId -} proposal myEpoch vv =
     (Left e) → Left (Left e)
     (Right unit) →
       grd‖ proposal ^∙ pmProposal ∙ bEpoch == myEpoch ≔
-           return unit
+           pure unit
          -- TODO : push this onto a queue if epoch is in future (is this still relevant?)
          ‖ proposal ^∙ pmProposal ∙ bEpoch == myEpoch + 1 ≔
            Left (Right fakeInfo) -- proposal in new epoch arrived before my epoch change
