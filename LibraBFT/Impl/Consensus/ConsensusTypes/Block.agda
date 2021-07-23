@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockData as BlockData
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -23,3 +24,7 @@ genBlockInfo b executedStateId version nextEpochState = BlockInfo∙new
 
 isNilBlock : Block → Bool
 isNilBlock b = BlockData.isNilBlock (b ^∙ bBlockData)
+
+newProposalFromBlockDataAndSignature : BlockData → Signature → Block
+newProposalFromBlockDataAndSignature blockData signature =
+  Block∙new (hashBD blockData) blockData (just signature)
