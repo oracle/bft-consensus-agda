@@ -6,6 +6,7 @@
 
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -39,9 +40,6 @@ processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
 processCommitM finalityProof = pure []
 
 ------------------------------------------------------------------------------
-
-postulate
-  rmObmAllAuthors : RoundManager → List Author
 
 generateProposalM
   : Instant → NewRoundEvent
