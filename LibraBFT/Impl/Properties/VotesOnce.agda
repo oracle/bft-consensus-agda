@@ -203,10 +203,12 @@ mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} m∈outs ini) 
   hpPos = LBFT-post (handleProposal 0 pm) hpPre
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
   open ≡-Reasoning
+
 mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} m∈outs ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
   where
   postulate -- TODO-3: prove (waiting on: epoch config changes)
     TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
+
 mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} m∈outs ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
   where
   postulate -- TODO-3: prove (waiting on: epoch config changes)
@@ -544,9 +546,9 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) =
-  ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym noVoteMsgOuts) m∈outs)
+  ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
 ... | handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?)
-  with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)} (sym voteMsgOuts) m∈outs
+  with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs
 ... | refl = ret
   where
   -- Some definitions
