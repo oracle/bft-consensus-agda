@@ -25,12 +25,12 @@ generateProposalM _now round = do
     then (do
       lProposalGenerator ∙ pgLastRoundGenerated ∙= round
       ensureHighestQuorumCertM round ∙?∙ λ hqc -> do
-        payload ← if BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
+        payload ← ifM BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
                       -- IMPL-DIFF : create a fake TX
                       then pure (Encode.encode 0) -- (Payload [])
                       else pure (Encode.encode 0) -- use pgTxnManager <*> use (rmEpochState ∙ esEpoch) <*> pure round
         s ← get
-        case rmPgAuthor s of λ where
+        caseMM rmPgAuthor s of λ where
           nothing       → bail fakeErr -- ErrL (here ["lRoundManager.pgAuthor", "Nothing"])
           (just author) →
             ok (BlockData.newProposal payload author round {-pure blockTimestamp <*>-} hqc))
