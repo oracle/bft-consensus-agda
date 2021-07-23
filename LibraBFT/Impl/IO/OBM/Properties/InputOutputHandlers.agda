@@ -42,7 +42,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
-      -- Genera properties / invariants
+      -- General properties / invariants
       rmInv              : Preserves RoundManagerInv pre post
       noEpochChange      : NoEpochChange pre post
       -- Voting
