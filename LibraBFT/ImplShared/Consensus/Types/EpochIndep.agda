@@ -711,12 +711,20 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   data ObmNotValidProposerReason : Set where
     ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
 
+  record ProposalGenerator : Set where
+    constructor ProposalGenerator∙new
+    field
+      _pgLastRoundGenerated : Round
+  open ProposalGenerator
+  unquoteDecl pgLastRoundGenerated = mkLens (quote ProposalGenerator)
+              (pgLastRoundGenerated ∷ [])
+
   record ProposerElection : Set where
     constructor ProposerElection∙new
     -- field
-      -- :peProposers : Set Author
-      -- :peObmLeaderOfRound : LeaderOfRoundFn
-      -- :peObmNodesInORder  : NodesInOrder
+      -- _peProposers : Set Author
+      -- _peObmLeaderOfRound : LeaderOfRoundFn
+      -- _peObmNodesInOrder  : NodesInOrder
   open ProposerElection
 
   record SafetyRules : Set where
