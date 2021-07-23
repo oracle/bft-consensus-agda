@@ -4,7 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+------------------------------------------------------------------------------
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -13,6 +15,7 @@ open import LibraBFT.Impl.Consensus.BlockStorage.SyncManager     as SyncManager
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 open import LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
+import      LibraBFT.Impl.Consensus.Liveness.ProposalGenerator   as ProposalGenerator
 open import LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState hiding (processCertificatesM)
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
@@ -24,9 +27,10 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
-
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-
+-----------------------------------------------------------------------------
+import      Data.String                                          as String
+------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.RoundManager where
 
@@ -35,9 +39,33 @@ module LibraBFT.Impl.Consensus.RoundManager where
 processCommitM : LedgerInfoWithSignatures → LBFT (List ExecutedBlock)
 processCommitM finalityProof = pure []
 
--- IMPL-TODO: implement this
+------------------------------------------------------------------------------
+
+generateProposalM
+  : Instant → NewRoundEvent
+  → LBFT (Either ErrLog ProposalMsg)
+
 processNewRoundEventM : Instant → NewRoundEvent → LBFT Unit
-processNewRoundEventM now nre = pure unit
+processNewRoundEventM now nre@(NewRoundEvent∙new r _) = do
+  logInfo fakeInfo   -- (InfoNewRoundEvent nre)
+  gets rmPgAuthor >>= λ where
+    nothing       → logErr fakeErr -- (here ["lRoundManager.pgAuthor", "Nothing"])
+    (just author) → do
+      v ← ProposerElection.isValidProposer <$> use lProposerElection <*> pure author <*> pure r
+      when v $ do
+        rcvrs ← gets rmObmAllAuthors -- use (lRoundManager.rmObmAllAuthors)
+        generateProposalM now nre >>= λ where
+          -- (Left (ErrEpochEndedNoProposals t)) -> logInfoL (lEC.|.lPM) (here ("EpochEnded":t))
+          (Left e)            → logErr (withErrCtx (here' ("Error generating proposal" ∷ [])) e)
+          (Right proposalMsg) → act (BroadcastProposal proposalMsg rcvrs)
+ where
+  here' : List String.String → List String.String
+  here' t = "RoundManager" ∷ "processNewRoundEventM" ∷ t
+
+generateProposalM now newRoundEvent =
+  ProposalGenerator.generateProposalM now (newRoundEvent ^∙ nreRound) ∙?∙ λ proposal →
+  SafetyRules.signProposalM proposal ∙?∙ λ signedProposal →
+  Right ∘ ProposalMsg∙new signedProposal <$> BlockStore.syncInfoM
 
 ------------------------------------------------------------------------------
 

@@ -29,6 +29,19 @@ module LibraBFT.ImplShared.Util.Crypto where
 
   open WithCryptoHash sha256 sha256-cr
 
+  -- IMPL-DIFF
+  -- 1. cannot do "qcParts" because bs-concat does returns BitString
+  -- 2. no need to deal with a 'Proposal' for stable test hashes
+  hashBD : BlockData → HashValue
+  hashBD = sha256 ∘ bs-concat ∘ blockDataBSList
+   where
+    blockDataBSList : BlockData → List ByteString
+    blockDataBSList (BlockData∙new
+                      epoch round
+                      (QuorumCert∙new voteData (LedgerInfoWithSignatures∙new ledgerInfo _sigs))
+                      blockType) =
+      encode epoch ∷ encode round ∷ encode voteData ∷ encode ledgerInfo ∷ encode blockType ∷ []
+
   blockInfoBSList : BlockInfo → List ByteString
   blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
     encode epoch ∷ encode round ∷ encode id ∷ encode execStId ∷ encode ver ∷ encode mes ∷ []

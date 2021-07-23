@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+------------------------------------------------------------------------------
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
@@ -20,6 +21,9 @@ import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                                       as String
+------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
@@ -86,6 +90,23 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
           EQ →
             pure safetyData
       ok updated
+
+------------------------------------------------------------------------------
+
+verifyAuthorM : Maybe Author → LBFT (Either ErrLog Unit)
+verifyAuthorM author = do
+  vs ← use (lSafetyRules ∙ srValidatorSigner)
+  maybeS vs (bail fakeErr) {-(ErrL (here' ["srValidatorSigner", "Nothing"]))-} $ λ validatorSigner →
+    maybeS
+      author
+      (bail fakeErr) -- (ErrL (here' ["InvalidProposal", "No author found in the proposal"])))
+      (\a ->
+        ifM validatorSigner ^∙ vsAuthor /= a
+        then bail fakeErr -- (ErrL (here' ["InvalidProposal", "Proposal author is not validator signer"]))
+        else ok unit)
+ where
+  here' : List String.String → List String.String
+  here' t = "SafetyRules" ∷ "verifyAuthorM" ∷ t
 
 ------------------------------------------------------------------------------
 
@@ -199,3 +220,28 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
         ok vote
 
 constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
+
+------------------------------------------------------------------------------
+
+signProposalM : BlockData → LBFT (Either ErrLog Block)
+signProposalM blockData = do
+ vs ← use (lSafetyRules ∙ srValidatorSigner)
+ maybeS vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner -> do
+  safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
+  verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ _ →
+    verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ _ →
+      ifM blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
+      then bail fakeErr
+      -- {-     ErrL (here' [ "InvalidProposal"
+      --                    , "Proposed round is not higher than last voted round "
+      --                    , lsR (blockData ^∙ bdRound), lsR (safetyData ^∙ sdLastVotedRound) ])-}
+      else do
+        verifyQcM (blockData ^∙ bdQuorumCert) ∙?∙ λ _ →
+          verifyAndUpdatePreferredRoundM (blockData ^∙ bdQuorumCert) safetyData ∙?∙ λ safetyData1 -> do
+            lSafetyData   ∙= safetyData1
+            let signature  = ValidatorSigner.sign validatorSigner blockData
+            ok (Block.newProposalFromBlockDataAndSignature blockData signature)
+ where
+  here' : List String.String → List String.String
+  here' t = "SafetyRules" ∷ "signProposalM" ∷ t
+

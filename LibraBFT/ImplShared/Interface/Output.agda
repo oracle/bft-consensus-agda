@@ -17,7 +17,7 @@ open import Optics.All
 module LibraBFT.ImplShared.Interface.Output where
 
   data Output : Set where
-    BroadcastProposal : ProposalMsg                   → Output
+    BroadcastProposal : ProposalMsg → List Author     → Output
     LogErr            : ErrLog                        → Output
     LogInfo           : InfoLog                       → Output
     SendVote          : VoteMsg → List Author → Output
@@ -30,37 +30,37 @@ module LibraBFT.ImplShared.Interface.Output where
   SendVote-inj-si refl = refl
 
   IsSendVote : Output → Set
-  IsSendVote (BroadcastProposal _) = ⊥
+  IsSendVote (BroadcastProposal _ _) = ⊥
   IsSendVote (LogErr _) = ⊥
   IsSendVote (LogInfo _) = ⊥
   IsSendVote (SendVote _ _) = ⊤
 
   IsBroadcastProposal : Output → Set
-  IsBroadcastProposal (BroadcastProposal _) = ⊤
+  IsBroadcastProposal (BroadcastProposal _ _) = ⊤
   IsBroadcastProposal (LogErr _) = ⊥
   IsBroadcastProposal (LogInfo _) = ⊥
   IsBroadcastProposal (SendVote _ _) = ⊥
 
   IsLogErr : Output → Set
-  IsLogErr (BroadcastProposal _) = ⊥
+  IsLogErr (BroadcastProposal _ _) = ⊥
   IsLogErr (LogErr _)            = ⊤
   IsLogErr (LogInfo _)           = ⊥
   IsLogErr (SendVote _ _)        = ⊥
 
   isSendVote? : (out : Output) → Dec (IsSendVote out)
-  isSendVote? (BroadcastProposal _) = no λ ()
+  isSendVote? (BroadcastProposal _ _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
   isSendVote? (SendVote mv pid)     = yes tt
 
   isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
-  isBroadcastProposal? (BroadcastProposal _) = yes tt
+  isBroadcastProposal? (BroadcastProposal _ _) = yes tt
   isBroadcastProposal? (LogErr _)            = no λ ()
   isBroadcastProposal? (LogInfo _)           = no λ ()
   isBroadcastProposal? (SendVote _ _)        = no λ ()
 
   isLogErr? : (out : Output) → Dec (IsLogErr out)
-  isLogErr? (BroadcastProposal x) = no λ ()
+  isLogErr? (BroadcastProposal x _) = no λ ()
   isLogErr? (LogErr x)            = yes tt
   isLogErr? (LogInfo x)           = no λ ()
   isLogErr? (SendVote x x₁)       = no λ ()
@@ -80,14 +80,10 @@ module LibraBFT.ImplShared.Interface.Output where
   -- it is included in the model only to facilitate future work on liveness properties, when we will need
   -- assumptions about message delivery between honest peers.
   outputToActions : RoundManager → Output → List (Action NetworkMsg)
-  outputToActions rm (BroadcastProposal p) = List-map (const (send (P p)))
-                                                      (List-map proj₁
-                                                                (kvm-toList (_vvAddressToValidatorInfo
-                                                                              (_esVerifier
-                                                                                (_rmEpochState rm)))))
+  outputToActions rm (BroadcastProposal p rcvrs) = List-map (const (send (P p))) rcvrs
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
-  outputToActions _  (SendVote vm toList)  = List-map (const (send (V vm))) toList
+  outputToActions _  (SendVote vm rcvrs)   = List-map (const (send (V vm))) rcvrs
 
   outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
@@ -95,10 +91,10 @@ module LibraBFT.ImplShared.Interface.Output where
   -- Lemmas about `outputsToActions`
   outputToActions-sendVote∉actions
     : ∀ {out vm st} → ¬ (IsSendVote out) → ¬ (send (V vm) ∈ outputToActions st out)
-  outputToActions-sendVote∉actions {BroadcastProposal pm}{vm}{st} ¬sv m∈acts =
-    help (kvm-toList (st ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)) m∈acts
+  outputToActions-sendVote∉actions {BroadcastProposal pm rcvrs}{vm}{st} ¬sv m∈acts =
+    help rcvrs m∈acts
     where
-    help : ∀ xs → ¬ (send (V vm) ∈ List-map (const (send (P pm))) (List-map proj₁ xs))
+    help : ∀ xs → ¬ (send (V vm) ∈ List-map (const (send (P pm))) xs)
     help (x ∷ xs) (there m∈acts) = help xs m∈acts
   outputToActions-sendVote∉actions {SendVote _ _} ¬sv m∈acts = ¬sv tt
 
@@ -109,7 +105,7 @@ module LibraBFT.ImplShared.Interface.Output where
     with Any-++⁻ (outputToActions st x) m∈acts
   ... | Left m∈[]
     with isSendVote? x
-  ...| no  proof = outputToActions-sendVote∉actions proof m∈[]
+  ...| no  proof = outputToActions-sendVote∉actions {st = st} proof m∈[]
   sendVote∉actions {x ∷ outs} {st = st} outs≡ m∈acts | Right m∈acts'
     with isSendVote? x
   ...| no  proof = sendVote∉actions{outs = outs}{st = st} outs≡ m∈acts'
@@ -118,9 +114,9 @@ module LibraBFT.ImplShared.Interface.Output where
     : ∀ {vm vm' pids outs st} → SendVote vm pids ∷ [] ≡ List-filter isSendVote? outs
       → send (V vm') ∈ outputsToActions{st} outs
       → vm' ≡ vm
-  sendVote∈actions {outs = BroadcastProposal x ∷ outs}{st = st} outs≡ m∈acts
-    with Any-++⁻ (outputToActions st (BroadcastProposal x)) m∈acts
-  ... | Left m∈[] = ⊥-elim (outputToActions-sendVote∉actions{out = BroadcastProposal x}{st = st} id m∈[])
+  sendVote∈actions {outs = (BroadcastProposal x rcvrs) ∷ outs}{st = st} outs≡ m∈acts
+    with Any-++⁻ (outputToActions st (BroadcastProposal x rcvrs)) m∈acts
+  ... | Left m∈[] = ⊥-elim (outputToActions-sendVote∉actions{out = BroadcastProposal x rcvrs}{st = st} id m∈[])
   ... | Right m∈acts' = sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts'
   sendVote∈actions {outs = LogErr x ∷ outs}{st = st} outs≡ m∈acts =
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts

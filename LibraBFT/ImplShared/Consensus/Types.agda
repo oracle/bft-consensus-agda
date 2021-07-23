@@ -77,6 +77,10 @@ module LibraBFT.ImplShared.Consensus.Types where
   unquoteDecl rmEpochState   rmBlockStore   rmRoundState   rmProposerElection   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManager)
              (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
+  rmObmAllAuthors : RoundManager → List Author
+  rmObmAllAuthors rm =
+    List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo))
+
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
