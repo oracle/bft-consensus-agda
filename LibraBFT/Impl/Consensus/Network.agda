@@ -10,13 +10,11 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ProposalMsg as ProposalMsg
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg     as VoteMsg
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.Network where
-
-postulate  -- TODO-1: implement this
-  processVote     : {- NodeId → -} VoteMsg     → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
 
 processProposal : {- NodeId → -} ProposalMsg → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
 processProposal {- peerId -} proposal myEpoch vv =
@@ -34,3 +32,30 @@ processProposal {- peerId -} proposal myEpoch vv =
   pProposal = do
     ProposalMsg.verify proposal vv
     {- lcheck (proposal ^∙ pmProposal ∙ bAuthor == just peerId) -}
+
+processVote : {- NodeId → -} VoteMsg → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
+processVote {- peerId -} voteMsg myEpoch vv =
+  case pVote of λ where
+    (Left e) → Left (Left e)
+    (Right unit) →
+      grd‖ voteMsg ^∙ vmEpoch == myEpoch ≔
+        pure unit
+         -- IMPL-TODO : push this onto a queue if epoch is in future (is this still relevant?)
+         -- NOTE : epoch might be mismatched because
+         -- - vote for EpochChange proposal round + 2 arrives
+         --   after leader already already formed a quorum
+         -- - timeout votes for previous or subsequent epochs arrive after the epoch change
+         ‖ voteMsg ^∙ vmVote ∙ vVoteData ∙ vdProposed ∙ biEpoch + 1 == myEpoch ≔
+           Left (Right (fakeInfo {- (here $ "vote for previous epoch arrived after my epoch change" ∷ lsE myEpoch ∷ []) -}))
+         ‖ voteMsg ^∙ vmVote ∙ vVoteData ∙ vdProposed ∙ biEpoch == myEpoch + 1 ≔
+           Left (Right (fakeInfo {- (here $ "vote for previous epoch arrived before my epoch change" ∷ lsE myEpoch ∷ []) -}))
+         ‖ otherwise≔
+           Left (Left (fakeErr {- (here $ "vote for wrong epoch" ∷ lsE myEpoch ∷ [])-}))
+  where
+ -- here t = "Network" ∷ "processVote" ∷ lsVM voteMsg ∷ t
+
+  pVote : Either ErrLog Unit
+  pVote = do
+ -- lcheck (voteMsg ^∙ vmVote ∙ vAuthor == peerId)
+ --        (here $ "vote received must be from the sending peer" ∷ lsA peerId ∷ [])
+    VoteMsg.verify voteMsg vv
