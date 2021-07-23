@@ -624,3 +624,43 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   where
   postulate -- TODO-2: prove (waiting on: vote messages do not trigger a vote message response)
     TODO : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
+
+votesOnce₂ : VO.ImplObligation₂ InitAndHandlers 𝓔
+votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈outs sig ¬gen ¬msb4 pcsfpk v'⊂m' m'∈outs sig' ¬gen' ¬msb4' pcsfpk' ≡epoch ≡round
+   with v⊂m
+... | vote∈qc vs∈qc v≈rbld qc∈m = ⊥-elim (¬msb4 TODO)
+  where
+  postulate -- TODO-2: prove (waiting on: vote messages in QCs have been sent before)
+    TODO : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+... | vote∈vm
+  with v'⊂m'
+... | vote∈qc vs∈qc' v≈rbld' qc∈m' = ⊥-elim (¬msb4' TODO)
+  where
+  postulate -- TODO-2: prove (waiting on: vote messages in QCs have been sent before)
+    TODO : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
+... | vote∈vm
+  with m“
+... | P pm = cong (_^∙ vProposedId) v≡v'
+  where
+  hpPre = peerStates pre pid
+  hpOut = LBFT-outs (handleProposal 0 pm) hpPre
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+
+  v≡v' : v ≡ v'
+  v≡v'
+    with voteAttemptCorrect
+  ... | Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
+    ⊥-elim (sendVote∉actions{outs = hpOut}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
+  ... | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts _)) _ = begin
+    v            ≡⟨        cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m∈outs) ⟩
+    vm ^∙ vmVote ≡⟨ (sym $ cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m'∈outs)) ⟩
+    v'           ∎
+    where
+    open ≡-Reasoning
+... | V vm = ⊥-elim (sendVote∉actions {outs = hpOut} {st = hpPre} (sym TODO) m∈outs)
+  where
+  hpPre = peerStates pre pid
+  hpOut = LBFT-outs (handle pid (V vm) 0) hpPre
+
+  postulate -- TODO-1: prove (waiting on: contract for `handleVote`)
+    TODO : OutputProps.NoVotes hpOut
