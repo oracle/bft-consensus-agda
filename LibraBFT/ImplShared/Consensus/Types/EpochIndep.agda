@@ -537,6 +537,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmParent : Lens VoteMsg BlockInfo
   vmParent = vmVote ∙ vVoteData ∙ vdParent
 
+  -- IMPL-DIFF: getter-only in Haskell
+  vmEpoch : Lens VoteMsg Epoch
+  vmEpoch = vmVote ∙ vEpoch
 
   -- This is a notification of a commit.  It may not be explicitly included in an implementation,
   -- but we need something to be able to express correctness conditions.  It will

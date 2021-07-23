@@ -7,14 +7,11 @@ open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.Prelude
 open import Optics.All
 
-module LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg where
+module LibraBFT.Impl.Consensus.ConsensusTypes.ProposalMsg where
 
-verify : VoteMsg → ValidatorVerifier → Either ErrLog Unit
-verify self validator = do
--- lcheck (self ^∙ vmVote ∙ vEpoch == self ^∙ vmSyncInfo ∙ siEpoch)
---        (here $ "VoteMsg has different epoch" ∷ lsSI (self ^∙ vmSyncInfo) ∷ [])
-  Vote.verify (self ^∙ vmVote) validator
+
+postulate
+  verify : ProposalMsg → ValidatorVerifier → Either ErrLog Unit

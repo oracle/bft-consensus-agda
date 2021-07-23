@@ -3,7 +3,6 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.Network as Network
@@ -42,9 +41,25 @@ module handleProposal (now : Instant) (pm : ProposalMsg) where
 handleProposal : Instant → ProposalMsg → LBFT Unit
 handleProposal = handleProposal.step₀
 
+module handleVote (now : Instant) (vm : VoteMsg) where
+  step₀ : LBFT Unit
+  step₁ : Epoch → ValidatorVerifier → LBFT Unit
+
+  step₀ = do
+    (myEpoch , vv) ← epvv
+    step₁ myEpoch vv
+
+  step₁ myEpoch vv = do
+    case Network.processVote vm myEpoch vv of λ where
+      (Left (Left e))  → logErr e
+      (Left (Right i)) → logInfo i
+      (Right _)        → RoundManager.processVoteMsgM now vm
+
+handleVote = handleVote.step₀
+
 handle : NodeId → NetworkMsg → Instant → LBFT Unit
 handle _self msg now =
   case msg of λ where
     (P pm) → handleProposal now pm
-    (V vm) → {!!} -- TODO-1: processVote now v
+    (V vm) → handleVote     now vm
     (C cm) → return unit    -- We don't do anything with commit messages, they are just for defining Correctness.
