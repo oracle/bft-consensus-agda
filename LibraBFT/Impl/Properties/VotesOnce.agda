@@ -122,23 +122,6 @@ msg∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} s
   mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
   mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
 
-postulate -- TODO-2: prove (waiting on: `handle`)
-  -- This will be proved for the implementation, confirming that honest
-  -- participants only store QCs comprising votes that have actually been sent.
-  -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
-  -- Note that some implementations might not ensure this, but LibraBFT does
-  -- because even the leader of the next round sends its own vote to itself,
-  -- as opposed to using it to construct a QC using its own unsent vote.
-  qcVotesSentB4
-    : ∀ {pid qc vs pk}{st : SystemState}
-      → ReachableSystemState st
-      → initialised st pid ≡ initd
-      → qc QC.∈RoundManager (peerStates st pid)
-      → vs ∈ qcVotes qc
-      → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
-      → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
-
-
 newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' outs v m pk}
     → ReachableSystemState pre
@@ -151,12 +134,12 @@ newVote⇒lv≡
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) =
-  ⊥-elim (unsentVoteSent voteUnsent)
+  ⊥-elim (¬voteUnsent voteUnsent)
   where
   handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
 
-  unsentVoteSent : ¬ Voting.VoteUnsentCorrect (peerStates pre pid) _ _ _ _
-  unsentVoteSent (Voting.mkVoteUnsentCorrect noVoteMsgOuts _) =
+  ¬voteUnsent : ¬ Voting.VoteUnsentCorrect (peerStates pre pid) _ _ _ _
+  ¬voteUnsent (Voting.mkVoteUnsentCorrect noVoteMsgOuts _) =
     sendVote∉actions{outs = handleOuts}{st = peerStates pre pid}
       (sym noVoteMsgOuts) m∈outs
 ... | handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) =
