@@ -194,7 +194,7 @@ mws∈pool⇒epoch≡
     → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
 mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
   case uninitd ≡ initd ∋ trans (sym uni) (msg∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool) of λ ()
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} m∈outs ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
   hpPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
   hpPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
   v ^∙ vEpoch      ∎
@@ -204,12 +204,12 @@ mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} m∈outs ini) 
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
   open ≡-Reasoning
 
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} m∈outs ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
+mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
   where
   postulate -- TODO-3: prove (waiting on: epoch config changes)
     TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
 
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} m∈outs ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
+mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
   where
   postulate -- TODO-3: prove (waiting on: epoch config changes)
     TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
