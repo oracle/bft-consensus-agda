@@ -504,6 +504,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   siHighestCommitRound : Lens SyncInfo Round
   siHighestCommitRound = siHighestCommitCert ∙ qcCommitInfo ∙ biRound
 
+  siEpoch : Lens SyncInfo Epoch
+  siEpoch  = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
+
   ----------------------
   -- Network Messages --
   ----------------------
