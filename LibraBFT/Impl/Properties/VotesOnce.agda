@@ -72,10 +72,10 @@ peerCanSignPK-Inj{pid}{pid'}{pk} pcsfpk₁ pcsfpk₂ ≡epoch = begin
   open ≡-Reasoning
   open PeerCanSignForPKinEpoch
   open PeerCanSignForPK
-  pcsfpk₁∙pid  = EpochConfig.toNodeId (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁))
-  pcsfpk₁∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁)))
-  pcsfpk₂∙pid = EpochConfig.toNodeId (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
-  pcsfpk₂∙pk   = (EpochConfig.getPubKey (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂)))
+  pcsfpk₁∙pid  = EpochConfig.toNodeId  (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁))
+  pcsfpk₂∙pid  = EpochConfig.toNodeId  (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
+  pcsfpk₁∙pk   = EpochConfig.getPubKey (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁))
+  pcsfpk₂∙pk   = EpochConfig.getPubKey (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
 
 module ∉Gen
   {pool : SentMessages}{pk : PK}{v : Vote} (sig : WithVerSig pk v) (¬gen : ¬ ∈GenInfo-impl genesisInfo (ver-signature sig))
