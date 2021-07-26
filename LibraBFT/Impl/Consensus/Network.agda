@@ -31,6 +31,9 @@ processProposal {- peerId -} proposal myEpoch vv =
   where
   pProposal = do
     ProposalMsg.verify proposal vv
+    -- Note that our model does not assume knowledge of who sends a message, and therefore we do not
+    -- check that the proposal is *sent* by the given peer (of course it must be *signed* by the
+    -- peer, which is verified elsewhere).  Our proof should not require this.
     {- lcheck (proposal ^∙ pmProposal ∙ bAuthor == just peerId) -}
 
 processVote : {- NodeId → -} VoteMsg → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
@@ -56,6 +59,7 @@ processVote {- peerId -} voteMsg myEpoch vv =
 
   pVote : Either ErrLog Unit
   pVote = do
+ -- See comment above about checking which peer *sent* the message.
  -- lcheck (voteMsg ^∙ vmVote ∙ vAuthor == peerId)
  --        (here $ "vote received must be from the sending peer" ∷ lsA peerId ∷ [])
     VoteMsg.verify voteMsg vv
