@@ -193,3 +193,4 @@ syncInfoM : LBFT SyncInfo
 syncInfoM =
   SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert)
                <*> use (lBlockStore ∙ bsHighestCommitCert)
+               <*> use (lBlockStore ∙ bsHighestTimeoutCert)

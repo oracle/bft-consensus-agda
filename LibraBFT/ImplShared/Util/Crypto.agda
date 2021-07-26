@@ -30,8 +30,11 @@ module LibraBFT.ImplShared.Util.Crypto where
   open WithCryptoHash sha256 sha256-cr
 
   -- IMPL-DIFF
-  -- 1. cannot do "qcParts" because bs-concat does returns BitString
-  -- 2. no need to deal with a 'Proposal' for stable test hashes
+  -- 1. Cannot do equivalent of Haskell "qcParts"
+  --    because bs-concat here cannot be used because it returns BitString.
+  --    TODO-2 : Hashing in Haskell includes adding tags.
+  --             Need to model those tags and to postulate injectivity properties.
+  -- 2. No need to deal with a 'Proposal' for stable test hashes.
   hashBD : BlockData → HashValue
   hashBD = sha256 ∘ bs-concat ∘ blockDataBSList
    where

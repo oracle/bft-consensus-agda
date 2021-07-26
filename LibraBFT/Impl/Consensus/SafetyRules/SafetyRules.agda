@@ -245,3 +245,7 @@ signProposalM blockData = do
   here' : List String.String → List String.String
   here' t = "SafetyRules" ∷ "signProposalM" ∷ t
 
+------------------------------------------------------------------------------
+
+postulate
+  signTimeoutM : Timeout → LBFT (Either ErrLog Signature)

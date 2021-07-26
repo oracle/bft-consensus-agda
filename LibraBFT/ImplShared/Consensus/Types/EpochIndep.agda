@@ -476,34 +476,86 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl  msvpVoteProposal = mkLens (quote MaybeSignedVoteProposal)
               (msvpVoteProposal ∷ [])
 
+  record Timeout : Set where
+    constructor Timeout∙new
+    field
+      _toEpoch : Epoch
+      _toRound : Round
+  open Timeout public
+  unquoteDecl toEpoch   toRound = mkLens (quote Timeout)
+             (toEpoch ∷ toRound ∷ [])
+  postulate instance enc-Timeout : Encoder Timeout
+
+  record TimeoutCertificate : Set where
+    constructor mkTimeoutCertificate
+    field
+      _tcTimeout    : Timeout
+      _tcSignatures : KVMap Author Signature
+  open TimeoutCertificate public
+  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
+             (tcTimeout ∷ tcSignatures ∷ [])
+
+  TimeoutCertificate∙new : Timeout → TimeoutCertificate
+  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
+
+  -- IMPL-DIFF : only a getter in haskell
+  tcEpoch : Lens TimeoutCertificate Epoch
+  tcEpoch = tcTimeout ∙ toEpoch
+
+  -- IMPL-DIFF : only a getter in haskell
+  tcRound : Lens TimeoutCertificate Round
+  tcRound = tcTimeout ∙ toRound
+
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
                            -- constructor SyncInfo∙new is below
     field
       _siHighestQuorumCert  : QuorumCert
       _sixxxHighestCommitCert  : Maybe QuorumCert
-      -- _siHighestTimeoutCert : Maybe TimeoutCert -- Not used yet.
+      _siHighestTimeoutCert : Maybe TimeoutCertificate
   open SyncInfo public
   -- Note that we do not automatically derive a lens for siHighestCommitCert;
   -- it is defined manually below.
-  unquoteDecl siHighestQuorumCert   sixxxHighestCommitCert = mkLens (quote SyncInfo)
-             (siHighestQuorumCert ∷ sixxxHighestCommitCert ∷ [])
+  unquoteDecl siHighestQuorumCert   sixxxHighestCommitCert   siHighestTimeoutCert = mkLens (quote SyncInfo)
+             (siHighestQuorumCert ∷ sixxxHighestCommitCert ∷ siHighestTimeoutCert ∷ [])
   postulate instance enc-SyncInfo : Encoder SyncInfo
 
-  SyncInfo∙new : QuorumCert → QuorumCert → SyncInfo
-  SyncInfo∙new highestQuorumCert highestCommitCert =
+  SyncInfo∙new : QuorumCert → QuorumCert → Maybe TimeoutCertificate → SyncInfo
+  SyncInfo∙new highestQuorumCert highestCommitCert highestTimeoutCert =
     record { _siHighestQuorumCert    = highestQuorumCert
            ; _sixxxHighestCommitCert = if highestQuorumCert QCBoolEq highestCommitCert
-                                       then nothing else (just highestCommitCert) }
+                                       then nothing else (just highestCommitCert)
+           ; _siHighestTimeoutCert   = highestTimeoutCert }
 
+  -- getter only in Haskell
   siHighestCommitCert : Lens SyncInfo QuorumCert
   siHighestCommitCert =
     mkLens' (λ x → fromMaybe (x ^∙ siHighestQuorumCert) (x ^∙ sixxxHighestCommitCert))
-            (λ x si → record x { _sixxxHighestCommitCert = just si })
+            (λ x qc → record x { _sixxxHighestCommitCert = just qc })
 
+  -- getter only in Haskell
+  siHighestCertifiedRound : Lens SyncInfo Round
+  siHighestCertifiedRound =
+    mkLens' (_^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound)
+            (λ x _r → x) -- TODO-1
+
+  -- getter only in Haskell
+  siHighestTimeoutRound : Lens SyncInfo Round
+  siHighestTimeoutRound =
+    mkLens' (maybeHsk 0 (_^∙ tcRound) ∘ (_^∙ siHighestTimeoutCert))
+            (λ x _r → x) -- TODO-1
+
+  -- getter only in Haskell
   siHighestCommitRound : Lens SyncInfo Round
   siHighestCommitRound = siHighestCommitCert ∙ qcCommitInfo ∙ biRound
 
+  -- getter only in Haskell
+  siHighestRound : Lens SyncInfo Round
+  siHighestRound =
+    mkLens' (λ x → (x ^∙ siHighestCertifiedRound) ⊔ (x ^∙ siHighestTimeoutRound))
+            (λ x _r → x) -- TODO-1
+
+  -- getter only in Haskell
   siEpoch : Lens SyncInfo Epoch
   siEpoch  = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
@@ -567,36 +619,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _lviRound     : Round
       _lviIsTimeout : Bool
   open LastVoteInfo public
-
-  record Timeout : Set where
-    constructor Timeout∙new
-    field
-      _toEpoch : Epoch
-      _toRound : Round
-  open Timeout public
-  unquoteDecl toEpoch   toRound = mkLens (quote Timeout)
-             (toEpoch ∷ toRound ∷ [])
-  postulate instance enc-Timeout : Encoder Timeout
-
-  record TimeoutCertificate : Set where
-    constructor mkTimeoutCertificate
-    field
-      _tcTimeout    : Timeout
-      _tcSignatures : KVMap Author Signature
-  open TimeoutCertificate public
-  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
-             (tcTimeout ∷ tcSignatures ∷ [])
-
-  TimeoutCertificate∙new : Timeout → TimeoutCertificate
-  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
-
-  -- IMPL-DIFF : only a getter in haskell
-  tcEpoch : Lens TimeoutCertificate Epoch
-  tcEpoch = tcTimeout ∙ toEpoch
-
-  -- IMPL-DIFF : only a getter in haskell
-  tcRound : Lens TimeoutCertificate Round
-  tcRound = tcTimeout ∙ toRound
 
   record PendingVotes : Set where
     constructor PendingVotes∙new

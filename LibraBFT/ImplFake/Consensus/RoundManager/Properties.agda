@@ -33,11 +33,14 @@ module LibraBFT.ImplFake.Consensus.RoundManager.Properties where
   rmHighestCommitQC : Lens RoundManager QuorumCert
   rmHighestCommitQC = lBlockStore ∙ bsInner ∙ btHighestCommitCert
 
+  rmHighestTimeoutCert : Lens RoundManager (Maybe TimeoutCertificate)
+  rmHighestTimeoutCert = lBlockStore ∙ bsInner ∙ btHighestTimeoutCert
+
   -- The quorum certificates sent in SyncInfo with votes are those from the peer state.
   -- This is no longer used because matching m∈outs parameters to here refl eliminated the need for
   -- it, at least for our simple handler.  I'm keeping it, though, as it may be needed in future
   -- when the real handler will be much more complicated and this proof may no longer be trivial.
   procPMCerts≡ : ∀ {ts pm pre vm αs}
                → (SendVote vm αs) ∈ LBFT-outs (processProposalMsg ts pm) pre
-               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (pre ^∙ rmHighestQC) (pre ^∙ rmHighestCommitQC)
+               → vm ^∙ vmSyncInfo ≡ SyncInfo∙new (pre ^∙ rmHighestQC) (pre ^∙ rmHighestCommitQC) (pre ^∙ rmHighestTimeoutCert)
   procPMCerts≡ (here refl) = refl

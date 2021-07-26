@@ -222,7 +222,7 @@ module processProposalMSpec (proposal : Block) where
               btInv₂ : StateInvariants.Preserves StateInvariants.BlockTreeInv st stUpdateRS
            -- btInv₂ = id
 
-            module _ (si : SyncInfo) (si≡ : si ≡ SyncInfo∙new (st ^∙ lBlockStore ∙ bsHighestQuorumCert) (st ^∙ lBlockStore ∙ bsHighestCommitCert)) where
+            module _ (si : SyncInfo) (si≡ : si ≡ SyncInfo∙new (st ^∙ lBlockStore ∙ bsHighestQuorumCert) (st ^∙ lBlockStore ∙ bsHighestCommitCert) (st ^∙ lBlockStore ∙ bsHighestTimeoutCert)) where
               contract-step₃ : RWST-weakestPre (step₃ vote si) (RWST-Post++ (Contract pre) outs) unit stUpdateRS
               contract-step₃ ._ refl ._ refl ._ refl ._ refl recipient@._ refl =
                 mkContract

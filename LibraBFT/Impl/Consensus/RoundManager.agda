@@ -16,9 +16,9 @@ open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 open import LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
 import      LibraBFT.Impl.Consensus.Liveness.ProposalGenerator   as ProposalGenerator
-open import LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState hiding (processCertificatesM)
+import      LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
-open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
+import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -137,6 +137,84 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
 
 ------------------------------------------------------------------------------
 
+processSyncInfoMsgM : Instant → SyncInfo → Author → LBFT Unit
+processSyncInfoMsgM now syncInfo peer =
+  -- logEE (lEC.|.lSI) (here []) $
+  ensureRoundAndSyncUpM now (syncInfo ^∙ siHighestRound + 1) syncInfo peer false >>= λ where
+    (Left  e) → logErr (withErrCtx (here' []) e)
+    (Right _) → pure unit
+ where
+  here' : List String.String → List String.String
+  here' t = "RoundManager" ∷ "processSyncInfoMsgM" ∷ {- lsA peer ∷ lsSI syncInfo ∷ -} t
+
+------------------------------------------------------------------------------
+
+-- external entry point
+processLocalTimeoutM : Instant → Epoch → Round → LBFT Unit
+processLocalTimeoutM now obmEpoch round = do
+  -- logEE lTO (here []) $
+  x ← RoundState.processLocalTimeoutM now obmEpoch round
+  ifM x then continue1 else (pure unit)
+ where
+  here'     : List String.String → List String.String
+  continue2 : LBFT Unit
+  continue3 : (Bool × Vote) → LBFT Unit
+  continue4 : Vote → LBFT Unit
+
+  continue1 =
+    ifM false -- use (lRoundManager ∙ rmSyncOnly)
+      then (pure unit)
+      -- (do si    ← BlockStore.syncInfoM
+      --     rcvrs ← gets rmObmAllAuthors
+      --     act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
+      else continue2
+
+  continue2 =
+    use (lRoundState ∙ rsVoteSent) >>= λ where
+      (just vote) →
+        ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound == round
+        then
+          -- already voted in this round, so resend the vote, but with a timeout signature
+          continue3 (true , vote)
+        else
+          local-continue2-continue
+      _ → local-continue2-continue
+   where
+    local-continue2-continue : LBFT Unit
+    local-continue2-continue =
+          -- have not voted in this round, so create and vote on NIL block with timeout signature
+          ProposalGenerator.generateNilBlockM round >>= λ where
+            (Left         e) → logErr e
+            (Right nilBlock) →
+              executeAndVoteM nilBlock >>= λ where
+                (Left        e) → logErr e
+                (Right nilVote) → continue3 (false , nilVote)
+
+  continue3 (useLastVote , timeoutVote) = do
+    proposer ← ProposerElection.getValidProposer <$> use lProposerElection <*> pure round
+    logInfo fakeInfo
+             -- (here [ if useLastVote then "already executed and voted, will send timeout vote"
+             --                        else "generate nil timeout vote"
+             --       , "expected proposer", lsA proposer ])
+    if not (Vote.isTimeout timeoutVote)
+      then
+        (SafetyRules.signTimeoutM (Vote.timeout timeoutVote) >>= λ where
+          (Left  e) → logErr    (withErrCtx (here' []) e)
+          (Right s) → continue4 (Vote.addTimeoutSignature timeoutVote s)) -- makes it a timeout vote
+      else
+        continue4 timeoutVote
+
+  continue4 timeoutVote = do
+    RoundState.recordVoteM timeoutVote
+    timeoutVoteMsg ← VoteMsg∙new timeoutVote <$> BlockStore.syncInfoM
+    rcvrs          ← gets rmObmAllAuthors
+    -- IMPL-DIFF this is BroadcastVote in Haskell (an alias)
+    act (SendVote timeoutVoteMsg rcvrs)
+
+  here' t = "RoundManager" ∷ "processLocalTimeoutM" ∷ {-lsE obmEpoch:lsR round-} t
+
+------------------------------------------------------------------------------
+
 processCertificatesM : Instant → LBFT Unit
 processCertificatesM now = do
   syncInfo ← BlockStore.syncInfoM
@@ -173,7 +251,7 @@ module processProposalM (proposal : Block) where
   step₂ =  λ where
              (Left e)     → logErr e
              (Right vote) → do
-               RoundState.recordVote vote
+               RoundState.recordVoteM vote
                si ← BlockStore.syncInfoM
                step₃ vote si
 

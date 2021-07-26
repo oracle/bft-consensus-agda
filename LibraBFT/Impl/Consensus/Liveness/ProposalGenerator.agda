@@ -18,6 +18,9 @@ module LibraBFT.Impl.Consensus.Liveness.ProposalGenerator where
 
 ensureHighestQuorumCertM : Round → LBFT (Either ErrLog QuorumCert)
 
+postulate
+  generateNilBlockM : Round → LBFT (Either ErrLog Block)
+
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)
 generateProposalM _now round = do
   lrg ← use (lProposalGenerator ∙ pgLastRoundGenerated)

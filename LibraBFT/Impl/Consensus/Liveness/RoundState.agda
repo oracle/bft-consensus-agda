@@ -23,6 +23,11 @@ module LibraBFT.Impl.Consensus.Liveness.RoundState where
 
 ------------------------------------------------------------------------------
 
+postulate
+  processLocalTimeoutM : Instant → Epoch → Round → LBFT Bool
+
+------------------------------------------------------------------------------
+
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
 processCertificatesM now syncInfo = do
   rshcr <- use (lRoundState ∙ rsHighestCommittedRound)
@@ -43,6 +48,6 @@ insertVoteM vote verifier = do
 ------------------------------------------------------------------------------
 -- TODO-1: Implement this.
 -- > recordVote v = rsVoteSent ∙= just v
-recordVote : Vote → LBFT Unit
-recordVote v = rsVoteSent-rm ∙= just v
+recordVoteM : Vote → LBFT Unit
+recordVoteM v = rsVoteSent-rm ∙= just v
 
