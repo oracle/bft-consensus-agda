@@ -252,16 +252,14 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    ...| no  pid≢
       rewrite sym (pids≢StepDNMPeerStates{pre = pre} sps pid≢)
       = ovrIH epoch≡
-   ...| yes pid≡ = ≤-trans (ovrIH epochPre≡) lvr≤
+   ...| yes refl = ≤-trans (ovrIH epochPre≡) lvr≤
      where
-     pcsfpkPre' : PeerCanSignForPK pre v pid' _
-     pcsfpkPre' = subst _ pid≡ pcsfpkPre
      -- If a vote signed by a peer exists in the past, and that vote has an
      -- epoch id associated to it that is the same as the peer's post-state
      -- epoch, then the peer has that same epoch id in its immediately preceding
      -- pre-state.
      epochPre≡ : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-     epochPre≡ rewrite pid≡ = mws∈pool⇒epoch≡{v = v}{ppost}{outs} preach sps pcsfpkPre' hpk sig ¬gen msb4 epoch≡'
+     epochPre≡ = mws∈pool⇒epoch≡{v = v}{ppost}{outs} preach sps pcsfpkPre hpk sig ¬gen msb4 epoch≡'
        where
        open ≡-Reasoning
        epoch≡' : ppost ^∙ rmEpoch ≡ v ^∙ vEpoch
@@ -271,14 +269,13 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
          v ^∙ vEpoch                                              ∎
 
      ini : initialised pre pid' ≡ initd
-     ini rewrite sym pid≡ = msg∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
+     ini = msg∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
 
      lvr≤ : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (peerStates post pid)
      lvr≤
-       rewrite pid≡
-       |       sym (StepPeer-post-lemma{pre = pre} sp)
+       rewrite sym (StepPeer-post-lemma{pre = pre} sp)
        = lastVotedRound-mono pid' pre preach ini sps
-           (trans (subst (λ x → peerStates pre x ^∙ rmEpoch ≡ v ^∙ vEpoch) pid≡ epochPre≡) (sym epoch≡))
+           (trans epochPre≡ (sym epoch≡))
 -- The vote was newly sent this round
 ...| inj₁ (m∈outs , pcsfpkPost , ¬msb4)
 -- ... and it really is the same vote, because there has not been a hash collision
