@@ -38,7 +38,7 @@ module LibraBFT.ImplShared.Util.Crypto where
   --             → NonInjective-≡ sha256
   --             ⊎ bd1 ≡L bd2
   --
-  -- does *hot* hold because the input to the hash function used in hashBD does *not* include all
+  -- does *not* hold because the input to the hash function used in hashBD does *not* include all
   -- components of the BlockData being hashed.
 
   -- TODO-2: Similarly express other hashing functions and their intended injectivity properties where
