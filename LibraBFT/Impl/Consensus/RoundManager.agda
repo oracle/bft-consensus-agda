@@ -120,7 +120,7 @@ module ensureRoundAndSyncUpM
 
   step₀ = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
-    ifM messageRound <? currentRound
+    if-RWST messageRound <? currentRound
       then ok false
       else step₁
 
@@ -129,7 +129,7 @@ module ensureRoundAndSyncUpM
 
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          ifM messageRound /= currentRound'
+          if-RWST messageRound /= currentRound'
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
@@ -153,7 +153,7 @@ processSyncInfoMsgM now syncInfo peer =
 processLocalTimeoutM : Instant → Epoch → Round → LBFT Unit
 processLocalTimeoutM now obmEpoch round = do
   -- logEE lTO (here []) $
-  ifMHask (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
+  ifM (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
  where
   here'     : List String.String → List String.String
   continue2 : LBFT Unit
@@ -161,21 +161,20 @@ processLocalTimeoutM now obmEpoch round = do
   continue4 : Vote → LBFT Unit
 
   continue1 =
-    ifMHask (use (lRoundManager ∙ rmSyncOnly))
-      (do si    ← BlockStore.syncInfoM
-          rcvrs ← gets rmObmAllAuthors
-          -- act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
+    ifM (use (lRoundManager ∙ rmSyncOnly))
+      (pure unit)
+      -- (do si    ← BlockStore.syncInfoM
+      --     rcvrs ← gets rmObmAllAuthors
+      --     -- act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
       continue2
 
   continue2 =
     use (lRoundState ∙ rsVoteSent) >>= λ where
       (just vote) →
-        ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound == round
-        then
+        if-RWST (vote ^∙ vVoteData ∙ vdProposed ∙ biRound == round)
           -- already voted in this round, so resend the vote, but with a timeout signature
-          continue3 (true , vote)
-        else
-          local-continue2-continue
+          then continue3 (true , vote)
+          else local-continue2-continue
       _ → local-continue2-continue
    where
     local-continue2-continue : LBFT Unit
@@ -305,7 +304,7 @@ processVoteMsgM now voteMsg = do
   processVoteM now (voteMsg ^∙ vmVote)
 
 processVoteM now vote =
-  ifM not (Vote.isTimeout vote)
+  if-RWST not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
     gets rmPgAuthor >>= λ where
@@ -321,7 +320,7 @@ processVoteM now vote =
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
     bs ← use lBlockStore
-    ifM is-just (BlockStore.getQuorumCertForBlock blockId bs)
+    if-RWST (is-just (BlockStore.getQuorumCertForBlock blockId bs))
       then logInfo fakeInfo -- "block already has QC", "dropping unneeded vote"
       else do
       logInfo fakeInfo -- "before"
@@ -332,7 +331,7 @@ processVoteM now vote =
 addVoteM now vote = do
   bs ← use lBlockStore
   maybeS-RWST (bs ^∙ bsHighestTimeoutCert) continue λ tc →
-    ifM vote ^∙ vRound == tc ^∙ tcRound
+    if-RWST vote ^∙ vRound == tc ^∙ tcRound
       then logInfo fakeInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where

@@ -54,16 +54,17 @@ infix 1 ifM‖_
 ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A
 ifM‖_ = RWST-if
 
-infix 0 ifM_then_else_
-ifM_then_else_ : ⦃ _ : ToBool B ⦄ → B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
-ifM b then c₁ else c₂ =
+infix 0 if-RWST_then_else_
+if-RWST_then_else_ : ⦃ _ : ToBool B ⦄ → B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
+if-RWST b then c₁ else c₂ =
   ifM‖ b ≔ c₁
      ‖ otherwise≔ c₂
 
-ifMHask : ⦃ _ : ToBool B ⦄ → RWST Ev Wr St B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
-ifMHask mb c₁ c₂ = do
+-- This is like the Haskell version, except Haskell's works for any monad (not just RWST).
+ifM : ⦃ _ : ToBool B ⦄ → RWST Ev Wr St B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
+ifM mb c₁ c₂ = do
   x ← mb
-  ifM x then c₁ else c₂
+  if-RWST x then c₁ else c₂
 
 infix 0 caseM⊎_of_ caseMM_of_
 caseM⊎_of_ : Either B C → (Either B C → RWST Ev Wr St A) → RWST Ev Wr St A
@@ -73,7 +74,7 @@ caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
 caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
 
 when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
-when b f = ifM toBool b then f else pure unit
+when b f = if-RWST toBool b then f else pure unit
 
 -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)

@@ -24,7 +24,7 @@ insertVoteM vote vv = do
   atv          ← use (lPendingVotes ∙ pvAuthorToVote)
   case Map.lookup (vote ^∙ vAuthor) atv of λ where
     (just previouslySeenVote) →
-      ifM liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
+      if-RWST liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
       then (do
         let newTimeoutVote = Vote.isTimeout vote ∧ not (Vote.isTimeout previouslySeenVote)
         if not newTimeoutVote

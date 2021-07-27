@@ -24,7 +24,7 @@ isValidProposalM b =
   maybeS-RWST (b ^∙ bAuthor) (bail ProposalDoesNotHaveAnAuthor) $ λ a → do
     -- IMPL-DIFF: `ifM` in Haskell means something else
     vp ← isValidProposerM a (b ^∙ bRound)
-    ifM vp
+    if-RWST vp
       then ok unit
       else bail ProposerForBlockIsNotValidForThisRound
 

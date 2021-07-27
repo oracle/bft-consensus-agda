@@ -48,11 +48,11 @@ insertQuorumCertM qc retriever = do
     (Right _) →
       ok unit
   maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
-    ifM (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
+    if-RWST (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
       then (do
         let finalityProof = qc ^∙ qcLedgerInfo
         BlockStore.commitM finalityProof ∙?∙ λ xx →
-          ifM qc ^∙ qcEndsEpoch
+          if-RWST qc ^∙ qcEndsEpoch
             then ok unit -- TODO-1 EPOCH CHANGE
             else ok unit)
       else
