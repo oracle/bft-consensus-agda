@@ -153,8 +153,7 @@ processSyncInfoMsgM now syncInfo peer =
 processLocalTimeoutM : Instant → Epoch → Round → LBFT Unit
 processLocalTimeoutM now obmEpoch round = do
   -- logEE lTO (here []) $
-  x ← RoundState.processLocalTimeoutM now obmEpoch round
-  ifM x then continue1 else (pure unit)
+  ifMHask (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
  where
   here'     : List String.String → List String.String
   continue2 : LBFT Unit
@@ -162,12 +161,11 @@ processLocalTimeoutM now obmEpoch round = do
   continue4 : Vote → LBFT Unit
 
   continue1 =
-    ifM false -- use (lRoundManager ∙ rmSyncOnly)
-      then (pure unit)
-      -- (do si    ← BlockStore.syncInfoM
-      --     rcvrs ← gets rmObmAllAuthors
-      --     act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
-      else continue2
+    ifMHask (use (lRoundManager ∙ rmSyncOnly))
+      (do si    ← BlockStore.syncInfoM
+          rcvrs ← gets rmObmAllAuthors
+          -- act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
+      continue2
 
   continue2 =
     use (lRoundState ∙ rsVoteSent) >>= λ where
