@@ -47,20 +47,23 @@ module LibraBFT.ImplShared.Util.Crypto where
   -- TODO-2: Enable support for the hashS function we use in the Haskell code, which hashes tuples
   -- of serializable types), and then define hashBD using this and prove that it ensures hashBD-inj.
   -- Note also the TODO below related to HashTags.
+
+  record BlockDataInjectivityProps (bd1 bd2 : BlockData) : Set where
+    field
+      bdInjEpoch  : bd1 ≡L bd2 at bdEpoch
+      bdInjRound  : bd1 ≡L bd2 at bdRound
+      bdInjVD     : bd1 ≡L bd2 at (bdQuorumCert ∙ qcVoteData)
+      bdInjLI     : bd1 ≡L bd2 at (bdQuorumCert ∙ qcSignedLedgerInfo ∙ liwsLedgerInfo)
+      bdInjBTNil  : bd1 ^∙ bdBlockType ≡ NilBlock → bd2 ^∙ bdBlockType ≡ NilBlock
+      bdInjBTGen  : bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis
+      bdInjBTProp : ∀ {tx}{auth} → bd1 ^∙ bdBlockType ≡ Proposal tx auth
+                                 → bd1 ^∙ bdBlockType ≡ bd2 ^∙ bdBlockType
+
   postulate
     hashBD     : BlockData → HashValue
     hashBD-inj : ∀ {bd1 bd2}
                → hashBD bd1 ≡ hashBD bd2
-               → NonInjective-≡ sha256
-               ⊎ bd1 ≡L bd2 at bdEpoch
-               × bd1 ≡L bd2 at bdRound
-               × bd1 ≡L bd2 at (bdQuorumCert ∙ qcVoteData)
-               × bd1 ≡L bd2 at (bdQuorumCert ∙ qcSignedLedgerInfo ∙ liwsLedgerInfo)
-               × (bd1 ^∙ bdBlockType ≡ NilBlock → bd2 ^∙ bdBlockType ≡ NilBlock)
-               × (bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis)
-               × ∀ {tx}{auth}
-                 → bd1 ^∙ bdBlockType ≡ Proposal tx auth
-                 → bd2 ^∙ bdBlockType ≡ Proposal tx auth
+               → NonInjective-≡ sha256 ⊎ BlockDataInjectivityProps bd1 bd2
 
   blockInfoBSList : BlockInfo → List ByteString
   blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
