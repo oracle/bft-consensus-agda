@@ -139,6 +139,12 @@ module LibraBFT.ImplShared.Util.Crypto where
   --
   -- Note the HashTag HLI, which is not yet reflected in the Agda implementation.
   -- TODO-2: include HashTags in hash functions, consistent with the Haskell code.
+  --
+  -- As an aside, it is not clear whether these HashTags are necessary for all of the "inner"
+  -- hashes.  They are needed to ensure that, for example, a dishonest peer cannot notice that the
+  -- bits signed for a Vote happen to decode to a valid Block, and therefore take a Vote signature
+  -- and use it to masquerade as a Block signture.  However, the implementation does include
+  -- HashTags at each level, so we should too unless and until that changes.  
   hashLI : LedgerInfo → HashValue
   hashLI (LedgerInfo∙new commitInfo consensusDataHash) =
     hash-concat (hashBI commitInfo ∷ consensusDataHash ∷ [])
