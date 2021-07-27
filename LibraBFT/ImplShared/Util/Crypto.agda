@@ -29,21 +29,32 @@ module LibraBFT.ImplShared.Util.Crypto where
 
   open WithCryptoHash sha256 sha256-cr
 
-  -- IMPL-DIFF
-  -- 1. Cannot do equivalent of Haskell "qcParts"
-  --    because bs-concat here cannot be used because it returns BitString.
-  --    TODO-2 : Hashing in Haskell includes adding tags.
-  --             Need to model those tags and to postulate injectivity properties.
-  -- 2. No need to deal with a 'Proposal' for stable test hashes.
-  hashBD : BlockData → HashValue
-  hashBD = sha256 ∘ bs-concat ∘ blockDataBSList
-   where
-    blockDataBSList : BlockData → List ByteString
-    blockDataBSList (BlockData∙new
-                      epoch round
-                      (QuorumCert∙new voteData (LedgerInfoWithSignatures∙new ledgerInfo _sigs))
-                      blockType) =
-      encode epoch ∷ encode round ∷ encode voteData ∷ encode ledgerInfo ∷ encode blockType ∷ []
+  -- We do not yet have sufficient support to model precisely the hashing used in the Haskell code,
+  -- so it is better that we postulate its intended properties to ensure proofs have the desired
+  -- properties available.  Note that a simpler injectivity property such as
+  --
+  -- hashBD-inj' : ∀ {bd1} {bd2}
+  --             → hashBD bd1 ≡ hashBD bd2
+  --             → NonInjective-≡ sha256
+  --             ⊎ bd1 ≡L bd2
+  --
+  -- does *hot* hold because the input to the hash function used in hashBD does *not* include all
+  -- components of the BlockData being hashed.
+
+  postulate
+    hashBD     : BlockData → HashValue
+    hashBD-inj : ∀ {bd1 bd2}
+               → hashBD bd1 ≡ hashBD bd2
+               → NonInjective-≡ sha256
+               ⊎ bd1 ≡L bd2 at bdEpoch
+               × bd1 ≡L bd2 at bdRound
+               × bd1 ≡L bd2 at (bdQuorumCert ∙ qcVoteData)
+               × bd1 ≡L bd2 at (bdQuorumCert ∙ qcSignedLedgerInfo ∙ liwsLedgerInfo)
+               × (bd1 ^∙ bdBlockType ≡ NilBlock → bd2 ^∙ bdBlockType ≡ NilBlock)
+               × (bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis)
+               × ∀ {tx}{auth}
+                 → bd1 ^∙ bdBlockType ≡ Proposal tx auth
+                 → bd2 ^∙ bdBlockType ≡ Proposal tx auth
 
   blockInfoBSList : BlockInfo → List ByteString
   blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
