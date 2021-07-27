@@ -535,9 +535,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   -- getter only in Haskell
   siHighestCertifiedRound : Lens SyncInfo Round
-  siHighestCertifiedRound =
-    mkLens' (_^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound)
-            (λ x _r → x) -- TODO-1
+  siHighestCertifiedRound = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
 
   -- getter only in Haskell
   siHighestTimeoutRound : Lens SyncInfo Round
