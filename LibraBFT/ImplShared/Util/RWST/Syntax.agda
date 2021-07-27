@@ -61,10 +61,9 @@ ifM b then c₁ else c₂ =
      ‖ otherwise≔ c₂
 
 ifMHask : ⦃ _ : ToBool B ⦄ → RWST Ev Wr St B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
-ifMHask mb c₁ c₂ =
-  mb >>= λ x → case toBool x of λ where
-                                   true  → c₁
-                                   false → c₂
+ifMHask mb c₁ c₂ = do
+  x ← mb
+  ifM x then c₁ else c₂
 
 infix 0 caseM⊎_of_ caseMM_of_
 caseM⊎_of_ : Either B C → (Either B C → RWST Ev Wr St A) → RWST Ev Wr St A
