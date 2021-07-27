@@ -41,6 +41,12 @@ module LibraBFT.ImplShared.Util.Crypto where
   -- does *hot* hold because the input to the hash function used in hashBD does *not* include all
   -- components of the BlockData being hashed.
 
+  -- TODO-2: Similarly express other hashing functions and their intended injectivity properties where
+  -- the Agda implementation does not accurately reflect the Haskell implementation.
+
+  -- TODO-2: Enable support for the hashS function we use in the Haskell code, which hashes tuples
+  -- of serializable types), and then define hashBD using this and prove that it ensures hashBD-inj.
+  -- Note also the TODO below related to HashTags.
   postulate
     hashBD     : BlockData → HashValue
     hashBD-inj : ∀ {bd1 bd2}
@@ -121,6 +127,18 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| inj₂ _     | inj₁ hb   = inj₁ hb
   ...| inj₂ prop≡ | inj₂ par≡ = inj₂ (VoteData-η prop≡ par≡)
 
+
+  -- The Haskell implementation includes "HashTag"s when hashing in order to ensure that it is not
+  -- possible (modulo hash collisions) for the encodings of two values of different types (e.g.,
+  -- Vote and Block) to yield the same bitstring and thus the same hash (and therefore potentially
+  -- the same signature, where hashes are signed).  For example, the Haskell hashLI function is:
+  --
+  -- hashLI :: LedgerInfo -> HashValue
+  -- hashLI (LedgerInfo commitInfo (HashValue consensusDataHash)) =
+  --   hashS (HLI, biParts commitInfo, consensusDataHash)
+  --
+  -- Note the HashTag HLI, which is not yet reflected in the Agda implementation.
+  -- TODO-2: include HashTags in hash functions, consistent with the Haskell code.
   hashLI : LedgerInfo → HashValue
   hashLI (LedgerInfo∙new commitInfo consensusDataHash) =
     hash-concat (hashBI commitInfo ∷ consensusDataHash ∷ [])
