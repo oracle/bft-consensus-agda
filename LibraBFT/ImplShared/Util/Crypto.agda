@@ -29,21 +29,41 @@ module LibraBFT.ImplShared.Util.Crypto where
 
   open WithCryptoHash sha256 sha256-cr
 
-  -- IMPL-DIFF
-  -- 1. Cannot do equivalent of Haskell "qcParts"
-  --    because bs-concat here cannot be used because it returns BitString.
-  --    TODO-2 : Hashing in Haskell includes adding tags.
-  --             Need to model those tags and to postulate injectivity properties.
-  -- 2. No need to deal with a 'Proposal' for stable test hashes.
-  hashBD : BlockData → HashValue
-  hashBD = sha256 ∘ bs-concat ∘ blockDataBSList
-   where
-    blockDataBSList : BlockData → List ByteString
-    blockDataBSList (BlockData∙new
-                      epoch round
-                      (QuorumCert∙new voteData (LedgerInfoWithSignatures∙new ledgerInfo _sigs))
-                      blockType) =
-      encode epoch ∷ encode round ∷ encode voteData ∷ encode ledgerInfo ∷ encode blockType ∷ []
+  -- We do not yet have sufficient support to model precisely the hashing used in the Haskell code,
+  -- so it is better that we postulate its intended properties to ensure proofs have the desired
+  -- properties available.  Note that a simpler injectivity property such as
+  --
+  -- hashBD-inj' : ∀ {bd1} {bd2}
+  --             → hashBD bd1 ≡ hashBD bd2
+  --             → NonInjective-≡ sha256
+  --             ⊎ bd1 ≡L bd2
+  --
+  -- does *not* hold because the input to the hash function used in hashBD does *not* include all
+  -- components of the BlockData being hashed.
+
+  -- TODO-2: Similarly express other hashing functions and their intended injectivity properties where
+  -- the Agda implementation does not accurately reflect the Haskell implementation.
+
+  -- TODO-2: Enable support for the hashS function we use in the Haskell code, which hashes tuples
+  -- of serializable types), and then define hashBD using this and prove that it ensures hashBD-inj.
+  -- Note also the TODO below related to HashTags.
+
+  record BlockDataInjectivityProps (bd1 bd2 : BlockData) : Set where
+    field
+      bdInjEpoch  : bd1 ≡L bd2 at bdEpoch
+      bdInjRound  : bd1 ≡L bd2 at bdRound
+      bdInjVD     : bd1 ≡L bd2 at (bdQuorumCert ∙ qcVoteData)
+      bdInjLI     : bd1 ≡L bd2 at (bdQuorumCert ∙ qcSignedLedgerInfo ∙ liwsLedgerInfo)
+      bdInjBTNil  : bd1 ^∙ bdBlockType ≡ NilBlock → bd2 ^∙ bdBlockType ≡ NilBlock
+      bdInjBTGen  : bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis
+      bdInjBTProp : ∀ {tx}{auth} → bd1 ^∙ bdBlockType ≡ Proposal tx auth
+                                 → bd1 ^∙ bdBlockType ≡ bd2 ^∙ bdBlockType
+
+  postulate
+    hashBD     : BlockData → HashValue
+    hashBD-inj : ∀ {bd1 bd2}
+               → hashBD bd1 ≡ hashBD bd2
+               → NonInjective-≡ sha256 ⊎ BlockDataInjectivityProps bd1 bd2
 
   blockInfoBSList : BlockInfo → List ByteString
   blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
@@ -110,6 +130,24 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| inj₂ _     | inj₁ hb   = inj₁ hb
   ...| inj₂ prop≡ | inj₂ par≡ = inj₂ (VoteData-η prop≡ par≡)
 
+
+  -- The Haskell implementation includes "HashTag"s when hashing in order to ensure that it is not
+  -- possible (modulo hash collisions) for the encodings of two values of different types (e.g.,
+  -- Vote and Block) to yield the same bitstring and thus the same hash (and therefore potentially
+  -- the same signature, where hashes are signed).  For example, the Haskell hashLI function is:
+  --
+  -- hashLI :: LedgerInfo -> HashValue
+  -- hashLI (LedgerInfo commitInfo (HashValue consensusDataHash)) =
+  --   hashS (HLI, biParts commitInfo, consensusDataHash)
+  --
+  -- Note the HashTag HLI, which is not yet reflected in the Agda implementation.
+  -- TODO-2: include HashTags in hash functions, consistent with the Haskell code.
+  --
+  -- As an aside, it is not clear whether these HashTags are necessary for all of the "inner"
+  -- hashes.  They are needed to ensure that, for example, a dishonest peer cannot notice that the
+  -- bits signed for a Vote happen to decode to a valid Block, and therefore take a Vote signature
+  -- and use it to masquerade as a Block signture.  However, the implementation does include
+  -- HashTags at each level, so we should too unless and until that changes.  
   hashLI : LedgerInfo → HashValue
   hashLI (LedgerInfo∙new commitInfo consensusDataHash) =
     hash-concat (hashBI commitInfo ∷ consensusDataHash ∷ [])
