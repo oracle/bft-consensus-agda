@@ -18,6 +18,7 @@ module LibraBFT.ImplShared.Interface.Output where
 
   data Output : Set where
     BroadcastProposal : ProposalMsg → List Author     → Output
+    BroadcastSyncInfo : SyncInfo    → List Author     → Output
     LogErr            : ErrLog                        → Output
     LogInfo           : InfoLog                       → Output
     SendVote          : VoteMsg → List Author → Output
@@ -31,44 +32,64 @@ module LibraBFT.ImplShared.Interface.Output where
 
   IsSendVote : Output → Set
   IsSendVote (BroadcastProposal _ _) = ⊥
+  IsSendVote (BroadcastSyncInfo _ _) = ⊥
   IsSendVote (LogErr _) = ⊥
   IsSendVote (LogInfo _) = ⊥
   IsSendVote (SendVote _ _) = ⊤
 
   IsBroadcastProposal : Output → Set
   IsBroadcastProposal (BroadcastProposal _ _) = ⊤
+  IsBroadcastProposal (BroadcastSyncInfo _ _) = ⊥
   IsBroadcastProposal (LogErr _) = ⊥
   IsBroadcastProposal (LogInfo _) = ⊥
   IsBroadcastProposal (SendVote _ _) = ⊥
 
+  IsBroadcastSyncInfo : Output → Set
+  IsBroadcastSyncInfo (BroadcastProposal _ _) = ⊥
+  IsBroadcastSyncInfo (BroadcastSyncInfo _ _) = ⊤
+  IsBroadcastSyncInfo (LogErr _)              = ⊥
+  IsBroadcastSyncInfo (LogInfo _)             = ⊥
+  IsBroadcastSyncInfo (SendVote _ _)          = ⊥
+
   IsLogErr : Output → Set
   IsLogErr (BroadcastProposal _ _) = ⊥
+  IsLogErr (BroadcastSyncInfo _ _) = ⊥
   IsLogErr (LogErr _)            = ⊤
   IsLogErr (LogInfo _)           = ⊥
   IsLogErr (SendVote _ _)        = ⊥
 
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _ _) = no λ ()
+  isSendVote? (BroadcastSyncInfo _ _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
   isSendVote? (SendVote mv pid)     = yes tt
 
   isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
   isBroadcastProposal? (BroadcastProposal _ _) = yes tt
+  isBroadcastProposal? (BroadcastSyncInfo _ _) = no λ ()
   isBroadcastProposal? (LogErr _)            = no λ ()
   isBroadcastProposal? (LogInfo _)           = no λ ()
   isBroadcastProposal? (SendVote _ _)        = no λ ()
 
+  isBroadcastSyncInfo? : (out : Output) →  Dec (IsBroadcastSyncInfo out)
+  isBroadcastSyncInfo? (BroadcastProposal _ _) = no λ ()
+  isBroadcastSyncInfo? (BroadcastSyncInfo _ _) = yes tt
+  isBroadcastSyncInfo? (LogErr _)              = no λ ()
+  isBroadcastSyncInfo? (LogInfo _)             = no λ ()
+  isBroadcastSyncInfo? (SendVote _ _)          = no λ ()
+
   isLogErr? : (out : Output) → Dec (IsLogErr out)
   isLogErr? (BroadcastProposal x _) = no λ ()
+  isLogErr? (BroadcastSyncInfo x _) = no λ ()
   isLogErr? (LogErr x)            = yes tt
   isLogErr? (LogInfo x)           = no λ ()
   isLogErr? (SendVote x x₁)       = no λ ()
 
   IsOutputMsg : Output → Set
-  IsOutputMsg = IsBroadcastProposal ∪ IsSendVote
+  IsOutputMsg = IsBroadcastProposal ∪ IsBroadcastSyncInfo ∪ IsSendVote
 
-  isOutputMsg? = isBroadcastProposal? ∪? isSendVote?
+  isOutputMsg? = (isBroadcastProposal? ∪? isBroadcastSyncInfo?) ∪? isSendVote?
 
   SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
   SendVote∉Output () (here refl)
@@ -81,6 +102,7 @@ module LibraBFT.ImplShared.Interface.Output where
   -- assumptions about message delivery between honest peers.
   outputToActions : RoundManager → Output → List (Action NetworkMsg)
   outputToActions rm (BroadcastProposal p rcvrs) = List-map (const (send (P p))) rcvrs
+  outputToActions _  (BroadcastSyncInfo _ _) = []
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
   outputToActions _  (SendVote vm rcvrs)   = List-map (const (send (V vm))) rcvrs
@@ -118,6 +140,8 @@ module LibraBFT.ImplShared.Interface.Output where
     with Any-++⁻ (outputToActions st (BroadcastProposal x rcvrs)) m∈acts
   ... | Left m∈[] = ⊥-elim (outputToActions-sendVote∉actions{out = BroadcastProposal x rcvrs}{st = st} id m∈[])
   ... | Right m∈acts' = sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts'
+  sendVote∈actions {outs = (BroadcastSyncInfo x rcvrs) ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {outs = LogErr x ∷ outs}{st = st} outs≡ m∈acts =
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {outs = LogInfo x ∷ outs}{st = st} outs≡ m∈acts =
