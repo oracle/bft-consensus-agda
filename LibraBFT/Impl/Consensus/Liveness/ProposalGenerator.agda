@@ -18,19 +18,21 @@ module LibraBFT.Impl.Consensus.Liveness.ProposalGenerator where
 
 ensureHighestQuorumCertM : Round → LBFT (Either ErrLog QuorumCert)
 
+postulate
+  generateNilBlockM : Round → LBFT (Either ErrLog Block)
+
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)
 generateProposalM _now round = do
   lrg ← use (lProposalGenerator ∙ pgLastRoundGenerated)
-  ifM lrg <?ℕ round
+  if-RWST lrg <?ℕ round
     then (do
       lProposalGenerator ∙ pgLastRoundGenerated ∙= round
       ensureHighestQuorumCertM round ∙?∙ λ hqc -> do
-        payload ← ifM BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
+        payload ← if-RWST BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
                       -- IMPL-DIFF : create a fake TX
                       then pure (Encode.encode 0) -- (Payload [])
                       else pure (Encode.encode 0) -- use pgTxnManager <*> use (rmEpochState ∙ esEpoch) <*> pure round
-        s ← get
-        caseMM rmPgAuthor s of λ where
+        use (lRoundManager ∙ pgAuthor) >>= λ where
           nothing       → bail fakeErr -- ErrL (here ["lRoundManager.pgAuthor", "Nothing"])
           (just author) →
             ok (BlockData.newProposal payload author round {-pure blockTimestamp <*>-} hqc))

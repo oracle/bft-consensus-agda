@@ -59,7 +59,7 @@ processProposalMsg inst pm = do
                   nothing
       sv = record uv { _vSignature = sign ⦃ sig-Vote ⦄ uv fakeSK}
       bt = rm ^∙ lBlockTree
-      si = SyncInfo∙new (_btHighestQuorumCert bt) (_btHighestCommitCert bt)
+      si = SyncInfo∙new (_btHighestQuorumCert bt) (_btHighestCommitCert bt) (_btHighestTimeoutCert bt)
       rm' = rm & rmLastVotedRound ∙~ nr
   put rm'
   tell1 (SendVote (VoteMsg∙new sv si) (fakeAuthor ∷ []))

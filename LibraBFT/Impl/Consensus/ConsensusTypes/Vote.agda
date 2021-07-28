@@ -17,6 +17,7 @@ newWithSignature voteData author ledgerInfo signature =
 
 postulate
   verify : Vote → ValidatorVerifier → Either ErrLog Unit
+  addTimeoutSignature : Vote → Signature → Vote
 
 timeout : Vote → Timeout
 timeout v =

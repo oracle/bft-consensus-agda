@@ -49,6 +49,7 @@ module syncInfoMSpec where
   syncInfo pre =
     SyncInfo∙new (pre ^∙ lBlockStore ∙ bsHighestQuorumCert)
                  (pre ^∙ lBlockStore ∙ bsHighestCommitCert)
+                 (pre ^∙ lBlockStore ∙ bsHighestTimeoutCert)
 
   contract : ∀ pre Post → (Post (syncInfo pre) pre []) → LBFT-weakestPre syncInfoM Post pre
-  contract pre Post pf ._ refl ._ refl ._ refl ._ refl = pf
+  contract pre Post pf ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl = pf
