@@ -7,6 +7,7 @@
 -- This module contains definitions of properties of only the behavior of the
 -- handlers, nothing concerning the system state.
 
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.KVMap as Map
 open import LibraBFT.Base.Types
@@ -33,19 +34,33 @@ module OutputProps where
     NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} (p : (out : Output) → Dec (P out)) → Set
     NoneOfKind p = List-filter p outs ≡ []
 
+    postulate -- TODO: find something in the library, or proveit
+      xx2 : ∀ {ℓ} {P : Output → Set ℓ} (p : (out : Output) → Dec (P out))
+          → NoneOfKind p
+          → ∀ {x}
+          → x ∈ outs
+          → ¬ (P x)
+
     NoVotes      = NoneOfKind isSendVote?
-    NoBroadcasts = NoneOfKind isBroadcastProposal?
-    NoMsgs       = NoneOfKind isOutputMsg?
+    NoProposals  = NoneOfKind isBroadcastProposal?
+    NoSyncInfos  = NoneOfKind isBroadcastSyncInfo?
+    NoMsgs       = NoneOfKind isOutputMsg1?
     NoErrors     = NoneOfKind isLogErr?
 
-    NoMsgs⇒× : NoMsgs → NoBroadcasts × NoVotes
-    NoMsgs⇒× noMsgs
-      rewrite filter-∪?-[]₁ outs isBroadcastProposal? isSendVote? noMsgs
-      |       filter-∪?-[]₂ outs isBroadcastProposal? isSendVote? noMsgs
-      = refl , refl
+    xx1 : ∀ {out} → ¬ (IsOutputMsg1 out) → Complement IsBroadcastProposal out
+    xx1 ¬IsOut = ⊥-elim ∘ ¬IsOut ∘ isBP
 
-    NoMsgs⇒NoBroadcasts = proj₁ ∘ NoMsgs⇒×
-    NoMsgs⇒NoVotes      = proj₂ ∘ NoMsgs⇒×
+    xxx : NoMsgs → All (Complement IsBroadcastProposal) outs
+    xxx nomsgs =  All-tabulate λ x∈outs → xx1 (xx2 isOutputMsg1? nomsgs x∈outs)
+
+    NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
+    proj₁ (NoMsgs⇒× noMsgs)         = List-filter-none isBroadcastProposal? (xxx noMsgs)
+    proj₁ (proj₂ (NoMsgs⇒× noMsgs)) = List-filter-none isSendVote?          {xs = outs} {!!}
+    proj₂ (proj₂ (NoMsgs⇒× noMsgs)) = List-filter-none isBroadcastSyncInfo? {xs = outs} {!!}
+
+    NoMsgs⇒NoProposals  = proj₁         ∘ NoMsgs⇒×
+    NoMsgs⇒NoVotes      = proj₁ ∘ proj₂ ∘ NoMsgs⇒×
+    NoMsgs⇒NoSyncInfos  = proj₂ ∘ proj₂ ∘ NoMsgs⇒×
 
     OneVote : VoteMsg → List Author → Set
     OneVote vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])

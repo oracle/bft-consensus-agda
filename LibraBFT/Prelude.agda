@@ -45,7 +45,8 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List.Properties
-    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
+    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++;
+              filter-none to List-filter-none)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
     public
 
@@ -249,6 +250,7 @@ module LibraBFT.Prelude where
 
   open import Relation.Unary
     using (_∪_)
+    renaming (∁ to Complement) 
     public
 
   open import Relation.Unary.Properties

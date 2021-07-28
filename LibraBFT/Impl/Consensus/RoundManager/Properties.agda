@@ -3,7 +3,6 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -166,7 +165,7 @@ module processProposalMSpec (proposal : Block) where
        -- General properties / invariants
       rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
       noEpochChange : StateTransProps.NoEpochChange pre post
-      noBroadcasts  : OutputProps.NoBroadcasts outs
+      noBroadcasts  : OutputProps.NoProposals outs
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
 
@@ -190,7 +189,7 @@ module processProposalMSpec (proposal : Block) where
     contractBail : ∀ {outs} → OutputProps.NoMsgs outs → Contract pre unit pre outs
     contractBail{outs} nmo =
       mkContract StateInvariants.reflPreservesRoundManagerInv (StateTransProps.reflNoEpochChange{pre})
-        (OutputProps.NoMsgs⇒NoBroadcasts outs nmo)
+        (OutputProps.NoMsgs⇒NoProposals outs nmo)
         (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo))
 
     contract-step₂ : RWST-weakestPre (executeAndVoteM proposal >>= step₂) (Contract pre) unit pre
@@ -208,7 +207,7 @@ module processProposalMSpec (proposal : Block) where
           pf : (r : Either ErrLog Vote) (vrc : EAV.VoteResultCorrect pre st lvr≡? r) → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs
           pf (Left _) vrc ._ refl =
             mkContract rmInv₂ noEpochChange
-              (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoBroadcasts outs noMsgOuts) refl)
+              (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoProposals outs noMsgOuts) refl)
               (inj₁ (lvr≡? , Voting.mkVoteUnsentCorrect
                                (OutputProps.++-NoVotes outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl) vrc))
           pf (Right vote) vrc ._ refl ._ refl ._ refl =
@@ -229,7 +228,7 @@ module processProposalMSpec (proposal : Block) where
                   (StateInvariants.transPreservesRoundManagerInv rmInv₂
                     (StateInvariants.mkPreservesRoundManagerInv id btInv₂ id))
                   (StateTransProps.transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} noEpochChange refl)
-                  (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoBroadcasts outs noMsgOuts) refl)
+                  (OutputProps.++-NoBroadcasts outs _ (OutputProps.NoMsgs⇒NoProposals outs noMsgOuts) refl)
                   (inj₂ (Voting.mkVoteSentCorrect vm recipient
                           (OutputProps.++-NoVotes-OneVote outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl)
                           (Voting.step-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}

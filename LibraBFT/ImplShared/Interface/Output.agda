@@ -82,14 +82,26 @@ module LibraBFT.ImplShared.Interface.Output where
   isLogErr? : (out : Output) → Dec (IsLogErr out)
   isLogErr? (BroadcastProposal x _) = no λ ()
   isLogErr? (BroadcastSyncInfo x _) = no λ ()
-  isLogErr? (LogErr x)            = yes tt
-  isLogErr? (LogInfo x)           = no λ ()
-  isLogErr? (SendVote x x₁)       = no λ ()
+  isLogErr? (LogErr x)              = yes tt
+  isLogErr? (LogInfo x)             = no λ ()
+  isLogErr? (SendVote x x₁)         = no λ ()
 
   IsOutputMsg : Output → Set
-  IsOutputMsg = IsBroadcastProposal ∪ IsBroadcastSyncInfo ∪ IsSendVote
+  IsOutputMsg = IsBroadcastProposal ∪ IsSendVote ∪ IsBroadcastSyncInfo
 
-  isOutputMsg? = (isBroadcastProposal? ∪? isBroadcastSyncInfo?) ∪? isSendVote?
+  data IsOutputMsg1 (out : Output) : Set where
+    isBP  : IsBroadcastProposal out → IsOutputMsg1 out
+    isSV  : IsSendVote          out → IsOutputMsg1 out
+    isBSI : IsBroadcastSyncInfo out → IsOutputMsg1 out
+
+  isOutputMsg? = (isBroadcastProposal? ∪? isSendVote?) ∪? isBroadcastSyncInfo?
+
+  isOutputMsg1? : (o : Output) → Dec (IsOutputMsg1 o)
+  isOutputMsg1? (BroadcastProposal _ _) = yes (isBP tt)
+  isOutputMsg1? (BroadcastSyncInfo _ _) = yes (isBSI tt)
+  isOutputMsg1? (LogErr x)              = no  obm-dangerous-magic!  -- Possibly another test case for Chris's absurd machinery?
+  isOutputMsg1? (LogInfo x)             = no  obm-dangerous-magic!  -- If not, what's the best way?
+  isOutputMsg1? (SendVote _ _)          = yes (isSV tt)
 
   SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
   SendVote∉Output () (here refl)
@@ -103,9 +115,9 @@ module LibraBFT.ImplShared.Interface.Output where
   outputToActions : RoundManager → Output → List (Action NetworkMsg)
   outputToActions rm (BroadcastProposal p rcvrs) = List-map (const (send (P p))) rcvrs
   outputToActions _  (BroadcastSyncInfo _ _) = []
-  outputToActions _  (LogErr x)            = []
-  outputToActions _  (LogInfo x)           = []
-  outputToActions _  (SendVote vm rcvrs)   = List-map (const (send (V vm))) rcvrs
+  outputToActions _  (LogErr x)              = []
+  outputToActions _  (LogInfo x)             = []
+  outputToActions _  (SendVote vm rcvrs)     = List-map (const (send (V vm))) rcvrs
 
   outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
