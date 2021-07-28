@@ -242,29 +242,33 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (vVoteData ∷ vAuthor ∷ vLedgerInfo ∷ vSignature ∷ vTimeoutSignature ∷ [])
   postulate instance enc-Vote     : Encoder Vote
 
+  -- not defined in Haskell
   vParent : Lens Vote BlockInfo
   vParent = vVoteData ∙ vdParent
 
+  -- not defined in Haskell
   vProposed : Lens Vote BlockInfo
   vProposed = vVoteData ∙ vdProposed
 
+  -- not defined in Haskell
   vParentId : Lens Vote Hash
   vParentId = vVoteData ∙ vdParent ∙ biId
 
+  -- not defined in Haskell
   vParentRound : Lens Vote Round
   vParentRound = vVoteData ∙ vdParent ∙ biRound
 
+  -- not defined in Haskell
   vProposedId : Lens Vote Hash
   vProposedId = vVoteData ∙ vdProposed ∙ biId
 
+  -- getter only in Haskell
   vEpoch : Lens Vote Epoch
   vEpoch = vVoteData ∙ vdProposed ∙ biEpoch
 
-  vdRound : Lens VoteData Round
-  vdRound = vdProposed ∙ biRound
-
+  -- getter only in Haskell
   vRound : Lens Vote Round
-  vRound = vVoteData ∙ vdRound
+  vRound = vVoteData ∙ vdProposed ∙ biRound
 
   record QuorumCert : Set where
     constructor QuorumCert∙new
@@ -284,20 +288,23 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   _QCBoolEq_ : QuorumCert → QuorumCert → Bool
   _QCBoolEq_ q1 q2 = does (q1 ≟QC q2)
 
+  -- getter only in Haskell
   qcCertifiedBlock : Lens QuorumCert BlockInfo
   qcCertifiedBlock = qcVoteData ∙ vdProposed
 
+  -- getter only in Haskell
   qcParentBlock : Lens QuorumCert BlockInfo
   qcParentBlock = qcVoteData ∙ vdParent
 
-  -- This is a GETTER only in Haskell
+  -- getter only in Haskell
   qcLedgerInfo : Lens QuorumCert LedgerInfoWithSignatures
   qcLedgerInfo = qcSignedLedgerInfo
 
+  -- getter only in Haskell
   qcCommitInfo : Lens QuorumCert BlockInfo
   qcCommitInfo = qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
 
-  -- GETTER only in Haskell
+  -- getter only in Haskell
   qcEndsEpoch : Lens QuorumCert Bool
   qcEndsEpoch = mkLens' g s
    where
@@ -329,9 +336,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   qcVotes : QuorumCert → List (Author × Signature)
   qcVotes qc = kvm-toList (qcVotesKV qc)
 
+  -- not defined in Haskell
   qcCertifies : Lens QuorumCert  Hash
   qcCertifies = qcVoteData ∙ vdProposed ∙ biId
 
+  -- not defined in Haskell
   qcRound : Lens QuorumCert Round
   qcRound = qcVoteData ∙ vdProposed ∙ biRound
 
@@ -385,13 +394,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (bdEpoch ∷ bdRound ∷ bdQuorumCert ∷ bdBlockType ∷ [])
   postulate instance enc-BlockData : Encoder BlockData
 
+  -- not defined in Haskell
   bdParentId : Lens BlockData Hash
   bdParentId = bdQuorumCert ∙ qcVoteData ∙ vdParent ∙ biId
 
+  -- not defined in Haskell
   -- This is the id of a block
   bdBlockId : Lens BlockData Hash
   bdBlockId = bdQuorumCert ∙ qcVoteData ∙ vdProposed ∙ biId
 
+  -- getter only in Haskell
   bdAuthor : Lens BlockData (Maybe Author)
   bdAuthor = mkLens' g s
     where
@@ -426,20 +438,25 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   postulate instance enc : Encoder Block
 
-  bQuorumCert : Lens Block QuorumCert
-  bQuorumCert  = bBlockData ∙ bdQuorumCert
-
-  bRound : Lens Block Round
-  bRound =  bBlockData ∙ bdRound
-
+  -- getter only in Haskell
   bAuthor : Lens Block (Maybe Author)
   bAuthor = bBlockData ∙ bdAuthor
 
+  -- getter only in Haskell
+  bEpoch : Lens Block Epoch
+  bEpoch = bBlockData ∙ bdEpoch
+
+  -- getter only in Haskell
+  bQuorumCert : Lens Block QuorumCert
+  bQuorumCert  = bBlockData ∙ bdQuorumCert
+
+  -- getter only in Haskell
   bParentId : Lens Block HashValue
   bParentId = bQuorumCert ∙ qcCertifiedBlock ∙ biId
 
-  bEpoch : Lens Block Epoch
-  bEpoch = bBlockData ∙ bdEpoch
+  -- getter only in Haskell
+  bRound : Lens Block Round
+  bRound =  bBlockData ∙ bdRound
 
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
@@ -498,11 +515,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   TimeoutCertificate∙new : Timeout → TimeoutCertificate
   TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
 
-  -- IMPL-DIFF : only a getter in haskell
+  -- getter only in haskell
   tcEpoch : Lens TimeoutCertificate Epoch
   tcEpoch = tcTimeout ∙ toEpoch
 
-  -- IMPL-DIFF : only a getter in haskell
+  -- getter only in haskell
   tcRound : Lens TimeoutCertificate Round
   tcRound = tcTimeout ∙ toRound
 
@@ -571,6 +588,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
+  -- getter only in Haskell
   pmProposer : Lens ProposalMsg (Maybe Author)
   pmProposer = pmProposal ∙ bAuthor
 
@@ -584,13 +602,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (vmVote ∷ vmSyncInfo ∷ [])
   postulate instance enc-VoteMsg : Encoder VoteMsg
 
+  -- not defined in Haskell
   vmProposed : Lens VoteMsg BlockInfo
   vmProposed = vmVote ∙ vVoteData ∙ vdProposed
 
+  -- not defined in Haskell
   vmParent : Lens VoteMsg BlockInfo
   vmParent = vmVote ∙ vVoteData ∙ vdParent
 
-  -- IMPL-DIFF: getter-only in Haskell
+  -- getter-only in Haskell
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
@@ -651,15 +671,19 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl ebBlock   ebStateComputeResult = mkLens (quote ExecutedBlock)
              (ebBlock ∷ ebStateComputeResult ∷ [])
 
+  -- getter only in Haskell
   ebId : Lens ExecutedBlock HashValue
   ebId = ebBlock ∙ bId
 
+  -- getter only in Haskell
   ebQuorumCert : Lens ExecutedBlock QuorumCert
   ebQuorumCert = ebBlock ∙ bQuorumCert
 
+  -- getter only in Haskell
   ebParentId : Lens ExecutedBlock HashValue
   ebParentId = ebQuorumCert ∙ qcCertifiedBlock ∙ biId
 
+  -- getter only in Haskell
   ebRound : Lens ExecutedBlock Round
   ebRound = ebBlock ∙ bRound
 
@@ -674,6 +698,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
              (lbExecutedBlock ∷ [])
 
+  -- getter only in Haskell
   lbId : Lens LinkableBlock HashValue
   lbId = lbExecutedBlock ∙ ebId
 
@@ -810,7 +835,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
   btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
 
-  -- IMPL-DIFF : this is a getter only in Haskell
+  -- getter only in Haskell
   btRoot : Lens BlockTree (Maybe ExecutedBlock)
   btRoot = mkLens' g s
     where
@@ -823,7 +848,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → Maybe ExecutedBlock → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
-  -- GETTER ONLY in haskell
+  -- getter only in haskell
   btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
   btHighestCertifiedBlock = mkLens' g s
     where
@@ -843,19 +868,19 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl bsInner = mkLens (quote BlockStore)
              (bsInner ∷ [])
 
-  -- IMPL-DIFF : this is a getter only in Haskell
+  -- getter only in Haskell
   bsRoot : Lens BlockStore (Maybe ExecutedBlock)
   bsRoot = bsInner ∙ btRoot
 
-  -- IMPL-DIFF : this is a getter only in Haskell
-  bsHighestCommitCert : Lens BlockStore QuorumCert
-  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
-
-  -- IMPL-DIFF : this is a getter only in Haskell
+  -- getter only in Haskell
   bsHighestQuorumCert : Lens BlockStore QuorumCert
   bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
 
-  -- IMPL-DIFF : this is a getter only in Haskell
+  -- getter only in Haskell
+  bsHighestCommitCert : Lens BlockStore QuorumCert
+  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
+
+  -- getter only in Haskell
   bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
   bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
 

@@ -80,13 +80,17 @@ module LibraBFT.ImplShared.Consensus.Types where
              (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷
               rmProposalGenerator ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
-  rmObmAllAuthors : RoundManager → List Author
-  rmObmAllAuthors rm =
-    List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo))
+  -- IMPL-DIFF: this is RoundManager field/lens in Haskell; and it is implement completely different
+  rmObmAllAuthors : Lens RoundManager (List Author)
+  rmObmAllAuthors = mkLens'
+    (λ rm → List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)))
+    (λ rm _ → rm) -- TODO-1 cannot be written
 
+  -- getter only in Haskell
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
+  -- not defined in Haskell
   rmLastVotedRound : Lens RoundManager Round
   rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
 
@@ -99,11 +103,9 @@ module LibraBFT.ImplShared.Consensus.Types where
   lRoundState : Lens RoundManager RoundState
   lRoundState = rmRoundState
 
+  -- not defined in Haskell
   rsVoteSent-rm : Lens RoundManager (Maybe Vote)
   rsVoteSent-rm = lRoundState ∙ rsVoteSent
-
-  lSyncOnly : Lens RoundManager Bool
-  lSyncOnly = rmSyncOnly
 
   lPendingVotes : Lens RoundManager PendingVotes
   lPendingVotes = rmRoundState ∙ rsPendingVotes
@@ -114,6 +116,7 @@ module LibraBFT.ImplShared.Consensus.Types where
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
 
+  -- TODO-1 : this is named/used pssSafetyData in Haskell in SET situations
   lSafetyData : Lens RoundManager SafetyData
   lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData
 
@@ -123,25 +126,21 @@ module LibraBFT.ImplShared.Consensus.Types where
   lBlockTree : Lens RoundManager BlockTree
   lBlockTree = lBlockStore ∙ bsInner
 
-  -- This is a trivial lens, which is used in the Haskell code, so we keep it here for consistency.
   lRoundManager : Lens RoundManager RoundManager
   lRoundManager = lens (λ _ _ f rm → f rm)
 
+  -- getter only in Haskell
   srValidatorVerifier : Lens RoundManager ValidatorVerifier
   srValidatorVerifier = rmEpochState ∙ esVerifier
 
-
--- In some cases, the getting operation is not dependent but a lens still
-  -- cannot be defined because the *setting* operation would require dependent
-  -- types. Below, `rmGetValidatorVerifier` is an example of this situation, and
-  -- we would "use" it like this
-  --
-  --    vv ← gets rmGetValidatorVerifier
-
-  -- IMPL-DIFF : this is defined as a lens getter only (no setter) in Haskell.
-  rmPgAuthor : RoundManager → Maybe Author
-  rmPgAuthor rm =
-    maybeS (rm ^∙ rmSafetyRules ∙ srValidatorSigner) nothing (just ∘ (_^∙ vsAuthor))
+  -- getter only in Haskell
+  pgAuthor : Lens RoundManager (Maybe Author)
+  pgAuthor = mkLens' g s
+    where
+    g : RoundManager → Maybe Author
+    g rm = maybeS (rm ^∙ rmSafetyRules ∙ srValidatorSigner) nothing (just ∘ (_^∙ vsAuthor))
+    s : RoundManager → Maybe Author → RoundManager
+    s rm _ma = rm -- TODO-1 cannot be written
 
   record GenesisInfo : Set where
     constructor mkGenInfo

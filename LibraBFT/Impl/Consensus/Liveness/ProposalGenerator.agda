@@ -32,8 +32,7 @@ generateProposalM _now round = do
                       -- IMPL-DIFF : create a fake TX
                       then pure (Encode.encode 0) -- (Payload [])
                       else pure (Encode.encode 0) -- use pgTxnManager <*> use (rmEpochState ∙ esEpoch) <*> pure round
-        s ← get
-        caseMM rmPgAuthor s of λ where
+        use (lRoundManager ∙ pgAuthor) >>= λ where
           nothing       → bail fakeErr -- ErrL (here ["lRoundManager.pgAuthor", "Nothing"])
           (just author) →
             ok (BlockData.newProposal payload author round {-pure blockTimestamp <*>-} hqc))

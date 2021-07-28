@@ -48,12 +48,12 @@ generateProposalM
 processNewRoundEventM : Instant → NewRoundEvent → LBFT Unit
 processNewRoundEventM now nre@(NewRoundEvent∙new r _) = do
   logInfo fakeInfo   -- (InfoNewRoundEvent nre)
-  gets rmPgAuthor >>= λ where
+  use (lRoundManager ∙ pgAuthor) >>= λ where
     nothing       → logErr fakeErr -- (here ["lRoundManager.pgAuthor", "Nothing"])
     (just author) → do
       v ← ProposerElection.isValidProposer <$> use lProposerElection <*> pure author <*> pure r
       when v $ do
-        rcvrs ← gets rmObmAllAuthors -- use (lRoundManager.rmObmAllAuthors)
+        rcvrs ← use (lRoundManager ∙ rmObmAllAuthors)
         generateProposalM now nre >>= λ where
           -- (Left (ErrEpochEndedNoProposals t)) -> logInfoL (lEC.|.lPM) (here ("EpochEnded":t))
           (Left e)            → logErr (withErrCtx (here' ("Error generating proposal" ∷ [])) e)
@@ -178,8 +178,8 @@ processLocalTimeoutM now obmEpoch round = do
       -- It is used for an unimplemented "sync only" mode for nodes.
       -- "sync only" mode is an optimization for nodes catching up.
       (do si    ← BlockStore.syncInfoM
-          rcvrs ← gets rmObmAllAuthors
-          act (BroadcastSyncInfo si rcvrs))
+          rcvrs ← use (lRoundManager ∙ rmObmAllAuthors)
+          pure unit) -- act (BroadcastSyncInfo si rcvrs))
       continue2
 
   continue2 =
@@ -218,7 +218,7 @@ processLocalTimeoutM now obmEpoch round = do
   continue4 timeoutVote = do
     RoundState.recordVoteM timeoutVote
     timeoutVoteMsg ← VoteMsg∙new timeoutVote <$> BlockStore.syncInfoM
-    rcvrs          ← gets rmObmAllAuthors
+    rcvrs          ← use (lRoundManager ∙ rmObmAllAuthors)
     -- IMPL-DIFF this is BroadcastVote in Haskell (an alias)
     act (SendVote timeoutVoteMsg rcvrs)
 
@@ -288,7 +288,7 @@ module executeAndVoteM (b : Block) where
   step₁ eb = do
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
-    so ← use lSyncOnly
+    so ← use (lRoundManager ∙ rmSyncOnly)
     ifM‖ is-just vs ≔
          bail fakeErr -- error: already voted this round
        ‖ so ≔
@@ -321,7 +321,7 @@ processVoteM now vote =
   if-RWST not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
-    gets rmPgAuthor >>= λ where
+    use (lRoundManager ∙ pgAuthor) >>= λ where
       nothing       → logErr fakeErr -- "lRoundManager.pgAuthor", "Nothing"
       (just author) → do
         v ← ProposerElection.isValidProposer <$> use lProposerElection
