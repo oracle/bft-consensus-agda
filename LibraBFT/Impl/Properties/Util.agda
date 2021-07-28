@@ -35,17 +35,25 @@ module OutputProps where
 
     NoVotes      = NoneOfKind isSendVote?
     NoBroadcasts = NoneOfKind isBroadcastProposal?
+    NoSyncInfo   = NoneOfKind isBroadcastSyncInfo?
     NoMsgs       = NoneOfKind isOutputMsg?
     NoErrors     = NoneOfKind isLogErr?
 
-    NoMsgs⇒× : NoMsgs → NoBroadcasts × NoVotes
-    NoMsgs⇒× noMsgs
-      rewrite filter-∪?-[]₁ outs isBroadcastProposal? isSendVote? noMsgs
-      |       filter-∪?-[]₂ outs isBroadcastProposal? isSendVote? noMsgs
-      = refl , refl
+    NoMsgs⇒× : NoMsgs → NoBroadcasts × NoVotes × NoSyncInfo
+    proj₁ (NoMsgs⇒× noMsgs) =
+      filter-∪?-[]₁ outs isBroadcastProposal? _
+        (filter-∪?-[]₁ outs _ _ noMsgs)
+    proj₁ (proj₂ (NoMsgs⇒× noMsgs)) =
+      filter-∪?-[]₂ outs _ isSendVote? noMsgs
+    proj₂ (proj₂ (NoMsgs⇒× noMsgs)) =
+      filter-∪?-[]₂ outs _ isBroadcastSyncInfo?
+        (filter-∪?-[]₁ outs _ _ noMsgs)
 
+    NoMsgs⇒NoBroadcasts : NoMsgs → NoBroadcasts
     NoMsgs⇒NoBroadcasts = proj₁ ∘ NoMsgs⇒×
-    NoMsgs⇒NoVotes      = proj₂ ∘ NoMsgs⇒×
+
+    NoMsgs⇒NoVotes : NoMsgs → NoVotes
+    NoMsgs⇒NoVotes = proj₁ ∘ proj₂ ∘ NoMsgs⇒×
 
     OneVote : VoteMsg → List Author → Set
     OneVote vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])
