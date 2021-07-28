@@ -179,7 +179,7 @@ processLocalTimeoutM now obmEpoch round = do
       -- "sync only" mode is an optimization for nodes catching up.
       (do si    ← BlockStore.syncInfoM
           rcvrs ← use (lRoundManager ∙ rmObmAllAuthors)
-          pure unit) -- act (BroadcastSyncInfo si rcvrs))
+          act (BroadcastSyncInfo si rcvrs))
       continue2
 
   continue2 =

@@ -247,5 +247,33 @@ signProposalM blockData = do
 
 ------------------------------------------------------------------------------
 
-postulate
-  signTimeoutM : Timeout → LBFT (Either ErrLog Signature)
+signTimeoutM : Timeout → LBFT (Either ErrLog Signature)
+signTimeoutM timeout = do
+ vs ← use (lSafetyRules ∙ srValidatorSigner)
+ maybeS vs (bail fakeErr) {-"srValidatorSigner", "Nothing"-} $ λ validatorSigner → do
+   safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
+   verifyEpochM (timeout ^∙ toEpoch) safetyData ∙^∙ withErrCtx (here' []) ∙?∙ λ _ -> do
+     ifM‖ timeout ^∙ toRound ≤? safetyData ^∙ sdPreferredRound ≔
+          bail fakeErr
+          --(ErrIncorrectPreferredRound (here []) (timeout^.toRound) (safetyData^.sdPreferredRound))
+        ‖ timeout ^∙ toRound <? safetyData ^∙ sdLastVotedRound ≔
+          bail fakeErr
+          --(ErrIncorrectLastVotedRound (here []) (timeout^.toRound) (safetyData^.sdLastVotedRound))
+        ‖ timeout ^∙ toRound >? safetyData ^∙ sdLastVotedRound ≔
+          verifyAndUpdateLastVoteRoundM (timeout ^∙ toRound) safetyData
+            ∙^∙ withErrCtx (here' [])
+            ∙?∙ (λ safetyData1 → do
+            lSafetyData ∙= safetyData1
+            logInfo fakeInfo -- (InfoUpdateLastVotedRound (timeout^.toRound))
+            continue validatorSigner)
+
+        ‖ otherwise≔
+          continue validatorSigner
+ where
+  continue : ValidatorSigner → LBFT (Either ErrLog Signature)
+  continue validatorSigner = do
+    let signature = ValidatorSigner.sign validatorSigner timeout
+    ok signature
+
+  here' : List String.String → List String.String
+  here' t = "SafetyRules" ∷ "signTimeoutM" ∷ {-lsTO timeout ∷-}   t
