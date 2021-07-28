@@ -31,7 +31,11 @@ module LibraBFT.Concrete.System.Parameters where
                  ∈GenInfo-impl
                  RoundManager
                  NetworkMsg
-                 Vote
+                 Vote         -- TODO-3: This should be a type that also allows Block, because
+                              -- NetworkMsgs can include signed Blocks, raising the possibility of
+                              -- the "masquerading" issue mentioned in
+                              -- LibraBFT.ImplShared.Util.Crypto, which we will need to address by
+                              -- using HashTags, as also discussed in the module.
                  sig-Vote
                  _⊂Msg_
 
