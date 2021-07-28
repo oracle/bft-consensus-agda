@@ -33,13 +33,13 @@ module OutputProps where
     NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} (p : (out : Output) → Dec (P out)) → Set
     NoneOfKind p = List-filter p outs ≡ []
 
-    NoVotes      = NoneOfKind isSendVote?
-    NoBroadcasts = NoneOfKind isBroadcastProposal?
-    NoSyncInfo   = NoneOfKind isBroadcastSyncInfo?
-    NoMsgs       = NoneOfKind isOutputMsg?
-    NoErrors     = NoneOfKind isLogErr?
+    NoVotes     = NoneOfKind isSendVote?
+    NoProposals = NoneOfKind isBroadcastProposal?
+    NoSyncInfos = NoneOfKind isBroadcastSyncInfo?
+    NoMsgs      = NoneOfKind isOutputMsg?
+    NoErrors    = NoneOfKind isLogErr?
 
-    NoMsgs⇒× : NoMsgs → NoBroadcasts × NoVotes × NoSyncInfo
+    NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
     proj₁ (NoMsgs⇒× noMsgs) =
       filter-∪?-[]₁ outs isBroadcastProposal? _
         (filter-∪?-[]₁ outs _ _ noMsgs)
@@ -49,8 +49,8 @@ module OutputProps where
       filter-∪?-[]₂ outs _ isBroadcastSyncInfo?
         (filter-∪?-[]₁ outs _ _ noMsgs)
 
-    NoMsgs⇒NoBroadcasts : NoMsgs → NoBroadcasts
-    NoMsgs⇒NoBroadcasts = proj₁ ∘ NoMsgs⇒×
+    NoMsgs⇒NoProposals : NoMsgs → NoProposals
+    NoMsgs⇒NoProposals = proj₁ ∘ NoMsgs⇒×
 
     NoMsgs⇒NoVotes : NoMsgs → NoVotes
     NoMsgs⇒NoVotes = proj₁ ∘ proj₂ ∘ NoMsgs⇒×
@@ -62,9 +62,9 @@ module OutputProps where
                   → NoneOfKind xs p → NoneOfKind ys p → NoneOfKind (xs ++ ys) p
   ++-NoneOfKind xs ys p nok₁ nok₂ = filter-++-[] xs ys p nok₁ nok₂
 
-  ++-NoMsgs       = λ xs ys → ++-NoneOfKind xs ys isOutputMsg?
-  ++-NoVotes      = λ xs ys → ++-NoneOfKind xs ys isSendVote?
-  ++-NoBroadcasts = λ xs ys → ++-NoneOfKind xs ys isBroadcastProposal?
+  ++-NoMsgs      = λ xs ys → ++-NoneOfKind xs ys isOutputMsg?
+  ++-NoVotes     = λ xs ys → ++-NoneOfKind xs ys isSendVote?
+  ++-NoProposals = λ xs ys → ++-NoneOfKind xs ys isBroadcastProposal?
 
   ++-NoVotes-OneVote : ∀ xs ys {vm} {pids} → NoVotes xs → OneVote ys vm pids
                        → OneVote (xs ++ ys) vm pids
