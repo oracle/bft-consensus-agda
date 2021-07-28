@@ -21,6 +21,7 @@ open import LibraBFT.Impl.Handle
 open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
+open import LibraBFT.Impl.Properties.Common
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -41,86 +42,6 @@ open        Structural impl-sps-avp
 -- This module proves the two "VotesOnce" proof obligations for our handler.
 
 module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
-
-peerCanSign-Msb4 -- NOTE: This proof requires updating when we model epoch changes.
-  : ∀ {pid v pk}{pre post : SystemState}
-    → ReachableSystemState pre
-    → Step pre post
-    → PeerCanSignForPK post v pid pk
-    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    → PeerCanSignForPK pre v pid pk
-peerCanSign-Msb4 preach step (mkPCS4PK 𝓔@._ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)) hpk sig mws∈pool =
-  mkPCS4PK 𝓔 (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)
-
-peerCanSignPK-Inj
-  : ∀ {pid pid' pk v v'}{st : SystemState}
-    → PeerCanSignForPK st v  pid  pk
-    → PeerCanSignForPK st v' pid' pk
-    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-    → pid ≡ pid'
-peerCanSignPK-Inj{pid}{pid'}{pk} pcsfpk₁ pcsfpk₂ ≡epoch = begin
-  pid         ≡⟨ sym (nid≡ (pcs4in𝓔 pcsfpk₁)) ⟩
-  pcsfpk₁∙pid ≡⟨ PK-inj-same-ECs{pcs4𝓔 pcsfpk₁}{pcs4𝓔 pcsfpk₂}
-                   (availEpochsConsistent pcsfpk₁ pcsfpk₂ ≡epoch)
-                   (begin (pcsfpk₁∙pk  ≡⟨ pk≡ (pcs4in𝓔 pcsfpk₁) ⟩
-                           pk         ≡⟨ sym (pk≡ (pcs4in𝓔 pcsfpk₂)) ⟩
-                           pcsfpk₂∙pk ∎)) ⟩
-  pcsfpk₂∙pid ≡⟨ nid≡ (pcs4in𝓔 pcsfpk₂) ⟩
-  pid'        ∎
-  where
-  open ≡-Reasoning
-  open PeerCanSignForPKinEpoch
-  open PeerCanSignForPK
-  pcsfpk₁∙pid  = EpochConfig.toNodeId  (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁))
-  pcsfpk₂∙pid  = EpochConfig.toNodeId  (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
-  pcsfpk₁∙pk   = EpochConfig.getPubKey (pcs4𝓔 pcsfpk₁) (mbr (pcs4in𝓔 pcsfpk₁))
-  pcsfpk₂∙pk   = EpochConfig.getPubKey (pcs4𝓔 pcsfpk₂) (mbr (pcs4in𝓔 pcsfpk₂))
-
-module ∉Gen
-  {pool : SentMessages}{pk : PK}{v : Vote} (sig : WithVerSig pk v) (¬gen : ¬ ∈GenInfo-impl genesisInfo (ver-signature sig))
-  (mws∈pool : MsgWithSig∈ pk (ver-signature sig) pool) where
-
-  mws : ¬ ∈GenInfo-impl genesisInfo (ver-signature (msgSigned mws∈pool))
-  mws rewrite (msgSameSig mws∈pool) = ¬gen
-
-msg∈pool⇒initd
-  : ∀ {pid pk v}{st : SystemState}
-    → ReachableSystemState st
-    → PeerCanSignForPK st v pid pk
-    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-    → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
-    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-    → initialised st pid ≡ initd
-msg∈pool⇒initd{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬gen mws∈pool =
-  peersRemainInitialized step (msg∈pool⇒initd rss (peerCanSign-Msb4 rss step pcsfpk hpk sig mws∈poolPre) hpk sig ¬gen mws∈poolPre)
-  where
-  ¬gen' = ∉Gen.mws sig ¬gen mws∈pool
-
-  mws∈poolPre : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-  mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬gen'
-msg∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init ini)))) pcsfpk hpk sig ¬gen mws∈pool
-   with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) (∉Gen.mws sig ¬gen mws∈pool) (msg⊆ mws∈pool) (msg∈pool mws∈pool)
-... | Right mws∈poolPre = peersRemainInitialized step (msg∈pool⇒initd rss (peerCanSign-Msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬gen mws∈poolPre')
-  where
-  mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-  mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
-msg∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬gen mws∈pool
-   with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) (∉Gen.mws sig ¬gen mws∈pool) (msg⊆ mws∈pool) (msg∈pool mws∈pool)
-... | Left (m∈outs , pcsfpk' , ¬msb4)
-   with pid≡
-   where
-   vd₁≡vd₂ : v ≡L msgPart mws∈pool at vVoteData
-   vd₁≡vd₂ = either (⊥-elim ∘ PerReachableState.meta-sha256-cr rss) id (sameSig⇒sameVoteData (msgSigned mws∈pool) sig (msgSameSig mws∈pool))
-
-   pid≡ : pid₁ ≡ pid₂
-   pid≡ = peerCanSignPK-Inj pcsfpk pcsfpk' (cong (_^∙ vdProposed ∙ biEpoch) vd₁≡vd₂)
-... | refl rewrite StepPeer-post-lemma2{pid₂}{pre = pre} sps = refl
-msg∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬gen mws∈pool | Right mws∈poolPre =
-  peersRemainInitialized step (msg∈pool⇒initd rss (peerCanSign-Msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬gen mws∈poolPre')
-  where
-  mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-  mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
 
 newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' outs v m pk}
@@ -167,36 +88,6 @@ newVote⇒lv≡{s' = s'}{v = v} preach sps (vote∈qc vs∈qc v≈rbld qc∈m) m
   postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
     TODO : LastVoteIs s' v
 
-mws∈pool⇒epoch≡
-  : ∀ {pid v s' outs pk}{st : SystemState}
-    → ReachableSystemState st
-    → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
-    → PeerCanSignForPK st v pid pk
-    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-    → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
-    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-    → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
-    → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
-  case uninitd ≡ initd ∋ trans (sym uni) (msg∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool) of λ ()
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
-  hpPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
-  hpPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
-  v ^∙ vEpoch      ∎
-  where
-  hpPre = peerStates st pid
-  hpPos = LBFT-post (handleProposal 0 pm) hpPre
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
-  open ≡-Reasoning
-
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
-  trans noEpochChange epoch≡
-  where
-  hvPre = peerStates st pid
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre)
-
-mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = epoch≡
-
 oldVoteRound≤lvr
   : ∀ {pid pk v}{pre : SystemState}
     → (r : ReachableSystemState pre)
@@ -215,7 +106,7 @@ oldVoteRound≤lvr{pid} (step-s preach step@(step-peer{pid'} sp@(step-cheat  cmc
   -- so there must be a signed message in the pool prior to this
   mws∈prePool = ¬cheatForgeNew sp refl unit hpk mws∈pool (¬subst ¬gen (msgSameSig mws∈pool))
   -- `pid` can sign for the message in the previous system state
-  pcsfpkPre   = peerCanSign-Msb4 preach step pcsfpk hpk sig mws∈prePool
+  pcsfpkPre   = PeerCanSignForPKProps.msb4 preach step pcsfpk hpk sig mws∈prePool
 oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach step@(step-peer{pid'} sp@(step-honest{st = ppost}{outs} sps))) hpk sig ¬gen mws∈pool pcsfpk epoch≡
    with msgSameSig mws∈pool
 ...| refl
@@ -223,7 +114,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
 ...| inj₂ msb4 = helpSentB4
    where
    pcsfpkPre : PeerCanSignForPK pre v pid _
-   pcsfpkPre = peerCanSign-Msb4 preach step pcsfpk hpk sig msb4
+   pcsfpkPre = PeerCanSignForPKProps.msb4 preach step pcsfpk hpk sig msb4
 
    ovrIH : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch → v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates pre pid)
    ovrIH ep≡ = oldVoteRound≤lvr{pre = pre} preach hpk sig ¬gen msb4 pcsfpkPre ep≡
@@ -242,7 +133,9 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
      -- epoch, then the peer has that same epoch id in its immediately preceding
      -- pre-state.
      epochPre≡ : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-     epochPre≡ = mws∈pool⇒epoch≡{v = v}{ppost}{outs} preach sps pcsfpkPre hpk sig ¬gen msb4 epoch≡'
+     epochPre≡ =
+       ReachableSystemStateProps.mws∈pool⇒epoch≡{v = v}{ppost}{outs} preach sps
+         pcsfpkPre hpk sig ¬gen msb4 epoch≡'
        where
        open ≡-Reasoning
        epoch≡' : ppost ^∙ rmEpoch ≡ v ^∙ vEpoch
@@ -252,7 +145,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
          v ^∙ vEpoch                                              ∎
 
      ini : initialised pre pid' ≡ initd
-     ini = msg∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
+     ini = ReachableSystemStateProps.mws∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
 
      lvr≤ : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (peerStates post pid)
      lvr≤
@@ -265,7 +158,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    with sameSig⇒sameVoteData (msgSigned mws∈pool) sig (msgSameSig mws∈pool)
 ... | inj₁ nonInjSHA256 = ⊥-elim (PerReachableState.meta-sha256-cr step* nonInjSHA256)
 ... | inj₂ refl
-   with peerCanSignPK-Inj pcsfpk pcsfpkPost refl
+   with PeerCanSignForPKProps.pidInjective pcsfpk pcsfpkPost refl
 ...| refl = ≡⇒≤ vr≡lvrPost
   where
     vr≡lvrPost : v ^∙ vRound ≡ Meta.getLastVoteRound (peerStates (StepPeer-post sp) pid)
@@ -312,7 +205,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   -- step, because there is an honestly signed for with the peer's pubkey in the
   -- current epoch already in the pool.
   pcsfpkPre : PeerCanSignForPK pre v pid pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws'∈pool) (sym ≡epoch)
+  pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws'∈pool
 
   -- The proposal `id` for the previous existing message (and thus for v') is the same as the proposal id for `v`
   ih : v ≡L msgPart mws'∈pool at vProposedId
@@ -336,11 +229,11 @@ sameERasLV⇒sameId{pid}{pk = pk} (step-s{pre = pre} preach step@(step-peer sp@(
   mws∈pool = mkMsgWithSig∈ _ _ v'⊂m' _ m'∈pool sig' refl
 
   pcsfpkPre : PeerCanSignForPK pre v pid pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+  pcsfpkPre = peerCanSignEp≡ (PeerCanSignForPKProps.msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest{pid“}{post} sps@(step-msg{_ , m} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
    with newMsg⊎msgSentB4 preach sps hpk sig' ¬gen v'⊂m' m'∈pool
 ... | inj₁ (m∈outs , pcsfpk' , ¬msb4)
-  with peerCanSignPK-Inj pcsfpk pcsfpk' ≡epoch
+  with PeerCanSignForPKProps.pidInjective pcsfpk pcsfpk' ≡epoch
 ...| refl
    with v'⊂m'
 
@@ -404,7 +297,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   mws∈poolPre = mkMsgWithSig∈ m' v' vote∈vm pid' m'∈poolPre sig' refl
 
   pcsfpkPre : PeerCanSignForPK pre v pid pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈poolPre) (sym ≡epoch)
+  pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws∈poolPre
 
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest{pid“}{post} sps@(step-msg{_ , m} m∈pool ini)))){v}{v'} hpk ≡pidLV sig pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
   | inj₂ mws∈pool
@@ -414,7 +307,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
    = trans ih (cong (_^∙ vdProposed ∙ biId) ≡voteData)
    where
    pcsfpkPre : PeerCanSignForPK pre v pid pk
-   pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+   pcsfpkPre = peerCanSignEp≡ (PeerCanSignForPKProps.msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
 
    ≡voteData : msgPart mws∈pool ≡L v' at vVoteData
    ≡voteData = ⊎-elimˡ (PerReachableState.meta-sha256-cr preach) (sameSig⇒sameVoteData sig' (msgSigned mws∈pool) (sym ∘ msgSameSig $ mws∈pool))
@@ -448,10 +341,12 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
 
   -- Lemmas
   pcsfpkPre : PeerCanSignForPK pre v pid“ pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+  pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws∈pool
 
   ≡voteData : msgPart mws∈pool ≡L v' at vVoteData
-  ≡voteData = ⊎-elimˡ (PerReachableState.meta-sha256-cr preach) (sameSig⇒sameVoteData sig' (msgSigned mws∈pool) (sym ∘ msgSameSig $ mws∈pool))
+  ≡voteData =
+    ⊎-elimˡ (PerReachableState.meta-sha256-cr preach)
+      (sameSig⇒sameVoteData sig' (msgSigned mws∈pool) (sym ∘ msgSameSig $ mws∈pool))
 
   ¬gen' : ¬ ∈GenInfo-impl genesisInfo (ver-signature ∘ msgSigned $ mws∈pool)
   ¬gen' rewrite msgSameSig mws∈pool = ¬gen
@@ -488,9 +383,12 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
       where open ≡-Reasoning
 
     rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
-    rv'≤lvrPre = oldVoteRound≤lvr preach hpk sig' ¬gen mws∈pool (peerCanSignEp≡ pcsfpkPre ≡epoch)
-                   (mws∈pool⇒epoch≡ preach sps (peerCanSignEp≡ pcsfpkPre ≡epoch) hpk sig' ¬gen mws∈pool ≡epoch')
+    rv'≤lvrPre = oldVoteRound≤lvr preach hpk sig' ¬gen mws∈pool pcsfpkPre'
+                   (ReachableSystemStateProps.mws∈pool⇒epoch≡ preach sps
+                     pcsfpkPre' hpk sig' ¬gen mws∈pool ≡epoch')
       where
+      pcsfpkPre' = peerCanSignEp≡ pcsfpkPre ≡epoch
+
       open ≡-Reasoning
       ≡epoch' : hpPos ^∙ rmEpoch ≡ v' ^∙ vEpoch
       ≡epoch' = begin
@@ -548,7 +446,7 @@ sameERasLV⇒sameId{pid@.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-
   ¬gen' rewrite msgSameSig mws∈pool = ¬gen
 
   pcsfpkPre : PeerCanSignForPK pre v pid pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+  pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws∈pool
 
   ≡pidLVPre : just v ≡ hvPre ^∙ lSafetyData ∙ sdLastVote
   ≡pidLVPre = begin
@@ -578,7 +476,7 @@ sameERasLV⇒sameId{pid@.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-
   ¬gen' rewrite msgSameSig mws∈pool = ¬gen
 
   pcsfpkPre : PeerCanSignForPK pre v pid pk
-  pcsfpkPre = peerCanSignEp≡ (peerCanSign-Msb4 preach step (peerCanSignEp≡ pcsfpk ≡epoch) hpk sig' mws∈pool) (sym ≡epoch)
+  pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws∈pool
 
   ≡pidLVPre : just v ≡ hcPre ^∙ lSafetyData ∙ sdLastVote
   ≡pidLVPre = begin
@@ -627,7 +525,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   m'mwsb = mkMsgWithSig∈ m' v' v'⊂m' pid' m'∈pool sig' refl
 
   pcspkv'-pre : PeerCanSignForPK pre v' pid pk
-  pcspkv'-pre = peerCanSign-Msb4 preach step (peerCanSignEp≡{v' = v'} pcspkv eid≡) hpk sig' m'mwsb
+  pcspkv'-pre = PeerCanSignForPKProps.msb4 preach step (peerCanSignEp≡{v' = v'} pcspkv eid≡) hpk sig' m'mwsb
 
   rv'≤rv : v' ^∙ vRound ≤ v ^∙ vRound
   rv'≤rv =
