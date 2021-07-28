@@ -137,6 +137,18 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
 
 ------------------------------------------------------------------------------
 
+-- In Haskell, RoundManager.processSyncInfoMsgM is NEVER called.
+--
+-- When processing other messaging (i.e., Proposal and Vote) the first thing that happens,
+-- before handling the specific message, is that ensureRoundAndSyncUpM is called to deal
+-- with the SyncInfo message in the ProposalMsg or VoteMsg.
+-- If a SyncInfo message ever did arrive by itself, all that would happen is that the
+-- SyncInfo would be handled by ensureRoundAndSyncUpM (just like other messages).
+-- And nothing else (except ensureRoundAndSyncUpM might do "catching up")
+--
+-- The only place the Haskell implementation uses SyncInfo only messages it during EpochChange.
+-- And, in that case, the SyncInfo message is handled in the EpochManager, not here.
+
 processSyncInfoMsgM : Instant → SyncInfo → Author → LBFT Unit
 processSyncInfoMsgM now syncInfo peer =
   -- logEE (lEC.|.lSI) (here []) $
@@ -162,10 +174,12 @@ processLocalTimeoutM now obmEpoch round = do
 
   continue1 =
     ifM (use (lRoundManager ∙ rmSyncOnly))
-      (pure unit)
-      -- (do si    ← BlockStore.syncInfoM
-      --     rcvrs ← gets rmObmAllAuthors
-      --     -- act (BroadcastSyncInfo si rcvrs)) -- TODO-1 Haskell defines but does not use this.
+      -- In Haskell, rmSyncOnly is ALWAYS false.
+      -- It is used for an unimplemented "sync only" mode for nodes.
+      -- "sync only" mode is an optimization for nodes catching up.
+      (do si    ← BlockStore.syncInfoM
+          rcvrs ← gets rmObmAllAuthors
+          act (BroadcastSyncInfo si rcvrs))
       continue2
 
   continue2 =
