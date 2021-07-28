@@ -80,7 +80,7 @@ module LibraBFT.ImplShared.Consensus.Types where
              (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷
               rmProposalGenerator ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
-  -- IMPL-DIFF: this is RoundManager field/lens in Haskell; and it is implement completely different
+  -- IMPL-DIFF: this is RoundManager field/lens in Haskell; and it is implemented completely different
   rmObmAllAuthors : Lens RoundManager (List Author)
   rmObmAllAuthors = mkLens'
     (λ rm → List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)))
