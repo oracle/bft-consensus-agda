@@ -77,7 +77,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
       twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
   -- LBFT-ALGO v3:p6: "... votes in round k only if the QC inside the k proposal
   -- is at least" PreferredRound."
-  ifM oneChainRound <? preferredRound
+  if-RWST oneChainRound <? preferredRound
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← case (compare twoChainRound preferredRound) of λ where
@@ -101,7 +101,7 @@ verifyAuthorM author = do
       author
       (bail fakeErr) -- (ErrL (here' ["InvalidProposal", "No author found in the proposal"])))
       (\a ->
-        ifM validatorSigner ^∙ vsAuthor /= a
+        if-RWST validatorSigner ^∙ vsAuthor /= a
         then bail fakeErr -- (ErrL (here' ["InvalidProposal", "Proposal author is not validator signer"]))
         else ok unit)
  where
@@ -112,7 +112,7 @@ verifyAuthorM author = do
 
 verifyEpochM : Epoch → SafetyData → LBFT (Either ErrLog Unit)
 verifyEpochM epoch safetyData =
-  ifM epoch /= safetyData ^∙ sdEpoch
+  if-RWST epoch /= safetyData ^∙ sdEpoch
     then bail fakeErr -- incorrect epoch
     else ok unit
 
@@ -122,7 +122,7 @@ verifyEpochM epoch safetyData =
 verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (Either ErrLog SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
-  ifM round >? (safetyData ^∙ sdLastVotedRound)
+  if-RWST round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail fakeErr -- incorrect last vote round
 
@@ -160,7 +160,7 @@ module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorS
   step₁ safetyData0 = do
       caseMM (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
-          ifM vote ^∙ vVoteData ∙ vdProposed ∙ biRound == proposedBlock ^∙ bRound
+          if-RWST vote ^∙ vVoteData ∙ vdProposed ∙ biRound == proposedBlock ^∙ bRound
             then ok vote
             else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
         nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
@@ -230,7 +230,7 @@ signProposalM blockData = do
   safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
   verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ _ →
     verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ _ →
-      ifM blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
+      if-RWST blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
       then bail fakeErr
       -- {-     ErrL (here' [ "InvalidProposal"
       --                    , "Proposed round is not higher than last voted round "
@@ -245,3 +245,7 @@ signProposalM blockData = do
   here' : List String.String → List String.String
   here' t = "SafetyRules" ∷ "signProposalM" ∷ t
 
+------------------------------------------------------------------------------
+
+postulate
+  signTimeoutM : Timeout → LBFT (Either ErrLog Signature)
