@@ -219,7 +219,7 @@ sameERasLV⇒sameId{pid}{pk = pk} (step-s{pre = pre} preach step@(step-peer sp@(
 -- If this is the initialization of `pid`, then `pid` has `nothing` as its last vote
 ...| yes refl
   rewrite sym (StepPeer-post-lemma sp)
-  = case ≡pidLV of λ ()
+  = absurd (just v ≡ nothing) case ≡pidLV of λ ()
 ...| no  pid≢
 -- Otherwise, no messages are generated here and the state of `pid` remains the same
   rewrite sym $ pids≢StepDNMPeerStates{pre = pre} sps pid≢

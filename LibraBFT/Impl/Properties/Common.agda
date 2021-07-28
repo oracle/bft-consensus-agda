@@ -176,7 +176,7 @@ module ReachableSystemStateProps where
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
   mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
-    case uninitd ≡ initd ∋ trans (sym uni) ini of λ ()
+    absurd (uninitd ≡ initd) case (trans (sym uni) ini) of λ ()
     where
     ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
