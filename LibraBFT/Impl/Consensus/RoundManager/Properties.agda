@@ -135,7 +135,7 @@ module executeAndVoteMSpec (b : Block) where
 
               where
               vgc : Voting.VoteGeneratedCorrect pre st vote _
-              vgc = Voting.step-VoteNotGenerated-VoteGeneratedCorrect
+              vgc = Voting.glue-VoteNotGenerated-VoteGeneratedCorrect
                       (mkVoteNotGenerated refl refl) vc
 
               onSaveFailed : _
@@ -235,7 +235,7 @@ module processProposalMSpec (proposal : Block) where
                   (OutputProps.++-NoProposals outs _ (OutputProps.NoMsgs⇒NoProposals outs noMsgOuts) refl)
                   (inj₂ (Voting.mkVoteSentCorrect vm recipient
                           (OutputProps.++-NoVotes-OneVote outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl)
-                          (Voting.step-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}
+                          (Voting.glue-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}
                             vrc (mkVoteNotGenerated refl refl))))
                 where
                 vm = VoteMsg∙new vote si
@@ -366,7 +366,7 @@ module processProposalMsgMSpec
               mkContract
                 (transPreservesRoundManagerInv rmInv rmInv')
                 (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
-                (Voting.step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
+                (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
                   noVote noVoteOuts voteAttemptCorrect')
 
   contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
