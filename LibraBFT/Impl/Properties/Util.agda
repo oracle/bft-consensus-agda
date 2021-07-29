@@ -9,7 +9,9 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.KVMap as Map
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -17,11 +19,15 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+open import LibraBFT.Impl.Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open        ParamsWithInitAndHandlers InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
+                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 module LibraBFT.Impl.Properties.Util where
 
@@ -415,4 +421,22 @@ module QC where
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
     inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
     inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
+ -- NOTE: When `need/fetch` is implemented, we will need an additional
+ -- constructor for sent qcs taken from the blockstore.
 
+  data _NM∈Out_ : NetworkMsg → Output → Set where
+    inBP : ∀ {pm pids} → P pm NM∈Out BroadcastProposal pm pids
+    inSV : ∀ {vm pids} → V vm NM∈Out SendVote vm pids
+
+  OutputQcSi∈RoundManagerSi : List Output → RoundManager → Set
+  OutputQcSi∈RoundManagerSi outs rm =
+    All (λ out → ∀ qc nm → qc QC∈NM nm → nm NM∈Out out → qc ∈RoundManager rm) outs
+
+
+  SigForVote∈Qc∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
+  SigForVote∈Qc∈Rm-SentB4 v pk qc rm pool =
+    qc ∈RoundManager rm
+    → WithVerSig pk v →
+    ∀ {vs : Author × Signature} → let (pid , sig) = vs in
+      vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → MsgWithSig∈ pk sig pool

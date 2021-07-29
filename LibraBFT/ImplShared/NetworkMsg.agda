@@ -47,6 +47,7 @@ module LibraBFT.ImplShared.NetworkMsg where
      inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
      inPMSyncInfo     : qc QC∈SyncInfo (pm ^∙ pmSyncInfo)                 → qc QC∈ProposalMsg pm
 
+  -- TODO-1: Either we have `_QC∈VoteMsg_` or we remove the following
   data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
      withCommitMsg    : cm ^∙ cmCert ≡ qc                                 → qc QC∈CommitMsg cm
 

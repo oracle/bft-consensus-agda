@@ -52,6 +52,14 @@ newVote⇒lv≡
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
+newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , m'} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4
+  with qc∈m
+...| xxx = {!!}
+  -- ⊥-elim (¬msb4 (qcVotesSentB4 preach {!!} {!!} {!!} ¬gen))
+  where
+  postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
+    TODO : LastVoteIs s' v
+
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ...| handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) =
@@ -79,11 +87,6 @@ newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vot
 newVote⇒lv≡{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4 = TODO
   where
   postulate -- TODO-1: prove (note: no votes sent from processing a vote message) (waiting on: handle)
-    TODO : LastVoteIs s' v
-
-newVote⇒lv≡{s' = s'}{v = v} preach sps (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = TODO
-  where
-  postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
     TODO : LastVoteIs s' v
 
 oldVoteRound≤lvr

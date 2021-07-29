@@ -50,7 +50,7 @@ postulate -- TODO-2: prove (waiting on: `handle`, refinements to handler contrac
   -- Note that some implementations might not ensure this, but LibraBFT does
   -- because even the leader of the next round sends its own vote to itself,
   -- as opposed to using it to construct a QC using its own unsent vote.
-  qcVotesSentB4
+  qcVoteSigsSentB4
     : ∀ {pid qc vs pk}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ initd
