@@ -25,6 +25,13 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.Impl.Properties.Util where
 
+module Meta where
+  getLastVoteEpoch : RoundManager → Epoch
+  getLastVoteEpoch rm = maybe{B = const Epoch} (_^∙ vEpoch) (rm ^∙ pssSafetyData-rm ∙ sdEpoch) ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote) $ rm
+
+  getLastVoteRound : RoundManager → Round
+  getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote)
+
 module OutputProps where
   module _ (outs : List Output) where
     None : Set
@@ -88,10 +95,22 @@ module StateInvariants where
     EpochsMatch : Set
     EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
 
-    record BlockTreeInv : Set where
+    record BlockStoreInv : Set where
       constructor mkBlockTreeInv
       field
         allValidQCs : (rmC : RoundManager-correct rm) → AllValidQCs (α-EC-RM rm rmC) (rm ^∙ rmBlockStore ∙ bsInner)
+
+    -- SafetyRules invariants
+    record SafetyDataInv : Set where
+      constructor mkSafetyDataInv
+      field
+        lvEpoch≡ : Meta.getLastVoteEpoch rm ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
+        lvRound≤ : Meta.getLastVoteRound rm ≤ rm ^∙ pssSafetyData-rm ∙ sdLastVotedRound
+
+    record SafetyRulesInv : Set where
+      constructor mkSafetyRulesInv
+      field
+        sdInv : SafetyDataInv
 
     -- NOTE: This will be proved by induction on reachable states using the
     -- property that peer handlers preserve invariants. That is to say, many of
@@ -101,9 +120,10 @@ module StateInvariants where
     record RoundManagerInv : Set where
       constructor mkRoundManagerInv
       field
-        rmCorrect    : RoundManager-correct rm
-        blockTreeInv : BlockTreeInv
-        epochsMatch  : EpochsMatch
+        rmCorrect   : RoundManager-correct rm
+        epochsMatch : EpochsMatch
+        btInv       : BlockStoreInv
+        srInv       : SafetyRulesInv
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
@@ -118,14 +138,31 @@ module StateInvariants where
 
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  substSafetyDataInv
+    : ∀ {pre post} → pre ≡L post at pssSafetyData-rm → Preserves SafetyDataInv pre post
+  substSafetyDataInv{pre}{post} sd≡ (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
+    where
+    epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ pssSafetyData-rm ∙ sdEpoch
+    epoch≡' rewrite sym sd≡ = epoch≡
+
+    round≤' : Meta.getLastVoteRound post ≤ post ^∙ pssSafetyData-rm ∙ sdLastVotedRound
+    round≤' rewrite sym sd≡ = round≤
+
+  mkPreservesSafetyRulesInv
+    : ∀ {pre post}
+      → Preserves SafetyDataInv pre post
+      → Preserves SafetyRulesInv pre post
+  mkPreservesSafetyRulesInv lvP (mkSafetyRulesInv lv) = mkSafetyRulesInv (lvP lv)
+
   mkPreservesRoundManagerInv
     : ∀ {pre post}
       → Preserves RoundManager-correct pre post
-      → Preserves BlockTreeInv         pre post
       → Preserves EpochsMatch          pre post
+      → Preserves BlockStoreInv        pre post
+      → Preserves SafetyRulesInv       pre post
       → Preserves RoundManagerInv      pre post
-  mkPreservesRoundManagerInv prmC pbti pep (mkRoundManagerInv rmCorrect blockTreeInv epochsMatch) =
-    mkRoundManagerInv (prmC rmCorrect) (pbti blockTreeInv) (pep epochsMatch)
+  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
+    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
 
 module StateTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
@@ -150,6 +187,9 @@ module StateTransProps where
     record VoteOldGenerated : Set where
       constructor mkVoteOldGenerated
       field
+        -- NOTE: The implementation maintains an invariant that the round
+        -- associated with `sdLastVote` (if the vote exists) is less than or
+        -- equal to the field `sdLastVotedRound`.
         lvr≡ : pre ≡L post at pssSafetyData-rm ∙ sdLastVotedRound
         lv≡  : pre ≡L post at pssSafetyData-rm ∙ sdLastVote
 
@@ -213,27 +253,27 @@ module StateTransProps where
   transVoteNotGenerated {lvr≡?₁ = true} {true} (mkVoteNotGenerated lv≡ lvr≤) (mkVoteNotGenerated lv≡₁ lvr≤₁) =
     mkVoteNotGenerated (trans lv≡ lv≡₁) (trans lvr≤ lvr≤₁)
 
-  step-VoteGenerated-VoteNotGenerated
+  glue-VoteGenerated-VoteNotGenerated
     : ∀ {s₁ s₂ s₃ v} → VoteGenerated s₁ s₂ v → VoteNotGenerated s₂ s₃ true
       → VoteGenerated s₁ s₃ v
-  step-VoteGenerated-VoteNotGenerated (mkVoteGenerated lv≡v (inj₁ (mkVoteOldGenerated lvr≡₁ lv≡₁))) (mkVoteNotGenerated lv≡ lvr≤) =
+  glue-VoteGenerated-VoteNotGenerated (mkVoteGenerated lv≡v (inj₁ (mkVoteOldGenerated lvr≡₁ lv≡₁))) (mkVoteNotGenerated lv≡ lvr≤) =
     mkVoteGenerated (trans lv≡v lv≡) (inj₁ (mkVoteOldGenerated (trans lvr≡₁ lvr≤) (trans lv≡₁ lv≡)))
-  step-VoteGenerated-VoteNotGenerated (mkVoteGenerated lv≡v (inj₂ (mkVoteNewGenerated lvr< lvr≡))) (mkVoteNotGenerated lv≡ lvr≤) =
+  glue-VoteGenerated-VoteNotGenerated (mkVoteGenerated lv≡v (inj₂ (mkVoteNewGenerated lvr< lvr≡))) (mkVoteNotGenerated lv≡ lvr≤) =
     mkVoteGenerated ((trans lv≡v lv≡)) (inj₂ (mkVoteNewGenerated (≤-trans lvr< (≡⇒≤ lvr≤)) (trans lvr≡ lvr≤)))
 
-  step-VoteNotGenerated-VoteGenerated
+  glue-VoteNotGenerated-VoteGenerated
     : ∀ {s₁ s₂ s₃ v} → VoteNotGenerated s₁ s₂ true → VoteGenerated s₂ s₃ v
       → VoteGenerated s₁ s₃ v
-  step-VoteNotGenerated-VoteGenerated (mkVoteNotGenerated lv≡ lvr≤) (mkVoteGenerated lv≡v (inj₁ (mkVoteOldGenerated lvr≡₁ lv≡₁))) =
+  glue-VoteNotGenerated-VoteGenerated (mkVoteNotGenerated lv≡ lvr≤) (mkVoteGenerated lv≡v (inj₁ (mkVoteOldGenerated lvr≡₁ lv≡₁))) =
     mkVoteGenerated lv≡v (inj₁ (mkVoteOldGenerated (trans lvr≤ lvr≡₁) (trans lv≡ lv≡₁)))
-  step-VoteNotGenerated-VoteGenerated (mkVoteNotGenerated lv≡ lvr≤) (mkVoteGenerated lv≡v (inj₂ (mkVoteNewGenerated lvr<₁ lvr≡₁))) =
+  glue-VoteNotGenerated-VoteGenerated (mkVoteNotGenerated lv≡ lvr≤) (mkVoteGenerated lv≡v (inj₂ (mkVoteNewGenerated lvr<₁ lvr≡₁))) =
     mkVoteGenerated lv≡v (inj₂ (mkVoteNewGenerated (≤-trans (s≤s (≡⇒≤ lvr≤)) lvr<₁) lvr≡₁))
 
-  step-VoteNotGenerated-VoteGeneratedNotSaved
+  glue-VoteNotGenerated-VoteGeneratedNotSaved
     : ∀ {s₁ s₂ s₃} → VoteNotGenerated s₁ s₂ true → VoteGeneratedNotSaved s₂ s₃
       → VoteGeneratedNotSaved s₁ s₃
-  step-VoteNotGenerated-VoteGeneratedNotSaved vng (v , vg) =
-    v , step-VoteNotGenerated-VoteGenerated vng vg
+  glue-VoteNotGenerated-VoteGeneratedNotSaved vng (v , vg) =
+    v , glue-VoteNotGenerated-VoteGenerated vng vg
 
 -- Properties for voting
 module Voting where
@@ -272,34 +312,34 @@ module Voting where
       vote           : Vote
       voteGenCorrect : VoteGeneratedCorrect pre post vote block
 
-  step-VoteGeneratedCorrect-VoteNotGenerated
+  glue-VoteGeneratedCorrect-VoteNotGenerated
     : ∀ {s₁ s₂ s₃ vote block}
       → VoteGeneratedCorrect s₁ s₂ vote block
       → StateTransProps.VoteNotGenerated s₂ s₃ true
       → VoteGeneratedCorrect s₁ s₃ vote block
-  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
-  step-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.step-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
 
-  step-VoteNotGenerated-VoteGeneratedCorrect
+  glue-VoteNotGenerated-VoteGeneratedCorrect
     : ∀ {s₁ s₂ s₃ vote block}
       → StateTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedCorrect s₂ s₃ vote block
       → VoteGeneratedCorrect s₁ s₃ vote block
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.step-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
-  step-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.step-VoteNotGenerated-VoteGenerated vng vg)
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg)
       blockTriggered
 
-  step-VoteNotGenerated-VoteGeneratedUnsavedCorrect
+  glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect
     : ∀ {s₁ s₂ s₃ block}
       → StateTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedUnsavedCorrect s₂ s₃ block
       → VoteGeneratedUnsavedCorrect s₁ s₃ block
-  step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng (mkVoteGeneratedUnsavedCorrect vote voteGenCorrect) =
-    mkVoteGeneratedUnsavedCorrect vote (step-VoteNotGenerated-VoteGeneratedCorrect vng voteGenCorrect)
+  glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng (mkVoteGeneratedUnsavedCorrect vote voteGenCorrect) =
+    mkVoteGeneratedUnsavedCorrect vote (glue-VoteNotGenerated-VoteGeneratedCorrect vng voteGenCorrect)
 
   -- The handler correctly voted (including state updates) on `block`, assuming
   -- the safety data epoch matches the block epoch.
@@ -319,15 +359,15 @@ module Voting where
       noVoteMsgOuts : OutputProps.NoVotes outs
       nvg⊎vgusc    : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
 
-  step-VoteNotGenerated-VoteUnsentCorrect
+  glue-VoteNotGenerated-VoteUnsentCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block lvr≡?}
       → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
-  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
+  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
     mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
-  step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
-    mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (step-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
+  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
+    mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
   -- The handler correctly attempted to vote on `block`, assuming the safety
   -- data epoch matches the block epoch.
@@ -339,15 +379,15 @@ module Voting where
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
   voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
 
-  step-VoteNotGenerated-VoteAttemptCorrect
+  glue-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
       → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
-  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
-    inj₁ (lvr≡? , step-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nvo vusCorrect)
-  step-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
-    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoVotes-OneVote outs₁ _ nvo voteMsgOuts) (step-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
+  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
+    inj₁ (lvr≡? , glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nvo vusCorrect)
+  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
+    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoVotes-OneVote outs₁ _ nvo voteMsgOuts) (glue-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
 
   VoteAttemptEpochReq : ∀ {pre post outs block} → VoteAttemptCorrect pre post outs block → Set
   VoteAttemptEpochReq (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) =
@@ -369,3 +409,10 @@ module Voting where
     field
       voteAttempt : VoteAttemptCorrect pre post outs block
       sdEpoch≡?   : VoteAttemptEpochReq voteAttempt
+
+module QC where
+
+  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
+    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
+    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
+
