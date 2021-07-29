@@ -86,39 +86,8 @@ module LibraBFT.ImplShared.Consensus.Types where
     (λ rm → List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)))
     (λ rm _ → rm) -- TODO-1 cannot be written
 
-  -- getter only in Haskell
-  rmEpoch : Lens RoundManager Epoch
-  rmEpoch = rmEpochState ∙ esEpoch
-
-  -- not defined in Haskell
-  rmLastVotedRound : Lens RoundManager Round
-  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
-
-  lProposalGenerator : Lens RoundManager ProposalGenerator
-  lProposalGenerator = rmProposalGenerator
-
-  lProposerElection : Lens RoundManager ProposerElection
-  lProposerElection = rmProposerElection
-
-  lRoundState : Lens RoundManager RoundState
-  lRoundState = rmRoundState
-
-  -- not defined in Haskell
-  rsVoteSent-rm : Lens RoundManager (Maybe Vote)
-  rsVoteSent-rm = lRoundState ∙ rsVoteSent
-
-  lPendingVotes : Lens RoundManager PendingVotes
-  lPendingVotes = rmRoundState ∙ rsPendingVotes
-
-  lSafetyRules : Lens RoundManager SafetyRules
-  lSafetyRules = rmSafetyRules
-
-  lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
-  lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
-
-  -- TODO-1 : this is named/used pssSafetyData in Haskell in SET situations
-  lSafetyData : Lens RoundManager SafetyData
-  lSafetyData = lPersistentSafetyStorage ∙ pssSafetyData
+  lRoundManager : Lens RoundManager RoundManager
+  lRoundManager = lens (λ _ _ f rm → f rm)
 
   lBlockStore : Lens RoundManager BlockStore
   lBlockStore = rmBlockStore
@@ -126,12 +95,23 @@ module LibraBFT.ImplShared.Consensus.Types where
   lBlockTree : Lens RoundManager BlockTree
   lBlockTree = lBlockStore ∙ bsInner
 
-  lRoundManager : Lens RoundManager RoundManager
-  lRoundManager = lens (λ _ _ f rm → f rm)
+  lPendingVotes : Lens RoundManager PendingVotes
+  lPendingVotes = rmRoundState ∙ rsPendingVotes
 
-  -- getter only in Haskell
-  srValidatorVerifier : Lens RoundManager ValidatorVerifier
-  srValidatorVerifier = rmEpochState ∙ esVerifier
+  lRoundState : Lens RoundManager RoundState
+  lRoundState = rmRoundState
+
+  lProposerElection : Lens RoundManager ProposerElection
+  lProposerElection = rmProposerElection
+
+  lProposalGenerator : Lens RoundManager ProposalGenerator
+  lProposalGenerator = rmProposalGenerator
+
+  lSafetyRules : Lens RoundManager SafetyRules
+  lSafetyRules = rmSafetyRules
+
+  lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
+  lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
 
   -- getter only in Haskell
   pgAuthor : Lens RoundManager (Maybe Author)
@@ -141,6 +121,28 @@ module LibraBFT.ImplShared.Consensus.Types where
     g rm = maybeS (rm ^∙ rmSafetyRules ∙ srValidatorSigner) nothing (just ∘ (_^∙ vsAuthor))
     s : RoundManager → Maybe Author → RoundManager
     s rm _ma = rm -- TODO-1 cannot be written
+
+  -- getter only in Haskell
+  srValidatorVerifier : Lens RoundManager ValidatorVerifier
+  srValidatorVerifier = rmEpochState ∙ esVerifier
+
+  -- getter only in Haskell
+  rmEpoch : Lens RoundManager Epoch
+  rmEpoch = rmEpochState ∙ esEpoch
+
+  -- not defined in Haskell
+  rmLastVotedRound : Lens RoundManager Round
+  rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
+
+  -- BEGIN : lens mimicking Haskell/LBFT RW* setters.
+  -- IN THE MODEL OF THE HASKELL CODE, THESE SHOULD ONLY BE USED FOR SETTING.
+  -- THEY CAN BE USED AS GETTERS IN PROPERTIES/PROOFS.
+  rsVoteSent-rm : Lens RoundManager (Maybe Vote)
+  rsVoteSent-rm = lRoundState ∙ rsVoteSent
+
+  pssSafetyData-rm : Lens RoundManager SafetyData
+  pssSafetyData-rm = lPersistentSafetyStorage ∙ pssSafetyData
+  -- END : lens mimicking Haskell/LBFT RW* setters.
 
   record GenesisInfo : Set where
     constructor mkGenInfo

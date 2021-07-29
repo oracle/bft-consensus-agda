@@ -86,7 +86,7 @@ module StateInvariants where
 
   module _ (rm : RoundManager) where
     EpochsMatch : Set
-    EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ lSafetyData ∙ sdEpoch
+    EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
 
     record BlockTreeInv : Set where
       constructor mkBlockTreeInv
@@ -143,21 +143,21 @@ module StateTransProps where
 
   -- - state changes from generating or not generating a vote
   LastVoteIs : RoundManager → Vote → Set
-  LastVoteIs rm v = just v ≡ rm ^∙ lSafetyData ∙ sdLastVote
+  LastVoteIs rm v = just v ≡ rm ^∙ pssSafetyData-rm ∙ sdLastVote
 
   module _ (pre post : RoundManager) (vote : Vote) where
 
     record VoteOldGenerated : Set where
       constructor mkVoteOldGenerated
       field
-        lvr≡ : pre ≡L post at lSafetyData ∙ sdLastVotedRound
-        lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
+        lvr≡ : pre ≡L post at pssSafetyData-rm ∙ sdLastVotedRound
+        lv≡  : pre ≡L post at pssSafetyData-rm ∙ sdLastVote
 
     record VoteNewGenerated : Set where
       constructor mkVoteNewGenerated
       field
-        lvr< : pre [ _<_ ]L post at lSafetyData ∙ sdLastVotedRound
-        lvr≡ : vote ^∙ vRound ≡ post ^∙ lSafetyData ∙ sdLastVotedRound
+        lvr< : pre [ _<_ ]L post at pssSafetyData-rm ∙ sdLastVotedRound
+        lvr≡ : vote ^∙ vRound ≡ post ^∙ pssSafetyData-rm ∙ sdLastVotedRound
 
     -- NOTE: This is saying that /state changes/ associated to generating a vote
     -- have occurred, not that the generated vote has been sent.
@@ -179,7 +179,7 @@ module StateTransProps where
   module _ (pre post : RoundManager) where
     -- In
     -- `LibraBFT.Impl.Consensus.SafetyRules.SafetyRules.agda::contructAndSignVoteM`,
-    -- it is possible for us to update the field `lSafetyData ∙ sdLastVotedRound`
+    -- it is possible for us to update the field `pssSafetyData-rm ∙ sdLastVotedRound`
     -- without actually returning a vote. Therefore, the most we can say after
     -- returing from this function is that this field in the poststate is greater
     -- than or equal to the value it started at in the prestate.
@@ -194,8 +194,8 @@ module StateTransProps where
     record VoteNotGenerated  (lvr≡? : Bool) : Set where
       constructor mkVoteNotGenerated
       field
-        lv≡  : pre ≡L post at lSafetyData ∙ sdLastVote
-        lvr≤ : pre [ if lvr≡? then _≡_ else _<_ ]L post at lSafetyData ∙ sdLastVotedRound
+        lv≡  : pre ≡L post at pssSafetyData-rm ∙ sdLastVote
+        lvr≤ : pre [ if lvr≡? then _≡_ else _<_ ]L post at pssSafetyData-rm ∙ sdLastVotedRound
 
   reflVoteNotGenerated : Reflexive (λ pre post → VoteNotGenerated pre post true)
   reflVoteNotGenerated = mkVoteNotGenerated refl refl
@@ -335,7 +335,7 @@ module Voting where
   VoteAttemptCorrect pre post outs block =
     (∃[ lvr≡? ] VoteUnsentCorrect pre post outs block lvr≡?) ⊎ VoteSentCorrect pre post outs block
 
-  -- The voting process ended before `lSafetyData` could be updated
+  -- The voting process ended before `pssSafetyData-rm` could be updated
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
   voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
 
@@ -353,13 +353,13 @@ module Voting where
   VoteAttemptEpochReq (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) =
     ⊤
   VoteAttemptEpochReq{pre}{block = block} (inj₁ (_ , mkVoteUnsentCorrect _ (inj₂ _))) =
-    pre ^∙ lSafetyData ∙ sdEpoch ≡ (block ^∙ bEpoch)
+    pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ (block ^∙ bEpoch)
   VoteAttemptEpochReq{pre}{block = block} (inj₂ _) =
-    pre ^∙ lSafetyData ∙ sdEpoch ≡ (block ^∙ bEpoch)
+    pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ (block ^∙ bEpoch)
 
   voteAttemptEpochReq!
     : ∀ {pre post outs block} → (vac : VoteAttemptCorrect pre post outs block)
-      → pre ^∙ lSafetyData ∙ sdEpoch ≡ block ^∙ bEpoch → VoteAttemptEpochReq vac
+      → pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ block ^∙ bEpoch → VoteAttemptEpochReq vac
   voteAttemptEpochReq! (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) eq = tt
   voteAttemptEpochReq! (inj₁ (_ , mkVoteUnsentCorrect _ (inj₂ _))) eq = eq
   voteAttemptEpochReq! (inj₂ _) eq = eq

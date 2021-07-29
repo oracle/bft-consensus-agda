@@ -203,8 +203,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
     verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ step₁
 
   step₁ safetyData1 = do
-    lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
-    -- @CWJENKINS: replace with `extensionCheckM` (probably needs "fancier" eitherS function)
+    pssSafetyData-rm ∙= safetyData1
     pure (extensionCheck voteProposal) ∙?∙ (step₂ safetyData1)
 
   step₂ safetyData1 voteData = do
@@ -215,7 +214,7 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
   step₃ safetyData1 voteData author ledgerInfo = do
         let signature = ValidatorSigner.sign validatorSigner ledgerInfo
             vote      = Vote.newWithSignature voteData author ledgerInfo signature
-        lSafetyData ∙= (safetyData1 & sdLastVote ?~ vote)
+        pssSafetyData-rm ∙= (safetyData1 & sdLastVote ?~ vote)
         logInfo fakeInfo -- InfoUpdateLastVotedRound
         ok vote
 
@@ -238,7 +237,7 @@ signProposalM blockData = do
       else do
         verifyQcM (blockData ^∙ bdQuorumCert) ∙?∙ λ _ →
           verifyAndUpdatePreferredRoundM (blockData ^∙ bdQuorumCert) safetyData ∙?∙ λ safetyData1 -> do
-            lSafetyData   ∙= safetyData1
+            pssSafetyData-rm ∙= safetyData1
             let signature  = ValidatorSigner.sign validatorSigner blockData
             ok (Block.newProposalFromBlockDataAndSignature blockData signature)
  where
@@ -263,7 +262,7 @@ signTimeoutM timeout = do
           verifyAndUpdateLastVoteRoundM (timeout ^∙ toRound) safetyData
             ∙^∙ withErrCtx (here' [])
             ∙?∙ (λ safetyData1 → do
-            lSafetyData ∙= safetyData1
+            pssSafetyData-rm ∙= safetyData1
             logInfo fakeInfo -- (InfoUpdateLastVotedRound (timeout^.toRound))
             continue validatorSigner)
 

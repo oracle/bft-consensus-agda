@@ -26,7 +26,7 @@ module epvvSpec where
 
   contract
     : ∀ pre Post
-      → let ep = pre ^∙ lSafetyData ∙ sdEpoch
+      → let ep = pre ^∙ pssSafetyData-rm ∙ sdEpoch
             vv = pre ^∙ rmEpochState ∙ esVerifier in
         (Post (ep , vv) pre [])
       → LBFT-weakestPre epvv Post pre
@@ -66,7 +66,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       where
       module PPM = processProposalMsgMSpec now pm
 
-      sdEpoch≡ : pre ^∙ lSafetyData ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch
+      sdEpoch≡ : pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch
       sdEpoch≡
         with processProposalSpec.contract pm myEpoch vv
       ...| con rewrite pp≡Right = sym con
