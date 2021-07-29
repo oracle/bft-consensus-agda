@@ -164,8 +164,11 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
       rewrite sym (StepPeer-post-lemma sp)
       -- TODO-2: Once `newVote⇒lv≡` is strengthened, do we have enough
       -- information to prove `VoteForRound∈`?
-      = cong (maybe {B = const ℕ} (_^∙ vRound) 0) $
-          newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
+      with newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
+    ...| lastVoteIsJust
+       with ppost ^∙ lSafetyData ∙ sdLastVote
+    ...| nothing = case lastVoteIsJust of λ ()
+    ...| just _ rewrite just-injective (sym lastVoteIsJust) = refl
 
 sameERasLV⇒sameId
   : ∀ {pid pid' pk}{pre : SystemState}
