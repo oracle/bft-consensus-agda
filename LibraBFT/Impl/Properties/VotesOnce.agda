@@ -201,7 +201,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   ¬gen' rewrite msgSameSig mws'∈pool = ¬gen
 
   -- The peer can sign for `v` now, so it can sign for `v` in the preceeding
-  -- step, because there is an honestly signed for with the peer's pubkey in the
+  -- step, because there is an honestly signed message part for the peer's pubkey in the
   -- current epoch already in the pool.
   pcsfpkPre : PeerCanSignForPK pre v pid pk
   pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ preach step hpk pcsfpk ≡epoch sig' mws'∈pool
