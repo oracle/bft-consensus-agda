@@ -204,7 +204,6 @@ module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorS
 
   step₁ safetyData1 = do
     lSafetyData ∙= safetyData1  -- TODO-1: resolve discussion about pssSafetyData vs lSafetyData
-    -- @CWJENKINS: replace with `extensionCheckM` (probably needs "fancier" eitherS function)
     pure (extensionCheck voteProposal) ∙?∙ (step₂ safetyData1)
 
   step₂ safetyData1 voteData = do
