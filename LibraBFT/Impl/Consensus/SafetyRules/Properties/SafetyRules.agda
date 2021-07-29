@@ -335,8 +335,8 @@ module constructAndSignVoteMSpec where
             round≤P round≤
                with pre ^∙ lSafetyData ∙ sdLastVote
                |    inspect (_^∙ lSafetyData ∙ sdLastVote) pre
-            ... | nothing | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) = z≤n
-            ... | just x  | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
+            ...| nothing | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) = z≤n
+            ...| just x  | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
               ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
           invP₁ : Preserves RoundManagerInv pre preUpdatedSD
