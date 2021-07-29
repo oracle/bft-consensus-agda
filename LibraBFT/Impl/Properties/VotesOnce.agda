@@ -167,7 +167,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
       with newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
     ...| lastVoteIsJust
        with ppost ^∙ pssSafetyData-rm ∙ sdLastVote
-    ...| nothing = case lastVoteIsJust of λ ()
+    ...| nothing = absurd (just _ ≡ nothing) case lastVoteIsJust of λ ()
     ...| just _ rewrite just-injective (sym lastVoteIsJust) = refl
 
 sameERasLV⇒sameId
