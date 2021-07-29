@@ -127,6 +127,18 @@ module LibraBFT.ImplShared.Consensus.Types where
   srValidatorVerifier = rmEpochState ∙ esVerifier
 
   -- getter only in Haskell
+  -- IMPL-DIFF : this returns Author OR does an errorExit
+  rmObmMe : Lens RoundManager (Maybe Author)
+  rmObmMe = mkLens' g s
+    where
+    g : RoundManager → Maybe Author
+    g rm = case rm ^∙ rmSafetyRules ∙ srValidatorSigner of λ where
+             (just vs) → just (vs ^∙ vsAuthor)
+             nothing   → nothing
+    s : RoundManager → Maybe Author → RoundManager
+    s s _ = s
+
+  -- getter only in Haskell
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
