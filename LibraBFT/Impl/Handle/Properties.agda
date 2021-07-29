@@ -114,13 +114,13 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
   open StateInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
 
-  module VoteOld (lv≡ : hpPre ≡L hpPst at lSafetyData ∙ sdLastVote) where
+  module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
     help = ≡⇒≤ (cong (maybe{B = const ℕ} (_^∙ vRound) 0) lv≡)
 
   module VoteNew
-    {vote : Vote} (lv≡v : just vote ≡ hpPst ^∙ lSafetyData ∙ sdLastVote) (lvr< : hpPre [ _<_ ]L hpPst at lSafetyData ∙ sdLastVotedRound)
-    (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ lSafetyData ∙ sdLastVotedRound )
+    {vote : Vote} (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote) (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
+    (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
     where
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
     help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))

@@ -166,7 +166,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
       -- information to prove `VoteForRound∈`?
       with newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
     ...| lastVoteIsJust
-       with ppost ^∙ lSafetyData ∙ sdLastVote
+       with ppost ^∙ pssSafetyData-rm ∙ sdLastVote
     ...| nothing = case lastVoteIsJust of λ ()
     ...| just _ rewrite just-injective (sym lastVoteIsJust) = refl
 
@@ -174,7 +174,7 @@ sameERasLV⇒sameId
   : ∀ {pid pid' pk}{pre : SystemState}
     → ReachableSystemState pre
     → ∀{v v' m'} → Meta-Honest-PK pk
-    → just v ≡ peerStates pre pid ^∙ lSafetyData ∙ sdLastVote
+    → just v ≡ peerStates pre pid ^∙ pssSafetyData-rm ∙ sdLastVote
     → PeerCanSignForPK pre v pid pk
     → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
     → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig'))
@@ -185,8 +185,8 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   trans hyp (cong (_^∙ (vdProposed ∙ biId)) ≡voteData)
   where
   -- The state of `pid` is unchanged
-  ≡pidLVPre : just v ≡ peerStates pre pid ^∙ lSafetyData ∙ sdLastVote
-  ≡pidLVPre = trans ≡pidLV (cong (_^∙ lSafetyData ∙ sdLastVote) (cheatStepDNMPeerStates₁ sp unit))
+  ≡pidLVPre : just v ≡ peerStates pre pid ^∙ pssSafetyData-rm ∙ sdLastVote
+  ≡pidLVPre = trans ≡pidLV (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (cheatStepDNMPeerStates₁ sp unit))
 
   -- Track down the honestly signed message which existed before.
   mws'∈pool : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
@@ -264,10 +264,14 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
 
     v≡v' : v ≡ v'
     v≡v' = just-injective $ begin
-      just v                                                                      ≡⟨ ≡pidLV ⟩
-      (peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ lSafetyData ∙ sdLastVote) ≡⟨ cong (_^∙ lSafetyData ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
-      (hpPos ^∙ lSafetyData ∙ sdLastVote)                                         ≡⟨ sym lv≡v ⟩
-      just (vm ^∙ vmVote)                                                         ≡⟨ cong (just ∘ _^∙ vmVote) (sym $ sendVote∈actions{outs = hpOuts}{st = hpPre} (sym voteMsgOuts) m∈outs) ⟩
+      just v
+        ≡⟨ ≡pidLV ⟩
+      (peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ pssSafetyData-rm ∙ sdLastVote)
+        ≡⟨ cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
+      (hpPos                                         ^∙ pssSafetyData-rm ∙ sdLastVote)
+        ≡⟨ sym lv≡v ⟩
+      just (vm ^∙ vmVote)
+        ≡⟨ cong (just ∘ _^∙ vmVote) (sym $ sendVote∈actions{outs = hpOuts}{st = hpPre} (sym voteMsgOuts) m∈outs) ⟩
       just v' ∎
 
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest sps@(step-msg{_ , V vm} m∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk ._ m'∈pool sig' ¬gen ≡epoch ≡round
@@ -328,14 +332,18 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
   ¬gen' rewrite msgSameSig mws∈pool = ¬gen
 
   -- when the last vote is the same in pre and post states
-  module OldVote (lv≡ : hpPre ≡L hpPos at lSafetyData ∙ sdLastVote) where
+  module OldVote (lv≡ : hpPre ≡L hpPos at pssSafetyData-rm ∙ sdLastVote) where
     open ≡-Reasoning
-    ≡pidLVPre : just v ≡ hpPre ^∙ lSafetyData ∙ sdLastVote
+    ≡pidLVPre : just v ≡ hpPre ^∙ pssSafetyData-rm ∙ sdLastVote
     ≡pidLVPre = begin
-      just v                                                                      ≡⟨ ≡pidLV ⟩
-      (peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ lSafetyData ∙ sdLastVote) ≡⟨ cong (_^∙ lSafetyData ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
-      (hpPos                                         ^∙ lSafetyData ∙ sdLastVote) ≡⟨ sym lv≡ ⟩
-      (hpPre                                         ^∙ lSafetyData ∙ sdLastVote) ∎
+      just v
+        ≡⟨ ≡pidLV ⟩
+      peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ pssSafetyData-rm ∙ sdLastVote
+        ≡⟨ cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
+      hpPos                                         ^∙ pssSafetyData-rm ∙ sdLastVote
+        ≡⟨ sym lv≡ ⟩
+      hpPre                                         ^∙ pssSafetyData-rm ∙ sdLastVote
+        ∎
 
     hyp : v ≡L msgPart mws∈pool at vProposedId
     hyp = sameERasLV⇒sameId preach hpk ≡pidLVPre pcsfpkPre (msg⊆ mws∈pool) (msg∈pool mws∈pool) (msgSigned mws∈pool) ¬gen'
@@ -344,18 +352,22 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
 
   -- When a new vote is generated, its round is strictly greater than that of the previous vote we attempted to send.
   module NewVote
-    (vote : Vote) (lv≡v : just vote ≡ hpPos ^∙ lSafetyData ∙ sdLastVote)
-    (lvr< : hpPre [ _<_ ]L hpPos at lSafetyData ∙ sdLastVotedRound) (lvr≡ : vote ^∙ vRound ≡ hpPos ^∙ lSafetyData ∙ sdLastVotedRound)
-    (sdEpoch≡ : hpPre ^∙ lSafetyData ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch)
+    (vote : Vote) (lv≡v : just vote ≡ hpPos ^∙ pssSafetyData-rm ∙ sdLastVote)
+    (lvr< : hpPre [ _<_ ]L hpPos at pssSafetyData-rm ∙ sdLastVotedRound) (lvr≡ : vote ^∙ vRound ≡ hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound)
+    (sdEpoch≡ : hpPre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch)
     (blockTriggered : Voting.VoteMadeFromBlock vote (pm ^∙ pmProposal))
     where
 
     v≡vote : v ≡ vote
     v≡vote = just-injective $ begin
-      just v                                                                      ≡⟨ ≡pidLV ⟩
-      (peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ lSafetyData ∙ sdLastVote) ≡⟨ cong (_^∙ lSafetyData ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
-      (hpPos                                         ^∙ lSafetyData ∙ sdLastVote) ≡⟨ sym lv≡v ⟩
-      just vote                                                                   ∎
+      just v
+        ≡⟨ ≡pidLV ⟩
+      peerStates (StepPeer-post{pre = pre} sp) pid“ ^∙ pssSafetyData-rm ∙ sdLastVote
+        ≡⟨ cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (sym $ StepPeer-post-lemma{pre = pre} sp) ⟩
+      hpPos                                         ^∙ pssSafetyData-rm ∙ sdLastVote
+        ≡⟨ sym lv≡v ⟩
+      just vote
+        ∎
       where open ≡-Reasoning
 
     rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
@@ -370,7 +382,7 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
       ≡epoch' = begin
         hpPos ^∙ rmEpoch               ≡⟨ sym noEpochChange ⟩
         hpPre ^∙ rmEpoch               ≡⟨ epochsMatch ⟩
-        hpPre ^∙ lSafetyData ∙ sdEpoch ≡⟨ sdEpoch≡ ⟩
+        hpPre ^∙ pssSafetyData-rm ∙ sdEpoch ≡⟨ sdEpoch≡ ⟩
         pm    ^∙ pmProposal ∙ bEpoch   ≡⟨ sym $ Voting.VoteMadeFromBlock.epoch≡ blockTriggered ⟩
         vote  ^∙ vEpoch                ≡⟨ cong (_^∙ vEpoch) (sym v≡vote) ⟩
         v     ^∙ vEpoch                ≡⟨ ≡epoch ⟩
@@ -378,12 +390,12 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
 
     rv'<rv : v' [ _<_ ]L v at vRound
     rv'<rv = begin
-      (suc $ v' ^∙ vRound)                            ≤⟨ s≤s rv'≤lvrPre ⟩
-      (suc $ Meta.getLastVoteRound hpPre)             ≤⟨ s≤s lvRound≤ ⟩
-      (suc $ hpPre ^∙ lSafetyData ∙ sdLastVotedRound) ≤⟨ lvr< ⟩
-      hpPos ^∙ lSafetyData ∙ sdLastVotedRound         ≡⟨ sym lvr≡ ⟩
-      vote  ^∙ vRound                                 ≡⟨ sym (cong (_^∙ vRound) v≡vote) ⟩
-      v     ^∙ vRound                                 ∎
+      (suc $ v' ^∙ vRound)                                 ≤⟨ s≤s rv'≤lvrPre ⟩
+      (suc $ Meta.getLastVoteRound hpPre)                  ≤⟨ s≤s lvRound≤ ⟩
+      (suc $ hpPre ^∙ pssSafetyData-rm ∙ sdLastVotedRound) ≤⟨ lvr< ⟩
+      hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound         ≡⟨ sym lvr≡ ⟩
+      vote  ^∙ vRound                                      ≡⟨ sym (cong (_^∙ vRound) v≡vote) ⟩
+      v     ^∙ vRound                                      ∎
       where
       open ≤-Reasoning
       open SafetyDataInv (SafetyRulesInv.sdInv srInv)
@@ -438,10 +450,10 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   open RoundManagerInv rmInvs
 
   -- Properties of `handleProposal`
-  postLVR≡ : just v ≡ (rmPost ^∙ lSafetyData ∙ sdLastVote)
+  postLVR≡ : just v ≡ (rmPost ^∙ pssSafetyData-rm ∙ sdLastVote)
   postLVR≡ =
     trans (StateTransProps.VoteGenerated.lv≡v ∘ Voting.VoteGeneratedCorrect.state $ vgCorrect)
-      (cong (_^∙ lSafetyData ∙ sdLastVote) (StepPeer-post-lemma (step-honest sps)))
+      (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (StepPeer-post-lemma (step-honest sps)))
 
   -- The proof
   m'mwsb : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
@@ -460,7 +472,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     -- TODO-1 : `rmPreSdEpoch≡` can be factored out into a lemma.
     -- Something like: for any reachable state where a peer sends a vote, the
     -- epoch for that vote is the peer's sdEpoch / esEpoch.
-    rmPreSdEpoch≡ : rmPre ^∙ lSafetyData ∙ sdEpoch ≡ v ^∙ vEpoch
+    rmPreSdEpoch≡ : rmPre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ v ^∙ vEpoch
     rmPreSdEpoch≡
        with Voting.VoteGeneratedCorrect.state vgCorrect
        |    Voting.VoteGeneratedCorrect.blockTriggered vgCorrect
@@ -474,7 +486,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     rmPreEsEpoch≡ : rmPre ^∙ rmEpochState ∙ esEpoch ≡ v ^∙ vEpoch
     rmPreEsEpoch≡ =
       begin rmPre ^∙ rmEpochState ∙ esEpoch ≡⟨ epochsMatch   ⟩
-            rmPre ^∙ lSafetyData  ∙ sdEpoch ≡⟨ rmPreSdEpoch≡ ⟩
+            rmPre ^∙ pssSafetyData-rm  ∙ sdEpoch ≡⟨ rmPreSdEpoch≡ ⟩
             v     ^∙ vEpoch                 ∎
 
     realLVR≤rv : Meta.getLastVoteRound rmPre ≤ v ^∙ vRound
@@ -484,7 +496,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
       rewrite trans lv≡ (sym lv≡v)
         = ≤-refl
     ...| StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡))
-       with rmPre ^∙ lSafetyData ∙ sdLastVote
+       with rmPre ^∙ pssSafetyData-rm ∙ sdLastVote
        |    SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
