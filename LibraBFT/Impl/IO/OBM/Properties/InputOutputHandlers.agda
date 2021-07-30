@@ -47,6 +47,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       noEpochChange      : NoEpochChange pre post
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
+      -- Signatures sent
+      outQcs∈RM          : QC.OutputQc∈RoundManager outs pre -- could also be post, see which is more convenient
 
   contract : ∀ pre → LBFT-weakestPre (handleProposal now pm) (Contract pre) pre
   contract pre =
@@ -58,6 +60,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     contractBail outs noVotes =
       mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
         (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
+        obm-dangerous-magic! -- TODO-2: prove it, ...
 
     contract-step₁ : _
     proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e)  pp≡Left =
@@ -79,6 +82,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         mkContract rmInv noEpochChange
           (Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
             (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡))
+          obm-dangerous-magic! -- TODO-2: prove it, ...
 
   contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleProposal now pm) pre
   contract! pre = LBFT-contract (handleProposal now pm) (Contract pre) pre (contract pre)
