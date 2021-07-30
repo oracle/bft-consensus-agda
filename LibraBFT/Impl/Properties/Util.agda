@@ -425,17 +425,16 @@ module QC where
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
     inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
     inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
- -- NOTE: When `need/fetch` is implemented, we will need an additional
- -- constructor for sent qcs taken from the blockstore.
+    -- NOTE: When `need/fetch` is implemented, we will need an additional
+    -- constructor for sent qcs taken from the blockstore.
 
   data _NM∈Out_ : NetworkMsg → Output → Set where
     inBP : ∀ {pm pids} → P pm NM∈Out BroadcastProposal pm pids
     inSV : ∀ {vm pids} → V vm NM∈Out SendVote vm pids
 
-  OutputQcSi∈RoundManagerSi : List Output → RoundManager → Set
-  OutputQcSi∈RoundManagerSi outs rm =
+  OutputQc∈RoundManager : List Output → RoundManager → Set
+  OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm NM∈Out out → qc ∈RoundManager rm) outs
-
 
   SigForVote∈Qc∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Qc∈Rm-SentB4 v pk qc rm pool =
