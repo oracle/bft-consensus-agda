@@ -43,14 +43,11 @@ module OutputProps where
     None : Set
     None = outs ≡ []
 
-    NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} (p : (out : Output) → Dec (P out)) → Set
-    NoneOfKind p = List-filter p outs ≡ []
-
-    NoVotes     = NoneOfKind isSendVote?
-    NoProposals = NoneOfKind isBroadcastProposal?
-    NoSyncInfos = NoneOfKind isBroadcastSyncInfo?
-    NoMsgs      = NoneOfKind isOutputMsg?
-    NoErrors    = NoneOfKind isLogErr?
+    NoVotes     = NoneOfKind outs isSendVote?
+    NoProposals = NoneOfKind outs isBroadcastProposal?
+    NoSyncInfos = NoneOfKind outs isBroadcastSyncInfo?
+    NoMsgs      = NoneOfKind outs isOutputMsg?
+    NoErrors    = NoneOfKind outs isLogErr?
 
     NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
     proj₁ (NoMsgs⇒× noMsgs) =
@@ -69,7 +66,7 @@ module OutputProps where
     NoMsgs⇒NoVotes = proj₁ ∘ proj₂ ∘ NoMsgs⇒×
 
     OneVote : VoteMsg → List Author → Set
-    OneVote vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])
+    OneVote vm pids = List-filter isOutputMsg? outs ≡ (SendVote vm pids ∷ [])
 
   ++-NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} xs ys (p : (out : Output) → Dec (P out))
                   → NoneOfKind xs p → NoneOfKind ys p → NoneOfKind (xs ++ ys) p
@@ -79,18 +76,25 @@ module OutputProps where
   ++-NoVotes     = λ xs ys → ++-NoneOfKind xs ys isSendVote?
   ++-NoProposals = λ xs ys → ++-NoneOfKind xs ys isBroadcastProposal?
 
-  ++-NoVotes-OneVote : ∀ xs ys {vm} {pids} → NoVotes xs → OneVote ys vm pids
+  ++-NoMsgs-OneVote : ∀ xs ys {vm} {pids} → NoMsgs xs → OneVote ys vm pids
                        → OneVote (xs ++ ys) vm pids
-  ++-NoVotes-OneVote xs ys nv ov
-    rewrite List-filter-++ isSendVote? xs ys
+  ++-NoMsgs-OneVote xs ys nv ov
+    rewrite List-filter-++ isOutputMsg? xs ys
     |       nv = ov
 
-  ++-OneVote-NoVotes : ∀ xs {vm pids} ys → OneVote xs vm pids → NoVotes ys
+  postulate -- TODO: prove using ++NoMsgs-OneVote + std lib
+    ++-NoVotes-OneVote : ∀ xs ys {vm} {pids} → NoVotes xs → OneVote ys vm pids
+
+  ++-OneVote-NoMsgs : ∀ xs {vm pids} ys → OneVote xs vm pids → NoMsgs ys
                        → OneVote (xs ++ ys) vm pids
-  ++-OneVote-NoVotes xs ys ov nv
-    rewrite List-filter-++ isSendVote? xs ys
+  ++-OneVote-NoMsgs xs ys ov nv
+    rewrite List-filter-++ isOutputMsg? xs ys
     |       nv
     |       ov = refl
+
+  postulate -- TODO: prove using ++OneVote-NoMsgs + std lib
+    ++-OneVote-NoVotes : ∀ xs {vm pids} ys → OneVote xs vm pids → NoVotes ys
+
 
 module StateInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
@@ -387,13 +391,13 @@ module Voting where
 
   glue-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoMsgs outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
   glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
-    inj₁ (lvr≡? , glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nvo vusCorrect)
+    inj₁ (lvr≡? , glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng (OutputProps.NoMsgs⇒NoVotes outs₁ nvo) vusCorrect)
   glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
-    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoVotes-OneVote outs₁ _ nvo voteMsgOuts) (glue-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
+    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoMsgs-OneVote outs₁ _ nvo voteMsgOuts) (glue-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
 
   VoteAttemptEpochReq : ∀ {pre post outs block} → VoteAttemptCorrect pre post outs block → Set
   VoteAttemptEpochReq (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) =

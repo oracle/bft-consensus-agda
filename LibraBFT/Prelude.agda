@@ -226,6 +226,19 @@ module LibraBFT.Prelude where
   open import Data.Product.Properties
     public
 
+
+  module _ {ℓ : Level} {A : Set} where
+    NoneOfKind : ∀ {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set
+    NoneOfKind xs p = List-filter p xs ≡ []
+
+    postulate -- TODO-1: Replace with or prove using library properties?  Move to Lemmas?
+      NoneOfKind⇒ : ∀ {P : A → Set ℓ} {Q : A → Set ℓ} {xs : List A}
+                  → (p : (a : A) → Dec (P a))
+                  → {q : (a : A) → Dec (Q a)}
+                  → (∀ {a} → P a → Q a)  -- TODO-1: Use proper notation (Relation.Unary?)
+                  → NoneOfKind xs q
+                  → NoneOfKind xs p
+
   infix 4 _<?ℕ_
   _<?ℕ_ : Decidable _<_
   m <?ℕ n = suc m ≤?ℕ n

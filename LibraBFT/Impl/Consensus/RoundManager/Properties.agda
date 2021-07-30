@@ -234,7 +234,7 @@ module processProposalMSpec (proposal : Block) where
                   (transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} noEpochChange refl)
                   (OutputProps.++-NoProposals outs _ (OutputProps.NoMsgs⇒NoProposals outs noMsgOuts) refl)
                   (inj₂ (Voting.mkVoteSentCorrect vm recipient
-                          (OutputProps.++-NoVotes-OneVote outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl)
+                          (OutputProps.++-NoMsgs-OneVote outs _ noMsgOuts refl)
                           (Voting.glue-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}
                             vrc (mkVoteNotGenerated refl refl))))
                 where
@@ -294,7 +294,7 @@ module ensureRoundAndSyncUpMSpec
       -- General invariants / properties
       rmInv         : Preserves RoundManagerInv pre post
       noEpochChange : NoEpochChange pre post
-      noVoteOuts    : OutputProps.NoVotes outs
+      noVoteOuts    : OutputProps.NoMsgs outs
       -- Voting
       noVote        : VoteNotGenerated pre post true
 
@@ -344,13 +344,13 @@ module processProposalMsgMSpec
           ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
             (RWST-weakestPre-bindPost unit step₂ (Contract pre)) pf-step₂
 
-        pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
+        pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noMsgOuts noVote) = pf r
           where
-          contractBailAfterSync : ∀ outs' → OutputProps.NoVotes outs' → RWST-Post++ (Contract pre) outs unit st outs'
-          contractBailAfterSync outs' noVotesOuts' =
+          contractBailAfterSync : ∀ outs' → OutputProps.NoMsgs outs' → RWST-Post++ (Contract pre) outs unit st outs'
+          contractBailAfterSync outs' noMsgsOuts' =
             mkContract rmInv noEpochChange
               (inj₁ (true , Voting.mkVoteUnsentCorrect
-                              (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
+                              (OutputProps.++-NoVotes outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) (OutputProps.NoMsgs⇒NoVotes outs' noMsgsOuts'))
                               (inj₁ noVote)))
 
           pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs
@@ -367,7 +367,7 @@ module processProposalMsgMSpec
                 (transPreservesRoundManagerInv rmInv rmInv')
                 (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
                 (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
-                  noVote noVoteOuts voteAttemptCorrect')
+                  noVote noMsgOuts voteAttemptCorrect')
 
   contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
   contract pre Post pf =
