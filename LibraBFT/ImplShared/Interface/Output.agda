@@ -91,6 +91,12 @@ module LibraBFT.ImplShared.Interface.Output where
 
   isOutputMsg? = (isBroadcastProposal? ∪? isBroadcastSyncInfo?) ∪? isSendVote?
 
+  -- TODO-2: Eliminate the precendence inconsistency that requires this silly thing
+  silly : ∀ {x} → IsOutputMsg x → ((IsBroadcastProposal x ⊎ IsBroadcastSyncInfo x) ⊎ (IsSendVote x))
+  silly (Left x)          = Left (Left x)
+  silly (Right (Left y))  = Left (Right y)
+  silly (Right (Right y)) = Right y
+
   SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
   SendVote∉Output () (here refl)
   SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
@@ -111,6 +117,10 @@ module LibraBFT.ImplShared.Interface.Output where
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
 
   -- Lemmas about `outputsToActions`
+  postulate -- TODO-1: prove it
+    outputToActions-sendMsg∉actions
+      : ∀ {out m st} → ¬ (IsOutputMsg out) → ¬ (send m ∈ outputToActions st out)
+
   outputToActions-sendVote∉actions
     : ∀ {out vm st} → ¬ (IsSendVote out) → ¬ (send (V vm) ∈ outputToActions st out)
   outputToActions-sendVote∉actions {BroadcastProposal pm rcvrs}{vm}{st} ¬sv m∈acts =
@@ -119,6 +129,23 @@ module LibraBFT.ImplShared.Interface.Output where
     help : ∀ xs → ¬ (send (V vm) ∈ List-map (const (send (P pm))) xs)
     help (x ∷ xs) (there m∈acts) = help xs m∈acts
   outputToActions-sendVote∉actions {SendVote _ _} ¬sv m∈acts = ¬sv tt
+
+  postulate -- TODO-1: prove it
+    sendMsg∉actions
+      : ∀ {outs m st} → [] ≡ List-filter isOutputMsg? outs → ¬ (send m ∈ outputsToActions{st} outs)
+  {-
+  sendMsg∉actions {[]} {st = st} outs≡ ()
+  sendMsg∉actions {x ∷ outs} {st = st} outs≡ m∈acts
+    with Any-++⁻ (outputToActions st x) m∈acts
+  ... | Left m∈[]
+    with isOutputMsg? x
+  ...| no  proof = outputToActions-sendMsg∉actions {out = x} {st = st} (λ x₁ → proof (silly x₁)) m∈[]
+  ...| yes proof = ⊥-elim {! filter-some  and proof and 0 < length xs → xs ≢ [] !}
+  sendMsg∉actions {x ∷ outs} {st = st} outs≡ m∈acts | Right m∈acts'
+    with isOutputMsg? x
+  ...| no  proof = sendMsg∉actions{outs = outs}{st = st} {! outs≡ !} m∈acts'
+  ...| yes proof = {!proof!}
+  -}
 
   sendVote∉actions
     : ∀ {outs vm st} → [] ≡ List-filter isSendVote? outs → ¬ (send (V vm) ∈ outputsToActions{st} outs)

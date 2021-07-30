@@ -424,7 +424,9 @@ module Voting where
                        → send m ∈ outputsToActions {pre} outs
                        → VoteAttemptCorrectWithEpochReq pre post outs block
                        → VoteSentCorrect                pre post outs block
-  sentVote⇒VoteCorrect = obm-dangerous-magic! -- TODO - prove it
+  sentVote⇒VoteCorrect {pre} {outs = outs} {m = m} m∈acts (mkVoteAttemptCorrectWithEpochReq (Left (_ , mkVoteUnsentCorrect noMsgOuts _)) _) =
+    ⊥-elim (sendMsg∉actions {outs} {m} {pre} (sym noMsgOuts) m∈acts)
+  sentVote⇒VoteCorrect m∈acts (mkVoteAttemptCorrectWithEpochReq (Right vsc) _) = vsc
 
 module QC where
 
