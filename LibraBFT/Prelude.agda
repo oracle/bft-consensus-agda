@@ -482,6 +482,9 @@ module LibraBFT.Prelude where
     a /= b = not (a == b)
   open Eq ⦃ ... ⦄ public
 
+  elem : ∀ {ℓ} {A : Set ℓ} ⦃ _ : Eq A ⦄ → A → List A → Bool
+  elem x = toBool ∘ Any-any (x ≟_)
+
   instance
     Eq-Nat : Eq ℕ
     Eq._≟_ Eq-Nat = _≟ℕ_

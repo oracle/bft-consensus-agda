@@ -36,7 +36,7 @@ processLocalTimeoutM now obmEpoch round = do
   if-RWST round /= currentRound
     then pure false
     else do
-      _ ← setupTimeoutM now -- setup the next timeout
+      void (setupTimeoutM now) -- setup the next timeout
       ECP-LBFT-OBM-Diff-1.e_RoundState_processLocalTimeoutM obmEpoch round
 
 ------------------------------------------------------------------------------
