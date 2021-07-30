@@ -132,27 +132,43 @@ module LibraBFT.ImplShared.Interface.Output where
     with isSendVote? x
   ...| no  proof = sendVote∉actions{outs = outs}{st = st} outs≡ m∈acts'
 
-  sendVote∈actions
-    : ∀ {vm vm' pids outs st} → SendVote vm pids ∷ [] ≡ List-filter isSendVote? outs
-      → send (V vm') ∈ outputsToActions{st} outs
-      → vm' ≡ vm
-  sendVote∈actions {outs = (BroadcastProposal x rcvrs) ∷ outs}{st = st} outs≡ m∈acts
+  sendVote∈actions'
+    : ∀ {vm m pids outs st} → SendVote vm pids ∷ [] ≡ List-filter isOutputMsg? outs
+      → send m ∈ outputsToActions{st} outs
+      → m ≡ V vm
+  sendVote∈actions' {outs = (BroadcastProposal x rcvrs) ∷ outs}{st = st} outs≡ m∈acts
     with Any-++⁻ (outputToActions st (BroadcastProposal x rcvrs)) m∈acts
-  ... | Left m∈[] = ⊥-elim (outputToActions-sendVote∉actions{out = BroadcastProposal x rcvrs}{st = st} id m∈[])
-  ... | Right m∈acts' = sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts'
-  sendVote∈actions {outs = (BroadcastSyncInfo x rcvrs) ∷ outs}{st = st} outs≡ m∈acts =
-    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
-  sendVote∈actions {outs = LogErr x ∷ outs}{st = st} outs≡ m∈acts =
-    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
-  sendVote∈actions {outs = LogInfo x ∷ outs}{st = st} outs≡ m∈acts =
-    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
-  sendVote∈actions {vm}{vm'}{outs = SendVote vm“ pids' ∷ outs}{st = st} outs≡ m∈acts
+  ... | Right m∈acts' = ⊥-elim (case outs≡ of λ ())
+  ... | Left m∈[]     = ⊥-elim (case cong head outs≡ of λ ())
+  sendVote∈actions' {pids = pids} {(BroadcastSyncInfo x rcvrs) ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions'{pids = pids} {outs} {st} (case cong head outs≡ of λ ()) m∈acts
+  sendVote∈actions' {outs = LogErr x ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions'{outs = outs}{st = st} outs≡ m∈acts
+  sendVote∈actions' {outs = LogInfo x ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions'{outs = outs}{st = st} outs≡ m∈acts
+  sendVote∈actions' {vm}{m}{outs = SendVote vm“ pids' ∷ outs}{st = st} outs≡ m∈acts
     with ∷-injective outs≡
   ...| refl , tl≡
     with Any-++⁻ (List-map (const (send (V vm“))) pids') m∈acts
-  ... | Right m∈[] = ⊥-elim (sendVote∉actions{outs = outs}{st = st} tl≡ m∈[])
+  ...| Right m∈[] = ⊥-elim (xxx {st} {m} {outs} m∈[] (sym tl≡))
+       where
+         xxx : ∀ {st m outs1} → send m ∈ outputsToActions {st} outs1 → ¬ NoneOfKind outs1 isOutputMsg?
+         xxx {outs1 = []} ()
+         xxx {outs1 = BroadcastProposal x x₁ ∷ _} _         = λ ()
+         xxx {outs1 = BroadcastSyncInfo x x₁ ∷ _} _         = λ ()
+         xxx {outs1 = LogErr x ∷ os}              send∈acts = obm-dangerous-magic!  -- TODO-1: I think we already have something close to this?
+         xxx {outs1 = LogInfo x ∷ os}             send∈acts = obm-dangerous-magic!
+         xxx {outs1 = SendVote x x₁ ∷ _} _                  = λ ()
+
   ... | Left m∈acts' = help pids' m∈acts'
     where
-    help : ∀ pids → send (V vm') ∈ List-map (const (send (V vm“))) pids → vm' ≡ vm“
+    help : ∀ pids → send m ∈ List-map (const (send (V vm“))) pids → m ≡ V vm“
     help (_ ∷ pids) (here refl) = refl
     help (_ ∷ pids) (there m∈acts) = help pids m∈acts
+
+  sendVote∈actions
+    : ∀ {vm vm' pids outs st} → SendVote vm pids ∷ [] ≡ List-filter isOutputMsg? outs
+      → send (V vm') ∈ outputsToActions{st} outs
+      → vm' ≡ vm
+  sendVote∈actions {vm} {vm'} {pids} {outs} {st} outs≡ send∈ = let m = V vm' in
+     V-inj $ sendVote∈actions' {vm} {V vm'} {pids} {outs} {st} outs≡ send∈ 
