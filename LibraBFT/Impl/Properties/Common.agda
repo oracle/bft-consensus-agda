@@ -3,7 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -43,21 +43,68 @@ open        Structural impl-sps-avp
 
 module LibraBFT.Impl.Properties.Common where
 
-postulate -- TODO-2: prove (waiting on: `handle`, refinements to handler contracts)
+postulate
+  uninitQcs∈Gen -- TODO-1: Prove (waiting on: complete definition of `initRM`)
+    : ∀ {pid qc vs}{st : SystemState}
+      → ReachableSystemState st
+      → initialised st pid ≡ uninitd
+      → qc QC.∈RoundManager (peerStates st pid)
+      → vs ∈ qcVotes qc
+      → ∈GenInfo-impl genesisInfo (proj₂ vs)
+
+-- postulate -- TODO-2: prove (waiting on: `handle`, refinements to handler contracts)
   -- This will be proved for the implementation, confirming that honest
   -- participants only store QCs comprising votes that have actually been sent.
   -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
   -- Note that some implementations might not ensure this, but LibraBFT does
   -- because even the leader of the next round sends its own vote to itself,
   -- as opposed to using it to construct a QC using its own unsent vote.
-  qcVoteSigsSentB4
-    : ∀ {pid qc vs pk}{st : SystemState}
-      → ReachableSystemState st
-      → initialised st pid ≡ initd
-      → qc QC.∈RoundManager (peerStates st pid)
-      → vs ∈ qcVotes qc
-      → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
-      → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+qcVoteSigsSentB4
+  : ∀ {pid qc vs pk}{st : SystemState}
+    → ReachableSystemState st
+    → initialised st pid ≡ initd
+    → qc QC.∈RoundManager (peerStates st pid)
+    → vs ∈ qcVotes qc
+    → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
+    → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+qcVoteSigsSentB4{pid}{qc}{st = st} rss'@(step-s{pre = pre} rss (step-peer sp@(step-cheat _))) ini qc∈rm vs∈qcvs ¬gen
+  = MsgWithSig∈-++ʳ{pool = msgPool pre} (qcVoteSigsSentB4 rss iniPre qc∈rmPre vs∈qcvs ¬gen)
+  where
+  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
+  pre≡ = cheatStepDNMPeerStates₁ sp unit
+
+  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+
+  iniPre : initialised pre pid ≡ initd
+  iniPre = trans (sym (cheatStepDNMInitialised₁ sp unit)) ini
+
+qcVoteSigsSentB4{pid}{qc} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'} sps))) ini qc∈rm vs∈qcvs ¬gen
+  with pid ≟ pid'
+...| no  pid≢ = MsgWithSig∈-++ʳ{pool = msgPool pre} $ qcVoteSigsSentB4 rss iniPre qc∈rmPre vs∈qcvs ¬gen
+  where
+  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
+  pre≡ = sym $ pids≢StepDNMPeerStates sps pid≢
+
+  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+
+  iniPre : initialised pre pid ≡ initd
+  iniPre = trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) ini
+
+...| yes pid≡
+  with sps
+... | step-init uni = ⊥-elim (¬gen (uninitQcs∈Gen rss uni qc∈rmPre vs∈qcvs))
+  where
+  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
+  pre≡ rewrite pid≡ =
+    sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
+
+  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid'
+  qc∈rmPre = subst (λ pid“ → qc QC.∈RoundManager peerStates pre pid“) pid≡ $ subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+
+... | step-msg{sndr , m} m∈pool ini' = {!!}
+
 
 module ∈GenInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}
