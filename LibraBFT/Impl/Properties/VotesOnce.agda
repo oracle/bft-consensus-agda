@@ -74,8 +74,8 @@ newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} m�
           sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
           sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
 
-newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , V vm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = {!!}
-newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , C cm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = {!!}
+newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , V vm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
+newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , C cm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
 
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
