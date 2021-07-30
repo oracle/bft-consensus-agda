@@ -194,7 +194,7 @@ module processProposalMSpec (proposal : Block) where
     contractBail{outs} nmo =
       mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
         (OutputProps.NoMsgs⇒NoProposals outs nmo)
-        (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo))
+        (Voting.voteAttemptBailed outs nmo)
 
     contract-step₂ : RWST-weakestPre (executeAndVoteM proposal >>= step₂) (Contract pre) unit pre
     contract-step₂ =
@@ -213,7 +213,7 @@ module processProposalMSpec (proposal : Block) where
             mkContract rmInv₂ noEpochChange
               (OutputProps.++-NoProposals outs _ (OutputProps.NoMsgs⇒NoProposals outs noMsgOuts) refl)
               (inj₁ (lvr≡? , Voting.mkVoteUnsentCorrect
-                               (OutputProps.++-NoVotes outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) refl) vrc))
+                               (OutputProps.++-NoMsgs outs _ noMsgOuts refl) vrc))
           pf (Right vote) vrc ._ refl ._ refl ._ refl =
             syncInfoMSpec.contract (st & rsVoteSent-rm ?~ vote)
               (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ (Contract pre) outs))
@@ -327,10 +327,10 @@ module processProposalMsgMSpec
   contract' : ∀ pre → LBFT-weakestPre (processProposalMsgM now pm) (Contract pre) pre
   contract' pre rewrite processProposalMsgM≡ = contract
     where
-    contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
-    contractBail outs nvo =
+    contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract pre unit pre outs
+    contractBail outs nmo =
       mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-        (Voting.voteAttemptBailed outs nvo)
+        (Voting.voteAttemptBailed outs nmo)
 
     contract : LBFT-weakestPre step₀ (Contract pre) pre
     proj₁ contract ≡nothing = contractBail _ refl
@@ -350,7 +350,7 @@ module processProposalMsgMSpec
           contractBailAfterSync outs' noMsgsOuts' =
             mkContract rmInv noEpochChange
               (inj₁ (true , Voting.mkVoteUnsentCorrect
-                              (OutputProps.++-NoVotes outs _ (OutputProps.NoMsgs⇒NoVotes outs noMsgOuts) (OutputProps.NoMsgs⇒NoVotes outs' noMsgsOuts'))
+                              (OutputProps.++-NoMsgs outs _ noMsgOuts noMsgsOuts')
                               (inj₁ noVote)))
 
           pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs

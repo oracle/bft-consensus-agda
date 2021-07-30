@@ -54,7 +54,7 @@ newVote⇒lv≡
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
 -- We are handling a proposal message, we may send a Vote message, containing
-newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} m∈pool ini) (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
+newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} _ ini) (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
     ⊥-elim (¬msb4 sigSentB4)
     where hpPre = peerStates pre pid
           handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
@@ -87,7 +87,7 @@ newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vot
 
   ¬voteUnsent : ¬ Voting.VoteUnsentCorrect (peerStates pre pid) _ _ _ _
   ¬voteUnsent (Voting.mkVoteUnsentCorrect noVoteMsgOuts _) =
-    sendVote∉actions{outs = handleOuts}{st = peerStates pre pid}
+    sendMsg∉actions{outs = handleOuts}{st = peerStates pre pid}
       (sym noVoteMsgOuts) m∈outs
 ...| handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) _ =
   sentVoteIsPostLV
@@ -276,7 +276,7 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
   ret
     with voteAttemptCorrect
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
-    ⊥-elim (sendVote∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
+    ⊥-elim (sendMsg∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) _
     with vgCorrect
   ...| Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v _) _ = cong (_^∙ vProposedId) v≡v'
@@ -456,7 +456,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) _ =
-  ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
+  ⊥-elim (sendMsg∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?) _
   with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs
 ...| refl = ret
@@ -559,8 +559,8 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
   v≡v' : v ≡ v'
   v≡v'
     with voteAttemptCorrect
-  ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
-    ⊥-elim (sendVote∉actions{outs = hpOut}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
+  ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noMsgOuts _)) _ =
+    ⊥-elim (sendMsg∉actions{outs = hpOut}{st = hpPre} (sym noMsgOuts) m∈outs)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts _)) _ = begin
     v            ≡⟨        cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m∈outs) ⟩
     vm ^∙ vmVote ≡⟨ (sym $ cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m'∈outs)) ⟩

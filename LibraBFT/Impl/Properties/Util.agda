@@ -366,18 +366,18 @@ module Voting where
   record VoteUnsentCorrect (pre post : RoundManager) (outs : List Output) (block : Block) (lvr≡? : Bool) : Set where
     constructor mkVoteUnsentCorrect
     field
-      noVoteMsgOuts : OutputProps.NoVotes outs
-      nvg⊎vgusc    : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
+      noMsgOuts : OutputProps.NoMsgs outs
+      nvg⊎vgusc : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
 
   glue-VoteNotGenerated-VoteUnsentCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block lvr≡?}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoMsgs outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
-  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
-    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
-  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
-    mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
+  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nmo (mkVoteUnsentCorrect noMsgOuts (inj₁ vng₂)) =
+    mkVoteUnsentCorrect (OutputProps.++-NoMsgs outs₁ _ nmo noMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
+  glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nmo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
+    mkVoteUnsentCorrect ((OutputProps.++-NoMsgs outs₁ _ nmo noVoteMsgOuts)) (inj₂ (glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
   -- The handler correctly attempted to vote on `block`, assuming the safety
   -- data epoch matches the block epoch.
@@ -386,18 +386,18 @@ module Voting where
     (∃[ lvr≡? ] VoteUnsentCorrect pre post outs block lvr≡?) ⊎ VoteSentCorrect pre post outs block
 
   -- The voting process ended before `pssSafetyData-rm` could be updated
-  voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
-  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
+  voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoMsgs outs → VoteAttemptCorrect rm rm outs block
+  voteAttemptBailed outs noMsgOuts = inj₁ (true , mkVoteUnsentCorrect noMsgOuts (inj₁ StateTransProps.reflVoteNotGenerated))
 
   glue-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
       → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoMsgs outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
-  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
-    inj₁ (lvr≡? , glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng (OutputProps.NoMsgs⇒NoVotes outs₁ nvo) vusCorrect)
-  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
-    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoMsgs-OneVote outs₁ _ nvo voteMsgOuts) (glue-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
+  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nmo (inj₁ (lvr≡? , vusCorrect)) =
+    inj₁ (lvr≡? , glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng nmo vusCorrect)
+  glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nmo (inj₂ (mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) =
+    inj₂ (mkVoteSentCorrect vm pid (OutputProps.++-NoMsgs-OneVote outs₁ _ nmo voteMsgOuts) (glue-VoteNotGenerated-VoteGeneratedCorrect vng vgCorrect))
 
   VoteAttemptEpochReq : ∀ {pre post outs block} → VoteAttemptCorrect pre post outs block → Set
   VoteAttemptEpochReq (inj₁ (_ , mkVoteUnsentCorrect _ (inj₁ _))) =
