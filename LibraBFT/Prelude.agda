@@ -93,6 +93,10 @@ module LibraBFT.Prelude where
     using (_∈_; _∉_)
     public
 
+  open import Data.List.Membership.Propositional.Properties
+    renaming (∈-filter⁻ to List-∈-filter⁻)
+    public
+
   open import Data.Vec
     using (Vec; []; _∷_)
     renaming (replicate to Vec-replicate; lookup to Vec-lookup

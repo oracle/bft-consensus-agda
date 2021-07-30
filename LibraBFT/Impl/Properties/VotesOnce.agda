@@ -23,6 +23,7 @@ open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
 open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
@@ -44,21 +45,38 @@ open        Structural impl-sps-avp
 module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
 
 newVote⇒lv≡
-  : ∀ {pre : SystemState}{pid s' outs v m pk}
+  : ∀ {pre : SystemState}{pid s' acts v m pk}
     → ReachableSystemState pre
     → StepPeerState pid (msgPool pre) (initialised pre)
-        (peerStates pre pid) (s' , outs)
-    → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
+        (peerStates pre pid) (s' , acts)
+    → v ⊂Msg m → send m ∈ acts → (sig : WithVerSig pk v)
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
-newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , m'} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4
-  with qc∈m
-...| xxx = {!!}
-  -- ⊥-elim (¬msb4 (qcVotesSentB4 preach {!!} {!!} {!!} ¬gen))
-  where
-  postulate -- TODO-2: prove (waiting on: proof that qc votes have been sent before)
-    TODO : LastVoteIs s' v
+-- We are handling a proposal message, we may send a Vote message, containing
+newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} m∈pool ini) (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
+    ⊥-elim (¬msb4 sigSentB4)
+    where hpPre = peerStates pre pid
+          handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
+
+          qc∈rm : qc QC.∈RoundManager hpPre
+          qc∈rm
+             with handleProposalSpec.contract! 0 pm (peerStates pre pid)
+          ...| handleProposalSpec.mkContract _ _ vsc qc∈rmProp
+             with Voting.sentVote⇒VoteCorrect vsc
+          ... | Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect
+             with List-∈-filter⁻ isOutputMsg? {v = SendVote vm (pid ∷ [])} {xs = handleOuts}
+                                 (subst (SendVote vm (pid ∷ []) ∈_) (sym voteMsgOuts) (here refl))
+          ...| sv∈outs , _
+              with sendVote∈actions' {vm} {m} {outs = handleOuts} {st = hpPre} (sym voteMsgOuts) m∈acts
+          ...| refl = All-lookup qc∈rmProp sv∈outs qc m qc∈m QC.inSV
+
+          sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+          sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
+
+newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , V vm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = {!!}
+newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , C cm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = {!!}
+
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
