@@ -420,7 +420,8 @@ module Voting where
       voteAttempt : VoteAttemptCorrect pre post outs block
       sdEpoch≡?   : VoteAttemptEpochReq voteAttempt
 
-  sentVote⇒VoteCorrect : ∀ {pre post outs block}
+  sentVote⇒VoteCorrect : ∀ {pre post outs block m}
+                       → send m ∈ outputsToActions {pre} outs
                        → VoteAttemptCorrectWithEpochReq pre post outs block
                        → VoteSentCorrect                pre post outs block
   sentVote⇒VoteCorrect = obm-dangerous-magic! -- TODO - prove it

@@ -63,7 +63,7 @@ newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} m�
           qc∈rm
              with handleProposalSpec.contract! 0 pm (peerStates pre pid)
           ...| handleProposalSpec.mkContract _ _ vsc qc∈rmProp
-             with Voting.sentVote⇒VoteCorrect vsc
+             with Voting.sentVote⇒VoteCorrect m∈acts vsc
           ... | Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect
              with List-∈-filter⁻ isOutputMsg? {v = SendVote vm (pid ∷ [])} {xs = handleOuts}
                                  (subst (SendVote vm (pid ∷ []) ∈_) (sym voteMsgOuts) (here refl))
