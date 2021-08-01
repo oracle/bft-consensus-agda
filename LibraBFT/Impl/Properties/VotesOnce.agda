@@ -52,26 +52,26 @@ newVote⇒lv≡
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
--- TODO-2: These three cases can be made into a lemma stating that all votes in
--- QCs come from the round manager
-newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , P pm} _ ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
-  ⊥-elim (¬msb4 sigSentB4)
+newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} _ ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
+  ⊥-elim (¬msb4 $ sigSentB4 nm refl)
   where
   hpPre = peerStates pre pid
-  hpOut = LBFT-outs (handle pid (P pm) 0) hpPre
+  hpOut = LBFT-outs (handle pid nm 0) hpPre
 
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  nmSentQcs∈RM : (nm1 : NetworkMsg) → nm1 ≡ nm → QC.OutputQc∈RoundManager hpOut hpPre
+  nmSentQcs∈RM (P pm) refl = outQcs∈RM
+    where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  nmSentQcs∈RM (V vm) refl = obm-dangerous-magic' "Waiting on handleVoteSpec"
+  nmSentQcs∈RM (C cm) refl = obm-dangerous-magic' "Waiting on handleCommitSpec"
 
-  qc∈rm : qc QC.∈RoundManager hpPre
-  qc∈rm
-    with sendMsg∈actions{hpOut}{st = hpPre} m∈acts
-  ...| out , out∈hpOut , m∈out = All-lookup outQcs∈RM out∈hpOut qc m qc∈m m∈out
+  module _ (nm1 : NetworkMsg) (nm≡ : nm1 ≡ nm) where
+    qc∈rm : qc QC.∈RoundManager hpPre
+    qc∈rm
+      with sendMsg∈actions{hpOut}{st = hpPre} m∈acts
+    ...| out , out∈hpOut , m∈out = All-lookup (nmSentQcs∈RM nm1 nm≡) out∈hpOut qc m qc∈m m∈out
 
-  sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-  sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
-
-newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , V vm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
-newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , C cm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
+    sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+    sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
