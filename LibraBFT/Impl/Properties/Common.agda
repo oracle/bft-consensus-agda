@@ -92,16 +92,15 @@ qcVoteSigsSentB4{pid}{qc} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) ini
 
-...| yes pid≡
+...| yes refl
   with sps
 ... | step-init uni = ⊥-elim (¬gen (uninitQcs∈Gen rss uni qc∈rmPre vs∈qcvs))
   where
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
-  pre≡ rewrite pid≡ =
-    sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
+  pre≡ = sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
 
   qc∈rmPre : qc QC.∈RoundManager peerStates pre pid'
-  qc∈rmPre = subst (λ pid“ → qc QC.∈RoundManager peerStates pre pid“) pid≡ $ subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+  qc∈rmPre rewrite pre≡ = qc∈rm
 
 ... | step-msg{sndr , m} m∈pool ini' = {!!}
 
