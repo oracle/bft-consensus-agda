@@ -5,14 +5,20 @@
 -}
 
 open import Level using (0ℓ)
+open import Data.String
 
 -- This module defines utility functions to help working on proofs.
 
 module LibraBFT.Base.Util where
 
-  -- This is obviously not something that should be used in any legitimate proof.  It's just for
-  -- convenience when we want to avoid importing a module with open holes while working on
-  -- something else.
-  obm-dangerous-magic! : ∀ {ℓ} {A : Set ℓ} → A
-  obm-dangerous-magic! {ℓ} {A} = magic
+  -- These should obviously not be used in any legitimate proof.  They are just for convenience when
+  -- we want to avoid importing a module with open holes while working on something else.
+
+  -- This variant allows a comment to be attached conveniently
+  obm-dangerous-magic' : ∀ {ℓ} {A : Set ℓ} → String → A
+  obm-dangerous-magic' {ℓ} {A} _ = magic
     where postulate magic : A
+
+  obm-dangerous-magic! : ∀ {ℓ} {A : Set ℓ} → A
+  obm-dangerous-magic! {ℓ} {A} = obm-dangerous-magic' ""
+
