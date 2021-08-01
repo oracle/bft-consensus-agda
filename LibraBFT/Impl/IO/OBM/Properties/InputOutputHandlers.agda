@@ -56,11 +56,14 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       (RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) (Contract pre))
       contract-step₁
     where
-    contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract pre unit pre outs
-    contractBail outs noMsgs =
+    contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
+    contractBail outs noVotes =
       mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-        (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noMsgs) tt)
-        obm-dangerous-magic! -- TODO-2: prove it, ...
+        (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
+        outqcs∈pre
+      where
+      postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
+        outqcs∈pre : QC.OutputQc∈RoundManager outs pre
 
     contract-step₁ : _
     proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e)  pp≡Left =

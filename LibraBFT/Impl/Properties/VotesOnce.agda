@@ -23,7 +23,6 @@ open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
 open import LibraBFT.Impl.Properties.Util
-open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
@@ -53,30 +52,26 @@ newVote⇒lv≡
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
--- We are handling a proposal message, we may send a Vote message, containing
-newVote⇒lv≡ {pre} {pid} {s'} {v = v}{m}{pk} preach (step-msg{sndr , P pm} _ ini) (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
-    ⊥-elim (¬msb4 sigSentB4)
-    where hpPre = peerStates pre pid
-          handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
+-- TODO-2: These three cases can be made into a lemma stating that all votes in
+-- QCs come from the round manager
+newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , P pm} _ ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
+  ⊥-elim (¬msb4 sigSentB4)
+  where
+  hpPre = peerStates pre pid
+  hpOut = LBFT-outs (handle pid (P pm) 0) hpPre
 
-          qc∈rm : qc QC.∈RoundManager hpPre
-          qc∈rm
-             with handleProposalSpec.contract! 0 pm (peerStates pre pid)
-          ...| handleProposalSpec.mkContract _ _ vsc qc∈rmProp
-             with Voting.sentVote⇒VoteCorrect m∈acts vsc
-          ... | Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect
-             with List-∈-filter⁻ isOutputMsg? {v = SendVote vm (pid ∷ [])} {xs = handleOuts}
-                                 (subst (SendVote vm (pid ∷ []) ∈_) (sym voteMsgOuts) (here refl))
-          ...| sv∈outs , _
-              with sendVote∈actions' {vm} {m} {outs = handleOuts} {st = hpPre} (sym voteMsgOuts) m∈acts
-          ...| refl = All-lookup qc∈rmProp sv∈outs qc m qc∈m QC.inSV
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
 
-          sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-          sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
+  qc∈rm : qc QC.∈RoundManager hpPre
+  qc∈rm
+    with sendMsg∈actions{hpOut}{st = hpPre} m∈acts
+  ...| out , out∈hpOut , m∈out = All-lookup outQcs∈RM out∈hpOut qc m qc∈m m∈out
+
+  sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+  sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
 
 newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , V vm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
 newVote⇒lv≡ {s' = s'} {v = v}{m} preach (step-msg{sndr , C cm} m∈pool ini) (vote∈qc vs∈qc v≈rbld qc∈m) m∈outs sig hpk ¬gen ¬msb4 = obm-dangerous-magic! -- Should be similar to above case
-
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
@@ -87,7 +82,7 @@ newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vot
 
   ¬voteUnsent : ¬ Voting.VoteUnsentCorrect (peerStates pre pid) _ _ _ _
   ¬voteUnsent (Voting.mkVoteUnsentCorrect noVoteMsgOuts _) =
-    sendMsg∉actions{outs = handleOuts}{st = peerStates pre pid}
+    sendVote∉actions{outs = handleOuts}{st = peerStates pre pid}
       (sym noVoteMsgOuts) m∈outs
 ...| handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect (VoteMsg∙new v' _) rcvr voteMsgOuts vgCorrect)) sdEpoch≡?) _ =
   sentVoteIsPostLV
@@ -276,7 +271,7 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
   ret
     with voteAttemptCorrect
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
-    ⊥-elim (sendMsg∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
+    ⊥-elim (sendVote∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) _
     with vgCorrect
   ...| Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v _) _ = cong (_^∙ vProposedId) v≡v'
@@ -456,7 +451,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
   with handleProposalSpec.contract! 0 pm (peerStates pre pid)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) _ =
-  ⊥-elim (sendMsg∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
+  ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?) _
   with sendVote∈actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs
 ...| refl = ret
@@ -559,8 +554,8 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
   v≡v' : v ≡ v'
   v≡v'
     with voteAttemptCorrect
-  ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noMsgOuts _)) _ =
-    ⊥-elim (sendMsg∉actions{outs = hpOut}{st = hpPre} (sym noMsgOuts) m∈outs)
+  ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
+    ⊥-elim (sendVote∉actions{outs = hpOut}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts _)) _ = begin
     v            ≡⟨        cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m∈outs) ⟩
     vm ^∙ vmVote ≡⟨ (sym $ cong (_^∙ vmVote) (sendVote∈actions{outs = hpOut}{st = hpPre} (sym voteMsgOuts) m'∈outs)) ⟩
