@@ -20,8 +20,8 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 module LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers where
 

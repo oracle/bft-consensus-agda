@@ -28,8 +28,8 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 -- This module contains properties that are only about the behavior of the handlers, nothing to do
 -- with system state
@@ -167,8 +167,8 @@ module processProposalMSpec (proposal : Block) where
     constructor mkContract
     field
        -- General properties / invariants
-      rmInv         : StateInvariants.Preserves StateInvariants.RoundManagerInv pre post
-      noEpochChange : StateTransProps.NoEpochChange pre post
+      rmInv         : RoundManagerInvariants.Preserves RoundManagerInvariants.RoundManagerInv pre post
+      noEpochChange : RoundManagerTransProps.NoEpochChange pre post
       noProposals  : OutputProps.NoProposals outs
       -- Voting
       voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal

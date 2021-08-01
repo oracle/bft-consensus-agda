@@ -18,7 +18,7 @@ open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
+open RoundManagerInvariants
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 

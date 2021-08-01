@@ -89,7 +89,7 @@ module OutputProps where
     |       nv
     |       ov = refl
 
-module StateInvariants where
+module RoundManagerInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
@@ -167,7 +167,7 @@ module StateInvariants where
   mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
     mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
 
-module StateTransProps where
+module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
   -- the particular peer handler invoked
 
@@ -304,8 +304,8 @@ module Voting where
   record VoteGeneratedCorrect (pre post : RoundManager) (vote : Vote) (block : Block) : Set where
     constructor mkVoteGeneratedCorrect
     field
-      state          : StateTransProps.VoteGenerated pre post vote
-    voteNew? = StateTransProps.isVoteNewGenerated pre post vote state
+      state          : RoundManagerTransProps.VoteGenerated pre post vote
+    voteNew? = RoundManagerTransProps.isVoteNewGenerated pre post vote state
     field
       blockTriggered : VoteTriggeredByBlock vote block voteNew?
 
@@ -318,27 +318,27 @@ module Voting where
   glue-VoteGeneratedCorrect-VoteNotGenerated
     : ∀ {s₁ s₂ s₃ vote block}
       → VoteGeneratedCorrect s₁ s₂ vote block
-      → StateTransProps.VoteNotGenerated s₂ s₃ true
+      → RoundManagerTransProps.VoteNotGenerated s₂ s₃ true
       → VoteGeneratedCorrect s₁ s₃ vote block
-  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
-  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
 
   glue-VoteNotGenerated-VoteGeneratedCorrect
     : ∀ {s₁ s₂ s₃ vote block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedCorrect s₂ s₃ vote block
       → VoteGeneratedCorrect s₁ s₃ vote block
-  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
-  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg)
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteNotGenerated-VoteGenerated vng vg)
       blockTriggered
 
   glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect
     : ∀ {s₁ s₂ s₃ block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedUnsavedCorrect s₂ s₃ block
       → VoteGeneratedUnsavedCorrect s₁ s₃ block
   glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng (mkVoteGeneratedUnsavedCorrect vote voteGenCorrect) =
@@ -360,15 +360,15 @@ module Voting where
     constructor mkVoteUnsentCorrect
     field
       noVoteMsgOuts : OutputProps.NoVotes outs
-      nvg⊎vgusc    : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
+      nvg⊎vgusc    : RoundManagerTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
 
   glue-VoteNotGenerated-VoteUnsentCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block lvr≡?}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
   glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
-    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
+    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (RoundManagerTransProps.transVoteNotGenerated vng₁ vng₂))
   glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
     mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
@@ -380,11 +380,11 @@ module Voting where
 
   -- The voting process ended before `pssSafetyData-rm` could be updated
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
-  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
+  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ RoundManagerTransProps.reflVoteNotGenerated))
 
   glue-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
   glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =

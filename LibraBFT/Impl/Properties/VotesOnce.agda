@@ -27,8 +27,8 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
@@ -93,7 +93,7 @@ newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vot
   sentVoteIsPostLV : LastVoteIs handlePost v
   sentVoteIsPostLV
     with Voting.VoteGeneratedCorrect.state vgCorrect
-  ...| StateTransProps.mkVoteGenerated lv≡v _
+  ...| RoundManagerTransProps.mkVoteGenerated lv≡v _
     rewrite sym lv≡v
     = cong (just ∘ _^∙ vmVote) (sendVote∈actions{outs = handleOuts}{st = peerStates pre pid} (sym voteMsgOuts) m∈outs)
 
@@ -274,7 +274,7 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
     ⊥-elim (sendVote∉actions{outs = hpOuts}{st = hpPre} (sym noVoteMsgOuts) m∈outs)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) _
     with vgCorrect
-  ...| Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v _) _ = cong (_^∙ vProposedId) v≡v'
+  ...| Voting.mkVoteGeneratedCorrect (RoundManagerTransProps.mkVoteGenerated lv≡v _) _ = cong (_^∙ vProposedId) v≡v'
     where
     open ≡-Reasoning
 
@@ -329,7 +329,7 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
   -- Definitions
   hpPre = peerStates pre pid“
   rmInv = invariantsCorrect pid“ pre preach
-  open StateInvariants.RoundManagerInv (invariantsCorrect pid“ pre preach)
+  open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid“ pre preach)
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
     renaming (rmInv to rmInvP)
   hpPos  = LBFT-post (handleProposal 0 pm) hpPre
@@ -422,16 +422,16 @@ sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer
      with voteAttemptCorrect
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
     with nvg⊎vgusc
-  ...| inj₁ (StateTransProps.mkVoteNotGenerated lv≡ lvr≤) = OldVote.hyp lv≡
-  ...| inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))
+  ...| inj₁ (RoundManagerTransProps.mkVoteNotGenerated lv≡ lvr≤) = OldVote.hyp lv≡
+  ...| inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (RoundManagerTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))
     with voteSrc
-  ...| inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) = OldVote.hyp lv≡
-  ...| inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
+  ...| inj₁ (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡) = OldVote.hyp lv≡
+  ...| inj₂ (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡) =
     ⊥-elim (<⇒≢ (NewVote.rv'<rv vote lv≡v lvr< lvr≡ sdEpoch≡? blockTriggered) (sym ≡round))
-  hyp | Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts (Voting.mkVoteGeneratedCorrect (StateTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))) sdEpoch≡?
+  hyp | Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid voteMsgOuts (Voting.mkVoteGeneratedCorrect (RoundManagerTransProps.mkVoteGenerated lv≡v voteSrc) blockTriggered))) sdEpoch≡?
     with voteSrc
-  ...| inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡) = OldVote.hyp lv≡
-  ...| inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡) =
+  ...| inj₁ (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡) = OldVote.hyp lv≡
+  ...| inj₂ (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡) =
     ⊥-elim (<⇒≢ (NewVote.rv'<rv (vm ^∙ vmVote) lv≡v lvr< lvr≡ sdEpoch≡? blockTriggered) (sym ≡round))
 
 sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach (step-peer{pid“} (step-honest (step-msg{_ , V vm} m∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round | inj₂ mws∈pool | yes refl | vote∈vm = TODO
@@ -468,7 +468,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   -- Properties of `handleProposal`
   postLVR≡ : just v ≡ (rmPost ^∙ pssSafetyData-rm ∙ sdLastVote)
   postLVR≡ =
-    trans (StateTransProps.VoteGenerated.lv≡v ∘ Voting.VoteGeneratedCorrect.state $ vgCorrect)
+    trans (RoundManagerTransProps.VoteGenerated.lv≡v ∘ Voting.VoteGeneratedCorrect.state $ vgCorrect)
       (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (StepPeer-post-lemma (step-honest sps)))
 
   -- The proof
@@ -492,11 +492,11 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     rmPreSdEpoch≡
        with Voting.VoteGeneratedCorrect.state vgCorrect
        |    Voting.VoteGeneratedCorrect.blockTriggered vgCorrect
-    ...| StateTransProps.mkVoteGenerated lv≡v (Left (StateTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
+    ...| RoundManagerTransProps.mkVoteGenerated lv≡v (Left (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
        with SafetyDataInv.lvEpoch≡ ∘ SafetyRulesInv.sdInv $ srInv
     ...| sdEpochInv rewrite trans lv≡ (sym lv≡v) = sym sdEpochInv
     rmPreSdEpoch≡
-       | StateTransProps.mkVoteGenerated lv≡v (Right (StateTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
+       | RoundManagerTransProps.mkVoteGenerated lv≡v (Right (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
       trans sdEpoch≡? (sym ∘ proj₁ ∘ Voting.VoteMadeFromBlock⇒VoteEpochRoundIs $ bt)
 
     rmPreEsEpoch≡ : rmPre ^∙ rmEpochState ∙ esEpoch ≡ v ^∙ vEpoch
@@ -508,10 +508,10 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     realLVR≤rv : Meta.getLastVoteRound rmPre ≤ v ^∙ vRound
     realLVR≤rv
       with Voting.VoteGeneratedCorrect.state vgCorrect
-    ...| StateTransProps.mkVoteGenerated lv≡v (inj₁ (StateTransProps.mkVoteOldGenerated lvr≡ lv≡))
+    ...| RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡))
       rewrite trans lv≡ (sym lv≡v)
         = ≤-refl
-    ...| StateTransProps.mkVoteGenerated lv≡v (inj₂ (StateTransProps.mkVoteNewGenerated lvr< lvr≡))
+    ...| RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡))
        with rmPre ^∙ pssSafetyData-rm ∙ sdLastVote
        |    SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv
     ...| nothing | _ = z≤n

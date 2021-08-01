@@ -26,8 +26,8 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 

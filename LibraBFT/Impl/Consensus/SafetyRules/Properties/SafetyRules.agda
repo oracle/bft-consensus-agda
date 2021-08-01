@@ -28,8 +28,8 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
 

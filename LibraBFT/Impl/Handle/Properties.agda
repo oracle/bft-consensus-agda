@@ -39,8 +39,8 @@ open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
-open StateInvariants
-open StateTransProps
+open RoundManagerInvariants
+open RoundManagerTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
@@ -60,9 +60,9 @@ postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : RoundManager-correct initRM
   initRM-btInv   : BlockStoreInv initRM
 
-initRMSatisfiesInv : StateInvariants.RoundManagerInv initRM
+initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv initRM
 initRMSatisfiesInv =
-  StateInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
+  RoundManagerInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect
@@ -112,7 +112,7 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   hpOut = LBFT-outs (handleProposal 0 pm) hpPre
 
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
-  open StateInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
+  open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
