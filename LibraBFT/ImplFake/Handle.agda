@@ -51,11 +51,8 @@ module LibraBFT.ImplFake.Handle where
  initPE : ProposerElection
  initPE = obm-dangerous-magic!
 
- initPV : PendingVotes
- initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
-
  initRS : RoundState
- initRS = RoundState∙new 0 0 initPV nothing
+ initRS = RoundState∙new 0 0 PendingVotes∙new nothing
 
  initRM : RoundManager
  initRM = RoundManager∙new

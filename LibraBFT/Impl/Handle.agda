@@ -62,11 +62,8 @@ postulate -- TODO-1: Implement this.
   initPE : ProposerElection
   initBS : BlockStore
 
-initPV : PendingVotes
-initPV = PendingVotes∙new KVMap.empty nothing KVMap.empty
-
 initRS : RoundState
-initRS = RoundState∙new 0 0 initPV nothing
+initRS = RoundState∙new 0 0 PendingVotes∙new nothing
 
 initRM : RoundManager
 initRM = RoundManager∙new

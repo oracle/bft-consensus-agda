@@ -5,9 +5,10 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap             as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -43,9 +44,9 @@ module LibraBFT.ImplShared.Consensus.Types where
     field
       _nreRound   : Round
       _nreReason  : NewRoundReason
-    --  _nreTimeout : Duration
-  unquoteDecl nreRound   nreReason = mkLens (quote NewRoundEvent)
-             (nreRound ∷ nreReason ∷ [])
+      _nreTimeout : Duration
+  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
 
   record RoundState : Set where
     constructor RoundState∙new

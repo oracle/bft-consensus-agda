@@ -9,9 +9,11 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
+import      LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo         as SyncInfo
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
 import      LibraBFT.Impl.Consensus.PendingVotes                    as PendingVotes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -41,13 +43,28 @@ processLocalTimeoutM now obmEpoch round = do
 
 ------------------------------------------------------------------------------
 
+maybeAdvanceRound : Round → SyncInfo → Maybe (Round × NewRoundReason)
+
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
-processCertificatesM now syncInfo = do
+processCertificatesM now syncInfo =
+  logEE ("RoundState" ∷ "processCertificatesM" {-∷ lsSI syncInfo-} ∷ []) $ do
   rshcr <- use (lRoundState ∙ rsHighestCommittedRound)
-  if-RWST (syncInfo ^∙ siHighestCommitRound <? rshcr) -- TODO : define and use 'when'
-    then pure unit -- IMPL-TODO ((lRoundState ∙ rsHighestCommittedRound) :=  (syncInfo ^∙ siHighestCommitRound))
-    else pure unit
-  pure nothing
+  when (syncInfo ^∙ siHighestCommitRound <? rshcr) $ do
+    lRoundState ∙ rsHighestCommittedRound ∙= (syncInfo ^∙ siHighestCommitRound)
+    logInfo fakeInfo -- InfoUpdateHighestCommittedRound (syncInfo^.siHighestCommitRound)
+  rscr ← use (lRoundState ∙ rsCurrentRound)
+  maybeS-RWST (maybeAdvanceRound rscr syncInfo) (pure nothing) $ λ (pcr' , reason) → do
+    lRoundState ∙ rsCurrentRound ∙= pcr'
+    lRoundState ∙ rsPendingVotes ∙= PendingVotes∙new
+    lRoundState ∙ rsVoteSent     ∙= nothing
+    timeout                       ← setupTimeoutM now
+    pure (just (NewRoundEvent∙new pcr' reason timeout))
+
+maybeAdvanceRound currentRound syncInfo =
+  let newRound = SyncInfo.highestRound syncInfo + 1
+   in if-dec newRound >? currentRound
+      then just (newRound , (if is-nothing (syncInfo ^∙ siHighestTimeoutCert) then QCReady else TOReady))
+      else nothing
 
 ------------------------------------------------------------------------------
 
@@ -59,8 +76,7 @@ insertVoteM vote verifier = do
     else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
 
 ------------------------------------------------------------------------------
--- TODO-1: Implement this.
--- > recordVote v = rsVoteSent ∙= just v
+
 recordVoteM : Vote → LBFT Unit
 recordVoteM v = rsVoteSent-rm ∙= just v
 
