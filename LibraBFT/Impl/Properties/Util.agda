@@ -114,6 +114,12 @@ module QCProps where
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
   SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
 
+  ++-SigsForVote∈Rm-SentB4
+    : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
+      → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v)
+
 module RoundManagerInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
@@ -153,6 +159,10 @@ module RoundManagerInvariants where
       epochsMatch  : EpochsMatch rm
       btInv        : BlockStoreInv rm
       srInv        : SafetyRulesInv rm
+
+  ++-RoundManagerInv : ∀ {pool rm} → (msgs : SentMessages) → RoundManagerInv pool rm → RoundManagerInv (msgs ++ pool) rm
+  ++-RoundManagerInv msgs (mkRoundManagerInv rmCorrect qcsigsSentB4 epochsMatch btInv srInv) =
+    mkRoundManagerInv rmCorrect (QCProps.++-SigsForVote∈Rm-SentB4 msgs qcsigsSentB4) epochsMatch btInv srInv
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post

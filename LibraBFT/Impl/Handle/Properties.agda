@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-{-# OPTIONS --allow-unsolved-metas #-}
-
 -- This module provides some scaffolding to define the handlers for our
 -- implementation and connect them to the interface of the SystemModel.
 
@@ -60,24 +58,33 @@ invariantsCorrect
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
-  = {!!} -- invariantsCorrect pid pre' preach
+  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach) -- invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
   with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
-  = {!!} -- invariantsCorrect pid pre' preach
+  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach)
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini)))) | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
-  = {!!} --initRMSatisfiesInv
+  |       sym $ ++-identityʳ (msgPool pre')
+  = ++-RoundManagerInv _ initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini)))) | yes refl
-  with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) (handleProposalRequirements preach m∈pool ini)
+  with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) reqs
+  where
+  reqs : handleProposalSpec.Requirements 0 pm (msgPool pre') (peerStates pre' pid)
+  reqs = record { mSndr = sndr ; m∈pool = m∈pool }
 ... | invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
-  = {!!} -- invPres (invariantsCorrect pid pre' preach)
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V x} m∈pool ini)))) | yes refl = TODO
+  = ++-RoundManagerInv _ (invPres (invariantsCorrect pid pre' preach))
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V vm} m∈pool ini)))) | yes refl
+  with handleVoteSpec.contract! 0 vm (peerStates pre' pid) (msgPool pre') reqs
   where
-  postulate -- TODO-3: prove (waiting on: `handle`)
-    TODO : {!!} -- RoundManagerInv (peerStates pre pid)
+  reqs : handleVoteSpec.Requirements 0 vm (msgPool pre') (peerStates pre' pid)
+  reqs = record { mSndr = sndr ; m∈pool = m∈pool }
+... | handleVoteSpec.mkContract invPres _ _ _
+  rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre' pid)}{f = peerStates pre'}
+  = ++-RoundManagerInv{pool = msgPool pre'} _ (invPres (invariantsCorrect pid pre' preach))
+
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini)))) | yes refl = TODO
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
@@ -101,7 +108,10 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   hpPst  = LBFT-post (handleProposal 0 pm) hpPre
   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre (handleProposalRequirements preach m∈pool ini))
+  hpReq : handleProposalSpec.Requirements 0 pm hpPool hpPre
+  hpReq = record { mSndr = _ ; m∈pool = m∈pool }
+
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre hpReq)
   open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where

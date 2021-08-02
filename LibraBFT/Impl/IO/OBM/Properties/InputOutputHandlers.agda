@@ -43,6 +43,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
   open handleProposal now pm
 
   record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
+    constructor mkRequirements
     field
       mSndr            : NodeId
       m∈pool           : (mSndr , P pm) ∈ pool
@@ -62,10 +63,14 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
     contract =
-      epvvSpec.contract pre
-        (RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) Contract)
-        contract-step₁
+      epvvSpec.contract pre Post-epvv contract-step₁
       where
+      Post-epvv : LBFT-Post (Epoch × ValidatorVerifier)
+      Post-epvv = RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) Contract
+
+      myEpoch = pre ^∙ pssSafetyData-rm ∙ sdEpoch
+      vv      = pre ^∙ rmEpochState ∙ esVerifier
+
       contractBail : ∀ outs → OutputProps.NoVotes outs → Contract unit pre outs
       contractBail outs noVotes =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
@@ -78,7 +83,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
           qc∈post⇒SigsSentB4 : QCProps.SigsForVotes∈Rm-SentB4 pool pre
 
-      contract-step₁ : _  -- Post condition
+      contract-step₁ : Post-epvv (myEpoch , vv) pre []
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =
         contractBail _ refl
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
@@ -113,6 +118,12 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 module handleVoteSpec (now : Instant) (vm : VoteMsg) where
   open handleVote now vm
 
+  record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
+    constructor mkRequirements
+    field
+      mSndr            : NodeId
+      m∈pool           : (mSndr , V vm) ∈ pool
+
   record Contract (pre : RoundManager) (pool : SentMessages) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
     constructor mkContract
     field
@@ -124,7 +135,7 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
       noVotes       : OutputProps.NoVotes outs
 
   postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
-    contract : ∀ pre pool → LBFT-weakestPre (handleVote now vm) (Contract pre pool) pre
+    contract : ∀ pre pool → Requirements pool pre → LBFT-weakestPre (handleVote now vm) (Contract pre pool) pre
 
-  contract! : ∀ pre pool → LBFT-Post-True (Contract pre pool) (handleVote now vm) pre
-  contract! pre pool = LBFT-contract (handleVote now vm) (Contract pre pool) pre (contract pre pool)
+  contract! : ∀ pre pool → Requirements pool pre → LBFT-Post-True (Contract pre pool) (handleVote now vm) pre
+  contract! pre pool reqs = LBFT-contract (handleVote now vm) (Contract pre pool) pre (contract pre pool reqs)
