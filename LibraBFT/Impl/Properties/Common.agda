@@ -257,14 +257,16 @@ module ReachableSystemStateProps where
     case uninitd ≡ initd ∋ trans (sym uni) ini of λ ()
     where
     ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{_ , P pm} m∈pool ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
     hpPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
     hpPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
     v ^∙ vEpoch      ∎
     where
-    hpPre = peerStates st pid
-    hpPos = LBFT-post (handleProposal 0 pm) hpPre
-    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+    hpPool = msgPool st
+    hpPre  = peerStates st pid
+    hpPos  = LBFT-post (handleProposal 0 pm) hpPre
+    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $
+                                       handleProposalRequirements rss m∈pool ini)
     open ≡-Reasoning
 
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO

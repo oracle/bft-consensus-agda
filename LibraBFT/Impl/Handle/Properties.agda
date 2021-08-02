@@ -69,7 +69,7 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
   = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini)))) | yes refl
-  with handleProposalSpec.contract!-RoundManagerInv 0 pm (peerStates pre' pid)
+  with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) (handleProposalRequirements preach m∈pool ini)
 ... | invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
   = invPres (invariantsCorrect pid pre' preach)
@@ -95,11 +95,12 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   with m
 ... | P pm rewrite sym $ StepPeer-post-lemma{pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
   where
-  hpPre = peerStates pre pid
-  hpPst = LBFT-post (handleProposal 0 pm) hpPre
-  hpOut = LBFT-outs (handleProposal 0 pm) hpPre
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid
+  hpPst  = LBFT-post (handleProposal 0 pm) hpPre
+  hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre (handleProposalRequirements preach m∈pool ini))
   open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where

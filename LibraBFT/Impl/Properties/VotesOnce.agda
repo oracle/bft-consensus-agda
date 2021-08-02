@@ -22,6 +22,7 @@ open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
+open        ReachableSystemStateProps
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -52,15 +53,16 @@ newVote⇒lv≡
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
-newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} _ ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
+newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} m∈pool ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4 =
   ⊥-elim (¬msb4 $ sigSentB4 nm refl)
   where
-  hpPre = peerStates pre pid
-  hpOut = LBFT-outs (handle pid nm 0) hpPre
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid
+  hpOut  = LBFT-outs (handle pid nm 0) hpPre
 
   nmSentQcs∈RM : (nm1 : NetworkMsg) → nm1 ≡ nm → QC.OutputQc∈RoundManager hpOut hpPre
   nmSentQcs∈RM (P pm) refl = outQcs∈RM
-    where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+    where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $ handleProposalRequirements preach m∈pool ini)
   nmSentQcs∈RM (V vm) refl = obm-dangerous-magic' "Waiting on handleVoteSpec"
   nmSentQcs∈RM (C cm) refl = obm-dangerous-magic' "Waiting on handleCommitSpec"
 
@@ -74,7 +76,7 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} _ ini) (
     sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
-  with handleProposalSpec.contract! 0 pm (peerStates pre pid)
+  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid) $ handleProposalRequirements preach m∈pool ini
 ...| handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) _ =
   ⊥-elim (¬voteUnsent voteUnsent)
   where
@@ -258,12 +260,13 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   where
   postulate -- TODO-1: prove (waiting on: lemma to prove QC votes sent before)
     TODO : v ≡L v' at vProposedId
-sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer{pid“} sp@(step-honest sps@(step-msg{_ , P pm} pm∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk ._ _ sig' ¬gen ≡epoch ≡round
+sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer{pid“} sp@(step-honest sps@(step-msg{sndr , P pm} pm∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk ._ _ sig' ¬gen ≡epoch ≡round
    | inj₁ (m∈outs , pcsfpk' , ¬msb4) | refl | vote∈vm = ret
   where
   -- Definitions
-  hpPre = peerStates pre pid“
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid“
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $ handleProposalRequirements preach pm∈pool ini)
   hpPos  = LBFT-post (handleProposal 0 pm) hpPre
   hpOuts = LBFT-outs (handleProposal 0 pm) hpPre
 
@@ -322,15 +325,16 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   postulate -- TODO-2: prove (note: probably some repetition with the case below)
     TODO : v ≡L v' at vProposedId
 
-sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer{pid“} sp@(step-honest sps@(step-msg{_ , P pm} m∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+sameERasLV⇒sameId{.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer{pid“} sp@(step-honest sps@(step-msg{sndr , P pm} m∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
    | inj₂ mws∈pool | yes refl | vote∈vm =
   trans hyp (cong (_^∙ vdProposed ∙ biId) ≡voteData)
   where
   -- Definitions
-  hpPre = peerStates pre pid“
-  rmInv = invariantsCorrect pid“ pre preach
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid“
+  rmInv  = invariantsCorrect pid“ pre preach
   open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid“ pre preach)
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $ handleProposalRequirements preach m∈pool ini)
     renaming (rmInv to rmInvP)
   hpPos  = LBFT-post (handleProposal 0 pm) hpPre
   hpOuts = LBFT-outs (handleProposal 0 pm) hpPre
@@ -449,7 +453,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   postulate -- TODO-2: prove (waiting on: lemma that QC votes have been sent before)
     TODO : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
-  with handleProposalSpec.contract! 0 pm (peerStates pre pid)
+  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid) $ handleProposalRequirements preach m∈pool ini
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) _ =
   ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?) _
@@ -547,9 +551,10 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
   with m“
 ...| P pm = cong (_^∙ vProposedId) v≡v'
   where
-  hpPre = peerStates pre pid
-  hpOut = LBFT-outs (handleProposal 0 pm) hpPre
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid
+  hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $ handleProposalRequirements rss m“∈pool ini)
 
   v≡v' : v ≡ v'
   v≡v'
