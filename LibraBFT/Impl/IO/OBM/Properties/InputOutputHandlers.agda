@@ -58,7 +58,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         noEpochChange      : NoEpochChange pre post
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
-        -- Signatures sent
+        -- Signatures
+        qcs∈RM∈Pool        : QC.SigsForVotes∈Qc∈Rm-SentB4 post pool
         outQcs∈RM          : QC.OutputQc∈RoundManager outs pre
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
@@ -71,13 +72,16 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       contractBail outs noVotes =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
           (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
+          qc∈post⇒SigsSentB4
           outqcs∈pre
         where
         postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
           outqcs∈pre : QC.OutputQc∈RoundManager outs pre
+        postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
+          qc∈post⇒SigsSentB4 : QC.SigsForVotes∈Qc∈Rm-SentB4 pre pool
 
-      contract-step₁ : _
-      proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e)  pp≡Left =
+      contract-step₁ : _  -- Post condition
+      proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =
         contractBail _ refl
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
         contractBail _ refl
@@ -96,6 +100,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           mkContract rmInv noEpochChange
             (Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
               (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡))
+            (obm-dangerous-magic' "waiting on processProposalMsgMSpec extension")
             obm-dangerous-magic! -- TODO-2: prove it, ...
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
