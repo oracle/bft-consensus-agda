@@ -34,6 +34,8 @@ module LibraBFT.Prelude where
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public
 
+  max = _⊔_
+
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public

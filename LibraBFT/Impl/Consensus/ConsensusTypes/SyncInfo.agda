@@ -12,4 +12,4 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo where
 
 highestRound : SyncInfo → Round
-highestRound self = self ^∙ siHighestCertifiedRound ⊔ self ^∙ siHighestTimeoutRound
+highestRound self = max (self ^∙ siHighestCertifiedRound) (self ^∙ siHighestTimeoutRound)
