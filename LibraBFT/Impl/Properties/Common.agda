@@ -106,7 +106,7 @@ qcVoteSigsSentB4{pid}{qc}{st = st} rss'@(step-s{pre = pre} rss (step-peer sp@(st
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (sym (cheatStepDNMInitialised₁ sp unit)) ini
 
-qcVoteSigsSentB4{pid}{qc} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'} sps))) ini qc∈rm vs∈qcvs ¬gen
+qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'} sps))) ini qc∈rm vs∈qcvs ¬gen
   with pid ≟ pid'
 ...| no  pid≢ = MsgWithSig∈-++ʳ{pool = msgPool pre} $ qcVoteSigsSentB4 rss iniPre qc∈rmPre vs∈qcvs ¬gen
   where
@@ -129,7 +129,25 @@ qcVoteSigsSentB4{pid}{qc} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'
   qc∈rmPre : qc QC.∈RoundManager peerStates pre pid'
   qc∈rmPre rewrite pre≡ = qc∈rm
 
-... | step-msg{sndr , m} m∈pool ini' = {!!}
+...| step-msg{sndr , V pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleVoteSpec"
+...| step-msg{sndr , C pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleCommitSpec"
+
+-- Will need to relate the QCs in the outs to the msgPool of the prestate.
+-- Either they come from pm, or from the previous roundstate.
+-- In the first case, we can construct the MsgWithsig∈ with that knowledge.
+-- In the second case, they come from the RoundManager of the pre-state, and we will rely on the system inv.
+...| step-msg{sndr , P pm} m∈pool ini' = mws
+       where
+       hpPre      = peerStates pre pid'
+       hpPoolPre  = msgPool pre
+       hpOuts     = outputsToActions {hpPre} $ LBFT-outs (handle pid' (P pm) 0) hpPre
+       hpPoolPost = actionsToSentMessages pid hpOuts ++ msgPool pre
+
+       open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPoolPre hpPre $ handleProposalRequirements rss m∈pool ini')
+
+       mws : MsgWithSig∈ pk sig hpPoolPost
+       mws with voteAttemptCorrect
+       ... | Voting.mkVoteAttemptCorrectWithEpochReq voteAttempt sdEpoch≡? = {!!}
 
 
 module ∈GenInfoProps where
