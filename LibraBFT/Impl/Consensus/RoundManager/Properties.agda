@@ -325,6 +325,7 @@ module processProposalMsgMSpec
       mSndr            : NodeId
       m∈pool           : (mSndr , P pm) ∈ pool
       qcs∈RmSigsSentB4 : QC.SigsForVotes∈Qc∈Rm-SentB4 pre pool
+  open Requirements
 
   module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool pre) where
 
@@ -336,6 +337,8 @@ module processProposalMsgMSpec
         noEpochChange : NoEpochChange pre post
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
+        -- Signatures
+        qcs∈RM∈Pool        : QC.SigsForVotes∈Qc∈Rm-SentB4 post pool
 
     contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
     contract' rewrite processProposalMsgM≡ = contract
@@ -344,6 +347,7 @@ module processProposalMsgMSpec
       contractBail outs nvo =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
           (Voting.voteAttemptBailed outs nvo)
+          (qcs∈RmSigsSentB4 reqs)
 
       contract : LBFT-weakestPre step₀ Contract pre
       proj₁ contract ≡nothing = contractBail _ refl
@@ -365,6 +369,7 @@ module processProposalMsgMSpec
                 (inj₁ (true , Voting.mkVoteUnsentCorrect
                                 (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
                                 (inj₁ noVote)))
+                (obm-dangerous-magic' "waiting for refinement of ensureRoundAndSyncUpMSpec.Contract")
 
             pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
             pf (Left e) ._ refl =
@@ -381,6 +386,7 @@ module processProposalMsgMSpec
                   (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
                   (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
                     noVote noVoteOuts voteAttemptCorrect')
+                  (obm-dangerous-magic' "waiting for refinement of processProposalMSpec.Contract")
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =

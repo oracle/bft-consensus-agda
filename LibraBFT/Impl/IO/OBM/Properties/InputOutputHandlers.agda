@@ -100,11 +100,11 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
                 record { mSndr = mSndr ; m∈pool = m∈pool ; qcs∈RmSigsSentB4 = qcs∈RmSigsSentB4 }
 
         pf : RWST-Post-⇒ (PPM.Contract pool pre (ppmReqs reqs refl)) Contract
-        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect) =
+        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect qcs∈pool) =
           mkContract rmInv noEpochChange
             (Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
               (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡))
-            (obm-dangerous-magic' "waiting on processProposalMsgMSpec extension")
+            qcs∈pool
             obm-dangerous-magic! -- TODO-2: prove it, ...
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
