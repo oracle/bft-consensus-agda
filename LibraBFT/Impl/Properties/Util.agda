@@ -440,3 +440,14 @@ module QC where
     ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
     → MsgWithSig∈ pk sig pool
+
+  SigsForVotes∈Qc∈Rm-SentB4 : RoundManager → SentMessages → Set
+  SigsForVotes∈Qc∈Rm-SentB4 rm pool = ∀ {qc v pk} → SigForVote∈Qc∈Rm-SentB4 v pk qc rm pool
+
+record SystemInv (st : SystemState) : Set where
+  field
+    qcs∈RMSigSentB4 : ∀ {pid}
+                    → initialised st pid ≡ initd
+                    → QC.SigsForVotes∈Qc∈Rm-SentB4 (peerStates st pid) (msgPool st)
+open SystemInv public
+
