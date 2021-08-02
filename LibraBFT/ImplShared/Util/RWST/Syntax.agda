@@ -49,6 +49,11 @@ tell1 x = tell (x ∷ [])
 
 act = tell1
 
+void : RWST Ev Wr St A → RWST Ev Wr St Unit
+void m = do
+  _ ← m
+  return unit
+
 -- Conditionals
 infix 1 ifM‖_
 ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A

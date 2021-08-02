@@ -48,7 +48,4 @@ amIMemberOfCurrentEpochM =
     (just me) →
       amIMemberOfCurrentEpoch <$> pure me <*> use (lRoundManager ∙ rmObmAllAuthors)
 
--- TODO-1 : what is the stdlib function for this?
-amIMemberOfCurrentEpoch _ [] = false
-amIMemberOfCurrentEpoch x (x' ∷ xs) =
-  if x == x' then true else amIMemberOfCurrentEpoch x xs
+amIMemberOfCurrentEpoch = elem
