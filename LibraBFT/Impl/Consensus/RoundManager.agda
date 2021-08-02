@@ -46,7 +46,7 @@ generateProposalM
   → LBFT (Either ErrLog ProposalMsg)
 
 processNewRoundEventM : Instant → NewRoundEvent → LBFT Unit
-processNewRoundEventM now nre@(NewRoundEvent∙new r _) = do
+processNewRoundEventM now nre@(NewRoundEvent∙new r _ _) = do
   logInfo fakeInfo   -- (InfoNewRoundEvent nre)
   use (lRoundManager ∙ pgAuthor) >>= λ where
     nothing       → logErr fakeErr -- (here ["lRoundManager.pgAuthor", "Nothing"])
