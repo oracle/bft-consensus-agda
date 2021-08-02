@@ -291,25 +291,27 @@ module ensureRoundAndSyncUpMSpec
 
   open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
 
-  record Contract (pre : RoundManager) (r : Either ErrLog Bool) (post : RoundManager) (outs : List Output) : Set where
-    constructor mkContract
-    field
-      -- General invariants / properties
-      rmInv         : Preserves RoundManagerInv pre post
-      noEpochChange : NoEpochChange pre post
-      noVoteOuts    : OutputProps.NoVotes outs
-      -- Voting
-      noVote        : VoteNotGenerated pre post true
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
-  postulate -- TODO-2: prove
-    -- This should be fairly straightforward, appealing to the contract for
-    -- `syncUpM`.
-    contract'
-      : ∀ pre → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) (Contract pre) pre
+    record Contract (r : Either ErrLog Bool) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        -- General invariants / properties
+        rmInv         : Preserves RoundManagerInv pre post
+        noEpochChange : NoEpochChange pre post
+        noVoteOuts    : OutputProps.NoVotes outs
+        -- Voting
+        noVote        : VoteNotGenerated pre post true
 
-  contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
-  contract pre Post pf =
-    LBFT-⇒ (Contract pre) Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre (contract' pre)
+    postulate -- TODO-2: prove
+      -- This should be fairly straightforward, appealing to the contract for
+      -- `syncUpM`.
+      contract'
+        : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
+
+    contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
+    contract Post pf =
+      LBFT-⇒ Contract Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract'
 
 module processProposalMsgMSpec
   (now : Instant) (pm : ProposalMsg) where
@@ -358,7 +360,7 @@ module processProposalMsgMSpec
 
           contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
           contract-step₁ =
-            ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
+            ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pool pre
               (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
 
           pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
