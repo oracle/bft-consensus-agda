@@ -23,5 +23,3 @@ hasNewerCertificates self other
   = ⌊ self ^∙ siHighestCertifiedRound >? other ^∙ siHighestCertifiedRound ⌋
   ∨ ⌊ self ^∙ siHighestTimeoutRound   >? other ^∙ siHighestTimeoutRound   ⌋
   ∨ ⌊ self ^∙ siHighestCommitRound    >? other ^∙ siHighestCommitRound    ⌋
-
->>>>>>> 449bdfc (implemented RoundManager.syncUpM)
