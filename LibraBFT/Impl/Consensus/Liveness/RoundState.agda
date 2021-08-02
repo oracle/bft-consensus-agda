@@ -10,7 +10,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
-import      LibraBFT.Impl.Consensus.Types.PendingVotes              as PendingVotes
+import      LibraBFT.Impl.Consensus.PendingVotes                    as PendingVotes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.ImplShared.Base.Types
