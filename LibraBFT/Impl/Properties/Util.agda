@@ -181,6 +181,15 @@ module RoundManagerTransProps where
   transNoEpochChange : Transitive NoEpochChange
   transNoEpochChange = trans
 
+  NoSafetyDataChange : (pre post : RoundManager) → Set
+  NoSafetyDataChange pre post = pre ≡L post at pssSafetyData-rm
+
+  reflNoSafetyDataChange : Reflexive NoSafetyDataChange
+  reflNoSafetyDataChange = refl
+
+  transNoSafetyDataChange : Transitive NoSafetyDataChange
+  transNoSafetyDataChange = trans
+
   -- - state changes from generating or not generating a vote
   LastVoteIs : RoundManager → Vote → Set
   LastVoteIs rm v = just v ≡ rm ^∙ pssSafetyData-rm ∙ sdLastVote

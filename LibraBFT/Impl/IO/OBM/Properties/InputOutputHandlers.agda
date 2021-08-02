@@ -111,4 +111,23 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract
 
     contract!-RoundManagerInv : LBFT-Post-True (λ r st outs → Preserves RoundManagerInv pre st) (handleProposal now pm) pre
-    contract!-RoundManagerInv = Contract.rmInv contract!
+    contract!-RoundManagerInv rmInv = Contract.rmInv contract! rmInv
+
+module handleVoteSpec (now : Instant) (vm : VoteMsg) where
+  open handleVote now vm
+
+  record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
+    constructor mkContract
+    field
+      -- General properties / invariants
+      rmInv         : Preserves RoundManagerInv pre post
+      noEpochChange : NoEpochChange pre post
+      noSDChange    : NoSafetyDataChange pre post
+      -- Output
+      noVotes       : OutputProps.NoVotes outs
+
+  postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
+    contract : ∀ pre → LBFT-weakestPre (handleVote now vm) (Contract pre) pre
+
+  contract! : ∀ pre → LBFT-Post-True (Contract pre) (handleVote now vm) pre
+  contract! pre = LBFT-contract (handleVote now vm) (Contract pre) pre (contract pre)
