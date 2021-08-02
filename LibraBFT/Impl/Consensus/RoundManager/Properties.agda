@@ -6,6 +6,8 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.System
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -26,6 +28,7 @@ open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
+open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
 open RoundManagerInvariants
@@ -315,60 +318,62 @@ module processProposalMsgMSpec
 
   open processProposalMsgM now pm
 
-  record Contract (pre : RoundManager) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
-    constructor mkContract
-    field
-      -- General invariants / properties
-      rmInv         : Preserves RoundManagerInv pre post
-      noEpochChange : NoEpochChange pre post
-      -- Voting
-      voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
-  contract' : ∀ pre → LBFT-weakestPre (processProposalMsgM now pm) (Contract pre) pre
-  contract' pre rewrite processProposalMsgM≡ = contract
-    where
-    contractBail : ∀ outs → OutputProps.NoVotes outs → Contract pre unit pre outs
-    contractBail outs nvo =
-      mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-        (Voting.voteAttemptBailed outs nvo)
+    record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        -- General invariants / properties
+        rmInv         : Preserves RoundManagerInv pre post
+        noEpochChange : NoEpochChange pre post
+        -- Voting
+        voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
 
-    contract : LBFT-weakestPre step₀ (Contract pre) pre
-    proj₁ contract ≡nothing = contractBail _ refl
-    proj₂ contract = contract-step₁
+    contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
+    contract' rewrite processProposalMsgM≡ = contract
       where
-      module _ (pAuthor : Author) (pAuthor≡ : pm ^∙ pmProposer ≡ just pAuthor) where
-        pf-step₂ : RWST-Post-⇒ _ (RWST-weakestPre-bindPost unit step₂ (Contract pre))
+      contractBail : ∀ outs → OutputProps.NoVotes outs → Contract unit pre outs
+      contractBail outs nvo =
+        mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
+          (Voting.voteAttemptBailed outs nvo)
 
-        contract-step₁ : LBFT-weakestPre (step₁ pAuthor) (Contract pre) pre
-        contract-step₁ =
-          ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
-            (RWST-weakestPre-bindPost unit step₂ (Contract pre)) pf-step₂
+      contract : LBFT-weakestPre step₀ Contract pre
+      proj₁ contract ≡nothing = contractBail _ refl
+      proj₂ contract = contract-step₁
+        where
+        module _ (pAuthor : Author) (pAuthor≡ : pm ^∙ pmProposer ≡ just pAuthor) where
+          pf-step₂ : RWST-Post-⇒ _ (RWST-weakestPre-bindPost unit step₂ Contract)
 
-        pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
-          where
-          contractBailAfterSync : ∀ outs' → OutputProps.NoVotes outs' → RWST-Post++ (Contract pre) outs unit st outs'
-          contractBailAfterSync outs' noVotesOuts' =
-            mkContract rmInv noEpochChange
-              (inj₁ (true , Voting.mkVoteUnsentCorrect
-                              (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
-                              (inj₁ noVote)))
+          contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
+          contract-step₁ =
+            ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
+              (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
 
-          pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ (Contract pre) r st outs
-          pf (Left e) ._ refl =
-            contractBailAfterSync _ refl
-          pf (Right false) ._ refl ._ refl =
-            contractBailAfterSync _ refl
-          pf (Right true) ._ refl =
-            processProposalMSpec.contract (pm ^∙ pmProposal) st (RWST-Post++ (Contract pre) outs) pf-step₃
+          pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
             where
-            pf-step₃ : RWST-Post-⇒ _ (RWST-Post++ (Contract pre) outs)
-            pf-step₃ unit st' outs' (processProposalMSpec.mkContract rmInv' noEpochChange' NoProposals' voteAttemptCorrect') =
-              mkContract
-                (transPreservesRoundManagerInv rmInv rmInv')
-                (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
-                (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
-                  noVote noVoteOuts voteAttemptCorrect')
+            contractBailAfterSync : ∀ outs' → OutputProps.NoVotes outs' → RWST-Post++ Contract outs unit st outs'
+            contractBailAfterSync outs' noVotesOuts' =
+              mkContract rmInv noEpochChange
+                (inj₁ (true , Voting.mkVoteUnsentCorrect
+                                (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
+                                (inj₁ noVote)))
 
-  contract : ∀ pre Post → RWST-Post-⇒ (Contract pre) Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
-  contract pre Post pf =
-    LBFT-⇒ (Contract pre) Post pf (processProposalMsgM now pm) pre (contract' pre)
+            pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
+            pf (Left e) ._ refl =
+              contractBailAfterSync _ refl
+            pf (Right false) ._ refl ._ refl =
+              contractBailAfterSync _ refl
+            pf (Right true) ._ refl =
+              processProposalMSpec.contract (pm ^∙ pmProposal) st (RWST-Post++ Contract outs) pf-step₃
+              where
+              pf-step₃ : RWST-Post-⇒ _ (RWST-Post++ Contract outs)
+              pf-step₃ unit st' outs' (processProposalMSpec.mkContract rmInv' noEpochChange' NoProposals' voteAttemptCorrect') =
+                mkContract
+                  (transPreservesRoundManagerInv rmInv rmInv')
+                  (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
+                  (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
+                    noVote noVoteOuts voteAttemptCorrect')
+
+    contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
+    contract Post pf =
+      LBFT-⇒ Contract Post pf (processProposalMsgM now pm) pre contract'
