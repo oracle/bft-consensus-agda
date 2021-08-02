@@ -43,6 +43,12 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 
 module LibraBFT.Impl.Properties.Common where
 
+handleProposalRequirements : ∀ {inst st sndr pm pid}
+                             → ReachableSystemState st
+                             → (sndr , P pm) ∈ msgPool st
+                             → initialised st pid ≡ initd
+                             → handleProposalSpec.Requirements inst pm (msgPool st) (peerStates st pid)
+
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
   -- will need to show that honest peers sign things only for their only PK, and
@@ -189,6 +195,11 @@ module PeerCanSignForPKProps where
       pcsfpk₂∙pk ∎
 
 module ReachableSystemStateProps where
+  postulate --TODO-2: Prove by induction using handler contracts
+    systemInvariants
+      : ∀ {st}
+        → ReachableSystemState st
+        → SystemInv st
 
   mws∈pool⇒initd
     : ∀ {pid pk v}{st : SystemState}
@@ -265,3 +276,13 @@ module ReachableSystemStateProps where
     where
     postulate -- TODO-3: prove (waiting on: epoch config changes)
       TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
+
+-- TODO-2: This should probably go somewhere else.  One possibility is
+-- Properties.InputOutputHandlers but it can't easily go there without creating cyclic imports
+open ReachableSystemStateProps
+handleProposalRequirements {st = st} {sndr} {pm} {pid} reach m∈pool ini =
+  record { mSndr = sndr
+         ; m∈pool = m∈pool
+         ; qcs∈RmSigsSentB4 = qcs∈RMSigSentB4 (systemInvariants reach) ini
+         }
+
