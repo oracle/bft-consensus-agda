@@ -318,7 +318,15 @@ module processProposalMsgMSpec
 
   open processProposalMsgM now pm
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  -- TODO: Refactor for DRY fail with InputOutputHandlers?  Maybe not, as they may evolve
+  -- differently
+  record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
+    field
+      mSndr            : NodeId
+      m∈pool           : (mSndr , P pm) ∈ pool
+      qcs∈RmSigsSentB4 : QC.SigsForVotes∈Qc∈Rm-SentB4 pre pool
+
+  module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool pre) where
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
