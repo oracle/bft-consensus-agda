@@ -146,8 +146,7 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
        open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPoolPre hpPre $ handleProposalRequirements rss m∈pool ini')
 
        mws : MsgWithSig∈ pk sig hpPoolPost
-       mws with voteAttemptCorrect
-       ... | Voting.mkVoteAttemptCorrectWithEpochReq voteAttempt sdEpoch≡? = {!!}
+       mws = obm-dangerous-magic' "TODO: use handleProposalSpec.Contract.qcs∈RM∈Pool"
 
 
 module ∈GenInfoProps where
