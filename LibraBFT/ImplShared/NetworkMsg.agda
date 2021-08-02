@@ -43,18 +43,14 @@ module LibraBFT.ImplShared.NetworkMsg where
      -- could use the Lens, and fix the proofs, but it seems simpler this way.
      withVoteSIHighCC : _sixxxHighestCommitCert si ≡ just qc → qc QC∈SyncInfo si
 
-  data _QC∈ProposalMsg_ (qc : QuorumCert) (pm : ProposalMsg) : Set where
-     inProposal       : pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert ≡ qc → qc QC∈ProposalMsg pm
-     inPMSyncInfo     : qc QC∈SyncInfo (pm ^∙ pmSyncInfo)                 → qc QC∈ProposalMsg pm
+  data _SyncInfo∈NM_ : SyncInfo → NetworkMsg → Set where
+    inP  : ∀ {pm} → (pm ^∙ pmSyncInfo) SyncInfo∈NM P pm
+    inV  : ∀ {vm} → (vm ^∙ vmSyncInfo) SyncInfo∈NM V vm
 
-  -- TODO-1: Either we have `_QC∈VoteMsg_` or we remove the following
-  data _QC∈CommitMsg_ (qc : QuorumCert) (cm : CommitMsg) : Set where
-     withCommitMsg    : cm ^∙ cmCert ≡ qc                                 → qc QC∈CommitMsg cm
-
-  data _QC∈NM_ (qc : QuorumCert) : NetworkMsg → Set where
-    inP : ∀ {pm} → qc QC∈ProposalMsg pm                 → qc QC∈NM (P pm)
-    inV : ∀ {vm} → qc QC∈SyncInfo    (vm ^∙ vmSyncInfo) → qc QC∈NM (V vm)
-    inC : ∀ {cm} → qc QC∈CommitMsg   cm                 → qc QC∈NM (C cm)
+  data _QC∈NM_ : QuorumCert → NetworkMsg → Set where
+    inP  : ∀ {pm}       → (pm ^∙ pmProposal ∙ bBlockData ∙ bdQuorumCert) QC∈NM (P pm)
+    inSI : ∀ {nm si qc} → si SyncInfo∈NM nm → qc QC∈SyncInfo si → qc     QC∈NM nm
+    inC  : ∀ {cm}       → (cm ^∙ cmCert)                                 QC∈NM (C cm)
 
   data _⊂Msg_ (v : Vote) : NetworkMsg → Set where
     vote∈vm : ∀ {si}
