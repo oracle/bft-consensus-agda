@@ -7,7 +7,7 @@ open import LibraBFT.Base.KVMap                                       as Map
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
-open import LibraBFT.Impl.Consensus.Types.PendingVotes                as PendingVotes
+open import LibraBFT.Impl.Consensus.PendingVotes                      as PendingVotes
 open import LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
 open import LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
 open import LibraBFT.Impl.Types.ValidatorSigner                       as ValidatorSigner
@@ -22,7 +22,7 @@ open import Optics.All
 open import Data.Fin as Fin
 open import Data.Vec as Vec using (Vec; lookup)
 
-module LibraBFT.Impl.Consensus.Types.PendingVotesSpec where
+module LibraBFT.Impl.Consensus.PendingVotesSpec where
 
 gs : ∀ {A : Set} {n : ℕ} → Vec A n → Fin n → A
 gs = Vec.lookup

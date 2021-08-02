@@ -16,7 +16,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
-module LibraBFT.Impl.Consensus.Types.PendingVotes where
+module LibraBFT.Impl.Consensus.PendingVotes where
 
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
