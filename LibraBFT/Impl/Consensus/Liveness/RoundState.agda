@@ -8,9 +8,11 @@ open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore as BlockStore
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote     as Vote
-open import LibraBFT.Impl.Consensus.Types.PendingVotes      as PendingVotes hiding (insertVoteM)
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
+import      LibraBFT.Impl.Consensus.Types.PendingVotes              as PendingVotes
+import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
+open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -24,7 +26,18 @@ module LibraBFT.Impl.Consensus.Liveness.RoundState where
 ------------------------------------------------------------------------------
 
 postulate
-  processLocalTimeoutM : Instant → Epoch → Round → LBFT Bool
+  setupTimeoutM : Instant → LBFT Duration
+
+------------------------------------------------------------------------------
+
+processLocalTimeoutM : Instant → Epoch → Round → LBFT Bool
+processLocalTimeoutM now obmEpoch round = do
+  currentRound ← use (lRoundState ∙ rsCurrentRound)
+  if-RWST round /= currentRound
+    then pure false
+    else do
+      void (setupTimeoutM now) -- setup the next timeout
+      ECP-LBFT-OBM-Diff-1.e_RoundState_processLocalTimeoutM obmEpoch round
 
 ------------------------------------------------------------------------------
 

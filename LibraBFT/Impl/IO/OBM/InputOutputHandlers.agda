@@ -62,4 +62,4 @@ handle _self msg now =
   case msg of λ where
     (P pm) → handleProposal now pm
     (V vm) → handleVote     now vm
-    (C cm) → return unit    -- We don't do anything with commit messages, they are just for defining Correctness.
+    (C cm) → pure unit    -- We don't do anything with commit messages, they are just for defining Correctness.
