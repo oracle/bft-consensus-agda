@@ -75,7 +75,7 @@ postulate
     : ∀ {pid qc vs}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ uninitd
-      → qc QC.∈RoundManager (peerStates st pid)
+      → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
       → ∈GenInfo-impl genesisInfo (proj₂ vs)
 
@@ -90,7 +90,7 @@ qcVoteSigsSentB4
   : ∀ {pid qc vs pk}{st : SystemState}
     → ReachableSystemState st
     → initialised st pid ≡ initd
-    → qc QC.∈RoundManager (peerStates st pid)
+    → qc QCProps.∈RoundManager (peerStates st pid)
     → vs ∈ qcVotes qc
     → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
     → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
@@ -100,8 +100,8 @@ qcVoteSigsSentB4{pid}{qc}{st = st} rss'@(step-s{pre = pre} rss (step-peer sp@(st
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = cheatStepDNMPeerStates₁ sp unit
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
 
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (sym (cheatStepDNMInitialised₁ sp unit)) ini
@@ -113,8 +113,8 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = sym $ pids≢StepDNMPeerStates sps pid≢
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
 
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) ini
@@ -126,7 +126,7 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid'
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid'
   qc∈rmPre rewrite pre≡ = qc∈rm
 
 ...| step-msg{sndr , V pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleVoteSpec"
@@ -302,6 +302,5 @@ open ReachableSystemStateProps
 handleProposalRequirements {st = st} {sndr} {pm} {pid} reach m∈pool ini =
   record { mSndr = sndr
          ; m∈pool = m∈pool
-         ; qcs∈RmSigsSentB4 = qcs∈RMSigSentB4 (systemInvariants reach) ini
          }
 

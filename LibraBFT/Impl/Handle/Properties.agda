@@ -46,41 +46,42 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : RoundManager-correct initRM
+  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM -- TODO-1: This is not true (the definition of the predicate needs updating).
   initRM-btInv   : BlockStoreInv initRM
 
-initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv initRM
+initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv [] initRM
 initRMSatisfiesInv =
-  RoundManagerInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
+  RoundManagerInvariants.mkRoundManagerInv initRM-correct initRM-qcs refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect
   : ∀ pid (pre : SystemState)
-    → ReachableSystemState pre → RoundManagerInv (peerStates pre pid)
+    → ReachableSystemState pre → RoundManagerInv (msgPool pre) (peerStates pre pid)
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
-  = invariantsCorrect pid pre' preach
+  = {!!} -- invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
   with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
-  = invariantsCorrect pid pre' preach
+  = {!!} -- invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini)))) | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
-  = initRMSatisfiesInv
+  = {!!} --initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini)))) | yes refl
   with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) (handleProposalRequirements preach m∈pool ini)
 ... | invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
-  = invPres (invariantsCorrect pid pre' preach)
+  = {!!} -- invPres (invariantsCorrect pid pre' preach)
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V x} m∈pool ini)))) | yes refl = TODO
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
-    TODO : RoundManagerInv (peerStates pre pid)
+    TODO : {!!} -- RoundManagerInv (peerStates pre pid)
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini)))) | yes refl = TODO
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
-    TODO : RoundManagerInv (peerStates pre pid)
+    TODO : RoundManagerInv (msgPool pre) (peerStates pre pid)
 
 lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
