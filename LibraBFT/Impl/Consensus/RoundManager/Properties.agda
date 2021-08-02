@@ -291,7 +291,12 @@ module ensureRoundAndSyncUpMSpec
 
   open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  -- TODO-2: Add requirements capturing that any signatures in any QCs in the SyncInfo have been
+  -- sent before.  Probably want to refactor properties in LibraBFT.Impl.Properties.Util.QC
+  postulate
+    Requirements : SentMessages → SyncInfo → Set
+
+  module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool syncInfo) where
 
     record Contract (r : Either ErrLog Bool) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -361,6 +366,7 @@ module processProposalMsgMSpec
           contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
           contract-step₁ =
             ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pool pre
+                                               (obm-dangerous-magic' "waiting on definition of requirements")
               (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
 
           pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
