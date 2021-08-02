@@ -26,35 +26,23 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
+open import LibraBFT.Impl.Properties.Common
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.Impl.Handle
 open        ParamsWithInitAndHandlers InitAndHandlers
 open        PeerCanSignForPK
-
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
 
 open RoundManagerInvariants
 open RoundManagerTransProps
+open ReachableSystemStateProps
 
 module LibraBFT.Impl.Handle.Properties where
-
--- We can prove this easily for the Agda model because (unlike the Haskell
--- prototype) it does not yet do epoch changes, so only the initial EC is
--- relevant. Later, this will require us to use the fact that epoch changes
--- require proof of committing an epoch-changing transaction.
-availEpochsConsistent :
-   ∀{pid pid' v v' pk}{st : SystemState}
-   → (pkvpf  : PeerCanSignForPK st v  pid  pk)
-   → (pkvpf' : PeerCanSignForPK st v' pid' pk)
-   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
-   → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
-availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : RoundManager-correct initRM
@@ -149,10 +137,3 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   where
   postulate -- TODO-2: prove (waiting on: `handle`)
     TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
-
-postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
-  -- This will require updates to the existing proofs for the peer handlers. We
-  -- will need to show that honest peers sign things only for their only PK, and
-  -- that they either resend messages signed before or if sending a new one,
-  -- that signature hasn't been sent before
-  impl-sps-avp : StepPeerState-AllValidParts

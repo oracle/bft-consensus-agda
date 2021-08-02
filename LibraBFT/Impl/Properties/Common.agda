@@ -18,7 +18,6 @@ open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Util
@@ -32,16 +31,38 @@ open RoundManagerTransProps
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 open        ParamsWithInitAndHandlers InitAndHandlers
+open        PeerCanSignForPK
+
 open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
                                PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
 
 -- This module contains definitions and lemmas used by proofs of the
 -- implementation obligations for VotesOnce and PreferredRoundRule.
 
 module LibraBFT.Impl.Properties.Common where
+
+postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
+  -- This will require updates to the existing proofs for the peer handlers. We
+  -- will need to show that honest peers sign things only for their only PK, and
+  -- that they either resend messages signed before or if sending a new one,
+  -- that signature hasn't been sent before
+  impl-sps-avp : StepPeerState-AllValidParts
+
+open Structural impl-sps-avp
+
+-- We can prove this easily for the Agda model because (unlike the Haskell
+-- prototype) it does not yet do epoch changes, so only the initial EC is
+-- relevant. Later, this will require us to use the fact that epoch changes
+-- require proof of committing an epoch-changing transaction.
+availEpochsConsistent :
+   ∀{pid pid' v v' pk}{st : SystemState}
+   → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+   → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
 
 postulate
   uninitQcs∈Gen -- TODO-1: Prove (waiting on: complete definition of `initRM`)
