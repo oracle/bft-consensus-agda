@@ -182,6 +182,19 @@ module WithEC (𝓔 : EpochConfig) where
       _ivqcMetaIsQuorum        : IsQuorum (All-reduce _ivvMember _ivqcMetaVotesValid)
   open MetaIsValidQC public
 
+  -- A valid TimeoutCertificate has a quorum of signatures that are valid for the current
+  -- EpochConfig.  There will be a lot of overlap with MetaIsValidQc and IsValidVote.
+  -- TODO-2: flesh out the details.
+  postulate
+    MetaIsValidTimeoutCert : TimeoutCertificate → Set
+
+  {-
+  record MetaIsValidTimeoutCert (tc : TimeoutCertificate) : Set where
+    field
+      _ivtcMetaSigsValid :
+      _ivtcMetaIsQuorum  : 
+  -}
+
   vqcMember : (qc : QuorumCert) → MetaIsValidQC qc
              → ∀ {as} → as ∈ qcVotes qc → Member
   vqcMember qc v {α , _ , _} as∈qc with All-lookup (_ivqcMetaVotesValid v) as∈qc
