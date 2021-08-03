@@ -360,6 +360,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     Genesis  : BlockType
   postulate instance enc-BlockType : Encoder BlockType
 
+  postulate
+    -- TODO-1 : Need to decide what empty means.
+    --          Only important on epoch change.
+    payloadIsEmpty : TX → Bool
+
   _≟BlockType_ : (b₁ b₂ : BlockType) → Dec (b₁ ≡ b₂)
   Genesis          ≟BlockType Genesis          = true because ofʸ refl
   NilBlock         ≟BlockType NilBlock         = true because ofʸ refl
@@ -419,6 +424,19 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
         (Proposal tx _) → Proposal tx auth
         bdt → bdt
 
+  -- getter only in Haskell
+  bdPayload : Lens BlockData (Maybe TX)
+  bdPayload = mkLens' g s
+    where
+    g : BlockData → Maybe TX
+    g bd = case bd ^∙ bdBlockType of λ where
+             (Proposal a _) → just a
+             _              → nothing
+
+    s : BlockData → Maybe TX → BlockData
+    s bd _ = bd -- TODO-1 : cannot be done: need a way to defined only getters
+
+
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
   -- "nil" blocks are not signed because they are produced
@@ -453,6 +471,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- getter only in Haskell
   bParentId : Lens Block HashValue
   bParentId = bQuorumCert ∙ qcCertifiedBlock ∙ biId
+
+  -- getter only in Haskell
+  bPayload : Lens Block (Maybe TX)
+  bPayload = bBlockData ∙ bdPayload
 
   -- getter only in Haskell
   bRound : Lens Block Round

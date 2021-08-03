@@ -16,5 +16,8 @@ newProposal : TX → Author → Round → {-Instant →-} QuorumCert → BlockDa
 newProposal payload author round {-timestamp-} quorumCert = BlockData∙new
   (quorumCert ^∙ qcCertifiedBlock ∙ biEpoch) round {-timestamp-} quorumCert (Proposal payload author)
 
+isGenesisBlock : BlockData → Bool
+isGenesisBlock bd = bd ^∙ bdBlockType == Genesis
+
 isNilBlock : BlockData → Bool
 isNilBlock bd = bd ^∙ bdBlockType == NilBlock
