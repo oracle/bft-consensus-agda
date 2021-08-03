@@ -42,9 +42,9 @@ validateSignature self validator = case self ^∙ bBlockData ∙ bdBlockType of 
   Genesis             → Left fakeErr -- (ErrL (here' ["do not accept genesis from others"]))
   NilBlock            → QuorumCert.verify (self ^∙ bQuorumCert) validator
   (Proposal _ author) → do
-    fromMaybeE
+    fromMaybeM
       (Left fakeErr) -- (ErrL (here' ["Missing signature in Proposal"])))
-      (self ^∙ bSignature) >>= λ sig -> withErrCtx' (here' [])
+      (pure (self ^∙ bSignature)) >>= λ sig -> withErrCtx' (here' [])
         (ValidatorVerifier.verify validator author (self ^∙ bBlockData) sig)
     QuorumCert.verify (self ^∙ bQuorumCert) validator
  where

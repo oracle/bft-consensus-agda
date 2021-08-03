@@ -329,12 +329,6 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
-  -- IMPL-DIFF : Haskell uses more general fromMaybeM
-  fromMaybeE : ∀ {A B : Set} → Either B A → Maybe A → Either B A
-  fromMaybeE eba = λ where
-    nothing  → eba
-    (just a) → Right a
-
   open import Data.String as String
     hiding (_==_ ; _≟_)
 
@@ -457,6 +451,12 @@ module LibraBFT.Prelude where
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
+  fromMaybeM : ∀ {ℓ} {A : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m A → m (Maybe A) → m A
+  fromMaybeM ma mma = do
+    mma >>= λ where
+      nothing  → ma
+      (just a) → pure a
 
   forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
   forM_      []  _ = return unit
