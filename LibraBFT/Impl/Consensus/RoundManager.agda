@@ -249,7 +249,7 @@ processLocalTimeoutM now obmEpoch round = do
 
 processCertificatesM now = do
   syncInfo ← BlockStore.syncInfoM
-  maybeSMP (RoundState.processCertificatesM now syncInfo) unit (processNewRoundEventM now)
+  maybeSMP-RWST (RoundState.processCertificatesM now syncInfo) unit (processNewRoundEventM now)
 
 ------------------------------------------------------------------------------
 

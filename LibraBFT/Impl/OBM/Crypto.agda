@@ -23,9 +23,25 @@ record CryptoHash (A : Set) : Set where
 open CryptoHash ⦃ ... ⦄ public
 
 instance
+  CryptoHashBlockData : CryptoHash BlockData
+  CryptoHashBlockData = record
+    { sign   = λ sk bd     → PKCS.sign-raw  (encode bd)     sk
+    ; verify = λ pk sig bd → if PKCS.verify (encode bd) sig pk
+                             then Right unit
+                             else Left fakeErr }
+
+instance
   CryptoHashLedgerInfo : CryptoHash LedgerInfo
   CryptoHashLedgerInfo = record
     { sign   = λ sk li     → PKCS.sign-raw  (encode li)     sk
     ; verify = λ pk sig li → if PKCS.verify (encode li) sig pk
+                             then Right unit
+                             else Left fakeErr }
+
+instance
+  CryptoHashTimeout : CryptoHash Timeout
+  CryptoHashTimeout = record
+    { sign   = λ sk to     → PKCS.sign-raw  (encode to)     sk
+    ; verify = λ pk sig to → if PKCS.verify (encode to) sig pk
                              then Right unit
                              else Left fakeErr }

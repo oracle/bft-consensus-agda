@@ -107,9 +107,9 @@ maybeSM mma mb f = do
     (just j) → f j
   where
 
-maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
-           → RWST Ev Wr St B
-maybeSMP ma b f = do
+maybeSMP-RWST : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
+              → RWST Ev Wr St B
+maybeSMP-RWST ma b f = do
   x ← ma
   caseMM x of λ where
     nothing  → pure b
