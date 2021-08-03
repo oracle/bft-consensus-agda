@@ -67,7 +67,12 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} m∈pool
     hpReq = record { mSndr = _ ; m∈pool = m∈pool }
 
     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre hpReq)
-  nmSentQcs∈RM (V vm) refl = obm-dangerous-magic' "Waiting on handleVoteSpec"
+  nmSentQcs∈RM (V vm) refl = outQcs∈RM outQcReq
+    where
+    outQcReq : handleVoteSpec.OutQcs.Requirements 0 vm hpPool
+    outQcReq = handleVoteSpec.OutQcs.mkRequirements _ m∈pool
+
+    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hpPool hpPre)
   nmSentQcs∈RM (C cm) refl = obm-dangerous-magic' "Waiting on handleCommitSpec"
 
   module _ (nm1 : NetworkMsg) (nm≡ : nm1 ≡ nm) where
