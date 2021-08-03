@@ -31,7 +31,7 @@ verifyWellFormed self = do
          (here' ("ProposalMsg has different epoch than SyncInfo" ∷ [])) -- lsSI (self ^∙ pmSyncInfo)
 
   lcheck (self ^∙ pmProposal ∙ bParentId == self ^∙ pmSyncInfo ∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biId)
-         (here' ( "Proposal SyncInfo HQC CertifieBlock id not eq to block parent id" ∷ []))
+         (here' ( "Proposal SyncInfo HQC CertifiedBlock id not eq to block parent id" ∷ []))
                -- lsSI (self ^∙ pmSyncInfo)
   let previousRound = self ^∙ pmProposal ∙ bRound ∸ 1 -- NOTE: monus usage
   let highestCertifiedRound =

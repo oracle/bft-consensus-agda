@@ -434,7 +434,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              _              → nothing
 
     s : BlockData → Maybe TX → BlockData
-    s bd _ = bd -- TODO-1 : cannot be done: need a way to defined only getters
+    s bd _ = bd -- TODO-1 : cannot be done: need a way to define only getters
 
 
   -- The signature is a Maybe to allow us to use 'nothing' as the
