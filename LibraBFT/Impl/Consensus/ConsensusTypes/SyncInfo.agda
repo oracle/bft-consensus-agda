@@ -6,6 +6,7 @@
 
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -13,3 +14,12 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo where
 
 highestRound : SyncInfo → Round
 highestRound self = max (self ^∙ siHighestCertifiedRound) (self ^∙ siHighestTimeoutRound)
+
+postulate
+  verifyM : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
+
+hasNewerCertificates : SyncInfo → SyncInfo → Bool
+hasNewerCertificates self other
+  = ⌊ self ^∙ siHighestCertifiedRound >? other ^∙ siHighestCertifiedRound ⌋
+  ∨ ⌊ self ^∙ siHighestTimeoutRound   >? other ^∙ siHighestTimeoutRound   ⌋
+  ∨ ⌊ self ^∙ siHighestCommitRound    >? other ^∙ siHighestCommitRound    ⌋

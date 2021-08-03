@@ -10,14 +10,15 @@ open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
-open import LibraBFT.Impl.Consensus.BlockStorage.SyncManager     as SyncManager
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
-open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
-open import LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
+import      LibraBFT.Impl.Consensus.BlockStorage.SyncManager     as SyncManager
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+import      LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo      as SyncInfo
+import      LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
 import      LibraBFT.Impl.Consensus.Liveness.ProposalGenerator   as ProposalGenerator
 import      LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState
-open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules      as SafetyRules
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
@@ -33,6 +34,10 @@ import      Data.String                                          as String
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.RoundManager where
+
+------------------------------------------------------------------------------
+
+processCertificatesM : Instant → LBFT Unit
 
 ------------------------------------------------------------------------------
 
@@ -106,9 +111,25 @@ abstract
 
 ------------------------------------------------------------------------------
 
--- TODO-2: Implement this.
-postulate
-  syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
+syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
+syncUpM now {-reason-} syncInfo author _helpRemote =
+  logEE (here' []) $ do
+  localSyncInfo <- BlockStore.syncInfoM
+  -- TODO helpRemote
+  if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
+    then (do
+      vv ← use (lRoundManager ∙ rmEpochState ∙ esVerifier)
+      SyncInfo.verifyM syncInfo vv ∙^∙ withErrCtx (here' []) ∙?∙ λ _ ->
+        SyncManager.addCertsM {-reason-} syncInfo (BlockRetriever∙new now author) ∙^∙ withErrCtx (here' [])
+          ∙?∙ λ _ -> do
+          processCertificatesM now
+          ok unit
+        )
+    else
+      ok unit
+ where
+  here' : List String.String → List String.String
+  here' t = "RoundManager" ∷ "syncUpM" ∷ t
 
 ------------------------------------------------------------------------------
 
@@ -226,7 +247,6 @@ processLocalTimeoutM now obmEpoch round = do
 
 ------------------------------------------------------------------------------
 
-processCertificatesM : Instant → LBFT Unit
 processCertificatesM now = do
   syncInfo ← BlockStore.syncInfoM
   maybeSMP (RoundState.processCertificatesM now syncInfo) unit (processNewRoundEventM now)

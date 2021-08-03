@@ -18,21 +18,35 @@ module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 data NeedFetchResult : Set where
   QCRoundBeforeRoot QCAlreadyExist QCBlockExist NeedFetch : NeedFetchResult
 
+------------------------------------------------------------------------------
 postulate
-
-  fetchQuorumCertM
-    : QuorumCert → BlockRetriever
-    → LBFT (Either ErrLog Unit)
 
   needFetchForQuorumCert
     : QuorumCert → BlockStore
     → Either ErrLog NeedFetchResult
 
+  fetchQuorumCertM
+    : QuorumCert → BlockRetriever
+    → LBFT (Either ErrLog Unit)
+
+  syncToHighestCommitCertM
+    : QuorumCert → BlockRetriever
+    → LBFT (Either ErrLog Unit)
+
+insertQuorumCertM : QuorumCert → BlockRetriever → LBFT (Either ErrLog Unit)
+
 ------------------------------------------------------------------------------
 
-insertQuorumCertM
-  : QuorumCert → BlockRetriever
-  → LBFT (Either ErrLog Unit)
+addCertsM : SyncInfo → BlockRetriever → LBFT (Either ErrLog Unit)
+addCertsM {-reason-} syncInfo retriever =
+  syncToHighestCommitCertM     (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
+  insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
+  insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestQuorumCert) retriever ∙?∙ \_ ->
+  maybeS                       (syncInfo ^∙ siHighestTimeoutCert) (ok unit) $
+    \tc -> BlockStore.insertTimeoutCertificateM tc
+
+------------------------------------------------------------------------------
+
 insertQuorumCertM qc retriever = do
   bs ← use lBlockStore
   _ ← case needFetchForQuorumCert qc bs of λ where
