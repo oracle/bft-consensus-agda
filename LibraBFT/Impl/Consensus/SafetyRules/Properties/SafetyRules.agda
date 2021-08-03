@@ -535,13 +535,13 @@ module constructAndSignVoteMSpec where
     proposedBlock = voteProposal ^∙ vpBlock
 
     contract'
-      : ∀ pre
-        → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre proposedBlock) pre
-    contract' pre nothing vs≡ =
+      : ∀ pre pool
+        → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre pool proposedBlock) pre
+    contract' pre pool nothing vs≡ =
       mkContract
         reflPreservesRoundManagerInv (reflNoEpochChange{pre})
         refl true reflVoteNotGenerated
-    contract' pre (just validatorSigner) vs≡ = continue0.contract voteProposal validatorSigner pre
+    contract' pre pool (just validatorSigner) vs≡ = continue0.contract voteProposal validatorSigner pre pool
 
     contract
       : ∀ pre pool Post → RWST-Post-⇒ (Contract pre pool proposedBlock) Post
