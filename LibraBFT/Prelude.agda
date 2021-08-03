@@ -458,6 +458,13 @@ module LibraBFT.Prelude where
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
 
+  maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
+  maybeSMP ma b f = do
+    x ← ma
+    case x of λ where
+      nothing  → pure b
+      (just j) → f j
+
   fromMaybeM : ∀ {ℓ} {A : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m A → m (Maybe A) → m A
   fromMaybeM ma mma = do
     mma >>= λ where

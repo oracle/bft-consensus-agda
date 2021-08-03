@@ -10,6 +10,7 @@ open import LibraBFT.Impl.OBM.Crypto              hiding (verify)
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.ValidatorVerifier as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.RWST.Syntax
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -22,9 +23,7 @@ verify self validator =
     validator (self ^∙ tcTimeout) (self ^∙ tcSignatures))
 
 verify' : Maybe TimeoutCertificate → ValidatorVerifier → Either ErrLog Unit
-verify' mtc validator = case mtc of λ where
-  nothing   → pure unit
-  (just tc) → verify tc validator
+verify' mtc validator = maybeSMP (pure mtc) unit (` verify ` validator)
 
 -- HC-TODO : refactor this and LedgerInfoWithSignatures
 addSignature : Author → Signature → TimeoutCertificate → TimeoutCertificate
