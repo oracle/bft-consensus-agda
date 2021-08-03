@@ -112,8 +112,8 @@ abstract
 ------------------------------------------------------------------------------
 
 syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
-syncUpM now {-reason-} syncInfo author _helpRemote =
-  logEE (here' []) $ do
+syncUpM now {-reason-} syncInfo author _helpRemote = do
+  -- logEE (here' []) $ do
   localSyncInfo <- BlockStore.syncInfoM
   -- TODO helpRemote
   if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
