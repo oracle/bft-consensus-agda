@@ -24,7 +24,6 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
-open import LibraBFT.Impl.Properties.Common
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -38,7 +37,6 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 
 open RoundManagerInvariants
 open RoundManagerTransProps
-open ReachableSystemStateProps
 
 module LibraBFT.Impl.Handle.Properties where
 
@@ -52,7 +50,7 @@ initRMSatisfiesInv =
   RoundManagerInvariants.mkRoundManagerInv initRM-correct initRM-qcs refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
-invariantsCorrect
+invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
   : ∀ pid (pre : SystemState)
     → ReachableSystemState pre → RoundManagerInv (msgPool pre) (peerStates pre pid)
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
@@ -90,6 +88,18 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
     TODO : RoundManagerInv (msgPool pre) (peerStates pre pid)
+
+qcVoteSigsSentB4
+  : ∀ pid (st : SystemState) {v qc vs pk}
+    → ReachableSystemState st
+    → qc QCProps.∈RoundManager (peerStates st pid)
+    → WithVerSig pk v
+    → vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
+    → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+qcVoteSigsSentB4 pid st rss qc∈rm sig vs∈qcvs ≈v ¬gen = qcsigsSentB4 qc∈rm sig vs∈qcvs ≈v
+  where
+  open RoundManagerInv (invariantsCorrect pid st rss)
 
 lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}

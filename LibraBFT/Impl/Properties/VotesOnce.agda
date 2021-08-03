@@ -77,7 +77,8 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach (step-msg{sndr , nm} m∈pool
     ...| out , out∈hpOut , m∈out = All-lookup (nmSentQcs∈RM nm1 nm≡) out∈hpOut qc m qc∈m m∈out
 
     sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    sigSentB4 rewrite cong _vSignature v≈rbld = qcVoteSigsSentB4 preach ini qc∈rm vs∈qc ¬gen
+    sigSentB4 rewrite cong _vSignature v≈rbld =
+      qcVoteSigsSentB4 pid pre{v}{qc = qc}{vs}{pk} preach qc∈rm sig vs∈qc v≈rbld ¬gen
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid) (handleProposalSpec.mkRequirements sndr m∈pool)
