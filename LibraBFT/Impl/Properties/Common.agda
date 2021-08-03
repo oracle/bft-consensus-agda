@@ -206,12 +206,6 @@ module PeerCanSignForPKProps where
       pcsfpk₂∙pk ∎
 
 module ReachableSystemStateProps where
-  postulate --TODO-2: Prove by induction using handler contracts
-    systemInvariants
-      : ∀ {st}
-        → ReachableSystemState st
-        → SystemInv st
-
   mws∈pool⇒initd
     : ∀ {pid pk v}{st : SystemState}
       → ReachableSystemState st

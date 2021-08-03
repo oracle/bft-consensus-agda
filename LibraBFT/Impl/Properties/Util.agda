@@ -483,12 +483,3 @@ module Voting where
   voteAttemptCorrectAndSent⇒voteSentCorrect{pre}{outs = outs} vm∈outs (mkVoteAttemptCorrectWithEpochReq (Left (_ , mkVoteUnsentCorrect noVoteMsgOuts _)) _) =
     ⊥-elim (sendVote∉actions{outs}{st = pre} (sym noVoteMsgOuts) vm∈outs)
   voteAttemptCorrectAndSent⇒voteSentCorrect{pre}{outs = outs}{vm = vm} vm∈outs (mkVoteAttemptCorrectWithEpochReq (Right vsc) _) = vsc
-
-
-record SystemInv (st : SystemState) : Set where
-  field
-    qcs∈RMSigSentB4 : ∀ {pid}
-                    → initialised st pid ≡ initd
-                    → QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
-open SystemInv public
-
