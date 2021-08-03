@@ -329,6 +329,12 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+  -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
+  -- spaces between f and backticks
+  flip' : _     -- Avoids warning about definition and syntax declaration being in different scopes
+  flip' = flip
+  syntax flip' f = ` f `
+
   open import Data.String as String
     hiding (_==_ ; _≟_)
 

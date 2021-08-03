@@ -47,9 +47,9 @@ verify self validator = do
 
   -- Note: do not use (self ^∙ siHighestCommitCert) because it might be
   -- same as siHighestQuorumCert -- so no need to check again
-  maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (λ qc → QuorumCert.verify qc validator)
+  maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
 
-  maybeS (self ^∙ siHighestTimeoutCert)   (pure unit) (λ tc → TimeoutCertificate.verify tc validator)
+  maybeS (self ^∙ siHighestTimeoutCert)   (pure unit) (` TimeoutCertificate.verify ` validator)
  where
   here' : List String.String → List String.String
   here' t = "SyncInfo" ∷ "verify" ∷ t
