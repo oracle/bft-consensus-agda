@@ -4,22 +4,52 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS hiding (verify)
+open import LibraBFT.Base.PKCS                              hiding (verify)
+open import LibraBFT.Hash
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData as VoteData
+open import LibraBFT.Impl.OBM.Crypto                        hiding (verify)
+open import LibraBFT.Impl.OBM.Logging.Logging
+import      LibraBFT.Impl.Types.ValidatorVerifier           as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                         as String
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.Vote where
+
+------------------------------------------------------------------------------
+
+timeout : Vote → Timeout
+
+------------------------------------------------------------------------------
 
 newWithSignature : VoteData → Author → LedgerInfo → Signature → Vote
 newWithSignature voteData author ledgerInfo signature =
   Vote∙new voteData author ledgerInfo signature nothing
 
-postulate
-  verify : Vote → ValidatorVerifier → Either ErrLog Unit
-  addTimeoutSignature : Vote → Signature → Vote
+verify : Vote → ValidatorVerifier → Either ErrLog Unit
+verify self validator = do
+  lcheck (self ^∙ vLedgerInfo ∙ liConsensusDataHash == hashVD (self ^∙ vVoteData))
+         (here' ("Vote's hash mismatch with LedgerInfo" ∷ []))
+  withErrCtx' (here' ("vote" ∷ []))
+    (ValidatorVerifier.verify validator (self ^∙ vAuthor) (self ^∙ vLedgerInfo) (self ^∙ vSignature))
+  case self ^∙ vTimeoutSignature of λ where
+    nothing    → pure unit
+    (just tos) →
+      withErrCtx' (here' ("timeout" ∷ []))
+        (ValidatorVerifier.verify validator (self ^∙ vAuthor) (timeout self) tos)
+  withErrCtx' (here' ("VoteData" ∷ [])) (VoteData.verify (self ^∙ vVoteData))
+ where
+  here' : List String.String → List String.String
+  here' t = "Vote" ∷ "verify" ∷ "failed" {-∷lsV self-} ∷ t
 
-timeout : Vote → Timeout
+addTimeoutSignature : Vote → Signature → Vote
+addTimeoutSignature self sig =
+  if is-just (self ^∙ vTimeoutSignature)
+  then self
+  else self & vTimeoutSignature ?~ sig
+
 timeout v =
   Timeout∙new (v ^∙ vVoteData ∙ vdProposed ∙ biEpoch) (v ^∙ vVoteData ∙ vdProposed ∙ biRound)
 

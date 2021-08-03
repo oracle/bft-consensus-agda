@@ -37,3 +37,11 @@ instance
     ; verify = λ pk sig li → if PKCS.verify (encode li) sig pk
                              then Right unit
                              else Left fakeErr }
+
+instance
+  CryptoHashTimeout : CryptoHash Timeout
+  CryptoHashTimeout = record
+    { sign   = λ sk to     → PKCS.sign-raw  (encode to)     sk
+    ; verify = λ pk sig to → if PKCS.verify (encode to) sig pk
+                             then Right unit
+                             else Left fakeErr }
