@@ -96,14 +96,14 @@ module executeAndVoteMSpec (b : Block) where
         qcP : Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre preUpdateBS
         qcP = obm-dangerous-magic' "TODO-2: contract for `executeAndInsertBlockE` should guarantee this if `b` came from pool"
 
-        btP : Preserves BlockStoreInv pre preUpdateBS
-        btP = executeAndInsertBlockESpec.bs'BlockInv (pre ^∙ rmBlockStore) b (sym eaibRight) refl
+        bsP : Preserves BlockStoreInv pre preUpdateBS
+        bsP = executeAndInsertBlockESpec.bs'BlockInv (pre ^∙ rmBlockStore) b (sym eaibRight) refl
 
         srP : Preserves SafetyRulesInv pre preUpdateBS
         srP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
 
         invP₁ : Preserves (RoundManagerInv pool) pre preUpdateBS
-        invP₁ = mkPreservesRoundManagerInv id qcP id btP srP
+        invP₁ = mkPreservesRoundManagerInv id qcP id bsP srP
 
       contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract pre pool (Left e) preUpdateBS outs
       contractBailSetBS outs noMsgOuts =
@@ -258,15 +258,15 @@ module processProposalMSpec (proposal : Block) where
                   qcP = substSigsForVotes∈Rm-SentB4 refl
 
                   postulate -- TODO-1: prove (waiting on: `α-RM`)
-                    btP : Preserves BlockStoreInv st stUpdateRS
-                 -- btP = id
+                    bsP : Preserves BlockStoreInv st stUpdateRS
+                 -- bsP = id
 
                   srP : Preserves SafetyRulesInv st stUpdateRS
                   srP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
 
                   rmInv₃ : Preserves (RoundManagerInv pool) pre stUpdateRS
                   rmInv₃ = transPreservesRoundManagerInv rmInv₂
-                           (mkPreservesRoundManagerInv id qcP id btP srP)
+                           (mkPreservesRoundManagerInv id qcP id bsP srP)
 
   contract : ∀ pre pool Post → RWST-Post-⇒ (Contract pre pool) Post → LBFT-weakestPre (processProposalM proposal) Post pre
   contract pre pool Post pf = LBFT-⇒ (Contract pre pool) Post pf (processProposalM proposal) pre (contract' pre pool)
@@ -385,7 +385,6 @@ module processProposalMsgMSpec
                 (inj₁ (true , Voting.mkVoteUnsentCorrect
                                 (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
                                 (inj₁ noVote)))
---                (obm-dangerous-magic' "waiting for refinement of ensureRoundAndSyncUpMSpec.Contract")
 
             pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
             pf (Left e) ._ refl =
@@ -402,7 +401,6 @@ module processProposalMsgMSpec
                   (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
                   (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
                     noVote noVoteOuts voteAttemptCorrect')
-                  -- (obm-dangerous-magic' "waiting for refinement of processProposalMSpec.Contract")
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =

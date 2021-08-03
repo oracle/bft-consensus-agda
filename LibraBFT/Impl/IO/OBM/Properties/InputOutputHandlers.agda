@@ -75,7 +75,6 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       contractBail outs noVotes =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
           (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
-          -- qc∈post⇒SigsSentB4
           outqcs∈pre
         where
         postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)

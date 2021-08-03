@@ -58,34 +58,38 @@ invariantsCorrect
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
-  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach) -- invariantsCorrect pid pre' preach
+  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach)
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
   with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
   = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach)
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini)))) | yes refl
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini))))
+   | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
-  |       sym $ ++-identityʳ (msgPool pre')
-  = ++-RoundManagerInv _ initRMSatisfiesInv
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini)))) | yes refl
+   |       sym $ ++-identityʳ (msgPool pre')
+   = ++-RoundManagerInv _ initRMSatisfiesInv
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini))))
+   | yes refl
   with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) reqs
   where
   reqs : handleProposalSpec.Requirements 0 pm (msgPool pre') (peerStates pre' pid)
   reqs = record { mSndr = sndr ; m∈pool = m∈pool }
-... | invPres
+...| invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
   = ++-RoundManagerInv _ (invPres (invariantsCorrect pid pre' preach))
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V vm} m∈pool ini)))) | yes refl
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V vm} m∈pool ini))))
+   | yes refl
   with handleVoteSpec.contract! 0 vm (peerStates pre' pid) (msgPool pre') reqs
   where
   reqs : handleVoteSpec.Requirements 0 vm (msgPool pre') (peerStates pre' pid)
   reqs = record { mSndr = sndr ; m∈pool = m∈pool }
-... | handleVoteSpec.mkContract invPres _ _ _
+...| handleVoteSpec.mkContract invPres _ _ _
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre' pid)}{f = peerStates pre'}
   = ++-RoundManagerInv{pool = msgPool pre'} _ (invPres (invariantsCorrect pid pre' preach))
 
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini)))) | yes refl = TODO
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini))))
+   | yes refl = TODO
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
     TODO : RoundManagerInv (msgPool pre) (peerStates pre pid)
@@ -101,7 +105,7 @@ lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
   case (trans (sym ini) ini₁) of λ ()
 lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
   with m
-... | P pm rewrite sym $ StepPeer-post-lemma{pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
+...| P pm rewrite sym $ StepPeer-post-lemma{pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
   where
   hpPool = msgPool pre
   hpPre  = peerStates pre pid
@@ -118,8 +122,9 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
     help = ≡⇒≤ (cong (maybe{B = const ℕ} (_^∙ vRound) 0) lv≡)
 
-  module VoteNew
-    {vote : Vote} (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote) (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
+  module VoteNew {vote : Vote}
+    (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote)
+    (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
     (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
     where
     help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
@@ -128,24 +133,25 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
   help
     with voteAttemptCorrect
-  ...  | Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
+  ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
     with nvg⊎vgusc
-  ... | inj₁ (mkVoteNotGenerated lv≡ lvr≤) = VoteOld.help lv≡
-  ... | inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered))
+  ...| inj₁ (mkVoteNotGenerated lv≡ lvr≤) = VoteOld.help lv≡
+  ...| inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered))
     with voteSrc
-  ... | inj₁ (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
-  ... | inj₂ (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
-  help | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
+  ...| inj₁ (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
+  ...| inj₂ (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+  help
+     | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
     with voteSrc
-  ... | Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
-  ... | Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+  ...| Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
+  ...| Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
 -- Receiving a vote or commit message does not update the last vote
-... | V vm = ≡⇒≤ TODO
+...| V vm = ≡⇒≤ TODO
   where
   postulate -- TODO-2: prove (waiting on: `handle`)
     TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (V vm) 0) (peerStates pre pid))
-... | C cm = ≡⇒≤ TODO
+...| C cm = ≡⇒≤ TODO
   where
   postulate -- TODO-2: prove (waiting on: `handle`)
     TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
