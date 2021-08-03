@@ -46,10 +46,10 @@ processLocalTimeoutM now obmEpoch round = do
 maybeAdvanceRound : Round → SyncInfo → Maybe (Round × NewRoundReason)
 
 processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
-processCertificatesM now syncInfo =
-  logEE ("RoundState" ∷ "processCertificatesM" {-∷ lsSI syncInfo-} ∷ []) $ do
+processCertificatesM now syncInfo = do
+  -- logEE ("RoundState" ∷ "processCertificatesM" {-∷ lsSI syncInfo-} ∷ []) $ do
   rshcr <- use (lRoundState ∙ rsHighestCommittedRound)
-  when (syncInfo ^∙ siHighestCommitRound <? rshcr) $ do
+  when (syncInfo ^∙ siHighestCommitRound >? rshcr) $ do
     lRoundState ∙ rsHighestCommittedRound ∙= (syncInfo ^∙ siHighestCommitRound)
     logInfo fakeInfo -- InfoUpdateHighestCommittedRound (syncInfo^.siHighestCommitRound)
   rscr ← use (lRoundState ∙ rsCurrentRound)
