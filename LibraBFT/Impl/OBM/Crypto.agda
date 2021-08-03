@@ -23,6 +23,14 @@ record CryptoHash (A : Set) : Set where
 open CryptoHash ⦃ ... ⦄ public
 
 instance
+  CryptoHashBlockData : CryptoHash BlockData
+  CryptoHashBlockData = record
+    { sign   = λ sk bd     → PKCS.sign-raw  (encode bd)     sk
+    ; verify = λ pk sig bd → if PKCS.verify (encode bd) sig pk
+                             then Right unit
+                             else Left fakeErr }
+
+instance
   CryptoHashLedgerInfo : CryptoHash LedgerInfo
   CryptoHashLedgerInfo = record
     { sign   = λ sk li     → PKCS.sign-raw  (encode li)     sk

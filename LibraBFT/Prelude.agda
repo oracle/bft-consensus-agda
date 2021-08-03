@@ -329,6 +329,12 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+  -- IMPL-DIFF : Haskell uses more general fromMaybeM
+  fromMaybeE : ∀ {A B : Set} → Either B A → Maybe A → Either B A
+  fromMaybeE eba = λ where
+    nothing  → eba
+    (just a) → Right a
+
   open import Data.String as String
     hiding (_==_ ; _≟_)
 
