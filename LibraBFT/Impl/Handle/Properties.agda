@@ -80,11 +80,8 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
   = ++-RoundManagerInv _ (invPres (invariantsCorrect pid pre' preach))
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V vm} m∈pool ini))))
    | yes refl
-  with handleVoteSpec.contract! 0 vm (peerStates pre' pid) (msgPool pre') reqs
-  where
-  reqs : handleVoteSpec.Requirements 0 vm (msgPool pre') (peerStates pre' pid)
-  reqs = record { mSndr = sndr ; m∈pool = m∈pool }
-...| handleVoteSpec.mkContract invPres _ _ _
+  with handleVoteSpec.Contract.rmInv $ handleVoteSpec.contract! 0 vm (msgPool pre') (peerStates pre' pid)
+...| invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre' pid)}{f = peerStates pre'}
   = ++-RoundManagerInv{pool = msgPool pre'} _ (invPres (invariantsCorrect pid pre' preach))
 

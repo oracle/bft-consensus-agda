@@ -108,7 +108,7 @@ newVote⇒lv≡{pre}{pid}{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool
   where
   hvPre = peerStates pre pid
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre (msgPool pre) (handleVoteSpec.mkRequirements _ m∈pool))
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
 oldVoteRound≤lvr
   : ∀ {pid pk v}{pre : SystemState}
@@ -303,7 +303,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
   hvPre = peerStates pre pid
   hvPos = LBFT-post (handleVote 0 vm) hvPre
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre (msgPool pre) (handleVoteSpec.mkRequirements _ m∈pool))
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
   m'∈poolPre : (pid' , V (VoteMsg∙new v' _)) ∈ msgPool pre
   m'∈poolPre = either (⊥-elim ∘ absurd) id (Any-++⁻ (actionsToSentMessages pid (outputsToActions{hvPre} hvOut)) m'∈pool)
@@ -474,7 +474,7 @@ sameERasLV⇒sameId{pid@.pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-
   hvPos = LBFT-post (handleVote 0 vm) hvPre
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
 
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre (msgPool pre) (handleVoteSpec.mkRequirements _ m∈pool))
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
   voteData≡ : v' ≡L msgPart mws∈pool at vVoteData
   voteData≡ = either (⊥-elim ∘ PerReachableState.meta-sha256-cr preach) id (sameSig⇒sameVoteData (msgSigned mws∈pool) sig' (msgSameSig mws∈pool))
@@ -630,7 +630,7 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   where
   hvPre = peerStates pre pid
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre (msgPool pre) (handleVoteSpec.mkRequirements sndr m∈pool))
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
 votesOnce₂ : VO.ImplObligation₂ InitAndHandlers 𝓔
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈outs sig ¬gen ¬msb4 pcsfpk v'⊂m' m'∈outs sig' ¬gen' ¬msb4' pcsfpk' ≡epoch ≡round
@@ -669,4 +669,4 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
   where
   hvPre = peerStates pre pid
   hvOut = LBFT-outs (handle pid (V vm) 0) hvPre
-  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hvPre (msgPool pre) (handleVoteSpec.mkRequirements sndr m“∈pool))
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
