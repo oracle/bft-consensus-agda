@@ -55,7 +55,11 @@ module handleVote (now : Instant) (vm : VoteMsg) where
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processVoteMsgM now vm
 
-handleVote = handleVote.step₀
+abstract
+  handleVote = handleVote.step₀
+
+  handleVote≡ : handleVote ≡ handleVote.step₀
+  handleVote≡ = refl
 
 handle : NodeId → NetworkMsg → Instant → LBFT Unit
 handle _self msg now =

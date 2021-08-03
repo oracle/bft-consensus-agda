@@ -30,6 +30,14 @@ module LibraBFT.Prelude where
   open import Data.Empty
     public
 
+  -- NOTE: This function is defined to give extra documentation when discharging
+  -- absurd cases where Agda can tell by pattern matching that `A` is not
+  -- inhabited. For example:
+  -- > absurd (just v ≡ nothing) case impossibleProof of λ ()
+  infix 0 absurd_case_of_
+  absurd_case_of_ : ∀ {ℓ₁ ℓ₂} (A : Set ℓ₁) {B : Set ℓ₂} → A → (A → ⊥) → B
+  absurd A case x of f = ⊥-elim (f x)
+
   open import Data.Nat
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public

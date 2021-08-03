@@ -43,12 +43,6 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 
 module LibraBFT.Impl.Properties.Common where
 
-handleProposalRequirements : ∀ {inst st sndr pm pid}
-                             → ReachableSystemState st
-                             → (sndr , P pm) ∈ msgPool st
-                             → initialised st pid ≡ initd
-                             → handleProposalSpec.Requirements inst pm (msgPool st) (peerStates st pid)
-
 postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
   -- This will require updates to the existing proofs for the peer handlers. We
   -- will need to show that honest peers sign things only for their only PK, and
@@ -75,7 +69,7 @@ postulate
     : ∀ {pid qc vs}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ uninitd
-      → qc QC.∈RoundManager (peerStates st pid)
+      → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
       → ∈GenInfo-impl genesisInfo (proj₂ vs)
 
@@ -90,7 +84,7 @@ qcVoteSigsSentB4
   : ∀ {pid qc vs pk}{st : SystemState}
     → ReachableSystemState st
     → initialised st pid ≡ initd
-    → qc QC.∈RoundManager (peerStates st pid)
+    → qc QCProps.∈RoundManager (peerStates st pid)
     → vs ∈ qcVotes qc
     → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
     → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
@@ -100,8 +94,8 @@ qcVoteSigsSentB4{pid}{qc}{st = st} rss'@(step-s{pre = pre} rss (step-peer sp@(st
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = cheatStepDNMPeerStates₁ sp unit
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
 
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (sym (cheatStepDNMInitialised₁ sp unit)) ini
@@ -113,8 +107,8 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = sym $ pids≢StepDNMPeerStates sps pid≢
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QC.∈RoundManager rm) pre≡ qc∈rm
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
+  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
 
   iniPre : initialised pre pid ≡ initd
   iniPre = trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) ini
@@ -126,7 +120,7 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
   pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
   pre≡ = sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
 
-  qc∈rmPre : qc QC.∈RoundManager peerStates pre pid'
+  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid'
   qc∈rmPre rewrite pre≡ = qc∈rm
 
 ...| step-msg{sndr , V pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleVoteSpec"
@@ -137,16 +131,16 @@ qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(ste
 -- In the first case, we can construct the MsgWithsig∈ with that knowledge.
 -- In the second case, they come from the RoundManager of the pre-state, and we will rely on the system inv.
 ...| step-msg{sndr , P pm} m∈pool ini' = mws
-       where
-       hpPre      = peerStates pre pid'
-       hpPoolPre  = msgPool pre
-       hpOuts     = outputsToActions {hpPre} $ LBFT-outs (handle pid' (P pm) 0) hpPre
-       hpPoolPost = actionsToSentMessages pid hpOuts ++ msgPool pre
+  where
+  hpPre      = peerStates pre pid'
+  hpPoolPre  = msgPool pre
+  hpOuts     = outputsToActions {hpPre} $ LBFT-outs (handle pid' (P pm) 0) hpPre
+  hpPoolPost = actionsToSentMessages pid hpOuts ++ msgPool pre
 
-       open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPoolPre hpPre $ handleProposalRequirements rss m∈pool ini')
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPoolPre hpPre {!!})
 
-       mws : MsgWithSig∈ pk sig hpPoolPost
-       mws = obm-dangerous-magic' "TODO: use handleProposalSpec.Contract.qcs∈RM∈Pool"
+  mws : MsgWithSig∈ pk sig hpPoolPost
+  mws = obm-dangerous-magic' "TODO: use handleProposalSpec.Contract.qcs∈RM∈Pool"
 
 
 module ∈GenInfoProps where
@@ -271,7 +265,7 @@ module ReachableSystemStateProps where
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
   mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
-    case uninitd ≡ initd ∋ trans (sym uni) ini of λ ()
+    absurd (uninitd ≡ initd) case (trans (sym uni) ini) of λ ()
     where
     ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{_ , P pm} m∈pool ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
@@ -282,8 +276,11 @@ module ReachableSystemStateProps where
     hpPool = msgPool st
     hpPre  = peerStates st pid
     hpPos  = LBFT-post (handleProposal 0 pm) hpPre
-    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre $
-                                       handleProposalRequirements rss m∈pool ini)
+
+    hpReq : handleProposalSpec.Requirements 0 pm hpPool hpPre
+    hpReq = record { mSndr = _ ; m∈pool = m∈pool }
+
+    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre hpReq)
     open ≡-Reasoning
 
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
@@ -295,13 +292,4 @@ module ReachableSystemStateProps where
     where
     postulate -- TODO-3: prove (waiting on: epoch config changes)
       TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-
--- TODO-2: This should probably go somewhere else.  One possibility is
--- Properties.InputOutputHandlers but it can't easily go there without creating cyclic imports
-open ReachableSystemStateProps
-handleProposalRequirements {st = st} {sndr} {pm} {pid} reach m∈pool ini =
-  record { mSndr = sndr
-         ; m∈pool = m∈pool
-         ; qcs∈RmSigsSentB4 = qcs∈RMSigSentB4 (systemInvariants reach) ini
-         }
 

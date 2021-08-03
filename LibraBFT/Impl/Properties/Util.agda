@@ -26,8 +26,7 @@ open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        ParamsWithInitAndHandlers InitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 
@@ -89,6 +88,38 @@ module OutputProps where
     |       nv
     |       ov = refl
 
+module QCProps where
+
+  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
+    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
+    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
+    -- NOTE: When `need/fetch` is implemented, we will need an additional
+    -- constructor for sent qcs taken from the blockstore.
+
+  OutputQc∈RoundManager : List Output → RoundManager → Set
+  OutputQc∈RoundManager outs rm =
+    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+
+
+  -- TODO-3: Should be either that the vote is represented in the genesis info,
+  -- *or* it isn't and is in the pool
+  SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
+  SigForVote∈Rm-SentB4 v pk qc rm pool =
+    qc ∈RoundManager rm
+    → WithVerSig pk v →
+    ∀ {vs : Author × Signature} → let (pid , sig) = vs in
+      vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → MsgWithSig∈ pk sig pool
+
+  SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
+  SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
+
+  ++-SigsForVote∈Rm-SentB4
+    : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
+      → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v)
+
 module RoundManagerInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
@@ -115,18 +146,23 @@ module RoundManagerInvariants where
       field
         sdInv : SafetyDataInv
 
-    -- NOTE: This will be proved by induction on reachable states using the
-    -- property that peer handlers preserve invariants. That is to say, many of
-    -- these cannot be proven as a post-condition of the peer handler: one can
-    -- only prove of the handler that if the invariant holds for the prestate,
-    -- then it holds for the poststate.
-    record RoundManagerInv : Set where
-      constructor mkRoundManagerInv
-      field
-        rmCorrect   : RoundManager-correct rm
-        epochsMatch : EpochsMatch
-        btInv       : BlockStoreInv
-        srInv       : SafetyRulesInv
+  -- NOTE: This will be proved by induction on reachable states using the
+  -- property that peer handlers preserve invariants. That is to say, many of
+  -- these cannot be proven as a post-condition of the peer handler: one can
+  -- only prove of the handler that if the invariant holds for the prestate,
+  -- then it holds for the poststate.
+  record RoundManagerInv (pool : SentMessages) (rm : RoundManager) : Set where
+    constructor mkRoundManagerInv
+    field
+      rmCorrect    : RoundManager-correct rm
+      qcsigsSentB4 : QCProps.SigsForVotes∈Rm-SentB4 pool rm
+      epochsMatch  : EpochsMatch rm
+      btInv        : BlockStoreInv rm
+      srInv        : SafetyRulesInv rm
+
+  ++-RoundManagerInv : ∀ {pool rm} → (msgs : SentMessages) → RoundManagerInv pool rm → RoundManagerInv (msgs ++ pool) rm
+  ++-RoundManagerInv msgs (mkRoundManagerInv rmCorrect qcsigsSentB4 epochsMatch btInv srInv) =
+    mkRoundManagerInv rmCorrect (QCProps.++-SigsForVote∈Rm-SentB4 msgs qcsigsSentB4) epochsMatch btInv srInv
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
@@ -134,12 +170,29 @@ module RoundManagerInvariants where
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
-  reflPreservesRoundManagerInv = reflPreserves RoundManagerInv
+  reflPreservesRoundManagerInv : ∀ {pool} → Reflexive (Preserves (RoundManagerInv pool))
+  reflPreservesRoundManagerInv{pool} = reflPreserves (RoundManagerInv pool)
 
   transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
-  transPreservesRoundManagerInv = transPreserves RoundManagerInv
+  transPreservesRoundManagerInv : ∀ {pool} → Transitive (Preserves (RoundManagerInv pool))
+  transPreservesRoundManagerInv{pool} = transPreserves (RoundManagerInv pool)
+
+
+  substSigsForVotes∈Rm-SentB4
+    : ∀ {pool pre post} → pre ≡L post at rmBlockStore
+      → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHQC qc≡) sig vs∈qc rbld≈v =
+    qcsB4 (QCProps.inHQC qc≡') sig vs∈qc rbld≈v
+    where
+    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert
+    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestQuorumCert) (sym bs≡))
+  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHCC qc≡) sig vs∈qc rbld≈v =
+    qcsB4 (QCProps.inHCC qc≡') sig vs∈qc rbld≈v
+    where
+    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert
+    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestCommitCert) (sym bs≡))
 
   substSafetyDataInv
     : ∀ {pre post} → pre ≡L post at pssSafetyData-rm → Preserves SafetyDataInv pre post
@@ -158,14 +211,15 @@ module RoundManagerInvariants where
   mkPreservesSafetyRulesInv lvP (mkSafetyRulesInv lv) = mkSafetyRulesInv (lvP lv)
 
   mkPreservesRoundManagerInv
-    : ∀ {pre post}
-      → Preserves RoundManager-correct pre post
-      → Preserves EpochsMatch          pre post
-      → Preserves BlockStoreInv        pre post
-      → Preserves SafetyRulesInv       pre post
-      → Preserves RoundManagerInv      pre post
-  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
-    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
+    : ∀ {pre post pool}
+      → Preserves RoundManager-correct                  pre post
+      → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+      → Preserves EpochsMatch                           pre post
+      → Preserves BlockStoreInv                         pre post
+      → Preserves SafetyRulesInv                        pre post
+      → Preserves (RoundManagerInv pool)                pre post
+  mkPreservesRoundManagerInv rmP qcP emP bsP srP (mkRoundManagerInv rmCorrect qcsB4 epochsMatch btInv srInv) =
+    mkRoundManagerInv (rmP rmCorrect) (qcP qcsB4) (emP epochsMatch) (bsP btInv) (srP srInv)
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
@@ -180,6 +234,15 @@ module RoundManagerTransProps where
 
   transNoEpochChange : Transitive NoEpochChange
   transNoEpochChange = trans
+
+  NoSafetyDataChange : (pre post : RoundManager) → Set
+  NoSafetyDataChange pre post = pre ≡L post at pssSafetyData-rm
+
+  reflNoSafetyDataChange : Reflexive NoSafetyDataChange
+  reflNoSafetyDataChange = refl
+
+  transNoSafetyDataChange : Transitive NoSafetyDataChange
+  transNoSafetyDataChange = trans
 
   -- - state changes from generating or not generating a vote
   LastVoteIs : RoundManager → Vote → Set
@@ -421,33 +484,11 @@ module Voting where
     ⊥-elim (sendVote∉actions{outs}{st = pre} (sym noVoteMsgOuts) vm∈outs)
   voteAttemptCorrectAndSent⇒voteSentCorrect{pre}{outs = outs}{vm = vm} vm∈outs (mkVoteAttemptCorrectWithEpochReq (Right vsc) _) = vsc
 
-module QC where
-
-  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
-    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
-    -- NOTE: When `need/fetch` is implemented, we will need an additional
-    -- constructor for sent qcs taken from the blockstore.
-
-  OutputQc∈RoundManager : List Output → RoundManager → Set
-  OutputQc∈RoundManager outs rm =
-    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
-
-  SigForVote∈Qc∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
-  SigForVote∈Qc∈Rm-SentB4 v pk qc rm pool =
-    qc ∈RoundManager rm
-    → WithVerSig pk v →
-    ∀ {vs : Author × Signature} → let (pid , sig) = vs in
-      vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → MsgWithSig∈ pk sig pool
-
-  SigsForVotes∈Qc∈Rm-SentB4 : RoundManager → SentMessages → Set
-  SigsForVotes∈Qc∈Rm-SentB4 rm pool = ∀ {qc v pk} → SigForVote∈Qc∈Rm-SentB4 v pk qc rm pool
 
 record SystemInv (st : SystemState) : Set where
   field
     qcs∈RMSigSentB4 : ∀ {pid}
                     → initialised st pid ≡ initd
-                    → QC.SigsForVotes∈Qc∈Rm-SentB4 (peerStates st pid) (msgPool st)
+                    → QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
 open SystemInv public
 
