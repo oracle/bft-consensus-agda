@@ -87,6 +87,15 @@ module LibraBFT.ImplShared.Consensus.Types where
     (λ rm → List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)))
     (λ rm _ → rm) -- TODO-1 cannot be written
 
+  -- IMPL-DIFF : In places that do "set"
+  -- e.g., RoundState.processCertificates
+  -- the Haskell code is :               rsVoteSent     .= Nothing
+  -- the Agda    code is : lRoundState ∙ rsVoteSent     ∙= nothing
+  --
+  -- The Haskell code leverages the "RW" constraints (e.g., RWRoundState)
+  -- to enable not specifying where something is contained (i.e., in the round manager).
+  -- The Agda code does not model that, therefore it needs `lRoundState`.
+
   lRoundManager : Lens RoundManager RoundManager
   lRoundManager = lens (λ _ _ f rm → f rm)
 
