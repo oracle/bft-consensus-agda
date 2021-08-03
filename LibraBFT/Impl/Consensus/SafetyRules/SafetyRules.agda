@@ -140,8 +140,7 @@ constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block �
 constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (Either ErrLog Vote)
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (Either ErrLog Vote)
-constructAndSignVoteM maybeSignedVoteProposal =
-  logEE ("" ∷ []) $ do
+constructAndSignVoteM maybeSignedVoteProposal = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   maybeS vs (bail fakeErr {- srValidatorSigner is nothing -}) λ validatorSigner → do
     let voteProposal = maybeSignedVoteProposal ^∙ msvpVoteProposal

@@ -639,7 +639,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open LastVoteInfo public
 
   record PendingVotes : Set where
-    constructor PendingVotes∙new
+    constructor mkPendingVotes
     field
       _pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
       _pvMaybePartialTC    : Maybe TimeoutCertificate
@@ -647,6 +647,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open PendingVotes public
   unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
              (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
+
+  PendingVotes∙new : PendingVotes
+  PendingVotes∙new = mkPendingVotes Map.empty nothing Map.empty
 
   record StateComputeResult : Set where
     constructor StateComputeResult∙new

@@ -49,6 +49,11 @@ tell1 x = tell (x ∷ [])
 
 act = tell1
 
+void : RWST Ev Wr St A → RWST Ev Wr St Unit
+void m = do
+  _ ← m
+  pure unit
+
 -- Conditionals
 infix 1 ifM‖_
 ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A
@@ -78,10 +83,10 @@ when b f = if-RWST toBool b then f else pure unit
 
 -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)
-ok = return ∘ Right
+ok = pure ∘ Right
 
 bail : B → RWST Ev Wr St (B ⊎ A)
-bail = return ∘ Left
+bail = pure ∘ Left
 
 infixl 4 _∙?∙_
 _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
@@ -91,14 +96,14 @@ _∙?∙_ = RWST-ebind
 maybeS-RWST : Maybe A → (RWST Ev Wr St B) → (A → RWST Ev Wr St B) → RWST Ev Wr St B
 maybeS-RWST ma n j =
   caseMM ma of λ where
-    nothing → n
+    nothing  → n
     (just x) → j x
 
 maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
 maybeSM mma mb f = do
   x ← mma
   caseMM x of λ where
-    nothing → mb
+    nothing  → mb
     (just j) → f j
   where
 
@@ -107,7 +112,7 @@ maybeSMP : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
 maybeSMP ma b f = do
   x ← ma
   caseMM x of λ where
-    nothing → return b
+    nothing  → pure b
     (just j) → f j
 
 infixl 4 _∙^∙_

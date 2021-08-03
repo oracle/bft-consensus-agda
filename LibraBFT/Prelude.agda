@@ -42,6 +42,8 @@ module LibraBFT.Prelude where
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public
 
+  max = _⊔_
+
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public
@@ -506,6 +508,9 @@ module LibraBFT.Prelude where
     _/=_ : A → A → Bool
     a /= b = not (a == b)
   open Eq ⦃ ... ⦄ public
+
+  elem : ∀ {ℓ} {A : Set ℓ} ⦃ _ : Eq A ⦄ → A → List A → Bool
+  elem x = toBool ∘ Any-any (x ≟_)
 
   instance
     Eq-Nat : Eq ℕ

@@ -5,9 +5,10 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
+open import LibraBFT.Base.KVMap             as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -43,9 +44,9 @@ module LibraBFT.ImplShared.Consensus.Types where
     field
       _nreRound   : Round
       _nreReason  : NewRoundReason
-    --  _nreTimeout : Duration
-  unquoteDecl nreRound   nreReason = mkLens (quote NewRoundEvent)
-             (nreRound ∷ nreReason ∷ [])
+      _nreTimeout : Duration
+  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
 
   record RoundState : Set where
     constructor RoundState∙new
@@ -86,6 +87,15 @@ module LibraBFT.ImplShared.Consensus.Types where
     (λ rm → List-map proj₁ (kvm-toList (rm ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)))
     (λ rm _ → rm) -- TODO-1 cannot be written
 
+  -- IMPL-DIFF : In places that do "set"
+  -- e.g., RoundState.processCertificates
+  -- the Haskell code is :               rsVoteSent     .= Nothing
+  -- the Agda    code is : lRoundState ∙ rsVoteSent     ∙= nothing
+  --
+  -- The Haskell code leverages the "RW" constraints (e.g., RWRoundState)
+  -- to enable not specifying where something is contained (i.e., in the round manager).
+  -- The Agda code does not model that, therefore it needs `lRoundState`.
+
   lRoundManager : Lens RoundManager RoundManager
   lRoundManager = lens (λ _ _ f rm → f rm)
 
@@ -125,6 +135,18 @@ module LibraBFT.ImplShared.Consensus.Types where
   -- getter only in Haskell
   srValidatorVerifier : Lens RoundManager ValidatorVerifier
   srValidatorVerifier = rmEpochState ∙ esVerifier
+
+  -- getter only in Haskell
+  -- IMPL-DIFF : this returns Author OR does an errorExit
+  rmObmMe : Lens RoundManager (Maybe Author)
+  rmObmMe = mkLens' g s
+    where
+    g : RoundManager → Maybe Author
+    g rm = case rm ^∙ rmSafetyRules ∙ srValidatorSigner of λ where
+             (just vs) → just (vs ^∙ vsAuthor)
+             nothing   → nothing
+    s : RoundManager → Maybe Author → RoundManager
+    s s _ = s
 
   -- getter only in Haskell
   rmEpoch : Lens RoundManager Epoch

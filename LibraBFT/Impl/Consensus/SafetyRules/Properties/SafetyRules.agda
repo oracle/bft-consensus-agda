@@ -535,28 +535,13 @@ module constructAndSignVoteMSpec where
     proposedBlock = voteProposal ^∙ vpBlock
 
     contract'
-      : ∀ pre pool
-        → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre pool proposedBlock) pre
-    contract' pre pool .unit refl nothing vs≡ ._ refl .unit refl =
+      : ∀ pre
+        → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) (Contract pre proposedBlock) pre
+    contract' pre nothing vs≡ =
       mkContract
         reflPreservesRoundManagerInv (reflNoEpochChange{pre})
         refl true reflVoteNotGenerated
-    contract' pre pool .unit refl (just validatorSigner) vs≡ =
-      RWST-⇒
-        (Contract pre pool proposedBlock) Post pf
-        (constructAndSignVoteM-continue0 voteProposal validatorSigner) unit pre
-        (continue0.contract voteProposal validatorSigner pre pool)
-      where
-      Post : LBFT-Post (Either ErrLog Vote)
-      Post x post outs =
-        RWST-weakestPre-bindPost unit
-          (λ r → logInfo fakeInfo >> pure r) (Contract pre pool proposedBlock)
-          x post (LogInfo fakeInfo ∷ outs)
-
-      pf : RWST-Post-⇒ (Contract pre pool proposedBlock) Post
-      pf r st outs (mkContract rmInv noEpochChange noMsgOuts lvr≡? voteResCorrect) .r refl .unit refl =
-        mkContract rmInv noEpochChange (OutputProps.++-NoMsgs outs _ noMsgOuts refl)
-          lvr≡? voteResCorrect
+    contract' pre (just validatorSigner) vs≡ = continue0.contract voteProposal validatorSigner pre
 
     contract
       : ∀ pre pool Post → RWST-Post-⇒ (Contract pre pool proposedBlock) Post
