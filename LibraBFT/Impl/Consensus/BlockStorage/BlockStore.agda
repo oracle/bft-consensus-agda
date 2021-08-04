@@ -50,7 +50,7 @@ commitM
   → LBFT (Either ErrLog Unit)
 commitM finalityProof = do
   bs ← use lBlockStore
-  maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
+  maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of λ where
       nothing →
