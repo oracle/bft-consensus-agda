@@ -97,7 +97,7 @@ qcVoteSigsSentB4
     → vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
     → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
     → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
-qcVoteSigsSentB4 pid st rss qc∈rm sig vs∈qcvs ≈v ¬gen = qcsigsSentB4 qc∈rm sig vs∈qcvs ≈v
+qcVoteSigsSentB4 pid st rss qc∈rm sig vs∈qcvs ≈v ¬gen = qcsigsSentB4 qc∈rm sig vs∈qcvs ≈v ¬gen
   where
   open RoundManagerInv (invariantsCorrect pid st rss)
 

@@ -100,15 +100,13 @@ module QCProps where
   OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
 
-
-  -- TODO-3: Should be either that the vote is represented in the genesis info,
-  -- *or* it isn't and is in the pool
   SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Rm-SentB4 v pk qc rm pool =
     qc ∈RoundManager rm
     → WithVerSig pk v →
     ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → ¬(∈GenInfo-impl genesisInfo sig)
     → MsgWithSig∈ pk sig pool
 
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
@@ -117,8 +115,8 @@ module QCProps where
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
       → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
-  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v =
-    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v)
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
 
 module RoundManagerInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
