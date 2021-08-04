@@ -86,12 +86,13 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.All
     using (All; []; _∷_)
-    renaming (head to All-head; tail to All-tail;
-              lookup to All-lookup; tabulate to All-tabulate;
-              reduce to All-reduce)
+    renaming (head     to All-head;   tail     to All-tail;
+              lookup   to All-lookup; tabulate to All-tabulate;
+              reduce   to All-reduce; map      to All-map)
     public
 
   open import Data.List.Relation.Unary.All.Properties
+    hiding   (All-map)
     renaming ( tabulate⁻ to All-tabulate⁻
              ; tabulate⁺ to All-tabulate⁺
              ; map⁺      to All-map⁺
@@ -241,12 +242,12 @@ module LibraBFT.Prelude where
     public
 
 
-  module _ {ℓ : Level} {A : Set} where
-    NoneOfKind : ∀ {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set
+  module _ {ℓA} {A : Set ℓA} where
+    NoneOfKind : ∀ {ℓ} {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set ℓA
     NoneOfKind xs p = List-filter p xs ≡ []
 
     postulate -- TODO-1: Replace with or prove using library properties?  Move to Lemmas?
-      NoneOfKind⇒ : ∀ {P : A → Set ℓ} {Q : A → Set ℓ} {xs : List A}
+      NoneOfKind⇒ : ∀ {ℓ} {P : A → Set ℓ} {Q : A → Set ℓ} {xs : List A}
                   → (p : (a : A) → Dec (P a))
                   → {q : (a : A) → Dec (Q a)}
                   → (∀ {a} → P a → Q a)  -- TODO-1: Use proper notation (Relation.Unary?)

@@ -50,13 +50,13 @@ module OutputProps where
 
     NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
     proj₁ (NoMsgs⇒× noMsgs) =
-      filter-∪?-[]₁ outs isBroadcastProposal? _
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastProposal? _ noMsgs
     proj₁ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isSendVote? noMsgs
+      filter-∪?-[]₂ outs _ isSendVote?
+        (filter-∪?-[]₂ outs _ _ noMsgs)
     proj₂ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isBroadcastSyncInfo?
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastSyncInfo? _
+        (filter-∪?-[]₂ outs _ _ noMsgs)
 
     NoMsgs⇒NoProposals : NoMsgs → NoProposals
     NoMsgs⇒NoProposals = proj₁ ∘ NoMsgs⇒×
@@ -99,6 +99,14 @@ module QCProps where
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+
+  NoMsgs⇒OutputQc∈RoundManager : ∀ outs rm → OutputProps.NoMsgs outs → OutputQc∈RoundManager outs rm
+  NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =
+    All-map help (noneOfKind⇒All¬ outs _ noMsgs)
+    where
+    help : ∀ {out : Output} → ¬ IsOutputMsg out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm
+    help ¬msg qc .(P _) qc∈m inBP = ⊥-elim (¬msg (Left tt))
+    help ¬msg qc .(V _) qc∈m inSV = ⊥-elim (¬msg (Right (Right tt)))
 
   SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Rm-SentB4 v pk qc rm pool =
