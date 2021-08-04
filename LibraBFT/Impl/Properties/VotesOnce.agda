@@ -37,7 +37,7 @@ open        ParamsWithInitAndHandlers InitAndHandlers
 open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
 -- This module proves the two "VotesOnce" proof obligations for our handler.

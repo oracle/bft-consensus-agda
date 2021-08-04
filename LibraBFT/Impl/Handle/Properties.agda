@@ -42,7 +42,7 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : RoundManager-correct initRM
-  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM -- TODO-1: This is not true (the definition of the predicate needs updating).
+  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM -- NOTE: all QCs in `initRM` come from the genesis info
   initRM-btInv   : BlockStoreInv initRM
 
 initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv [] initRM
@@ -154,10 +154,13 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   ...| Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
 -- Receiving a vote or commit message does not update the last vote
-...| V vm = ≡⇒≤ TODO
-  where
-  postulate -- TODO-2: prove (waiting on: `handle`)
-    TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (V vm) 0) (peerStates pre pid))
+...| V vm = ≡⇒≤ $ cong (maybe (_^∙ vRound) 0 ∘ (_^∙ sdLastVote)) noSDChange
+   where
+   hvPre = peerStates pre pid
+   hvPst = LBFT-post (handle pid (V vm) 0) hvPre
+
+   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
+
 ...| C cm = ≡⇒≤ TODO
   where
   postulate -- TODO-2: prove (waiting on: `handle`)
