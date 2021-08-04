@@ -344,13 +344,14 @@ module processProposalMsgMSpec
 
   -- TODO: Refactor for DRY fail with InputOutputHandlers?  Maybe not, as they may evolve
   -- differently
-  record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
-    field
-      mSndr            : NodeId
-      m∈pool           : (mSndr , P pm) ∈ pool
-  open Requirements
+  module OutQcs where
+    record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
+      constructor mkRequirements
+      field
+        mSndr            : NodeId
+        m∈pool           : (mSndr , P pm) ∈ pool
 
-  module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool pre) where
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -360,6 +361,8 @@ module processProposalMsgMSpec
         noEpochChange : NoEpochChange pre post
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
+        -- Signatures
+        outQcs∈RM          : OutQcs.Requirements pool pre → QCProps.OutputQc∈RoundManager outs post
 
     contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
     contract' rewrite processProposalMsgM≡ = contract
@@ -368,6 +371,7 @@ module processProposalMsgMSpec
       contractBail outs nvo =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
           (Voting.voteAttemptBailed outs nvo)
+          (obm-dangerous-magic' "TODO")
 
       contract : LBFT-weakestPre step₀ Contract pre
       proj₁ contract ≡nothing = contractBail _ refl
@@ -390,6 +394,7 @@ module processProposalMsgMSpec
                 (inj₁ (true , Voting.mkVoteUnsentCorrect
                                 (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
                                 (inj₁ noVote)))
+                (obm-dangerous-magic' "TODO")
 
             pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
             pf (Left e) ._ refl =
@@ -406,6 +411,7 @@ module processProposalMsgMSpec
                   (transNoEpochChange{i = pre}{j = st}{k = st'} noEpochChange noEpochChange')
                   (Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
                     noVote noVoteOuts voteAttemptCorrect')
+                  (obm-dangerous-magic' "TODO")
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =

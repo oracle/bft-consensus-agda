@@ -42,13 +42,14 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
   open handleProposal now pm
 
-  record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
-    constructor mkRequirements
-    field
-      mSndr            : NodeId
-      m∈pool           : (mSndr , P pm) ∈ pool
+  module OutQcs where
+    record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
+      constructor mkRequirements
+      field
+        mSndr            : NodeId
+        m∈pool           : (mSndr , P pm) ∈ pool
 
-  module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool pre) where
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -59,7 +60,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
         -- Signatures
-        outQcs∈RM          : QCProps.OutputQc∈RoundManager outs pre
+        outQcs∈RM          : OutQcs.Requirements pool pre → QCProps.OutputQc∈RoundManager outs post
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
     contract =
@@ -71,16 +72,17 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       myEpoch = pre ^∙ pssSafetyData-rm ∙ sdEpoch
       vv      = pre ^∙ rmEpochState ∙ esVerifier
 
-      contractBail : ∀ outs → OutputProps.NoVotes outs → Contract unit pre outs
-      contractBail outs noVotes =
+      contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
+      contractBail outs noMsgs =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          (Voting.mkVoteAttemptCorrectWithEpochReq (Voting.voteAttemptBailed outs noVotes) tt)
-          outqcs∈pre
+          vac outQcs∈RM
         where
-        postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
-          outqcs∈pre : QCProps.OutputQc∈RoundManager outs pre
-        postulate -- TODO-1: Prove this (waiting on: updates to RoundManager contracts)
-          qc∈post⇒SigsSentB4 : QCProps.SigsForVotes∈Rm-SentB4 pool pre
+        vac : Voting.VoteAttemptCorrectWithEpochReq pre pre outs (pm ^∙ pmProposal)
+        vac = Voting.mkVoteAttemptCorrectWithEpochReq
+                (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs noMsgs)) tt
+
+        outQcs∈RM : OutQcs.Requirements pool pre → QCProps.OutputQc∈RoundManager outs pre
+        outQcs∈RM _ = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
 
       contract-step₁ : Post-epvv (myEpoch , vv) pre []
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =
@@ -88,7 +90,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
         contractBail _ refl
       proj₂ (contract-step₁ (myEpoch@._ , vv@._) refl) unit pp≡Right =
-        processProposalMsgMSpec.contract now pm pool pre (ppmReqs reqs refl) Contract pf
+        processProposalMsgMSpec.contract now pm pool pre Contract pf
         where
         module PPM = processProposalMsgMSpec now pm
 
@@ -97,16 +99,18 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = sym con
 
-        ppmReqs : (reqs' : Requirements pool pre) → reqs' ≡ reqs → PPM.Requirements pool pre
-        ppmReqs record { mSndr = mSndr ; m∈pool = m∈pool } refl =
-                record { mSndr = mSndr ; m∈pool = m∈pool }
+        pf : RWST-Post-⇒ (PPM.Contract pool pre) Contract
+        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect outQcs∈RM) =
+          mkContract rmInv noEpochChange vac
+            outQcs∈RM'
+          where
+          vac : Voting.VoteAttemptCorrectWithEpochReq pre st outs (pm ^∙ pmProposal)
+          vac = Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
+                  (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡)
 
-        pf : RWST-Post-⇒ (PPM.Contract pool pre (ppmReqs reqs refl)) Contract
-        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect) =
-          mkContract rmInv noEpochChange
-            (Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
-              (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡))
-            obm-dangerous-magic! -- TODO-2: prove it, ...
+          outQcs∈RM' : OutQcs.Requirements pool pre → QCProps.OutputQc∈RoundManager outs st
+          outQcs∈RM' (OutQcs.mkRequirements mSndr m∈pool) =
+            outQcs∈RM (PPM.OutQcs.mkRequirements mSndr m∈pool)
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract
@@ -135,7 +139,7 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
         noSDChange    : NoSafetyDataChange pre post
         -- Output
         noVotes       : OutputProps.NoVotes outs
-        outQcs∈RM     : OutQcs.Requirements pool → QCProps.OutputQc∈RoundManager outs pre
+        outQcs∈RM     : OutQcs.Requirements pool → QCProps.OutputQc∈RoundManager outs post
 
     postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
       contract : LBFT-weakestPre (handleVote now vm) Contract pre
