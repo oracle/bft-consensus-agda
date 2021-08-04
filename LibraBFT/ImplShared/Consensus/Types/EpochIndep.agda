@@ -636,6 +636,25 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
+  data RootInfo : Set where RootInfo∙new : Block → QuorumCert → QuorumCert → RootInfo
+  data RootMetadata : Set where RootMetadata∙new : RootMetadata
+
+  record RecoveryData : Set where
+    constructor mkRecoveryData
+    field
+      _rdLastVote                  : Maybe Vote
+      _rdRoot                      : RootInfo
+      _rdRootMetadata              : RootMetadata
+      _rdBlocks                    : List Block
+      _rdQuorumCerts               : List QuorumCert
+      _rdBlocksToPrune             : Maybe (List HashValue)
+      _rdHighestTimeoutCertificate : Maybe TimeoutCertificate
+  open RecoveryData public
+  unquoteDecl rdLastVote      rdRoot            rdRootMetadata                rdBlocks
+              rdQuorumCerts   rdBlocksToPrune   rdHighestTimeoutCertificate = mkLens (quote RecoveryData)
+             (rdLastVote    ∷ rdRoot          ∷ rdRootMetadata              ∷ rdBlocks ∷
+              rdQuorumCerts ∷ rdBlocksToPrune ∷ rdHighestTimeoutCertificate ∷ [])
+
   -- This is a notification of a commit.  It may not be explicitly included in an implementation,
   -- but we need something to be able to express correctness conditions.  It will
   -- probably have something different in it, but will serve the purpose for now.
@@ -909,3 +928,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
   bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
 
+  record LedgerRecoveryData : Set where
+    constructor LedgerRecoveryData∙new
+    field
+      _lrdStorageLedger : LedgerInfo
