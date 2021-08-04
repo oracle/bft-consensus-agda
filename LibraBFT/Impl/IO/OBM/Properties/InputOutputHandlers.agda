@@ -117,24 +117,28 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 module handleVoteSpec (now : Instant) (vm : VoteMsg) where
   open handleVote now vm
 
-  record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
-    constructor mkRequirements
-    field
-      mSndr            : NodeId
-      m∈pool           : (mSndr , V vm) ∈ pool
+  module OutQcs where
+    record Requirements (pool : SentMessages) : Set where
+      constructor mkRequirements
+      field
+        mSndr  : NodeId
+        m∈pool : (mSndr , V vm) ∈ pool
 
-  record Contract (pre : RoundManager) (pool : SentMessages) (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
-    constructor mkContract
-    field
-      -- General properties / invariants
-      rmInv         : Preserves (RoundManagerInv pool) pre post
-      noEpochChange : NoEpochChange pre post
-      noSDChange    : NoSafetyDataChange pre post
-      -- Output
-      noVotes       : OutputProps.NoVotes outs
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
-  postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
-    contract : ∀ pre pool → Requirements pool pre → LBFT-weakestPre (handleVote now vm) (Contract pre pool) pre
+    record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        -- General properties / invariants
+        rmInv         : Preserves (RoundManagerInv pool) pre post
+        noEpochChange : NoEpochChange pre post
+        noSDChange    : NoSafetyDataChange pre post
+        -- Output
+        noVotes       : OutputProps.NoVotes outs
+        outQcs∈RM     : OutQcs.Requirements pool → QCProps.OutputQc∈RoundManager outs pre
 
-  contract! : ∀ pre pool → Requirements pool pre → LBFT-Post-True (Contract pre pool) (handleVote now vm) pre
-  contract! pre pool reqs = LBFT-contract (handleVote now vm) (Contract pre pool) pre (contract pre pool reqs)
+    postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
+      contract : LBFT-weakestPre (handleVote now vm) Contract pre
+
+    contract! : LBFT-Post-True Contract (handleVote now vm) pre
+    contract! = LBFT-contract (handleVote now vm) Contract pre contract

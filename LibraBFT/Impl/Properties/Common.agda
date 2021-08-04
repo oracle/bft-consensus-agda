@@ -3,7 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -20,6 +20,7 @@ open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.Impl.Handle
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
+open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -72,76 +73,6 @@ postulate
       → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
       → ∈GenInfo-impl genesisInfo (proj₂ vs)
-
--- postulate -- TODO-2: prove (waiting on: `handle`, refinements to handler contracts)
-  -- This will be proved for the implementation, confirming that honest
-  -- participants only store QCs comprising votes that have actually been sent.
-  -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
-  -- Note that some implementations might not ensure this, but LibraBFT does
-  -- because even the leader of the next round sends its own vote to itself,
-  -- as opposed to using it to construct a QC using its own unsent vote.
-qcVoteSigsSentB4
-  : ∀ {pid qc vs pk}{st : SystemState}
-    → ReachableSystemState st
-    → initialised st pid ≡ initd
-    → qc QCProps.∈RoundManager (peerStates st pid)
-    → vs ∈ qcVotes qc
-    → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
-    → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
-qcVoteSigsSentB4{pid}{qc}{st = st} rss'@(step-s{pre = pre} rss (step-peer sp@(step-cheat _))) ini qc∈rm vs∈qcvs ¬gen
-  = MsgWithSig∈-++ʳ{pool = msgPool pre} (qcVoteSigsSentB4 rss iniPre qc∈rmPre vs∈qcvs ¬gen)
-  where
-  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
-  pre≡ = cheatStepDNMPeerStates₁ sp unit
-
-  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
-
-  iniPre : initialised pre pid ≡ initd
-  iniPre = trans (sym (cheatStepDNMInitialised₁ sp unit)) ini
-
-qcVoteSigsSentB4{pid}{qc}{_ , sig}{pk} (step-s{pre = pre} rss (step-peer sp@(step-honest{pid'} sps))) ini qc∈rm vs∈qcvs ¬gen
-  with pid ≟ pid'
-...| no  pid≢ = MsgWithSig∈-++ʳ{pool = msgPool pre} $ qcVoteSigsSentB4 rss iniPre qc∈rmPre vs∈qcvs ¬gen
-  where
-  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
-  pre≡ = sym $ pids≢StepDNMPeerStates sps pid≢
-
-  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid
-  qc∈rmPre = subst (λ rm → qc QCProps.∈RoundManager rm) pre≡ qc∈rm
-
-  iniPre : initialised pre pid ≡ initd
-  iniPre = trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) ini
-
-...| yes refl
-  with sps
-... | step-init uni = ⊥-elim (¬gen (uninitQcs∈Gen rss uni qc∈rmPre vs∈qcvs))
-  where
-  pre≡ : peerStates (StepPeer-post{pre = pre} sp) pid ≡ peerStates pre pid
-  pre≡ = sym $ trans (peerUninitState rss uni) (StepPeer-post-lemma sp)
-
-  qc∈rmPre : qc QCProps.∈RoundManager peerStates pre pid'
-  qc∈rmPre rewrite pre≡ = qc∈rm
-
-...| step-msg{sndr , V pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleVoteSpec"
-...| step-msg{sndr , C pm} m∈pool ini' =  obm-dangerous-magic' "waiting on : handleCommitSpec"
-
--- Will need to relate the QCs in the outs to the msgPool of the prestate.
--- Either they come from pm, or from the previous roundstate.
--- In the first case, we can construct the MsgWithsig∈ with that knowledge.
--- In the second case, they come from the RoundManager of the pre-state, and we will rely on the system inv.
-...| step-msg{sndr , P pm} m∈pool ini' = mws
-  where
-  hpPre      = peerStates pre pid'
-  hpPoolPre  = msgPool pre
-  hpOuts     = outputsToActions {hpPre} $ LBFT-outs (handle pid' (P pm) 0) hpPre
-  hpPoolPost = actionsToSentMessages pid hpOuts ++ msgPool pre
-
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPoolPre hpPre {!!})
-
-  mws : MsgWithSig∈ pk sig hpPoolPost
-  mws = obm-dangerous-magic' "TODO: use handleProposalSpec.Contract.qcs∈RM∈Pool"
-
 
 module ∈GenInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}

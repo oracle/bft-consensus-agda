@@ -24,11 +24,6 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo.Properties where
 
 module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
 
-  record Requirements (pre : RoundManager) : Set where
-    field
-      rmc : RoundManager-correct pre
-  open Requirements
-
   epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
   record SIVerifyProps (pre post : RoundManager) (rmc : RoundManager-correct pre) : Set where
@@ -41,13 +36,17 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
       sivpHccVer    : maybeS (self ^∙ sixxxHighestCommitCert) Unit (WithEC.MetaIsValidQC          (α-EC (pre , rmc)))
       sivpHtcVer    : maybeS (self ^∙ siHighestTimeoutCert  ) Unit (WithEC.MetaIsValidTimeoutCert (α-EC (pre , rmc)))
 
-  module _ (pre : RoundManager) (reqs : Requirements pre) where
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
    record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
      constructor mkContract
      field
        -- General properties / invariants
+       rmInv         : Preserves (RoundManagerInv pool) pre post
        noStateChange : pre ≡ post
+       -- Output
        noMsgOuts     : OutputProps.NoMsgs outs
        -- Syncing
-       syncResCorr   : r ≡ Right unit → SIVerifyProps pre post (rmc reqs)
+       syncResCorr   : r ≡ Right unit → ∀ rmc → SIVerifyProps pre post rmc
+       -- Signatures
+       -- TODO-2: What requirements on `self` are needed to show `QCProps.OutputQc∈RoundManager outs pre`
