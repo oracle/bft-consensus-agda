@@ -224,7 +224,7 @@ constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
 signProposalM : BlockData → LBFT (Either ErrLog Block)
 signProposalM blockData = do
  vs ← use (lSafetyRules ∙ srValidatorSigner)
- maybeS vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner -> do
+ maybeS-RWST vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner -> do
   safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
   verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ _ →
     verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ _ →
@@ -248,7 +248,7 @@ signProposalM blockData = do
 signTimeoutM : Timeout → LBFT (Either ErrLog Signature)
 signTimeoutM timeout = do
  vs ← use (lSafetyRules ∙ srValidatorSigner)
- maybeS vs (bail fakeErr) {-"srValidatorSigner", "Nothing"-} $ λ validatorSigner → do
+ maybeS-RWST vs (bail fakeErr) {-"srValidatorSigner", "Nothing"-} $ λ validatorSigner → do
    safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
    verifyEpochM (timeout ^∙ toEpoch) safetyData ∙^∙ withErrCtx (here' []) ∙?∙ λ _ -> do
      ifM‖ timeout ^∙ toRound ≤? safetyData ^∙ sdPreferredRound ≔
