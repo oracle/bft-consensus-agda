@@ -30,7 +30,7 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
   record SIVerifyProps (pre : RoundManager) (rmc : RoundManager-correct pre) : Set where
     field
       sivpEp≡       : epoch ≡ self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch
-      sivpTcEp≡     : maybeS (self ^∙ siHighestTimeoutCert) true (\tc -> epoch == tc ^∙ tcEpoch) ≡ true
+      sivpTcEp≡     : maybeS (self ^∙ siHighestTimeoutCert) Unit (\tc -> epoch ≡ tc ^∙ tcEpoch)
       sivpHqc≥Hcc   : (self ^∙ siHighestQuorumCert) [ _≥_ ]L self ^∙ siHighestCommitCert at qcCertifiedBlock ∙ biRound
       sivpHqc≢empty : self ^∙ siHighestCommitCert ∙ qcCommitInfo ≢ BI.empty
       sivpHqcVer    : WithEC.MetaIsValidQC (α-EC (pre , rmc)) (self ^∙ siHighestQuorumCert)
@@ -53,23 +53,54 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
        -- TODO-2: What requirements on `self` are needed to show `QCProps.OutputQc∈RoundManager outs pre`
 
    verifyCorrect : SI.verify self validator ≡ Right unit → (rmc : RoundManager-correct pre) → SIVerifyProps pre rmc
-   verifyCorrect
+   verifyCorrect verify≡ rmc
       with epoch ≟ self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch
-   ...| no neq = λ ()
-   ...| yes ep≡
-      with  maybeS (self ^∙ siHighestTimeoutCert) true  (λ tc -> epoch == tc ^∙ tcEpoch) | inspect
-           (maybeS (self ^∙ siHighestTimeoutCert) true) (λ tc -> epoch == tc ^∙ tcEpoch)
-   ...| false | _ = λ ()
-   ...| true  | [ tcep≡ ] = λ _ _ →
-      -- TODO: continue case analysis for remaining fields
-      record { sivpEp≡       = ep≡
-             ; sivpTcEp≡     = tcep≡
-             ; sivpHqc≥Hcc   = {!!}
-             ; sivpHqc≢empty = {!!}
-             ; sivpHqcVer    = {!!}
-             ; sivpHccVer    = {!!}
-             ; sivpHtcVer    = {!!}
-             }
+   ...| no  ep≢ = absurd (Left _ ≡ Right _) case verify≡ of λ ()
+   ...| yes sivpEp≡
+      with sivpTcEp≡ verify≡
+      where
+      sivpTcEp≡ : SI.verify.step₁ self validator ≡ Right unit
+                  → maybeS (self ^∙ siHighestTimeoutCert) Unit (\tc -> epoch ≡ tc ^∙ tcEpoch)
+                    × SI.verify.step₂ self validator ≡ Right unit
+      sivpTcEp≡ verify≡₁
+         with self ^∙ siHighestTimeoutCert
+      ...| nothing = unit , verify≡₁
+      ...| just tc
+         with epoch ≟ tc ^∙ tcEpoch
+      ...| yes tce≡ = tce≡ , verify≡₁
+      ...| no  tce≢ = absurd (Left _ ≡ Right _) case verify≡₁ of λ ()
+   ...| sivpTcEp≡ , verify≡₂
+      with sivpHqc≥Hcc verify≡₂
+      where
+      sivpHqc≥Hcc : (SI.verify.step₂ self validator ≡ Right unit)
+                    → (self ^∙ siHighestQuorumCert) [ _≥_ ]L self ^∙ siHighestCommitCert at qcCertifiedBlock ∙ biRound
+                      × SI.verify.step₃ self validator ≡ Right unit
+      sivpHqc≥Hcc verify≡₂
+         with    self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
+              ≥? self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biRound
+      ...| yes hqc≥hcc = hqc≥hcc , verify≡₂
+      ...| no  hqc<hcc = absurd Left _ ≡ Right _ case verify≡₂ of λ ()
+   ...| sivpHqc≥Hcc , verify≡₃
+      with sivpHqc≢empty verify≡₃
+      where
+      sivpHqc≢empty : (SI.verify.step₃ self validator ≡ Right unit)
+                      → self ^∙ siHighestCommitCert ∙ qcCommitInfo ≢ BI.empty
+                        × SI.verify.step₄ self validator ≡ Right unit
+      sivpHqc≢empty verify≡₃
+         with self ^∙ siHighestCommitCert ∙ qcCommitInfo ≟ BI.empty
+      ...| no  ≢empty = ≢empty , verify≡₃
+      ...| yes ≡empty = absurd Left _ ≡ Right _ case verify≡₃ of λ ()
+   ...| sivpHqc≢empty , verify≡₄ =
+   -- TODO: continue case analysis for remaining fields
+     record
+     { sivpEp≡       = sivpEp≡
+     ; sivpTcEp≡     = sivpTcEp≡
+     ; sivpHqc≥Hcc   = sivpHqc≥Hcc
+     ; sivpHqc≢empty = sivpHqc≢empty
+     ; sivpHqcVer    = obm-dangerous-magic' "TODO"
+     ; sivpHccVer    = obm-dangerous-magic' "TODO"
+     ; sivpHtcVer    = obm-dangerous-magic' "TODO"
+     }
 
    contract : LBFT-weakestPre (SI.verifyM self validator) Contract pre
    contract = mkContract id refl refl verifyCorrect
