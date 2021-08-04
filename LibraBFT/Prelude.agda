@@ -354,6 +354,12 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+  -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
+  -- spaces between f and backticks
+  flip' : _     -- Avoids warning about definition and syntax declaration being in different scopes
+  flip' = flip
+  syntax flip' f = ` f `
+
   open import Data.String as String
     hiding (_==_ ; _≟_)
 
@@ -476,6 +482,19 @@ module LibraBFT.Prelude where
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
+  maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
+  maybeSMP ma b f = do
+    x ← ma
+    case x of λ where
+      nothing  → pure b
+      (just j) → f j
+
+  fromMaybeM : ∀ {ℓ} {A : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m A → m (Maybe A) → m A
+  fromMaybeM ma mma = do
+    mma >>= λ where
+      nothing  → ma
+      (just a) → pure a
 
   forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
   forM_      []  _ = return unit
