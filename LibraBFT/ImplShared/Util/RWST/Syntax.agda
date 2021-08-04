@@ -54,6 +54,22 @@ void m = do
   _ ← m
   pure unit
 
+{-
+Within the RWST monad, if and if-RWST are semantically interchangeable.
+Similarly for maybeS and maybe-RWST.
+
+The difference is in how proof obligations are generated
+- with the *-RWST variants generating new weakestPre obligations for each case.
+
+In some cases, this is helpful for structuring proofs, while in other cases it is
+unnecessary and introduces more structure to the proof without adding any benefit.
+
+A rule of thumb is that, if the "scrutinee" (whatever we are doing case analysis on,
+i.e., the first argument) is the value provided via >>= (RWST-bind) by a previous code block,
+then we already have a weakestPre proof obligation, so introducing additional ones via the
+*-RWST variants only creates more work and provides no additional benefit.
+-}
+
 -- Conditionals
 infix 1 ifM‖_
 ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A
