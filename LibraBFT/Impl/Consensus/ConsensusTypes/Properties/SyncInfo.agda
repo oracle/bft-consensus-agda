@@ -23,7 +23,7 @@ open import Optics.All
 open RoundManagerInvariants
 open RoundManagerTransProps
 
-module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo.Properties where
+module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.SyncInfo where
 
 module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
 
