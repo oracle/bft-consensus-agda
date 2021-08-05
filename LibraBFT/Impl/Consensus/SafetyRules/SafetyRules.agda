@@ -97,7 +97,7 @@ verifyAuthorM : Maybe Author → LBFT (Either ErrLog Unit)
 verifyAuthorM author = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   maybeS vs (bail fakeErr) {-(ErrL (here' ["srValidatorSigner", "Nothing"]))-} $ λ validatorSigner →
-    maybeS
+    maybeS-RWST
       author
       (bail fakeErr) -- (ErrL (here' ["InvalidProposal", "No author found in the proposal"])))
       (\a ->
