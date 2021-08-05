@@ -521,3 +521,9 @@ module LibraBFT.Prelude where
        with a ≟ b
     ... | no  proof = no λ where refl → proof refl
     ... | yes refl = yes refl
+
+  infixl 9 _!?_
+  _!?_ : {A : Set} → List A → ℕ → Maybe A
+  []       !? _  = nothing
+  (x ∷ _ ) !? 0  = just x
+  (_ ∷ xs) !? n  = xs !? (n ∸ 1)
