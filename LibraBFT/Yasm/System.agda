@@ -313,6 +313,15 @@ module LibraBFT.Yasm.System
                → Step pre (StepPeer-post pstep)
 
 
+   stepOuts : ∀ {st₁ st₂} → Step st₁ st₂ → List (LYT.Action Msg)
+   stepOuts (step-peer{outs = outs} pstep) = outs
+
+   stepPid : ∀ {st₁ st₂} → Step st₁ st₂ → Maybe PeerId
+   stepPid (step-peer{pid} pstep) = just pid
+
+   stepSentMessages : ∀ {st₁ st₂} → Step st₁ st₂ → SentMessages
+   stepSentMessages step = maybe (λ pid → actionsToSentMessages pid (stepOuts step)) [] (stepPid step)
+
    msgs-stable : ∀ {pre : SystemState} {post : SystemState} {m}
                → (theStep : Step pre post)
                → m ∈ msgPool pre
@@ -363,6 +372,26 @@ module LibraBFT.Yasm.System
                    → peerStates (StepPeer-post {pre = st} (step-honest stP)) pid ≡ s
                    → s ≡ s'
    peerStatePostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
+
+   Step*-prev
+     : ∀ {st₁ st₂}
+       → Step* st₁ st₂
+       → (∃[ st' ] Step* st₁ st') × SentMessages
+   Step*-prev step-0 = (_ , step-0) , []
+   Step*-prev (step-s {pre = pre} steps (step-peer{pid}{outs = outs} pstep)) =
+     (pre , steps) , actionsToSentMessages pid outs
+
+   Step*-prev-msgPool : ∀ {st₁ st₂} → Step* st₁ st₂ → SentMessages
+   Step*-prev-msgPool = msgPool ∘ proj₁ ∘ proj₁ ∘ Step*-prev
+
+   Step*-prev-acts : ∀ {st₁ st₂} → Step* st₁ st₂ → SentMessages
+   Step*-prev-acts = proj₂ ∘ Step*-prev
+
+   Step*-prev-msgPool-lemma₁
+     : ∀ {st₁ st₂} (steps : Step* st₁ st₂)
+       → msgPool st₂ ≡ Step*-prev-acts steps ++ Step*-prev-msgPool steps
+   Step*-prev-msgPool-lemma₁ step-0 = refl
+   Step*-prev-msgPool-lemma₁ (step-s steps (step-peer pstep)) = refl
 
    Step*-trans : ∀ {st st' st''}
                → Step* st st'
