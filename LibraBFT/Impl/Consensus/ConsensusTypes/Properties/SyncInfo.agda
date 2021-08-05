@@ -7,6 +7,8 @@
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert as QC
+import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert            as QuorumCert
 open import LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo as SI
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Impl.Types.BlockInfo as BI
@@ -21,21 +23,21 @@ open import Optics.All
 open RoundManagerInvariants
 open RoundManagerTransProps
 
-module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo.Properties where
+module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.SyncInfo where
 
 module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
 
   epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
-  record SIVerifyProps (pre : RoundManager) (rmc : RoundManager-correct pre) : Set where
+  record SIVerifyProps (pre : RoundManager) : Set where
     field
       sivpEp≡       : epoch ≡ self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch
-      sivpTcEp≡     : maybeS (self ^∙ siHighestTimeoutCert) Unit (\tc -> epoch ≡ tc ^∙ tcEpoch)
+      sivpTcEp≡     : maybeS (self ^∙ siHighestTimeoutCert) Unit $ λ tc -> epoch ≡ tc ^∙ tcEpoch
       sivpHqc≥Hcc   : (self ^∙ siHighestQuorumCert) [ _≥_ ]L self ^∙ siHighestCommitCert at qcCertifiedBlock ∙ biRound
       sivpHqc≢empty : self ^∙ siHighestCommitCert ∙ qcCommitInfo ≢ BI.empty
-      sivpHqcVer    : WithEC.MetaIsValidQC (α-EC (pre , rmc)) (self ^∙ siHighestQuorumCert)
-      sivpHccVer    : maybeS (self ^∙ sixxxHighestCommitCert) Unit (WithEC.MetaIsValidQC          (α-EC (pre , rmc)))
-      sivpHtcVer    : maybeS (self ^∙ siHighestTimeoutCert  ) Unit (WithEC.MetaIsValidTimeoutCert (α-EC (pre , rmc)))
+      sivpHqcVer    : QC.Contract (self ^∙ siHighestQuorumCert) validator
+      sivpHccVer    : maybeS (self ^∙ sixxxHighestCommitCert) Unit $ λ qc → QC.Contract qc validator
+      -- Waiting on TimeoutCertificate Contract : sivpHtcVer    : maybeS (self ^∙ siHighestTimeoutCert  ) Unit $ λ tc → {!!}
 
   module _ (pool : SentMessages) (pre : RoundManager) where
 
@@ -48,12 +50,12 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
        -- Output
        noMsgOuts     : OutputProps.NoMsgs outs
        -- Syncing
-       syncResCorr   : r ≡ Right unit → ∀ rmc → SIVerifyProps pre rmc
+       syncResCorr   : r ≡ Right unit → SIVerifyProps pre
        -- Signatures
        -- TODO-2: What requirements on `self` are needed to show `QCProps.OutputQc∈RoundManager outs pre`
 
-   verifyCorrect : SI.verify self validator ≡ Right unit → (rmc : RoundManager-correct pre) → SIVerifyProps pre rmc
-   verifyCorrect verify≡ rmc
+   verifyCorrect : SI.verify self validator ≡ Right unit → SIVerifyProps pre
+   verifyCorrect verify≡
       with epoch ≟ self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch
    ...| no  ep≢ = absurd (Left _ ≡ Right _) case verify≡ of λ ()
    ...| yes sivpEp≡
@@ -90,16 +92,43 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
          with self ^∙ siHighestCommitCert ∙ qcCommitInfo ≟ BI.empty
       ...| no  ≢empty = ≢empty , verify≡₃
       ...| yes ≡empty = absurd Left _ ≡ Right _ case verify≡₃ of λ ()
-   ...| sivpHqc≢empty , verify≡₄ =
+   ...| sivpHqc≢empty , verify≡₄
+      with sivpHqcVer verify≡₄
+      where
+      sivpHqcVer : (SI.verify.step₄ self validator ≡ Right unit)
+                   → QC.Contract (self ^∙ siHighestQuorumCert) validator
+                     × SI.verify.step₅ self validator ≡ Right unit
+      sivpHqcVer verify≡₄
+         with  QuorumCert.verify (self ^∙ siHighestQuorumCert)  validator | inspect
+              (QuorumCert.verify (self ^∙ siHighestQuorumCert)) validator
+      ...| Left  _    | _ = absurd Left _ ≡ Right _ case verify≡₄ of λ ()
+      ...| Right unit | [ R ]
+         with QC.contract (self ^∙ siHighestQuorumCert) validator (Right unit) refl R
+      ...| qcCon = qcCon , verify≡₄
+   ...| sivpHqcVer , verify≡₅
+      with sivpHccVer verify≡₅
+      where
+      sivpHccVer : (SI.verify.step₅ self validator ≡ Right unit)
+                   → (maybeS (self ^∙ sixxxHighestCommitCert) Unit $ λ qc → QC.Contract qc validator)
+                     × SI.verify.step₆ self validator ≡ Right unit
+      sivpHccVer verify≡₅
+         with self ^∙ sixxxHighestCommitCert
+      ...| nothing = unit , verify≡₅
+      ...| just qc
+         with QuorumCert.verify  qc  validator | inspect
+              (QuorumCert.verify qc) validator
+      ...| Left _ | _ = absurd Left _ ≡ Right _ case verify≡₅ of λ ()
+      ...| Right unit | [ R ] = QC.contract qc validator (Right unit) refl R , verify≡₅
+   ...| sivpHccVer , verify≡₆ =
    -- TODO: continue case analysis for remaining fields
      record
      { sivpEp≡       = sivpEp≡
      ; sivpTcEp≡     = sivpTcEp≡
      ; sivpHqc≥Hcc   = sivpHqc≥Hcc
      ; sivpHqc≢empty = sivpHqc≢empty
-     ; sivpHqcVer    = obm-dangerous-magic' "TODO"
-     ; sivpHccVer    = obm-dangerous-magic' "TODO"
-     ; sivpHtcVer    = obm-dangerous-magic' "TODO"
+     ; sivpHqcVer    = sivpHqcVer
+     ; sivpHccVer    = sivpHccVer
+     -- ; sivpHtcVer =
      }
 
    contract : LBFT-weakestPre (SI.verifyM self validator) Contract pre

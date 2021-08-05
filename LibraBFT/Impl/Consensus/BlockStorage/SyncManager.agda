@@ -42,7 +42,7 @@ addCertsM {-reason-} syncInfo retriever =
   syncToHighestCommitCertM     (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
   insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
   insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestQuorumCert) retriever ∙?∙ \_ ->
-  maybeS                       (syncInfo ^∙ siHighestTimeoutCert) (ok unit) $
+  maybeS-RWST                  (syncInfo ^∙ siHighestTimeoutCert) (ok unit) $
     \tc -> BlockStore.insertTimeoutCertificateM tc
 
 ------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ insertQuorumCertM qc retriever = do
       ok unit
     (Right _) →
       ok unit
-  maybeS (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
+  maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
     if-RWST (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
       then (do
         let finalityProof = qc ^∙ qcLedgerInfo
