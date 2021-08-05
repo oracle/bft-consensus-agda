@@ -28,7 +28,7 @@ verifyM : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
 verifyM self validator = pure (verify self validator)
 
 module verify (self : SyncInfo) (validator : ValidatorVerifier) where
-  step₀ step₁ step₂ step₃ step₄ step₅ : Either ErrLog Unit
+  step₀ step₁ step₂ step₃ step₄ step₅ step₆ : Either ErrLog Unit
   here' : List String.String → List String.String
 
   epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
@@ -62,7 +62,9 @@ module verify (self : SyncInfo) (validator : ValidatorVerifier) where
     -- Note: do not use (self ^∙ siHighestCommitCert) because it might be
     -- same as siHighestQuorumCert -- so no need to check again
     maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
+    step₆
 
+  step₆ = do
     maybeS (self ^∙ siHighestTimeoutCert)   (pure unit) (` TimeoutCertificate.verify ` validator)
 
   here' t = "SyncInfo" ∷ "verify" ∷ t

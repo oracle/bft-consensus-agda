@@ -105,7 +105,21 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
       ...| Right unit | [ R ]
          with QC.contract (self ^∙ siHighestQuorumCert) validator (Right unit) refl R
       ...| qcCon = qcCon , verify≡₄
-   ...| sivpHqcVer , verify≡₅ =
+   ...| sivpHqcVer , verify≡₅
+      with sivpHccVer verify≡₅
+      where
+      sivpHccVer : (SI.verify.step₅ self validator ≡ Right unit)
+                   → (maybeS (self ^∙ sixxxHighestCommitCert) Unit $ λ qc → QC.Contract qc validator)
+                     × SI.verify.step₆ self validator ≡ Right unit
+      sivpHccVer verify≡₅
+         with self ^∙ sixxxHighestCommitCert
+      ...| nothing = unit , verify≡₅
+      ...| just qc
+         with QuorumCert.verify  qc  validator | inspect
+              (QuorumCert.verify qc) validator
+      ...| Left _ | _ = absurd Left _ ≡ Right _ case verify≡₅ of λ ()
+      ...| Right unit | [ R ] = QC.contract qc validator (Right unit) refl R , verify≡₅
+   ...| sivpHccVer , verify≡₆ =
    -- TODO: continue case analysis for remaining fields
      record
      { sivpEp≡       = sivpEp≡
@@ -113,8 +127,8 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
      ; sivpHqc≥Hcc   = sivpHqc≥Hcc
      ; sivpHqc≢empty = sivpHqc≢empty
      ; sivpHqcVer    = sivpHqcVer
-     ; sivpHccVer    = obm-dangerous-magic' "TODO"
-     -- ; sivpHtcVer = 
+     ; sivpHccVer    = sivpHccVer
+     -- ; sivpHtcVer =
      }
 
    contract : LBFT-weakestPre (SI.verifyM self validator) Contract pre
