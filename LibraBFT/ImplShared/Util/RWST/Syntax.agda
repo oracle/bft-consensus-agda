@@ -94,6 +94,10 @@ caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
 caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
 caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
 
+eitherS-RWST : ∀ {A B C} → Either B C
+               → (B → RWST Ev Wr St A) → (C → RWST Ev Wr St A)   → RWST Ev Wr St A
+eitherS-RWST = RWST-either
+
 when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
 when b f = if-RWST toBool b then f else pure unit
 
