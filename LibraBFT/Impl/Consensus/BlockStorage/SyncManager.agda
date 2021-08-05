@@ -4,10 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever as BlockRetriever
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore     as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree      as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote         as Vote
+open import LibraBFT.Impl.Consensus.PersistentLivenessStorage   as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
@@ -127,7 +129,8 @@ hereFQCM' t = "SyncManager" ∷ "fetchQuorumCertM" ∷ t
 
 syncToHighestCommitCertM highestCommitCert retriever = do
   bs ← use lBlockStore
-  pure true >>= λ b → -- TODO: eitherS (needSyncForQuorumCert highestCommitCert bs) (λ _ → bail fakeErr) $ λ b →
+  pure true >>= λ b →
+  -- eitherS (needSyncForQuorumCert highestCommitCert bs) (λ _ → bail fakeErr) $ λ b →
     if-RWST not b
       then ok unit
       else
@@ -150,4 +153,58 @@ syncToHighestCommitCertM highestCommitCert retriever = do
 ------------------------------------------------------------------------------
 
 fastForwardSyncM highestCommitCert retriever = do
-  bail fakeErr -- TODO-1 : IMPLEMENT
+  logInfo fakeInfo -- (here [ "start state sync with peer", lsA (retriever^.brPreferredPeer)
+                   --       , "to block", lsBI (highestCommitCert^.qcCommitInfo) ])
+  BlockRetriever.retrieveBlockForQCM retriever highestCommitCert 3 ∙?∙ λ where
+    blocks@(_ ∷ _ ∷ i ∷ []) ->
+      if highestCommitCert ^∙ qcCommitInfo ∙ biId /= i ^∙ bId
+      then bail fakeErr -- (here [ "should have a 3-chain"
+                        --      , lsHV (highestCommitCert^.qcCommitInfo.biId), lsHV (i^.bId) ]))
+      else continue blocks
+    x -> bail fakeErr -- (here ["incorrect number of blocks returned", show (length x)]))
+
+ where
+
+  here' : List String.String → List String.String
+
+  zipIt : {A : Set} → ℕ → List A → List (ℕ × A)
+  zipIt n = λ where
+    [] → []
+    (x ∷ xs) → (n , x) ∷ zipIt (n + 1) xs
+
+  checkBlocksMatchQCs : List QuorumCert → List (ℕ × Block) → LBFT (Either ErrLog Unit)
+
+  continue : List Block → LBFT (Either ErrLog RecoveryData)
+  continue blocks = do
+    logInfo fakeInfo -- (here (["received blocks"] <> fmap (lsHV . (^.bId)) blocks))
+    let quorumCerts = highestCommitCert ∷ fmap (_^∙ bQuorumCert) blocks
+    logInfo fakeInfo -- (here (["quorumCerts"]     <> fmap (lsHV . (^.qcCommitInfo.biId)) quorumCerts))
+    checkBlocksMatchQCs quorumCerts (zipIt 0 blocks)  ∙?∙ λ _ →
+      PersistentLivenessStorage.saveTreeM blocks quorumCerts ∙?∙ λ _ → do
+        -- TODO-1 : requires adding bsStorage to BlockStore
+        -- use (lBlockStore ∙ bsStorage) >>= λ x → logInfo fakeInfo -- (here ["XXX", lsPLS x])
+        -- OBM NOT NEEDED: state_computer.sync_to
+        -- This returns recovery data
+        PersistentLivenessStorage.startM ∙^∙ withErrCtx (here' [])
+{-
+-}
+  checkBlocksMatchQCs quorumCerts = λ where
+    []                 → ok unit
+    ((i , block) ∷ xs) →
+      ok unit
+      -- if-RWST block ^∙ bId /= (quorumCerts Prelude.!! i) ^∙ qcCertifiedBlock ∙ biId
+      -- then (do
+      --   ok unit)
+      -- else
+      --   ok unit
+
+{-
+      then do
+        logInfoL lSI [lsHV (block^.bId), lsB block]
+        logInfoL lSI [lsHV (quorumCerts Prelude.!! i ^.qcCertifiedBlock.biId)
+                     ,lsQC (quorumCerts Prelude.!! i)]
+        bail (ErrL (here ["checkBlocksMatchQCs", "/="]))
+      else checkBlocksMatchQCs quorumCerts xs
+-}
+  here' t = "SyncManager" ∷ "fastForwardSyncM" ∷ t
+

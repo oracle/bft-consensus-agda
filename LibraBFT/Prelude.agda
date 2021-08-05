@@ -46,6 +46,8 @@ module LibraBFT.Prelude where
     hiding (fromMaybe; [_])
     public
 
+  fmap = List-map
+
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
