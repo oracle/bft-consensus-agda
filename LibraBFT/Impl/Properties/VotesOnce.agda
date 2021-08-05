@@ -64,14 +64,14 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈
   nmSentQcs∈RM : (nm1 : NetworkMsg) → nm1 ≡ nm → QCProps.OutputQc∈RoundManager hpOut hpPst
   nmSentQcs∈RM (P pm) refl = outQcs∈RM outQcReq
     where
-    outQcReq : handleProposalSpec.OutQcs.Requirements 0 pm hpPool hpPre
-    outQcReq = handleProposalSpec.OutQcs.mkRequirements _ m∈pool
+    outQcReq : QCProps.MsgRequirements hpPool (P pm)
+    outQcReq = QCProps.mkMsgRequirements _ m∈pool
 
     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
   nmSentQcs∈RM (V vm) refl = outQcs∈RM outQcReq
     where
-    outQcReq : handleVoteSpec.OutQcs.Requirements 0 vm hpPool
-    outQcReq = handleVoteSpec.OutQcs.mkRequirements _ m∈pool
+    outQcReq : QCProps.MsgRequirements hpPool (V vm)
+    outQcReq = QCProps.mkMsgRequirements _ m∈pool
 
     open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hpPool hpPre)
   nmSentQcs∈RM (C cm) refl = obm-dangerous-magic' "Waiting on handleCommitSpec"
@@ -85,7 +85,6 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈
     sigSentB4 : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     sigSentB4 rewrite cong _vSignature v≈rbld =
       qcVoteSigsSentB4 pid pre preach sps qc∈rm vs∈qc v≈rbld sig ¬gen
-      -- qcVoteSigsSentB4 pid pre{v}{qc = qc}{vs}{pk} preach qc∈rm sig vs∈qc v≈rbld ¬gen
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
   with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid)

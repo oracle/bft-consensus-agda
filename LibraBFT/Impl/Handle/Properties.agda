@@ -50,7 +50,7 @@ initRMSatisfiesInv =
   RoundManagerInvariants.mkRoundManagerInv initRM-correct initRM-qcs refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
-invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
+invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in a `Properties.Invariants` module
   : ∀ pid (pre : SystemState)
     → (preach : ReachableSystemState pre) → RoundManagerInv (Step*-prev-msgPool preach) (peerStates pre pid)
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv

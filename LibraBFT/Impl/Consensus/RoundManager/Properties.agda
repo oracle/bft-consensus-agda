@@ -309,12 +309,7 @@ module ensureRoundAndSyncUpMSpec
 
   open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
 
-  -- TODO-2: Add requirements capturing that any signatures in any QCs in the SyncInfo have been
-  -- sent before.  Probably want to refactor properties in LibraBFT.Impl.Properties.Util.QC
-  postulate
-    Requirements : SentMessages → SyncInfo → Set
-
-  module _ (pool : SentMessages) (pre : RoundManager) (reqs : Requirements pool syncInfo) where
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Bool) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -325,22 +320,28 @@ module ensureRoundAndSyncUpMSpec
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
+        -- Signatures
+        outQcs∈RM     : QCProps.SyncInfoRequirements pool syncInfo → QCProps.OutputQc∈RoundManager outs post
 
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
-    proj₁ (contract' ._ refl) _         = mkContract (++-RoundManagerInv []) refl refl (mkVoteNotGenerated refl refl)
+    proj₁ (contract' ._ refl) _         =
+      mkContract (++-RoundManagerInv []) refl refl
+        (mkVoteNotGenerated refl refl) (const $ QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl)
     proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
       where
-      contract-step₁ : RWST-weakestPre (syncUpM now syncInfo author helpRemote)
-                                       (RWST-weakestPre-ebindPost unit (const step₂) Contract)
-                                       unit pre
+      contract-step₁
+        : RWST-weakestPre (syncUpM now syncInfo author helpRemote)
+            (RWST-weakestPre-ebindPost unit (const step₂) Contract)
+            unit pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pool pre Post contract-step₁'
         where
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
 
         contract-step₁' : _
         contract-step₁' (Left  _   ) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) =
-                                                          mkContract rmInv noEpochChange noVoteOuts noVote
+          mkContract rmInv noEpochChange noVoteOuts noVote
+            (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM")
         contract-step₁' (Right unit) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = contract-step₂
           where
 
@@ -348,8 +349,10 @@ module ensureRoundAndSyncUpMSpec
           noVoteOuts' = ++-NoneOfKind outs ([] ++ []) isSendVote? noVoteOuts refl
 
           contract-step₂ : _
-          proj₁ (contract-step₂ ._ refl ._ refl) _ = mkContract rmInv noEpochChange noVoteOuts' noVote
-          proj₂ (contract-step₂ ._ refl ._ refl) _ = mkContract rmInv noEpochChange noVoteOuts' noVote
+          proj₁ (contract-step₂ ._ refl ._ refl) _ =
+            mkContract rmInv noEpochChange noVoteOuts' noVote (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
+          proj₂ (contract-step₂ ._ refl ._ refl) _ =
+            mkContract rmInv noEpochChange noVoteOuts' noVote (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =
@@ -362,15 +365,6 @@ module processProposalMsgMSpec
 
   open processProposalMsgM now pm
 
-  -- TODO: Refactor for DRY fail with InputOutputHandlers?  Maybe not, as they may evolve
-  -- differently
-  module OutQcs where
-    record Requirements (pool : SentMessages) (pre : RoundManager) : Set where
-      constructor mkRequirements
-      field
-        mSndr            : NodeId
-        m∈pool           : (mSndr , P pm) ∈ pool
-
   module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
@@ -382,16 +376,16 @@ module processProposalMsgMSpec
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
         -- Signatures
-        outQcs∈RM          : OutQcs.Requirements pool pre → QCProps.OutputQc∈RoundManager outs post
+        outQcs∈RM          : QCProps.MsgRequirements pool (P pm) → QCProps.OutputQc∈RoundManager outs post
 
     contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
     contract' rewrite processProposalMsgM≡ = contract
       where
-      contractBail : ∀ outs → OutputProps.NoVotes outs → Contract unit pre outs
-      contractBail outs nvo =
+      contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
+      contractBail outs nmo =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          (Voting.voteAttemptBailed outs nvo)
-          (obm-dangerous-magic' "TODO")
+          (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo))
+          (const $ QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre nmo)
 
       contract : LBFT-weakestPre step₀ Contract pre
       proj₁ contract ≡nothing = contractBail _ refl
@@ -403,25 +397,31 @@ module processProposalMsgMSpec
           contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
           contract-step₁ =
             ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pool pre
-                                               (obm-dangerous-magic' "waiting on definition of requirements")
               (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
 
-          pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = pf r
+          pf-step₂ r st outs (ensureRoundAndSyncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote outQcs∈RM) = pf-step₂' r
             where
-            contractBailAfterSync : ∀ outs' → OutputProps.NoVotes outs' → RWST-Post++ Contract outs unit st outs'
-            contractBailAfterSync outs' noVotesOuts' =
-              mkContract rmInv noEpochChange
-                (inj₁ (true , Voting.mkVoteUnsentCorrect
-                                (OutputProps.++-NoVotes outs _ noVoteOuts noVotesOuts')
-                                (inj₁ noVote)))
-                (obm-dangerous-magic' "TODO")
+            contractBailAfterSync : ∀ outs' → OutputProps.NoMsgs outs' → RWST-Post++ Contract outs unit st outs'
+            contractBailAfterSync outs' noMsgs' =
+              mkContract rmInv noEpochChange vac outQcs∈RM'
+              where
+              vac : Voting.VoteAttemptCorrect pre st (outs ++ outs') proposal
+              vac = Left (true , (Voting.mkVoteUnsentCorrect
+                                   (OutputProps.++-NoVotes outs _ noVoteOuts (OutputProps.NoMsgs⇒NoVotes outs' noMsgs'))
+                                   (Left noVote)))
 
-            pf : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
-            pf (Left e) ._ refl =
+              outQcs∈RM' : QCProps.MsgRequirements pool (P pm) → QCProps.OutputQc∈RoundManager (outs ++ outs') st
+              outQcs∈RM' msgReq =
+                QCProps.++-OutputQc∈RoundManager
+                  (outQcs∈RM (QCProps.mkSyncInfoRequirements (P pm) msgReq inP))
+                  (QCProps.NoMsgs⇒OutputQc∈RoundManager outs' st noMsgs')
+
+            pf-step₂' : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
+            pf-step₂' (Left e) ._ refl =
               contractBailAfterSync _ refl
-            pf (Right false) ._ refl ._ refl =
+            pf-step₂' (Right false) ._ refl ._ refl =
               contractBailAfterSync _ refl
-            pf (Right true) ._ refl =
+            pf-step₂' (Right true) ._ refl =
               processProposalMSpec.contract (pm ^∙ pmProposal) pool st (RWST-Post++ Contract outs) pf-step₃
               where
               pf-step₃ : RWST-Post-⇒ _ (RWST-Post++ Contract outs)

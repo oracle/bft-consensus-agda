@@ -90,6 +90,20 @@ module OutputProps where
 
 module QCProps where
 
+  record MsgRequirements (pool : SentMessages) (msg : NetworkMsg) : Set where
+    constructor mkMsgRequirements
+    field
+      mSndr  : NodeId
+      m∈pool : (mSndr , msg) ∈ pool
+
+  record SyncInfoRequirements (pool : SentMessages) (syncInfo : SyncInfo) : Set where
+    constructor mkSyncInfoRequirements
+    field
+      msg     : NetworkMsg
+      msgReqs : MsgRequirements pool msg
+      syncInfo∈msg : syncInfo SyncInfo∈NM msg
+    open MsgRequirements msgReqs
+
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
     inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
     inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
@@ -99,6 +113,12 @@ module QCProps where
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+
+  ++-OutputQc∈RoundManager
+    : ∀ {rm outs₁ outs₂}
+      → OutputQc∈RoundManager outs₁ rm → OutputQc∈RoundManager outs₂ rm
+      → OutputQc∈RoundManager (outs₁ ++ outs₂) rm
+  ++-OutputQc∈RoundManager = All-++
 
   NoMsgs⇒OutputQc∈RoundManager : ∀ outs rm → OutputProps.NoMsgs outs → OutputQc∈RoundManager outs rm
   NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =

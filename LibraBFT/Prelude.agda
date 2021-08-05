@@ -97,6 +97,7 @@ module LibraBFT.Prelude where
              ; tabulate⁺ to All-tabulate⁺
              ; map⁺      to All-map⁺
              ; map⁻      to All-map⁻
+             ; ++⁺       to All-++
              )
     public
 
