@@ -326,7 +326,7 @@ module LibraBFT.Prelude where
   isRight = Data.Bool.not ∘ isLeft
 
   -- a non-dependent eliminator
-  eitherS : ∀ {a b} {A : Set a} {B : Set b} {C : Set (a ℓ⊔ b)}
+  eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
             (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a

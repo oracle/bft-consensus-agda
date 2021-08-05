@@ -129,9 +129,8 @@ hereFQCM' t = "SyncManager" ∷ "fetchQuorumCertM" ∷ t
 
 syncToHighestCommitCertM highestCommitCert retriever = do
   bs ← use lBlockStore
-  pure true >>= λ b →
-  -- eitherS (needSyncForQuorumCert highestCommitCert bs) (λ _ → bail fakeErr) $ λ b →
-    if-RWST not b
+  eitherS (needSyncForQuorumCert highestCommitCert bs) bail $ λ b →
+    if not b
       then ok unit
       else
         fastForwardSyncM highestCommitCert retriever ∙?∙ \rd -> do
