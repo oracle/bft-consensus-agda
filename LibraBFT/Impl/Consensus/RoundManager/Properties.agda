@@ -31,6 +31,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
+open OutputProps
 open RoundManagerInvariants
 open RoundManagerTransProps
 
@@ -325,11 +326,30 @@ module ensureRoundAndSyncUpMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
 
-    postulate -- TODO-2: prove
-      -- This should be fairly straightforward, appealing to the contract for
-      -- `syncUpM`.
-      contract'
-        : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
+    contract'
+      : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
+    proj₁ (contract' ._ refl) _         = mkContract (++-RoundManagerInv []) refl refl (mkVoteNotGenerated refl refl)
+    proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
+      where
+      contract-step₁ : RWST-weakestPre (syncUpM now syncInfo author helpRemote)
+                                       (RWST-weakestPre-ebindPost unit (const step₂) Contract)
+                                       unit pre
+      contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pool pre Post contract-step₁'
+        where
+        Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
+
+        contract-step₁' : _
+        contract-step₁' (Left  _   ) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) =
+                                                          mkContract rmInv noEpochChange noVoteOuts noVote
+        contract-step₁' (Right unit) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = contract-step₂
+          where
+
+          noVoteOuts' : NoVotes (outs ++ [] ++ [])
+          noVoteOuts' = ++-NoneOfKind outs ([] ++ []) isSendVote? noVoteOuts refl
+
+          contract-step₂ : _
+          proj₁ (contract-step₂ ._ refl ._ refl) _ = mkContract rmInv noEpochChange noVoteOuts' noVote
+          proj₂ (contract-step₂ ._ refl ._ refl) _ = mkContract rmInv noEpochChange noVoteOuts' noVote
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =
