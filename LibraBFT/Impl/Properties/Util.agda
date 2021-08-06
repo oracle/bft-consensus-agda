@@ -104,11 +104,14 @@ module QCProps where
       syncInfo∈msg : syncInfo SyncInfo∈NM msg
     open MsgRequirements msgReqs
 
-  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
-    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
+  data _∈BlockTree_ (qc : QuorumCert) (bt : BlockTree) : Set where
+    inHQC : qc ≡ bt ^∙ btHighestQuorumCert → qc ∈BlockTree bt
+    inHCC : qc ≡ bt ^∙ btHighestCommitCert → qc ∈BlockTree bt
     -- NOTE: When `need/fetch` is implemented, we will need an additional
     -- constructor for sent qcs taken from the blockstore.
+
+  _∈RoundManager_ : (qc : QuorumCert) (rm : RoundManager) → Set
+  qc ∈RoundManager rm =  qc ∈BlockTree (rm ^∙ lBlockStore ∙ bsInner)
 
   OutputQc∈RmOrMsg : List Output → RoundManager → NetworkMsg → Set
   OutputQc∈RmOrMsg outs rm msg =
