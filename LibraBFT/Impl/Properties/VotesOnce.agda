@@ -3,6 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
@@ -62,7 +63,7 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈
   hpPst  = LBFT-post (handle pid nm 0) hpPre
 
   nmSentQcs∈RM : (nm1 : NetworkMsg) → nm1 ≡ nm → QCProps.OutputQc∈RmOrMsg hpOut hpPre nm1
-  nmSentQcs∈RM (P pm) refl = outQcs∈RM
+  nmSentQcs∈RM (P pm) refl = ? -- outQcs∈RM
     where
     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
   nmSentQcs∈RM (V vm) refl = outQcs∈RM
