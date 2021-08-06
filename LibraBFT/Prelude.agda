@@ -337,7 +337,7 @@ module LibraBFT.Prelude where
   syntax flip' f = ` f `
 
   open import Data.String as String
-    hiding (_==_ ; _≟_)
+    hiding (_==_ ; _≟_ ; concat)
 
   check : Bool → List String → Either String Unit
   check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
@@ -421,10 +421,6 @@ module LibraBFT.Prelude where
 
   open Functor ⦃ ... ⦄ public
 
-  instance
-    ListFunctor : ∀ {ℓ : Level} → Functor {ℓ}{ℓ} List
-    Functor._<$>_ ListFunctor = List-map
-
   record Applicative {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
     infixl 4 _<*>_
     field
@@ -463,6 +459,10 @@ module LibraBFT.Prelude where
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
+    Monad-List : ∀ {ℓ} → Monad {ℓ}{ℓ} List
+    Monad.return Monad-List x = x ∷ []
+    Monad._>>=_  Monad-List x f = concat (List-map f x)
 
   maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
   maybeSMP ma b f = do
