@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -63,10 +62,14 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈
   hpPst  = LBFT-post (handle pid nm 0) hpPre
 
   nmSentQcs∈RM : (nm1 : NetworkMsg) → nm1 ≡ nm → QCProps.OutputQc∈RmOrMsg hpOut hpPre nm1
-  nmSentQcs∈RM (P pm) refl = ? -- outQcs∈RM
+  nmSentQcs∈RM (P pm) refl = All-map help outQcs∈RM -- outQcs∈RM
     where
     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
-  nmSentQcs∈RM (V vm) refl = outQcs∈RM
+    help : ∀ {out}
+           → (∀ qc' nm' → qc' QC∈NM nm' → nm' Msg∈Out out → qc' QCProps.∈RoundManager hpPst → qc' QCProps.∈RoundManager hpPre ⊎ qc' QC∈NM P pm)
+           → (∀ qc' nm' → qc' QC∈NM nm' → nm' Msg∈Out out → qc' QCProps.∈RoundManager hpPre ⊎ qc' QC∈NM P pm)
+    help{out} prop qc' nm' qc'∈nm' nm'∈out = prop qc' nm' qc'∈nm' nm'∈out (qc' QCProps.∈RoundManager hpPst ∋ obm-dangerous-magic' "TODO: There is not enough information to prove this!")
+  nmSentQcs∈RM (V vm) refl = {!!} -- outQcs∈RM
     where
     open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hpPool hpPre)
   nmSentQcs∈RM (C cm) refl = obm-dangerous-magic' "Waiting on handleCommitSpec"
