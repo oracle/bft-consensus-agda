@@ -18,7 +18,7 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
+    using (_∘_; _∘′_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
     public
 
   infixl 1 _&_

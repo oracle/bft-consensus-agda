@@ -48,12 +48,13 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       constructor mkContract
       field
         -- General properties / invariants
-        rmInv              : Preserves (RoundManagerInv pool) pre post
+        rmInv              : Preserves RoundManagerInv pre post
         noEpochChange      : NoEpochChange pre post
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
         -- Signatures
-        outQcs∈RM          : QCProps.MsgRequirements pool (P pm) → QCProps.OutputQc∈RoundManager outs post
+        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
+        qcSigsB4  : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
     contract =
@@ -68,14 +69,17 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
       contractBail outs noMsgs =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          vac outQcs∈RM
+          vac outQcs∈RM qcSigsB4
         where
         vac : Voting.VoteAttemptCorrectWithEpochReq pre pre outs (pm ^∙ pmProposal)
         vac = Voting.mkVoteAttemptCorrectWithEpochReq
                 (Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs noMsgs)) tt
 
-        outQcs∈RM : QCProps.MsgRequirements pool (P pm) → QCProps.OutputQc∈RoundManager outs pre
-        outQcs∈RM _ = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
+        outQcs∈RM : QCProps.OutputQc∈RoundManager outs pre
+        outQcs∈RM = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
+
+        qcSigsB4 : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre pre
+        qcSigsB4 _ = reflPreserves (QCProps.SigsForVotes∈Rm-SentB4 pool)
 
       contract-step₁ : Post-epvv (myEpoch , vv) pre []
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =
@@ -93,8 +97,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         ...| con rewrite pp≡Right = sym con
 
         pf : RWST-Post-⇒ (PPM.Contract pool pre) Contract
-        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect outQcs∈RM) =
-          mkContract rmInv noEpochChange vac outQcs∈RM
+        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect outQcs∈RM qcSigsB4) =
+          mkContract rmInv noEpochChange vac outQcs∈RM qcSigsB4
           where
           vac : Voting.VoteAttemptCorrectWithEpochReq pre st outs (pm ^∙ pmProposal)
           vac = Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
@@ -102,9 +106,6 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract
-
-    contract!-RoundManagerInv : LBFT-Post-True (λ r st outs → Preserves (RoundManagerInv pool) pre st) (handleProposal now pm) pre
-    contract!-RoundManagerInv rmInv = Contract.rmInv contract! rmInv
 
 module handleVoteSpec (now : Instant) (vm : VoteMsg) where
   open handleVote now vm
@@ -115,12 +116,14 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
       constructor mkContract
       field
         -- General properties / invariants
-        rmInv         : Preserves (RoundManagerInv pool) pre post
+        rmInv         : Preserves RoundManagerInv pre post
         noEpochChange : NoEpochChange pre post
         noSDChange    : NoSafetyDataChange pre post
         -- Output
         noVotes       : OutputProps.NoVotes outs
-        outQcs∈RM     : QCProps.MsgRequirements pool (V vm) → QCProps.OutputQc∈RoundManager outs post
+        -- Signatures
+        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
+        qcSigsB4  : QCProps.MsgRequirements pool (V vm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
     postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
       contract : LBFT-weakestPre (handleVote now vm) Contract pre

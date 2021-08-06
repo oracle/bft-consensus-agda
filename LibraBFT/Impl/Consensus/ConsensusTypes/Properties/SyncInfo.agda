@@ -45,7 +45,7 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
      constructor mkContract
      field
        -- General properties / invariants
-       rmInv         : Preserves (RoundManagerInv pool) pre post
+       rmInv         : Preserves RoundManagerInv pre post
        noStateChange : pre ≡ post
        -- Output
        noMsgOuts     : OutputProps.NoMsgs outs

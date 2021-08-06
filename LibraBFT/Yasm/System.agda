@@ -373,26 +373,6 @@ module LibraBFT.Yasm.System
                    → s ≡ s'
    peerStatePostSt _ _ ps≡s = trans (sym ps≡s) override-target-≡
 
-   Step*-prev
-     : ∀ {st₁ st₂}
-       → Step* st₁ st₂
-       → (∃[ st' ] Step* st₁ st') × SentMessages
-   Step*-prev step-0 = (_ , step-0) , []
-   Step*-prev (step-s {pre = pre} steps (step-peer{pid}{outs = outs} pstep)) =
-     (pre , steps) , actionsToSentMessages pid outs
-
-   Step*-prev-msgPool : ∀ {st₁ st₂} → Step* st₁ st₂ → SentMessages
-   Step*-prev-msgPool = msgPool ∘ proj₁ ∘ proj₁ ∘ Step*-prev
-
-   Step*-prev-acts : ∀ {st₁ st₂} → Step* st₁ st₂ → SentMessages
-   Step*-prev-acts = proj₂ ∘ Step*-prev
-
-   Step*-prev-msgPool-lemma₁
-     : ∀ {st₁ st₂} (steps : Step* st₁ st₂)
-       → msgPool st₂ ≡ Step*-prev-acts steps ++ Step*-prev-msgPool steps
-   Step*-prev-msgPool-lemma₁ step-0 = refl
-   Step*-prev-msgPool-lemma₁ (step-s steps (step-peer pstep)) = refl
-
    Step*-trans : ∀ {st st' st''}
                → Step* st st'
                → Step* st' st''

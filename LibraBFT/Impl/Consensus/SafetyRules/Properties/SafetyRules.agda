@@ -267,7 +267,7 @@ module constructAndSignVoteMSpec where
     constructor mkContract
     field
       -- General properties / invariants
-      rmInv          : Preserves (RoundManagerInv pool) pre post
+      rmInv          : Preserves RoundManagerInv pre post
       noEpochChange  : NoEpochChange pre post
       noMsgOuts      : OutputProps.NoMsgs outs
       -- Voting
@@ -346,8 +346,8 @@ module constructAndSignVoteMSpec where
             ...| just x  | [ lv≡ ] rewrite (trans (sym (Requirements.lv≡ reqs)) lv≡) =
               ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
-          invP₁ : Preserves (RoundManagerInv pool) pre preUpdatedSD
-          invP₁ = mkPreservesRoundManagerInv id qcP emP btip₁ srP
+          invP₁ : Preserves RoundManagerInv pre preUpdatedSD
+          invP₁ = mkPreservesRoundManagerInv id emP btip₁ srP
 
         -- Some lemmas
         module _ where
@@ -411,8 +411,8 @@ module constructAndSignVoteMSpec where
               srP₂ = mkPreservesSafetyRulesInv
                        (const $ mkSafetyDataInv (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
 
-              invP₂ : Preserves (RoundManagerInv pool) pre preUpdatedSD₂
-              invP₂ = mkPreservesRoundManagerInv id qcP₂ emP btiP₂ srP₂
+              invP₂ : Preserves RoundManagerInv pre preUpdatedSD₂
+              invP₂ = mkPreservesRoundManagerInv id emP btiP₂ srP₂
 
     contract
       : ∀ pre pool Post
