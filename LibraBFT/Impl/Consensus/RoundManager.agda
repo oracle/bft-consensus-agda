@@ -111,25 +111,44 @@ abstract
 
 ------------------------------------------------------------------------------
 
-syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
-syncUpM now {-reason-} syncInfo author _helpRemote = do
-  -- logEE (here' []) $ do
-  localSyncInfo <- BlockStore.syncInfoM
-  -- TODO helpRemote
-  if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
-    then (do
-      vv ← use (lRoundManager ∙ rmEpochState ∙ esVerifier)
-      SyncInfo.verifyM syncInfo vv ∙^∙ withErrCtx (here' []) ∙?∙ λ _ ->
-        SyncManager.addCertsM {-reason-} syncInfo (BlockRetriever∙new now author) ∙^∙ withErrCtx (here' [])
-          ∙?∙ λ _ -> do
-          processCertificatesM now
-          ok unit
-        )
-    else
-      ok unit
- where
+module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
+  step₀       :                                LBFT (Either ErrLog Unit)
+  step₁ step₂ : SyncInfo                     → LBFT (Either ErrLog Unit)
+  step₃ step₄ : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
+  step₁-else  :                                LBFT (Either ErrLog Unit)
+
   here' : List String.String → List String.String
+
+  step₀ = do
+    -- logEE (here' []) $ do
+    localSyncInfo ← BlockStore.syncInfoM
+    -- TODO helpRemote
+    step₁ localSyncInfo
+
+  step₁ localSyncInfo = do
+    if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
+      then (do step₂ localSyncInfo)
+      else step₁-else
+
+  step₂ localSyncInfo = do
+        vv ← use (lRoundManager ∙ rmEpochState ∙ esVerifier)
+        SyncInfo.verifyM syncInfo vv ∙^∙ withErrCtx (here' []) ∙?∙ λ _ → step₃ localSyncInfo vv
+
+  step₃ localSyncInfo vv =
+          SyncManager.addCertsM {- reason -} syncInfo (BlockRetriever∙new now author) ∙^∙ withErrCtx (here' [])
+            ∙?∙ λ _ → step₄ localSyncInfo vv
+
+  step₄ localSyncInfo vv = do
+            processCertificatesM now
+            ok unit
+
+  step₁-else =
+        ok unit
+
   here' t = "RoundManager" ∷ "syncUpM" ∷ t
+
+syncUpM : Instant → SyncInfo → Author → Bool → LBFT (Either ErrLog Unit)
+syncUpM = syncUpM.step₀
 
 ------------------------------------------------------------------------------
 

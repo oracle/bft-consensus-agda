@@ -293,6 +293,10 @@ module processProposalMSpec (proposal : Block) where
 module syncUpMSpec
   (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
 
+  open syncUpM now syncInfo author _helpRemote
+  open import LibraBFT.Impl.Consensus.ConsensusTypes.Properties.SyncInfo
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.SyncManager
+
   module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
@@ -304,12 +308,89 @@ module syncUpMSpec
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
+        -- Signatures
+        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
+        qcSigsB4  : QCProps.SyncInfoRequirements pool syncInfo
+                    → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
-    postulate -- TODO-3: prove (waiting on: `syncUpM`)
+    --postulate -- TODO-3: prove (waiting on: `syncUpM`)
       -- This is expected to be quite challenging, since syncing up can cause
       -- significant state changes, and currently (in the Haskell implementation)
       -- requires backdoor communications with other peers.
-      contract' : LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Contract pre
+    contract' : LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Contract pre
+    contract' =
+      BlockStoreProps.syncInfoMSpec.contract pre
+        (RWST-weakestPre-bindPost unit step₁ Contract)
+        contract₁
+      where
+      localSyncInfo = BlockStoreProps.syncInfoMSpec.syncInfo pre
+
+      contract₁ : RWST-weakestPre-bindPost unit step₁ Contract (BlockStoreProps.syncInfoMSpec.syncInfo pre) pre []
+      proj₂ (contract₁ localSyncInfo lsi≡) hnc≡false =
+        mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre}) refl
+          (reflVoteNotGenerated{pre})
+          (QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl)
+          (const id)
+      proj₁ (contract₁ localSyncInfo lsi≡) hcn≡true vv@._ refl =
+        verifyMSpec.contract syncInfo vv pool pre Post₁
+          contract₃
+        where
+        Post₁ : LBFT-Post (Either ErrLog Unit)
+        Post₁ = (RWST-weakestPre-∙^∙Post unit (withErrCtx (here' []))
+                  (RWST-weakestPre-ebindPost unit (λ _ → step₃ localSyncInfo vv) Contract))
+
+        contract₃ : RWST-Post-⇒ (verifyMSpec.Contract syncInfo vv pool pre) Post₁
+        contract₃ r st outs con ._ refl
+           with VSpec.noStateChange
+           where module VSpec = verifyMSpec.Contract con
+        contract₃ (Left x) st outs con ._ refl
+           | refl
+           = mkContract VSpec.rmInv (reflNoEpochChange{st})
+               (++-NoVotes outs [] (NoMsgs⇒NoVotes outs VSpec.noMsgOuts) refl)
+               (reflVoteNotGenerated{st})
+               (QCProps.++-OutputQc∈RoundManager{rm = st}
+                 (QCProps.NoMsgs⇒OutputQc∈RoundManager outs st VSpec.noMsgOuts)
+                 (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl))
+               (const id)
+           where
+           module VSpec = verifyMSpec.Contract con
+        contract₃ (Right y) st₃ outs₃ con₃ ._ refl
+           | refl = λ where
+             unit refl →
+               addCertsMSpec.contract syncInfo retriever pool st₃
+                 Post₃ contract₄
+           where
+           Post₃ : LBFT-Post (Either ErrLog Unit)
+           Post₃ = (RWST-weakestPre-∙^∙Post unit (withErrCtx (here' []))
+                     (RWST-weakestPre-ebindPost unit (λ _ → step₄ localSyncInfo vv)
+                       (RWST-Post++ Contract (outs₃ ++ []))))
+
+           retriever = BlockRetriever∙new now author
+
+           contract₄ : RWST-Post-⇒ (addCertsMSpec.Contract syncInfo retriever pool st₃) Post₃
+           contract₄ (Left  _) st₄ outs₄ con₄ ._ refl =
+             mkContract AC.rmInv AC.noEpochChange noVotes₄ AC.noVote outqcs AC.qcSigsB4
+             where
+             module AC    = addCertsMSpec.Contract con₄
+             module VSpec = verifyMSpec.Contract con₃
+
+             noVotes₄ : NoVotes $ (outs₃ ++ []) ++ outs₄ ++ []
+             noVotes₄ =
+               ++-NoVotes (outs₃ ++ []) (outs₄ ++ [])
+                 (++-NoVotes outs₃ [] (NoMsgs⇒NoVotes outs₃ VSpec.noMsgOuts) refl)
+                 (++-NoVotes outs₄ [] AC.noVoteOuts refl)
+
+             outqcs : QCProps.OutputQc∈RoundManager ((outs₃ ++ []) ++ outs₄ ++ []) st₄
+             outqcs =
+               QCProps.++-OutputQc∈RoundManager{st₄}{outs₃ ++ []}{outs₄ ++ []}
+                 (QCProps.++-OutputQc∈RoundManager{st₄}{outs₃}{[]}
+                   (QCProps.NoMsgs⇒OutputQc∈RoundManager outs₃ st₄ VSpec.noMsgOuts)
+                   (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st₄ refl))
+                 (QCProps.++-OutputQc∈RoundManager{st₄}{outs₄}{[]}
+                   AC.outQcs∈RM
+                   (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st₄ refl))
+           contract₄ (Right _) st₄ outs₄ con₄ ._ refl =
+             obm-dangerous-magic' "TODO: waiting on contract for `processCertificatesM`"
 
     contract
       : ∀ Post → (∀ r st outs → Contract r st outs → Post r st outs)
@@ -365,25 +446,28 @@ module ensureRoundAndSyncUpMSpec
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
 
         contract-step₁' : _
-        contract-step₁' (Left  _   ) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) =
-          mkContract rmInv noEpochChange noVoteOuts noVote
-            (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM")
-            (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM")
-        contract-step₁' (Right unit) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = contract-step₂
+        contract-step₁' (Left  _   ) st outs con =
+          mkContract SU.rmInv SU.noEpochChange SU.noVoteOuts SU.noVote SU.outQcs∈RM SU.qcSigsB4
           where
+          module SU = syncUpMSpec.Contract con
+        contract-step₁' (Right unit) st outs con = contract-step₂
+          where
+          module SU = syncUpMSpec.Contract con
 
           noVoteOuts' : NoVotes (outs ++ [] ++ [])
-          noVoteOuts' = ++-NoneOfKind outs ([] ++ []) isSendVote? noVoteOuts refl
+          noVoteOuts' = ++-NoneOfKind outs ([] ++ []) isSendVote? SU.noVoteOuts refl
+
+          outqcs : QCProps.OutputQc∈RoundManager (outs ++ []) st
+          outqcs = QCProps.++-OutputQc∈RoundManager{rm = st} SU.outQcs∈RM
+                     (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
 
           contract-step₂ : _
           proj₁ (contract-step₂ ._ refl ._ refl) _ =
-            mkContract rmInv noEpochChange noVoteOuts' noVote
-              (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
-              (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
+            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+              outqcs SU.qcSigsB4
           proj₂ (contract-step₂ ._ refl ._ refl) _ =
-            mkContract rmInv noEpochChange noVoteOuts' noVote
-              (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
-              (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM`")
+            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+              outqcs SU.qcSigsB4
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =

@@ -313,15 +313,6 @@ module LibraBFT.Yasm.System
                → Step pre (StepPeer-post pstep)
 
 
-   stepOuts : ∀ {st₁ st₂} → Step st₁ st₂ → List (LYT.Action Msg)
-   stepOuts (step-peer{outs = outs} pstep) = outs
-
-   stepPid : ∀ {st₁ st₂} → Step st₁ st₂ → Maybe PeerId
-   stepPid (step-peer{pid} pstep) = just pid
-
-   stepSentMessages : ∀ {st₁ st₂} → Step st₁ st₂ → SentMessages
-   stepSentMessages step = maybe (λ pid → actionsToSentMessages pid (stepOuts step)) [] (stepPid step)
-
    msgs-stable : ∀ {pre : SystemState} {post : SystemState} {m}
                → (theStep : Step pre post)
                → m ∈ msgPool pre

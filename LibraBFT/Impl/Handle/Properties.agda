@@ -93,12 +93,12 @@ qcVoteSigsSentB4
 qcVoteSigsSentB4 pid st step-0 = initRM-qcs
 qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} step@(step-cheat cmc)))
    rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre} step unit
-   = QCProps.++-SigsForVote∈Rm-SentB4 _ (qcVoteSigsSentB4 pid pre rss)
+   = QCProps.++-SigsForVote∈Rm-SentB4{rm = peerStates pre pid} _ (qcVoteSigsSentB4 pid pre rss)
 qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps)))
    with pid ≟ pid'
 ...| no  pid≢
      rewrite sym (pids≢StepDNMPeerStates{pre = pre} sps pid≢)
-     = QCProps.++-SigsForVote∈Rm-SentB4 _ (qcVoteSigsSentB4 pid pre rss)
+     = QCProps.++-SigsForVote∈Rm-SentB4{rm = peerStates pre pid} _ (qcVoteSigsSentB4 pid pre rss)
 ...| yes refl
    with sps
 ...| step-init uni
@@ -107,10 +107,10 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
    ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
    ret rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre}
        |       sym $ ++-identityʳ (msgPool pre)
-       = QCProps.++-SigsForVote∈Rm-SentB4 (msgPool pre) initRM-qcs
+       = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs
 ...| step-msg{sndr , P pm} m∈pool init
    rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre pid)}{f = peerStates pre}
-   = QCProps.++-SigsForVote∈Rm-SentB4 _
+   = QCProps.++-SigsForVote∈Rm-SentB4{rm = hpPst} _
        (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
    where
    hpPre = peerStates pre pid
@@ -118,7 +118,7 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
 ...| step-msg{sndr , V vm} m∈pool init
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre pid)}{f = peerStates pre}
-  = QCProps.++-SigsForVote∈Rm-SentB4 _
+  = QCProps.++-SigsForVote∈Rm-SentB4{rm = hvPst} _
       (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
    where
    hvPre = peerStates pre pid
@@ -138,7 +138,7 @@ qcVoteSigsSentB4-sps
     → MsgWithSig∈ pk sig (msgPool pre)
 qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬gen
    rewrite sym $ ++-identityʳ (msgPool pre)
-   = QCProps.++-SigsForVote∈Rm-SentB4 (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
+   = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
 qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) qc∈s sig vs∈qcvs ≈v ¬gen
    with m
 ...| P pm =

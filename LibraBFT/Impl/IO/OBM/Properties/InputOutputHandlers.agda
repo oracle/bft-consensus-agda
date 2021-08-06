@@ -79,7 +79,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         outQcs∈RM = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
 
         qcSigsB4 : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre pre
-        qcSigsB4 _ = reflPreserves (QCProps.SigsForVotes∈Rm-SentB4 pool)
+        qcSigsB4 _ = reflPreserves (QCProps.SigsForVotes∈Rm-SentB4 pool){x = pre}
 
       contract-step₁ : Post-epvv (myEpoch , vv) pre []
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =

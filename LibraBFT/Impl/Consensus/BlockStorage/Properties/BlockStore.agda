@@ -11,6 +11,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
@@ -19,6 +20,7 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 open RoundManagerInvariants
+open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
@@ -43,6 +45,22 @@ module executeAndInsertBlockMSpec (b : Block) where
   proj₁ (contract pre Post pfBail pfOk ._ refl) e eaibLeft = pfBail e (sym eaibLeft)
   proj₂ (contract pre Post pfBail pfOk ._ refl) (bs' , eb) eaibRight ._ refl ._ refl =
     pfOk bs' eb (sym eaibRight)
+
+module insertSingleQuorumCertMSpec
+  (qc : QuorumCert) where
+
+  module _ (pre : RoundManager) where
+
+    record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        -- General invariants / properties
+        rmInv         : Preserves RoundManagerInv pre post
+        noEpochChange : NoEpochChange pre post
+        noVoteOuts    : OutputProps.NoVotes outs
+        -- Voting
+        noVote        : VoteNotGenerated pre post true
+        -- outQcs∈RMor   : QCProps.OutputQc∈RmOr outs pre post (_≡ qc)
 
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
