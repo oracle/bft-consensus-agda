@@ -104,11 +104,19 @@ module QCProps where
       syncInfo∈msg : syncInfo SyncInfo∈NM msg
     open MsgRequirements msgReqs
 
-  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
-    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
-    -- NOTE: When `need/fetch` is implemented, we will need an additional
-    -- constructor for sent qcs taken from the blockstore.
+  record BlockRequirements (pool : SentMessages) (block : Block) : Set where
+    constructor mkBlockRequirements
+    field
+      msg       : NetworkMsg
+      msgReqs   : MsgRequirements pool msg
+      block∈msg : block Block∈Msg msg
+
+  data _∈BlockTree_ (qc : QuorumCert) (bt : BlockTree) : Set where
+    inHQC : qc ≡ bt ^∙ btHighestQuorumCert → qc ∈BlockTree bt
+    inHCC : qc ≡ bt ^∙ btHighestCommitCert → qc ∈BlockTree bt
+
+  _∈RoundManager_ : (qc : QuorumCert) (rm : RoundManager) → Set
+  qc ∈RoundManager rm =  qc ∈BlockTree (rm ^∙ lBlockStore ∙ bsInner)
 
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =
@@ -139,6 +147,9 @@ module QCProps where
 
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
   SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
+
+  -- glue-SigsForVotes∈Rm-SentB4
+  --   : ∀ {pool rm₁ rm₂ rm₃}
 
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm

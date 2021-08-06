@@ -61,6 +61,9 @@ module LibraBFT.ImplShared.NetworkMsg where
             → qc QC∈NM nm
             → v ⊂Msg nm
 
+  data _Block∈Msg_ (b : Block) : NetworkMsg → Set where
+    inP : ∀ {pm} → pm ^∙ pmProposal ≡ b → b Block∈Msg (P pm)
+
   getEpoch : NetworkMsg → Epoch
   getEpoch (P p) = p ^∙ pmProposal ∙ bBlockData ∙ bdEpoch
   getEpoch (V (VoteMsg∙new v _)) = v ^∙ vEpoch

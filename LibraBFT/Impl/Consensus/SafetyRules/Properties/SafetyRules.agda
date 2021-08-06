@@ -320,7 +320,7 @@ module constructAndSignVoteMSpec where
         -- State invariants
         module _ where
           qcP : Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre preUpdatedSD
-          qcP qcsB4 = substSigsForVotes∈Rm-SentB4 refl qcsB4
+          qcP qcsB4 = substSigsForVotes∈Rm-SentB4{pre = pre}{post = preUpdatedSD} refl qcsB4
 
           postulate -- TODO-1: prove (waiting on : `α-EC`)
             btip₁ : Preserves BlockStoreInv pre preUpdatedSD
@@ -401,7 +401,7 @@ module constructAndSignVoteMSpec where
             -- State invariants
             module _ where
               qcP₂ : Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre preUpdatedSD₂
-              qcP₂ qcsB4 = substSigsForVotes∈Rm-SentB4 refl qcsB4
+              qcP₂ qcsB4 = substSigsForVotes∈Rm-SentB4{pre = pre}{post = preUpdatedSD₂} refl qcsB4
 
               postulate -- TODO-1: prove (waiting on: `α-EC`)
                 btiP₂ : Preserves BlockStoreInv pre preUpdatedSD₂
