@@ -46,8 +46,6 @@ module LibraBFT.Prelude where
     hiding (fromMaybe; [_])
     public
 
-  fmap = List-map
-
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
@@ -339,7 +337,7 @@ module LibraBFT.Prelude where
   syntax flip' f = ` f `
 
   open import Data.String as String
-    hiding (_==_ ; _≟_)
+    hiding (_==_ ; _≟_ ; concat)
 
   check : Bool → List String → Either String Unit
   check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
@@ -419,6 +417,7 @@ module LibraBFT.Prelude where
     infixl 4 _<$>_
     field
       _<$>_ : ∀ {A B : Set ℓ₁} → (A → B) → F A → F B
+    fmap = _<$>_
 
   open Functor ⦃ ... ⦄ public
 
@@ -460,6 +459,10 @@ module LibraBFT.Prelude where
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
+    Monad-List : ∀ {ℓ} → Monad {ℓ}{ℓ} List
+    Monad.return Monad-List x = x ∷ []
+    Monad._>>=_  Monad-List x f = concat (List-map f x)
 
   maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
   maybeSMP ma b f = do
