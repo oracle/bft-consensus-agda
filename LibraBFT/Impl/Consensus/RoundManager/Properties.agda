@@ -16,6 +16,7 @@ open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BlockStoreProps
+import      LibraBFT.Impl.Consensus.BlockStorage.Properties.SyncManager as SyncManagerProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock       as ExecutedBlock
 import      LibraBFT.Impl.Consensus.Liveness.RoundState                as RoundState
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection          as ProposerElection
@@ -289,6 +290,7 @@ module syncUpMSpec
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
+        outQcs∈RMor   : QCProps.OutputQc∈RmOr outs pre post (_QC∈SyncInfo syncInfo)
 
     postulate -- TODO-3: prove (waiting on: `syncUpM`)
       -- This is expected to be quite challenging, since syncing up can cause
@@ -321,13 +323,12 @@ module ensureRoundAndSyncUpMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        outQcs∈RM     : QCProps.OutputQc∈RmOrMsg outs post {!!}
+        outQcs∈RMor   : QCProps.OutputQc∈RmOr outs pre post (_QC∈SyncInfo syncInfo)
 
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
     proj₁ (contract' ._ refl) _         =
-      mkContract id refl refl
-        (mkVoteNotGenerated refl refl) {!!}
+      mkContract id refl refl (mkVoteNotGenerated refl refl) []
     proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
       where
       contract-step₁
@@ -339,10 +340,10 @@ module ensureRoundAndSyncUpMSpec
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
 
         contract-step₁' : _
-        contract-step₁' (Left  _   ) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) =
+        contract-step₁' (Left  _   ) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote outQcs∈) =
           mkContract rmInv noEpochChange noVoteOuts noVote
             (obm-dangerous-magic' "TODO: waiting on contract for `syncUpM")
-        contract-step₁' (Right unit) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote) = contract-step₂
+        contract-step₁' (Right unit) st outs (syncUpMSpec.mkContract rmInv noEpochChange noVoteOuts noVote outQcs∈) = contract-step₂
           where
 
           noVoteOuts' : NoVotes (outs ++ [] ++ [])
@@ -376,7 +377,7 @@ module processProposalMsgMSpec
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
         -- Signatures
-        outQcs∈RM : QCProps.OutputQc∈RmOrMsg outs pre (P pm)
+        outQcs∈RM : QCProps.OutputQc∈RmOr outs pre post (_QC∈NM P pm)
         qcSigsB4  : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
     contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre

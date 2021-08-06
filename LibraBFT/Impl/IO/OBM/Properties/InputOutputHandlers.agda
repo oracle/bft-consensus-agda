@@ -53,7 +53,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
         -- Signatures
-        outQcs∈RM : QCProps.OutputQc∈RmOrMsg outs pre (P pm)
+        outQcs∈RM : QCProps.OutputQc∈RmOr outs pre post (_QC∈NM (P pm))
         qcSigsB4  : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
         -- QCProps.MsgRequirements pool (P pm)
 
@@ -70,7 +70,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
       contractBail outs noMsgs =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          vac outQcs∈RM qcSigsB4
+          vac {! outQcs∈RM !} qcSigsB4
         where
         vac : Voting.VoteAttemptCorrectWithEpochReq pre pre outs (pm ^∙ pmProposal)
         vac = Voting.mkVoteAttemptCorrectWithEpochReq

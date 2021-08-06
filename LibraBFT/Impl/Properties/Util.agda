@@ -114,6 +114,11 @@ module QCProps where
   OutputQc∈RmOrMsg outs rm msg =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm ⊎ qc QC∈NM msg) outs
 
+  OutputQc∈RmOr : List Output → RoundManager → RoundManager
+                → (Q : QuorumCert → Set) → Set
+  OutputQc∈RmOr outs pre post Q =
+    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager post → qc ∈RoundManager pre ⊎ Q qc) outs
+
   ++-OutputQc∈RmOrMsg
     : ∀ {rm msg outs₁ outs₂}
       → OutputQc∈RmOrMsg outs₁ rm msg → OutputQc∈RmOrMsg outs₂ rm msg
