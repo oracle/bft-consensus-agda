@@ -46,8 +46,6 @@ module LibraBFT.Prelude where
     hiding (fromMaybe; [_])
     public
 
-  fmap = List-map
-
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
@@ -419,8 +417,13 @@ module LibraBFT.Prelude where
     infixl 4 _<$>_
     field
       _<$>_ : ∀ {A B : Set ℓ₁} → (A → B) → F A → F B
+    fmap = _<$>_
 
   open Functor ⦃ ... ⦄ public
+
+  instance
+    ListFunctor : ∀ {ℓ : Level} → Functor {ℓ}{ℓ} List
+    Functor._<$>_ ListFunctor = List-map
 
   record Applicative {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
     infixl 4 _<*>_
