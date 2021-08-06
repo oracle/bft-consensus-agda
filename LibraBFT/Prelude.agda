@@ -524,6 +524,6 @@ module LibraBFT.Prelude where
 
   infixl 9 _!?_
   _!?_ : {A : Set} → List A → ℕ → Maybe A
-  []       !? _  = nothing
-  (x ∷ _ ) !? 0  = just x
-  (_ ∷ xs) !? n  = xs !? (n ∸ 1)
+  []       !?      _   = nothing
+  (x ∷ _ ) !?      0   = just x
+  (_ ∷ xs) !? (suc n)  = xs !? n

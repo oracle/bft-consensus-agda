@@ -17,6 +17,7 @@ postulate
   → List QuorumCert
   → Maybe TimeoutCertificate
   → RecoveryData
+-- TODO-1 : IMPLEMENT THE FOLLOWING
 {-
 new lastVote storageLedger blocks0 rootMetadata quorumCerts0 highestTimeoutCertificate =
   let (root@(RootInfo rb _ _), blocks1, quorumCerts1)

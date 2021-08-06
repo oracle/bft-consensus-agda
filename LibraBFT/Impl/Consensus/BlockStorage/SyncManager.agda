@@ -110,7 +110,11 @@ loop1 retriever pending retrieveQC = do
         BlockRetriever.retrieveBlockForQCM retriever retrieveQC 1
           ∙^∙ withErrCtx (hereFQCM' ("loop1" ∷ [])) ∙?∙ λ where
             (block ∷ []) → loop1 retriever (block ∷ pending) (block ^∙ bQuorumCert)
-            _ -> do
+            (_ ∷ _ ∷ _)  → errorCase
+            []           → errorCase
+ where
+  errorCase : LBFT (Either ErrLog (List Block))
+  errorCase = do
               -- let msg = here ["loop1", "retrieveBlockForQCM returned more than asked for"]
               -- logErrExit msg
               bail fakeErr -- (ErrL msg)
@@ -134,16 +138,17 @@ syncToHighestCommitCertM highestCommitCert retriever = do
       then ok unit
       else
         fastForwardSyncM highestCommitCert retriever ∙?∙ \rd -> do
-          -- logInfoL lSI (here ["fastForwardSyncM success", lsRD rd])
+          logInfo fakeInfo -- (here ["fastForwardSyncM success", lsRD rd])
           BlockStore.rebuildM (rd ^∙ rdRoot) (rd ^∙ rdRootMetadata) (rd ^∙ rdBlocks) (rd ^∙ rdQuorumCerts)
             ∙^∙ withErrCtx (here' []) ∙?∙ λ _ -> do
-            when (highestCommitCert ^∙ qcEndsEpoch) $ do
+            when-RWST (highestCommitCert ^∙ qcEndsEpoch) $ do
               me ← use (lRoundManager ∙ rmObmMe)
               -- TODO-1 : Epoch Change Proof
               -- let ecp = EpochChangeProof ∙ new [highestCommitCert ^∙ qcLedgerInfo] False
-              -- logInfo lEC (InfoL (here ["fastForwardSyncM detected an EpochChange"]))
+              logInfo fakeInfo -- (here ["fastForwardSyncM detected an EpochChange"])
+              -- TODO-1 : uncomment this and remove pure unit when Epoch Change supported
               -- act (BroadcastEpochChangeProof lEC ecp (mkNodesInOrder1 me))
-              RWST-return unit -- TODO : why does not "ok unit" work?
+              pure unit
             ok unit
  where
   here' : List String.String → List String.String
@@ -166,10 +171,10 @@ fastForwardSyncM highestCommitCert retriever = do
 
   here' : List String.String → List String.String
 
-  zipIt : {A : Set} → ℕ → List A → List (ℕ × A)
-  zipIt n = λ where
+  zipWithNatsFrom : {A : Set} → ℕ → List A → List (ℕ × A)
+  zipWithNatsFrom n = λ where
     [] → []
-    (x ∷ xs) → (n , x) ∷ zipIt (n + 1) xs
+    (x ∷ xs) → (n , x) ∷ zipWithNatsFrom (n + 1) xs
 
   checkBlocksMatchQCs : List QuorumCert → List (ℕ × Block) → LBFT (Either ErrLog Unit)
 
@@ -178,7 +183,7 @@ fastForwardSyncM highestCommitCert retriever = do
     logInfo fakeInfo -- (here' (["received blocks"] <> fmap (lsHV . (^.bId)) blocks))
     let quorumCerts = highestCommitCert ∷ fmap (_^∙ bQuorumCert) blocks
     logInfo fakeInfo -- (here' (["quorumCerts"]     <> fmap (lsHV . (^.qcCommitInfo.biId)) quorumCerts))
-    checkBlocksMatchQCs quorumCerts (zipIt 0 blocks)  ∙?∙ λ _ →
+    checkBlocksMatchQCs quorumCerts (zipWithNatsFrom 0 blocks)  ∙?∙ λ _ →
       PersistentLivenessStorage.saveTreeM blocks quorumCerts ∙?∙ λ _ → do
         -- TODO-1 : requires adding bsStorage to BlockStore
         -- use (lBlockStore ∙ bsStorage) >>= λ x → logInfo fakeInfo -- (here' ["XXX", lsPLS x])

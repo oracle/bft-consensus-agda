@@ -101,6 +101,9 @@ eitherS-RWST = RWST-either
 when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
 when b f = if-RWST toBool b then f else pure unit
 
+when-RWST : ⦃ _ : ToBool B ⦄ → B → (c : RWST Ev Wr St Unit) → RWST Ev Wr St Unit
+when-RWST b c = if-RWST b then c else pure unit
+
 -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)
 ok = pure ∘ Right
