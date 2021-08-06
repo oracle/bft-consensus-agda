@@ -832,6 +832,32 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
 
+  record BlockRetrievalRequest : Set where
+    constructor BlockRetrievalRequest∙new
+    field
+      _brqObmFrom   : Author
+      _brqBlockId   : HashValue
+      _brqNumBlocks : U64
+  open BlockRetrievalRequest public
+  unquoteDecl brqObmFrom   brqBlockId   brqNumBlocks = mkLens (quote BlockRetrievalRequest)
+             (brqObmFrom ∷ brqBlockId ∷ brqNumBlocks ∷ [])
+  postulate instance enc-BlockRetrievalRequest : Encoder BlockRetrievalRequest
+
+  data BlockRetrievalStatus : Set where
+    BRSSucceeded BRSIdNotFound BRSNotEnoughBlocks : BlockRetrievalStatus
+  open BlockRetrievalStatus public
+  postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
+
+  record BlockRetrievalResponse : Set where
+    constructor BlockRetrievalResponse∙new
+    field
+      _brpObmFrom : (Author × Epoch × Round) -- for logging
+      _brpStatus  : BlockRetrievalStatus
+      _brpBlocks  : List Block
+  unquoteDecl brpObmFrom   brpStatus   brpBlocks   = mkLens (quote BlockRetrievalResponse)
+             (brpObmFrom ∷ brpStatus ∷ brpBlocks ∷ [])
+  postulate instance enc-BlockRetrievalResponse : Encoder BlockRetrievalResponse
+
   data VoteReceptionResult : Set where
     QCVoteAdded           : U64 →                VoteReceptionResult
     TCVoteAdded           : U64 →                VoteReceptionResult
