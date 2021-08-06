@@ -16,4 +16,7 @@ module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 postulate -- TODO-2: implement
   saveHighestTimeoutCertM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   saveTreeE : BlockStore → List Block → List QuorumCert → Either ErrLog (BlockStore)
+  saveTreeM : List Block → List QuorumCert → LBFT (Either ErrLog Unit)
   saveVoteM : Vote → LBFT (Either ErrLog Unit)
+  startM    : LBFT (Either ErrLog RecoveryData)
+

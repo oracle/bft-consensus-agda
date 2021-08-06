@@ -78,6 +78,12 @@ commitM finalityProof = do
 
 ------------------------------------------------------------------------------
 
+postulate
+  rebuildM : RootInfo → RootMetadata → List Block → List QuorumCert
+           → LBFT (Either ErrLog Unit)
+
+------------------------------------------------------------------------------
+
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
   bs ← use lBlockStore
@@ -177,6 +183,9 @@ insertTimeoutCertificateM tc = do
         ok unit
 
 ------------------------------------------------------------------------------
+
+blockExists : HashValue → BlockStore → Bool
+blockExists hv bs = Map.kvm-member hv (bs ^∙ bsInner ∙ btIdToBlock)
 
 getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 

@@ -46,6 +46,8 @@ module LibraBFT.Prelude where
     hiding (fromMaybe; [_])
     public
 
+  fmap = List-map
+
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
@@ -324,7 +326,8 @@ module LibraBFT.Prelude where
   isRight = Data.Bool.not ∘ isLeft
 
   -- a non-dependent eliminator
-  eitherS : ∀ {A B C : Set} (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
+  eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+            (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
@@ -518,3 +521,9 @@ module LibraBFT.Prelude where
        with a ≟ b
     ... | no  proof = no λ where refl → proof refl
     ... | yes refl = yes refl
+
+  infixl 9 _!?_
+  _!?_ : {A : Set} → List A → ℕ → Maybe A
+  []       !?      _   = nothing
+  (x ∷ _ ) !?      0   = just x
+  (_ ∷ xs) !? (suc n)  = xs !? n
