@@ -65,8 +65,8 @@ availEpochsConsistent :
    → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
 availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
 
-postulate
-  uninitQcs∈Gen -- TODO-1: Prove (waiting on: complete definition of `initRM`)
+postulate -- TODO-1: Prove (waiting on: complete definition of `initRM`)
+  uninitQcs∈Gen
     : ∀ {pid qc vs}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ uninitd
@@ -202,16 +202,19 @@ module ReachableSystemStateProps where
     hpPre  = peerStates st pid
     hpPos  = LBFT-post (handleProposal 0 pm) hpPre
 
-    hpReq : handleProposalSpec.Requirements 0 pm hpPool hpPre
-    hpReq = record { mSndr = _ ; m∈pool = m∈pool }
-
-    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre hpReq)
+    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
     open ≡-Reasoning
 
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+    hvPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
+    hvPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
+    v ^∙ vEpoch      ∎
     where
-    postulate -- TODO-3: prove (waiting on: epoch config changes)
-      TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
+    hvPre = peerStates st pid
+    hvPos = LBFT-post (handleVote 0 vm) hvPre
+
+    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool st) hvPre)
+    open ≡-Reasoning
 
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
     where

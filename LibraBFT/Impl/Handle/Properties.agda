@@ -6,6 +6,7 @@
 
 -- This module provides some scaffolding to define the handlers for our
 -- implementation and connect them to the interface of the SystemModel.
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.ImplShared.Base.Types
 
@@ -42,64 +43,96 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : RoundManager-correct initRM
-  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM -- TODO-1: This is not true (the definition of the predicate needs updating).
   initRM-btInv   : BlockStoreInv initRM
+  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
 
-initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv [] initRM
+initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv initRM
 initRMSatisfiesInv =
-  RoundManagerInvariants.mkRoundManagerInv initRM-correct initRM-qcs refl initRM-btInv
+  RoundManagerInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
   : ∀ pid (pre : SystemState)
-    → ReachableSystemState pre → RoundManagerInv (msgPool pre) (peerStates pre pid)
+    → ReachableSystemState pre → RoundManagerInv (peerStates pre pid)
 invariantsCorrect pid pre@._ step-0 = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-cheat{pid'} cheatMsgConstraint)))
   rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre'} step unit
-  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach)
+  = invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-honest{pid'} sps)))
   with pid ≟ pid'
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
-  = ++-RoundManagerInv _ (invariantsCorrect pid pre' preach)
+  = invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini))))
    | yes refl
   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
    |       sym $ ++-identityʳ (msgPool pre')
-   = ++-RoundManagerInv _ initRMSatisfiesInv
+   = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini))))
    | yes refl
-  with handleProposalSpec.contract!-RoundManagerInv 0 pm (msgPool pre') (peerStates pre' pid) reqs
-  where
-  reqs : handleProposalSpec.Requirements 0 pm (msgPool pre') (peerStates pre' pid)
-  reqs = record { mSndr = sndr ; m∈pool = m∈pool }
+   with handleProposalSpec.Contract.rmInv $ handleProposalSpec.contract! 0 pm (msgPool pre') (peerStates pre' pid)
 ...| invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
-  = ++-RoundManagerInv _ (invPres (invariantsCorrect pid pre' preach))
+  = invPres (invariantsCorrect pid pre' preach)
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , V vm} m∈pool ini))))
    | yes refl
   with handleVoteSpec.Contract.rmInv $ handleVoteSpec.contract! 0 vm (msgPool pre') (peerStates pre' pid)
 ...| invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre' pid)}{f = peerStates pre'}
-  = ++-RoundManagerInv{pool = msgPool pre'} _ (invPres (invariantsCorrect pid pre' preach))
+  = invPres (invariantsCorrect pid pre' preach)
 
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini))))
    | yes refl = TODO
   where
   postulate -- TODO-3: prove (waiting on: `handle`)
-    TODO : RoundManagerInv (msgPool pre) (peerStates pre pid)
+    TODO : RoundManagerInv (peerStates pre pid)
 
 qcVoteSigsSentB4
-  : ∀ pid (st : SystemState) {v qc vs pk}
+  : ∀ pid (st : SystemState)
     → ReachableSystemState st
-    → qc QCProps.∈RoundManager (peerStates st pid)
-    → WithVerSig pk v
-    → vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
-    → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
-qcVoteSigsSentB4 pid st rss qc∈rm sig vs∈qcvs ≈v ¬gen = qcsigsSentB4 qc∈rm sig vs∈qcvs ≈v ¬gen
-  where
-  open RoundManagerInv (invariantsCorrect pid st rss)
+    → QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
+qcVoteSigsSentB4 pid _  step-0 = {!!}
+qcVoteSigsSentB4 pid _ (step-s rss (step-peer (step-cheat cmc))) = {!!}
+qcVoteSigsSentB4 pid _ (step-s{pre = pre} rss (step-peer (step-honest{pid'} sps)))
+   with pid ≟ pid'
+...| no  pid≢ = {!!}
+...| yes refl
+   with sps
+...| step-init uni = {!!}
+...| step-msg{sndr , P pm} m∈pool ini
+   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre pid)}{f = peerStates pre}
+   = QCProps.++-SigsForVote∈Rm-SentB4 _ (qcSigsB4 (QCProps.mkMsgRequirements sndr m∈pool) (qcVoteSigsSentB4 pid pre rss))
+
+   where
+   hpPre = peerStates pre pid
+   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
+...| step-msg{sndr , V vm} m∈pool ini = {!!}
+...| step-msg{sndr , C cm} m∈pool ini = {!!}
+
+
+-- qcVoteSigsSentB4 pid ._ step-0 qc∈rm sig vs∈qcvs ≈v ¬gen =
+--   initRM-qcs qc∈rm sig vs∈qcvs ≈v ¬gen
+-- qcVoteSigsSentB4 pid ._ (step-s{pre = pre} rss (step-peer{pid'} step@(step-cheat cmc))) qc∈rm sig vs∈qcvs ≈v ¬gen
+--    rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre} step unit
+--    = MsgWithSig∈-++ʳ (qcVoteSigsSentB4 pid pre rss qc∈rm sig vs∈qcvs ≈v ¬gen)
+-- qcVoteSigsSentB4 pid ._ (step-s rss (step-peer{pre = pre} (step-honest{pid'} sps))) qc∈rm sig vs∈qcvs ≈v ¬gen
+--    with pid ≟ pid'
+-- ...| no  pid≢
+--    rewrite sym (pids≢StepDNMPeerStates{pre = pre} sps pid≢)
+--    = MsgWithSig∈-++ʳ (qcVoteSigsSentB4 pid pre rss qc∈rm sig vs∈qcvs ≈v ¬gen)
+-- ...| yes refl
+--    with sps
+-- ...| step-init uni
+--   rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre}
+--    = MsgWithSig∈-++ˡ{pool = msgPool pre} (initRM-qcs qc∈rm sig vs∈qcvs ≈v ¬gen)
+-- ...| step-msg{sndr , P pm} m∈pool ini = {!qcSigsB4 ? ? ? ? ? ? ?!}
+--   where
+--   hpPre = peerStates pre pid
+--   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
+-- ...| step-msg{sndr , V vm} m∈pool ini = {!!}
+-- ...| step-msg{sndr , C cm} m∈pool ini = {!!}
+
+
 
 lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
@@ -119,10 +152,10 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   hpPst  = LBFT-post (handleProposal 0 pm) hpPre
   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
-  hpReq : handleProposalSpec.Requirements 0 pm hpPool hpPre
-  hpReq = record { mSndr = _ ; m∈pool = m∈pool }
+  -- hpReq : handleProposalSpec.Requirements 0 pm hpPool hpPre
+  -- hpReq = record { mSndr = _ ; m∈pool = m∈pool }
 
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre hpReq)
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre {- hpReq -} )
   open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where

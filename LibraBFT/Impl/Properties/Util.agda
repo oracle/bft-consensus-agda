@@ -50,13 +50,13 @@ module OutputProps where
 
     NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
     proj₁ (NoMsgs⇒× noMsgs) =
-      filter-∪?-[]₁ outs isBroadcastProposal? _
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastProposal? _ noMsgs
     proj₁ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isSendVote? noMsgs
+      filter-∪?-[]₂ outs _ isSendVote?
+        (filter-∪?-[]₂ outs _ _ noMsgs)
     proj₂ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isBroadcastSyncInfo?
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastSyncInfo? _
+        (filter-∪?-[]₂ outs _ _ noMsgs)
 
     NoMsgs⇒NoProposals : NoMsgs → NoProposals
     NoMsgs⇒NoProposals = proj₁ ∘ NoMsgs⇒×
@@ -90,15 +90,43 @@ module OutputProps where
 
 module QCProps where
 
+  record MsgRequirements (pool : SentMessages) (msg : NetworkMsg) : Set where
+    constructor mkMsgRequirements
+    field
+      mSndr  : NodeId
+      m∈pool : (mSndr , msg) ∈ pool
+
+  record SyncInfoRequirements (pool : SentMessages) (syncInfo : SyncInfo) : Set where
+    constructor mkSyncInfoRequirements
+    field
+      msg     : NetworkMsg
+      msgReqs : MsgRequirements pool msg
+      syncInfo∈msg : syncInfo SyncInfo∈NM msg
+    open MsgRequirements msgReqs
+
   data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
     inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
     inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
     -- NOTE: When `need/fetch` is implemented, we will need an additional
     -- constructor for sent qcs taken from the blockstore.
 
-  OutputQc∈RoundManager : List Output → RoundManager → Set
-  OutputQc∈RoundManager outs rm =
-    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+  OutputQc∈RmOrMsg : List Output → RoundManager → NetworkMsg → Set
+  OutputQc∈RmOrMsg outs rm msg =
+    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm ⊎ qc QC∈NM msg) outs
+
+  ++-OutputQc∈RmOrMsg
+    : ∀ {rm msg outs₁ outs₂}
+      → OutputQc∈RmOrMsg outs₁ rm msg → OutputQc∈RmOrMsg outs₂ rm msg
+      → OutputQc∈RmOrMsg (outs₁ ++ outs₂) rm msg
+  ++-OutputQc∈RmOrMsg = All-++
+
+  NoMsgs⇒OutputQc∈RmOrMsg : ∀ outs rm msg → OutputProps.NoMsgs outs → OutputQc∈RmOrMsg outs rm msg
+  NoMsgs⇒OutputQc∈RmOrMsg outs rm msg noMsgs =
+    All-map help (noneOfKind⇒All¬ outs _ noMsgs)
+    where
+    help : ∀ {out : Output} → ¬ IsOutputMsg out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm ⊎ (qc QC∈NM msg)
+    help ¬msg qc .(P _) qc∈m inBP = ⊥-elim (¬msg (Left tt))
+    help ¬msg qc .(V _) qc∈m inSV = ⊥-elim (¬msg (Right (Right tt)))
 
   SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Rm-SentB4 v pk qc rm pool =
@@ -149,18 +177,13 @@ module RoundManagerInvariants where
   -- these cannot be proven as a post-condition of the peer handler: one can
   -- only prove of the handler that if the invariant holds for the prestate,
   -- then it holds for the poststate.
-  record RoundManagerInv (pool : SentMessages) (rm : RoundManager) : Set where
+  record RoundManagerInv (rm : RoundManager) : Set where
     constructor mkRoundManagerInv
     field
       rmCorrect    : RoundManager-correct rm
-      qcsigsSentB4 : QCProps.SigsForVotes∈Rm-SentB4 pool rm
       epochsMatch  : EpochsMatch rm
       btInv        : BlockStoreInv rm
       srInv        : SafetyRulesInv rm
-
-  ++-RoundManagerInv : ∀ {pool rm} → (msgs : SentMessages) → RoundManagerInv pool rm → RoundManagerInv (msgs ++ pool) rm
-  ++-RoundManagerInv msgs (mkRoundManagerInv rmCorrect qcsigsSentB4 epochsMatch btInv srInv) =
-    mkRoundManagerInv rmCorrect (QCProps.++-SigsForVote∈Rm-SentB4 msgs qcsigsSentB4) epochsMatch btInv srInv
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
@@ -168,15 +191,14 @@ module RoundManagerInvariants where
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
-  reflPreservesRoundManagerInv : ∀ {pool} → Reflexive (Preserves (RoundManagerInv pool))
-  reflPreservesRoundManagerInv{pool} = reflPreserves (RoundManagerInv pool)
+  reflPreservesRoundManagerInv : Reflexive (Preserves RoundManagerInv)
+  reflPreservesRoundManagerInv = reflPreserves RoundManagerInv
 
   transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
-  transPreservesRoundManagerInv : ∀ {pool} → Transitive (Preserves (RoundManagerInv pool))
-  transPreservesRoundManagerInv{pool} = transPreserves (RoundManagerInv pool)
-
+  transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
+  transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
   substSigsForVotes∈Rm-SentB4
     : ∀ {pool pre post} → pre ≡L post at rmBlockStore
@@ -209,15 +231,14 @@ module RoundManagerInvariants where
   mkPreservesSafetyRulesInv lvP (mkSafetyRulesInv lv) = mkSafetyRulesInv (lvP lv)
 
   mkPreservesRoundManagerInv
-    : ∀ {pre post pool}
-      → Preserves RoundManager-correct                  pre post
-      → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
-      → Preserves EpochsMatch                           pre post
-      → Preserves BlockStoreInv                         pre post
-      → Preserves SafetyRulesInv                        pre post
-      → Preserves (RoundManagerInv pool)                pre post
-  mkPreservesRoundManagerInv rmP qcP emP bsP srP (mkRoundManagerInv rmCorrect qcsB4 epochsMatch btInv srInv) =
-    mkRoundManagerInv (rmP rmCorrect) (qcP qcsB4) (emP epochsMatch) (bsP btInv) (srP srInv)
+    : ∀ {pre post}
+      → Preserves RoundManager-correct pre post
+      → Preserves EpochsMatch          pre post
+      → Preserves BlockStoreInv        pre post
+      → Preserves SafetyRulesInv       pre post
+      → Preserves RoundManagerInv      pre post
+  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
+    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on

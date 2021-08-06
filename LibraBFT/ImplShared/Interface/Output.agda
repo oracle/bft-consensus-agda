@@ -89,7 +89,7 @@ module LibraBFT.ImplShared.Interface.Output where
   IsOutputMsg : Output → Set
   IsOutputMsg = IsBroadcastProposal ∪ IsBroadcastSyncInfo ∪ IsSendVote
 
-  isOutputMsg? = (isBroadcastProposal? ∪? isBroadcastSyncInfo?) ∪? isSendVote?
+  isOutputMsg? = isBroadcastProposal? ∪? (isBroadcastSyncInfo? ∪? isSendVote?)
 
   data _Msg∈Out_ : NetworkMsg → Output → Set where
     inBP : ∀ {pm pids} → P pm Msg∈Out BroadcastProposal pm pids
