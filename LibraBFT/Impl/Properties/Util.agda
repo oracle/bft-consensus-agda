@@ -123,6 +123,9 @@ module QCProps where
   _∈RoundManager_ : (qc : QuorumCert) (rm : RoundManager) → Set
   qc ∈RoundManager rm =  qc ∈BlockTree (rm ^∙ lBlockStore ∙ bsInner)
 
+  ∈Post⇒∈PreOr : (pre post : RoundManager) (Q : QuorumCert → Set) → Set
+  ∈Post⇒∈PreOr pre post Q = ∀ qc → qc ∈RoundManager post → qc ∈RoundManager pre ⊎ Q qc
+
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs

@@ -111,11 +111,21 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
 ...| step-msg{sndr , P pm} m∈pool init
    rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre pid)}{f = peerStates pre}
    = QCProps.++-SigsForVote∈Rm-SentB4{rm = hpPst} _
-       (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
+       hyp
+       -- (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
    where
    hpPre = peerStates pre pid
    hpPst = LBFT-post (handleProposal 0 pm) hpPre
    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
+
+   hyp : QCProps.SigsForVotes∈Rm-SentB4 _ hpPst
+   hyp{qc}{v}{pk} qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
+      with qcPost qc qc∈hpPst
+   ...| Left qc∈hpPre =
+     qcVoteSigsSentB4 pid pre rss qc∈hpPre sig vs∈qcvs ≈v ¬gen
+   ...| Right qc∈pm =
+      mkMsgWithSig∈ (P pm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+
 ...| step-msg{sndr , V vm} m∈pool init
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre pid)}{f = peerStates pre}
   = QCProps.++-SigsForVote∈Rm-SentB4{rm = hvPst} _
@@ -139,14 +149,20 @@ qcVoteSigsSentB4-sps
 qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬gen
    rewrite sym $ ++-identityʳ (msgPool pre)
    = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
-qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) qc∈s sig vs∈qcvs ≈v ¬gen
+qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} qc∈s sig {vs} vs∈qcvs ≈v ¬gen
    with m
-...| P pm =
-   qcSigsB4 (QCProps.mkMsgRequirements sndr m∈pool)
-     (qcVoteSigsSentB4 pid pre rss) qc∈s sig vs∈qcvs ≈v ¬gen
+...| P pm = help
    where
    hpPre = peerStates pre pid
    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
+
+   help : MsgWithSig∈ pk (proj₂ vs) (msgPool pre)
+   help
+      with qcPost qc qc∈s
+   ...| Left qc∈pre = qcVoteSigsSentB4 pid pre rss qc∈pre sig vs∈qcvs ≈v ¬gen
+   ...| Right qc∈pm =
+     mkMsgWithSig∈ (P pm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+
 ...| V vm =
    qcSigsB4 (QCProps.mkMsgRequirements sndr m∈pool)
      (qcVoteSigsSentB4 pid pre rss) qc∈s sig vs∈qcvs ≈v ¬gen

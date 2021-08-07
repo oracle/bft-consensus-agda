@@ -52,9 +52,9 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         noEpochChange      : NoEpochChange pre post
         -- Voting
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
-        -- Signatures
+        -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcSigsB4  : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈NM (P pm))
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
     contract =
@@ -69,7 +69,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
       contractBail outs noMsgs =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          vac outQcs∈RM qcSigsB4
+          vac outQcs∈RM qcPost
         where
         vac : Voting.VoteAttemptCorrectWithEpochReq pre pre outs (pm ^∙ pmProposal)
         vac = Voting.mkVoteAttemptCorrectWithEpochReq
@@ -78,8 +78,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs pre
         outQcs∈RM = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
 
-        qcSigsB4 : QCProps.MsgRequirements pool (P pm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre pre
-        qcSigsB4 _ = reflPreserves (QCProps.SigsForVotes∈Rm-SentB4 pool){x = pre}
+        qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+        qcPost qc = Left
 
       contract-step₁ : Post-epvv (myEpoch , vv) pre []
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₁ e) pp≡Left =
@@ -97,12 +97,15 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         ...| con rewrite pp≡Right = sym con
 
         pf : RWST-Post-⇒ (PPM.Contract pool pre) Contract
-        pf unit st outs (processProposalMsgMSpec.mkContract rmInv noEpochChange voteAttemptCorrect outQcs∈RM qcSigsB4) =
-          mkContract rmInv noEpochChange vac outQcs∈RM qcSigsB4
+        pf unit st outs con =
+          mkContract PPMSpec.rmInv PPMSpec.noEpochChange
+            vac PPMSpec.outQcs∈RM PPMSpec.qcPost
           where
+          module PPMSpec = processProposalMsgMSpec.Contract con
+
           vac : Voting.VoteAttemptCorrectWithEpochReq pre st outs (pm ^∙ pmProposal)
-          vac = Voting.mkVoteAttemptCorrectWithEpochReq voteAttemptCorrect
-                  (Voting.voteAttemptEpochReq! voteAttemptCorrect sdEpoch≡)
+          vac = Voting.mkVoteAttemptCorrectWithEpochReq PPMSpec.voteAttemptCorrect
+                  (Voting.voteAttemptEpochReq! PPMSpec.voteAttemptCorrect sdEpoch≡)
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract
