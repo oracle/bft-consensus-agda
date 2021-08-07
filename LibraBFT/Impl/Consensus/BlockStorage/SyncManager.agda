@@ -47,28 +47,48 @@ addCertsM {-reason-} syncInfo retriever =
 
 ------------------------------------------------------------------------------
 
-insertQuorumCertM qc retriever = do
-  bs ← use lBlockStore
-  _ ← case needFetchForQuorumCert qc bs of λ where
-    (Left e) →
-      bail e
-    (Right NeedFetch) →
-      fetchQuorumCertM qc retriever
-      ∙^∙ withErrCtx ("" ∷ [])
-    (Right QCBlockExist) →
-      BlockStore.insertSingleQuorumCertM qc ∙^∙ withErrCtx ("" ∷ []) ∙?∙ λ _ → do
-      use lBlockStore >>= const (logInfo fakeInfo) -- InfoBlockStoreShort (here [lsQC qc])
-      ok unit
-    (Right _) →
-      ok unit
-  maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
-    if-RWST (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
-      then (do
-        let finalityProof = qc ^∙ qcLedgerInfo
-        BlockStore.commitM finalityProof ∙?∙ λ xx →
-          if-RWST qc ^∙ qcEndsEpoch
-            then ok unit -- TODO-1 EPOCH CHANGE
-            else ok unit)
-      else
+module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
+  step₀ :                         LBFT (Either ErrLog Unit)
+  step₁ : BlockStore            → LBFT (Either ErrLog Unit)
+  step₁-else :                    LBFT (Either ErrLog Unit)
+  step₂ : ExecutedBlock         → LBFT (Either ErrLog Unit)
+  step₃ :                         LBFT (Either ErrLog Unit)
+
+  step₀ = do
+    bs ← use lBlockStore
+    _ ← caseM⊎ needFetchForQuorumCert qc bs of λ where
+      (Left e) →
+        bail e
+      (Right NeedFetch) →
+        fetchQuorumCertM qc retriever
+        ∙^∙ withErrCtx ("" ∷ [])
+      (Right QCBlockExist) →
+        BlockStore.insertSingleQuorumCertM qc ∙^∙ withErrCtx ("" ∷ []) ∙?∙ λ _ → do
+        use lBlockStore >>= const (logInfo fakeInfo) -- InfoBlockStoreShort (here [lsQC qc])
         ok unit
+      (Right _) →
+        ok unit
+    step₁ bs
+
+  step₁ bs = do
+    maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
+      if-RWST (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
+        then step₂ bsr
+        else
+          step₁-else
+
+  step₂ bsr = do
+          let finalityProof = qc ^∙ qcLedgerInfo
+          BlockStore.commitM finalityProof ∙?∙ λ xx →
+            step₃
+
+  step₃ = do
+            if-RWST qc ^∙ qcEndsEpoch
+              then ok unit -- TODO-1 EPOCH CHANGE
+              else ok unit
+
+  step₁-else =
+          ok unit
+
+insertQuorumCertM = insertQuorumCertM.step₀
 

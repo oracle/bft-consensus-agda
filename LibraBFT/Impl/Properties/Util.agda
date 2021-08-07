@@ -111,6 +111,11 @@ module QCProps where
       msgReqs   : MsgRequirements pool msg
       block∈msg : block Block∈Msg msg
 
+  QCRequirements : (pool : SentMessages) (qc : QuorumCert) → Set
+  QCRequirements pool qc =
+    ∃[ si ] (qc QC∈SyncInfo si × SyncInfoRequirements pool si)
+    ⊎ ⊥ -- TODO: qc came from aggregated votes received by proposer
+
   data _∈BlockTree_ (qc : QuorumCert) (bt : BlockTree) : Set where
     inHQC : qc ≡ bt ^∙ btHighestQuorumCert → qc ∈BlockTree bt
     inHCC : qc ≡ bt ^∙ btHighestCommitCert → qc ∈BlockTree bt

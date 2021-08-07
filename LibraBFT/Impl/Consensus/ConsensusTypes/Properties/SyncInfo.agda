@@ -51,8 +51,9 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
        noMsgOuts     : OutputProps.NoMsgs outs
        -- Syncing
        syncResCorr   : r ≡ Right unit → SIVerifyProps pre
-       -- Signatures
-       -- TODO-2: What requirements on `self` are needed to show `QCProps.OutputQc∈RoundManager outs pre`
+       -- NOTE: Since the output contains no messages and the state does not
+       -- change, nothing needs to be said about the quorum certificats in the
+       -- output and post state
 
    verifyCorrect : SI.verify self validator ≡ Right unit → SIVerifyProps pre
    verifyCorrect verify≡

@@ -7,6 +7,7 @@
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.ImplShared.Base.Types
@@ -17,6 +18,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
+open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
 open RoundManagerInvariants
@@ -49,7 +51,7 @@ module executeAndInsertBlockMSpec (b : Block) where
 module insertSingleQuorumCertMSpec
   (qc : QuorumCert) where
 
-  module _ (pre : RoundManager) where
+  module _ (pool : SentMessages) (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -57,10 +59,19 @@ module insertSingleQuorumCertMSpec
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
         noEpochChange : NoEpochChange pre post
-        noVoteOuts    : OutputProps.NoVotes outs
+        noMsgOuts     : OutputProps.NoMsgs outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
-        -- outQcs∈RMor   : QCProps.OutputQc∈RmOr outs pre post (_≡ qc)
+        -- Signatures
+        qcSigsB4 : QCProps.QCRequirements pool qc
+                   → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+
+
+    postulate -- TODO-2: prove
+      contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
+
+    contract : ∀ Q → RWST-Post-⇒ Contract Q → LBFT-weakestPre (insertSingleQuorumCertM qc) Q pre
+    contract Q pf = LBFT-⇒ Contract Q pf (insertSingleQuorumCertM qc) pre contract'
 
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
