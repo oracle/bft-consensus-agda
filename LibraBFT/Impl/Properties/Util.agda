@@ -219,6 +219,22 @@ module RoundManagerInvariants where
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  substBlockStoreInv
+    : ∀ {rm₁ rm₂}
+      → rm₁ ≡L rm₂ at lBlockStore
+      → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+      → Preserves BlockStoreInv rm₁ rm₂
+  substBlockStoreInv rmbs≡ rmvv≡ (mkBlockTreeInv allValidQCs) =
+    mkBlockTreeInv (help rmbs≡ rmvv≡ allValidQCs)
+    where
+    help
+      : ∀ {rm₁ rm₂}
+        → rm₁ ≡L rm₂ at lBlockStore
+        → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+        → ((rmC : RoundManager-correct rm₁) → AllValidQCs (α-EC-RM rm₁ rmC) (rm₁ ^∙ rmBlockStore ∙ bsInner))
+        → ((rmC : RoundManager-correct rm₂) → AllValidQCs (α-EC-RM rm₂ rmC) (rm₂ ^∙ rmBlockStore ∙ bsInner))
+    help refl refl avqs rmc = obm-dangerous-magic' "TODO: waiting on definition of α-EC"
+
   substSigsForVotes∈Rm-SentB4
     : ∀ {pool pre post} → pre ≡L post at rmBlockStore
       → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post

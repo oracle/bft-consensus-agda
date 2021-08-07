@@ -26,14 +26,40 @@ open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
-module executeAndInsertBlockESpec (bs : BlockStore) (b : Block) where
+module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
+  Ok : Set
+  Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
+
+  Err : Set
+  Err = ∃[ e ] (executeAndInsertBlockE bs0 block ≡ Left e)
+
+  record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
+    constructor mkContractOk
+    field
+      ebBlock≡ : eb ^∙ ebBlock ≡ block
+      bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
+                 → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
+      qcPost   : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
+                 → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+
+  contract : (isOk : Ok) → let (bs' , eb , _) = isOk in ContractOk bs' eb
+  contract (bs' , eb , isOk)
+     with getBlock (block ^∙ bId) bs0
+  contract (bs' , .eb , refl) | just eb =
+    mkContractOk (obm-dangerous-magic' "TODO: lookup retrieves the same block, or there was a hash collision")
+      (btP bs') λ qc → Left
+    where
+    btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
+    btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
+  ... | nothing = obm-dangerous-magic' "TODO: prove it"
+
   postulate -- TODO-2: prove
     -- More properties are likely going to required in the future, as well.
-    ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs b ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ b
+    ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ block
     bs'BlockInv
       : ∀ {bs' eb pre}
-        → executeAndInsertBlockE bs b ≡ Right (bs' , eb)
-        → bs ≡ pre ^∙ lBlockStore
+        → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
+        → bs0 ≡ pre ^∙ lBlockStore
         → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
 
 module executeAndInsertBlockMSpec (b : Block) where

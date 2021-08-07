@@ -64,6 +64,8 @@ module executeAndVoteMSpec (b : Block) where
         -- Voting
         lvr≡?             : Bool
         voteResultCorrect : VoteResultCorrect pre post lvr≡? r
+        -- QCs
+        qcPost : QCProps.∈Post⇒∈PreOr pre post (_≡ b ^∙ bQuorumCert)
 
     contract'
       : LBFT-weakestPre (executeAndVoteM b) Contract pre
@@ -78,6 +80,7 @@ module executeAndVoteMSpec (b : Block) where
         mkContract
           reflPreservesRoundManagerInv (reflNoEpochChange{pre})
           noMsgOuts true (inj₁ reflVoteNotGenerated)
+          (obm-dangerous-magic' "TODO")
 
       module _
         (bs' : BlockStore) (eb : ExecutedBlock)
@@ -95,9 +98,6 @@ module executeAndVoteMSpec (b : Block) where
 
         -- State invariants
         module _  where
-          qcP : Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre preUpdateBS
-          qcP = obm-dangerous-magic' "TODO-2: contract for `executeAndInsertBlockE` should guarantee this if `b` came from pool"
-
           bsP : Preserves BlockStoreInv pre preUpdateBS
           bsP = executeAndInsertBlockESpec.bs'BlockInv (pre ^∙ rmBlockStore) b (sym eaibRight) refl
 
@@ -107,10 +107,14 @@ module executeAndVoteMSpec (b : Block) where
           invP₁ : Preserves RoundManagerInv pre preUpdateBS
           invP₁ = mkPreservesRoundManagerInv id id bsP srP
 
+        qcPost₁ : QCProps.∈Post⇒∈PreOr pre preUpdateBS (_≡ b ^∙ bQuorumCert)
+        qcPost₁ qc qc∈preUpdateBS = obm-dangerous-magic' "TODO"
+
         contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) preUpdateBS outs
         contractBailSetBS outs noMsgOuts =
           mkContract invP₁ refl
             noMsgOuts true (inj₁ (mkVoteNotGenerated refl refl))
+            (obm-dangerous-magic' "TODO")
 
         contract-step₁
           : RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
@@ -131,16 +135,21 @@ module executeAndVoteMSpec (b : Block) where
           pf : RWST-Post-⇒
                  (constructAndSignVoteMSpec.Contract preUpdateBS pool _)
                  (RWST-weakestPre-ebindPost unit step₃ Contract)
-          pf r st outs (constructAndSignVoteMSpec.mkContract rmInv noEpochChange noMsgOuts lvr≡? voteResCorrect) = pf' r voteResCorrect
+          pf r st outs con = pf' r CASVCon.voteResCorrect
             where
             module CASV = constructAndSignVoteMSpec
-            invP₂ = transPreservesRoundManagerInv invP₁ rmInv
+            module CASVCon = constructAndSignVoteMSpec.Contract con
+            invP₂ = transPreservesRoundManagerInv invP₁ CASVCon.rmInv
 
-            pf' : (r : Either ErrLog Vote) (vrc : CASV.VoteResultCorrect preUpdateBS st (CASV.proposedBlock maybeSignedVoteProposal') lvr≡? r)
+            pf' : (r : Either ErrLog Vote) (vrc : CASV.VoteResultCorrect preUpdateBS st (CASV.proposedBlock maybeSignedVoteProposal') CASVCon.lvr≡? r)
                   → (RWST-weakestPre-ebindPost unit step₃ Contract) r st outs
             pf' (Left _) vc =
-              mkContract invP₂ noEpochChange noMsgOuts lvr≡?
+              mkContract invP₂ CASVCon.noEpochChange CASVCon.noMsgOuts CASVCon.lvr≡?
                 (inj₁ (transVoteNotGenerated (mkVoteNotGenerated refl refl) vc))
+                qcPost
+              where
+              qcPost : QCProps.∈Post⇒∈PreOr pre st (_≡ b ^∙ bQuorumCert)
+              qcPost qc qc∈st = obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract"
             pf' (Right vote) vc ._ refl rewrite eb≡b =
               PersistentLivenessStorageProps.saveVoteMSpec.contract vote
                 (RWST-weakestPre-ebindPost unit (const (ok vote)) (RWST-Post++ Contract outs)) st
@@ -153,16 +162,18 @@ module executeAndVoteMSpec (b : Block) where
 
                 onSaveFailed : _
                 onSaveFailed outs₁ noMsgOuts₁ noErrOuts₁ =
-                  mkContract invP₂ noEpochChange
-                    (OutputProps.++-NoMsgs outs _ noMsgOuts noMsgOuts₁)
-                    lvr≡?
+                  mkContract invP₂ CASVCon.noEpochChange
+                    (OutputProps.++-NoMsgs outs _ CASVCon.noMsgOuts noMsgOuts₁)
+                    CASVCon.lvr≡?
                     (inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote vgc))
+                    (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
 
                 onSaveSucceeded : _
                 onSaveSucceeded outs₁ noMsgOuts₁ noErrOuts₁ .unit refl =
-                  mkContract invP₂ noEpochChange
-                    (OutputProps.++-NoMsgs outs _ noMsgOuts (OutputProps.++-NoMsgs outs₁ _ noMsgOuts₁ refl))
-                    lvr≡? vgc
+                  mkContract invP₂ CASVCon.noEpochChange
+                    (OutputProps.++-NoMsgs outs _ CASVCon.noMsgOuts (OutputProps.++-NoMsgs outs₁ _ noMsgOuts₁ refl))
+                    CASVCon.lvr≡? vgc
+                    (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
 
     contract
       : ∀ Post
