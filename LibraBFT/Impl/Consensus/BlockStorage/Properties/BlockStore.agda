@@ -5,11 +5,13 @@
 -}
 
 open import LibraBFT.Base.ByteString
+open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree as BlockTree
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote    as Vote
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -26,9 +28,37 @@ open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
+module getBlockSpec (hv : HashValue) (bs : BlockStore) where
+
+  Ok : Set
+  Ok = ∃[ eb ] (getBlock hv bs ≡ just eb)
+
+  postulate -- TODO-2: This contract will need to be modified when hash collisions are are modeled
+    correctBlockData
+      : ∀ bd → hashBD bd ≡ hv → (isOk : Ok) → let (eb , _) = isOk in eb ^∙ ebBlock ∙ bBlockData ≡ bd
+
+module executeBlockESpec (bs : BlockStore) (block : Block) where
+
+  Ok : Set
+  Ok = ∃[ eb ] (executeBlockE bs block ≡ Right eb)
+
+  record ContractOk (eb : ExecutedBlock) : Set where
+    constructor mkContractOk
+    field
+      ebBlock≡ : eb ^∙ ebBlock ≡ block
+
+  postulate -- TODO: Refine `ContractOk` and prove
+    contract : (isOk : Ok) → ContractOk (proj₁ isOk)
+
 module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
+  open executeAndInsertBlockE bs0 block
+
   Ok : Set
   Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
+
+  private
+    Ok' : BlockStore → ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock) → Set
+    Ok' bs' eb m = m ≡ Right (bs' , eb)
 
   Err : Set
   Err = ∃[ e ] (executeAndInsertBlockE bs0 block ≡ Left e)
@@ -36,22 +66,73 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≡ : eb ^∙ ebBlock ≡ block
-      bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
-                 → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-      qcPost   : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
-                 → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+      ebBlockData≡ : eb ^∙ ebBlock ≡L block at bBlockData
+      bsInv        : ∀ pre → pre ^∙ lBlockStore ≡ bs0
+                     → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
+      qcPost       : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
+                     → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
 
   contract : (isOk : Ok) → let (bs' , eb , _) = isOk in ContractOk bs' eb
   contract (bs' , eb , isOk)
      with getBlock (block ^∙ bId) bs0
-  contract (bs' , .eb , refl) | just eb =
-    mkContractOk (obm-dangerous-magic' "TODO: lookup retrieves the same block, or there was a hash collision")
-      (btP bs') λ qc → Left
+     |    inspect (getBlock (block ^∙ bId)) bs0
+  contract (bs' , .eb , refl) | just eb | [ getbId≡ ] =
+    mkContractOk ebBlockData≡ (btP bs') (λ qc → Left)
     where
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
     btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
-  ... | nothing = obm-dangerous-magic' "TODO: prove it"
+
+    ebBlockData≡ : eb ^∙ ebBlock ≡L block at bBlockData
+    ebBlockData≡ =
+      getBlockSpec.correctBlockData (block ^∙ bId) bs0 (block ^∙ bBlockData)
+        (obm-dangerous-magic' "TODO: propagate this information from `Network.processProposal`")
+        (eb , getbId≡)
+
+  ...| nothing | [ getbId≡ ]
+    with pf-step₂ isOk
+    where
+    pf-step₂ : Ok' bs' eb step₂ → ∃[ bsr ] (just bsr ≡ bs0 ^∙ bsRoot × Ok' bs' eb (step₃ bsr))
+    pf-step₂ isOk
+       with bs0 ^∙ bsRoot
+    ... | just bsr = bsr , (refl , isOk)
+  ...| (bsr , bsr≡ , isOk₂)
+     with pf-step₃ isOk₂
+     where
+     pf-step₃ : Ok' bs' eb (step₃ bsr) → (block ^∙ bRound > bsr ^∙ ebRound) × Ok' bs' eb (step₄ bsr)
+     pf-step₃ isOk
+        with bsr ^∙ ebRound ≥?ℕ block ^∙ bRound
+     ... | yes round≥ = absurd Left _ ≡ Right _ case isOk of λ ()
+     ... | no  round< = ≰⇒> round< , isOk
+  ...| br>bsrr , isOk₃
+     with pf-step₄ isOk₃
+     where
+     pf-step₄ : Ok' bs' eb (step₄ bsr) → ∃[ eb' ] (eb' ^∙ ebBlock ≡L block at bBlockData × Ok' bs' eb (step₅ bsr eb'))
+     pf-step₄ isOk
+        with executeBlockE bs0 block
+        |    inspect (executeBlockE bs0) block
+     ...| Right res | [ ebe≡ ] = res , ((cong (_^∙ bBlockData) EB.ebBlock≡) , isOk)
+       where
+       module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (res , ebe≡))
+     ...| Left (ErrBlockNotFound parentBlockId) | [ ebe≡ ]
+        with pathFromRoot parentBlockId bs0
+     ...| Right blocksToReexecute
+        with (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock))
+     ...| Right _
+        with executeBlockE bs0 block
+        |    inspect (executeBlockE bs0) block
+     ...| Left _ | _ = absurd Left _ ≡ Right _ case isOk of λ ()
+     -- TODO-3: The case below is unreachable, since we already know the result of `executeBlockE bs0 block`
+     ...| Right eb' | [ ebe≡₁ ] = eb' , (cong (_^∙ bBlockData) EB.ebBlock≡) , isOk
+        where
+        module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (eb' , ebe≡₁))
+  ...| eb' , ebbd≡ , isOk₅ = obm-dangerous-magic' "TODO: prove"
+     --    where
+     --    pf-step₅ : Ok' bs0 eb (step₅ bsr eb') → ∃[ eb“ ] (eb“ ^∙ ebBlock ≡L block at bBlockData × Ok' bs0 eb (step₆ bsr eb'))
+     --    pf-step₅ isOk = obm-dangerous-magic' "TODO: prove (we ignore the result of `saveTreeE`)"
+     -- ...| eb“ , eb“≡ , isOk₆
+     --    with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
+     -- ...| xxx = {!!}
+
 
   postulate -- TODO-2: prove
     -- More properties are likely going to required in the future, as well.

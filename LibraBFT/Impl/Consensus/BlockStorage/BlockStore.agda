@@ -90,9 +90,11 @@ executeAndInsertBlockM b = do
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
   step₀ : Either ErrLog (BlockStore × ExecutedBlock)
   step₂ continue : Either ErrLog (BlockStore × ExecutedBlock)
+  continue = step₂
   step₃ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
   step₄ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
-  continue = step₂
+  step₅ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
+  step₆ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
 
   step₀ =
     maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
@@ -118,41 +120,20 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
                 (Left  e) → Left e
                 (Right _) → executeBlockE bs0 block
           (Left err) → Left err
+        step₅ bsr eb
+
+  step₅ bsr eb = do
         bs1 ← withErrCtx'
                 (here' [])
                 -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
                (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
+        step₆ bsr eb
+
+  step₆ bsr eb = do
         (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~  bt') , eb')
 
 executeAndInsertBlockE = executeAndInsertBlockE.step₀
- --  maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
- -- where
- --  here' : List String.String → List String.String
- --  here' t = "BlockStore" ∷ "executeAndInsertBlockE" {-∷ lsB block-} ∷ t
-
- --  continue : Either ErrLog (BlockStore × ExecutedBlock)
- --  continue =
- --    maybeS (bs0 ^∙ bsRoot) (Left fakeErr) λ bsr →
- --    let btRound = bsr ^∙ ebRound in
- --    if-dec btRound ≥?ℕ block ^∙ bRound
- --    then Left fakeErr -- block with old round
- --    else do
- --      eb ← case executeBlockE bs0 block of λ where
- --        (Right res) → Right res
- --        (Left (ErrBlockNotFound parentBlockId)) → do
- --          eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
- --            case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
- --              (Left  e) → Left e
- --              (Right _) → executeBlockE bs0 block
- --        (Left err) → Left err
- --      bs1 ← withErrCtx'
- --              (here' [])
- --              -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
- --              (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
- --      (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
- --      pure ((bs0 & bsInner ∙~  bt') , eb')
-
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)
