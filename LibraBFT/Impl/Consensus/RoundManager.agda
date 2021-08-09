@@ -115,7 +115,6 @@ module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRem
   step₀       :                                LBFT (Either ErrLog Unit)
   step₁ step₂ : SyncInfo                     → LBFT (Either ErrLog Unit)
   step₃ step₄ : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
-  step₁-else  :                                LBFT (Either ErrLog Unit)
 
   here' : List String.String → List String.String
 
@@ -127,8 +126,8 @@ module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRem
 
   step₁ localSyncInfo = do
     if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
-      then (do step₂ localSyncInfo)
-      else step₁-else
+      then step₂ localSyncInfo
+      else ok unit
 
   step₂ localSyncInfo = do
         vv ← use (lRoundManager ∙ rmEpochState ∙ esVerifier)
@@ -141,9 +140,6 @@ module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRem
   step₄ localSyncInfo vv = do
             processCertificatesM now
             ok unit
-
-  step₁-else =
-        ok unit
 
   here' t = "RoundManager" ∷ "syncUpM" ∷ t
 
