@@ -56,6 +56,7 @@ module LibraBFT.ImplFake.Handle where
 
  initRM : RoundManager
  initRM = RoundManager∙new
+            ObmNeedFetch∙new
             (EpochState∙new 1 (initVV genesisInfo))
             initBS initRS initPE initPG initSR false
 
