@@ -86,10 +86,38 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
   postulate -- TODO-3: prove (waiting on: `handle`)
     TODO : RoundManagerInv (peerStates pre pid)
 
-qcVoteSigsSentB4
-  : ∀ pid (st : SystemState)
+qcVoteSigsSentB4 :
+    ∀ pid (st : SystemState)
     → ReachableSystemState st
     → QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
+
+handlePreservesSigsB4 :
+    ∀ {nm pid pre sndr}
+    → ReachableSystemState pre
+    → (sndr , nm) ∈ msgPool pre
+    → QCProps.SigsForVotes∈Rm-SentB4 (msgPool pre) (LBFT-post (handle pid nm 0) (peerStates pre pid))
+handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hyp nm m∈pool
+   where
+   hPool = msgPool pre
+   hPre  = peerStates pre pid
+   module _ (nm : NetworkMsg) {sndr : _} (m∈pool : (sndr , nm) ∈ hPool) where
+     hPost = LBFT-post (handle pid nm 0) hPre
+
+     qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr hPre hPost (_QC∈NM nm)
+     qcPost' (P pm) refl = qcPost
+        where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
+     qcPost' (V vm) refl = qcPost
+        where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hPool hPre)
+     qcPost' (C cm) refl = obm-dangerous-magic' "TODO: waiting on commit message handler and contract"
+
+     hyp : QCProps.SigForVote∈Rm-SentB4 v pk qc hPost hPool
+     hyp qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
+        with qcPost' nm refl qc qc∈hpPst
+     ...| Left qc∈hpPre =
+       qcVoteSigsSentB4 pid pre preach qc∈hpPre sig vs∈qcvs ≈v ¬gen
+     ...| Right qc∈m =
+        mkMsgWithSig∈ nm v (vote∈qc vs∈qcvs ≈v qc∈m) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+
 qcVoteSigsSentB4 pid st step-0 = initRM-qcs
 qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} step@(step-cheat cmc)))
    rewrite cheatStepDNMPeerStates₁{pid'}{pid}{pre = pre} step unit
@@ -108,43 +136,9 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
    ret rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre}
        |       sym $ ++-identityʳ (msgPool pre)
        = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs
-...| step-msg{sndr , P pm} m∈pool init
-   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre pid)}{f = peerStates pre}
-   -- TODO-2: refactor for DRY (see below)
-   = QCProps.++-SigsForVote∈Rm-SentB4{rm = hpPst} _
-       hyp
-       -- (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
-   where
-   hpPre = peerStates pre pid
-   hpPst = LBFT-post (handleProposal 0 pm) hpPre
-   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
-
-   hyp : QCProps.SigsForVotes∈Rm-SentB4 _ hpPst
-   hyp{qc}{v}{pk} qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
-      with qcPost qc qc∈hpPst
-   ...| Left qc∈hpPre =
-     qcVoteSigsSentB4 pid pre rss qc∈hpPre sig vs∈qcvs ≈v ¬gen
-   ...| Right qc∈pm =
-      mkMsgWithSig∈ (P pm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
-
-...| step-msg{sndr , V vm} m∈pool init
-  rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre pid)}{f = peerStates pre}
-   -- TODO-2: refactor for DRY (see handleProposal case above)
-  = QCProps.++-SigsForVote∈Rm-SentB4{rm = hvPst} _ hyp
-   where
-   hvPre = peerStates pre pid
-   hvPst = LBFT-post (handleVote 0 vm) hvPre
-   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
-
-   hyp : QCProps.SigsForVotes∈Rm-SentB4 (msgPool pre) hvPst
-   hyp{qc}{v}{pk} qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
-      with qcPost qc qc∈hpPst
-   ...| Left qc∈hpPre =
-     qcVoteSigsSentB4 pid pre rss qc∈hpPre sig vs∈qcvs ≈v ¬gen
-   ...| Right qc∈pm =
-      mkMsgWithSig∈ (V vm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
-
-...| step-msg{sndr , C cm} m∈pool init = obm-dangerous-magic' "TODO: waiting on `handleCommitSpec`"
+...| step-msg{sndr , nm} m∈pool init
+   rewrite override-target-≡{a = pid}{b = LBFT-post (handle pid nm 0) (peerStates pre pid)} {f = peerStates pre}
+   = QCProps.++-SigsForVote∈Rm-SentB4 {rm = LBFT-post (handle pid nm 0) (peerStates pre pid)} _ (handlePreservesSigsB4 rss m∈pool)
 
 qcVoteSigsSentB4-sps
   : ∀ pid (pre : SystemState) {s acts}
