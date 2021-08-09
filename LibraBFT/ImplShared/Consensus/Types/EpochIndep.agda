@@ -636,7 +636,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
-  data RootInfo : Set where RootInfo∙new : Block → QuorumCert → QuorumCert → RootInfo
+  -- IMPL-DIFF : This is defined without record fields in Haskell.
+  -- The record fields below are never used.  But RootInfo must be a record for pattern matching.
+  record RootInfo : Set where
+    constructor RootInfo∙new
+    field
+      _riBlock : Block
+      _riQC1   : QuorumCert
+      _riQC2   : QuorumCert
+
   data RootMetadata : Set where RootMetadata∙new : RootMetadata
 
   record RecoveryData : Set where
