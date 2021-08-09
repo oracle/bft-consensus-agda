@@ -137,9 +137,9 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
 ...| step-msg{sndr , C cm} m∈pool init = obm-dangerous-magic' "TODO: waiting on `handleCommitSpec`"
 
 qcVoteSigsSentB4-sps
-  : ∀ pid (pre : SystemState) {s msgs}
+  : ∀ pid (pre : SystemState) {s acts}
     → ReachableSystemState pre
-    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , msgs))
+    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
     → ∀ {qc v pk} → qc QCProps.∈RoundManager s
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in

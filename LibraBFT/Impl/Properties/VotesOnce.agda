@@ -242,7 +242,9 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@
        ⊥-elim ∘′ ¬msb4 $ qcVoteSigsSentB4-handle pid preach sps m'∈acts qc∈m' sig' vs∈qc v≈rbld ¬gen
 
 sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer{pid“} sp@(step-honest sps@(step-msg{sndr , P pm} pm∈pool ini)))){v}{v'} hpk ≡pidLV pcsfpk ._ _ sig' ¬gen ≡epoch ≡round
-   | inj₁ (m∈outs , pcsfpk' , ¬msb4) | refl | vote∈vm = ret
+   | Left (m∈outs , pcsfpk' , ¬msb4)
+   | refl
+   | vote∈vm = ret
   where
   -- Definitions
   hpPool = msgPool pre
@@ -275,7 +277,9 @@ sameERasLV⇒sameId{pid = .pid“}{pid'}{pk} (step-s{pre = pre} preach step@(ste
       just v' ∎
 
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} preach step@(step-peer sp@(step-honest sps@(step-msg{_ , V vm} m∈pool ini)))){v}{v'}{m'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
-  | Left (m∈outs , pcsfpk' , ¬msb4) | pid≡ | vote∈vm = sameERasLV⇒sameId{pid}{pid'} preach{m' = m'} hpk ≡pidLVPre pcsfpkPre vote∈vm m'∈poolPre sig' ¬gen ≡epoch ≡round
+  | Left (m∈outs , pcsfpk' , ¬msb4)
+  | refl
+  | vote∈vm = sameERasLV⇒sameId{pid}{pid'} preach{m' = m'} hpk ≡pidLVPre pcsfpkPre vote∈vm m'∈poolPre sig' ¬gen ≡epoch ≡round
   where
   hvPre = peerStates pre pid
   hvPos = LBFT-post (handleVote 0 vm) hvPre
