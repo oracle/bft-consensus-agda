@@ -110,6 +110,7 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
        = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs
 ...| step-msg{sndr , P pm} m∈pool init
    rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre pid)}{f = peerStates pre}
+   -- TODO-2: refactor for DRY (see below)
    = QCProps.++-SigsForVote∈Rm-SentB4{rm = hpPst} _
        hyp
        -- (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
@@ -128,12 +129,21 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
 
 ...| step-msg{sndr , V vm} m∈pool init
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre pid)}{f = peerStates pre}
-  = QCProps.++-SigsForVote∈Rm-SentB4{rm = hvPst} _
-      (qcSigsB4 (QCProps.mkMsgRequirements _ m∈pool) (qcVoteSigsSentB4 pid pre rss))
+   -- TODO-2: refactor for DRY (see handleProposal case above)
+  = QCProps.++-SigsForVote∈Rm-SentB4{rm = hvPst} _ hyp
    where
    hvPre = peerStates pre pid
    hvPst = LBFT-post (handleVote 0 vm) hvPre
    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
+
+   hyp : QCProps.SigsForVotes∈Rm-SentB4 (msgPool pre) hvPst
+   hyp{qc}{v}{pk} qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
+      with qcPost qc qc∈hpPst
+   ...| Left qc∈hpPre =
+     qcVoteSigsSentB4 pid pre rss qc∈hpPre sig vs∈qcvs ≈v ¬gen
+   ...| Right qc∈pm =
+      mkMsgWithSig∈ (V vm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+
 ...| step-msg{sndr , C cm} m∈pool init = obm-dangerous-magic' "TODO: waiting on `handleCommitSpec`"
 
 qcVoteSigsSentB4-sps
@@ -151,6 +161,7 @@ qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬gen
    = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
 qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} qc∈s sig {vs} vs∈qcvs ≈v ¬gen
    with m
+   -- TODO-2: refactor for DRY
 ...| P pm = help
    where
    hpPre = peerStates pre pid
@@ -163,12 +174,19 @@ qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} q
    ...| Right qc∈pm =
      mkMsgWithSig∈ (P pm) v (vote∈qc vs∈qcvs ≈v qc∈pm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
 
-...| V vm =
-   qcSigsB4 (QCProps.mkMsgRequirements sndr m∈pool)
-     (qcVoteSigsSentB4 pid pre rss) qc∈s sig vs∈qcvs ≈v ¬gen
+   -- TODO-2: refactor for DRY
+...| V vm = help
    where
    hvPre = peerStates pre pid
    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
+
+   help : MsgWithSig∈ pk (proj₂ vs) (msgPool pre)
+   help
+      with qcPost qc qc∈s
+   ...| Left qc∈pre = qcVoteSigsSentB4 pid pre rss qc∈pre sig vs∈qcvs ≈v ¬gen
+   ...| Right qc∈vm =
+     mkMsgWithSig∈ (V vm) v (vote∈qc vs∈qcvs ≈v qc∈vm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+
 ...| C cm = obm-dangerous-magic' "TODO: waiting on `handleCommitSpec`"
 
 lastVotedRound-mono
