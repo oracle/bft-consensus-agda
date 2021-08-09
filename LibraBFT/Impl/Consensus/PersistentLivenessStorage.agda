@@ -14,6 +14,7 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
 postulate -- TODO-2: implement
+  pruneTreeM : List HashValue → LBFT (Either ErrLog Unit)
   saveHighestTimeoutCertM : TimeoutCertificate → LBFT (Either ErrLog Unit)
   saveTreeE : BlockStore → List Block → List QuorumCert → Either ErrLog (BlockStore)
   saveTreeM : List Block → List QuorumCert → LBFT (Either ErrLog Unit)

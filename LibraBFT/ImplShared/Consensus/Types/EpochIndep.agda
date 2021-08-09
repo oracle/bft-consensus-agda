@@ -928,15 +928,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
+  record PersistentLivenessStorage : Set where
+    constructor PersistentLivenessStorage∙new
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
       _bsInner         : BlockTree
       -- bsStateComputer : StateComputer
-      -- bsStorage       : CBPersistentStorage
+      _bsStorage       : PersistentLivenessStorage
   open BlockStore public
-  unquoteDecl bsInner = mkLens (quote BlockStore)
-             (bsInner ∷ [])
+  unquoteDecl bsInner   bsStorage = mkLens (quote BlockStore)
+             (bsInner ∷ bsStorage ∷ [])
 
   -- getter only in Haskell
   bsRoot : Lens BlockStore (Maybe ExecutedBlock)
