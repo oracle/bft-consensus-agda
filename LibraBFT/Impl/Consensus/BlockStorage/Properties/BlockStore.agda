@@ -5,13 +5,14 @@
 -}
 
 open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap                            as Map
+open import LibraBFT.Base.KVMap                               as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree as BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote    as Vote
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -52,6 +53,8 @@ module executeBlockESpec (bs : BlockStore) (block : Block) where
 
 module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   open executeAndInsertBlockE bs0 block
+
+  open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree
 
   Ok : Set
   Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
@@ -121,18 +124,52 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         with executeBlockE bs0 block
         |    inspect (executeBlockE bs0) block
      ...| Left _ | _ = absurd Left _ ≡ Right _ case isOk of λ ()
-     -- TODO-3: The case below is unreachable, since we already know the result of `executeBlockE bs0 block`
+     -- NOTE: The case below is unreachable, since we already know the result of
+     -- `executeBlockE bs0 block`. This likely means the model (and Haskell
+     -- prototype) needs to be updated.
      ...| Right eb' | [ ebe≡₁ ] = eb' , (cong (_^∙ bBlockData) EB.ebBlock≡) , isOk
         where
         module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (eb' , ebe≡₁))
-  ...| eb' , ebbd≡ , isOk₅ = obm-dangerous-magic' "TODO: prove"
-     --    where
-     --    pf-step₅ : Ok' bs0 eb (step₅ bsr eb') → ∃[ eb“ ] (eb“ ^∙ ebBlock ≡L block at bBlockData × Ok' bs0 eb (step₆ bsr eb'))
-     --    pf-step₅ isOk = obm-dangerous-magic' "TODO: prove (we ignore the result of `saveTreeE`)"
-     -- ...| eb“ , eb“≡ , isOk₆
-     --    with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
-     -- ...| xxx = {!!}
+  ...| eb' , ebbd≡ , isOk₅
+     with pf-step₅ isOk₅
+     where
+     pf-step₅ : Ok' bs' eb (step₅ bsr eb') → Ok' bs' eb (step₆ bsr eb')
+     pf-step₅ isOk
+        with PersistentLivenessStorage.saveTreeE bs0 (eb' ^∙ ebBlock ∷ []) []
+     ... | Right bs1 = isOk
+  ...| isOk₆ = pf-step₆ isOk₆
+     where
+     pf-step₆ : Ok' bs' eb (step₆ bsr eb') → ContractOk bs' eb
+     pf-step₆ isOk
+        with insertBlockESpec.contract eb' (bs0 ^∙ bsInner)
+     ...| IBCon
+        with BlockTree.insertBlockE eb' (bs0 ^∙ bsInner)
+        |    inspect (BlockTree.insertBlockE eb') (bs0 ^∙ bsInner)
+     pf-step₆ isOk | IBCon | Right (bt' , eb“) | [ insp ]
+        with isOk
+     ...| refl =
+        mkContractOk ebBlockData≡ btP qcPost
+        where
+        module IBE = insertBlockESpec.ContractOk IBCon
 
+        ebBlockData≡ : eb“ ^∙ ebBlock ≡L block at bBlockData
+        ebBlockData≡ = begin
+          eb“ ^∙ ebBlock ∙ bBlockData ≡⟨ IBE.bd≡ ⟩
+          eb' ^∙ ebBlock ∙ bBlockData ≡⟨ ebbd≡ ⟩
+          block ^∙ bBlockData ∎
+          where open ≡-Reasoning
+
+        btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ bs')
+        btP rm bs≡
+          with insertBlockESpec.preservesBlockStoreInv eb' (bs0 ^∙ bsInner)
+                 (bs' ^∙ bsInner) eb“ IBCon rm (cong (_^∙ bsInner) bs≡)
+        ...| Right col = ⊥-elim col -- TODO: propagate hash collision upward
+        ...| Left pres = pres
+
+        qcPost : ∀ qc → qc QCProps.∈BlockTree bt' → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+        qcPost
+           with insertBlockESpec.qcPost eb' (bs0 ^∙ bsInner) bt' eb“ IBCon
+        ...| qcPost' rewrite ebbd≡ = qcPost'
 
   postulate -- TODO-2: prove
     -- More properties are likely going to required in the future, as well.
