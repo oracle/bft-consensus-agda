@@ -126,7 +126,7 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
         noVotes       : OutputProps.NoVotes outs
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcSigsB4  : QCProps.MsgRequirements pool (V vm) → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈NM (V vm))
 
     postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
       contract : LBFT-weakestPre (handleVote now vm) Contract pre
