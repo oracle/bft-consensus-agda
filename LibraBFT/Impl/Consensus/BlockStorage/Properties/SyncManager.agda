@@ -108,7 +108,7 @@ module insertQuorumCertMSpec
 module addCertsMSpec
   (syncInfo : SyncInfo) (retriever : BlockRetriever) where
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  module _ (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract

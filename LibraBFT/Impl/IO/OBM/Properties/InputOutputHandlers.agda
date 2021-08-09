@@ -87,7 +87,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
         contractBail _ refl
       proj₂ (contract-step₁ (myEpoch@._ , vv@._) refl) unit pp≡Right =
-        processProposalMsgMSpec.contract now pm pool pre Contract pf
+        processProposalMsgMSpec.contract now pm pre Contract pf
         where
         module PPM = processProposalMsgMSpec now pm
 
@@ -96,7 +96,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = sym con
 
-        pf : RWST-Post-⇒ (PPM.Contract pool pre) Contract
+        pf : RWST-Post-⇒ (PPM.Contract pre) Contract
         pf unit st outs con =
           mkContract PPMSpec.rmInv PPMSpec.noEpochChange
             vac PPMSpec.outQcs∈RM PPMSpec.qcPost

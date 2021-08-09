@@ -39,7 +39,7 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
       sivpHccVer    : maybeS (self ^∙ sixxxHighestCommitCert) Unit $ λ qc → QC.Contract qc validator
       -- Waiting on TimeoutCertificate Contract : sivpHtcVer    : maybeS (self ^∙ siHighestTimeoutCert  ) Unit $ λ tc → {!!}
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  module _ (pre : RoundManager) where
 
    record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
      constructor mkContract
