@@ -232,3 +232,34 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   where
   postulate -- TODO-2: prove (waiting on: `handle`)
     TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
+
+qcVoteSigsSentB4-handle
+    : ∀ pid {pre m s acts}
+    → ReachableSystemState pre
+    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
+    → send m ∈ acts
+    → ∀ {qc v pk} → qc QC∈NM m
+    → WithVerSig pk v
+    → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
+      vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → ¬ ∈GenInfo-impl genesisInfo sig
+    → MsgWithSig∈ pk sig (msgPool pre)
+qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-init ini) ()
+qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-msg {_ , nm} m∈pool ini) m∈acts {qc} qc∈m sig vs∈qc v≈rbld ¬gen =
+  qcVoteSigsSentB4-sps pid pre preach sps qc∈rm sig vs∈qc v≈rbld ¬gen
+    where
+   hdPool = msgPool pre
+   hdPre  = peerStates pre pid
+   hdPst  = LBFT-post (handle pid nm 0) hdPre
+   hdOut  = LBFT-outs (handle pid nm 0) hdPre
+
+   qc∈rm : qc QCProps.∈RoundManager hdPst
+   qc∈rm
+      with sendMsg∈actions{hdOut}{st = hdPre} m∈acts
+   ...| out , out∈hdOut , m∈out = All-lookup (outQcs∈RM1 nm refl) out∈hdOut qc m qc∈m m∈out
+      where
+        outQcs∈RM1 : (nm' : NetworkMsg) → nm ≡ nm' → QCProps.OutputQc∈RoundManager hdOut hdPst
+        outQcs∈RM1 (P pm) refl = outQcs∈RM
+          where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hdPool hdPre)
+        outQcs∈RM1 (V vm) refl = outQcs∈RM
+          where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hdPool hdPre)
