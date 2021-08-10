@@ -480,6 +480,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bRound : Lens Block Round
   bRound =  bBlockData ∙ bdRound
 
+  infix 4 _≈Block_
+  _≈Block_ : (b₁ b₂ : Block) → Set
+  b₁ ≈Block b₂ = b₁ ≡ record b₂ { _bSignature = _bSignature b₁ }
+
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
     field
