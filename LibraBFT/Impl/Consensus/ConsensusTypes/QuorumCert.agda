@@ -21,6 +21,9 @@ import      Data.String                                     as String
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
 
+postulate
+  certificateForGenesisFromLedgerInfo : LedgerInfo → HashValue → QuorumCert
+
 verify : QuorumCert → ValidatorVerifier → Either ErrLog Unit
 verify self validator = do
   let voteHash = hashVD (self ^∙ qcVoteData)

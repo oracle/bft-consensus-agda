@@ -192,6 +192,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : LedgerInfo → Maybe EpochState → LedgerInfo
     s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
 
+  -- GETTER only in Haskell
+  liEndsEpoch : Lens LedgerInfo Bool
+  liEndsEpoch = mkLens' g s
+   where
+    g : LedgerInfo → Bool
+    g = is-just ∘ (_^∙ liNextEpochState)
+    s : LedgerInfo → Bool → LedgerInfo
+    s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
+
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
              → ci1  ≡ ci2
              → cdh1 ≡ cdh2
@@ -465,6 +474,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bEpoch = bBlockData ∙ bdEpoch
 
   -- getter only in Haskell
+  bRound : Lens Block Round
+  bRound = bBlockData ∙ bdRound
+
+  -- getter only in Haskell
   bQuorumCert : Lens Block QuorumCert
   bQuorumCert  = bBlockData ∙ bdQuorumCert
 
@@ -475,10 +488,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- getter only in Haskell
   bPayload : Lens Block (Maybe TX)
   bPayload = bBlockData ∙ bdPayload
-
-  -- getter only in Haskell
-  bRound : Lens Block Round
-  bRound =  bBlockData ∙ bdRound
 
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
