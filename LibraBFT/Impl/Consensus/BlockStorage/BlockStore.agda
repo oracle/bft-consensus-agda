@@ -94,7 +94,7 @@ rebuildM root rootMetadata blocks quorumCerts = do
   case build
          root rootMetadata blocks quorumCerts
          (self0 ^∙ bsHighestTimeoutCert)
-         --(self0 ^∙ bsStateComputer)
+         --(self0 ^∙ bsStateComputer) -- the agda code does not have a state computer (yet?)
          (self0 ^∙ bsStorage)
          (self0 ^∙ bsInner ∙ btMaxPrunedBlocksInMem) of λ where
     (Left  e)    → bail e
@@ -103,7 +103,7 @@ rebuildM root rootMetadata blocks quorumCerts = do
       PersistentLivenessStorage.pruneTreeM toRemove ∙?∙  λ _ → do
        lRoundManager ∙ rmBlockStore ∙ bsInner ∙= inner
        self1 ← use lBlockStore
-       maybeS (self1 ^∙ bsRoot) (bail fakeErr) {-bsRootErrL here-} $ λ bsr → do
+       maybeS (self1 ^∙ bsRoot) (bail fakeErr {-bsRootErrL here-}) $ λ bsr → do
         if-RWST self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
           then
             (commitM (self1 ^∙ bsHighestCommitCert ∙ qcLedgerInfo) ∙^∙

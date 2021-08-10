@@ -395,8 +395,8 @@ newTcAggregatedM now tc =
 
 -- TODO-1 PROVE IT TERMINATES
 {-# TERMINATING #-}
-xxx : BlockRetrievalRequest → (Author × Epoch × Round) → BlockStore → List Block → HashValue
-    → BlockRetrievalResponse
+mkRsp : BlockRetrievalRequest → (Author × Epoch × Round) → BlockStore → List Block → HashValue
+      → BlockRetrievalResponse
 
 -- external entry point
 processBlockRetrievalRequestM : Instant → BlockRetrievalRequest → LBFT Unit
@@ -416,15 +416,15 @@ processBlockRetrievalRequestM _now request = do
     -- TODO-1: define and use SendBRP
     -- act (SendBRP lSI (request^∙brqObmFrom) (xxx meer bs [] (request^∙brqBlockId)))
     -- The following is just to get parts of the "act" together.
-    let xxx' = xxx request meer bs [] (request ^∙ brqBlockId)
+    let rsp = mkRsp request meer bs [] (request ^∙ brqBlockId)
     pure unit
 
-xxx request meer bs blocks id =
+mkRsp request meer bs blocks id =
     if-dec length blocks <? request ^∙ brqNumBlocks
     then
       (case BlockStore.getBlock id bs of λ where
-        (just executedBlock) → xxx request meer bs (blocks ++ (executedBlock ^∙ ebBlock ∷ []))
-                                                   (executedBlock ^∙ ebParentId)
+        (just executedBlock) → mkRsp request meer bs (blocks ++ (executedBlock ^∙ ebBlock ∷ []))
+                                                     (executedBlock ^∙ ebParentId)
         nothing → BlockRetrievalResponse∙new meer
                     (if null blocks then BRSIdNotFound else BRSNotEnoughBlocks)
                     blocks)

@@ -27,14 +27,15 @@ retrieveBlockForQCM : BlockRetriever → QuorumCert → U64 → LBFT (Either Err
 retrieveBlockForQCM _retriever qc numBlocks =
   loop (qc ^∙ qcCertifiedBlock ∙ biId) 0 (Map.kvm-keys (qc ^∙ qcLedgerInfo ∙ liwsSignatures))
  where
-  logIt : InfoLog → LBFT Unit
-  here' : List String.String → List String.String
+  doLoop : HashValue → ℕ → List Author → LBFT (Either ErrLog (List Block))
+  logIt  : InfoLog → LBFT Unit
+  here'  : List String.String → List String.String
 
   loop : HashValue → ℕ → List Author → LBFT (Either ErrLog (List Block))
   loop blockId attempt = λ where
     [] → bail fakeErr -- [ "failed to fetch block, no more peers available"
                       -- , lsHV blockId, show attempt ]
-    peers0 → do
+    peers0@(_ ∷ _) → do
       mme               ← use (lRoundManager ∙ rmObmMe)
       maybeS-RWST mme (bail fakeErr) $ λ me → do
         nf                ← use lObmNeedFetch
@@ -51,16 +52,18 @@ retrieveBlockForQCM _retriever qc numBlocks =
               case BlockRetrieval.verify response (request ^∙ brqBlockId) (request ^∙ brqNumBlocks) vv of λ where
                 (Left  e) → bail (withErrCtx (here' []) e)
                 (Right _) → ok   (response ^∙ brpBlocks)
-            _ → do
-              logIt fakeInfo -- (here' ["trying another peer", lsBRP response])
-              loop blockId (attempt + 1) peers
+            BRSIdNotFound      → doLoop blockId attempt peers
+            BRSNotEnoughBlocks → doLoop blockId attempt peers
+
+  doLoop blockId attempt peers = do
+    logIt fakeInfo -- (here' ["trying another peer", lsBRP response])
+    loop blockId (attempt + 1) peers
 
   here' t = "BlockRetriever" ∷ "retrieveBlockForQCM" ∷ "NeedFetch" ∷ t
   logIt l = -- do
     logInfo l
     -- let x = Unsafe.unsafePerformIO (putStrLn @Text (show l))
     -- x `seq` pure x
-
 
 pickPeer _ = λ where
   []       → Left fakeErr -- ["no more peers"]
