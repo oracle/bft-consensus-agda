@@ -163,6 +163,7 @@ executeAndInsertBlockE bs0 block =
 
 executeBlockE bs block = do
   -- let compute        = bs ^. bsStateComputer.scCompute
+  -- StateComputer may update its internal state and/or throw and exception.
   -- stateComputeResult ← compute (bs^.bsStateComputer) block (block^.bParentId)
   pure (ExecutedBlock∙new block stateComputeResult)
 
