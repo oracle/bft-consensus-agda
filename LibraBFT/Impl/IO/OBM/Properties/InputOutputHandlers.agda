@@ -54,7 +54,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         voteAttemptCorrect : Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈NM (P pm))
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre post
 
     contract : LBFT-weakestPre (handleProposal now pm) Contract pre
     contract =
@@ -78,7 +78,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs pre
         outQcs∈RM = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre noMsgs
 
-        qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+        qcPost : QCProps.∈Post⇒∈PreOr _  pre pre
         qcPost qc = Left
 
       contract-step₁ : Post-epvv (myEpoch , vv) pre []
@@ -126,7 +126,7 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
         noVotes       : OutputProps.NoVotes outs
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈NM (V vm))
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (V vm)) pre post
 
     postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
       contract : LBFT-weakestPre (handleVote now vm) Contract pre

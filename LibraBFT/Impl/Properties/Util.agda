@@ -123,8 +123,35 @@ module QCProps where
   _∈RoundManager_ : (qc : QuorumCert) (rm : RoundManager) → Set
   qc ∈RoundManager rm =  qc ∈BlockTree (rm ^∙ lBlockStore ∙ bsInner)
 
-  ∈Post⇒∈PreOr : (pre post : RoundManager) (Q : QuorumCert → Set) → Set
-  ∈Post⇒∈PreOr pre post Q = ∀ qc → qc ∈RoundManager post → qc ∈RoundManager pre ⊎ Q qc
+
+  ∈Post⇒∈PreOr' : ∀ {A : Set} (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set) (pre post : A) → Set
+  ∈Post⇒∈PreOr' _QC∈_ Q pre post = ∀ qc → qc QC∈ post → qc QC∈ pre ⊎ Q qc
+
+  ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
+  ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
+
+  ∈Post⇒∈PreOr : (Q : QuorumCert → Set) (pre post : RoundManager) → Set
+  ∈Post⇒∈PreOr = ∈Post⇒∈PreOr' _∈RoundManager_
+
+  ∈Post⇒∈PreOr'-trans : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → ∀ {pre int post : A}
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre int
+                      → ∈Post⇒∈PreOr' _QC∈_ Q int post
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
+  ∈Post⇒∈PreOr'-trans _QC∈_ Q pre→int int→post qc qc∈post
+     with int→post qc qc∈post
+  ... | Right y = Right y
+  ... | Left  x
+     with pre→int qc x
+  ... | Right y = Right y
+  ... | Left x₁ = Left x₁
+
+  ∈Post⇒∈PreOrBT-trans : ∀ (Q : QuorumCert → Set) {pre int post}
+                       → ∈Post⇒∈PreOrBT Q pre int
+                       → ∈Post⇒∈PreOrBT Q int post
+                       → ∈Post⇒∈PreOrBT Q pre post
+  ∈Post⇒∈PreOrBT-trans = ∈Post⇒∈PreOr'-trans _∈BlockTree_
 
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =

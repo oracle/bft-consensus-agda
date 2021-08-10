@@ -103,7 +103,7 @@ handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hy
 
    hPost = LBFT-post (handle pid nm 0) hPre
 
-   qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr hPre hPost (_QC∈NM nm)
+   qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr (_QC∈NM nm) hPre hPost
    qcPost' (P pm) refl = qcPost
       where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
    qcPost' (V vm) refl = qcPost

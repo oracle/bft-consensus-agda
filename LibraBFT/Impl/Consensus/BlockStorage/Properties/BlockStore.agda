@@ -72,8 +72,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       ebBlockData≡ : eb ^∙ ebBlock ≡L block at bBlockData
       bsInv        : ∀ pre → pre ^∙ lBlockStore ≡ bs0
                      → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-      qcPost       : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
-                     → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+      qcPost       : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs' ^∙ bsInner) (bs0 ^∙ bsInner)
 
   contract : (isOk : Ok) → let (bs' , eb , _) = isOk in ContractOk bs' eb
   contract (bs' , eb , isOk)
@@ -166,7 +165,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         ...| Right col = ⊥-elim col -- TODO: propagate hash collision upward
         ...| Left pres = pres
 
-        qcPost : ∀ qc → qc QCProps.∈BlockTree bt' → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+        qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) bt' (bs0 ^∙ bsInner)
         qcPost
            with insertBlockESpec.qcPost eb' (bs0 ^∙ bsInner) bt' eb“ IBCon
         ...| qcPost' rewrite ebbd≡ = qcPost'

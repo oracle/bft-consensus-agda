@@ -121,7 +121,7 @@ module addCertsMSpec
         noVote        : VoteNotGenerated pre post true
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈SyncInfo syncInfo)
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
     postulate
       contract' : LBFT-weakestPre (addCertsM syncInfo retriever) Contract pre

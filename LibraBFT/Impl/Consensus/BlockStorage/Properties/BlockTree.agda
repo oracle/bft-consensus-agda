@@ -50,15 +50,14 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
                 -- between b ^∙ ebBlock ∙ bBlockData and block ^∙ ebBlock ∙
                 -- bBlockdata
 
-      qcPost : ∀ qc → qc QCProps.∈BlockTree bt“ → qc QCProps.∈BlockTree bt ⊎ qc ≡ block ^∙ ebBlock ∙ bQuorumCert
-
+      qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ ebBlock ∙ bQuorumCert) bt“ bt
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
 
   Contract : Either ErrLog (BlockTree × List InfoLog) → Set
   Contract (Left _) = Unit
-  Contract (Right (bt1 , il)) = ∀ {qc'} → qc' ∈BlockTree bt1 → qc' ∈BlockTree bt0 ⊎ qc' ≡ qc
+  Contract (Right (bt1 , il)) = ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt1
 
   postulate -- TODO-1: prove it
     contract : Contract (insertQuorumCertE qc bt0)
