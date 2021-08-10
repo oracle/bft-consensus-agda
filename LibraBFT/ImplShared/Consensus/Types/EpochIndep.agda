@@ -636,7 +636,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
-  data RootInfo : Set where RootInfo∙new : Block → QuorumCert → QuorumCert → RootInfo
+  -- IMPL-DIFF : This is defined without record fields in Haskell.
+  -- The record fields below are never used.  But RootInfo must be a record for pattern matching.
+  record RootInfo : Set where
+    constructor RootInfo∙new
+    field
+      _riBlock : Block
+      _riQC1   : QuorumCert
+      _riQC2   : QuorumCert
+
   data RootMetadata : Set where RootMetadata∙new : RootMetadata
 
   record RecoveryData : Set where
@@ -832,6 +840,32 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
              (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
 
+  record BlockRetrievalRequest : Set where
+    constructor BlockRetrievalRequest∙new
+    field
+      _brqObmFrom   : Author
+      _brqBlockId   : HashValue
+      _brqNumBlocks : U64
+  open BlockRetrievalRequest public
+  unquoteDecl brqObmFrom   brqBlockId   brqNumBlocks = mkLens (quote BlockRetrievalRequest)
+             (brqObmFrom ∷ brqBlockId ∷ brqNumBlocks ∷ [])
+  postulate instance enc-BlockRetrievalRequest : Encoder BlockRetrievalRequest
+
+  data BlockRetrievalStatus : Set where
+    BRSSucceeded BRSIdNotFound BRSNotEnoughBlocks : BlockRetrievalStatus
+  open BlockRetrievalStatus public
+  postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
+
+  record BlockRetrievalResponse : Set where
+    constructor BlockRetrievalResponse∙new
+    field
+      _brpObmFrom : (Author × Epoch × Round) -- for logging
+      _brpStatus  : BlockRetrievalStatus
+      _brpBlocks  : List Block
+  unquoteDecl brpObmFrom   brpStatus   brpBlocks   = mkLens (quote BlockRetrievalResponse)
+             (brpObmFrom ∷ brpStatus ∷ brpBlocks ∷ [])
+  postulate instance enc-BlockRetrievalResponse : Encoder BlockRetrievalResponse
+
   data VoteReceptionResult : Set where
     QCVoteAdded           : U64 →                VoteReceptionResult
     TCVoteAdded           : U64 →                VoteReceptionResult
@@ -902,15 +936,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
+  record PersistentLivenessStorage : Set where
+    constructor PersistentLivenessStorage∙new
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
       _bsInner         : BlockTree
       -- bsStateComputer : StateComputer
-      -- bsStorage       : CBPersistentStorage
+      _bsStorage       : PersistentLivenessStorage
   open BlockStore public
-  unquoteDecl bsInner = mkLens (quote BlockStore)
-             (bsInner ∷ [])
+  unquoteDecl bsInner   bsStorage = mkLens (quote BlockStore)
+             (bsInner ∷ bsStorage ∷ [])
 
   -- getter only in Haskell
   bsRoot : Lens BlockStore (Maybe ExecutedBlock)

@@ -63,11 +63,16 @@ module LibraBFT.ImplShared.Consensus.Types where
              (rsHighestCommittedRound ∷ rsCurrentRound ∷ rsPendingVotes ∷
               rsVoteSent ∷ [])
 
+  record ObmNeedFetch : Set where
+    constructor ObmNeedFetch∙new
+
   -- The parts of the state of a peer that are used to
   -- define the EpochConfig are the SafetyRules and ValidatorVerifier:
   record RoundManager : Set where
     constructor RoundManager∙new
     field
+      _rmObmNeedFetch     : ObmNeedFetch
+      -------------------------
       _rmEpochState       : EpochState
       _rmBlockStore       : BlockStore
       _rmRoundState       : RoundState
@@ -76,9 +81,11 @@ module LibraBFT.ImplShared.Consensus.Types where
       _rmSafetyRules      : SafetyRules
       _rmSyncOnly         : Bool
   open RoundManager public
-  unquoteDecl rmEpochState   rmBlockStore   rmRoundState   rmProposerElection
+  unquoteDecl rmObmNeedFetch
+              rmEpochState   rmBlockStore   rmRoundState   rmProposerElection
               rmProposalGenerator   rmSafetyRules   rmSyncOnly = mkLens (quote RoundManager)
-             (rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷
+             (rmObmNeedFetch ∷
+              rmEpochState ∷ rmBlockStore ∷ rmRoundState ∷ rmProposerElection ∷
               rmProposalGenerator ∷ rmSafetyRules ∷ rmSyncOnly ∷ [])
 
   -- IMPL-DIFF: this is RoundManager field/lens in Haskell; and it is implemented completely different
@@ -122,6 +129,9 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   lPersistentSafetyStorage : Lens RoundManager PersistentSafetyStorage
   lPersistentSafetyStorage = lSafetyRules ∙ srPersistentStorage
+
+  lObmNeedFetch : Lens RoundManager ObmNeedFetch
+  lObmNeedFetch = rmObmNeedFetch
 
   -- getter only in Haskell
   pgAuthor : Lens RoundManager (Maybe Author)
