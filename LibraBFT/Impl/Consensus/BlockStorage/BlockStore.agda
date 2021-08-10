@@ -63,7 +63,7 @@ commitM finalityProof = do
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of λ where
       nothing →
-        bail (ErrBlockNotFound blockIdToCommit)
+        bail (ErrCBlockNotFound blockIdToCommit)
       (just blockToCommit) →
         ifM‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
              bail fakeErr -- "commit block round lower than root"
@@ -142,8 +142,13 @@ executeAndInsertBlockE bs0 block =
     else do
       eb ← case executeBlockE bs0 block of λ where
         (Right res) → Right res
-        (Left (ErrBlockNotFound parentBlockId)) → do
+        -- OBM-LBFT-DIFF : This is never thrown in OBM.
+        -- Because it is thrown by StateComputer in Rust (but not in OBM).
+        (Left (ErrECCBlockNotFound parentBlockId)) → do
           eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
+            -- OBM-LBFT-DIFF : OBM StateComputer does NOT have state.
+            -- If it ever does have state then the following 'forM' will
+            -- need to change to some sort of 'fold'.
             case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
               (Left  e) → Left e
               (Right _) → executeBlockE bs0 block
@@ -156,13 +161,10 @@ executeAndInsertBlockE bs0 block =
       pure ((bs0 & bsInner ∙~  bt') , eb')
 
 
-executeBlockE bs block =
-  if is-nothing (getBlock (block ^∙ bParentId) bs)
-    then Left (ErrBlockNotFound {-(here ["block with missing parent"])-} (block ^∙ bParentId))
-    else {- do
-      let compute            = bs ^. bsStateComputer.scCompute
-          stateComputeResult = compute (bs^.bsStateComputer) block (block^.bParentId) -}
-      pure (ExecutedBlock∙new block stateComputeResult)
+executeBlockE bs block = do
+  -- let compute        = bs ^. bsStateComputer.scCompute
+  -- stateComputeResult ← compute (bs^.bsStateComputer) block (block^.bParentId)
+  pure (ExecutedBlock∙new block stateComputeResult)
 
 ------------------------------------------------------------------------------
 
@@ -184,7 +186,7 @@ insertSingleQuorumCertM qc = do
 
 insertSingleQuorumCertE bs qc =
   maybeS (getBlock (qc ^∙ qcCertifiedBlock ∙ biId) bs)
-         (Left (ErrBlockNotFound
+         (Left (ErrCBlockNotFound
                   -- (here ["insert QC without having the block in store first"])
                   (qc ^∙ qcCertifiedBlock ∙ biId)))
          (λ executedBlock →
