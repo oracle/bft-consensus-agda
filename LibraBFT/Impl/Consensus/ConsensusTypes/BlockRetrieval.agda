@@ -4,9 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Base.PKCS hiding (verify)
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockData  as BlockData
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
@@ -23,7 +26,27 @@ import      Data.String                                       as String
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval where
 
-postulate
-  verify
-    : BlockRetrievalResponse → HashValue → U64 → ValidatorVerifier
-    → Either ErrLog Unit
+verify : BlockRetrievalResponse → HashValue → U64 → ValidatorVerifier → Either ErrLog Unit
+verify self blockId numBlocks sigVerifier =
+  grd‖ self ^∙ brpStatus /= BRSSucceeded ≔
+       Left fakeErr -- here ["/= BRSSucceeded"]
+     ‖ length (self ^∙ brpBlocks) /= numBlocks ≔
+       Left fakeErr -- here ["not enough blocks returned", show (self^.brpBlocks), show numBlocks]
+     ‖ otherwise≔
+       verifyBlocks (self ^∙ brpBlocks)
+ where
+  here' : List String.String → List String.String
+  here' t = "BlockRetrieval" ∷ "verify" ∷ t
+
+  verifyBlock : HashValue → Block → Either ErrLog HashValue
+
+  verifyBlocks : List Block → Either ErrLog Unit
+  verifyBlocks blks = {!!} -- foldM_ verifyBlock blockId blks
+
+  verifyBlock expectedId block = do
+    Block.validateSignature block sigVerifier
+    Block.verifyWellFormed  block
+    lcheck (block ^∙ bId == expectedId)
+           (here' ("blocks do not form a chain" ∷ [])) -- lsHV (block^.bId), lsHV expectedId
+    pure (block ^∙ bParentId)
+

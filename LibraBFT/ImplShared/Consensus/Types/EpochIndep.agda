@@ -3,6 +3,7 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap            as Map
@@ -864,6 +865,21 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     BRSSucceeded BRSIdNotFound BRSNotEnoughBlocks : BlockRetrievalStatus
   open BlockRetrievalStatus public
   postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
+
+  brs-eq : (brs₁ brs₂ : BlockRetrievalStatus) → Dec (brs₁ ≡ brs₂)
+  brs-eq BRSSucceeded       BRSSucceeded       = yes refl
+  brs-eq BRSSucceeded       BRSIdNotFound      = no λ ()
+  brs-eq BRSSucceeded       BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSIdNotFound      BRSSucceeded       = no λ ()
+  brs-eq BRSIdNotFound      BRSIdNotFound      = yes refl
+  brs-eq BRSIdNotFound      BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSSucceeded       = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSIdNotFound      = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSNotEnoughBlocks = yes refl
+
+  instance
+    Eq-BlockRetrievalStatus : Eq BlockRetrievalStatus
+    Eq._≟_ Eq-BlockRetrievalStatus = brs-eq
 
   record BlockRetrievalResponse : Set where
     constructor BlockRetrievalResponse∙new
