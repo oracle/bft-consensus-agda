@@ -288,17 +288,22 @@ module processProposalMSpec (proposal : Block) where
           pf (Left _) vrc ._ refl =
             mkContract rmInv₂ EAVSpec.noEpochChange noProposals
               vac
-              (obm-dangerous-magic' "TODO: waiting on contract for executeAndVoteM")
-              (obm-dangerous-magic' "TODO: waiting on contract for executeAndVoteM")
-              (obm-dangerous-magic' "TODO: waiting on contract for executeAndVoteM")
+              qcOuts EAVSpec.qcPost EAVSpec.qcPres
             where
+            noMsgs : NoMsgs (outs ++ LogErr _ ∷ [])
+            noMsgs = ++-NoMsgs outs (LogErr _ ∷ []) EAVSpec.noMsgOuts refl
+
             noProposals : NoProposals (outs ++ LogErr _ ∷ [])
-            noProposals = ++-NoProposals outs _ (NoMsgs⇒NoProposals outs EAVSpec.noMsgOuts) refl
+            noProposals = NoMsgs⇒NoProposals (outs ++ LogErr _ ∷ []) noMsgs
 
             vac : Voting.VoteAttemptCorrect pre st (outs ++ LogErr _ ∷ []) proposal
             vac = inj₁ (EAVSpec.lvr≡?
                        , Voting.mkVoteUnsentCorrect
-                           (OutputProps.++-NoVotes outs _ (OutputProps.NoMsgs⇒NoVotes outs EAVSpec.noMsgOuts) refl) vrc)
+                           (NoMsgs⇒NoVotes (outs ++ LogErr _ ∷ []) noMsgs) vrc)
+
+            qcOuts : QCProps.OutputQc∈RoundManager (outs ++ LogErr _ ∷ []) st
+            qcOuts = QCProps.NoMsgs⇒OutputQc∈RoundManager (outs ++ LogErr _ ∷ []) st noMsgs
+
           pf (Right vote) vrc ._ refl ._ refl ._ refl =
             syncInfoMSpec.contract (st & rsVoteSent-rm ?~ vote)
               (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ Contract outs))
@@ -364,10 +369,20 @@ module processProposalMSpec (proposal : Block) where
                     ... | true = absurd false ≡ true case isj of λ ()
 
                 qcPost : QCProps.∈Post⇒∈PreOr pre stUpdateRS (_≡ proposal ^∙ bQuorumCert)
-                qcPost qc qc∈st = obm-dangerous-magic' "TODO: waiting on contract for executeAndVoteM"
+                qcPost qc qc∈stUpdateRS = EAVSpec.qcPost qc (qc∈st qc∈stUpdateRS)
+                  where
+                  qc∈st : qc QCProps.∈RoundManager stUpdateRS → qc QCProps.∈RoundManager st
+                  qc∈st (QCProps.inHQC qc≡) = QCProps.inHQC qc≡
+                  qc∈st (QCProps.inHCC qc≡) = QCProps.inHCC qc≡
 
                 qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre stUpdateRS
-                qcPres qc = obm-dangerous-magic' "TODO: waiting on contract for executeAndVoteM"
+                qcPres qc =
+                  transPreserves (qc QCProps.∈RoundManager_){pre}{st}{stUpdateRS}
+                    (EAVSpec.qcPres qc) lem
+                  where
+                  lem : ∀ {qc} → Preserves (qc QCProps.∈RoundManager_) st stUpdateRS
+                  lem (QCProps.inHQC qc≡) = QCProps.inHQC qc≡
+                  lem (QCProps.inHCC qc≡) = QCProps.inHCC qc≡
 
                 -- state invariants
                 module _ where
