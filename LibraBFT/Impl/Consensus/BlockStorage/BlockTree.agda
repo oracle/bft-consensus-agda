@@ -60,44 +60,56 @@ insertBlockE block bt = do
 
 ------------------------------------------------------------------------------
 
-insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
-insertQuorumCertE qc bt0 = do
-  let blockId = qc ^∙ qcCertifiedBlock ∙ biId
+module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
 
-  let safetyInvariant : Either ErrLog Unit
-      safetyInvariant = forM_ (Map.elems (bt0 ^∙ btIdToQuorumCert)) $ \x →
-        lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
-                ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
-                ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
-                /=  qc ^∙ qcCertifiedBlock ∙ biRound))
-               (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
-
-  case safetyInvariant of λ where
-    (Left  e)    → Left e
-    (Right unit) →
-      maybeS (btGetBlock blockId bt0) (Left fakeErr) $ λ block →
-      maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ λ hcb →
-      if-dec ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
-      then
-       (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
-                       & btHighestQuorumCert       ∙~ qc
-            info = (fakeInfo ∷ [])
-         in pure (continue1 bt  blockId block info))
-      else  pure (continue1 bt0 blockId block [])
- where
-  continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
-
+  step₀     : Either ErrLog (BlockTree × List InfoLog)
+  step₁     : HashValue → Either ErrLog (BlockTree × List InfoLog)
+  step₂     : HashValue → ExecutedBlock → Either ErrLog (BlockTree × List InfoLog)
+  step₃     : HashValue → ExecutedBlock → ExecutedBlock → Either ErrLog (BlockTree × List InfoLog)
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
+  continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
+  here' : List String.String → List String.String
+  here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
+
+  blockId = qc ^∙ qcCertifiedBlock ∙ biId
+
+  safetyInvariant = forM_ (Map.elems (bt0 ^∙ btIdToQuorumCert)) $ \x →
+          lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
+                  ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
+                  ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
+                  /=  qc ^∙ qcCertifiedBlock ∙ biRound))
+                 (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
+  step₀ =
+    case safetyInvariant of λ where
+      (Left  e)    → Left e
+      (Right unit) → step₁ blockId
+
+  step₁ blockId =
+        maybeS (btGetBlock blockId bt0) (Left fakeErr) $ step₂ blockId
+
+  step₂ blockId block =
+        maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ step₃ blockId block 
+
+  step₃ blockId block hcb =
+        if-dec ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
+        then
+         (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                         & btHighestQuorumCert       ∙~ qc
+              info = (fakeInfo ∷ [])
+           in pure (continue1 bt  blockId block info))
+        else  pure (continue1 bt0 blockId block [])
+
   continue1 bt blockId block info =
     continue2 ( bt & btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert))
               ( (fakeInfo ∷ info) ++ (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [] ))
+
   continue2 bt info =
     if-dec (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
     then ((bt & btHighestCommitCert ∙~ qc) , info)
     else (bt , info)
 
-  here' : List String.String → List String.String
-  here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
+insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
+insertQuorumCertE = insertQuorumCertE.step₀
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
