@@ -96,27 +96,27 @@ handlePreservesSigsB4 :
     → ReachableSystemState pre
     → (sndr , nm) ∈ msgPool pre
     → QCProps.SigsForVotes∈Rm-SentB4 (msgPool pre) (LBFT-post (handle pid nm 0) (peerStates pre pid))
-handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hyp nm m∈pool
+handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hyp
    where
    hPool = msgPool pre
    hPre  = peerStates pre pid
-   module _ (nm : NetworkMsg) {sndr : _} (m∈pool : (sndr , nm) ∈ hPool) where
-     hPost = LBFT-post (handle pid nm 0) hPre
 
-     qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr hPre hPost (_QC∈NM nm)
-     qcPost' (P pm) refl = qcPost
-        where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
-     qcPost' (V vm) refl = qcPost
-        where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hPool hPre)
-     qcPost' (C cm) refl = obm-dangerous-magic' "TODO: waiting on commit message handler and contract"
+   hPost = LBFT-post (handle pid nm 0) hPre
 
-     hyp : QCProps.SigForVote∈Rm-SentB4 v pk qc hPost hPool
-     hyp qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
-        with qcPost' nm refl qc qc∈hpPst
-     ...| Left qc∈hpPre =
-       qcVoteSigsSentB4 pid pre preach qc∈hpPre sig vs∈qcvs ≈v ¬gen
-     ...| Right qc∈m =
-        mkMsgWithSig∈ nm v (vote∈qc vs∈qcvs ≈v qc∈m) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
+   qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr hPre hPost (_QC∈NM nm)
+   qcPost' (P pm) refl = qcPost
+      where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
+   qcPost' (V vm) refl = qcPost
+      where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hPool hPre)
+   qcPost' (C cm) refl = obm-dangerous-magic' "TODO: waiting on commit message handler and contract"
+
+   hyp : QCProps.SigForVote∈Rm-SentB4 v pk qc hPost hPool
+   hyp qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
+      with qcPost' nm refl qc qc∈hpPst
+   ...| Left qc∈hpPre =
+     qcVoteSigsSentB4 pid pre preach qc∈hpPre sig vs∈qcvs ≈v ¬gen
+   ...| Right qc∈m =
+      mkMsgWithSig∈ nm v (vote∈qc vs∈qcvs ≈v qc∈m) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
 
 qcVoteSigsSentB4 pid st step-0 = initRM-qcs
 qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} step@(step-cheat cmc)))

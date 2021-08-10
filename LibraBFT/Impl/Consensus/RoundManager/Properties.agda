@@ -66,6 +66,7 @@ module executeAndVoteMSpec (b : Block) where
         voteResultCorrect : VoteResultCorrect pre post lvr≡? r
         -- QCs
         qcPost : QCProps.∈Post⇒∈PreOr pre post (_≡ b ^∙ bQuorumCert)
+        qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre post
 
     contract'
       : LBFT-weakestPre (executeAndVoteM b) Contract pre
@@ -76,11 +77,20 @@ module executeAndVoteMSpec (b : Block) where
           contract-step₁
       where
       contractBail : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) pre outs
-      contractBail outs noMsgOuts =
+      contractBail{e} outs noMsgOuts =
         mkContract
           reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          noMsgOuts true (inj₁ reflVoteNotGenerated)
-          (obm-dangerous-magic' "TODO")
+          noMsgOuts true vrc
+          qcPost qcPres
+        where
+        vrc : VoteResultCorrect pre pre true (Left e)
+        vrc = inj₁ reflVoteNotGenerated
+
+        qcPost : QCProps.∈Post⇒∈PreOr pre pre (_≡ b ^∙ bQuorumCert)
+        qcPost qc = Left
+
+        qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre
+        qcPres qc = id
 
       module _
         (bs' : BlockStore) (eb : ExecutedBlock)
@@ -104,17 +114,20 @@ module executeAndVoteMSpec (b : Block) where
           srP : Preserves SafetyRulesInv pre preUpdateBS
           srP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
 
-          invP₁ : Preserves RoundManagerInv pre preUpdateBS
-          invP₁ = mkPreservesRoundManagerInv id id bsP srP
+        invP₁ : Preserves RoundManagerInv pre preUpdateBS
+        invP₁ = mkPreservesRoundManagerInv id id bsP srP
 
         qcPost₁ : QCProps.∈Post⇒∈PreOr pre preUpdateBS (_≡ b ^∙ bQuorumCert)
-        qcPost₁ qc qc∈preUpdateBS = obm-dangerous-magic' "TODO"
+        qcPost₁ qc qc∈preUpdateBS = obm-dangerous-magic' "TODO: waiting on contract for `BlockStore.executeAndInsertBlockM`"
+
+        qcPres₁ : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre preUpdateBS
+        qcPres₁ qc = obm-dangerous-magic' "TODO: waiting on contract for `BlockStore.executeAndInsertBlockM`"
 
         contractBailSetBS : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) preUpdateBS outs
         contractBailSetBS outs noMsgOuts =
           mkContract invP₁ refl
             noMsgOuts true (inj₁ (mkVoteNotGenerated refl refl))
-            (obm-dangerous-magic' "TODO")
+            qcPost₁ qcPres₁
 
         contract-step₁
           : RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
@@ -146,10 +159,13 @@ module executeAndVoteMSpec (b : Block) where
             pf' (Left _) vc =
               mkContract invP₂ CASVCon.noEpochChange CASVCon.noMsgOuts CASVCon.lvr≡?
                 (inj₁ (transVoteNotGenerated (mkVoteNotGenerated refl refl) vc))
-                qcPost
+                qcPost qcPres
               where
               qcPost : QCProps.∈Post⇒∈PreOr pre st (_≡ b ^∙ bQuorumCert)
               qcPost qc qc∈st = obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract"
+
+              qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre st
+              qcPres qc = obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract"
             pf' (Right vote) vc ._ refl rewrite eb≡b =
               PersistentLivenessStorageProps.saveVoteMSpec.contract vote
                 (RWST-weakestPre-ebindPost unit (const (ok vote)) (RWST-Post++ Contract outs)) st
@@ -167,12 +183,14 @@ module executeAndVoteMSpec (b : Block) where
                     CASVCon.lvr≡?
                     (inj₂ (Voting.mkVoteGeneratedUnsavedCorrect vote vgc))
                     (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
+                    (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
 
                 onSaveSucceeded : _
                 onSaveSucceeded outs₁ noMsgOuts₁ noErrOuts₁ .unit refl =
                   mkContract invP₂ CASVCon.noEpochChange
                     (OutputProps.++-NoMsgs outs _ CASVCon.noMsgOuts (OutputProps.++-NoMsgs outs₁ _ noMsgOuts₁ refl))
                     CASVCon.lvr≡? vgc
+                    (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
                     (obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract")
 
     contract
