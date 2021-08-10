@@ -45,6 +45,15 @@ pathFromRootM
 
 ------------------------------------------------------------------------------
 
+postulate
+  build
+    : RootInfo      → RootMetadata
+    → List Block    → List QuorumCert           → Maybe TimeoutCertificate
+    → {-StateComputer →-} PersistentLivenessStorage → Usize
+    → Either ErrLog BlockStore
+
+------------------------------------------------------------------------------
+
 commitM
   : LedgerInfoWithSignatures
   → LBFT (Either ErrLog Unit)
@@ -75,6 +84,37 @@ commitM finalityProof = do
     -- The details of this connection yet have not been settled yet.
     -- TODO-1: Once the details are determined, then make the connection.
     ok unit
+
+------------------------------------------------------------------------------
+
+rebuildM : RootInfo → RootMetadata → List Block → List QuorumCert → LBFT (Either ErrLog Unit)
+rebuildM root rootMetadata blocks quorumCerts = do
+  -- logEE lEC (here []) $ do
+  self0 ← use lBlockStore
+  case build
+         root rootMetadata blocks quorumCerts
+         (self0 ^∙ bsHighestTimeoutCert)
+         --(self0 ^∙ bsStateComputer) -- the agda code does not have a state computer (yet?)
+         (self0 ^∙ bsStorage)
+         (self0 ^∙ bsInner ∙ btMaxPrunedBlocksInMem) of λ where
+    (Left  e)    → bail e
+    (Right (BlockStore∙new inner _)) → do
+      toRemove ← BlockTree.getAllBlockIdM
+      PersistentLivenessStorage.pruneTreeM toRemove ∙?∙  λ _ → do
+       lRoundManager ∙ rmBlockStore ∙ bsInner ∙= inner
+       self1 ← use lBlockStore
+       maybeS (self1 ^∙ bsRoot) (bail fakeErr {-bsRootErrL here-}) $ λ bsr → do
+        if-RWST self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
+          then
+            (commitM (self1 ^∙ bsHighestCommitCert ∙ qcLedgerInfo) ∙^∙
+              withErrCtx (here' ("commitM failed" ∷ [])) ∙?∙  λ _ →
+              ok unit)
+          else ok unit
+ where
+  here' : List String.String → List String.String
+  here' t =
+    "BlockStore" ∷ "rebuildM" ∷ t
+    -- lsRI root : lsRMD rootMetadata : lsBs blocks : lsQCs quorumCerts : t
 
 ------------------------------------------------------------------------------
 
@@ -166,7 +206,7 @@ insertSingleQuorumCertE bs qc =
          (Left (ErrBlockNotFound
                   -- (here ["insert QC without having the block in store first"])
                   (qc ^∙ qcCertifiedBlock ∙ biId)))
-         (λ executedBlock ->
+         (λ executedBlock →
              if ExecutedBlock.blockInfo executedBlock /= qc ^∙ qcCertifiedBlock
              then Left fakeErr
  --                      (ErrL (here [ "QC for block has different BlockInfo than EB"
@@ -196,6 +236,9 @@ insertTimeoutCertificateM tc = do
         ok unit
 
 ------------------------------------------------------------------------------
+
+blockExists : HashValue → BlockStore → Bool
+blockExists hv bs = Map.kvm-member hv (bs ^∙ bsInner ∙ btIdToBlock)
 
 getBlock hv bs = btGetBlock hv (bs ^∙ bsInner)
 
