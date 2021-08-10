@@ -484,6 +484,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   _≈Block_ : (b₁ b₂ : Block) → Set
   b₁ ≈Block b₂ = b₁ ≡ record b₂ { _bSignature = _bSignature b₁ }
 
+  sym≈Block : Symmetric _≈Block_
+  sym≈Block refl = refl
+
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
     field
