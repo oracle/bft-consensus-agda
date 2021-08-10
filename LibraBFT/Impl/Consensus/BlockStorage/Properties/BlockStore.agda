@@ -194,7 +194,7 @@ module executeAndInsertBlockMSpec (b : Block) where
 module insertSingleQuorumCertMSpec
   (qc : QuorumCert) where
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  module _ (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -206,8 +206,8 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        qcSigsB4 : QCProps.QCRequirements pool qc
-                   → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+        qcSigsB4      : ∀ {pool} → QCProps.QCRequirements pool qc
+                        → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
 
     postulate -- TODO-2: prove
