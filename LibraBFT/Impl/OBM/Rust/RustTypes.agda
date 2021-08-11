@@ -8,6 +8,8 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Rust.RustTypes where
 
+-- TODO-2 : reasoning about integer overflow
+
 U64 : Set
 U64 = ℕ
 
