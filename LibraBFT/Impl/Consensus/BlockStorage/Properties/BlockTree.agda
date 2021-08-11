@@ -93,7 +93,7 @@ module insertQuorumCertESpec
     with          bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId &    btHighestQuorumCert ∙~ qc
        | inspect (bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId &_) (btHighestQuorumCert ∙~ qc)
        | fakeInfo ∷ []
-  ...| bt₃-true | [ R ] | il₃-true
+  ...| bt₃-true | [ refl ] | il₃-true
     with  if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then bt₃-true else   bt0               | inspect
          (if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then bt₃-true else_) bt0               |
           if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then il₃-true else   []                | inspect
@@ -120,8 +120,14 @@ module insertQuorumCertESpec
          xxx : ∀ {A : Set} {a : A} {x : A} {y : Either ErrLog A} → y ≡ Right a → pure x ≡ y → x ≡ a
          xxx {A} {a} {x} refl refl = refl
     ... | true  =  obm-dangerous-magic' "TODO: first resolve 'easy' case above"
-    proj₁ (pf3 isOk) qc' qc'∈bt₃ = obm-dangerous-magic' "TODO: very similar to two proofs below, not identical, generalise?"
-
+    proj₁ (pf3 isOk) qc' qc'∈bt₃  -- TODO-2: Consider some lemmas to streamline proofs like this and
+                                  -- the two similar ones below
+       with ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋
+    ...| false = Left qc'∈bt₃
+    ...| true
+       with qc'∈bt₃
+    ...| inHQC x = Right x
+    ...| inHCC x = Left (inHCC x)
   ...| bt0→bt3 , continue1-ok
     with pf-continue1 continue1-ok
     where
