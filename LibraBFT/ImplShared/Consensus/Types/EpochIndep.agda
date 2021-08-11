@@ -910,7 +910,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- A block tree depends on a epoch config but works regardlesss of which
   -- EpochConfig we have.
   record BlockTree : Set where
-    constructor BlockTree∙new
+    constructor mkBlockTree
     field
       _btIdToBlock               : KVMap HashValue LinkableBlock
       _btRootId                  : HashValue

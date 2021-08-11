@@ -37,6 +37,10 @@ postulate
 --   then Left  fakeErr
 --   else Right (lb & lbChildren %~ Set.insert hv)
 
+postulate
+  new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
+      → Either ErrLog BlockTree
+
 replaceTimeoutCertM : TimeoutCertificate → LBFT Unit
 replaceTimeoutCertM tc = do
   lBlockStore ∙ bsInner ∙ btHighestTimeoutCert ?= tc

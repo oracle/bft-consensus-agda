@@ -225,6 +225,8 @@ module LibraBFT.Prelude where
     hiding (zip)
     public
 
+  fst = proj₁
+
   open import Data.Product.Properties
     public
 
