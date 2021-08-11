@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-{-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
@@ -20,7 +18,7 @@ module LibraBFT.Impl.Consensus.LedgerRecoveryData where
 
 postulate
   compareX  : (Epoch × Round) → (Epoch × Round) → Ordering
-  sortBy    : ((Epoch × Round) → (Epoch × Round) → Ordering) → List Block → List Block
+  sortBy    : (Block → Block → Ordering) → List Block → List Block
   findIndex : (Block → Bool) → List Block → Maybe ℕ
   deleteAt  : ℕ → List Block → List Block
   find      : (QuorumCert → Bool) → List QuorumCert -> Maybe QuorumCert
@@ -37,8 +35,8 @@ findRoot blocks0 quorumCerts0 (LedgerRecoveryData∙new storageLedger) = do
         else
            (storageLedger ^∙ liConsensusBlockId , (blocks0 , quorumCerts0))
       sorter : Block → Block → Ordering
-      sorter bl br = {!!} -- (bl ^∙ bEpoch , bl ^∙ bRound) ` compareX ` (br ^∙ bEpoch , br ^∙ bRound)
-      sortedBlocks = blocks0 -- TODO : ******************** sortBy sorter blocks1
+      sorter = λ bl br → compareX (bl ^∙ bEpoch , bl ^∙ bRound) (br ^∙ bEpoch , br ^∙ bRound)
+      sortedBlocks = sortBy sorter blocks1
   rootIdx          ← maybeS
         (findIndex (λ x → x ^∙ bId == rootId) sortedBlocks)
         (Left fakeErr) -- ["unable to find root", show rootId]
