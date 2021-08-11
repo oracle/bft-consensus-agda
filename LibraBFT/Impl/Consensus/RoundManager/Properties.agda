@@ -65,7 +65,7 @@ module executeAndVoteMSpec (b : Block) where
         lvr≡?             : Bool
         voteResultCorrect : VoteResultCorrect pre post lvr≡? r
         -- QCs
-        qcPost : QCProps.∈Post⇒∈PreOr pre post (_≡ b ^∙ bQuorumCert)
+        qcPost : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre post
         qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre post
 
     contract' :
@@ -89,7 +89,7 @@ module executeAndVoteMSpec (b : Block) where
         vrc : VoteResultCorrect pre pre true (Left e)
         vrc = inj₁ reflVoteNotGenerated
 
-        qcPost : QCProps.∈Post⇒∈PreOr pre pre (_≡ b ^∙ bQuorumCert)
+        qcPost : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre pre
         qcPost qc = Left
 
         qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre
@@ -117,7 +117,7 @@ module executeAndVoteMSpec (b : Block) where
         invP₁ : Preserves RoundManagerInv pre pre₁
         invP₁ = mkPreservesRoundManagerInv id id bsP srP
 
-        qcPost₁ : QCProps.∈Post⇒∈PreOr pre pre₁ (_≡ b ^∙ bQuorumCert)
+        qcPost₁ : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre pre₁
         qcPost₁ = EAIBECon.qcPost
 
         qcPres₁ : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre₁
@@ -154,7 +154,7 @@ module executeAndVoteMSpec (b : Block) where
 
             invP₂ = transPreservesRoundManagerInv invP₁ CASVCon.rmInv
 
-            qcPost₂ : QCProps.∈Post⇒∈PreOr pre pre₃ (_≡ b ^∙ bQuorumCert)
+            qcPost₂ : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre pre₃
             qcPost₂ = obm-dangerous-magic' "TODO: waiting on `constructAndSignVoteM` contract"
 
             qcPres₂ : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre₃
@@ -231,7 +231,7 @@ module processProposalMSpec (proposal : Block) where
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_≡ proposal ^∙ bQuorumCert)
+        qcPost    : QCProps.∈Post⇒∈PreOr (_≡ proposal ^∙ bQuorumCert) pre post
         qcsPres   : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre post
 
     contract' : LBFT-weakestPre (processProposalM proposal) Contract pre
@@ -265,7 +265,7 @@ module processProposalMSpec (proposal : Block) where
           outQcs : QCProps.OutputQc∈RoundManager outs pre
           outQcs = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre nmo
 
-          qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+          qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
           qcPost qc = Left
 
           qcPres : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre
@@ -368,7 +368,7 @@ module processProposalMSpec (proposal : Block) where
                     ... | false = refl
                     ... | true = absurd false ≡ true case isj of λ ()
 
-                qcPost : QCProps.∈Post⇒∈PreOr pre stUpdateRS (_≡ proposal ^∙ bQuorumCert)
+                qcPost : QCProps.∈Post⇒∈PreOr (_≡ proposal ^∙ bQuorumCert) pre stUpdateRS
                 qcPost qc qc∈stUpdateRS = EAVSpec.qcPost qc (qc∈st qc∈stUpdateRS)
                   where
                   qc∈st : qc QCProps.∈RoundManager stUpdateRS → qc QCProps.∈RoundManager st
@@ -420,7 +420,7 @@ module syncUpMSpec
         noVote        : VoteNotGenerated pre post true
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈SyncInfo syncInfo)
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
     contract' : LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Contract pre
     contract' =
@@ -439,7 +439,7 @@ module syncUpMSpec
         outQcs : QCProps.OutputQc∈RoundManager [] pre
         outQcs = QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl
 
-        qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+        qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
       proj₁ (contract₁ localSyncInfo lsi≡) hcn≡true vv@._ refl =
         verifyMSpec.contract syncInfo vv pre Post₁
@@ -466,7 +466,7 @@ module syncUpMSpec
                       (QCProps.NoMsgs⇒OutputQc∈RoundManager outs st VSpec.noMsgOuts)
                       (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
 
-           qcPost : QCProps.∈Post⇒∈PreOr st st _
+           qcPost : QCProps.∈Post⇒∈PreOr _ st st
            qcPost qc = Left
         contract₃ (Right y) st₃ outs₃ con₃ ._ refl
            | refl = λ where
@@ -533,7 +533,7 @@ module ensureRoundAndSyncUpMSpec
         noVote        : VoteNotGenerated pre post true
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost   : QCProps.∈Post⇒∈PreOr pre post (_QC∈SyncInfo syncInfo)
+        qcPost   : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
@@ -546,7 +546,7 @@ module ensureRoundAndSyncUpMSpec
         outqcs : QCProps.OutputQc∈RoundManager [] pre
         outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl
 
-        qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+        qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
 
     proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
@@ -606,7 +606,7 @@ module processProposalMsgMSpec
         voteAttemptCorrect : Voting.VoteAttemptCorrect pre post outs proposal
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈NM (P pm))
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre post
 
     contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
     contract' rewrite processProposalMsgM≡ = contract
@@ -621,7 +621,7 @@ module processProposalMsgMSpec
         outqcs : QCProps.OutputQc∈RoundManager outs pre
         outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre nmo
 
-        qcPost : QCProps.∈Post⇒∈PreOr pre pre _
+        qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
 
       contract : LBFT-weakestPre step₀ Contract pre
@@ -653,7 +653,7 @@ module processProposalMsgMSpec
                          ERASU.outQcs∈RM
                          (QCProps.NoMsgs⇒OutputQc∈RoundManager outs' st noMsgs')
 
-              qcPost : QCProps.∈Post⇒∈PreOr pre st (_QC∈NM (P pm))
+              qcPost : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre st
               qcPost qc qc∈st
                  with ERASU.qcPost qc qc∈st
               ... | Left qc∈pre = Left qc∈pre
@@ -686,7 +686,7 @@ module processProposalMsgMSpec
                              ERASU.outQcs∈RM)
                            (PP.outQcs∈RM con)
 
-                qcPost : QCProps.∈Post⇒∈PreOr pre st' (_QC∈NM (P pm))
+                qcPost : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre st'
                 qcPost qc qc∈st'
                    with PP.qcPost con qc qc∈st'
                 ...| Right refl = Right inP

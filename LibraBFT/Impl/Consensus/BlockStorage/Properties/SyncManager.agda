@@ -67,7 +67,7 @@ module insertQuorumCertMSpec
     proj₂ (contract' bs@._ refl) NeedFetch nf≡ =
       obm-dangerous-magic' "TODO: waiting on contract for `fetchQuorumCertM`"
     proj₂ (contract' bs@._ refl) QCBlockExist nf≡ =
-      insertSingleQuorumCertMSpec.contract qc pool pre Post₁ contract₁
+      insertSingleQuorumCertMSpec.contract qc pre Post₁ contract₁
       where
       Post₁ : LBFT-Post (Either ErrLog Unit)
       Post₁ =
@@ -75,7 +75,7 @@ module insertQuorumCertMSpec
           (RWST-weakestPre-ebindPost unit (λ _ → use lBlockStore >>= (λ _ → logInfo fakeInfo) >> ok unit)
             (RWST-weakestPre-bindPost unit (λ _ → step₁ bs) (Contract pool pre))))
 
-      module _ (r₁ : Either ErrLog Unit) (st₁ : RoundManager) (outs₁ : List Output) (con₁ : insertSingleQuorumCertMSpec.Contract qc pool pre r₁ st₁ outs₁) where
+      module _ (r₁ : Either ErrLog Unit) (st₁ : RoundManager) (outs₁ : List Output) (con₁ : insertSingleQuorumCertMSpec.Contract qc pre r₁ st₁ outs₁) where
         module ISQC = insertSingleQuorumCertMSpec.Contract con₁
 
         contract₁' : ∀ outs' → NoMsgs outs' → RWST-Post-⇒ (Contract pool st₁) (RWST-Post++ (Contract pool pre) outs')
@@ -90,7 +90,7 @@ module insertQuorumCertMSpec
           where
           module Step₁ = Contract con₂
 
-      contract₁ : RWST-Post-⇒ (insertSingleQuorumCertMSpec.Contract qc pool pre) Post₁
+      contract₁ : RWST-Post-⇒ (insertSingleQuorumCertMSpec.Contract qc pre) Post₁
       contract₁ (Left _) st₁ outs₁ con₁ ._ refl ._ refl =
         step₁Spec.contract bs pool st₁ (RWST-Post++ (Contract pool pre) (outs₁ ++ []))
           (contract₁' _ _ _ con₁ (outs₁ ++ [])
@@ -121,7 +121,7 @@ module addCertsMSpec
         noVote        : VoteNotGenerated pre post true
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost    : QCProps.∈Post⇒∈PreOr pre post (_QC∈SyncInfo syncInfo)
+        qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
     postulate
       contract' : LBFT-weakestPre (addCertsM syncInfo retriever) Contract pre

@@ -159,7 +159,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
      pf-step₆ isOk | IBCon | Right (bt' , eb“) | [ insp ]
         with isOk
      ...| refl =
-        mkContractOk ebBlock≈ btP qcPost qcPres
+        mkContractOk ebBlock≈ btP qcPost {- qcPost -} qcPres
         where
         module IBE = insertBlockESpec.ContractOk IBCon
 
@@ -177,7 +177,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         ...| Right col = ⊥-elim col -- TODO: propagate hash collision upward
         ...| Left pres = pres
 
-        qcPost : ∀ qc → qc QCProps.∈BlockTree bt' → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+        qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
         qcPost
            with insertBlockESpec.qcPost eb' (bs0 ^∙ bsInner) bt' eb“ IBCon
         ...| qcPost' rewrite eb≈ = qcPost'
@@ -208,7 +208,7 @@ module executeAndInsertBlockMSpec (b : Block) where
 module insertSingleQuorumCertMSpec
   (qc : QuorumCert) where
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  module _ (pre : RoundManager) where
 
     record Contract (r : Either ErrLog Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -220,8 +220,8 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        qcSigsB4 : QCProps.QCRequirements pool qc
-                   → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+        qcSigsB4      : ∀ {pool} → QCProps.QCRequirements pool qc
+                        → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 
 
     postulate -- TODO-2: prove
