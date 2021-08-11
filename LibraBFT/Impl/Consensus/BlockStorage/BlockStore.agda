@@ -143,12 +143,14 @@ executeAndInsertBlockE bs0 block =
       eb ← case executeBlockE bs0 block of λ where
         (Right res) → Right res
         -- OBM-LBFT-DIFF : This is never thrown in OBM.
-        -- Because it is thrown by StateComputer in Rust (but not in OBM).
+        -- It is thrown by StateComputer in Rust (but not in OBM).
         (Left (ErrECCBlockNotFound parentBlockId)) → do
           eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
             -- OBM-LBFT-DIFF : OBM StateComputer does NOT have state.
             -- If it ever does have state then the following 'forM' will
-            -- need to change to some sort of 'fold'.
+            -- need to change to some sort of 'fold' because 'executeBlockE'
+            -- would change the state, so the state passed to 'executeBlockE'
+            -- would no longer be 'bs0'.
             case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
               (Left  e) → Left e
               (Right _) → executeBlockE bs0 block
