@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBloc
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -35,6 +36,10 @@ executeBlockE
   : BlockStore → Block
   → Either ErrLog ExecutedBlock
 
+insertSingleQuorumCertE
+  : BlockStore → QuorumCert
+  → Either ErrLog (BlockStore × List InfoLog)
+
 pathFromRoot
   : HashValue → BlockStore
   → Either ErrLog (List ExecutedBlock)
@@ -45,12 +50,36 @@ pathFromRootM
 
 ------------------------------------------------------------------------------
 
-postulate
-  build
-    : RootInfo      → RootMetadata
-    → List Block    → List QuorumCert           → Maybe TimeoutCertificate
-    → {-StateComputer →-} PersistentLivenessStorage → Usize
-    → Either ErrLog BlockStore
+build
+  : RootInfo      → RootMetadata
+  → List Block    → List QuorumCert           → Maybe TimeoutCertificate
+  → {-StateComputer →-} PersistentLivenessStorage → Usize
+  → Either ErrLog BlockStore
+build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
+           {-stateComputer-} storage maxPrunedBlocksInMem = do
+  let (RootInfo∙new rootBlock rootQc rootLi) = root
+      {- LBFT-OBM-DIFF : OBM does not implement RootMetadata
+        assert_eq!(
+            root_qc.certified_block().version(),
+            root_metadata.version())
+        assert_eq!(
+            root_qc.certified_block().executed_state_id(),
+            root_metadata.accu_hash)
+      -}
+      executedRootBlock = ExecutedBlock∙new
+                            rootBlock
+                            stateComputeResult -- (StateComputeResult (stateComputer ^∙ scObmVersion) Nothing)
+  tree ← BlockTree.new executedRootBlock rootQc rootLi maxPrunedBlocksInMem highestTimeoutCert
+  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE bs b)
+                 (BlockStore∙new tree {-stateComputer-} storage)
+                 blocks
+  (foldM) go bs1 quorumCerts
+ where
+  go : BlockStore → QuorumCert
+     → Either ErrLog BlockStore
+  go bs qc = case insertSingleQuorumCertE bs qc of λ where
+    (Left e)              → Left e
+    (Right (bs' , _info)) → Right bs'
 
 ------------------------------------------------------------------------------
 
@@ -170,10 +199,6 @@ executeBlockE bs block = do
   pure (ExecutedBlock∙new block stateComputeResult)
 
 ------------------------------------------------------------------------------
-
-insertSingleQuorumCertE
-  : BlockStore → QuorumCert
-  → Either ErrLog (BlockStore × List InfoLog)
 
 insertSingleQuorumCertM
   : QuorumCert

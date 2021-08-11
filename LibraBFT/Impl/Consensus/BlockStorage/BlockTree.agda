@@ -13,6 +13,7 @@ open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBloc
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.OBM.Prelude
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -27,15 +28,36 @@ import      Data.String as String
 module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
 postulate
-  addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
+  linkableBlockNew : ExecutedBlock → LinkableBlock
 
-------------------------------------------------------------------------------
+postulate
+  addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 
 -- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 -- addChild lb hv =
 --   if Set.member hv (lb ^∙ lbChildren)
 --   then Left  fakeErr
 --   else Right (lb & lbChildren %~ Set.insert hv)
+
+new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
+    → Either ErrLog BlockTree
+new root0 rootQuorumCert rootLedgerInfo maxPruned mHighestTimeoutCert = do
+  lcheck ((root0 ^∙ ebId) == (rootLedgerInfo ^∙ qcCommitInfo ∙ biId))
+         ("BlockTree" ∷ "newBlockTree" ∷ "inconsistent root and ledger info" ∷ [])
+  let idToBlock      = Map.insert (root0 ^∙ ebId) (linkableBlockNew root0) Map.empty
+      idToQuorumCert = Map.insert (rootQuorumCert ^∙ qcCertifiedBlock ∙ biId) rootQuorumCert Map.empty
+      prunedBlockIds = vdNew -- TODO
+   in pure $ mkBlockTree
+    idToBlock
+    (root0 ^∙ ebId)     -- _btRootId
+    (root0 ^∙ ebId)     -- _btHighestCertifiedBlockId
+    rootQuorumCert      -- _btHighestQuorumCert
+    mHighestTimeoutCert
+    rootLedgerInfo      -- _btHighestCommitCert
+    idToQuorumCert
+    prunedBlockIds
+    maxPruned
+
 
 replaceTimeoutCertM : TimeoutCertificate → LBFT Unit
 replaceTimeoutCertM tc = do

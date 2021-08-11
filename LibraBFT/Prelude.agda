@@ -225,6 +225,8 @@ module LibraBFT.Prelude where
     hiding (zip)
     public
 
+  fst = proj₁
+
   open import Data.Product.Properties
     public
 
@@ -494,6 +496,17 @@ module LibraBFT.Prelude where
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
+
+  foldlM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M B
+  foldlM _ z      []  = pure z
+  foldlM f z (x ∷ xs) = do
+    z' ← f z x
+    foldlM f z' xs
+
+  foldM = foldlM
+
+  foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
+  foldM_ f a xs = foldlM f a xs >> pure unit
 
   open import LibraBFT.Base.Util public
 

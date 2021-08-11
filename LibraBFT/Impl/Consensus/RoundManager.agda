@@ -412,12 +412,8 @@ processBlockRetrievalRequestM _now request = do
     e  ← use (lRoundManager ∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch)
     r  ← use (lRoundManager ∙ rmRoundState ∙ rsCurrentRound)
     let meer = (me , e , r)
-    bs   ← use lBlockStore
-    -- TODO-1: define and use SendBRP
-    -- act (SendBRP lSI (request^∙brqObmFrom) (xxx meer bs [] (request^∙brqBlockId)))
-    -- The following is just to get parts of the "act" together.
-    let rsp = mkRsp request meer bs [] (request ^∙ brqBlockId)
-    pure unit
+    bs ← use lBlockStore
+    act (SendBRP (request ^∙ brqObmFrom) (mkRsp request meer bs [] (request ^∙ brqBlockId)))
 
 mkRsp request meer bs blocks id =
     if-dec length blocks <? request ^∙ brqNumBlocks

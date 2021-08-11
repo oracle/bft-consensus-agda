@@ -33,6 +33,10 @@ isGenesisBlock b = BlockData.isGenesisBlock (b ^∙ bBlockData)
 isNilBlock : Block → Bool
 isNilBlock b = BlockData.isNilBlock (b ^∙ bBlockData)
 
+postulate
+  -- This is not needed until epoch change is implements/supported.
+  makeGenesisBlockFromLedgerInfo : LedgerInfo → Block
+
 newProposalFromBlockDataAndSignature : BlockData → Signature → Block
 newProposalFromBlockDataAndSignature blockData signature =
   Block∙new (hashBD blockData) blockData (just signature)
