@@ -67,6 +67,7 @@ initRS = RoundState∙new 0 0 PendingVotes∙new nothing
 
 initRM : RoundManager
 initRM = RoundManager∙new
+           ObmNeedFetch∙new
            (EpochState∙new 1 (initVV genesisInfo))
            initBS initRS initPE initPG initSR false
 

@@ -33,7 +33,7 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
   record ContractOk (bt“ : BlockTree) (b : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      bd≡ : b ≡L block at (ebBlock ∙ bBlockData)
+      block≈ : b [ _≈Block_ ]L block at ebBlock
       -- TODO-1: the returned block tree is the same as the previous block tree at all values not equal to b ^∙ ebId
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
@@ -53,7 +53,7 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
                 -- between b ^∙ ebBlock ∙ bBlockData and block ^∙ ebBlock ∙
                 -- bBlockdata
 
-      qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ ebBlock ∙ bQuorumCert) bt“ bt
+      qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ ebBlock ∙ bQuorumCert) bt bt“
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where

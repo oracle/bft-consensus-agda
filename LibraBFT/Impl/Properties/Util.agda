@@ -434,9 +434,9 @@ module Voting where
   record VoteMadeFromBlock (vote : Vote) (block : Block) : Set where
     constructor mkVoteMadeFromBlock
     field
-      epoch≡ : vote ^∙ vEpoch ≡ block ^∙ bEpoch
-      round≡ : vote ^∙ vRound ≡ block ^∙ bRound
-      proposedID : vote ^∙ vProposedId ≡ block ^∙ bId
+      epoch≡      : vote ^∙ vEpoch ≡ block ^∙ bEpoch
+      round≡      : vote ^∙ vRound ≡ block ^∙ bRound
+      proposedId≡ : vote ^∙ vProposedId ≡ block ^∙ bId
 
   VoteMadeFromBlock⇒VoteEpochRoundIs : ∀ {v b} → VoteMadeFromBlock v b → VoteEpochIs v (b ^∙ bEpoch) × VoteRoundIs v (b ^∙ bRound)
   VoteMadeFromBlock⇒VoteEpochRoundIs (mkVoteMadeFromBlock epoch≡ round≡ proposedID) = epoch≡ , round≡
@@ -452,6 +452,22 @@ module Voting where
     voteNew? = RoundManagerTransProps.isVoteNewGenerated pre post vote state
     field
       blockTriggered : VoteTriggeredByBlock vote block voteNew?
+
+  substVoteGeneratedCorrect
+    : ∀ {pre post vote} (block₁ block₂ : Block) → block₁ ≈Block block₂
+      → VoteGeneratedCorrect pre post vote block₁ → VoteGeneratedCorrect pre post vote block₂
+  substVoteGeneratedCorrect block₁ block₂ bd≡ (mkVoteGeneratedCorrect state blockTriggered)
+     with state
+  ...| RoundManagerTransProps.mkVoteGenerated lv≡v voteSrc
+     with voteSrc
+  ...| Left vog rewrite bd≡ =
+     mkVoteGeneratedCorrect (RoundManagerTransProps.mkVoteGenerated lv≡v (Left vog)) blockTriggered
+  ...| Right vng
+     with blockTriggered
+  ...| mkVoteMadeFromBlock epoch≡ round≡ proposedID rewrite bd≡
+     = mkVoteGeneratedCorrect
+         (RoundManagerTransProps.mkVoteGenerated lv≡v (Right vng))
+         (mkVoteMadeFromBlock epoch≡ round≡ proposedID)
 
   record VoteGeneratedUnsavedCorrect (pre post : RoundManager) (block : Block) : Set where
     constructor mkVoteGeneratedUnsavedCorrect

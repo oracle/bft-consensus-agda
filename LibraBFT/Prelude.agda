@@ -351,7 +351,8 @@ module LibraBFT.Prelude where
   isRight = Data.Bool.not ∘ isLeft
 
   -- a non-dependent eliminator
-  eitherS : ∀ {A B C : Set} (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
+  eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+            (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
@@ -363,7 +364,7 @@ module LibraBFT.Prelude where
   syntax flip' f = ` f `
 
   open import Data.String as String
-    hiding (_==_ ; _≟_)
+    hiding (_==_ ; _≟_ ; concat)
 
   check : Bool → List String → Either String Unit
   check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
@@ -443,6 +444,7 @@ module LibraBFT.Prelude where
     infixl 4 _<$>_
     field
       _<$>_ : ∀ {A B : Set ℓ₁} → (A → B) → F A → F B
+    fmap = _<$>_
 
   open Functor ⦃ ... ⦄ public
 
@@ -484,6 +486,10 @@ module LibraBFT.Prelude where
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
     Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
+
+    Monad-List : ∀ {ℓ} → Monad {ℓ}{ℓ} List
+    Monad.return Monad-List x = x ∷ []
+    Monad._>>=_  Monad-List x f = concat (List-map f x)
 
   maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
   maybeSMP ma b f = do
@@ -545,3 +551,9 @@ module LibraBFT.Prelude where
        with a ≟ b
     ... | no  proof = no λ where refl → proof refl
     ... | yes refl = yes refl
+
+  infixl 9 _!?_
+  _!?_ : {A : Set} → List A → ℕ → Maybe A
+  []       !?      _   = nothing
+  (x ∷ _ ) !?      0   = just x
+  (_ ∷ xs) !? (suc n)  = xs !? n

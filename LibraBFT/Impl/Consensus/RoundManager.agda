@@ -405,3 +405,42 @@ newTcAggregatedM now tc =
   BlockStore.insertTimeoutCertificateM tc >>= λ where
     (Left e)     → logErr e
     (Right unit) → processCertificatesM now
+
+------------------------------------------------------------------------------
+
+-- TODO-1 PROVE IT TERMINATES
+{-# TERMINATING #-}
+mkRsp : BlockRetrievalRequest → (Author × Epoch × Round) → BlockStore → List Block → HashValue
+      → BlockRetrievalResponse
+
+-- external entry point
+processBlockRetrievalRequestM : Instant → BlockRetrievalRequest → LBFT Unit
+processBlockRetrievalRequestM _now request = do
+  -- logEE lSI (here []) $ do
+  use (lRoundManager ∙ rmObmMe) >>= λ where
+    nothing → logErr fakeErr -- should not happen
+    (just me) → continue me
+ where
+
+  continue : Author → LBFT Unit
+  continue me = do
+    e  ← use (lRoundManager ∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch)
+    r  ← use (lRoundManager ∙ rmRoundState ∙ rsCurrentRound)
+    let meer = (me , e , r)
+    bs   ← use lBlockStore
+    -- TODO-1: define and use SendBRP
+    -- act (SendBRP lSI (request^∙brqObmFrom) (xxx meer bs [] (request^∙brqBlockId)))
+    -- The following is just to get parts of the "act" together.
+    let rsp = mkRsp request meer bs [] (request ^∙ brqBlockId)
+    pure unit
+
+mkRsp request meer bs blocks id =
+    if-dec length blocks <? request ^∙ brqNumBlocks
+    then
+      (case BlockStore.getBlock id bs of λ where
+        (just executedBlock) → mkRsp request meer bs (blocks ++ (executedBlock ^∙ ebBlock ∷ []))
+                                                     (executedBlock ^∙ ebParentId)
+        nothing → BlockRetrievalResponse∙new meer
+                    (if null blocks then BRSIdNotFound else BRSNotEnoughBlocks)
+                    blocks)
+    else BlockRetrievalResponse∙new meer BRSSucceeded blocks

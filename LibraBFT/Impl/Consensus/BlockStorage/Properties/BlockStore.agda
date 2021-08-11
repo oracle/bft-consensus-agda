@@ -36,7 +36,8 @@ module getBlockSpec (hv : HashValue) (bs : BlockStore) where
 
   postulate -- TODO-2: This contract will need to be modified when hash collisions are are modeled
     correctBlockData
-      : ∀ bd → hashBD bd ≡ hv → (isOk : Ok) → let (eb , _) = isOk in eb ^∙ ebBlock ∙ bBlockData ≡ bd
+      : ∀ bd → hashBD bd ≡ hv → (isOk : Ok) → let (eb , _) = isOk in
+          eb ^∙ ebBlock ≈Block record (eb ^∙ ebBlock) { _bId = hv ;  _bBlockData = bd }
 
 module executeBlockESpec (bs : BlockStore) (block : Block) where
 
@@ -46,7 +47,7 @@ module executeBlockESpec (bs : BlockStore) (block : Block) where
   record ContractOk (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≡ : eb ^∙ ebBlock ≡ block
+      ebBlock≈ : eb ^∙ ebBlock ≈Block block
 
   postulate -- TODO: Refine `ContractOk` and prove
     contract : (isOk : Ok) → ContractOk (proj₁ isOk)
@@ -69,26 +70,37 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlockData≡ : eb ^∙ ebBlock ≡L block at bBlockData
-      bsInv        : ∀ pre → pre ^∙ lBlockStore ≡ bs0
-                     → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-      qcPost       : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs' ^∙ bsInner) (bs0 ^∙ bsInner)
+      ebBlock≈ : eb ^∙ ebBlock ≈Block block
+      bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
+                 → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
+      -- TODO-2: The fields below should be about blocks, not QCs. The property
+      -- for QCs then follows as a consequence
+      qcPost : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
+               → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+      qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
+               → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & lBlockStore ∙~ bs')
+
+  Contract : Set
+  Contract = (isOk : Ok) → let (bs' , eb , _) = isOk in ContractOk bs' eb
 
   contract : (isOk : Ok) → let (bs' , eb , _) = isOk in ContractOk bs' eb
   contract (bs' , eb , isOk)
      with getBlock (block ^∙ bId) bs0
      |    inspect (getBlock (block ^∙ bId)) bs0
   contract (bs' , .eb , refl) | just eb | [ getbId≡ ] =
-    mkContractOk ebBlockData≡ (btP bs') (λ qc → Left)
+    mkContractOk ebBlock≈ {- ebBlockData≡ -} (btP bs') (λ qc → Left) qcPres
     where
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
     btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
 
-    ebBlockData≡ : eb ^∙ ebBlock ≡L block at bBlockData
-    ebBlockData≡ =
+    ebBlock≈ : eb ^∙ ebBlock ≈Block block
+    ebBlock≈ =
       getBlockSpec.correctBlockData (block ^∙ bId) bs0 (block ^∙ bBlockData)
         (obm-dangerous-magic' "TODO: propagate this information from `Network.processProposal`")
         (eb , getbId≡)
+
+    qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs' → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ bs')
+    qcPres pre refl qc = id
 
   ...| nothing | [ getbId≡ ]
     with pf-step₂ isOk
@@ -108,11 +120,11 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   ...| br>bsrr , isOk₃
      with pf-step₄ isOk₃
      where
-     pf-step₄ : Ok' bs' eb (step₄ bsr) → ∃[ eb' ] (eb' ^∙ ebBlock ≡L block at bBlockData × Ok' bs' eb (step₅ bsr eb'))
+     pf-step₄ : Ok' bs' eb (step₄ bsr) → ∃[ eb' ] (eb' ^∙ ebBlock ≈Block block × Ok' bs' eb (step₅ bsr eb'))
      pf-step₄ isOk
         with executeBlockE bs0 block
         |    inspect (executeBlockE bs0) block
-     ...| Right res | [ ebe≡ ] = res , ((cong (_^∙ bBlockData) EB.ebBlock≡) , isOk)
+     ...| Right res | [ ebe≡ ] = res , EB.ebBlock≈ , isOk
        where
        module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (res , ebe≡))
      ...| Left (ErrBlockNotFound parentBlockId) | [ ebe≡ ]
@@ -126,10 +138,10 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
      -- NOTE: The case below is unreachable, since we already know the result of
      -- `executeBlockE bs0 block`. This likely means the model (and Haskell
      -- prototype) needs to be updated.
-     ...| Right eb' | [ ebe≡₁ ] = eb' , (cong (_^∙ bBlockData) EB.ebBlock≡) , isOk
+     ...| Right eb' | [ ebe≡₁ ] = eb' , EB.ebBlock≈ , isOk
         where
         module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (eb' , ebe≡₁))
-  ...| eb' , ebbd≡ , isOk₅
+  ...| eb' , eb≈ , isOk₅
      with pf-step₅ isOk₅
      where
      pf-step₅ : Ok' bs' eb (step₅ bsr eb') → Ok' bs' eb (step₆ bsr eb')
@@ -147,15 +159,15 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
      pf-step₆ isOk | IBCon | Right (bt' , eb“) | [ insp ]
         with isOk
      ...| refl =
-        mkContractOk ebBlockData≡ btP qcPost
+        mkContractOk ebBlock≈ btP qcPost {- qcPost -} qcPres
         where
         module IBE = insertBlockESpec.ContractOk IBCon
 
-        ebBlockData≡ : eb“ ^∙ ebBlock ≡L block at bBlockData
-        ebBlockData≡ = begin
-          eb“ ^∙ ebBlock ∙ bBlockData ≡⟨ IBE.bd≡ ⟩
-          eb' ^∙ ebBlock ∙ bBlockData ≡⟨ ebbd≡ ⟩
-          block ^∙ bBlockData ∎
+        ebBlock≈ : eb“ ^∙ ebBlock ≈Block block
+        ebBlock≈ = sym≈Block $ begin
+          block                                                  ≡⟨ sym≈Block eb≈ ⟩
+          (eb' ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature)) ≡⟨ sym≈Block IBE.block≈ ⟩
+          (eb“ ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature)) ∎
           where open ≡-Reasoning
 
         btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ bs')
@@ -165,31 +177,33 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         ...| Right col = ⊥-elim col -- TODO: propagate hash collision upward
         ...| Left pres = pres
 
-        qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) bt' (bs0 ^∙ bsInner)
+        qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
         qcPost
            with insertBlockESpec.qcPost eb' (bs0 ^∙ bsInner) bt' eb“ IBCon
-        ...| qcPost' rewrite ebbd≡ = qcPost'
+        ...| qcPost' rewrite eb≈ = qcPost'
 
-  postulate -- TODO-2: prove
-    -- More properties are likely going to required in the future, as well.
-    ebBlock≡ : ∀ {bs' eb} → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb) → eb ^∙ ebBlock ≡ block
-    bs'BlockInv
-      : ∀ {bs' eb pre}
-        → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
-        → bs0 ≡ pre ^∙ lBlockStore
-        → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
+        qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
+                 → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ BlockStore∙new bt' (bs0 ^∙ bsStorage))
+        qcPres = obm-dangerous-magic' "TODO: refine contract for `executeAndInsertBlockE`"
 
 module executeAndInsertBlockMSpec (b : Block) where
   -- NOTE: This function returns any errors, rather than producing them as output.
-  contract
-    : ∀ pre Post
-      → (∀ e → Left e ≡ executeAndInsertBlockE (pre ^∙ lBlockStore) b → Post (Left e) pre [])
-      → (∀ bs' eb → Right (bs' , eb) ≡ executeAndInsertBlockE (pre ^∙ lBlockStore) b
-         → Post (Right eb) (pre & lBlockStore ∙~ bs') [])
-      → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
-  proj₁ (contract pre Post pfBail pfOk ._ refl) e eaibLeft = pfBail e (sym eaibLeft)
-  proj₂ (contract pre Post pfBail pfOk ._ refl) (bs' , eb) eaibRight ._ refl ._ refl =
-    pfOk bs' eb (sym eaibRight)
+  module _ (pre : RoundManager) where
+
+    bs = pre ^∙ rmBlockStore
+
+    contract
+      : ∀ Post
+        → (∀ e → {- At the moment we do not need to know why it failed -} Post (Left e) pre [])
+        → ((isOk : executeAndInsertBlockESpec.Ok bs b) → let (bs' , eb , _) = isOk in
+             executeAndInsertBlockESpec.ContractOk bs b bs' eb
+           → Post (Right eb) (pre & rmBlockStore ∙~ bs') [])
+        → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
+    proj₁ (contract Post pfBail pfOk ._ refl) e ≡left = pfBail e
+    proj₂ (contract Post pfBail pfOk ._ refl) (bs' , eb) ≡right ._ refl unit refl =
+      pfOk isOk (executeAndInsertBlockESpec.contract bs b isOk)
+      where
+      isOk = (bs' , eb , ≡right)
 
 module insertSingleQuorumCertMSpec
   (qc : QuorumCert) where

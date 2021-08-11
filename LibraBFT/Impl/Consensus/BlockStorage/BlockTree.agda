@@ -146,3 +146,8 @@ pathFromRoot blockId blockTree =
     if not (curBlockId /= (blockTree ^∙ btRootId))
     then []
     else res
+
+------------------------------------------------------------------------------
+
+getAllBlockIdM : LBFT (List HashValue)
+getAllBlockIdM = Map.kvm-keys <$> use (lBlockTree ∙ btIdToBlock)
