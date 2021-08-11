@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-{-# OPTIONS --allow-unsolved-metas #-}
-
 open import LibraBFT.Base.PKCS hiding (verify)
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -41,7 +39,7 @@ verify self blockId numBlocks sigVerifier =
   verifyBlock : HashValue → Block → Either ErrLog HashValue
 
   verifyBlocks : List Block → Either ErrLog Unit
-  verifyBlocks blks = {!!} -- foldM_ verifyBlock blockId blks
+  verifyBlocks blks = foldM_ verifyBlock blockId blks
 
   verifyBlock expectedId block = do
     Block.validateSignature block sigVerifier
