@@ -14,9 +14,8 @@ U64 = ℕ
 Usize : Set
 Usize = ℕ
 
-data VecDeque : Set where
-
 postulate
+  VecDeque : Set
   vdNew : VecDeque
 
 

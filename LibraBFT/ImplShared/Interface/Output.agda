@@ -115,6 +115,7 @@ module LibraBFT.ImplShared.Interface.Output where
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
   outputToActions _  (SendVote vm rcvrs)   = List-map (const (send (V vm))) rcvrs
+  outputToActions _  (SendBRP p brr)       = [] -- TODO-1: Update `NetworkMsg`
 
   outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
@@ -154,6 +155,8 @@ module LibraBFT.ImplShared.Interface.Output where
   sendVote∈actions {outs = LogErr x ∷ outs}{st = st} outs≡ m∈acts =
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {outs = LogInfo x ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
+  sendVote∈actions {vm}{vm'}{outs = SendBRP pid brr ∷ outs}{st = st} outs≡ m∈acts =
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {vm}{vm'}{outs = SendVote vm“ pids' ∷ outs}{st = st} outs≡ m∈acts
     with ∷-injective outs≡
