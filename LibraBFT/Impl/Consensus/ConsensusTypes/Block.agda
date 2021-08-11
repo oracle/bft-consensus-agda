@@ -34,6 +34,7 @@ isNilBlock : Block → Bool
 isNilBlock b = BlockData.isNilBlock (b ^∙ bBlockData)
 
 postulate
+  -- This is not needed until epoch change is implements/supported.
   makeGenesisBlockFromLedgerInfo : LedgerInfo → Block
 
 newProposalFromBlockDataAndSignature : BlockData → Signature → Block
