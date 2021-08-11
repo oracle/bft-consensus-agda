@@ -1,0 +1,174 @@
+#+TITLE: Formal verification of the LibraBFT consensus algorithm
+#+SUBTITLE: An overview of proving contracts for peer handlers
+#+AUTHOR: Chris Jenkins
+#+DATE: 2021 Aug 11
+
+* Metadata
+
+  This file was written with respect to the following commit hash of the repository:
+  - 9da2d65e4592395aa3ebc6e1313f307a55393f22
+
+* Structure of peer handler proofs
+
+  In both the Haskell prototype and Agda model, peer handler code is written in
+  the =RWST= monad --- /reader, writer, state/. Unlike the Haskell code, however,
+  in Agda this monad is [[file:LibraBFT/ImplShared/Util/RWST.agda::data RWST (Ev Wr St : Set) : Set → Set₁ where][defined as a datatype]]. This allows proofs to inspect the
+  AST of peer handler code directly.
+
+  The primary way that this is used is to compute, for any postcondition =Q :
+  (Wr St A : Set) -> Set= and peer handler =h : RWST Wr St A=, the weakest
+  precondition =RWST-weakestPre m Q= which can be used to prove =Q=. This is
+  based on Dijsktra's weakest precondition calculus and the work by Swamy et al.
+  on the [[file:LibraBFT/ImplShared/Util/RWST.agda::{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.][Dijkstra monad]]. Phrasing properties about peer handlers as
+  preconditions has a number of benefits, described below.
+
+  
+** Dijkstra's weakest precondition calculus
+
+   [[file:LibraBFT/ImplShared/Util/RWST.agda]] 
+
+   There are two kinds of constructors of the Agda =RWST= monad: primitives
+   needed to support the desired functionality, and conveniences that allow us
+   to define custom proof obligations for branching code.
+
+   #+begin_src agda
+-- RWST, the AST of computations with state `St` reading from an environment
+-- `Ev` and producing a list of outputs of type `Wr`
+data RWST (Ev Wr St : Set) : Set → Set₁ where
+  -- Primitive combinators
+  RWST-return : ∀ {A}   → A                                     → RWST Ev Wr St A
+  RWST-bind   : ∀ {A B} → RWST Ev Wr St A → (A → RWST Ev Wr St B) → RWST Ev Wr St B
+  RWST-gets   : ∀ {A} → (St → A)                                → RWST Ev Wr St A
+  RWST-put    : St                                              → RWST Ev Wr St Unit
+  RWST-ask    :                                                   RWST Ev Wr St Ev
+  RWST-tell   : List Wr                                         → RWST Ev Wr St Unit
+
+  -- Branching combinators (used for creating more convenient contracts)
+  RWST-if     : ∀ {A} → Guards (RWST Ev Wr St A)                → RWST Ev Wr St A
+  RWST-either : ∀ {A B C} → Either B C
+               → (B → RWST Ev Wr St A) → (C → RWST Ev Wr St A)   → RWST Ev Wr St A
+  RWST-ebind  : ∀ {A B C}
+               → RWST Ev Wr St (Either C A)
+               → (A → RWST Ev Wr St (Either C B))               → RWST Ev Wr St (Either C B)
+  RWST-maybe  : ∀ {A B} → Maybe B
+               → (RWST Ev Wr St A) → (B → RWST Ev Wr St A)       → RWST Ev Wr St A
+   #+end_src
+
+   There are two steps in the development for the weakest precondition calculus.
+
+*** Computing the weakest precondition
+
+    From a peer handler =m= and postcondition =P= we compute (using a large
+    elimination) a precondition =RWST-weakestPre m P=.
+
+    - This is easy to see for =RWST-pure=
+
+        #+begin_src agda
+RWST-weakestPre (RWST-return x) P ev pre = P x pre []
+        #+end_src
+
+      That is, the post condition must already hold for the returned value and
+      prestate with no outputs. Here, =ev= is the environment we read from and
+      =pre= is the prestate.
+
+    - The case for =RWST-bind= is trickier
+
+        #+begin_src agda
+RWST-weakestPre (RWST-bind m f) P ev pre =
+  RWST-weakestPre m (RWST-weakestPre-bindPost ev f P) ev pre
+{- ... -}
+
+RWST-Post++ P outs x post outs₁ = P x post (outs ++ outs₁)
+
+RWST-weakestPre-bindPost ev f P x post outs =
+  ∀ r → r ≡ x → RWST-weakestPre (f r) (RWST-Post++ P outs) ev post
+        #+end_src
+
+      - We want a weakest precondition for =m= of a postcondition for =m= that
+        will guarantee that running =f= on the result of =m= gives us the
+        desired final postcondition =P= of =RWST-bind m f=.
+
+        The postcondition of =m= which is also the precondition for running
+        =f= on the result of =m= is =RWST-weakestPre-bindPost ev f P=
+
+      - In =RWST-weakestPre-bindPost=, =x= is the result of running =m=, =post=
+        is the poststate, and =outs= is the list of outputs =m= generated.
+
+      - We introduce a new variable =r= to serve as an alias for the result
+        =x=.
+
+        In proofs, the variable =x= may be instantiated with some very large
+        and complicated expression, and substituting it directly into the
+        desired precondition could cause the proof state to become quite
+        unreadable. Introducing an alias allows the prover (e.g., you!) to use
+        the same name as used in the peer handler code itself, and only reveal
+        what it actually computes to where that information is needed.
+
+      - Finally, we want the weakest precondition of =P= for =f r=, but now
+        =P= must hold not only for the outputs of =f r= but also the
+        previously generated outputs, =outs=.
+
+        We therefore use the helper function =RWST-Post++=.
+
+    - Now we look at a case for one of the "convenience" constructors ---
+      =RWST-maybe=
+
+      #+begin_src agda
+RWST-weakestPre (RWST-maybe m f₁ f₂) P ev pre =
+  (m ≡ nothing → RWST-weakestPre f₁ P ev pre)
+  × (∀ j → m ≡ just j → RWST-weakestPre (f₂ j) P ev pre)
+      #+end_src
+
+      - Here, we decompose the precondition into two subgoals: one where
+        =m : Maybe A= is =nothing= (and so we need that the weakest precondition
+        of =P= holds for =f₁=) and one where there is a =j= such that =m ≡ just
+        j=.
+
+      - By phrasing it this way, we get help from Agda: in proofs, instead of
+        having to do case analysis on =m= ourselves (which might be quite a
+        complicated expression), Agda can automatically refine (using =C-c C-r=,
+        or =C-c C-c= for copattern matching) the goal to these two subgoals when
+        the expression we are considering is formed by =RWST-maybe=
+    
+        
+*** Proving a contract
+
+    For the top-level peer handlers (process proposal, process vote), once we
+    have proven the weakest precondition for the desired postcondition, the next
+    step is to use this to extract that post condition. This is done with
+    =RWST-contract= below
+
+    #+begin_src agda
+RWST-Post-True : (P : RWST-Post Wr St A) (m : RWST Ev Wr St A) (ev : Ev) (pre : St) → Set
+RWST-Post-True P m ev pre =
+  let (x , post , outs) = RWST-run m ev pre in
+  P x post outs
+
+RWST-Contract : (m : RWST Ev Wr St A) → Set₁
+RWST-Contract{Ev}{Wr}{St}{A} m =
+  (P : RWST-Post Wr St A)
+  → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
+  → RWST-Post-True P m ev pre
+
+
+RWST-Contract : (m : RWST Ev Wr St A) → Set₁
+RWST-Contract{Ev}{Wr}{St}{A} m =
+  (P : RWST-Post Wr St A)
+  → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
+  → let (x , post , outs) = RWST-run m ev pre in
+    P x post outs
+
+RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
+    #+end_src
+
+    1. =RWST-Post-True= says what it means for a post condition =P= to be
+       true of a peer handler =m= running in environment =ev= with prestate =pre=
+
+    2. =RWST-Contract= is the statement that it suffices to show the weakest
+       precondition of =P= for =m= if you want that the =P= holds for =m=
+
+    3. =RWST-contract= is the proof of the above statement
+
+
+    You can find =RWST-contract= (in the form of =LBFT-contract=) used in
+    [[file:LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]]
