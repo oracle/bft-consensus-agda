@@ -14,6 +14,7 @@ import      LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
 import      LibraBFT.Impl.Types.ValidatorVerifier             as ValidatorVerifier
 open import LibraBFT.Impl.OBM.Crypto hiding (verify)
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util

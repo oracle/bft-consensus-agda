@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBloc
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto

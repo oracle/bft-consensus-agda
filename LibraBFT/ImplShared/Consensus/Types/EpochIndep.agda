@@ -10,6 +10,7 @@ open import LibraBFT.Base.KVMap            as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -38,12 +39,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   aAuthorName : Lens Author AuthorName
   aAuthorName = mkLens' (λ x → x) (λ x → const x)
-
-  U64 : Set
-  U64 = ℕ
-
-  Usize : Set
-  Usize = ℕ
 
   HashValue : Set
   HashValue = Hash
@@ -918,19 +913,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _btHighestQuorumCert       : QuorumCert
       _btHighestTimeoutCert      : Maybe TimeoutCertificate
       _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
       _btIdToQuorumCert          : KVMap HashValue QuorumCert
+      _btPrunedBlockIds          : VecDeque
+      _btMaxPrunedBlocksInMem    : ℕ
   open BlockTree public
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestTimeoutCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
+  unquoteDecl btIdToBlock   btRootId  btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert   btHighestCommitCert
+              btIdToQuorumCert   btPrunedBlockIds
+              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
              (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestTimeoutCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
+              btHighestTimeoutCert ∷ btHighestCommitCert ∷
+              btIdToQuorumCert ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ [])
 
   btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
   btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
