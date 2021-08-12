@@ -128,52 +128,52 @@ executeAndInsertBlockM b = do
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  step₀ : Either ErrLog (BlockStore × ExecutedBlock)
-  step₂ continue : Either ErrLog (BlockStore × ExecutedBlock)
+  step₀ : Error ErrLog (BlockStore × ExecutedBlock)
+  step₂ continue : Error ErrLog (BlockStore × ExecutedBlock)
   continue = step₂
-  step₃ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
-  step₄ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
-  step₅ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
-  step₆ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
+  step₃ : ExecutedBlock → Error ErrLog (BlockStore × ExecutedBlock)
+  step₄ : ExecutedBlock → Error ErrLog (BlockStore × ExecutedBlock)
+  step₅ : (bsr eb : ExecutedBlock) → Error ErrLog (BlockStore × ExecutedBlock)
+  step₆ : (bsr eb : ExecutedBlock) → Error ErrLog (BlockStore × ExecutedBlock)
 
   step₀ =
-    maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
+    maybeSD (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
 
   here' : List String.String → List String.String
   here' t = "BlockStore" ∷ "executeAndInsertBlockE" {-∷ lsB block-} ∷ t
 
   step₂ =
-      maybeS (bs0 ^∙ bsRoot) (Left fakeErr) step₃
+      maybeSD (bs0 ^∙ bsRoot) (LeftE fakeErr) step₃
 
   step₃ bsr =
       let btRound = bsr ^∙ ebRound in
-      if-dec btRound ≥?ℕ block ^∙ bRound
-      then Left fakeErr -- block with old round
+      ifD btRound ≥?ℕ block ^∙ bRound
+      then LeftE fakeErr -- block with old round
       else step₄ bsr
 
   step₄ bsr = do
         eb ← case executeBlockE bs0 block of λ where
-          (Right res) → Right res
-          (Left (ErrBlockNotFound parentBlockId)) → do
-            eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
+          (Right res) → RightE res
+          (Left (ErrBlockNotFound parentBlockId)) →
+            eitherS (pathFromRoot parentBlockId bs0) LeftE $ λ blocksToReexecute →
               case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
-                (Left  e) → Left e
-                (Right _) → executeBlockE bs0 block
-          (Left err) → Left err
+                (Left  e) → LeftE e
+                (Right _) → fromEither $ executeBlockE bs0 block -- TODO-1: make this executeBlockE.step₀
+          (Left err) → LeftE err
         step₅ bsr eb
 
   step₅ bsr eb = do
-        bs1 ← withErrCtx'
+        bs1 ← fromEither $ withErrCtx'
                 (here' [])
                 -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
-               (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
+               (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) []) -- TODO-1: make this `saveTreeE.step₀`
         step₆ bsr eb
 
   step₆ bsr eb = do
-        (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
+        (bt' , eb') ← fromEither $ BlockTree.insertBlockE eb (bs0 ^∙ bsInner) -- TODO-1: make this `insertBlockE.step₀`
         pure ((bs0 & bsInner ∙~  bt') , eb')
 
-executeAndInsertBlockE = executeAndInsertBlockE.step₀
+executeAndInsertBlockE bs0 block = Error-run $ executeAndInsertBlockE.step₀ bs0 block
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)

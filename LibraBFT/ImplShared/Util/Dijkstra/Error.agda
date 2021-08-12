@@ -17,10 +17,22 @@ data Error (E : Set) : Set → Set₁ where
   Error-if     : ∀ {A} → Guards (Error E A) → Error E A
   Error-maybe  : ∀ {A B} → Maybe A → Error E B → (A → Error E B) → Error E B
 
+pattern LeftE  x = Error-bail   x
+pattern RightE x = Error-return x
+
 private
   variable
     E : Set
     A B C : Set
+
+fromEither : Either E A → Error E A
+fromEither (Left x) = LeftE x
+fromEither (Right y) = RightE y
+
+Error-bindE : Either E A → (A → Error E B) → Error E B
+Error-bindE e f = Error-bind (fromEither e) f
+
+syntax Error-bindE e₁ (λ x → e₂) = x ←E e₁ ﹔ e₂
 
 Error-run : Error E A → Either E A
 Error-run (Error-return x) = Right x
