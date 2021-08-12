@@ -14,7 +14,10 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
+open import LibraBFT.Impl.OBM.Init
+open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -63,7 +66,7 @@ postulate -- TODO-1: Implement this.
   initBS : BlockStore
 
 initRS : RoundState
-initRS = RoundState∙new 0 0 PendingVotes∙new nothing
+initRS = RoundState.new etiT timeT
 
 initRM : RoundManager
 initRM = RoundManager∙new

@@ -35,6 +35,7 @@ module LibraBFT.Prelude where
     public
 
   max = _⊔_
+  min = _⊓_
 
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)

@@ -5,25 +5,11 @@
 -}
 
 open import LibraBFT.Prelude
+open import LibraBFT.Impl.OBM.Rust.Duration as Duration
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 
-module LibraBFT.Impl.OBM.Rust.RustTypes where
-
--- TODO-2 : reasoning about integer overflow
-
-F64 : Set
-F64 = ℕ -- TODO-1 : this is 'Double' in Haskell
-
-U64 : Set
-U64 = ℕ
-
-U128 : Set
-U128 = ℕ
-
-Usize : Set
-Usize = ℕ
+module LibraBFT.Impl.OBM.Time where
 
 postulate
-  VecDeque : Set
-  vdNew : VecDeque
-
-
+  iPlus : Instant → Duration → Instant
+  timeT : Instant
