@@ -955,8 +955,34 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
-  record PersistentLivenessStorage : Set where
-    constructor PersistentLivenessStorage∙new
+  record MockSharedStorage : Set where
+    constructor MockSharedStorage∙new
+    field
+      -- Safety state
+      _mssBlock                     : Map.KVMap HashValue Block
+      _mssQc                        : Map.KVMap HashValue QuorumCert
+      _mssLis                       : Map.KVMap Version   LedgerInfoWithSignatures
+      _mssLastVote                  : Maybe Vote
+      -- Liveness state
+      _mssHighestTimeoutCertificate : Maybe TimeoutCertificate
+      --_mssValidatorSet              : ValidatorSet
+  open MockSharedStorage public
+  unquoteDecl mssBlock    mssQc   mssLis    mssLastVote
+              mssHighestTimeoutCertificate   {-mssValidatorSet-} = mkLens (quote MockSharedStorage)
+             (mssBlock ∷  mssQc ∷ mssLis ∷ mssLastVote ∷
+              mssHighestTimeoutCertificate {-∷ mssValidatorSet-} ∷ [])
+
+  record MockStorage : Set where
+    constructor MockStorage∙new
+    field
+      _msSharedStorage : MockSharedStorage
+      --_msStorageLedger : LedgerInfo
+      --_msObmDiemDB     : DiemDB
+  open MockStorage public
+  unquoteDecl msSharedStorage = mkLens (quote MockStorage)
+             (msSharedStorage ∷ [])
+
+  PersistentLivenessStorage = MockStorage
 
   record BlockStore : Set where
     constructor BlockStore∙new
