@@ -15,6 +15,11 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.TestUtils.MockStorage where
 
+postulate
+  tryStart : MockStorage → Either ErrLog RecoveryData
+
+------------------------------------------------------------------------------
+
 saveTreeE
   : List Block → List QuorumCert → MockStorage
   → Either ErrLog MockStorage
@@ -35,3 +40,35 @@ saveTreeE bs qcs db =
 
   insertQCs : Map.KVMap HashValue QuorumCert → Map.KVMap HashValue QuorumCert
   insertQCs m = foldl' (λ acc qc → Map.insert (qc ^∙ qcCertifiedBlock ∙ biId) qc acc) m qcs
+
+pruneTreeM
+  : List HashValue → MockStorage
+  → LBFT (Either ErrLog MockStorage)
+pruneTreeM ids db = do
+  logInfo fakeInfo -- ["MockStorage", "pruneTreeM", show (fmap lsHV ids)]
+  ok (db & msSharedStorage ∙ mssBlock %~ deleteBs
+         & msSharedStorage ∙ mssQc    %~ deleteQCs)
+  -- TODO : verifyConsistency
+ where
+  deleteBs : Map.KVMap HashValue Block → Map.KVMap HashValue Block
+  deleteBs  m = foldl' (flip Map.delete) m ids
+
+  deleteQCs : Map.KVMap HashValue QuorumCert → Map.KVMap HashValue QuorumCert
+  deleteQCs m = foldl' (flip Map.delete) m ids
+
+saveStateM
+  : Vote → MockStorage
+  → LBFT (Either ErrLog MockStorage)
+saveStateM v db = do
+  logInfo fakeInfo -- ["MockStorage", "saveStateM", lsV v]
+  ok (db & msSharedStorage ∙ mssLastVote ?~ v)
+
+start : MockStorage → Either ErrLog RecoveryData
+start  = tryStart
+
+saveHighestTimeoutCertificateM
+  : TimeoutCertificate → MockStorage
+  → LBFT (Either ErrLog MockStorage)
+saveHighestTimeoutCertificateM tc db = do
+  logInfo fakeInfo -- ["MockStorage", "saveHighestTimeoutCertificateM", lsTC tc]
+  ok (db & msSharedStorage ∙ mssHighestTimeoutCertificate ?~ tc)

@@ -6,11 +6,14 @@
 
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage as MockStorage
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                                   as String
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
@@ -28,12 +31,6 @@ obmUpdateE
 
 ------------------------------------------------------------------------------
 
-postulate -- TODO-2: implement
-  pruneTreeM : List HashValue → LBFT (Either ErrLog Unit)
-  saveHighestTimeoutCertM : TimeoutCertificate → LBFT (Either ErrLog Unit)
-  saveVoteM : Vote → LBFT (Either ErrLog Unit)
-  startM    : LBFT (Either ErrLog RecoveryData)
-
 saveTreeM : List Block → List QuorumCert → LBFT (Either ErrLog Unit)
 saveTreeM blocks qcs =
   obmUpdateM (MockStorage.saveTreeM blocks qcs)
@@ -41,6 +38,25 @@ saveTreeM blocks qcs =
 saveTreeE : BlockStore → List Block → List QuorumCert → Either ErrLog BlockStore
 saveTreeE bs blocks qcs =
   obmUpdateE bs (MockStorage.saveTreeE blocks qcs)
+
+pruneTreeM : List HashValue → LBFT (Either ErrLog Unit)
+pruneTreeM =
+  obmUpdateM ∘ MockStorage.pruneTreeM
+
+saveVoteM : Vote → LBFT (Either ErrLog Unit)
+saveVoteM =
+  obmUpdateM ∘ MockStorage.saveStateM
+
+startM : LBFT (Either ErrLog RecoveryData)
+startM =
+  use (lBlockStore ∙ bsStorage) >>= λ s → pure (MockStorage.start s) ∙^∙ withErrCtx (here' [])
+ where
+  here' : List String.String → List String.String
+  here' t = "PersistentLivenessStorage" ∷ "startM" ∷ t
+
+saveHighestTimeoutCertM : TimeoutCertificate → LBFT (Either ErrLog Unit)
+saveHighestTimeoutCertM =
+  obmUpdateM ∘ MockStorage.saveHighestTimeoutCertificateM
 
 ------------------------------------------------------------------------------
 
