@@ -479,9 +479,9 @@ module LibraBFT.Prelude where
       return (f x)
 
   instance
-    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Error{ℓ}{C}) = inj₂
-    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
+    Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Either{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ inj₁) _&_
 
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just

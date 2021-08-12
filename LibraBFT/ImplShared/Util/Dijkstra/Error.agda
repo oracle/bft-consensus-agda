@@ -6,13 +6,16 @@
 
 open import LibraBFT.Prelude
 
-module LibraBFT.ImplShared.Util.Error where
-
+module LibraBFT.ImplShared.Util.Dijkstra.Error where
 
 data Error (E : Set) : Set → Set₁ where
+  -- Primitive combinators
   Error-return : ∀ {A} → A → Error E A
   Error-bind   : ∀ {A B} → Error E A → (A → Error E B) → Error E B
   Error-bail   : ∀ {A} → E → Error E A
+  -- Branching conditionals (used for creating more convenient contracts)
+  Error-if     : ∀ {A} → Guards (Error E A) → Error E A
+  Error-maybe  : ∀ {A B} → Maybe A → Error E B → (A → Error E B) → Error E B
 
 private
   variable
@@ -26,6 +29,12 @@ Error-run (Error-bind m f)
 ... | Left x = Left x
 ... | Right y = Error-run (f y)
 Error-run (Error-bail x) = Left x
+Error-run (Error-if (clause (b ≔ c) gs)) =
+  if toBool b then Error-run c else Error-run (Error-if gs)
+Error-run (Error-if (otherwise≔ c)) =
+  Error-run c
+Error-run (Error-maybe nothing n s) = Error-run n
+Error-run (Error-maybe (just x) n s) = Error-run (s x)
 
 Error-Pre : (E A : Set) → Set₁
 Error-Pre E A = Set
@@ -43,6 +52,14 @@ Error-weakestPre (Error-return x) P = P (Right x)
 Error-weakestPre (Error-bind m f) P =
   Error-weakestPre m (Error-weakestPre-bindPost f P)
 Error-weakestPre (Error-bail x) P = P (Left x)
+Error-weakestPre (Error-if (clause (b ≔ c) gs)) P =
+  (toBool b ≡ true → Error-weakestPre c P)
+  × (toBool b ≡ false → Error-weakestPre (Error-if gs) P)
+Error-weakestPre (Error-if (otherwise≔ x)) P =
+  Error-weakestPre x P
+Error-weakestPre (Error-maybe m n s) P =
+  (m ≡ nothing → Error-weakestPre n P)
+  × (∀ j → m ≡ just j → Error-weakestPre (s j) P)
 
 Error-weakestPre-bindPost f P (Left x) =
   P (Left x)
@@ -63,3 +80,16 @@ Error-contract (Error-bind m f) P wp
 ... | Left x = wp'
 ... | Right y = Error-contract (f y) P (wp' y refl)
 Error-contract (Error-bail x) P wp = wp
+Error-contract{E}{A} (Error-if gs) P wp =
+  Error-contract-if gs P wp
+  where
+  Error-contract-if : (gs : Guards (Error E A)) → Error-Contract (Error-if gs)
+  Error-contract-if (clause (b ≔ c) gs) P wp
+     with toBool b
+  ... | false = Error-contract-if gs P (proj₂ wp refl)
+  ... | true = Error-contract c P (proj₁ wp refl)
+  Error-contract-if (otherwise≔ x) P wp = Error-contract x P wp
+Error-contract (Error-maybe nothing f₁ f₂) P wp =
+  Error-contract f₁ P (proj₁ wp refl)
+Error-contract (Error-maybe (just x) f₁ f₂) P wp =
+  Error-contract (f₂ x) P (proj₂ wp x refl)
