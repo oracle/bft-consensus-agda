@@ -35,6 +35,13 @@ withErrCtx' ctx = λ where
   (Left  e) → Left (withErrCtx ctx e)
   (Right b) → pure b
 
+withErrCtxD'
+  : ∀ {ℓ} {E : Set → Set → Set ℓ} ⦃ _ : EitherLike E ⦄
+    → ∀ {A : Set} → List String.String → E ErrLog A → EitherD ErrLog A
+withErrCtxD' ctx e = case toEither e of λ where
+  (Left  e) → fromEither $ Left (withErrCtx ctx e)
+  (Right b) → fromEither $ Right b
+
 lcheck : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String.String → Either ErrLog Unit
 lcheck b t = case check (toBool b) t of λ where
   (Left  e) → Left  fakeErr -- (ErrL [e])

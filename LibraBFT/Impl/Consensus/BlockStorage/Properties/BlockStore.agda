@@ -80,11 +80,11 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
                → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & lBlockStore ∙~ bs')
 
-  Contract : Error-Post ErrLog (BlockStore × ExecutedBlock)
+  Contract : EitherD-Post ErrLog (BlockStore × ExecutedBlock)
   Contract (Left x) = ⊤
   Contract (Right (bs' , eb)) = ContractOk bs' eb
 
-  contract' : Error-weakestPre (executeAndInsertBlockE.step₀ bs0 block) Contract
+  contract' : EitherD-weakestPre (executeAndInsertBlockE.step₀ bs0 block) Contract
   proj₂ contract' eb eb≡ =
     mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) qcPres
     where
@@ -103,17 +103,17 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   proj₁ contract' getBlock≡nothing = contract₂
     where
-    contract₂ : Error-weakestPre step₂ Contract
+    contract₂ : EitherD-weakestPre step₂ Contract
     proj₁ contract₂ _ = tt
     proj₂ contract₂ bsr bsr≡ = contract₃
       where
-      contract₃ : Error-weakestPre (step₃ bsr) Contract
+      contract₃ : EitherD-weakestPre (step₃ bsr) Contract
       proj₁ contract₃ _ = tt
       proj₂ contract₃ btr<br = contract₄
         where
-        contract₅ : ∀ eb → eb ^∙ ebBlock ≈Block block → Error-weakestPre (step₅ bsr eb) Contract
+        contract₅ : ∀ eb → eb ^∙ ebBlock ≈Block block → EitherD-weakestPre (step₅ bsr eb) Contract
 
-        contract₄ : Error-weakestPre (step₄ bsr) Contract
+        contract₄ : EitherD-weakestPre (step₄ bsr) Contract
         contract₄
            with executeBlockE bs0 block
            |    inspect (executeBlockE bs0) block
@@ -127,7 +127,6 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         ...| Left _ = tt
         ...| Right _
            with executeBlockE bs0 block
-        ...| Right _ = obm-dangerous-magic' "TODO-1: prove (waiting on: update to `executeAndInsertBlockE`)"
         ...| Left  _ = tt
         contract₄ | Left (ErrVerify _) | [ executeBlockE≡ ] = tt
 
@@ -136,7 +135,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         ...| Left _ = tt
         ...| Right bs1 = λ where ._ refl → contract₆
            where
-           contract₆ : Error-weakestPre (step₆ bsr eb) Contract
+           contract₆ : EitherD-weakestPre (step₆ bsr eb) Contract
            contract₆
               with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
            ...| con
@@ -172,7 +171,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
               qcPres = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
 
   contract : Contract (executeAndInsertBlockE bs0 block)
-  contract = Error-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
+  contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
 
 
 module executeAndInsertBlockMSpec (b : Block) where

@@ -75,112 +75,18 @@ record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Se
     ⦃ monad ⦄ : Monad M
     eitherSD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
 
-open MonadEitherD ⦃ ... ⦄ public
+open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
+
+eitherSD
+  : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄ →
+    ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
+    ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
+eitherSD ⦃ med = med ⦄ e f₁ f₂ =
+  MonadEitherD.eitherSD med (toEither e) f₁ f₂
 
 infix 0 case⊎D_of_
-case⊎D_of_ : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadEitherD M ⦄ {E A B : Set ℓ₁} → Either E A → (Either E A → M B) → M B
-case⊎D e of f = eitherSD e (f ∘ Left) (f ∘ Right)
-
--- Conditionals
-
-
--- infix 1 ifM‖_
--- ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A
--- ifM‖_ = RWST-if
-
--- infix 0 if-RWST_then_else_
--- if-RWST_then_else_ : ⦃ _ : ToBool B ⦄ → B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
--- if-RWST b then c₁ else c₂ =
---   ifM‖ b ≔ c₁
---      ‖ otherwise≔ c₂
-
--- -- This is like the Haskell version, except Haskell's works for any monad (not just RWST).
--- ifM : ⦃ _ : ToBool B ⦄ → RWST Ev Wr St B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
--- ifM mb c₁ c₂ = do
---   x ← mb
---   if-RWST x then c₁ else c₂
-
--- infix 0 caseM⊎_of_ caseMM_of_
--- caseM⊎_of_ : Either B C → (Either B C → RWST Ev Wr St A) → RWST Ev Wr St A
--- caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
-
--- caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
--- caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
-
--- eitherS-RWST : ∀ {A B C} → Either B C
---                → (B → RWST Ev Wr St A) → (C → RWST Ev Wr St A)   → RWST Ev Wr St A
--- eitherS-RWST = RWST-either
-
--- when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
--- when b f = if-RWST toBool b then f else pure unit
-
--- when-RWST : ⦃ _ : ToBool B ⦄ → B → (c : RWST Ev Wr St Unit) → RWST Ev Wr St Unit
--- when-RWST b c = if-RWST b then c else pure unit
-
--- -- Composition with error monad
--- ok : A → RWST Ev Wr St (B ⊎ A)
--- ok = pure ∘ Right
-
--- bail : B → RWST Ev Wr St (B ⊎ A)
--- bail = pure ∘ Left
-
--- infixl 4 _∙?∙_
--- _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
--- _∙?∙_ = RWST-ebind
-
--- -- Composition/use with partiality monad
--- maybeS-RWST : Maybe A → (RWST Ev Wr St B) → (A → RWST Ev Wr St B) → RWST Ev Wr St B
--- maybeS-RWST ma n j =
---   caseMM ma of λ where
---     nothing  → n
---     (just x) → j x
-
--- maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
--- maybeSM mma mb f = do
---   x ← mma
---   caseMM x of λ where
---     nothing  → mb
---     (just j) → f j
---   where
-
--- maybeSMP-RWST : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
---               → RWST Ev Wr St B
--- maybeSMP-RWST ma b f = do
---   x ← ma
---   caseMM x of λ where
---     nothing  → pure b
---     (just j) → f j
-
--- infixl 4 _∙^∙_
--- _∙^∙_ : RWST Ev Wr St (Either B A) → (B → B) → RWST Ev Wr St (Either B A)
--- m ∙^∙ f = do
---   x ← m
---   either (bail ∘ f) ok x
-
--- RWST-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWST-Post Wr St (C ⊎ A) → RWST-Post Wr St (C ⊎ A)
--- RWST-weakestPre-∙^∙Post ev e Post =
---   RWST-weakestPre-bindPost ev (either (bail ∘ e) ok) Post
-
--- -- Lens functionality
--- --
--- -- If we make RWST work for different level State types, we will break use and
--- -- modify because Lens does not support different levels, we define use and
--- -- modify' here for RoundManager. We are ok as long as we can keep
--- -- RoundManager in Set. If we ever need to make RoundManager at some higher
--- -- Level, we will have to consider making Lens level-agnostic. Preliminary
--- -- exploration by @cwjnkins showed this to be somewhat painful in particular
--- -- around composition, so we are not pursuing it for now.
--- use : Lens St A → RWST Ev Wr St A
--- use f = gets (_^∙ f)
-
--- modifyL : Lens St A → (A → A) → RWST Ev Wr St Unit
--- modifyL l f = modify (over l f)
--- syntax modifyL l f = l %= f
-
--- setL : Lens St A → A → RWST Ev Wr St Unit
--- setL l x = l %= const x
--- syntax setL l x = l ∙= x
-
--- setL? : Lens St (Maybe A) → A → RWST Ev Wr St Unit
--- setL? l x = l ∙= just x
--- syntax setL? l x = l ?= x
+case⊎D_of_
+  : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadEitherD M ⦄ →
+    ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
+    ∀ {E A B : Set ℓ₁} → EL E A → (EL E A → M B) → M B
+case⊎D e of f = eitherSD e (f ∘ fromEither ∘ Left) (f ∘ fromEither ∘ Right)

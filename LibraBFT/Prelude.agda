@@ -357,6 +357,18 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+
+  -- Utility to make passing between `Either` and `EitherD` more convenient
+  record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
+    field
+      fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+      toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+  open EitherLike ⦃ ... ⦄ public
+  instance
+    EitherLike-Either : ∀ {ℓ₁ ℓ₂} → EitherLike{ℓ₁}{ℓ₂}{ℓ₁ ℓ⊔ ℓ₂} Either
+    EitherLike.fromEither EitherLike-Either = id
+    EitherLike.toEither   EitherLike-Either = id
+
   -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
   -- spaces between f and backticks
   flip' : _     -- Avoids warning about definition and syntax declaration being in different scopes

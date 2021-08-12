@@ -8,100 +8,102 @@ open import LibraBFT.Prelude
 
 module LibraBFT.ImplShared.Util.Dijkstra.Error where
 
-data Error (E : Set) : Set → Set₁ where
+data EitherD (E : Set) : Set → Set₁ where
   -- Primitive combinators
-  Error-return : ∀ {A} → A → Error E A
-  Error-bind   : ∀ {A B} → Error E A → (A → Error E B) → Error E B
-  Error-bail   : ∀ {A} → E → Error E A
+  EitherD-return : ∀ {A} → A → EitherD E A
+  EitherD-bind   : ∀ {A B} → EitherD E A → (A → EitherD E B) → EitherD E B
+  EitherD-bail   : ∀ {A} → E → EitherD E A
   -- Branching conditionals (used for creating more convenient contracts)
-  Error-if     : ∀ {A} → Guards (Error E A) → Error E A
-  Error-maybe  : ∀ {A B} → Maybe A → Error E B → (A → Error E B) → Error E B
+  EitherD-if     : ∀ {A} → Guards (EitherD E A) → EitherD E A
+  EitherD-either : ∀ {A B C} → Either B C
+                   → (B → EitherD E A) → (C → EitherD E A) → EitherD E A
+  EitherD-maybe  : ∀ {A B} → Maybe A → EitherD E B → (A → EitherD E B) → EitherD E B
 
-pattern LeftE  x = Error-bail   x
-pattern RightE x = Error-return x
+pattern LeftD  x = EitherD-bail   x
+pattern RightD x = EitherD-return x
 
 private
   variable
     E : Set
     A B C : Set
 
-fromEither : Either E A → Error E A
-fromEither (Left x) = LeftE x
-fromEither (Right y) = RightE y
-
-Error-bindE : Either E A → (A → Error E B) → Error E B
-Error-bindE e f = Error-bind (fromEither e) f
-
-syntax Error-bindE e₁ (λ x → e₂) = x ←E e₁ ﹔ e₂
-
-Error-run : Error E A → Either E A
-Error-run (Error-return x) = Right x
-Error-run (Error-bind m f)
-  with Error-run m
+EitherD-run : EitherD E A → Either E A
+EitherD-run (EitherD-return x) = Right x
+EitherD-run (EitherD-bind m f)
+  with EitherD-run m
 ... | Left x = Left x
-... | Right y = Error-run (f y)
-Error-run (Error-bail x) = Left x
-Error-run (Error-if (clause (b ≔ c) gs)) =
-  if toBool b then Error-run c else Error-run (Error-if gs)
-Error-run (Error-if (otherwise≔ c)) =
-  Error-run c
-Error-run (Error-maybe nothing n s) = Error-run n
-Error-run (Error-maybe (just x) n s) = Error-run (s x)
+... | Right y = EitherD-run (f y)
+EitherD-run (EitherD-bail x) = Left x
+EitherD-run (EitherD-if (clause (b ≔ c) gs)) =
+  if toBool b then EitherD-run c else EitherD-run (EitherD-if gs)
+EitherD-run (EitherD-if (otherwise≔ c)) =
+  EitherD-run c
+EitherD-run (EitherD-either (Left x) f₁ f₂) = EitherD-run (f₁ x)
+EitherD-run (EitherD-either (Right y) f₁ f₂) = EitherD-run (f₂ y)
+EitherD-run (EitherD-maybe nothing n s) = EitherD-run n
+EitherD-run (EitherD-maybe (just x) n s) = EitherD-run (s x)
 
-Error-Pre : (E A : Set) → Set₁
-Error-Pre E A = Set
+EitherD-Pre : (E A : Set) → Set₁
+EitherD-Pre E A = Set
 
-Error-Post : (E A : Set) → Set₁
-Error-Post E A = Either E A → Set
+EitherD-Post : (E A : Set) → Set₁
+EitherD-Post E A = Either E A → Set
 
-Error-PredTrans : (E A : Set) → Set₁
-Error-PredTrans E A = Error-Post E A → Error-Pre E A
+EitherD-PredTrans : (E A : Set) → Set₁
+EitherD-PredTrans E A = EitherD-Post E A → EitherD-Pre E A
 
-Error-weakestPre-bindPost : (f : A → Error E B) → Error-Post E B → Error-Post E A
+EitherD-weakestPre-bindPost : (f : A → EitherD E B) → EitherD-Post E B → EitherD-Post E A
 
-Error-weakestPre : (m : Error E A) → Error-PredTrans E A
-Error-weakestPre (Error-return x) P = P (Right x)
-Error-weakestPre (Error-bind m f) P =
-  Error-weakestPre m (Error-weakestPre-bindPost f P)
-Error-weakestPre (Error-bail x) P = P (Left x)
-Error-weakestPre (Error-if (clause (b ≔ c) gs)) P =
-  (toBool b ≡ true → Error-weakestPre c P)
-  × (toBool b ≡ false → Error-weakestPre (Error-if gs) P)
-Error-weakestPre (Error-if (otherwise≔ x)) P =
-  Error-weakestPre x P
-Error-weakestPre (Error-maybe m n s) P =
-  (m ≡ nothing → Error-weakestPre n P)
-  × (∀ j → m ≡ just j → Error-weakestPre (s j) P)
+EitherD-weakestPre : (m : EitherD E A) → EitherD-PredTrans E A
+EitherD-weakestPre (EitherD-return x) P = P (Right x)
+EitherD-weakestPre (EitherD-bind m f) P =
+  EitherD-weakestPre m (EitherD-weakestPre-bindPost f P)
+EitherD-weakestPre (EitherD-bail x) P = P (Left x)
+EitherD-weakestPre (EitherD-if (clause (b ≔ c) gs)) P =
+  (toBool b ≡ true → EitherD-weakestPre c P)
+  × (toBool b ≡ false → EitherD-weakestPre (EitherD-if gs) P)
+EitherD-weakestPre (EitherD-if (otherwise≔ x)) P =
+  EitherD-weakestPre x P
+EitherD-weakestPre (EitherD-either e f₁ f₂) P =
+  (∀ x → e ≡ Left x → EitherD-weakestPre (f₁ x) P)
+  × (∀ y → e ≡ Right y → EitherD-weakestPre (f₂ y) P)
+EitherD-weakestPre (EitherD-maybe m n s) P =
+  (m ≡ nothing → EitherD-weakestPre n P)
+  × (∀ j → m ≡ just j → EitherD-weakestPre (s j) P)
 
-Error-weakestPre-bindPost f P (Left x) =
+EitherD-weakestPre-bindPost f P (Left x) =
   P (Left x)
-Error-weakestPre-bindPost f P (Right y) =
-  ∀ c → c ≡ y → Error-weakestPre (f c) P
+EitherD-weakestPre-bindPost f P (Right y) =
+  ∀ c → c ≡ y → EitherD-weakestPre (f c) P
 
-Error-Contract : (m : Error E A) → Set₁
-Error-Contract{E}{A} m =
-  (P : Error-Post E A)
-  → Error-weakestPre m P → P (Error-run m)
+EitherD-Contract : (m : EitherD E A) → Set₁
+EitherD-Contract{E}{A} m =
+  (P : EitherD-Post E A)
+  → EitherD-weakestPre m P → P (EitherD-run m)
 
-Error-contract : (m : Error E A) → Error-Contract m
-Error-contract (Error-return x) P wp = wp
-Error-contract (Error-bind m f) P wp
-   with Error-contract m _ wp
+EitherD-contract : (m : EitherD E A) → EitherD-Contract m
+EitherD-contract (EitherD-return x) P wp = wp
+EitherD-contract (EitherD-bind m f) P wp
+   with EitherD-contract m _ wp
 ...| wp'
-   with Error-run m
+   with EitherD-run m
 ... | Left x = wp'
-... | Right y = Error-contract (f y) P (wp' y refl)
-Error-contract (Error-bail x) P wp = wp
-Error-contract{E}{A} (Error-if gs) P wp =
-  Error-contract-if gs P wp
+... | Right y = EitherD-contract (f y) P (wp' y refl)
+EitherD-contract (EitherD-bail x) P wp = wp
+EitherD-contract{E}{A} (EitherD-if gs) P wp =
+  EitherD-contract-if gs P wp
   where
-  Error-contract-if : (gs : Guards (Error E A)) → Error-Contract (Error-if gs)
-  Error-contract-if (clause (b ≔ c) gs) P wp
+  EitherD-contract-if : (gs : Guards (EitherD E A)) → EitherD-Contract (EitherD-if gs)
+  EitherD-contract-if (clause (b ≔ c) gs) P wp
      with toBool b
-  ... | false = Error-contract-if gs P (proj₂ wp refl)
-  ... | true = Error-contract c P (proj₁ wp refl)
-  Error-contract-if (otherwise≔ x) P wp = Error-contract x P wp
-Error-contract (Error-maybe nothing f₁ f₂) P wp =
-  Error-contract f₁ P (proj₁ wp refl)
-Error-contract (Error-maybe (just x) f₁ f₂) P wp =
-  Error-contract (f₂ x) P (proj₂ wp x refl)
+  ... | false = EitherD-contract-if gs P (proj₂ wp refl)
+  ... | true = EitherD-contract c P (proj₁ wp refl)
+  EitherD-contract-if (otherwise≔ x) P wp = EitherD-contract x P wp
+EitherD-contract (EitherD-either (Left x) f₁ f₂) P wp =
+  EitherD-contract (f₁ x) P (proj₁ wp x refl)
+EitherD-contract (EitherD-either (Right y) f₁ f₂) P wp =
+  EitherD-contract (f₂ y) P (proj₂ wp y refl)
+EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
+  EitherD-contract f₁ P (proj₁ wp refl)
+EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
+  EitherD-contract (f₂ x) P (proj₂ wp x refl)

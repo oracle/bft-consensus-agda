@@ -35,6 +35,10 @@ executeBlockE
   : BlockStore → Block
   → Either ErrLog ExecutedBlock
 
+executeBlockE₀
+  : BlockStore → Block
+    → EitherD ErrLog ExecutedBlock
+
 pathFromRoot
   : HashValue → BlockStore
   → Either ErrLog (List ExecutedBlock)
@@ -128,13 +132,13 @@ executeAndInsertBlockM b = do
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  step₀ : Error ErrLog (BlockStore × ExecutedBlock)
-  step₂ continue : Error ErrLog (BlockStore × ExecutedBlock)
+  step₀ : EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₂ continue : EitherD ErrLog (BlockStore × ExecutedBlock)
   continue = step₂
-  step₃ : ExecutedBlock → Error ErrLog (BlockStore × ExecutedBlock)
-  step₄ : ExecutedBlock → Error ErrLog (BlockStore × ExecutedBlock)
-  step₅ : (bsr eb : ExecutedBlock) → Error ErrLog (BlockStore × ExecutedBlock)
-  step₆ : (bsr eb : ExecutedBlock) → Error ErrLog (BlockStore × ExecutedBlock)
+  step₃ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₄ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₅ : (bsr eb : ExecutedBlock) → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₆ : (bsr eb : ExecutedBlock) → EitherD ErrLog (BlockStore × ExecutedBlock)
 
   step₀ =
     maybeSD (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
@@ -143,37 +147,37 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
   here' t = "BlockStore" ∷ "executeAndInsertBlockE" {-∷ lsB block-} ∷ t
 
   step₂ =
-      maybeSD (bs0 ^∙ bsRoot) (LeftE fakeErr) step₃
+      maybeSD (bs0 ^∙ bsRoot) (LeftD fakeErr) step₃
 
   step₃ bsr =
       let btRound = bsr ^∙ ebRound in
       ifD btRound ≥?ℕ block ^∙ bRound
-      then LeftE fakeErr -- block with old round
+      then LeftD fakeErr -- block with old round
       else step₄ bsr
 
   step₄ bsr = do
         eb ← case executeBlockE bs0 block of λ where
-          (Right res) → RightE res
+          (Right res) → RightD res
           (Left (ErrBlockNotFound parentBlockId)) →
-            eitherS (pathFromRoot parentBlockId bs0) LeftE $ λ blocksToReexecute →
+            eitherS (pathFromRoot parentBlockId bs0) LeftD $ λ blocksToReexecute →
               case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
-                (Left  e) → LeftE e
-                (Right _) → fromEither $ executeBlockE bs0 block -- TODO-1: make this executeBlockE.step₀
-          (Left err) → LeftE err
+                (Left  e) → LeftD e
+                (Right _) → executeBlockE₀ bs0 block -- NOTE: `executeBlockE₀` is used here because we want an `EitherD ErrLog ExecutedBlock`
+          (Left err) → LeftD err
         step₅ bsr eb
 
   step₅ bsr eb = do
-        bs1 ← fromEither $ withErrCtx'
+        bs1 ← withErrCtxD'
                 (here' [])
                 -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
-               (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) []) -- TODO-1: make this `saveTreeE.step₀`
+                (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
         step₆ bsr eb
 
   step₆ bsr eb = do
-        (bt' , eb') ← fromEither $ BlockTree.insertBlockE eb (bs0 ^∙ bsInner) -- TODO-1: make this `insertBlockE.step₀`
+        (bt' , eb') ← fromEither $ BlockTree.insertBlockE eb (bs0 ^∙ bsInner) -- TODO-1: make this `BlockTree.insertBlockE₀`
         pure ((bs0 & bsInner ∙~  bt') , eb')
 
-executeAndInsertBlockE bs0 block = Error-run $ executeAndInsertBlockE.step₀ bs0 block
+executeAndInsertBlockE bs0 block = EitherD-run $ executeAndInsertBlockE.step₀ bs0 block
 
 executeBlockE bs block =
   if is-nothing (getBlock (block ^∙ bParentId) bs)
@@ -182,6 +186,8 @@ executeBlockE bs block =
       let compute            = bs ^. bsStateComputer.scCompute
           stateComputeResult = compute (bs^.bsStateComputer) block (block^.bParentId) -}
       pure (ExecutedBlock∙new block stateComputeResult)
+
+executeBlockE₀ bs block = fromEither $ executeBlockE bs block
 
 ------------------------------------------------------------------------------
 

@@ -17,18 +17,30 @@ private
 
 -- From this instance declaration, we get _<$>_, pure, and _<*>_ also.
 instance
-  Monad-Error : ∀ {E : Set} → Monad (Error E)
-  Monad.return Monad-Error = Error-return
-  Monad._>>=_  Monad-Error = Error-bind
+  Monad-EitherD : ∀ {E : Set} → Monad (EitherD E)
+  Monad.return Monad-EitherD = EitherD-return
+  Monad._>>=_  Monad-EitherD = EitherD-bind
 
 -- These instance declarations give us variant conditional operations that we
--- can define to play nice with `Error-weakestPre`
+-- can define to play nice with `EitherD-weakestPre`
 
 instance
-  Error-MonadIfD : MonadIfD{ℓ₃ = ℓ0} (Error E)
-  MonadIfD.monad Error-MonadIfD = Monad-Error
-  MonadIfD.ifD‖  Error-MonadIfD = Error-if
+  EitherD-MonadIfD : MonadIfD{ℓ₃ = ℓ0} (EitherD E)
+  MonadIfD.monad EitherD-MonadIfD = Monad-EitherD
+  MonadIfD.ifD‖  EitherD-MonadIfD = EitherD-if
 
-  Error-MonadMaybeD : MonadMaybeD (Error E)
-  MonadMaybeD.monad   Error-MonadMaybeD = Monad-Error
-  MonadMaybeD.maybeSD Error-MonadMaybeD = Error-maybe
+  EitherD-MonadMaybeD : MonadMaybeD (EitherD E)
+  MonadMaybeD.monad   EitherD-MonadMaybeD = Monad-EitherD
+  MonadMaybeD.maybeSD EitherD-MonadMaybeD = EitherD-maybe
+
+  EitherD-MonadEitherD : MonadEitherD (EitherD E)
+  MonadEitherD.monad    EitherD-MonadEitherD = Monad-EitherD
+  MonadEitherD.eitherSD EitherD-MonadEitherD = EitherD-either
+
+-- `EitherD` is Either-like
+instance
+  EitherD-EitherLike : EitherLike EitherD
+  EitherLike.fromEither EitherD-EitherLike (Left  a) = EitherD-bail a
+  EitherLike.fromEither EitherD-EitherLike (Right b) = EitherD-return b
+
+  EitherLike.toEither   EitherD-EitherLike = EitherD-run
