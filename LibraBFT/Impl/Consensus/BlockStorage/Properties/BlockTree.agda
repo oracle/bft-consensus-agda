@@ -104,24 +104,20 @@ module insertQuorumCertESpec
           (fakeInfo ∷ il₃) ++   (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else []) | inspect
          ((fakeInfo ∷ il₃) ++_) (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [])
   ...| bt-c₁ | [ refl ] | il-c₁ | [ refl ]
-    with pf3 step3-ok
+    with pf3 (obm-dangerous-magic' "presumably can be done, but I think the problem is more about how we define il3, so stopping here")
+             (obm-dangerous-magic' "ditto")
+             step3-ok
     where
-    pf3 : Ok' bt1 il (step₃ blockId block hcb) → ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt₃
+    pf3 : (¬ (block ^∙ ebRound) > (hcb ^∙ ebRound) → il₃ ≡ [])
+        → (  (block ^∙ ebRound) > (hcb ^∙ ebRound) → il₃ ≡ fakeInfo ∷ [])
+        → Ok' bt1 il (step₃ blockId block hcb) → ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt₃
                                                × continue1 bt₃ blockId block il₃ ≡ (bt1 , il)
-    proj₂ (pf3 isOk)
-      with ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋
-          -- I thought I might be stuck with pure vs. Right, so made the silly xxx below, but now if
-          -- I try to put refl in the hole below, I see something about NilBlock in the error,
-          -- suggesting it's looking into continue2.  Maybe I could try making an abstract alias for
-          -- continue2 and working with that, but it feels like I'm in the weeds, so taking a break
-          -- here and sharing in case someone else has some insight.
-    ... | false = xxx isOk (obm-dangerous-magic' "stuck here, see notes above") 
-       where
-         xxx : ∀ {A : Set} {a : A} {x : A} {y : Either ErrLog A} → y ≡ Right a → pure x ≡ y → x ≡ a
-         xxx {A} {a} {x} refl refl = refl
-    ... | true  =  obm-dangerous-magic' "TODO: first resolve 'easy' case above"
-    proj₁ (pf3 isOk) qc' qc'∈bt₃  -- TODO-2: Consider some lemmas to streamline proofs like this and
-                                  -- the two similar ones below
+    proj₂ (pf3 ¬il3>→ il3>→ isOk)
+      with (block ^∙ ebRound) >? (hcb ^∙ ebRound)
+    proj₂ (pf3 ¬il3>→ il3>→ isOk) | no  bR≤hcbR rewrite (¬il3>→ bR≤hcbR) = inj₂-injective isOk
+    proj₂ (pf3 ¬il3>→ il3>→ isOk) | yes bR>hcbR rewrite ( il3>→ bR>hcbR) = inj₂-injective isOk
+    proj₁ (pf3 ¬il3>→ il3>→ isOk) qc' qc'∈bt₃ -- TODO-2: Consider some lemmas to streamline proofs like this and
+                                              -- the two similar ones below
        with ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋
     ...| false = Left qc'∈bt₃
     ...| true
