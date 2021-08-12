@@ -15,6 +15,7 @@ import      LibraBFT.Impl.Consensus.PendingVotes                    as PendingVo
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.OBM.Rust.Duration                         as Duration
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -23,6 +24,8 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+------------------------------------------------------------------------------
+open import Agda.Builtin.Float
 
 module LibraBFT.Impl.Consensus.Liveness.RoundState where
 
@@ -115,12 +118,13 @@ roundIndexAfterCommittedRound currentRound highestCommittedRound =
      ‖ otherwise≔                                   currentRound ∸ highestCommittedRound ∸ 3
 
 postulate
-  _**_    : ℕ → ℕ → ℕ
-  ceiling : ℕ → ℕ
+  _**_    : Float → Float → Float
+  ceiling : Float → U64
 
 getRoundDuration i r =
   let pow            = min r (i ^∙ etiMaxExponent) -- TODO/NOTE: cap on max timeout
                                                    -- undermines theoretical liveness properties
-      baseMultiplier = (i ^∙ etiExponentBase) ** {-fromIntegral-} pow
-      durationMs     = ceiling ({-fromIntegral-} (i ^∙ etiBaseMs) * baseMultiplier)
+      baseMultiplier = (i ^∙ etiExponentBase) ** {-fromIntegral-} primNatToFloat pow
+    --durationMs     = ceiling (fromIntegral (i^.etiBaseMs) * baseMultiplier)
+      durationMs     = ceiling (primFloatTimes (primNatToFloat (i ^∙ etiBaseMs)) baseMultiplier)
    in Duration.fromMillis durationMs

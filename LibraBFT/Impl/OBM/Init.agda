@@ -22,7 +22,7 @@ dT : Duration
 dT = Duration.fromMillis ConfigHardCoded.roundInitialTimeoutMS
 
 etiT : ExponentialTimeInterval
-etiT = ExponentialTimeInterval.new dT 2 {-1.2-} 6 -- TODO FLOAT
+etiT = ExponentialTimeInterval.new dT 1.2 6
 
 rsT : RoundState
 rsT = RoundState.new etiT timeT
