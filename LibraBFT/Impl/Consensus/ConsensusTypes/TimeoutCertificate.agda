@@ -10,7 +10,7 @@ open import LibraBFT.Impl.OBM.Crypto              hiding (verify)
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.ValidatorVerifier as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.RWST.Syntax
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 

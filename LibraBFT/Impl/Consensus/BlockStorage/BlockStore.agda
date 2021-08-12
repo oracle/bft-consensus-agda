@@ -59,13 +59,13 @@ commitM
   → LBFT (Either ErrLog Unit)
 commitM finalityProof = do
   bs ← use lBlockStore
-  maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
+  maybeSD (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of λ where
       nothing →
         bail (ErrBlockNotFound blockIdToCommit)
       (just blockToCommit) →
-        ifM‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
+        ifD‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
              bail fakeErr -- "commit block round lower than root"
            ‖ otherwise≔ (pathFromRootM blockIdToCommit >>= λ where
                            (Left  e) → bail e
@@ -104,7 +104,7 @@ rebuildM root rootMetadata blocks quorumCerts = do
        lRoundManager ∙ rmBlockStore ∙ bsInner ∙= inner
        self1 ← use lBlockStore
        maybeS (self1 ^∙ bsRoot) (bail fakeErr {-bsRootErrL here-}) $ λ bsr → do
-        if-RWST self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
+        ifD self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
           then
             (commitM (self1 ^∙ bsHighestCommitCert ∙ qcLedgerInfo) ∙^∙
               withErrCtx (here' ("commitM failed" ∷ [])) ∙?∙  λ _ →
@@ -121,7 +121,7 @@ rebuildM root rootMetadata blocks quorumCerts = do
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
   bs ← use lBlockStore
-  caseM⊎ executeAndInsertBlockE bs b of λ where
+  case⊎D executeAndInsertBlockE bs b of λ where
     (Left e) → bail e
     (Right (bs' , eb)) → do
       lBlockStore ∙= bs'
@@ -228,7 +228,7 @@ insertSingleQuorumCertE bs qc =
 insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
 insertTimeoutCertificateM tc = do
   curTcRound ← maybeHsk {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
-  if-RWST tc ^∙ tcRound ≤?ℕ curTcRound
+  ifD tc ^∙ tcRound ≤?ℕ curTcRound
     then ok unit
     else
       PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtx ("" ∷ []) ∙?∙ λ _ → do

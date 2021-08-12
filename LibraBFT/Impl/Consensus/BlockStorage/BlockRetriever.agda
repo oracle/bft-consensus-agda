@@ -37,7 +37,7 @@ retrieveBlockForQCM _retriever qc numBlocks =
                       -- , lsHV blockId, show attempt ]
     peers0@(_ ∷ _) → do
       mme               ← use (lRoundManager ∙ rmObmMe)
-      maybeS-RWST mme (bail fakeErr) $ λ me → do
+      maybeSD mme (bail fakeErr) $ λ me → do
         nf                ← use lObmNeedFetch
         eitherS (pickPeer attempt peers0) bail $ λ (peer , peers) → do
           let request     = BlockRetrievalRequest∙new me blockId numBlocks

@@ -24,11 +24,11 @@ postulate
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)
 generateProposalM _now round = do
   lrg ← use (lProposalGenerator ∙ pgLastRoundGenerated)
-  if-RWST lrg <?ℕ round
+  ifD lrg <?ℕ round
     then (do
       lProposalGenerator ∙ pgLastRoundGenerated ∙= round
       ensureHighestQuorumCertM round ∙?∙ λ hqc -> do
-        payload ← if-RWST BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
+        payload ← ifD BlockInfo.hasReconfiguration (hqc ^∙ qcCertifiedBlock)
                       -- IMPL-DIFF : create a fake TX
                       then pure (Encode.encode 0) -- (Payload [])
                       else pure (Encode.encode 0) -- use pgTxnManager <*> use (rmEpochState ∙ esEpoch) <*> pure round
@@ -42,7 +42,7 @@ generateProposalM _now round = do
 
 ensureHighestQuorumCertM round = do
   hqc ← use (lBlockStore ∙ bsHighestQuorumCert)
-  ifM‖ (hqc ^∙ qcCertifiedBlock ∙ biRound) ≥?ℕ round ≔
+  ifD‖ (hqc ^∙ qcCertifiedBlock ∙ biRound) ≥?ℕ round ≔
        bail fakeErr {- ErrL (here [ "given round is lower than hqc round"
                                   , show (hqc^.qcCertifiedBlock.biRound) ]) -}
      ‖ hqc ^∙ qcEndsEpoch ≔

@@ -23,15 +23,15 @@ amIMemberOfCurrentEpochM : LBFT Bool
 
 e_RoundState_processLocalTimeoutM : Epoch → Round → LBFT Bool
 e_RoundState_processLocalTimeoutM e r =
-  if-RWST not ECP-LBFT-OBM-Diff-0.enabled
+  ifD not ECP-LBFT-OBM-Diff-0.enabled
   then yes'
   else
     -- LBFT-OBM-DIFF : do not broadcast timeouts if not member of epoch
-    ifM amIMemberOfCurrentEpochM
-        yes'
-        (do
-          logInfo fakeInfo -- ["not a member of Epoch", "ignoring timeout", lsE e, lsR r]
-          pure false)
+    ifMD amIMemberOfCurrentEpochM
+         yes'
+         (do
+           logInfo fakeInfo -- ["not a member of Epoch", "ignoring timeout", lsE e, lsR r]
+           pure false)
  where
   yes' : LBFT Bool
   yes' = do
