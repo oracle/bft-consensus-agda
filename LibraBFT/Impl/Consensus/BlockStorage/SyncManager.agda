@@ -61,7 +61,7 @@ addCertsM {-reason-} syncInfo retriever =
   syncToHighestCommitCertM     (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
   insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestCommitCert) retriever ∙?∙ \_ ->
   insertQuorumCertM {-reason-} (syncInfo ^∙ siHighestQuorumCert) retriever ∙?∙ \_ ->
-  maybeS-RWST                  (syncInfo ^∙ siHighestTimeoutCert) (ok unit) $
+  maybeSD                      (syncInfo ^∙ siHighestTimeoutCert) (ok unit) $
     \tc -> BlockStore.insertTimeoutCertificateM tc
 
 ------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
 
   step₀ = do
     bs ← use lBlockStore
-    _ ← caseM⊎ needFetchForQuorumCert qc bs of λ where
+    _ ← case⊎D needFetchForQuorumCert qc bs of λ where
       (Left e) →
         bail e
       (Right NeedFetch) →
@@ -90,8 +90,8 @@ module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
     step₁ bs
 
   step₁ bs = do
-    maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
-      if-RWST (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
+    maybeSD (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr →
+      ifD (bsr ^∙ ebRound) <?ℕ (qc ^∙ qcCommitInfo ∙ biRound)
         then step₂ bsr
         else
           step₁-else
@@ -102,7 +102,7 @@ module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
             step₃
 
   step₃ = do
-            if-RWST qc ^∙ qcEndsEpoch
+            ifD qc ^∙ qcEndsEpoch
               then ok unit -- TODO-1 EPOCH CHANGE
               else ok unit
 
@@ -124,7 +124,7 @@ fetchQuorumCertM qc retriever =
 {-# TERMINATING #-}
 loop1 retriever pending retrieveQC = do
     bs ← use lBlockStore
-    if-RWST (BlockStore.blockExists (retrieveQC ^∙ qcCertifiedBlock ∙ biId) bs)
+    ifD (BlockStore.blockExists (retrieveQC ^∙ qcCertifiedBlock ∙ biId) bs)
       then ok pending
       else
         BlockRetriever.retrieveBlockForQCM retriever retrieveQC 1
@@ -153,7 +153,7 @@ hereFQCM' t = "SyncManager" ∷ "fetchQuorumCertM" ∷ t
 
 syncToHighestCommitCertM highestCommitCert retriever = do
   bs ← use lBlockStore
-  eitherS-RWST (needSyncForQuorumCert highestCommitCert bs) bail $ λ b →
+  eitherSD (needSyncForQuorumCert highestCommitCert bs) bail $ λ b →
     if not b
       then ok unit
       else
@@ -161,7 +161,7 @@ syncToHighestCommitCertM highestCommitCert retriever = do
           logInfo fakeInfo -- (here ["fastForwardSyncM success", lsRD rd])
           BlockStore.rebuildM (rd ^∙ rdRoot) (rd ^∙ rdRootMetadata) (rd ^∙ rdBlocks) (rd ^∙ rdQuorumCerts)
             ∙^∙ withErrCtx (here' []) ∙?∙ λ _ -> do
-            when-RWST (highestCommitCert ^∙ qcEndsEpoch) $ do
+            whenD (highestCommitCert ^∙ qcEndsEpoch) $ do
               me ← use (lRoundManager ∙ rmObmMe)
               -- TODO-1 : Epoch Change Proof
               -- let ecp = EpochChangeProof ∙ new [highestCommitCert ^∙ qcLedgerInfo] False
@@ -214,10 +214,10 @@ fastForwardSyncM highestCommitCert retriever = do
   checkBlocksMatchQCs quorumCerts = λ where
     []                 → ok unit
     ((i , block) ∷ xs) →
-      maybeS-RWST (quorumCerts !? i)
+      maybeSD (quorumCerts !? i)
                   (bail fakeErr) -- (here' ["checkBlocksMatchQCs", "!?"])
                   $ λ qc →
-      if-RWST (block ^∙ bId /= qc ^∙ qcCertifiedBlock ∙ biId)
+      ifD (block ^∙ bId /= qc ^∙ qcCertifiedBlock ∙ biId)
       then (do
         logInfo fakeInfo -- [lsHV (block^.bId), lsB block]
         logInfo fakeInfo -- [lsHV (quorumCerts Prelude.!! i ^.qcCertifiedBlock.biId)

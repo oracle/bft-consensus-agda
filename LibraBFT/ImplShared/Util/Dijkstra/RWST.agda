@@ -29,7 +29,7 @@ open import LibraBFT.Prelude
 -- TODO-2: this module is independent of any particular implementation
 -- and arguably belongs somewhere more general, such as next to Optics.
 
-module LibraBFT.ImplShared.Util.RWST where
+module LibraBFT.ImplShared.Util.Dijkstra.RWST where
 
 -- RWST, the AST of computations with state `St` reading from an environment
 -- `Ev` and producing a list of outputs of type `Wr`

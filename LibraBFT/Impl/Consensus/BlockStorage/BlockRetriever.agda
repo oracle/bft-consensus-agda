@@ -8,6 +8,7 @@ import      LibraBFT.Base.KVMap                                   as Map
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval as BlockRetrieval
 import      LibraBFT.Impl.IO.OBM.ObmNeedFetch                     as ObmNeedFetch
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Util
@@ -37,7 +38,7 @@ retrieveBlockForQCM _retriever qc numBlocks =
                       -- , lsHV blockId, show attempt ]
     peers0@(_ ∷ _) → do
       mme               ← use (lRoundManager ∙ rmObmMe)
-      maybeS-RWST mme (bail fakeErr) $ λ me → do
+      maybeSD mme (bail fakeErr) $ λ me → do
         nf                ← use lObmNeedFetch
         eitherS (pickPeer attempt peers0) bail $ λ (peer , peers) → do
           let request     = BlockRetrievalRequest∙new me blockId numBlocks

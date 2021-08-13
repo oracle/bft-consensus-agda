@@ -9,6 +9,7 @@ open import LibraBFT.Base.KVMap             as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.OBM.Rust.Duration
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -48,20 +49,31 @@ module LibraBFT.ImplShared.Consensus.Types where
   unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
              (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
 
-  record RoundState : Set where
-    constructor RoundState∙new
+  record ExponentialTimeInterval : Set where
+    constructor mkExponentialTimeInterval
     field
-      -- ...
+      _etiBaseMs       : U64
+      _etiExponentBase : F64
+      _etiMaxExponent  : Usize
+  unquoteDecl etiBaseMs   etiExponentBase   etiMaxExponent  = mkLens (quote ExponentialTimeInterval)
+             (etiBaseMs ∷ etiExponentBase ∷ etiMaxExponent ∷ [])
+
+  RoundStateTimeInterval = ExponentialTimeInterval
+
+  record RoundState : Set where
+    constructor mkRoundState
+    field
+      _rsTimeInterval          : RoundStateTimeInterval
       _rsHighestCommittedRound : Round
       _rsCurrentRound          : Round
+      _rsCurrentRoundDeadline  : Instant
       _rsPendingVotes          : PendingVotes
       _rsVoteSent              : Maybe Vote
-      -- ...
   open RoundState public
-  unquoteDecl rsHighestCommittedRound   rsCurrentRound   rsPendingVotes
-              rsVoteSent = mkLens (quote RoundState)
-             (rsHighestCommittedRound ∷ rsCurrentRound ∷ rsPendingVotes ∷
-              rsVoteSent ∷ [])
+  unquoteDecl rsTimeInterval           rsHighestCommittedRound   rsCurrentRound
+              rsCurrentRoundDeadline   rsPendingVotes            rsVoteSent = mkLens (quote RoundState)
+             (rsTimeInterval         ∷ rsHighestCommittedRound ∷ rsCurrentRound ∷
+              rsCurrentRoundDeadline ∷ rsPendingVotes          ∷ rsVoteSent ∷ [])
 
   record ObmNeedFetch : Set where
     constructor ObmNeedFetch∙new
@@ -208,8 +220,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   -- The Haskell implementation has many more constructors.
   -- Constructors are being added incrementally as needed for the verification effort.
   data ErrLog : Set where
-    ErrBlockNotFound : HashValue   → ErrLog
-    ErrVerify        : VerifyError → ErrLog
+    -- Consensus_BlockNotFound
+    ErrCBlockNotFound   : HashValue   → ErrLog
+    -- ExecutionCorrectnessClient_BlockNotFound
+    ErrECCBlockNotFound : HashValue   → ErrLog
+    ErrVerify           : VerifyError → ErrLog
 
   -- To enable modeling of logging errors that have not been added yet,
   -- an inhabitant of ErrLog is postulated.

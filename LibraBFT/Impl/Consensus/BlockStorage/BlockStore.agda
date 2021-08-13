@@ -14,6 +14,7 @@ open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBloc
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -35,6 +36,14 @@ executeBlockE
   : BlockStore → Block
   → Either ErrLog ExecutedBlock
 
+executeBlockE₀
+  : BlockStore → Block
+  → EitherD ErrLog ExecutedBlock
+
+insertSingleQuorumCertE
+  : BlockStore → QuorumCert
+  → Either ErrLog (BlockStore × List InfoLog)
+
 pathFromRoot
   : HashValue → BlockStore
   → Either ErrLog (List ExecutedBlock)
@@ -45,12 +54,36 @@ pathFromRootM
 
 ------------------------------------------------------------------------------
 
-postulate
-  build
-    : RootInfo      → RootMetadata
-    → List Block    → List QuorumCert           → Maybe TimeoutCertificate
-    → {-StateComputer →-} PersistentLivenessStorage → Usize
-    → Either ErrLog BlockStore
+build
+  : RootInfo      → RootMetadata
+  → List Block    → List QuorumCert           → Maybe TimeoutCertificate
+  → {-StateComputer →-} PersistentLivenessStorage → Usize
+  → Either ErrLog BlockStore
+build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
+           {-stateComputer-} storage maxPrunedBlocksInMem = do
+  let (RootInfo∙new rootBlock rootQc rootLi) = root
+      {- LBFT-OBM-DIFF : OBM does not implement RootMetadata
+        assert_eq!(
+            root_qc.certified_block().version(),
+            root_metadata.version())
+        assert_eq!(
+            root_qc.certified_block().executed_state_id(),
+            root_metadata.accu_hash)
+      -}
+      executedRootBlock = ExecutedBlock∙new
+                            rootBlock
+                            stateComputeResult -- (StateComputeResult (stateComputer ^∙ scObmVersion) Nothing)
+  tree ← BlockTree.new executedRootBlock rootQc rootLi maxPrunedBlocksInMem highestTimeoutCert
+  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE bs b)
+                 (BlockStore∙new tree {-stateComputer-} storage)
+                 blocks
+  (foldM) go bs1 quorumCerts
+ where
+  go : BlockStore → QuorumCert
+     → Either ErrLog BlockStore
+  go bs qc = case insertSingleQuorumCertE bs qc of λ where
+    (Left e)              → Left e
+    (Right (bs' , _info)) → Right bs'
 
 ------------------------------------------------------------------------------
 
@@ -59,13 +92,13 @@ commitM
   → LBFT (Either ErrLog Unit)
 commitM finalityProof = do
   bs ← use lBlockStore
-  maybeS-RWST (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
+  maybeSD (bs ^∙ bsRoot) (bail fakeErr) $ λ bsr → do
     let blockIdToCommit = finalityProof ^∙ liwsLedgerInfo ∙ liConsensusBlockId
     case getBlock blockIdToCommit bs of λ where
       nothing →
-        bail (ErrBlockNotFound blockIdToCommit)
+        bail (ErrCBlockNotFound blockIdToCommit)
       (just blockToCommit) →
-        ifM‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
+        ifD‖ blockToCommit ^∙ ebRound ≤?ℕ bsr ^∙ ebRound ≔
              bail fakeErr -- "commit block round lower than root"
            ‖ otherwise≔ (pathFromRootM blockIdToCommit >>= λ where
                            (Left  e) → bail e
@@ -104,7 +137,7 @@ rebuildM root rootMetadata blocks quorumCerts = do
        lRoundManager ∙ rmBlockStore ∙ bsInner ∙= inner
        self1 ← use lBlockStore
        maybeS (self1 ^∙ bsRoot) (bail fakeErr {-bsRootErrL here-}) $ λ bsr → do
-        if-RWST self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
+        ifD self1 ^∙ bsHighestCommitCert ∙ qcCommitInfo ∙ biRound >? bsr ^∙ ebRound
           then
             (commitM (self1 ^∙ bsHighestCommitCert ∙ qcLedgerInfo) ∙^∙
               withErrCtx (here' ("commitM failed" ∷ [])) ∙?∙  λ _ →
@@ -121,73 +154,74 @@ rebuildM root rootMetadata blocks quorumCerts = do
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
   bs ← use lBlockStore
-  caseM⊎ executeAndInsertBlockE bs b of λ where
+  case⊎D executeAndInsertBlockE bs b of λ where
     (Left e) → bail e
     (Right (bs' , eb)) → do
       lBlockStore ∙= bs'
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  step₀ : Either ErrLog (BlockStore × ExecutedBlock)
-  step₂ continue : Either ErrLog (BlockStore × ExecutedBlock)
-  continue = step₂
-  step₃ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
-  step₄ : ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock)
-  step₅ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
-  step₆ : (bsr eb : ExecutedBlock) → Either ErrLog (BlockStore × ExecutedBlock)
+  step₀ : EitherD ErrLog (BlockStore × ExecutedBlock)
+  continue step₁ : EitherD ErrLog (BlockStore × ExecutedBlock)
+  continue = step₁
+  step₂ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₃ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₄ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
 
   step₀ =
-    maybeS (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
+    maybeSD (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
 
   here' : List String.String → List String.String
   here' t = "BlockStore" ∷ "executeAndInsertBlockE" {-∷ lsB block-} ∷ t
 
-  step₂ =
-      maybeS (bs0 ^∙ bsRoot) (Left fakeErr) step₃
-
-  step₃ bsr =
+  step₁ =
+      maybeSD (bs0 ^∙ bsRoot) (LeftD fakeErr) λ bsr →
       let btRound = bsr ^∙ ebRound in
-      if-dec btRound ≥?ℕ block ^∙ bRound
-      then Left fakeErr -- block with old round
-      else step₄ bsr
+      ifD btRound ≥?ℕ block ^∙ bRound
+      then LeftD fakeErr -- block with old round
+      else step₂ bsr
+      -- else step₂ bsr
 
-  step₄ bsr = do
-        eb ← case executeBlockE bs0 block of λ where
-          (Right res) → Right res
-          (Left (ErrBlockNotFound parentBlockId)) → do
-            eitherS (pathFromRoot parentBlockId bs0) Left $ λ blocksToReexecute →
-              case (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
-                (Left  e) → Left e
-                (Right _) → executeBlockE bs0 block
-          (Left err) → Left err
-        step₅ bsr eb
+  step₂ bsr = do
+        eb ← case⊎D executeBlockE bs0 block of λ where
+          (Right res) → RightD res
+          -- OBM-LBFT-DIFF : This is never thrown in OBM.
+          -- It is thrown by StateComputer in Rust (but not in OBM).
+          (Left (ErrECCBlockNotFound parentBlockId)) → do
+            eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
+              -- OBM-LBFT-DIFF : OBM StateComputer does NOT have state.
+              -- If it ever does have state then the following 'forM' will
+              -- need to change to some sort of 'fold' because 'executeBlockE'
+              -- would change the state, so the state passed to 'executeBlockE'
+              -- would no longer be 'bs0'.
+              case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+                (Left  e) → LeftD e
+                (Right _) → executeBlockE₀ bs0 block
+          (Left err) → LeftD err
+        step₃ eb
 
-  step₅ bsr eb = do
-        bs1 ← withErrCtx'
+  step₃ eb = do
+        bs1 ← withErrCtxD'
                 (here' [])
                 -- TODO-1 : use inspect qualified so Agda List singleton can be in scope.
-               (PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) [])
-        step₆ bsr eb
+                (PersistentLivenessStorage.saveTreeE bs0 (eb ^∙ ebBlock ∷ []) [])
+        step₄ eb
 
-  step₆ bsr eb = do
-        (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
-        pure ((bs0 & bsInner ∙~  bt') , eb')
+  step₄ eb = do
+        (bt' , eb') ← BlockTree.insertBlockE₀ eb (bs0 ^∙ bsInner)
+        pure ((bs0 & bsInner ∙~ bt') , eb')
 
-executeAndInsertBlockE = executeAndInsertBlockE.step₀
+executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block
 
-executeBlockE bs block =
-  if is-nothing (getBlock (block ^∙ bParentId) bs)
-    then Left (ErrBlockNotFound {-(here ["block with missing parent"])-} (block ^∙ bParentId))
-    else {- do
-      let compute            = bs ^. bsStateComputer.scCompute
-          stateComputeResult = compute (bs^.bsStateComputer) block (block^.bParentId) -}
-      pure (ExecutedBlock∙new block stateComputeResult)
+executeBlockE bs block = do
+  -- let compute        = bs ^. bsStateComputer.scCompute
+  -- StateComputer may update its internal state and/or throw and exception.
+  -- stateComputeResult ← compute (bs^.bsStateComputer) block (block^.bParentId)
+  pure (ExecutedBlock∙new block stateComputeResult)
+
+executeBlockE₀ bs block = fromEither $ executeBlockE bs block
 
 ------------------------------------------------------------------------------
-
-insertSingleQuorumCertE
-  : BlockStore → QuorumCert
-  → Either ErrLog (BlockStore × List InfoLog)
 
 insertSingleQuorumCertM
   : QuorumCert
@@ -203,7 +237,7 @@ insertSingleQuorumCertM qc = do
 
 insertSingleQuorumCertE bs qc =
   maybeS (getBlock (qc ^∙ qcCertifiedBlock ∙ biId) bs)
-         (Left (ErrBlockNotFound
+         (Left (ErrCBlockNotFound
                   -- (here ["insert QC without having the block in store first"])
                   (qc ^∙ qcCertifiedBlock ∙ biId)))
          (λ executedBlock →
@@ -228,7 +262,7 @@ insertSingleQuorumCertE bs qc =
 insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
 insertTimeoutCertificateM tc = do
   curTcRound ← maybeHsk {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
-  if-RWST tc ^∙ tcRound ≤?ℕ curTcRound
+  ifD tc ^∙ tcRound ≤?ℕ curTcRound
     then ok unit
     else
       PersistentLivenessStorage.saveHighestTimeoutCertM tc ∙^∙ withErrCtx ("" ∷ []) ∙?∙ λ _ → do

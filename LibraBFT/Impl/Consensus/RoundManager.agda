@@ -57,7 +57,7 @@ processNewRoundEventM now nre@(NewRoundEvent∙new r _ _) = do
     nothing       → logErr fakeErr -- (here ["lRoundManager.pgAuthor", "Nothing"])
     (just author) → do
       v ← ProposerElection.isValidProposer <$> use lProposerElection <*> pure author <*> pure r
-      when v $ do
+      whenD v $ do
         rcvrs ← use (lRoundManager ∙ rmObmAllAuthors)
         generateProposalM now nre >>= λ where
           -- (Left (ErrEpochEndedNoProposals t)) -> logInfoL (lEC.|.lPM) (here ("EpochEnded":t))
@@ -87,7 +87,7 @@ module processProposalMsgM (now : Instant) (pm : ProposalMsg) where
   step₂ : Either ErrLog Bool → LBFT Unit
 
   step₀ =
-    caseMM pm ^∙ pmProposer of λ where
+    caseMD pm ^∙ pmProposer of λ where
       nothing → logInfo fakeInfo -- proposal with no author
       (just pAuthor) → step₁ pAuthor
 
@@ -125,7 +125,7 @@ module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRem
     step₁ localSyncInfo
 
   step₁ localSyncInfo = do
-    if-RWST SyncInfo.hasNewerCertificates syncInfo localSyncInfo
+    ifD SyncInfo.hasNewerCertificates syncInfo localSyncInfo
       then step₂ localSyncInfo
       else ok unit
 
@@ -156,7 +156,7 @@ module ensureRoundAndSyncUpM
 
   step₀ = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
-    if-RWST messageRound <? currentRound
+    ifD messageRound <? currentRound
       then ok false
       else step₁
 
@@ -165,7 +165,7 @@ module ensureRoundAndSyncUpM
 
   step₂ = do
           currentRound' ← use (lRoundState ∙ rsCurrentRound)
-          if-RWST messageRound /= currentRound'
+          ifD messageRound /= currentRound'
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
@@ -201,7 +201,7 @@ processSyncInfoMsgM now syncInfo peer =
 processLocalTimeoutM : Instant → Epoch → Round → LBFT Unit
 processLocalTimeoutM now obmEpoch round = do
   -- logEE lTO (here []) $
-  ifM (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
+  ifMD (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
  where
   here'     : List String.String → List String.String
   continue2 : LBFT Unit
@@ -209,7 +209,7 @@ processLocalTimeoutM now obmEpoch round = do
   continue4 : Vote → LBFT Unit
 
   continue1 =
-    ifM (use (lRoundManager ∙ rmSyncOnly))
+    ifMD (use (lRoundManager ∙ rmSyncOnly))
       -- In Haskell, rmSyncOnly is ALWAYS false.
       -- It is used for an unimplemented "sync only" mode for nodes.
       -- "sync only" mode is an optimization for nodes catching up.
@@ -221,7 +221,7 @@ processLocalTimeoutM now obmEpoch round = do
   continue2 =
     use (lRoundState ∙ rsVoteSent) >>= λ where
       (just vote) →
-        if-RWST (vote ^∙ vVoteData ∙ vdProposed ∙ biRound == round)
+        ifD (vote ^∙ vVoteData ∙ vdProposed ∙ biRound == round)
           -- already voted in this round, so resend the vote, but with a timeout signature
           then continue3 (true , vote)
           else local-continue2-continue
@@ -283,7 +283,7 @@ module processProposalM (proposal : Block) where
     step₁ bs vp
 
   step₁ bs vp =
-    ifM‖ isLeft vp ≔
+    ifD‖ isLeft vp ≔
          logErr fakeErr -- proposer for block is not valid for this round
        ‖ is-nothing (BlockStore.getQuorumCertForBlock (proposal ^∙ bParentId) bs) ≔
          logErr fakeErr -- QC of parent is not in BS
@@ -324,7 +324,7 @@ module executeAndVoteM (b : Block) where
     cr ← use (lRoundState ∙ rsCurrentRound)
     vs ← use (lRoundState ∙ rsVoteSent)
     so ← use (lRoundManager ∙ rmSyncOnly)
-    ifM‖ is-just vs ≔
+    ifD‖ is-just vs ≔
          bail fakeErr -- error: already voted this round
        ‖ so ≔
          bail fakeErr -- error: sync-only set
@@ -353,7 +353,7 @@ processVoteMsgM now voteMsg = do
   processVoteM now (voteMsg ^∙ vmVote)
 
 processVoteM now vote =
-  if-RWST not (Vote.isTimeout vote)
+  ifD not (Vote.isTimeout vote)
   then (do
     let nextRound = vote ^∙ vVoteData ∙ vdProposed ∙ biRound + 1
     use (lRoundManager ∙ pgAuthor) >>= λ where
@@ -369,7 +369,7 @@ processVoteM now vote =
   continue = do
     let blockId = vote ^∙ vVoteData ∙ vdProposed ∙ biId
     bs ← use lBlockStore
-    if-RWST (is-just (BlockStore.getQuorumCertForBlock blockId bs))
+    ifD (is-just (BlockStore.getQuorumCertForBlock blockId bs))
       then logInfo fakeInfo -- "block already has QC", "dropping unneeded vote"
       else do
       logInfo fakeInfo -- "before"
@@ -379,8 +379,8 @@ processVoteM now vote =
 
 addVoteM now vote = do
   bs ← use lBlockStore
-  maybeS-RWST (bs ^∙ bsHighestTimeoutCert) continue λ tc →
-    if-RWST vote ^∙ vRound == tc ^∙ tcRound
+  maybeSD (bs ^∙ bsHighestTimeoutCert) continue λ tc →
+    ifD vote ^∙ vRound == tc ^∙ tcRound
       then logInfo fakeInfo -- "block already has TC", "dropping unneeded vote"
       else continue
  where
@@ -427,12 +427,8 @@ processBlockRetrievalRequestM _now request = do
     e  ← use (lRoundManager ∙ rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch)
     r  ← use (lRoundManager ∙ rmRoundState ∙ rsCurrentRound)
     let meer = (me , e , r)
-    bs   ← use lBlockStore
-    -- TODO-1: define and use SendBRP
-    -- act (SendBRP lSI (request^∙brqObmFrom) (xxx meer bs [] (request^∙brqBlockId)))
-    -- The following is just to get parts of the "act" together.
-    let rsp = mkRsp request meer bs [] (request ^∙ brqBlockId)
-    pure unit
+    bs ← use lBlockStore
+    act (SendBRP (request ^∙ brqObmFrom) (mkRsp request meer bs [] (request ^∙ brqBlockId)))
 
 mkRsp request meer bs blocks id =
     if-dec length blocks <? request ^∙ brqNumBlocks

@@ -4,9 +4,12 @@
 -}
 
 import      LibraBFT.Impl.Consensus.LedgerRecoveryData as LedgerRecoveryData
+open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                                as String
 
 module LibraBFT.Impl.Consensus.RecoveryData where
 
@@ -21,14 +24,14 @@ new
   → RootMetadata
   → List QuorumCert
   → Maybe TimeoutCertificate
-  → RecoveryData
-new lastVote storageLedger blocks0 rootMetadata quorumCerts0 highestTimeoutCertificate =
-  let (root@(RootInfo∙new rb _ _) , blocks1 , quorumCerts1)
-            = LedgerRecoveryData.findRoot blocks0 quorumCerts0 storageLedger
-      (blocksToPrune , blocks , quorumCerts)
+  → Either ErrLog RecoveryData
+new lastVote storageLedger blocks0 rootMetadata quorumCerts0 highestTimeoutCertificate = do
+  (root@(RootInfo∙new rb _ _) , blocks1 , quorumCerts1)
+            ← withErrCtx' (here' []) (LedgerRecoveryData.findRoot blocks0 quorumCerts0 storageLedger)
+  let (blocksToPrune , blocks , quorumCerts)
             = findBlocksToPrune (rb ^∙ bId) blocks1 quorumCerts1
       epoch = rb ^∙ bEpoch
-   in mkRecoveryData
+  pure $ mkRecoveryData
       (case lastVote of λ where
         (just v) → if-dec v ^∙ vEpoch ≟ epoch then just v else nothing
         nothing  → nothing)
@@ -40,6 +43,9 @@ new lastVote storageLedger blocks0 rootMetadata quorumCerts0 highestTimeoutCerti
       (case highestTimeoutCertificate of λ where
         (just tc) → if-dec tc ^∙ tcEpoch ≟ epoch then just tc else nothing
         nothing   → nothing)
+ where
+  here' : List String.String → List String.String
+  here' t = "RecoveryData" ∷ "new" ∷ t
 
 -- TODO (the "TODO" is in the Haskell code)
 findBlocksToPrune _rootId blocks quorumCerts = ([] , blocks , quorumCerts)

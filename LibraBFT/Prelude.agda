@@ -43,6 +43,7 @@ module LibraBFT.Prelude where
     public
 
   max = _⊔_
+  min = _⊓_
 
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
@@ -53,6 +54,8 @@ module LibraBFT.Prelude where
               tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
+
+  foldl' = List-foldl
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
@@ -239,6 +242,8 @@ module LibraBFT.Prelude where
     hiding (zip)
     public
 
+  fst = proj₁
+
   open import Data.Product.Properties
     public
 
@@ -356,6 +361,18 @@ module LibraBFT.Prelude where
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+
+  -- Utility to make passing between `Either` and `EitherD` more convenient
+  record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
+    field
+      fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+      toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+  open EitherLike ⦃ ... ⦄ public
+  instance
+    EitherLike-Either : ∀ {ℓ₁ ℓ₂} → EitherLike{ℓ₁}{ℓ₂}{ℓ₁ ℓ⊔ ℓ₂} Either
+    EitherLike.fromEither EitherLike-Either = id
+    EitherLike.toEither   EitherLike-Either = id
 
   -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
   -- spaces between f and backticks
@@ -479,9 +496,9 @@ module LibraBFT.Prelude where
       return (f x)
 
   instance
-    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Error{ℓ}{C}) = inj₂
-    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
+    Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Either{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ inj₁) _&_
 
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
@@ -521,6 +538,17 @@ module LibraBFT.Prelude where
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
+
+  foldlM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M B
+  foldlM _ z      []  = pure z
+  foldlM f z (x ∷ xs) = do
+    z' ← f z x
+    foldlM f z' xs
+
+  foldM = foldlM
+
+  foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
+  foldM_ f a xs = foldlM f a xs >> pure unit
 
   open import LibraBFT.Base.Util public
 

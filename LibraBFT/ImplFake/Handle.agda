@@ -10,6 +10,9 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
+open import LibraBFT.Impl.OBM.Init
+open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
@@ -52,7 +55,7 @@ module LibraBFT.ImplFake.Handle where
  initPE = obm-dangerous-magic!
 
  initRS : RoundState
- initRS = RoundState∙new 0 0 PendingVotes∙new nothing
+ initRS = RoundState.new etiT timeT
 
  initRM : RoundManager
  initRM = RoundManager∙new
