@@ -5,13 +5,21 @@
 -}
 
 open import LibraBFT.Prelude
+------------------------------------------------------------------------------
+open import Agda.Builtin.Float
 
 module LibraBFT.Impl.OBM.Rust.RustTypes where
 
 -- TODO-2 : reasoning about integer overflow
 
+F64 : Set
+F64 = Float -- This is 'Double' in Haskell.  In Agda, 'Float' is represented as a Haskell 'Double'.
+
 U64 : Set
 U64 = ℕ
+
+U128 : Set
+U128 = ℕ
 
 Usize : Set
 Usize = ℕ
