@@ -4,11 +4,11 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.ImplShared.Util.Dijkstra.Error
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
 open import LibraBFT.Prelude
 
-module LibraBFT.ImplShared.Util.Dijkstra.Error.Syntax where
+module LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax where
 
 private
   variable

@@ -6,7 +6,7 @@
 
 open import LibraBFT.Prelude
 
-module LibraBFT.ImplShared.Util.Dijkstra.Error where
+module LibraBFT.ImplShared.Util.Dijkstra.EitherD where
 
 data EitherD (E : Set) : Set → Set₁ where
   -- Primitive combinators

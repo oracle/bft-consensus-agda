@@ -16,8 +16,8 @@ module LibraBFT.ImplShared.Util.Util where
   open import LibraBFT.ImplShared.Util.Dijkstra.Syntax public
   open import LibraBFT.ImplShared.Util.Dijkstra.RWST public
   open import LibraBFT.ImplShared.Util.Dijkstra.RWST.Syntax public
-  open import LibraBFT.ImplShared.Util.Dijkstra.Error public
-  open import LibraBFT.ImplShared.Util.Dijkstra.Error.Syntax public
+  open import LibraBFT.ImplShared.Util.Dijkstra.EitherD public
+  open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax public
   ----------------
   -- LBFT Monad --
   ----------------

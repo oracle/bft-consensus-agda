@@ -5,7 +5,7 @@
 -}
 
 open import LibraBFT.ImplShared.Util.Dijkstra.RWST
-open import LibraBFT.ImplShared.Util.Dijkstra.Error
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 open import LibraBFT.Prelude
 open import Optics.All
 
