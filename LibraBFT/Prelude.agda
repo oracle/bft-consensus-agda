@@ -43,6 +43,7 @@ module LibraBFT.Prelude where
     public
 
   max = _⊔_
+  min = _⊓_
 
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
@@ -53,6 +54,8 @@ module LibraBFT.Prelude where
               tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
+
+  foldl' = List-foldl
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
@@ -238,6 +241,8 @@ module LibraBFT.Prelude where
     renaming (map to ×-map; map₂ to ×-map₂; map₁ to ×-map₁; <_,_> to split; swap to ×-swap)
     hiding (zip)
     public
+
+  fst = proj₁
 
   open import Data.Product.Properties
     public
@@ -533,6 +538,17 @@ module LibraBFT.Prelude where
   foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
   foldrM _ b      []  = return b
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
+
+  foldlM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M B
+  foldlM _ z      []  = pure z
+  foldlM f z (x ∷ xs) = do
+    z' ← f z x
+    foldlM f z' xs
+
+  foldM = foldlM
+
+  foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
+  foldM_ f a xs = foldlM f a xs >> pure unit
 
   open import LibraBFT.Base.Util public
 

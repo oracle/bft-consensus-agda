@@ -6,11 +6,7 @@
 
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 
-module LibraBFT.Impl.OBM.Rust.Duration where
+module LibraBFT.Impl.OBM.ConfigHardCoded where
 
-record Duration : Set where
-  constructor Duration∙new
-
-postulate
-  fromMillis : U64 → Duration
-  asMillis   : Duration → U128
+roundInitialTimeoutMS : U64
+roundInitialTimeoutMS = 3000

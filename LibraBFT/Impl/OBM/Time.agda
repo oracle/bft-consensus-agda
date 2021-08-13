@@ -4,13 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import LibraBFT.Prelude
+open import LibraBFT.Impl.OBM.Rust.Duration as Duration
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 
-module LibraBFT.Impl.OBM.Rust.Duration where
-
-record Duration : Set where
-  constructor Duration∙new
+module LibraBFT.Impl.OBM.Time where
 
 postulate
-  fromMillis : U64 → Duration
-  asMillis   : Duration → U128
+  iPlus : Instant → Duration → Instant
+  timeT : Instant

@@ -3,12 +3,14 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap            as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -37,12 +39,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   aAuthorName : Lens Author AuthorName
   aAuthorName = mkLens' (λ x → x) (λ x → const x)
-
-  U64 : Set
-  U64 = ℕ
-
-  Usize : Set
-  Usize = ℕ
 
   HashValue : Set
   HashValue = Hash
@@ -190,6 +186,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     g : LedgerInfo → Maybe EpochState
     g = (_^∙ liCommitInfo ∙ biNextEpochState)
     s : LedgerInfo → Maybe EpochState → LedgerInfo
+    s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
+
+  -- GETTER only in Haskell
+  liEndsEpoch : Lens LedgerInfo Bool
+  liEndsEpoch = mkLens' g s
+   where
+    g : LedgerInfo → Bool
+    g = is-just ∘ (_^∙ liNextEpochState)
+    s : LedgerInfo → Bool → LedgerInfo
     s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
@@ -465,6 +470,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bEpoch = bBlockData ∙ bdEpoch
 
   -- getter only in Haskell
+  bRound : Lens Block Round
+  bRound = bBlockData ∙ bdRound
+
+  -- getter only in Haskell
   bQuorumCert : Lens Block QuorumCert
   bQuorumCert  = bBlockData ∙ bdQuorumCert
 
@@ -475,10 +484,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- getter only in Haskell
   bPayload : Lens Block (Maybe TX)
   bPayload = bBlockData ∙ bdPayload
-
-  -- getter only in Haskell
-  bRound : Lens Block Round
-  bRound =  bBlockData ∙ bdRound
 
   infix 4 _≈Block_
   _≈Block_ : (b₁ b₂ : Block) → Set
@@ -863,6 +868,21 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open BlockRetrievalStatus public
   postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
 
+  brs-eq : (brs₁ brs₂ : BlockRetrievalStatus) → Dec (brs₁ ≡ brs₂)
+  brs-eq BRSSucceeded       BRSSucceeded       = yes refl
+  brs-eq BRSSucceeded       BRSIdNotFound      = no λ ()
+  brs-eq BRSSucceeded       BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSIdNotFound      BRSSucceeded       = no λ ()
+  brs-eq BRSIdNotFound      BRSIdNotFound      = yes refl
+  brs-eq BRSIdNotFound      BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSSucceeded       = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSIdNotFound      = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSNotEnoughBlocks = yes refl
+
+  instance
+    Eq-BlockRetrievalStatus : Eq BlockRetrievalStatus
+    Eq._≟_ Eq-BlockRetrievalStatus = brs-eq
+
   record BlockRetrievalResponse : Set where
     constructor BlockRetrievalResponse∙new
     field
@@ -892,7 +912,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- A block tree depends on a epoch config but works regardlesss of which
   -- EpochConfig we have.
   record BlockTree : Set where
-    constructor BlockTree∙new
+    constructor mkBlockTree
     field
       _btIdToBlock               : KVMap HashValue LinkableBlock
       _btRootId                  : HashValue
@@ -900,19 +920,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _btHighestQuorumCert       : QuorumCert
       _btHighestTimeoutCert      : Maybe TimeoutCertificate
       _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
       _btIdToQuorumCert          : KVMap HashValue QuorumCert
+      _btPrunedBlockIds          : VecDeque
+      _btMaxPrunedBlocksInMem    : ℕ
   open BlockTree public
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestTimeoutCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
+  unquoteDecl btIdToBlock   btRootId  btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert   btHighestCommitCert
+              btIdToQuorumCert   btPrunedBlockIds
+              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
              (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestTimeoutCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
+              btHighestTimeoutCert ∷ btHighestCommitCert ∷
+              btIdToQuorumCert ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ [])
 
   btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
   btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
@@ -943,8 +962,34 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
-  record PersistentLivenessStorage : Set where
-    constructor PersistentLivenessStorage∙new
+  record MockSharedStorage : Set where
+    constructor MockSharedStorage∙new
+    field
+      -- Safety state
+      _mssBlock                     : Map.KVMap HashValue Block
+      _mssQc                        : Map.KVMap HashValue QuorumCert
+      _mssLis                       : Map.KVMap Version   LedgerInfoWithSignatures
+      _mssLastVote                  : Maybe Vote
+      -- Liveness state
+      _mssHighestTimeoutCertificate : Maybe TimeoutCertificate
+      --_mssValidatorSet              : ValidatorSet
+  open MockSharedStorage public
+  unquoteDecl mssBlock    mssQc   mssLis    mssLastVote
+              mssHighestTimeoutCertificate   {-mssValidatorSet-} = mkLens (quote MockSharedStorage)
+             (mssBlock ∷  mssQc ∷ mssLis ∷ mssLastVote ∷
+              mssHighestTimeoutCertificate {-∷ mssValidatorSet-} ∷ [])
+
+  record MockStorage : Set where
+    constructor MockStorage∙new
+    field
+      _msSharedStorage : MockSharedStorage
+      --_msStorageLedger : LedgerInfo
+      --_msObmDiemDB     : DiemDB
+  open MockStorage public
+  unquoteDecl msSharedStorage = mkLens (quote MockStorage)
+             (msSharedStorage ∷ [])
+
+  PersistentLivenessStorage = MockStorage
 
   record BlockStore : Set where
     constructor BlockStore∙new

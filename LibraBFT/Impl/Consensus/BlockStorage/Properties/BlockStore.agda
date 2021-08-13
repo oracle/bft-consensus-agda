@@ -84,7 +84,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   Contract (Left x) = ⊤
   Contract (Right (bs' , eb)) = ContractOk bs' eb
 
-  contract' : EitherD-weakestPre (executeAndInsertBlockE.step₀ bs0 block) Contract
+  contract' : EitherD-weakestPre step₀ Contract
   proj₂ contract' eb eb≡ =
     mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) qcPres
     where
@@ -101,74 +101,72 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0 → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ bs0)
     qcPres pre refl qc = id
 
-  proj₁ contract' getBlock≡nothing = contract₂
+  proj₁ contract' getBlock≡nothing = contract₁
     where
-    contract₂ : EitherD-weakestPre step₂ Contract
-    proj₁ contract₂ _ = tt
-    proj₂ contract₂ bsr bsr≡ = contract₃
+    contract₁ : EitherD-weakestPre step₁ Contract
+    proj₁ contract₁ _ = tt
+    proj₁ (proj₂ contract₁ bsr bsr≡) _ = tt
+    proj₂ (proj₂ contract₁ bsr bsr≡) btr<br = contract₂
       where
-      contract₃ : EitherD-weakestPre (step₃ bsr) Contract
-      proj₁ contract₃ _ = tt
-      proj₂ contract₃ btr<br = contract₄
+      contract₃ : ∀ eb → ExecutedBlock∙new block stateComputeResult ≡ eb
+                  → EitherD-weakestPre (step₃ eb) Contract
+
+      contract₂ : EitherD-weakestPre (step₂ bsr) Contract
+      proj₂ contract₂ eb eb≡ ._ refl =
+        contract₃ eb (inj₂-injective eb≡)
+      proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
+      proj₁ contract₂ (ErrVerify _) executeBlockE≡Left = tt
+      -- > eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
+      proj₁ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) _ _ = tt
+      -- > case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+      proj₁ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ = tt
+      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ eb eb≡ =
+        contract₃ eb (sym eb≡)
+
+      contract₃ eb eb≡ bs1 bs1≡ = contract₄
         where
-        contract₅ : ∀ eb → eb ^∙ ebBlock ≈Block block → EitherD-weakestPre (step₅ bsr eb) Contract
-
-        contract₄ : EitherD-weakestPre (step₄ bsr) Contract
+        contract₄ : EitherD-weakestPre (step₄ eb) Contract
         contract₄
-           with executeBlockE bs0 block
-           |    inspect (executeBlockE bs0) block
-        ...| Right res | [ executeBlock≡ ] = λ where ._ refl → contract₅ res EB.ebBlock≈
-           where module EB = executeBlockESpec.ContractOk (executeBlockESpec.contract bs0 block (res , executeBlock≡))
-        ...| Left (ErrBlockNotFound parentBlockId) | [ executeBlockE≡ ]
-           with pathFromRoot parentBlockId bs0
+           with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
+        ...| con
+           with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
-        ...| Right blocksToReexecute
-           with (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock))
-        ...| Left _ = tt
-        ...| Right _
-           with executeBlockE bs0 block
-        ...| Left  _ = tt
-        contract₄ | Left (ErrVerify _) | [ executeBlockE≡ ] = tt
-
-        contract₅ eb eb≈
-           with PersistentLivenessStorage.saveTreeE bs0 ((eb ^∙ ebBlock) ∷ []) []
-        ...| Left _ = tt
-        ...| Right bs1 = λ where ._ refl → contract₆
+        ...| Right (bt' , eb') =
+           λ where ._ refl → mkContractOk ebBlock≈ btP qcPost qcPres
            where
-           contract₆ : EitherD-weakestPre (step₆ bsr eb) Contract
-           contract₆
-              with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
-           ...| con
-              with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
-           ...| Left  _ = tt
-           ...| Right (bt' , eb') =
-             λ where ._ refl → mkContractOk ebBlock≈ btP qcPost qcPres
-              where
-              module IBE = insertBlockESpec.ContractOk con
+           module IBE = insertBlockESpec.ContractOk con
 
-              ebBlock≈ : eb' ^∙ ebBlock ≈Block block
-              ebBlock≈ = sym≈Block $ begin
-                block                                                  ≡⟨ sym≈Block eb≈ ⟩
-                (eb  ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature)) ≡⟨ sym≈Block IBE.block≈ ⟩
-                (eb' ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature)) ∎
-                where open ≡-Reasoning
+           eb≈ : block ≡ eb ^∙ ebBlock
+           eb≈ = cong (_^∙ ebBlock) eb≡
 
-              btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ (bs0 & bsInner ∙~ bt'))
-              btP rm bs≡
-                 with insertBlockESpec.preservesBlockStoreInv eb (bs0 ^∙ bsInner)
-                        bt' eb' con rm (cong (_^∙ bsInner) bs≡)
-              ...| Right hashCollision = ⊥-elim hashCollision -- TODO-2: propagate hash collision upward
-              ...| Left pres = pres
+           ebBlock≈ : eb' ^∙ ebBlock ≈Block block
+           ebBlock≈ = sym≈Block $ begin
+             block
+               ≡⟨ eb≈ ⟩
+             (eb  ^∙ ebBlock)
+               ≡⟨ cong (λ b → eb ^∙ ebBlock & bSignature ∙~ (b ^∙ bSignature)) (sym eb≈) ⟩
+             (eb  ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature))
+               ≡⟨ sym≈Block IBE.block≈ ⟩
+             (eb' ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature))
+               ∎
+             where open ≡-Reasoning
 
-              qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
-              qcPost
-                 with insertBlockESpec.qcPost eb (bs0 ^∙ bsInner)
-                        bt' eb' con
-              ...| qcPost' rewrite eb≈ = qcPost'
+           btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ (bs0 & bsInner ∙~ bt'))
+           btP rm bs≡
+              with insertBlockESpec.preservesBlockStoreInv eb (bs0 ^∙ bsInner)
+                     bt' eb' con rm (cong (_^∙ bsInner) bs≡)
+           ...| Right hashCollision = ⊥-elim hashCollision -- TODO-2: propagate hash collision upward
+           ...| Left pres rewrite bs≡ = pres
 
-              qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
-                       → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ BlockStore∙new bt' (bs0 ^∙ bsStorage))
-              qcPres = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
+           qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
+           qcPost
+              with insertBlockESpec.qcPost eb (bs0 ^∙ bsInner)
+                     bt' eb' con
+           ...| qcPost' rewrite eb≈ = qcPost'
+
+           qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
+                    → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ BlockStore∙new bt' (bs0 ^∙ bsStorage))
+           qcPres = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'

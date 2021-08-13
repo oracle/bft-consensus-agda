@@ -195,45 +195,8 @@ module verifyQcMSpec (self : QuorumCert) where
                                    × QuorumCertProps.Contract self (getVv pre)
 
   contract' : ∀ pre → RWST-weakestPre (verifyQcM self) (Contract pre) unit pre
-  contract' pre _vv ._
-     with self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash ≟ hashVD (self ^∙ qcVoteData)
-  ...| no neq = λ where _ refl → refl , refl
-  ...| yes refl
-     with self ^∙ qcCertifiedBlock ∙ biRound ≟ 0
-  ...| yes refl
-     with self ^∙ qcParentBlock ≟ self ^∙ qcCertifiedBlock
-  ...| no neq = λ where _ refl → refl , refl
-  ...| yes refl
-     with self ^∙ qcCertifiedBlock ≟ self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo
-  ...| no neq = λ where _ refl → refl , refl
-  ...| yes refl
-     with Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) ≟ 0
-  ...| no neq = λ where _ refl → refl , refl
-  ...| yes noSigs =
-         λ where _ refl →
-                  refl , refl , record { lihash≡ = refl
-                                       ; rnd≟0 = yes refl
-                                       ; parProp = record { par≡cert = refl
-                                                          ; cert≡li = refl
-                                                          ; noSigs = noSigs } }
-  contract' pre vv refl
-     | yes refl
-     | no neq
-     with  LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)  vv | inspect
-          (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo)) vv
-  ...| Left e     | _ = λ where _ refl → refl , refl
-  ...| Right unit | [ R ]
-     with VoteData.verify (self ^∙ qcVoteData) | inspect
-          VoteData.verify (self ^∙ qcVoteData)
-  ...| Left e     | _ = λ where _ refl → refl , refl
-  ...| Right unit | [ R' ] =
-         λ where _ refl →
-                  refl , refl , record { lihash≡ = refl
-                                       ; rnd≟0   = no neq
-                                       ; parProp = record { sigProp = R
-                                                          ; vdProp = VoteDataProps.contract
-                                                                       (self ^∙ qcVoteData)
-                                                                       R' }}
+  contract' _ _ _ (Left x₂) _ = refl , refl
+  contract' pre vv refl (Right unit) x₁ = refl , refl , QuorumCertProps.contract self vv (Right unit) refl (sym x₁)
 
   -- Suppose verifyQcM runs from prestate pre, and we wish to ensure that postcondition Post holds
   -- afterwards.  If P holds provided verifyQcM does not modify the state and does not produce any

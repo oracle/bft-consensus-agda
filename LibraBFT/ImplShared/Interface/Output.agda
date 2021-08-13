@@ -21,7 +21,8 @@ module LibraBFT.ImplShared.Interface.Output where
     BroadcastSyncInfo : SyncInfo    → List Author     → Output
     LogErr            : ErrLog                        → Output
     LogInfo           : InfoLog                       → Output
-    SendVote          : VoteMsg → List Author → Output
+    SendBRP           : Author      → BlockRetrievalResponse → Output
+    SendVote          : VoteMsg     → List Author     → Output
   open Output public
 
   SendVote-inj-v : ∀ {x1 x2 y1 y2} → SendVote x1 y1 ≡ SendVote x2 y2 → x1 ≡ x2
@@ -35,6 +36,7 @@ module LibraBFT.ImplShared.Interface.Output where
   IsSendVote (BroadcastSyncInfo _ _) = ⊥
   IsSendVote (LogErr _) = ⊥
   IsSendVote (LogInfo _) = ⊥
+  IsSendVote (SendBRP _ _) = ⊥
   IsSendVote (SendVote _ _) = ⊤
 
   IsBroadcastProposal : Output → Set
@@ -42,6 +44,7 @@ module LibraBFT.ImplShared.Interface.Output where
   IsBroadcastProposal (BroadcastSyncInfo _ _) = ⊥
   IsBroadcastProposal (LogErr _) = ⊥
   IsBroadcastProposal (LogInfo _) = ⊥
+  IsBroadcastProposal (SendBRP _ _) = ⊥
   IsBroadcastProposal (SendVote _ _) = ⊥
 
   IsBroadcastSyncInfo : Output → Set
@@ -49,6 +52,7 @@ module LibraBFT.ImplShared.Interface.Output where
   IsBroadcastSyncInfo (BroadcastSyncInfo _ _) = ⊤
   IsBroadcastSyncInfo (LogErr _)              = ⊥
   IsBroadcastSyncInfo (LogInfo _)             = ⊥
+  IsBroadcastSyncInfo (SendBRP _ _)           = ⊥
   IsBroadcastSyncInfo (SendVote _ _)          = ⊥
 
   IsLogErr : Output → Set
@@ -56,6 +60,7 @@ module LibraBFT.ImplShared.Interface.Output where
   IsLogErr (BroadcastSyncInfo _ _) = ⊥
   IsLogErr (LogErr _)            = ⊤
   IsLogErr (LogInfo _)           = ⊥
+  IsLogErr (SendBRP _ _)         = ⊥
   IsLogErr (SendVote _ _)        = ⊥
 
   isSendVote? : (out : Output) → Dec (IsSendVote out)
@@ -63,6 +68,7 @@ module LibraBFT.ImplShared.Interface.Output where
   isSendVote? (BroadcastSyncInfo _ _) = no λ ()
   isSendVote? (LogErr _)            = no λ ()
   isSendVote? (LogInfo _)           = no λ ()
+  isSendVote? (SendBRP _ _)         = no λ ()
   isSendVote? (SendVote mv pid)     = yes tt
 
   isBroadcastProposal? : (out : Output) →  Dec (IsBroadcastProposal out)
@@ -70,6 +76,7 @@ module LibraBFT.ImplShared.Interface.Output where
   isBroadcastProposal? (BroadcastSyncInfo _ _) = no λ ()
   isBroadcastProposal? (LogErr _)            = no λ ()
   isBroadcastProposal? (LogInfo _)           = no λ ()
+  isBroadcastProposal? (SendBRP _ _)         = no λ ()
   isBroadcastProposal? (SendVote _ _)        = no λ ()
 
   isBroadcastSyncInfo? : (out : Output) →  Dec (IsBroadcastSyncInfo out)
@@ -77,6 +84,7 @@ module LibraBFT.ImplShared.Interface.Output where
   isBroadcastSyncInfo? (BroadcastSyncInfo _ _) = yes tt
   isBroadcastSyncInfo? (LogErr _)              = no λ ()
   isBroadcastSyncInfo? (LogInfo _)             = no λ ()
+  isBroadcastSyncInfo? (SendBRP _ _)           = no λ ()
   isBroadcastSyncInfo? (SendVote _ _)          = no λ ()
 
   isLogErr? : (out : Output) → Dec (IsLogErr out)
@@ -84,6 +92,7 @@ module LibraBFT.ImplShared.Interface.Output where
   isLogErr? (BroadcastSyncInfo x _) = no λ ()
   isLogErr? (LogErr x)            = yes tt
   isLogErr? (LogInfo x)           = no λ ()
+  isLogErr? (SendBRP _ _)         = no λ ()
   isLogErr? (SendVote x x₁)       = no λ ()
 
   IsOutputMsg : Output → Set
@@ -110,6 +119,7 @@ module LibraBFT.ImplShared.Interface.Output where
   outputToActions _  (LogErr x)            = []
   outputToActions _  (LogInfo x)           = []
   outputToActions _  (SendVote vm rcvrs)   = List-map (const (send (V vm))) rcvrs
+  outputToActions _  (SendBRP p brr)       = [] -- TODO-1: Update `NetworkMsg`
 
   outputsToActions : ∀ {State} → List Output → List (Action NetworkMsg)
   outputsToActions {st} = concat ∘ List-map (outputToActions st)
@@ -166,6 +176,8 @@ module LibraBFT.ImplShared.Interface.Output where
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {outs = LogInfo x ∷ outs}{st = st} outs≡ m∈acts =
     sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
+  sendVote∈actions {vm}{vm'}{outs = SendBRP pid brr ∷ outs}{st = st} outs≡ m∈acts =
+    sendVote∈actions{outs = outs}{st = st} outs≡ m∈acts
   sendVote∈actions {vm}{vm'}{outs = SendVote vm“ pids' ∷ outs}{st = st} outs≡ m∈acts
     with ∷-injective outs≡
   ...| refl , tl≡
@@ -196,6 +208,9 @@ module LibraBFT.ImplShared.Interface.Output where
   ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
   sendMsg∈actions {LogInfo _ ∷ outs} {m} {st} m∈acts
     with sendMsg∈actions{outs}{m}{st} m∈acts
+  ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
+  sendMsg∈actions {SendBRP pid brr ∷ outs} {m} {st} m∈acts
+     with sendMsg∈actions{outs}{m}{st} m∈acts
   ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
   sendMsg∈actions {SendVote vm rcvrs ∷ outs} {m} {st} m∈acts
     with Any-++⁻ (List-map (const (send (V vm))) rcvrs) m∈acts

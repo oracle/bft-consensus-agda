@@ -7,6 +7,7 @@ open import LibraBFT.Base.KVMap                                       as Map
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
 open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
 open import LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
 open import LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
