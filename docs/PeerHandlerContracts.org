@@ -150,14 +150,6 @@ RWST-Contract{Ev}{Wr}{St}{A} m =
   → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
   → RWST-Post-True P m ev pre
 
-
-RWST-Contract : (m : RWST Ev Wr St A) → Set₁
-RWST-Contract{Ev}{Wr}{St}{A} m =
-  (P : RWST-Post Wr St A)
-  → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
-  → let (x , post , outs) = RWST-run m ev pre in
-    P x post outs
-
 RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
     #+end_src
 
