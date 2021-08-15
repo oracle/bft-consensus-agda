@@ -88,10 +88,10 @@ insertBlockE₀ block bt = fromEither $ insertBlockE block bt
 
 module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
 
-  step₀     : Either ErrLog (BlockTree × List InfoLog)
-  step₁     : HashValue → Either ErrLog (BlockTree × List InfoLog)
-  step₂     : HashValue → ExecutedBlock → Either ErrLog (BlockTree × List InfoLog)
-  step₃     : HashValue → ExecutedBlock → ExecutedBlock → Either ErrLog (BlockTree × List InfoLog)
+  step₀     : EitherD ErrLog (BlockTree × List InfoLog)
+  step₁     : HashValue → EitherD ErrLog (BlockTree × List InfoLog)
+  step₂     : HashValue → ExecutedBlock → EitherD ErrLog (BlockTree × List InfoLog)
+  step₃     : HashValue → ExecutedBlock → ExecutedBlock → EitherD ErrLog (BlockTree × List InfoLog)
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
   continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
   here' : List String.String → List String.String
@@ -107,17 +107,17 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
                  (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
   step₀ =
     case safetyInvariant of λ where
-      (Left  e)    → Left e
+      (Left  e)    → LeftD e
       (Right unit) → step₁ blockId
 
   step₁ blockId =
-        maybeS (btGetBlock blockId bt0) (Left fakeErr) $ step₂ blockId
+        maybeSD (btGetBlock blockId bt0) (LeftD fakeErr) $ step₂ blockId 
 
   step₂ blockId block =
-        maybeS (bt0 ^∙ btHighestCertifiedBlock) (Left fakeErr) $ step₃ blockId block 
+        maybeSD (bt0 ^∙ btHighestCertifiedBlock) (LeftD fakeErr) $ step₃ blockId block 
 
   step₃ blockId block hcb =
-        if-dec ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
+        ifD ⌊ ((block ^∙ ebRound) >? (hcb ^∙ ebRound)) ⌋
         then
          (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
                          & btHighestQuorumCert       ∙~ qc
@@ -135,7 +135,10 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
     else (bt , info)
 
 insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
-insertQuorumCertE = insertQuorumCertE.step₀
+insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
+
+insertQuorumCertE₀ : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
+insertQuorumCertE₀ qc = fromEither ∘ insertQuorumCertE qc
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
