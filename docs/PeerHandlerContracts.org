@@ -336,7 +336,7 @@ abstract
     - write a variant in =EitherD= again, to be used by other =EitherD=
       handlers
 
-      e.g. =executeAndInsertBlockE₀ bs block = fromEither executeAndInsertBlockE bs block=
+      e.g. =executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block=
 
 
     Note that this third version is not the same as the first, even though it
