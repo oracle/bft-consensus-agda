@@ -213,6 +213,8 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
 
 executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block
 
+executeAndInsertBlockE₀ bs block = fromEither executeAndInsertBlockE bs block
+
 executeBlockE bs block = do
   -- let compute        = bs ^. bsStateComputer.scCompute
   -- StateComputer may update its internal state and/or throw and exception.
