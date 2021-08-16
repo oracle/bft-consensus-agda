@@ -28,7 +28,11 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 ------------------------------------------------------------------------------
 
-getBlock : HashValue → BlockStore → Maybe ExecutedBlock
+build
+  : RootInfo      → RootMetadata
+  → List Block    → List QuorumCert           → Maybe TimeoutCertificate
+  → {-StateComputer →-} PersistentLivenessStorage → Usize
+  → Either ErrLog BlockStore
 
 executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
 executeAndInsertBlockE₀ : BlockStore → Block → EitherD ErrLog (BlockStore × ExecutedBlock)
@@ -40,6 +44,8 @@ executeBlockE
 executeBlockE₀
   : BlockStore → Block
   → EitherD ErrLog ExecutedBlock
+
+getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
 insertSingleQuorumCertE
   : BlockStore → QuorumCert
@@ -55,11 +61,19 @@ pathFromRootM
 
 ------------------------------------------------------------------------------
 
-build
-  : RootInfo      → RootMetadata
-  → List Block    → List QuorumCert           → Maybe TimeoutCertificate
-  → {-StateComputer →-} PersistentLivenessStorage → Usize
+new
+  : PersistentLivenessStorage → RecoveryData {-→ StateComputer a-} → Usize
   → Either ErrLog BlockStore
+new storage initialData {-stateComputer-} maxPrunedBlocksInMem =
+  build (initialData ^∙ rdRoot)
+        (initialData ^∙ rdRootMetadata)
+        (initialData ^∙ rdBlocks)
+        (initialData ^∙ rdQuorumCerts)
+        (initialData ^∙ rdHighestTimeoutCertificate)
+        --stateComputer
+        storage
+        maxPrunedBlocksInMem
+
 build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
            {-stateComputer-} storage maxPrunedBlocksInMem = do
   let (RootInfo∙new rootBlock rootQc rootLi) = root
@@ -217,9 +231,9 @@ executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs b
 executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block
 
 executeBlockE bs block = do
-  -- let compute        = bs ^. bsStateComputer.scCompute
+  -- let compute        = bs ^∙ bsStateComputer.scCompute
   -- StateComputer may update its internal state and/or throw and exception.
-  -- stateComputeResult ← compute (bs^.bsStateComputer) block (block^.bParentId)
+  -- stateComputeResult ← compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId)
   pure (ExecutedBlock∙new block stateComputeResult)
 
 executeBlockE₀ bs block = fromEither $ executeBlockE bs block
@@ -247,7 +261,7 @@ insertSingleQuorumCertE bs qc =
              if ExecutedBlock.blockInfo executedBlock /= qc ^∙ qcCertifiedBlock
              then Left fakeErr
  --                      (ErrL (here [ "QC for block has different BlockInfo than EB"
- --                                  , "QC certified BI", show (qc^.qcCertifiedBlock)
+ --                                  , "QC certified BI", show (qc ^∙ qcCertifiedBlock)
  --                                  , "EB BI", show (ExecutedBlock.blockInfo executedBlock)
  --                                  , "EB", show executedBlock ]))
 

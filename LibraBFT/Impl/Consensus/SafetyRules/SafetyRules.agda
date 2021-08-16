@@ -29,6 +29,16 @@ module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
 
 ------------------------------------------------------------------------------
 
+new : PersistentSafetyStorage → Bool → Either ErrLog SafetyRules
+new persistentStorage exportConsensusKey = do
+  pure $ mkSafetyRules
+    persistentStorage
+    exportConsensusKey
+    nothing
+    nothing
+
+------------------------------------------------------------------------------
+
 signer : SafetyRules → Either ErrLog ValidatorSigner
 signer self = maybeS (self ^∙ srValidatorSigner) (Left fakeErr {- error: signer not initialized -}) Right
 
