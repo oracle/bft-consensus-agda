@@ -80,11 +80,10 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleVote 0 vm) (peerStates pre' pid)}{f = peerStates pre'}
   = invPres (invariantsCorrect pid pre' preach)
 
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C x} m∈pool ini))))
-   | yes refl = TODO
-  where
-  postulate -- TODO-3: prove (waiting on: `handle`)
-    TODO : RoundManagerInv (peerStates pre pid)
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , C cm} m∈pool ini))))
+   | yes refl
+   rewrite override-target-≡{a = pid}{b = LBFT-post (handle pid (C cm) 0) (peerStates pre' pid)}{f = peerStates pre'}
+   = invariantsCorrect pid pre' preach
 
 qcVoteSigsSentB4 :
     ∀ pid (st : SystemState)
@@ -108,7 +107,7 @@ handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hy
       where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
    qcPost' (V vm) refl = qcPost
       where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hPool hPre)
-   qcPost' (C cm) refl = obm-dangerous-magic' "TODO: waiting on commit message handler and contract"
+   qcPost' (C cm) refl qc qc∈pre = Left qc∈pre
 
    hyp : QCProps.SigForVote∈Rm-SentB4 v pk qc hPost hPool
    hyp qc∈hpPst sig {vs} vs∈qcvs ≈v ¬gen
@@ -181,7 +180,7 @@ qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} q
    ...| Right qc∈vm =
      mkMsgWithSig∈ (V vm) v (vote∈qc vs∈qcvs ≈v qc∈vm) sndr m∈pool sig (cong (_^∙ vSignature) ≈v)
 
-...| C cm = obm-dangerous-magic' "TODO: waiting on `handleCommitSpec`"
+...| C cm = qcVoteSigsSentB4 pid pre rss qc∈s sig vs∈qcvs ≈v ¬gen
 
 lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
@@ -240,10 +239,7 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
 
    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
-...| C cm = ≡⇒≤ TODO
-  where
-  postulate -- TODO-2: prove (waiting on: `handle`)
-    TODO : Meta.getLastVoteRound (peerStates pre pid) ≡ Meta.getLastVoteRound (LBFT-post (handle pid (C cm) 0) (peerStates pre pid))
+...| C cm = ≤-refl
 
 qcVoteSigsSentB4-handle
     : ∀ pid {pre m s acts}
