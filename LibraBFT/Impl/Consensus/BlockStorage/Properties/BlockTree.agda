@@ -117,19 +117,13 @@ module insertQuorumCertESpec
                         → let (btPost , infoPost) = continue1 btPre blockId block infoPre
                           in  ContractOk btPre btPost infoPre infoPost
         contract-cont1' btPre infoPre
-           with Map.kvm-member blockId (btPre ^∙ btIdToQuorumCert) | ExecutedBlock.isNilBlock block
-        ...| true  | true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre true ))) unit
-        ...| true  | false = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre false))) unit
-        ...| false | true  = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre true}
+           with Map.kvm-member blockId (btPre ^∙ btIdToQuorumCert)
+        ...| true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre $ ExecutedBlock.isNilBlock block ))) unit
+        ...| false = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre $ ExecutedBlock.isNilBlock block }
                                (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl) unit)
                                (mkContractOk (ContractOk.noNewQCs (contract-cont2'
                                                                      (cont1-update-bt btPre)
-                                                                     (info' infoPre true))) unit)
-        ...| false | false  = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre false}
-                               (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl) unit)
-                               (mkContractOk (ContractOk.noNewQCs (contract-cont2'
-                                                                     (cont1-update-bt btPre)
-                                                                     (info' infoPre false))) unit)
+                                                                     (info' infoPre $ ExecutedBlock.isNilBlock block))) unit)
 
         bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
                   & btHighestQuorumCert       ∙~ qc
