@@ -71,6 +71,7 @@ module insertQuorumCertESpec
     field
       noNewQCs : ∈Post⇒∈PreOrBT (_≡ qc) btPre btPost
       presQcs  : Unit -- TODO: Preserves ∈BlockTree btPre btPost  (requires generalising Preserves)
+                      --       ∀ qc → PreservesL (rmBlockStore ∙ bsInner) (qc ∈RoundManager_) btPre btPost
 
   ContractOk-trans : ∀ {btPre btInt btPost ilPre ilInt ilPost}
                    → ContractOk btPre btInt  ilPre ilInt

@@ -121,7 +121,7 @@ module executeAndVoteMSpec (b : Block) where
         qcPost₁ = EAIBECon.qcPost
 
         qcPres₁ : ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre pre₁
-        qcPres₁ = EAIBECon.qcPres pre refl
+        qcPres₁ qc = EAIBECon.qcPres qc pre
 
         -- For the case any of the checks in `step₁` fails
         contractBail₁ : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) pre₁ outs

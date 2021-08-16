@@ -224,9 +224,6 @@ module QCProps where
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
   SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
 
-  -- glue-SigsForVotes∈Rm-SentB4
-  --   : ∀ {pool rm₁ rm₂ rm₃}
-
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
       → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
@@ -274,6 +271,11 @@ module RoundManagerInvariants where
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
+
+  PreservesL : ∀ {ℓ} {A : Set}
+               → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+               → (a₁ a₂ : A) → Set ℓ
+  PreservesL Pred l a₁ a₂ = ∀ rm → Preserves Pred (rm & l ∙~ a₁) (rm & l ∙~ a₂)
 
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
