@@ -114,10 +114,10 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
         maybeSD (btGetBlock blockId bt0) (LeftD fakeErr) $ step₂ blockId 
 
   step₂ blockId block =
-        maybeSD (bt0 ^∙ btHighestCertifiedBlock) (LeftD fakeErr) $ step₃ blockId block 
+        maybeSD (bt0 ^∙ btHighestCertifiedBlock) (LeftD fakeErr) $ step₃ blockId block
 
   step₃ blockId block hcb =
-        ifD ⌊ ((block ^∙ ebRound) >? (hcb ^∙ ebRound)) ⌋
+        ifD ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
         then
          (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
                          & btHighestQuorumCert       ∙~ qc
