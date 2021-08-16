@@ -508,7 +508,7 @@ module syncUpMSpec
              obm-dangerous-magic' "TODO: waiting on contract for `processCertificatesM`"
 
     contract
-      : ∀ Post → (∀ r st outs → Contract r st outs → Post r st outs)
+      : ∀ Post → RWST-Post-⇒ Contract Post
         → LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Post pre
     contract Post pf =
       LBFT-⇒ Contract Post pf (syncUpM now syncInfo author _helpRemote) pre
@@ -551,10 +551,7 @@ module ensureRoundAndSyncUpMSpec
 
     proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
       where
-      contract-step₁
-        : RWST-weakestPre (syncUpM now syncInfo author helpRemote)
-            (RWST-weakestPre-ebindPost unit (const step₂) Contract)
-            unit pre
+      contract-step₁ : LBFT-weakestPre step₁ Contract pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pre Post contract-step₁'
         where
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
@@ -568,14 +565,14 @@ module ensureRoundAndSyncUpMSpec
           where
           module SU = syncUpMSpec.Contract con
 
-          noVoteOuts' : NoVotes (outs ++ [] ++ [])
-          noVoteOuts' = ++-NoneOfKind outs ([] ++ []) isSendVote? SU.noVoteOuts refl
+          noVoteOuts' : NoVotes (outs ++ [])
+          noVoteOuts' = ++-NoVotes outs [] SU.noVoteOuts refl
 
           outqcs : QCProps.OutputQc∈RoundManager (outs ++ []) st
           outqcs = QCProps.++-OutputQc∈RoundManager{rm = st} SU.outQcs∈RM
                      (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
 
-          contract-step₂ : _
+          contract-step₂ : Post (Right unit) st outs
           proj₁ (contract-step₂ ._ refl ._ refl) _ =
             mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
               outqcs SU.qcPost

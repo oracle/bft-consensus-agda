@@ -13,7 +13,7 @@
 
   In both the Haskell prototype and Agda model, peer handler code is written in
   the =RWST= --- /reader, writer, state/ --- and =EitherD= monads. Unlike the
-  Haskell code, in Agda, these monads are [[file:LibraBFT/ImplShared/Util/RWST.agda::data RWST (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]]
+  Haskell code, in Agda, these monads are [[file:../LibraBFT/ImplShared/Util/RWST.agda::data RWST (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]]
   (in , defined in
   ~LibraBFT.ImplShared.Util.Dijkstra.RWST~ and ~LibraBFT.ImplShared.Util.Dijkstra.EitherD~, respectively).
   This allows proofs to inspect the AST of peer handler code directly.
@@ -22,13 +22,13 @@
   postcondition =Q : (Wr St A : Set) -> Set= and peer handler =h : RWST Wr St
   A=, the weakest precondition =RWST-weakestPre m Q= which can be used to prove
   =Q=. This is based on Dijsktra's weakest precondition calculus and the work by
-  Swamy et al. on the [[file:LibraBFT/ImplShared/Util/RWST.agda::{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.][Dijkstra monad]]. Phrasing properties about peer handlers as
+  Swamy et al. on the [[file:../LibraBFT/ImplShared/Util/RWST.agda::{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.][Dijkstra monad]]. Phrasing properties about peer handlers as
   preconditions has a number of benefits, described below.
 
   
 ** Dijkstra's weakest precondition calculus
 
-   [[file:LibraBFT/ImplShared/Util/Dijkstra/RWST.agda]] 
+   [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWST.agda]] 
 
    There are two kinds of constructors of the Agda =RWST= monad: primitives
    needed to support the desired functionality, and conveniences that allow us
@@ -165,7 +165,7 @@ RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
 
 
     There is an example of using =RWST-contract= in
-    [[file:LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]].  (Note that `LBFT`, defined in
+    [[file:../LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]].  (Note that `LBFT`, defined in
     ~LibraBFT.ImplShared.Util.Util~ is `RWST` instantiated with the types used to express our Agda
     implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWST`
     definitions and proofs.)
@@ -256,22 +256,185 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     any point that branches, and at any point where another function is called
     (such as =syncUpM=) so you can use the contract for that function to "move"
     to the next step. This is shown below for a part of the proof of the
-    contract for =ensureRoundAndSyncUpM= (found in [[file:LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
+    contract for =ensureRoundAndSyncUpM= (found in [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
+
+**** Standard setup for contracts
+
+     For formulating and proving peer handler contracts, the preferred style is
+     to create a module specifically for that peer handler (in a separate
+     =Properties.agda= file) with the suffix =Spec=, e.g., =ensureRoundAndSyncUpMSpec=
+     
+     #+begin_src agda
+module ensureRoundAndSyncUpMSpec
+  (now : Instant) (messageRound : Round) (syncInfo : SyncInfo)
+  (author : Author) (helpRemote : Bool) where
+
+  open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
+
+  module _ (pre : RoundManager) where
+
+    record Contract (r : Either ErrLog Bool) (post : RoundManager) (outs : List Output) : Set where
+      constructor mkContract
+      field
+        -- General invariants / properties
+        rmInv         : Preserves RoundManagerInv pre post
+        noEpochChange : NoEpochChange pre post
+        noVoteOuts    : OutputProps.NoVotes outs
+        -- Voting
+        noVote        : VoteNotGenerated pre post true
+        -- Signatures
+        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
+        qcPost   : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
+     #+end_src
+
+     From within this module, open the =ensureRoundAndSyncUpM= module and call
+     the property that we want to prove =Contract= --- from outside the module,
+     this is called =ensureRoundAndSyncUpMSpec.Contract=.
+
+     The main proof effort is in showing the weakest precondition of =Contract=
+     for =ensureRoundAndSyncUpM=. This is =contract'= below, which we break up
+     into smaller pieces to discuss.
 
     #+begin_src agda
-      contract-step₁
-        : RWST-weakestPre (syncUpM now syncInfo author helpRemote)
-            (RWST-weakestPre-ebindPost unit (const step₂) Contract)
-            unit pre
+    contract'
+      : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
+    proj₁ (contract' ._ refl) _         =
+      mkContract id refl refl vng outqcs qcPost
+      where
+        vng : VoteNotGenerated pre pre true
+        vng = mkVoteNotGenerated refl refl
+
+        outqcs : QCProps.OutputQc∈RoundManager [] pre
+        outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl
+
+        qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
+        qcPost qc = Left
+
+     #+end_src
+
+     The first two arguments to =contract'= come from the bind operation
+     (=currentRound ← use (lRoundState ∙ rsCurrentRound)=). The first argument
+     (unnamed, given as an underscore) has type =Round= and the second argument
+     is a proof that it is equal to =pre ^∙ lRoundState ∙ rsCurrentRound=.
+
+     - NOTE: By pattern matching on the equality, we reveal the relationship
+       between the "alias" variables that =RWST-weakestPre= gives us and the
+       preceding computation that generated it (here, =use (lRoundState ∙
+       rsCurrentRound)=). This is fine in this case; however, for alias
+       variables generated from complex computations it is usually desirable to
+       hold off on using case analysis on the equality proof, since this results
+       in substituting the entire expression into the goal.
+
+       You can see the private module =Tutorial= in
+       [[file:../LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
+       for more details about reading and managing the proof state when using
+       the weakest precondition infrastructure.
+
+
+     After the bind, we have a conditional operation, so the goal becomes
+     showing a product of proofs --- one each for the ~then~ and ~else~
+     branches. The code listing above is for the ~then~ branch, which is a
+     non-error early exit. The second underscore is an anonymous proof that the
+     conditional evaluated to true (for safety, we do not need this evidence).
+
+     In the local proof =outqcs=, we use one of the many utility lemmas defined
+     in [[file:../LibraBFT/Impl/Properties/Util.agda]] designed to help glue
+     contracts of different peer handlers together and deal with many common
+     cases. For =outqcs=, we are in a situation where we have generated *no*
+     messages. One of the properties in the contract is that any quorum
+     certificate found in the output came from the round manager, and the lemma
+     =QCProps.NoMsgs⇒OutputQc∈RoundManager= proves that if there are no output
+     messages (but maybe some logging messages), then this universal statement
+     holds vacuously.
+     
+     #+begin_src agda
+    proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
+      where
+      contract-step₁ : LBFT-weakestPre step₁ Contract pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pre Post contract-step₁'
         where
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
+     #+end_src
+
+     For the =else= branch, we are given evidence that the condition evaluated
+     to =false=. The code then proceeds to =step₁=, so the proof now must show
+     the weakest precondition of =Contract= for =step₁=.
+
+     At this point, the code calls =syncUpM=; similarly, the proof of the
+     contract for =ensureRoundAndSyncUpM= invokes the contract for =syncUpM=.
+     The type of =syncUpMSpec.contract now syncInfo author helpRemote pre= is:
+
+     #+begin_src agda
+     ∀ Post → RWST-Post-⇒ (syncUpMSpec.Contract now syncInfo author helpRemote) Post
+     → LBFT-weakestPre (syncUpM now syncInfo author helpRemote) Post pre
+     #+end_src
+
+     With the local definition of =Post= as =RWST-weakestPre-ebindPost unit
+     (const step₂) Contract= (because the call to =syncUpM= is followed by =∙?∙
+     λ _ → step₂=, where =∙?∙= is an alias for =RWST-ebind=), we now know the
+     what the type of ~contract-step₁'~ should be --- and so below, we can
+     choose to omit it using an underscore, shown below in the definition of
+     ~contract-step₁'~.
+     
+     #+begin_src agda
+        contract-step₁' : _
+        contract-step₁' (Left  _   ) st outs con =
+          mkContract SU.rmInv SU.noEpochChange SU.noVoteOuts SU.noVote SU.outQcs∈RM SU.qcPost
+          where
+          module SU = syncUpMSpec.Contract con
+        contract-step₁' (Right unit) st outs con = contract-step₂
+          where
+          module SU = syncUpMSpec.Contract con
+
+          noVoteOuts' : NoVotes (outs ++ [])
+          noVoteOuts' = ++-NoVotes outs [] SU.noVoteOuts refl
+
+          outqcs : QCProps.OutputQc∈RoundManager (outs ++ []) st
+          outqcs = QCProps.++-OutputQc∈RoundManager{rm = st} SU.outQcs∈RM
+                     (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
+
+          contract-step₂ : Post (Right unit) st outs
+          proj₁ (contract-step₂ ._ refl ._ refl) _ =
+            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+              outqcs SU.qcPost
+          proj₂ (contract-step₂ ._ refl ._ refl) _ =
+            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+              outqcs SU.qcPost
     #+end_src
+    
+    ~contract-step₁'~ proceeds by inspecting the result returned by =syncUpM=.
+    Focusing on the success case (=Right unit=), the code continues on to
+    =step₂=, and the proof follows by defining =contract-step₂=. Note the
+    following local bindings and definitions.
 
-    Here, =Contract= is the contract we want to show. =Post= is the postcondition
-    we want for =syncUpM= --- which is the weakest precondition for =const
-    step₂= that gives us =Contract=.
+    - =st= and outs are resp. the post-state and outputs of executing =syncUpM=
+      with state =pre=
+    - =con= is the proof of the contract for =syncUpM=. To make accessing the
+      individual fields of =con= more convenient, we make a local module
+      definition =SU=.
 
+    - =SU.noVoteOuts= tells us there are not vote messages in =outs=, but our
+      obligation is to show there are no vote messages in =outs ++ []=.
+
+      Here we could prove =noVoteOuts'= by rewriting with =++-identiyʳ=. In
+      general, if we have two lists which have been proven to not contain a
+      certain type of message (e.g., a vote), then you can use the lemma
+      =++-NoneOfKind= in [[file:../LibraBFT/Impl/Properties/Util.agda]]. For
+      readability, several instances of this lemma (such as =++-NoVotes=) are
+      also defined.
+
+    - Similarly, =SU.outQcs∈RM= tells us that all quorum certificates appearing
+      in =outs= come from the round manager =st=, but our obligation is to show
+      that this property holds for =outs ++ []=. The lemma
+      =QCProps.++-OutputQc∈RoundManager= lets us conclude that if this property
+      holds for two lists, then it holds for their concatenation.
+    
+
+    Finally, in =contract-step₂=, the first =._ refl= pair corresponds to the
+    =Unit= returned =syncUpM=, and the second pair corresponds to the variable
+    =currentRound'= in the peer handler code. When we reach the conditional, we
+    prove the two obligations the weakest precondition infrastructure generates
+    for us --- which finishes the proof.
     
 *** Using =abstract= blocks
 
