@@ -30,7 +30,8 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
 getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
-executeAndInsertBlockE : BlockStore → Block → Either ErrLog (BlockStore × ExecutedBlock)
+executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
+executeAndInsertBlockE₀ : BlockStore → Block → EitherD ErrLog (BlockStore × ExecutedBlock)
 
 executeBlockE
   : BlockStore → Block
@@ -212,6 +213,8 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
 executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block
+
+executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block
 
 executeBlockE bs block = do
   -- let compute        = bs ^. bsStateComputer.scCompute

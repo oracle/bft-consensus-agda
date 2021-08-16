@@ -13,10 +13,12 @@
 
   In both the Haskell prototype and Agda model, peer handler code is written in
   the =RWST= --- /reader, writer, state/ --- and =EitherD= monads. Unlike the
-  Haskell code, in Agda these monads are [[file:LibraBFT/ImplShared/Util/RWST.agda::data RWST (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]].
+  Haskell code, in Agda, these monads are [[file:LibraBFT/ImplShared/Util/RWST.agda::data RWST (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]]
+  (in , defined in
+  ~LibraBFT.ImplShared.Util.Dijkstra.RWST~ and ~LibraBFT.ImplShared.Util.Dijkstra.EitherD~, respectively).
   This allows proofs to inspect the AST of peer handler code directly.
 
-  For =RWST=, the primary way that this is used is to compute, for any
+  For =RWST=, this is primarily used to compute, for any
   postcondition =Q : (Wr St A : Set) -> Set= and peer handler =h : RWST Wr St
   A=, the weakest precondition =RWST-weakestPre m Q= which can be used to prove
   =Q=. This is based on Dijsktra's weakest precondition calculus and the work by
@@ -150,14 +152,6 @@ RWST-Contract{Ev}{Wr}{St}{A} m =
   → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
   → RWST-Post-True P m ev pre
 
-
-RWST-Contract : (m : RWST Ev Wr St A) → Set₁
-RWST-Contract{Ev}{Wr}{St}{A} m =
-  (P : RWST-Post Wr St A)
-  → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
-  → let (x , post , outs) = RWST-run m ev pre in
-    P x post outs
-
 RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
     #+end_src
 
@@ -170,16 +164,18 @@ RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
     3. =RWST-contract= is the proof of the above statement
 
 
-    You can find =RWST-contract= (in the form of =LBFT-contract=) used in
-    [[file:LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]]
+    There is an example of using =RWST-contract= in
+    [[file:LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]].  (Note that `LBFT`, defined in
+    ~LibraBFT.ImplShared.Util.Util~ is `RWST` instantiated with the types used to express our Agda
+    implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWST`
+    definitions and proofs.)
     
 *** Postcondition implication
 
     Sometimes when proving a precondition, it is convenient to show
-    directly that one postcondition implies another. For example, let us say we
-    have peer handlers =foo=, =bar=, and =baz=, we have prooven =ContractFoo=
-    and =ContractBar=, and we are trying to prove =ContractBaz= when =baz= looks
-    like:
+    directly that one postcondition implies another. For example, suppose we
+    have peer handlers =foo=, =bar=, and =baz=, we have proved =ContractFoo=
+    and =ContractBar=, and we are trying to prove =ContractBaz= where =baz= is:
 
     #+begin_src haskell
       baz = do
@@ -187,7 +183,7 @@ RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
         bar x
     #+end_src
 
-    So, we may wish to show that =ContractFoo= implies the postcondition
+    We may wish to show that =ContractFoo= implies the postcondition
     =RWST-weakestPre-bindPost ev bar ContractBaz=. The lemma =RWST-⇒= serves
     just this purpose.
 
@@ -197,15 +193,15 @@ RWST-Post-⇒ P Q = ∀ r st outs → P r st outs → Q r st outs
 
 -- This helper function is primarily used to take a proof concerning one
 -- computation `m` and show that that proof implies a property concerning a
--- larger computation which contains `m`.
+-- larger computation that contains `m`.
 RWST-⇒
   : (P Q : RWST-Post Wr St A) → (RWST-Post-⇒ P Q)
     → ∀ m (ev : Ev) st → RWST-weakestPre m P ev st → RWST-weakestPre m Q ev st
     #+end_src
 
-    In fact, this need comes up so frequently that I recommend contracts for
-    non-toplevel handlers always be formulated so that they speak about
-    arbitrary postconditions. (Below, =pre= is a module parameter)
+    This is such a common pattern that contracts for
+    non-toplevel handlers should generally formulated for
+    arbitrary postconditions (=pre= is a module parameter):
 
     #+begin_src agda
     contract' : LBFT-weakestPre baz ContractBaz pre
@@ -218,18 +214,18 @@ RWST-⇒
    
 *** Breaking the peer handler down into smaller "steps"
 
-    When beginning to prove a contract for a peer handler, it is extremely
-    useful to (re)write than handler into smaller steps, for two reasons:
+    When beginning to prove a contract for a peer handler, it is often
+    useful to break the handler into smaller steps, for two reasons:
     1. It helps to declutter the proof state, so you can orient yourself on what
        you still need to show.
 
     2. It allows you to break the proof down into smaller pieces as well, making
        it more readable. The types of these smaller proofs will mention the code
-       that remains to execute, so save yourself some typing by having this be
-       something short like =step3 <args>=
+       that remains to execute, so save yourself some typing by using
+       short names like =step3 <args>=.
 
 
-    Let's look at =ensureRoundAndSyncUpM= as an example
+    Let's look at =ensureRoundAndSyncUpM= as an example.
 
     #+begin_src agda
 module ensureRoundAndSyncUpM
@@ -260,7 +256,7 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     any point that branches, and at any point where another function is called
     (such as =syncUpM=) so you can use the contract for that function to "move"
     to the next step. This is shown below for a part of the proof of the
-    contract for =ensureRoundAndSyncUpM= (found in [[file:LibraBFT/Impl/Consensus/RoundManager/Properties.agda]])
+    contract for =ensureRoundAndSyncUpM= (found in [[file:LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
 
     #+begin_src agda
       contract-step₁
@@ -272,7 +268,7 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
         Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
     #+end_src
 
-    Here =Contract= is the contract we want to show. =Post= is the postcondition
+    Here, =Contract= is the contract we want to show. =Post= is the postcondition
     we want for =syncUpM= --- which is the weakest precondition for =const
     step₂= that gives us =Contract=.
 
@@ -283,7 +279,7 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     typechecker), many peer handler functions are *quite* large. That means
     there can be quite a lot of clutter to read through while proving. One way
     to reduce this is by using Agda's =abstract= blocks, which prevent Agda from
-    unrolling a definition outside that block.
+    unrolling a definition beyond that block.
 
     =processProposalMsgM= (an external entry point to =RoundManager.agda=) is an
     example of this.
@@ -312,7 +308,7 @@ abstract
     To take advantage of the weakest precondition infrastructure, peer handler
     code written in the =Either ErrLog= monad in Haskell is (or will be) written
     in the =EitherD ErrLog= monad. To facilitate writing code to operate on both
-    =Either= or =EitherD=, the prelude defines a typeclass =EitherLike=.
+    =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a typeclass =EitherLike=.
 
     #+begin_src agda
   -- Utility to make passing between `Either` and `EitherD` more convenient
@@ -334,13 +330,13 @@ abstract
     is:
     - write the steps in =EitherD=
       e.g., =executeAndInsertBlockE.step₀ : BlockStore → Block → EitherD ErrLog (BlockStore × Block)=
-    - write the function itself in =Either=, which will be used by =LBFT= peer handlers
+    - use ~toEither~ to create a version of the function in =Either=, which will be used by =LBFT= peer handlers
       e.g., =executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block=
 
     - write a variant in =EitherD= again, to be used by other =EitherD=
       handlers
 
-      e.g. =executeAndInsertBlockE₀ bs block = fromEither executeAndInsertBlockE bs block=
+      e.g. =executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block=
 
 
     Note that this third version is not the same as the first, even though it
