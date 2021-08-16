@@ -57,6 +57,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree
 
+  ------   These are used only outside this module.  
   Ok : Set
   Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
 
@@ -66,6 +67,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   Err : Set
   Err = ∃[ e ] (executeAndInsertBlockE bs0 block ≡ Left e)
+  ------
 
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
@@ -77,8 +79,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       -- for QCs then follows as a consequence
       qcPost : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
                → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
-      qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
-               → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & lBlockStore ∙~ bs')
+      qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) (rmBlockStore) bs0 bs'
 
   Contract : EitherD-Post ErrLog (BlockStore × ExecutedBlock)
   Contract (Left x) = ⊤
@@ -98,8 +99,8 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
     btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
 
-    qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0 → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ bs0)
-    qcPres pre refl qc = id
+    qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) rmBlockStore bs0 bs0
+    qcPres qc rm = id
 
   proj₁ contract' getBlock≡nothing = contract₁
     where
@@ -164,9 +165,8 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
                      bt' eb' con
            ...| qcPost' rewrite eb≈ = qcPost'
 
-           qcPres : ∀ pre → pre ^∙ rmBlockStore ≡ bs0
-                    → ∀ qc → Preserves (qc QCProps.∈RoundManager_) pre (pre & rmBlockStore ∙~ BlockStore∙new bt' (bs0 ^∙ bsStorage))
-           qcPres = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
+           qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) rmBlockStore bs0 (BlockStore∙new bt' (bs0 ^∙ bsStorage))
+           qcPres qc rm = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'

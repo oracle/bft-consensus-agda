@@ -66,91 +66,72 @@ module insertQuorumCertESpec
     Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set
     Ok' bt il m = m ≡ Right (bt , il)
 
-  Contract : Either ErrLog (BlockTree × List InfoLog) → Set
-  Contract (Left _) = Unit
-  Contract (Right (bt1 , il)) = ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt1
-                              -- TODO: this is only part of what we need.  We want to also prove
-                              -- that QCs in the pre are also in the post.  Make a record?
+  record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
+    constructor mkContractOk
+    field
+      noNewQCs : ∈Post⇒∈PreOrBT (_≡ qc) btPre btPost
+      presQcs  : Unit -- TODO: Preserves ∈BlockTree btPre btPost  (requires generalising Preserves)
+                      --       ∀ qc → PreservesL (rmBlockStore ∙ bsInner) (qc ∈RoundManager_) btPre btPost
 
-  contract : (isOk : Ok) → let (bt1 , il , _) = isOk in Contract (Right (bt1 , il))
-  contract (bt1 , il , isOk)
+  ContractOk-trans : ∀ {btPre btInt btPost ilPre ilInt ilPost}
+                   → ContractOk btPre btInt  ilPre ilInt
+                   → ContractOk btInt btPost ilInt ilPost
+                   → ContractOk btPre btPost ilPre ilPost
+  ContractOk-trans (mkContractOk noNewQCs presQcs) (mkContractOk noNewQCs₁ presQcs₁) =
+                    mkContractOk (∈Post⇒∈PreOr'-trans _∈BlockTree_ (_≡ qc) noNewQCs noNewQCs₁) unit
+
+  Contract : EitherD-Post ErrLog (BlockTree × List InfoLog)
+  Contract (Left _) = ⊤
+  Contract (Right (bt1 , il)) = ContractOk bt0 bt1 [] il
+
+  contract' : EitherD-weakestPre step₀ Contract
+  contract'
      with safetyInvariant
-  ...| Right unit
-    with pf1 isOk
+  ...| Left e     = tt
+  ...| Right unit = contract-step₁'
     where
-    pf1 : Ok' bt1 il (step₁ blockId) → ∃[ block ] (just block ≡ btGetBlock blockId bt0 × Ok' bt1 il (step₂ blockId block))
-    pf1 isOk
-       with  btGetBlock blockId bt0
-    ...| just block = block , refl , isOk
-  ...| block , lookupJust₁ , step2-ok
-    with pf2 step2-ok
-    where
-    pf2 : Ok' bt1 il (step₂ blockId block) → ∃[ hcb ](just hcb ≡ bt0 ^∙ btHighestCertifiedBlock × Ok' bt1 il (step₃ blockId block hcb))
-    pf2 isOk
-       with bt0 ^∙ btHighestCertifiedBlock
-    ...| just hcb   = hcb , refl , isOk
-  ...| hcb , lookupJust₂ , step3-ok
-    with          bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId &    btHighestQuorumCert ∙~ qc
-       | inspect (bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId &_) (btHighestQuorumCert ∙~ qc)
-       | fakeInfo ∷ []
-  ...| bt₃-true | [ refl ] | il₃-true
-    with  if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then bt₃-true else   bt0               | inspect
-         (if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then bt₃-true else_) bt0               |
-          if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then il₃-true else   []                | inspect
-         (if ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋ then il₃-true else_) []
-  ...| bt₃ | [ refl ] | il₃ | [ refl ]
-    with  bt₃ &    btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt₃ ^∙ btIdToQuorumCert)     | inspect
-         (bt₃ &_) (btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt₃ ^∙ btIdToQuorumCert))    |
-          (fakeInfo ∷ il₃) ++   (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else []) | inspect
-         ((fakeInfo ∷ il₃) ++_) (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [])
-  ...| bt-c₁ | [ refl ] | il-c₁ | [ refl ]
-    with pf3 (obm-dangerous-magic' "presumably can be done, but I think the problem is more about how we define il3, so stopping here")
-             (obm-dangerous-magic' "ditto")
-             step3-ok
-    where
-    pf3 : (¬ (block ^∙ ebRound) > (hcb ^∙ ebRound) → il₃ ≡ [])
-        → (  (block ^∙ ebRound) > (hcb ^∙ ebRound) → il₃ ≡ fakeInfo ∷ [])
-        → Ok' bt1 il (step₃ blockId block hcb) → ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt₃
-                                               × continue1 bt₃ blockId block il₃ ≡ (bt1 , il)
-    proj₂ (pf3 ¬il3>→ il3>→ isOk)
-      with (block ^∙ ebRound) >? (hcb ^∙ ebRound)
-    proj₂ (pf3 ¬il3>→ il3>→ isOk) | no  bR≤hcbR rewrite (¬il3>→ bR≤hcbR) = inj₂-injective isOk
-    proj₂ (pf3 ¬il3>→ il3>→ isOk) | yes bR>hcbR rewrite ( il3>→ bR>hcbR) = inj₂-injective isOk
-    proj₁ (pf3 ¬il3>→ il3>→ isOk) qc' qc'∈bt₃ -- TODO-2: Consider some lemmas to streamline proofs like this and
-                                              -- the two similar ones below
-       with ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋
-    ...| false = Left qc'∈bt₃
-    ...| true
-       with qc'∈bt₃
-    ...| inHQC x = Right x
-    ...| inHCC x = Left (inHCC x)
-  ...| bt0→bt3 , continue1-ok
-    with pf-continue1 continue1-ok
-    where
-    pf-continue1 : continue1 bt₃ blockId block il₃ ≡ (bt1 , il)
-                 → ∈Post⇒∈PreOrBT (_≡ qc) bt0 bt-c₁
-                 × continue2 bt-c₁ il-c₁ ≡ (bt1 , il)
-    proj₂ (pf-continue1 refl) = refl
-    proj₁ (pf-continue1 refl)  = ∈Post⇒∈PreOrBT-trans (_≡ qc) bt0→bt3 bt3→bt-c1
+    contract-step₁' : EitherD-weakestPre (step₁ blockId) Contract
+    proj₁ contract-step₁' _ = tt
+    proj₂ contract-step₁' block _ = contract-step₂'
       where
-        bt3→bt-c1 : ∈Post⇒∈PreOrBT (_≡ qc) bt₃ bt-c₁
-        bt3→bt-c1 qc' qc'∈bt-c₁
-           with Map.kvm-member blockId (bt₃ ^∙ btIdToQuorumCert)
-        ... | true  = Left qc'∈bt-c₁
-        ... | false
-           with qc'∈bt-c₁
-        ... | inHQC x = Left (inHQC x)
-        ... | inHCC x = Left (inHCC x)
-  ...| bt0→bt-c₁ , continue2-ok = pf-continue2 continue2-ok
-    where
-    pf-continue2 : continue2 bt-c₁ il-c₁ ≡ (bt1 , il) → Contract (Right (bt1 , il))
-    pf-continue2 refl = ∈Post⇒∈PreOrBT-trans (_≡ qc) {bt0} {bt-c₁} {bt1} bt0→bt-c₁ bt-c₁→bt1
-      where
-      bt-c₁→bt1 : _
-      bt-c₁→bt1 qc' qc'∈bt1
-         with (bt-c₁ ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
-      ...| no  hcR≥qcR = Left qc'∈bt1
-      ...| yes hcR<qcR
-        with qc'∈bt1
-      ...| inHQC x = Left (inHQC x)
-      ...| inHCC x = Right x
+      contract-step₂' : EitherD-weakestPre (step₂ blockId block) Contract
+      proj₁ contract-step₂' _ = tt
+      proj₂ contract-step₂' hcb _ =
+        contract-step₃'
+        where
+        contract-cont2' : ∀ (bt : BlockTree) (info : List InfoLog)
+                         → let (bt' , info') = continue2 bt info
+                           in ContractOk bt bt' info info'
+        contract-cont2' bt info
+           with (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
+        ...| yes hqcR<qcR = mkContractOk (∈BlockTree-upd-hcc refl refl) unit
+        ...| no  hqcR≥qcR = mkContractOk (λ _ x → inj₁ x) unit
+
+        cont1-update-bt : BlockTree → BlockTree
+        cont1-update-bt bt = bt & btIdToQuorumCert ∙~ Map.insert blockId qc (bt ^∙ btIdToQuorumCert)
+
+        info' : List InfoLog → Bool → List InfoLog
+        info' il b = (fakeInfo ∷ il) ++ (if b then (fakeInfo ∷ []) else [])
+
+        contract-cont1' : ∀ (btPre : BlockTree) (infoPre : List InfoLog)
+                        → let (btPost , infoPost) = continue1 btPre blockId block infoPre
+                          in  ContractOk btPre btPost infoPre infoPost
+        contract-cont1' btPre infoPre
+           with Map.kvm-member blockId (btPre ^∙ btIdToQuorumCert)
+        ...| true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre $ ExecutedBlock.isNilBlock block ))) unit
+        ...| false = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre $ ExecutedBlock.isNilBlock block }
+                               (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl) unit)
+                               (mkContractOk (ContractOk.noNewQCs (contract-cont2'
+                                                                     (cont1-update-bt btPre)
+                                                                     (info' infoPre $ ExecutedBlock.isNilBlock block))) unit)
+
+        bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                  & btHighestQuorumCert       ∙~ qc
+
+        contract-step₃' : EitherD-weakestPre (step₃ blockId block hcb) Contract
+        proj₁ contract-step₃' _ = ContractOk-trans
+                                    (mkContractOk (∈BlockTree-upd-hqc refl refl) unit)
+                                    (contract-cont1' bt' (fakeInfo ∷ []))
+        proj₂ contract-step₃' _ = ContractOk-trans
+                                    (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _) unit)
+                                    (contract-cont1' bt0 [])
