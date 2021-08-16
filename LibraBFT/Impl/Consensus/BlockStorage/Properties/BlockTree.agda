@@ -98,7 +98,6 @@ module insertQuorumCertESpec
       proj₁ contract-step₂' _ = tt
       proj₂ contract-step₂' hcb _ =
         contract-step₃'
-          (λ bR>hcbR → mkContractOk (∈BlockTree-upd-hqc refl refl) unit)
         where
         contract-cont2' : ∀ (bt : BlockTree) (info : List InfoLog)
                          → let (bt' , info') = continue2 bt info
@@ -135,11 +134,10 @@ module insertQuorumCertESpec
         bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
                   & btHighestQuorumCert       ∙~ qc
 
-        contract-step₃' : (  ((block ^∙ ebRound) > (hcb ^∙ ebRound)) → ContractOk bt0 bt' [] (fakeInfo ∷ []))
-                        → EitherD-weakestPre (step₃ blockId block hcb) Contract
-        proj₁ (contract-step₃' pfYes) bR>hcbRT = ContractOk-trans
-                                                   (pfYes $ toWitnessT bR>hcbRT)
-                                                   (contract-cont1' bt' (fakeInfo ∷ []))
-        proj₂ (contract-step₃' _) _            = ContractOk-trans
-                                                   (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _) unit)
-                                                   (contract-cont1' bt0 [])
+        contract-step₃' : EitherD-weakestPre (step₃ blockId block hcb) Contract
+        proj₁ contract-step₃' _ = ContractOk-trans
+                                    (mkContractOk (∈BlockTree-upd-hqc refl refl) unit)
+                                    (contract-cont1' bt' (fakeInfo ∷ []))
+        proj₂ contract-step₃' _ = ContractOk-trans
+                                    (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _) unit)
+                                    (contract-cont1' bt0 [])
