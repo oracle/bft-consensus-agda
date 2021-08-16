@@ -286,6 +286,14 @@ module RoundManagerInvariants where
   transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
+  transPreservesL : ∀ {ℓ} {A : Set}
+                  → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+                  → {a₁ a₂ a₃ : A}
+                  → PreservesL P l a₁ a₂
+                  → PreservesL P l a₂ a₃
+                  → PreservesL P l a₁ a₃
+  transPreservesL Pred l p₁ p₂ rm = transPreserves Pred (p₁ rm) (p₂ rm)
+
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
