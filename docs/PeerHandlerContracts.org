@@ -7,7 +7,7 @@
 
   This file was written with respect to the following commit hash of the
   repository:
-  - 7bdbde02b220a20b2e7cde98154a0fbdb75c5051
+  - bf83f206aec53b2f7abd3a92293ca1ac722bf6eb
 
 * Structure of peer handler proofs
 
