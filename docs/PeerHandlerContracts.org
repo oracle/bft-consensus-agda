@@ -200,7 +200,7 @@ RWST-⇒
     #+end_src
 
     This is such a common pattern that contracts for
-    non-toplevel handlers should generally formulated for
+    non-toplevel handlers should generally be formulated for
     arbitrary postconditions (=pre= is a module parameter):
 
     #+begin_src agda
@@ -370,9 +370,9 @@ module ensureRoundAndSyncUpMSpec
 
      With the local definition of =Post= as =RWST-weakestPre-ebindPost unit
      (const step₂) Contract= (because the call to =syncUpM= is followed by =∙?∙
-     λ _ → step₂=, where =∙?∙= is an alias for =RWST-ebind=), we now know the
-     what the type of ~contract-step₁'~ should be --- and so below, we can
-     choose to omit it using an underscore, shown below in the definition of
+     λ _ → step₂=, where =∙?∙= is an alias for =RWST-ebind=), we now know what
+     the type of ~contract-step₁'~ should be --- and so below, we can choose to
+     omit it using an underscore, shown below in the definition of
      ~contract-step₁'~.
      
      #+begin_src agda
@@ -524,7 +524,7 @@ record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Se
 open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
 #+end_src
 
-     The Agda typeclass =MonadEitherD= allows us to gives a single name for an
+     The Agda typeclass =MonadEitherD= allows us to give a single name for an
      operation that acts the same as =eitherS= in the Haskell prototype.
      When we open =MonadEitherD=, we hide =eitherSD= so that we can define a
      version in which the first (non-implicit) argument is anything that is
