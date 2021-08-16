@@ -57,6 +57,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree
 
+  ------   These are used only outside this module.  
   Ok : Set
   Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
 
@@ -66,6 +67,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   Err : Set
   Err = ∃[ e ] (executeAndInsertBlockE bs0 block ≡ Left e)
+  ------
 
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk

@@ -130,8 +130,49 @@ module QCProps where
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
 
+  ∈BlockTree-upd-hqc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestCommitCert
+                       → Q (bt2 ^∙ btHighestQuorumCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hqc refl Q _ (inHQC refl) = inj₂ Q
+  ∈BlockTree-upd-hqc refl _ _ (inHCC refl) = inj₁ (inHCC refl)
+
+  ∈BlockTree-upd-hcc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestQuorumCert
+                       → Q (bt2 ^∙ btHighestCommitCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hcc refl _ _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈BlockTree-upd-hcc refl Q _ (inHCC refl) = inj₂ Q
+
   ∈Post⇒∈PreOr : (Q : QuorumCert → Set) (pre post : RoundManager) → Set
   ∈Post⇒∈PreOr = ∈Post⇒∈PreOr' _∈RoundManager_
+
+  ∈Post⇒∈PreOr'-refl : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → ∀ {pre : A}
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre pre
+  ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
+
+  ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → (_≡Prop_ : A → A → Set)
+                      → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
+                      → ∀ {pre post}
+                      → pre ≡Prop post
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
+  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
+
+  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
+
+  ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
+                        → (Q : QuorumCert → Set)
+                        → bt1 ≡L bt2 at btHighestCommitCert
+                        → bt1 ≡L bt2 at btHighestQuorumCert
+                        → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHCC refl) = inj₁ (inHCC refl)
 
   ∈Post⇒∈PreOr'-trans : ∀ {A : Set}
                       → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
