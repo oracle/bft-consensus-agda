@@ -211,7 +211,6 @@ RWST-⇒
     #+end_src
     
 ** Peer handler proofs
-   
 *** Breaking the peer handler down into smaller "steps"
 
     When beginning to prove a contract for a peer handler, it is often
@@ -457,54 +456,126 @@ abstract
 
     The defintion of =processProposalMsgM.step₀= /is/ visible in other contexts,
     so =processProposalMsgM≡= is used by the proof of the contract for
-    =processProposalMsgM= to transfer a property about
-    =processProposalMsgM.step₀= to =processProposalMsgM=.
+    =processProposalMsgM= (see
+    [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]) to transfer a
+    property about =processProposalMsgM.step₀= to =processProposalMsgM=.
+
+    #+begin_src agda
+    contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
+    contract' rewrite processProposalMsgM≡ = contract
+      where
+      contract : LBFT-weakestPre step₀ Contract pre
+    #+end_src
+
+    Note that after the rewrite, the expected type for the right-hand side of
+    =contract'= is not =LBFT-weakestPre step₀ Contract pre= but unrolls the
+    full definition of =step₀=. This is a quirk of how =rewrite= (and =with= in
+    general) behaves in Agda.
 
     At the time of writing, there is no set discipline for when to use
     =abstract= blocks. Conceivably, they could be used for *every* function,
     since this would greatly improve the readability of the proof state for any
-    peer handler contract proof.
+    peer handler contract proof. This is especially in the instances where
+    =with= or =rewrite= are used, which irrevocably normalize the proof state in
+    an attempt to abstract over the given expression in both the goal type and
+    the type of (non-parameter) variables in context.
+    
 
+* Peer handler code
+** Type classes for branching operations
+
+   Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
+   branching operations on booleans, =Maybe='s, and =Either='s. To take
+   advantage of the weakest precondition machinery, we want to use the
+   constructors for the datatype (=RWST= or =EitherD=). However, for
+   readability it is desirable to use the same name for the operation that
+   performs e.g. case analysis on a boolean value.
+
+   To that end, [[file:../LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]] defines
+   three Agda "typeclasses" --- =MonadIfD=, =MonadMaybeD=, and =MonadEitherD=.
+   Of these, =MonadEitherD= deserves some elaboration.
     
 *** =EitherLike=
 
-    To take advantage of the weakest precondition infrastructure, peer handler
-    code written in the =Either ErrLog= monad in Haskell is (or will be) written
-    in the =EitherD ErrLog= monad. To facilitate writing code to operate on both
-    =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a typeclass =EitherLike=.
+   Peer handler code written in the =Either ErrLog= monad in Haskell is (or
+   will be) written in the =EitherD ErrLog= monad. To facilitate writing code
+   to operate on both =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a
+   typeclass =EitherLike=.
 
-    #+begin_src agda
-  -- Utility to make passing between `Either` and `EitherD` more convenient
-  record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
-    field
-      fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
-      toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
-  open EitherLike ⦃ ... ⦄ public
-    #+end_src
+   #+begin_src agda
+ -- Utility to make passing between `Either` and `EitherD` more convenient
+ record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
+   field
+     fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+     toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+ open EitherLike ⦃ ... ⦄ public
+   #+end_src
 
-    With this, operations for branching (such as =case⊎D_of_=) can be defined to
-    operate over anything that is =EitherLike=.
+   With this and =MonadEitherD=, we can define operations for branching over
+   anything that is =EitherLike=.
 
-    The one wrinkle in this story is the monadic bind operation. When writing
-    "m >>= f" in the =EitherD ErrLog= monad, =f= must return something of the form
-    =EitherD ErrLog B=, and similarly for the =Either ErrLog= monad.
+**** =MonadEitherD= and =eitherSD=
+#+begin_src agda
+record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
+  field
+    ⦃ monad ⦄ : Monad M
+    eitherSD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
 
-    At the time of writing, the recommendation for =EitherD= peer handler code
-    is:
-    - write the steps in =EitherD=
-      e.g., =executeAndInsertBlockE.step₀ : BlockStore → Block → EitherD ErrLog (BlockStore × Block)=
-    - use ~toEither~ to create a version of the function in =Either=, which will be used by =LBFT= peer handlers
-      e.g., =executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block=
+open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
+#+end_src
 
-    - write a variant in =EitherD= again, to be used by other =EitherD=
-      handlers
+     The Agda typeclass =MonadEitherD= allows us to gives a single name for an
+     operation that acts the same as =eitherS= in the Haskell prototype.
+     When we open =MonadEitherD=, we hide =eitherSD= so that we can define a
+     version in which the first (non-implicit) argument is anything that is
+     =EitherLike=.
 
-      e.g. =executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block=
+#+begin_src agda
+eitherSD
+  : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄ →
+    ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
+    ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
+eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) f₁ f₂
+#+end_src
+
+**** =EitherD= and monadic bind
+
+      A wrinkle in this story is the monadic bind operation. When writing "m >>=
+      f" in the =EitherD ErrLog= monad, =f= must return something of the form
+      =EitherD ErrLog B=, and similarly for the =Either ErrLog= monad.
+
+      At the time of writing, the recommended approach is to have different
+      variants for different contexts an error-throwing peer handler might be
+      used.
+      
+      - write the steps in =EitherD=
+        e.g.,
+        =insertQuorumCertE.step₀ : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)=
+      - use ~toEither~ to create a version of the function in =Either=, which
+        will be used by =LBFT= peer handlers e.g.,
+        =insertQuorumCertE qc bt0 = toEither $ insertQuorumCertE.step₀ qc bt0=
+
+        This runs the =EitherD= (for =EitherD=, =toEither= is implemented with
+        =EitherD-run=).
+
+      - write a variant in =EitherD= again, to be used by other =EitherD=
+        handlers
+
+        e.g. =insertQuorumCertE-D qc bt0 = fromEither $ insertQuorumCertE qc bt0=
 
 
-    Note that this third version is not the same as the first, even though it
-    has the same type signature. While =step₀= may have many uses of binds and
-    branching, =executeAndInsertBlockE₀= will only ever be an =EitherD-return=
-    or =EitherD-bail=. This has the side effect of reducing clutter in the proof
-    state for any contract of an =EitherD= handler that calls
-    =executeAndInsertBlockE₀=.
+      Note that this third version is not the same as the first, even though it
+      has the same type. While =step₀= may have many uses of binds and
+      branching, the closed normal form of =insertQuorumCertE-D= will only ever
+      be an =EitherD-return= or =EitherD-bail=.
+
+
+      Another alternative is to define special syntax for =EitherD ErrLog= peer
+      handlers that can bind variables from both =Either ErrLog= and =EitherD
+      ErrLog= operations. This would look like:
+
+      #+begin_src agda
+syntax EitherD-bindEitherLike m₁ (λ x → m₂) = x ←E m₁ ； m₂
+      #+end_src
+
+      This would replace =do=-notation for =EitherD ErrLog= peer handlers.
