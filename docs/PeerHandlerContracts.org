@@ -553,23 +553,19 @@ eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) 
         =insertQuorumCertE.step₀ : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)=
       - use ~toEither~ to create a version of the function in =Either=, which
         will be used by =LBFT= peer handlers e.g.,
-
         #+begin_src agda
         insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
         insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
         #+end_src
-
         This runs the =EitherD= (for =EitherD=, =toEither= is implemented with
         =EitherD-run=).
 
       - write a variant in =EitherD= again, to be used by other =EitherD=
         handlers, e.g.
-
         #+begin_src agda
         insertQuorumCertE-D : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)
         insertQuorumCertE-D qc = fromEither ∘ insertQuorumCertE qc
         #+end_src
-
       Note that this third version is not the same as the first, even though it
       has the same type. While =step₀= may have many uses of binds and
       branching, the closed normal form of =insertQuorumCertE-D= will only ever
