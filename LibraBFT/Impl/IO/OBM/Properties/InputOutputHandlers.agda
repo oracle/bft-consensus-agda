@@ -94,7 +94,12 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         sdEpoch≡ : pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch
         sdEpoch≡
           with processProposalSpec.contract pm myEpoch vv
-        ...| con rewrite pp≡Right = sym con
+        ...| con rewrite pp≡Right = sym (proj₁ con)
+
+        proposalId≡ : hashBD (pm ^∙ pmProposal ∙ bBlockData) ≡ pm ^∙ pmProposal ∙ bId
+        proposalId≡
+           with processProposalSpec.contract pm myEpoch vv
+        ...| con rewrite pp≡Right = proj₂ con
 
         pf : RWST-Post-⇒ (PPM.Contract pre) Contract
         pf unit st outs con =
@@ -104,8 +109,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           module PPMSpec = processProposalMsgMSpec.Contract con
 
           vac : Voting.VoteAttemptCorrectWithEpochReq pre st outs (pm ^∙ pmProposal)
-          vac = Voting.mkVoteAttemptCorrectWithEpochReq PPMSpec.voteAttemptCorrect
-                  (Voting.voteAttemptEpochReq! PPMSpec.voteAttemptCorrect sdEpoch≡)
+          vac = Voting.mkVoteAttemptCorrectWithEpochReq (PPMSpec.voteAttemptCorrect proposalId≡)
+                  (Voting.voteAttemptEpochReq! (PPMSpec.voteAttemptCorrect proposalId≡) sdEpoch≡)
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract

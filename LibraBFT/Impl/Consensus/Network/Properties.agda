@@ -23,4 +23,5 @@ module processProposalSpec (proposal : ProposalMsg) (myEpoch : Epoch) (vv : Vali
       : case (processProposal proposal myEpoch vv) of λ where
           (Left _) → Unit
           (Right _) → proposal ^∙ pmProposal ∙ bEpoch ≡ myEpoch
+                      × hashBD (proposal ^∙ pmProposal ∙ bBlockData) ≡ proposal ^∙ pmProposal ∙ bId
 
