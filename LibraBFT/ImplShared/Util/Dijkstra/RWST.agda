@@ -157,6 +157,12 @@ RWST-weakestPre-ebindPost ev f Post (Right r) post outs =
 RWST-weakestPre-bindPost ev f Post x post outs =
   ∀ r → r ≡ x → RWST-weakestPre (f r) (RWST-Post++ Post outs) ev post
 
+-- The post condition `P` holds for `m` with environment `ev` and prestate `pre`
+RWST-Post-True : (P : RWST-Post Wr St A) (m : RWST Ev Wr St A) (ev : Ev) (pre : St) → Set
+RWST-Post-True P m ev pre =
+  let (x , post , outs) = RWST-run m ev pre in
+  P x post outs
+
 -- For every RWST computation `m`, `RWST-Contract m` is the type of proofs that,
 -- for all post conditions `P`, starting environments `ev` and prestates `pre`,
 -- to prove that `P` holds after running `m` in `ev` and `pre`, it suffices to
@@ -166,8 +172,7 @@ RWST-Contract : (m : RWST Ev Wr St A) → Set₁
 RWST-Contract{Ev}{Wr}{St}{A} m =
   (P : RWST-Post Wr St A)
   → (ev : Ev) (pre : St) → RWST-weakestPre m P ev pre
-  → let (x , post , outs) = RWST-run m ev pre in
-    P x post outs
+  → RWST-Post-True P m ev pre
 
 -- This proves that `RWST-weakestPre` gives a *sufficient* precondition for
 -- establishing a desired postcondition. Note thought that it does not prove

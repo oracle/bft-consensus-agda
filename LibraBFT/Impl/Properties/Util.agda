@@ -130,8 +130,49 @@ module QCProps where
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
 
+  ∈BlockTree-upd-hqc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestCommitCert
+                       → Q (bt2 ^∙ btHighestQuorumCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hqc refl Q _ (inHQC refl) = inj₂ Q
+  ∈BlockTree-upd-hqc refl _ _ (inHCC refl) = inj₁ (inHCC refl)
+
+  ∈BlockTree-upd-hcc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestQuorumCert
+                       → Q (bt2 ^∙ btHighestCommitCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hcc refl _ _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈BlockTree-upd-hcc refl Q _ (inHCC refl) = inj₂ Q
+
   ∈Post⇒∈PreOr : (Q : QuorumCert → Set) (pre post : RoundManager) → Set
   ∈Post⇒∈PreOr = ∈Post⇒∈PreOr' _∈RoundManager_
+
+  ∈Post⇒∈PreOr'-refl : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → ∀ {pre : A}
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre pre
+  ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
+
+  ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → (_≡Prop_ : A → A → Set)
+                      → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
+                      → ∀ {pre post}
+                      → pre ≡Prop post
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
+  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
+
+  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
+
+  ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
+                        → (Q : QuorumCert → Set)
+                        → bt1 ≡L bt2 at btHighestCommitCert
+                        → bt1 ≡L bt2 at btHighestQuorumCert
+                        → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHCC refl) = inj₁ (inHCC refl)
 
   ∈Post⇒∈PreOr'-trans : ∀ {A : Set}
                       → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
@@ -183,9 +224,6 @@ module QCProps where
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
   SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
 
-  -- glue-SigsForVotes∈Rm-SentB4
-  --   : ∀ {pool rm₁ rm₂ rm₃}
-
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
       → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
@@ -234,6 +272,11 @@ module RoundManagerInvariants where
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
+  PreservesL : ∀ {ℓ} {A : Set}
+               → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+               → (a₁ a₂ : A) → Set ℓ
+  PreservesL Pred l a₁ a₂ = ∀ rm → Preserves Pred (rm & l ∙~ a₁) (rm & l ∙~ a₂)
+
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
@@ -242,6 +285,14 @@ module RoundManagerInvariants where
 
   transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
+
+  transPreservesL : ∀ {ℓ} {A : Set}
+                  → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+                  → {a₁ a₂ a₃ : A}
+                  → PreservesL P l a₁ a₂
+                  → PreservesL P l a₂ a₃
+                  → PreservesL P l a₁ a₃
+  transPreservesL Pred l p₁ p₂ rm = transPreserves Pred (p₁ rm) (p₂ rm)
 
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
