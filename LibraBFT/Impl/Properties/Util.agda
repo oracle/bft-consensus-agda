@@ -194,9 +194,14 @@ module QCProps where
                        → ∈Post⇒∈PreOrBT Q pre post
   ∈Post⇒∈PreOrBT-trans = ∈Post⇒∈PreOr'-trans _∈BlockTree_
 
+  -- TODO-1: Factor out a property about a single output:
+  -- λ out → ∃₂ λ qc nm → qc QC∈NM nm × nm Msg∈Out out
   OutputQc∈RoundManager : List Output → RoundManager → Set
   OutputQc∈RoundManager outs rm =
     All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+
+  ¬OutputQc : List Output → Set
+  ¬OutputQc outs = All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → ⊥) outs
 
   ++-OutputQc∈RoundManager
     : ∀ {rm outs₁ outs₂}
@@ -204,14 +209,28 @@ module QCProps where
       → OutputQc∈RoundManager (outs₁ ++ outs₂) rm
   ++-OutputQc∈RoundManager = All-++
 
-  NoMsgs⇒OutputQc∈RoundManager : ∀ outs rm → OutputProps.NoMsgs outs → OutputQc∈RoundManager outs rm
-  NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =
+  ++-¬OutputQc : ∀ {outs₁ outs₂} → ¬OutputQc outs₁ → ¬OutputQc outs₂
+                 → ¬OutputQc (outs₁ ++ outs₂)
+  ++-¬OutputQc = All-++
+
+  NoMsgs⇒¬OutputQc : ∀ outs → OutputProps.NoMsgs outs → ¬OutputQc outs
+  NoMsgs⇒¬OutputQc outs noMsgs =
     All-map help (noneOfKind⇒All¬ outs _ noMsgs)
     where
-    help : ∀ {out : Output} → ¬ IsOutputMsg out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm
-    help ¬msg qc .(P _) qc∈m inBP = ⊥-elim (¬msg (Left tt))
-    help ¬msg qc .(V _) qc∈m inSV = ⊥-elim (¬msg (Right (Right tt)))
+    help : ∀ {out : Output} → ¬ IsOutputMsg out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → ⊥
+    help ¬msg qc .(P _) qc∈m inBP = ¬msg (Left tt)
+    help ¬msg qc .(V _) qc∈m inSV = ¬msg (Right (Right tt))
 
+  ¬OutputQc⇒OutputQc∈RoundManager : ∀ outs rm → ¬OutputQc outs → OutputQc∈RoundManager outs rm
+  ¬OutputQc⇒OutputQc∈RoundManager outs rm noOutQcs =
+    All-map (λ ¬outqc qc nm qc∈nm nm∈out → ⊥-elim (¬outqc qc nm qc∈nm nm∈out))
+      noOutQcs
+
+  NoMsgs⇒OutputQc∈RoundManager : ∀ outs rm → OutputProps.NoMsgs outs → OutputQc∈RoundManager outs rm
+  NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =
+    ¬OutputQc⇒OutputQc∈RoundManager outs rm (NoMsgs⇒¬OutputQc outs noMsgs)
+
+  -- NOTE: Deprecated
   SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Rm-SentB4 v pk qc rm pool =
     qc ∈RoundManager rm

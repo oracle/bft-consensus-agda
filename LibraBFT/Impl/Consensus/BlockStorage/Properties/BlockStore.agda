@@ -81,7 +81,6 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       -- for QCs then follows as a consequence
       qcPost : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
                → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
-      qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) (rmBlockStore) bs0 bs'
 
   Contract : EitherD-Post ErrLog (BlockStore × ExecutedBlock)
   Contract (Left x) = ⊤
@@ -89,14 +88,12 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   contract' : EitherD-weakestPre step₀ Contract
   proj₂ contract' eb eb≡ =
-    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) qcPres
+    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) -- qcPres
     where
     ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
     ebBlock≈ bid≡ =
-      getBlockSpec.correctBlockData (block ^∙ bId) bs0 (block ^∙ bBlockData)
-        (hashBD (block ^∙ bBlockData) ≡ block ^∙ bId
-         ∋ bid≡ {- obm-dangerous-magic' "TODO: propagate this information from `Network.processProposal`" -})
-        (eb , eb≡)
+      getBlockSpec.correctBlockData
+        (block ^∙ bId) bs0 (block ^∙ bBlockData) (bid≡) (eb , eb≡)
 
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
     btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
@@ -135,7 +132,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost qcPres
+           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost -- qcPres
            where
            module IBE = insertBlockESpec.ContractOk con
 
@@ -166,9 +163,6 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
               with insertBlockESpec.qcPost eb (bs0 ^∙ bsInner)
                      bt' eb' con
            ...| qcPost' rewrite eb≈ = qcPost'
-
-           qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) rmBlockStore bs0 (BlockStore∙new bt' (bs0 ^∙ bsStorage))
-           qcPres qc rm = obm-dangerous-magic' "TODO: refine contract for `insertBlockE`"
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
