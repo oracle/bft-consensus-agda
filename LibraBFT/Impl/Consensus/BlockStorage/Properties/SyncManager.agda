@@ -48,6 +48,7 @@ module insertQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
+        -- TODO-2: Remove dependence on `pool`, show post QCs are in prestate or are `qc`
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcSigsB4  : QCProps.QCRequirements pool qc
                     → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
@@ -123,7 +124,7 @@ module addCertsMSpec
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
-    postulate
+    postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (addCertsM syncInfo retriever) Contract pre
 
     contract : ∀ Q → RWST-Post-⇒ Contract Q → LBFT-weakestPre (addCertsM syncInfo retriever) Q pre

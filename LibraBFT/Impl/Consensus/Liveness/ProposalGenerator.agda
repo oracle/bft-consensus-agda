@@ -18,7 +18,7 @@ module LibraBFT.Impl.Consensus.Liveness.ProposalGenerator where
 
 ensureHighestQuorumCertM : Round → LBFT (Either ErrLog QuorumCert)
 
-postulate
+postulate -- TODO-1: Implement
   generateNilBlockM : Round → LBFT (Either ErrLog Block)
 
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)

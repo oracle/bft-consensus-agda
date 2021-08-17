@@ -34,7 +34,9 @@ module getBlockSpec (hv : HashValue) (bs : BlockStore) where
   Ok : Set
   Ok = ∃[ eb ] (getBlock hv bs ≡ just eb)
 
-  postulate -- TODO-2: This contract will need to be modified when hash collisions are are modeled
+  postulate -- TODO-2: Refine contract
+            -- This contract is only a sketch, and will need to be modified when
+            -- hash collisions are are modeled.
     correctBlockData
       : ∀ bd → hashBD bd ≡ hv → (isOk : Ok) → let (eb , _) = isOk in
           eb ^∙ ebBlock ≈Block record (eb ^∙ ebBlock) { _bId = hv ;  _bBlockData = bd }
@@ -205,6 +207,7 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
+        -- TODO-1: Remove `QCProps.SigsForVotes∈Rm-SentB4` use `QCProps.∈Post⇒∈PreOr`
         qcSigsB4      : ∀ {pool} → QCProps.QCRequirements pool qc
                         → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
 

@@ -27,10 +27,8 @@ import      Data.String as String
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
-postulate
+postulate -- TODO-2: implement
   linkableBlockNew : ExecutedBlock → LinkableBlock
-
-postulate
   addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 
 -- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock

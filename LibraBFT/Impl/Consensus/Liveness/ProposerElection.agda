@@ -13,7 +13,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Liveness.ProposerElection where
 
-postulate
+postulate -- TODO-1: Implement
   getValidProposer : ProposerElection → Round → Author
 
 isValidProposerM : Author → Round → LBFT Bool
