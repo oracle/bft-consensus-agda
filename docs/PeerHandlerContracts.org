@@ -371,9 +371,9 @@ module ensureRoundAndSyncUpMSpec
      With the local definition of =Post= as =RWST-weakestPre-ebindPost unit
      (const step₂) Contract= (because the call to =syncUpM= is followed by =∙?∙
      λ _ → step₂=, where =∙?∙= is an alias for =RWST-ebind=), we now know what
-     the type of ~contract-step₁'~ should be --- and so below, we can choose to
+     the type of ~contract-step₁'​~ should be --- and so below, we can choose to
      omit it using an underscore, shown below in the definition of
-     ~contract-step₁'~.
+     ~contract-step₁'​~.
 
      #+begin_src agda
         contract-step₁' : _
@@ -401,12 +401,12 @@ module ensureRoundAndSyncUpMSpec
               outqcs SU.qcPost
     #+end_src
 
-    ~contract-step₁'~ proceeds by inspecting the result returned by =syncUpM=.
+    ~contract-step₁'​~ proceeds by inspecting the result returned by =syncUpM=.
     Focusing on the success case (=Right unit=), the code continues on to
     =step₂=, and the proof follows by defining =contract-step₂=. Note the
     following local bindings and definitions.
 
-    - =st= and outs are resp. the post-state and outputs of executing =syncUpM=
+    - =st= and ~outs~ are, respectively, the post-state and outputs of executing =syncUpM=
       with state =pre=
     - =con= is the proof of the contract for =syncUpM=. To make accessing the
       individual fields of =con= more convenient, we make a local module
@@ -475,7 +475,7 @@ abstract
     At the time of writing, there is no set discipline for when to use
     =abstract= blocks. Conceivably, they could be used for *every* function,
     since this would greatly improve the readability of the proof state for any
-    peer handler contract proof. This is especially in the instances where
+    peer handler contract proof. This is especially true in the instances where
     =with= or =rewrite= are used, which irrevocably normalize the proof state in
     an attempt to abstract over the given expression in both the goal type and
     the type of (non-parameter) variables in context.
@@ -485,7 +485,7 @@ abstract
 ** Type classes for branching operations
 
    Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
-   branching operations on booleans, =Maybe='s, and =Either='s. To take
+   branching operations on ~Bool~​s, =Maybe=​s, and =Either=​s. To take
    advantage of the weakest precondition machinery, we want to use the
    constructors for the datatype (=RWST= or =EitherD=). However, for
    readability it is desirable to use the same name for the operation that
@@ -497,8 +497,8 @@ abstract
 
 *** =EitherLike=
 
-   Peer handler code written in the =Either ErrLog= monad in Haskell is (or
-   will be) written in the =EitherD ErrLog= monad. To facilitate writing code
+   Peer handler code written in the =Either ErrLog= monad in Haskell is generally
+   written in the =EitherD ErrLog= monad. To facilitate writing code
    to operate on both =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a
    typeclass =EitherLike=.
 
