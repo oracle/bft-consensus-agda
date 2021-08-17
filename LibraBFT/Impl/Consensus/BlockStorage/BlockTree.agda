@@ -137,8 +137,8 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
 insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
 insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
 
-insertQuorumCertE₀ : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
-insertQuorumCertE₀ qc = fromEither ∘ insertQuorumCertE qc
+insertQuorumCertE-D : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)
+insertQuorumCertE-D qc = fromEither ∘ insertQuorumCertE qc
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
