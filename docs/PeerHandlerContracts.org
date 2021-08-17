@@ -179,7 +179,7 @@ RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
 
     #+begin_src haskell
       baz = do
-        x <- foo
+        x ← foo
         bar x
     #+end_src
 
@@ -291,13 +291,13 @@ module ensureRoundAndSyncUpMSpec
      this is called =ensureRoundAndSyncUpMSpec.Contract=.
 
      The main proof effort is in showing the weakest precondition of =Contract=
-     for =ensureRoundAndSyncUpM=. This is =contract'= below, which we break up
+     for =ensureRoundAndSyncUpM=. This is ~contract'​~ below, which we break up
      into smaller pieces to discuss.
 
     #+begin_src agda
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
-    proj₁ (contract' ._ refl) _         =
+    proj₁ (contract' ._ refl) _ =
       mkContract id refl refl vng outqcs qcPost
       where
         vng : VoteNotGenerated pre pre true
@@ -311,7 +311,7 @@ module ensureRoundAndSyncUpMSpec
 
      #+end_src
 
-     The first two arguments to =contract'= come from the bind operation
+     The first two arguments to ~contract'​~ come from the bind operation
      (=currentRound ← use (lRoundState ∙ rsCurrentRound)=). The first argument
      (unnamed, given as an underscore) has type =Round= and the second argument
      is a proof that it is equal to =pre ^∙ lRoundState ∙ rsCurrentRound=.
@@ -371,9 +371,9 @@ module ensureRoundAndSyncUpMSpec
      With the local definition of =Post= as =RWST-weakestPre-ebindPost unit
      (const step₂) Contract= (because the call to =syncUpM= is followed by =∙?∙
      λ _ → step₂=, where =∙?∙= is an alias for =RWST-ebind=), we now know what
-     the type of ~contract-step₁'~ should be --- and so below, we can choose to
+     the type of ~contract-step₁'​~ should be --- and so below, we can choose to
      omit it using an underscore, shown below in the definition of
-     ~contract-step₁'~.
+     ~contract-step₁'​~.
 
      #+begin_src agda
         contract-step₁' : _
@@ -401,12 +401,12 @@ module ensureRoundAndSyncUpMSpec
               outqcs SU.qcPost
     #+end_src
 
-    ~contract-step₁'~ proceeds by inspecting the result returned by =syncUpM=.
+    ~contract-step₁'​~ proceeds by inspecting the result returned by =syncUpM=.
     Focusing on the success case (=Right unit=), the code continues on to
     =step₂=, and the proof follows by defining =contract-step₂=. Note the
     following local bindings and definitions.
 
-    - =st= and outs are resp. the post-state and outputs of executing =syncUpM=
+    - =st= and ~outs~ are, respectively, the post-state and outputs of executing =syncUpM=
       with state =pre=
     - =con= is the proof of the contract for =syncUpM=. To make accessing the
       individual fields of =con= more convenient, we make a local module
@@ -415,7 +415,7 @@ module ensureRoundAndSyncUpMSpec
     - =SU.noVoteOuts= tells us there are not vote messages in =outs=, but our
       obligation is to show there are no vote messages in =outs ++ []=.
 
-      Here we could prove =noVoteOuts'= by rewriting with =++-identiyʳ=. In
+      Here we could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
       general, if we have two lists which have been proven to not contain a
       certain type of message (e.g., a vote), then you can use the lemma
       =++-NoneOfKind= in [[file:../LibraBFT/Impl/Properties/Util.agda]]. For
@@ -431,7 +431,7 @@ module ensureRoundAndSyncUpMSpec
 
     Finally, in =contract-step₂=, the first =._ refl= pair corresponds to the
     =Unit= returned =syncUpM=, and the second pair corresponds to the variable
-    =currentRound'= in the peer handler code. When we reach the conditional, we
+    ~currentRound'​~ in the peer handler code. When we reach the conditional, we
     prove the two obligations the weakest precondition infrastructure generates
     for us --- which finishes the proof.
 
@@ -468,14 +468,14 @@ abstract
     #+end_src
 
     Note that after the rewrite, the expected type for the right-hand side of
-    =contract'= is not =LBFT-weakestPre step₀ Contract pre= but unrolls the
+    ~contract'​~ is not =LBFT-weakestPre step₀ Contract pre= but unrolls the
     full definition of =step₀=. This is a quirk of how =rewrite= (and =with= in
     general) behaves in Agda.
 
     At the time of writing, there is no set discipline for when to use
     =abstract= blocks. Conceivably, they could be used for *every* function,
     since this would greatly improve the readability of the proof state for any
-    peer handler contract proof. This is especially in the instances where
+    peer handler contract proof. This is especially true in the instances where
     =with= or =rewrite= are used, which irrevocably normalize the proof state in
     an attempt to abstract over the given expression in both the goal type and
     the type of (non-parameter) variables in context.
@@ -485,7 +485,7 @@ abstract
 ** Type classes for branching operations
 
    Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
-   branching operations on booleans, =Maybe='s, and =Either='s. To take
+   branching operations on variables of type Bool​, Maybe, or Either. To take
    advantage of the weakest precondition machinery, we want to use the
    constructors for the datatype (=RWST= or =EitherD=). However, for
    readability it is desirable to use the same name for the operation that
@@ -497,8 +497,8 @@ abstract
 
 *** =EitherLike=
 
-   Peer handler code written in the =Either ErrLog= monad in Haskell is (or
-   will be) written in the =EitherD ErrLog= monad. To facilitate writing code
+   Peer handler code written in the =Either ErrLog= monad in Haskell is generally
+   written in the =EitherD ErrLog= monad. To facilitate writing code
    to operate on both =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a
    typeclass =EitherLike=.
 
@@ -553,23 +553,19 @@ eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) 
         =insertQuorumCertE.step₀ : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)=
       - use ~toEither~ to create a version of the function in =Either=, which
         will be used by =LBFT= peer handlers e.g.,
-
         #+begin_src agda
         insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
         insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
         #+end_src
-
         This runs the =EitherD= (for =EitherD=, =toEither= is implemented with
         =EitherD-run=).
 
       - write a variant in =EitherD= again, to be used by other =EitherD=
         handlers, e.g.
-
         #+begin_src agda
         insertQuorumCertE-D : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)
         insertQuorumCertE-D qc = fromEither ∘ insertQuorumCertE qc
         #+end_src
-
       Note that this third version is not the same as the first, even though it
       has the same type. While =step₀= may have many uses of binds and
       branching, the closed normal form of =insertQuorumCertE-D= will only ever
