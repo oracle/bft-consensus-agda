@@ -88,7 +88,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   contract' : EitherD-weakestPre step₀ Contract
   proj₂ contract' eb eb≡ =
-    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) -- qcPres
+    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left)
     where
     ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
     ebBlock≈ bid≡ =
@@ -132,7 +132,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost -- qcPres
+           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost
            where
            module IBE = insertBlockESpec.ContractOk con
 

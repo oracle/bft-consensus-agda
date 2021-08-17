@@ -513,8 +513,6 @@ module ensureRoundAndSyncUpMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        -- TODO-2: Change this to say that there are no QCs in the messages
-        -- `ensureRoundAndSyncUpM` sends
         noOutQcs : QCProps.¬OutputQc outs
         qcPost   : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
 
