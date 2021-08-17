@@ -230,7 +230,6 @@ module QCProps where
   NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =
     ¬OutputQc⇒OutputQc∈RoundManager outs rm (NoMsgs⇒¬OutputQc outs noMsgs)
 
-  -- NOTE: Deprecated
   SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
   SigForVote∈Rm-SentB4 v pk qc rm pool =
     qc ∈RoundManager rm
