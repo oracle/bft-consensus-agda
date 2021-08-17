@@ -485,7 +485,7 @@ abstract
 ** Type classes for branching operations
 
    Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
-   branching operations on variables of type Bool​, Maybe, Either. To take
+   branching operations on variables of type Bool​, Maybe, or Either. To take
    advantage of the weakest precondition machinery, we want to use the
    constructors for the datatype (=RWST= or =EitherD=). However, for
    readability it is desirable to use the same name for the operation that
