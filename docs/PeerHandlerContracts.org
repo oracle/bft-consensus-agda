@@ -415,7 +415,7 @@ module ensureRoundAndSyncUpMSpec
     - =SU.noVoteOuts= tells us there are not vote messages in =outs=, but our
       obligation is to show there are no vote messages in =outs ++ []=.
 
-      Here we could prove ~noVoteOuts'​~​ by rewriting with =++-identityʳ=. In
+      Here we could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
       general, if we have two lists which have been proven to not contain a
       certain type of message (e.g., a vote), then you can use the lemma
       =++-NoneOfKind= in [[file:../LibraBFT/Impl/Properties/Util.agda]]. For
@@ -485,7 +485,7 @@ abstract
 ** Type classes for branching operations
 
    Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
-   branching operations on ~Bool~​s, =Maybe=​s, and =Either=​s. To take
+   branching operations on =Bool=​s, =Maybe=​s, and =Either=​s. To take
    advantage of the weakest precondition machinery, we want to use the
    constructors for the datatype (=RWST= or =EitherD=). However, for
    readability it is desirable to use the same name for the operation that
