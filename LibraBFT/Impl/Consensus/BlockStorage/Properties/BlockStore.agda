@@ -201,10 +201,7 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        -- TODO-1: Remove `QCProps.SigsForVotes∈Rm-SentB4` use `QCProps.∈Post⇒∈PreOr`
-        qcSigsB4      : ∀ {pool} → QCProps.QCRequirements pool qc
-                        → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
-
+        qcPost : QCProps.∈Post⇒∈PreOr (_≡ qc) pre post
 
     postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
