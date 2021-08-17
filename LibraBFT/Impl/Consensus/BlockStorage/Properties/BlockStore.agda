@@ -74,7 +74,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≈ : eb ^∙ ebBlock ≈Block block
+      ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
                  → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
       -- TODO-2: The fields below should be about blocks, not QCs. The property
@@ -91,11 +91,11 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   proj₂ contract' eb eb≡ =
     mkContractOk ebBlock≈ (btP bs0) (λ qc → Left) qcPres
     where
-    ebBlock≈ : eb ^∙ ebBlock ≈Block block
-    ebBlock≈ =
+    ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
+    ebBlock≈ bid≡ =
       getBlockSpec.correctBlockData (block ^∙ bId) bs0 (block ^∙ bBlockData)
         (hashBD (block ^∙ bBlockData) ≡ block ^∙ bId
-         ∋ obm-dangerous-magic' "TODO: propagate this information from `Network.processProposal`")
+         ∋ bid≡ {- obm-dangerous-magic' "TODO: propagate this information from `Network.processProposal`" -})
         (eb , eb≡)
 
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
@@ -135,7 +135,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk ebBlock≈ btP qcPost qcPres
+           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost qcPres
            where
            module IBE = insertBlockESpec.ContractOk con
 

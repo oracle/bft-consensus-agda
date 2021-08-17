@@ -127,6 +127,8 @@ module handleVoteSpec (now : Instant) (vm : VoteMsg) where
         -- Signatures
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (V vm)) pre post
+        -- TODO-2: `handleVote` can create a new QC once it receives enough
+        -- votes. We need to be tracking /votes/ here, not QCs
 
     postulate -- TODO-2: prove (waiting on: refinement of `Contract`)
       contract : LBFT-weakestPre (handleVote now vm) Contract pre

@@ -183,7 +183,10 @@ module executeAndVoteMSpec (b : Block) where
                   Voting.glue-VoteNotGenerated-VoteGeneratedCorrect
                     (mkVoteNotGenerated refl refl)
                     (Voting.substVoteGeneratedCorrect proposedBlock b
-                      EAIBECon.ebBlock≈ vrc)
+                      (EAIBECon.ebBlock≈
+                        (hashBD (b ^∙ bBlockData) ≡ b ^∙ bId
+                         ∋ obm-dangerous-magic' "TODO: make this an assumption of the field `voteResultCorrect`"))
+                        vrc)
 
                 noMsgOutsBail₃ : ∀ outs → NoMsgs outs → NoMsgs (CASVouts ++ outs)
                 noMsgOutsBail₃ outs noMsgs = ++-NoMsgs CASVouts outs CASVCon.noMsgOuts noMsgs
