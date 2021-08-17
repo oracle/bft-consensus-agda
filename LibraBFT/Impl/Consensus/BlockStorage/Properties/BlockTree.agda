@@ -70,15 +70,13 @@ module insertQuorumCertESpec
     constructor mkContractOk
     field
       noNewQCs : ∈Post⇒∈PreOrBT (_≡ qc) btPre btPost
-      presQcs  : Unit -- TODO: Preserves ∈BlockTree btPre btPost  (requires generalising Preserves)
-                      --       ∀ qc → PreservesL (rmBlockStore ∙ bsInner) (qc ∈RoundManager_) btPre btPost
 
   ContractOk-trans : ∀ {btPre btInt btPost ilPre ilInt ilPost}
                    → ContractOk btPre btInt  ilPre ilInt
                    → ContractOk btInt btPost ilInt ilPost
                    → ContractOk btPre btPost ilPre ilPost
-  ContractOk-trans (mkContractOk noNewQCs presQcs) (mkContractOk noNewQCs₁ presQcs₁) =
-                    mkContractOk (∈Post⇒∈PreOr'-trans _∈BlockTree_ (_≡ qc) noNewQCs noNewQCs₁) unit
+  ContractOk-trans (mkContractOk noNewQCs) (mkContractOk noNewQCs₁) =
+                    mkContractOk (∈Post⇒∈PreOr'-trans _∈BlockTree_ (_≡ qc) noNewQCs noNewQCs₁)
 
   Contract : EitherD-Post ErrLog (BlockTree × List InfoLog)
   Contract (Left _) = ⊤
@@ -104,8 +102,8 @@ module insertQuorumCertESpec
                            in ContractOk bt bt' info info'
         contract-cont2' bt info
            with (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
-        ...| yes hqcR<qcR = mkContractOk (∈BlockTree-upd-hcc refl refl) unit
-        ...| no  hqcR≥qcR = mkContractOk (λ _ x → inj₁ x) unit
+        ...| yes hqcR<qcR = mkContractOk (∈BlockTree-upd-hcc refl refl)
+        ...| no  hqcR≥qcR = mkContractOk (λ _ x → inj₁ x)
 
         cont1-update-bt : BlockTree → BlockTree
         cont1-update-bt bt = bt & btIdToQuorumCert ∙~ Map.insert blockId qc (bt ^∙ btIdToQuorumCert)
@@ -118,20 +116,20 @@ module insertQuorumCertESpec
                           in  ContractOk btPre btPost infoPre infoPost
         contract-cont1' btPre infoPre
            with Map.kvm-member blockId (btPre ^∙ btIdToQuorumCert)
-        ...| true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre $ ExecutedBlock.isNilBlock block ))) unit
+        ...| true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre $ ExecutedBlock.isNilBlock block )))
         ...| false = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre $ ExecutedBlock.isNilBlock block }
-                               (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl) unit)
+                               (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl))
                                (mkContractOk (ContractOk.noNewQCs (contract-cont2'
                                                                      (cont1-update-bt btPre)
-                                                                     (info' infoPre $ ExecutedBlock.isNilBlock block))) unit)
+                                                                     (info' infoPre $ ExecutedBlock.isNilBlock block))))
 
         bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
                   & btHighestQuorumCert       ∙~ qc
 
         contract-step₃' : EitherD-weakestPre (step₃ blockId block hcb) Contract
         proj₁ contract-step₃' _ = ContractOk-trans
-                                    (mkContractOk (∈BlockTree-upd-hqc refl refl) unit)
+                                    (mkContractOk (∈BlockTree-upd-hqc refl refl))
                                     (contract-cont1' bt' (fakeInfo ∷ []))
         proj₂ contract-step₃' _ = ContractOk-trans
-                                    (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _) unit)
+                                    (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _))
                                     (contract-cont1' bt0 [])
