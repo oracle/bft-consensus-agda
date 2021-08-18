@@ -53,17 +53,61 @@ RoundManager-correct-≡ : (rmec1 : RoundManager)
                            → RoundManager-correct rmec2
 RoundManager-correct-≡ rmec1 rmec2 refl = id
 
+open DecLemmas {A = NodeId} _≟_
+
+
 -- Given a well-formed set of definitions that defines an EpochConfig,
 -- α-EC will compute this EpochConfig by abstracting away the unecessary
 -- pieces from RoundManager.
 -- TODO-2: update and complete when definitions are updated to more recent version
+
+
+index∘lookup-id : ∀ (xs : List ℕ) {α : Fin (length xs)}
+                  → list-index xs (List-lookup xs α) ≡ just α
+index∘lookup-id (x ∷ xs) {zero}
+  with x ≟ x
+...| yes x≡x = refl
+...| no  x≢x = ⊥-elim (x≢x refl)
+index∘lookup-id (x ∷ xs) {suc α}
+  with x ≟ List-lookup xs α
+...| yes x≡ = {!need a proof that all elements are distinct!}
+...| no  x≢
+  with index∘lookup-id xs {α}
+...| eq
+  with list-index xs (List-lookup xs α)
+index∘lookup-id (x ∷ xs) {suc α} | no x≢ | () | nothing
+index∘lookup-id (x ∷ xs) {suc α} | no x≢ | refl | just .α = refl
+
+xxx : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} (dec : Dec A) (f : A → B) (g : ¬ A → B) (a : A)
+      → (if-yes dec then f else g) ≡ f a
+
+xxxxx : ∀ {A : Set} (xs : List A) (α : Fin (length xs)) → allDistinct xs
+        → (x∈xs : List-lookup xs α ∈ xs)
+        → Any-index x∈xs ≡ α
+
+
 α-EC : Σ RoundManager RoundManager-correct → EpochConfig
 α-EC (rmec , ok) =
-  let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+  let authors    = kvm-keys (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+      numAuthors = length authors --kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
       qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
       bizF       = numAuthors ∸ qsize
-   in (EpochConfig∙new {! someHash?!}
-              (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+   in EpochConfig∙new {!!}
+                      (rmec ^∙ rmEpoch)
+                      numAuthors
+                      (List-lookup authors)
+                      --(list-index authors)
+                      (λ nId → if-yes nId ∈? authors then just ∘ Any-index else const nothing)
+                      --(index∘lookup-id authors)
+                      (λ {α} → case List-lookup authors α ∈? authors of
+                               λ { (yes α∈authors)
+                                        → trans (xxx (List-lookup authors α ∈? authors)
+                                                     (just ∘ Any-index)
+                                                     (const nothing)
+                                                     α∈authors)
+                                                (cong just (xxxxx authors α {!!} α∈authors)) ;
+                                   (no imp) → ⊥-elim (imp (lookup⇒Any α refl))} )
+                      {!!} {!!} {!!} {!!} {!!}
 
 postulate
   α-EC-≡ : (rmec1  : RoundManager)

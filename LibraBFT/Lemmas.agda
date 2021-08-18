@@ -369,6 +369,12 @@ module LibraBFT.Lemmas where
  lookup⇒Any {_} {_ ∷ _} zero    px = here px
  lookup⇒Any {_} {_ ∷ _} (suc i) px = there (lookup⇒Any i px)
 
+{-
+ allDistinct⇒index∘lkp≡ : ∀ {A : Set} {x} {xs : List A} (i : Fin (length xs))
+                        → allDistinct xs
+                        → Any-index (List-lookup {!xs!} {!!}) ≡ i
+-}
+
  x∉→AllDistinct : ∀ {A : Set} {x} {xs : List A}
                 → allDistinct xs
                 → x ∉ xs
@@ -514,3 +520,14 @@ module LibraBFT.Lemmas where
                        | sym (sum-++-commute (List-map f xs) (List-map f ys))
                        | sym (map-++-commute f xs ys)
                          = ≤-stepsʳ (f y) (sumIntersect≤ xs ys f)
+
+   list-index : ∀ (xs : List A) → A → Maybe (Fin (length xs))
+   list-index [] x = nothing
+   list-index (x ∷ xs) y
+     with x ≟D y
+   ...| yes x≡y = just zero
+   ...| no  x≢y
+      with list-index xs y
+   ...| nothing = nothing
+   ...| just i  = just (suc i)
+
