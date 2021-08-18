@@ -98,13 +98,17 @@ module LibraBFT.ImplShared.Interface.Output where
   IsOutputMsg : Output → Set
   IsOutputMsg = IsBroadcastProposal ∪ IsBroadcastSyncInfo ∪ IsSendVote
 
-  isOutputMsg? = (isBroadcastProposal? ∪? isBroadcastSyncInfo?) ∪? isSendVote?
+  isOutputMsg? = isBroadcastProposal? ∪? (isBroadcastSyncInfo? ∪? isSendVote?)
 
-  SendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
-  SendVote∉Output () (here refl)
-  SendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
+  data _Msg∈Out_ : NetworkMsg → Output → Set where
+    inBP : ∀ {pm pids} → P pm Msg∈Out BroadcastProposal pm pids
+    inSV : ∀ {vm pids} → V vm Msg∈Out SendVote vm pids
+
+  sendVote∉Output : ∀ {vm pid outs} → List-filter isSendVote? outs ≡ [] → ¬ (SendVote vm pid ∈ outs)
+  sendVote∉Output () (here refl)
+  sendVote∉Output{outs = x ∷ outs'} eq (there vm∈outs)
      with isSendVote? x
-  ... | no proof = SendVote∉Output eq vm∈outs
+  ... | no proof = sendVote∉Output eq vm∈outs
 
   -- Note: the SystemModel allows anyone to receive any message sent, so intended recipient is ignored;
   -- it is included in the model only to facilitate future work on liveness properties, when we will need
@@ -129,6 +133,22 @@ module LibraBFT.ImplShared.Interface.Output where
     help : ∀ xs → ¬ (send (V vm) ∈ List-map (const (send (P pm))) xs)
     help (x ∷ xs) (there m∈acts) = help xs m∈acts
   outputToActions-sendVote∉actions {SendVote _ _} ¬sv m∈acts = ¬sv tt
+
+  outputToActions-m∈sendVoteList
+    : ∀ {m vm rcvrs} → send m ∈ List-map (const $ send (V vm)) rcvrs
+      → m Msg∈Out SendVote vm rcvrs
+  outputToActions-m∈sendVoteList {.(V vm)} {vm} {x ∷ rcvrs} (here refl) = inSV
+  outputToActions-m∈sendVoteList {m} {vm} {x ∷ rcvrs} (there m∈svl)
+    with outputToActions-m∈sendVoteList{rcvrs = rcvrs} m∈svl
+  ... | inSV = inSV
+
+  outputToActions-m∈sendProposalList
+    : ∀ {m pm rcvrs} → send m ∈ List-map (const $ send (P pm)) rcvrs
+      → m Msg∈Out BroadcastProposal pm rcvrs
+  outputToActions-m∈sendProposalList {.(P pm)} {pm} {x ∷ rcvrs} (here refl) = inBP
+  outputToActions-m∈sendProposalList {m} {pm} {x ∷ rcvrs} (there m∈spl)
+    with outputToActions-m∈sendProposalList {rcvrs = rcvrs} m∈spl
+  ... | inBP = inBP
 
   sendVote∉actions
     : ∀ {outs vm st} → [] ≡ List-filter isSendVote? outs → ¬ (send (V vm) ∈ outputsToActions{st} outs)
@@ -168,3 +188,34 @@ module LibraBFT.ImplShared.Interface.Output where
     help : ∀ pids → send (V vm') ∈ List-map (const (send (V vm“))) pids → vm' ≡ vm“
     help (_ ∷ pids) (here refl) = refl
     help (_ ∷ pids) (there m∈acts) = help pids m∈acts
+
+  sendMsg∈actions
+    : ∀ {outs m st} → send m ∈ outputsToActions{st} outs
+      → Σ[ out ∈ Output ] (out ∈ outs × m Msg∈Out out)
+  sendMsg∈actions {BroadcastProposal pm rcvrs ∷ outs} {m} {st} m∈acts
+    with Any-++⁻ (List-map (const $ send (P pm)) rcvrs) m∈acts
+  ... | Left m∈bpl =
+    BroadcastProposal pm rcvrs , here refl , outputToActions-m∈sendProposalList m∈bpl
+  ... | Right m∈acts'
+    with sendMsg∈actions{outs}{m}{st} m∈acts'
+  ... | out , out∈outs , m∈out = out , there out∈outs , m∈out
+  -- NOTE: When we represent sending `BroadcastSyncInfo` as an action, this will require updating
+  sendMsg∈actions {BroadcastSyncInfo _ _ ∷ outs} {m} {st} m∈acts
+    with sendMsg∈actions{outs}{m}{st} m∈acts
+  ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
+  sendMsg∈actions {LogErr _ ∷ outs} {m} {st} m∈acts
+    with sendMsg∈actions{outs}{m}{st} m∈acts
+  ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
+  sendMsg∈actions {LogInfo _ ∷ outs} {m} {st} m∈acts
+    with sendMsg∈actions{outs}{m}{st} m∈acts
+  ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
+  sendMsg∈actions {SendBRP pid brr ∷ outs} {m} {st} m∈acts
+     with sendMsg∈actions{outs}{m}{st} m∈acts
+  ...| out , out∈outs , m∈out = out , there out∈outs , m∈out
+  sendMsg∈actions {SendVote vm rcvrs ∷ outs} {m} {st} m∈acts
+    with Any-++⁻ (List-map (const (send (V vm))) rcvrs) m∈acts
+  ... | Left m∈svl =
+    SendVote vm rcvrs , here refl , outputToActions-m∈sendVoteList m∈svl
+  ... | Right m∈acts'
+    with sendMsg∈actions{outs}{m}{st} m∈acts'
+  ... | out , out∈outs , m∈out = out , there out∈outs , m∈out

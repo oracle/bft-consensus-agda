@@ -3,6 +3,7 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.ImplShared.Base.Types
 
@@ -48,8 +49,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
                        sig pkH ¬gen vnew ep≡
      with v⊂m
   ...| vote∈vm = refl
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong _vSignature v≈rbld
-       = let qc∈rm = VoteMsgQCsFromRoundManager r step pkH v⊂m (here refl) qc∈m
+  ...| vote∈qc vs∈qc v≈rbld (inSI si∈m qc∈si) rewrite cong _vSignature v≈rbld
+       = let qc∈rm = VoteMsgQCsFromRoundManager r step pkH v⊂m (here refl) (obm-dangerous-magic' "see Handle.Properties")
          in ⊥-elim (vnew (qcVotesSentB4 r pinit qc∈rm vs∈qc ¬gen))
 
   open PeerCanSignForPK
@@ -216,8 +217,8 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   votesOnce₁ {pid' = pid'} r stMsg@(step-msg {_ , P m} m∈pool psI) {v' = v'} {m' = m'}
              pkH v⊂m (here refl) sv ¬gen ¬msb vspk v'⊂m' m'∈pool sv' ¬gen' eid≡
      with v⊂m
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) rewrite cong _vSignature v≈rbld
-     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
+  ...| vote∈qc vs∈qc v≈rbld (inSI si∈m qc∈si) rewrite cong _vSignature v≈rbld
+     = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) (obm-dangerous-magic' "see Handle.Properties")
        in ⊥-elim (¬msb (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))
   ...| vote∈vm
      with ⊎-elimʳ ¬msb (impl-sps-avp r pkH stMsg (here refl) v⊂m sv ¬gen)
@@ -236,11 +237,11 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   ...| here refl | here refl
      with v⊂m                          | v'⊂m'
   ...| vote∈vm                         | vote∈vm = refl
-  ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inV qc∈m')
+  ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inSI si∈m' qc∈si)
        rewrite cong _vSignature v≈rbld'
-       = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) qc∈m'
+       = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) (obm-dangerous-magic' "see Handle.Properties")
          in ⊥-elim (v'new (qcVotesSentB4 r psI qc∈rm' vs∈qc' ¬gen'))
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) | _
+  ...| vote∈qc vs∈qc v≈rbld (inSI si∈m qc∈si) | _
        rewrite cong _vSignature v≈rbld
-       = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
+       = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) (obm-dangerous-magic' "see Handle.Properties")
          in ⊥-elim (vnew (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))

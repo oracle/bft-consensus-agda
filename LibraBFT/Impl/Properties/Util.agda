@@ -9,7 +9,9 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.KVMap as Map
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -17,11 +19,14 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+open import LibraBFT.Impl.Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
+open        ParamsWithInitAndHandlers InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 
@@ -37,24 +42,21 @@ module OutputProps where
     None : Set
     None = outs ≡ []
 
-    NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} (p : (out : Output) → Dec (P out)) → Set
-    NoneOfKind p = List-filter p outs ≡ []
-
-    NoVotes     = NoneOfKind isSendVote?
-    NoProposals = NoneOfKind isBroadcastProposal?
-    NoSyncInfos = NoneOfKind isBroadcastSyncInfo?
-    NoMsgs      = NoneOfKind isOutputMsg?
-    NoErrors    = NoneOfKind isLogErr?
+    NoVotes     = NoneOfKind outs isSendVote?
+    NoProposals = NoneOfKind outs isBroadcastProposal?
+    NoSyncInfos = NoneOfKind outs isBroadcastSyncInfo?
+    NoMsgs      = NoneOfKind outs isOutputMsg?
+    NoErrors    = NoneOfKind outs isLogErr?
 
     NoMsgs⇒× : NoMsgs → NoProposals × NoVotes × NoSyncInfos
     proj₁ (NoMsgs⇒× noMsgs) =
-      filter-∪?-[]₁ outs isBroadcastProposal? _
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastProposal? _ noMsgs
     proj₁ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isSendVote? noMsgs
+      filter-∪?-[]₂ outs _ isSendVote?
+        (filter-∪?-[]₂ outs _ _ noMsgs)
     proj₂ (proj₂ (NoMsgs⇒× noMsgs)) =
-      filter-∪?-[]₂ outs _ isBroadcastSyncInfo?
-        (filter-∪?-[]₁ outs _ _ noMsgs)
+      filter-∪?-[]₁ outs isBroadcastSyncInfo? _
+        (filter-∪?-[]₂ outs _ _ noMsgs)
 
     NoMsgs⇒NoProposals : NoMsgs → NoProposals
     NoMsgs⇒NoProposals = proj₁ ∘ NoMsgs⇒×
@@ -86,7 +88,167 @@ module OutputProps where
     |       nv
     |       ov = refl
 
-module StateInvariants where
+module QCProps where
+
+  record MsgRequirements (pool : SentMessages) (msg : NetworkMsg) : Set where
+    constructor mkMsgRequirements
+    field
+      mSndr  : NodeId
+      m∈pool : (mSndr , msg) ∈ pool
+
+  record SyncInfoRequirements (pool : SentMessages) (syncInfo : SyncInfo) : Set where
+    constructor mkSyncInfoRequirements
+    field
+      msg     : NetworkMsg
+      msgReqs : MsgRequirements pool msg
+      syncInfo∈msg : syncInfo SyncInfo∈NM msg
+    open MsgRequirements msgReqs
+
+  record BlockRequirements (pool : SentMessages) (block : Block) : Set where
+    constructor mkBlockRequirements
+    field
+      msg       : NetworkMsg
+      msgReqs   : MsgRequirements pool msg
+      block∈msg : block Block∈Msg msg
+
+  QCRequirements : (pool : SentMessages) (qc : QuorumCert) → Set
+  QCRequirements pool qc =
+    ∃[ si ] (qc QC∈SyncInfo si × SyncInfoRequirements pool si)
+    ⊎ ⊥ -- TODO: qc came from aggregated votes received by proposer
+
+  data _∈BlockTree_ (qc : QuorumCert) (bt : BlockTree) : Set where
+    inHQC : qc ≡ bt ^∙ btHighestQuorumCert → qc ∈BlockTree bt
+    inHCC : qc ≡ bt ^∙ btHighestCommitCert → qc ∈BlockTree bt
+
+  _∈RoundManager_ : (qc : QuorumCert) (rm : RoundManager) → Set
+  qc ∈RoundManager rm =  qc ∈BlockTree (rm ^∙ lBlockStore ∙ bsInner)
+
+
+  ∈Post⇒∈PreOr' : ∀ {A : Set} (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set) (pre post : A) → Set
+  ∈Post⇒∈PreOr' _QC∈_ Q pre post = ∀ qc → qc QC∈ post → qc QC∈ pre ⊎ Q qc
+
+  ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
+  ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
+
+  ∈BlockTree-upd-hqc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestCommitCert
+                       → Q (bt2 ^∙ btHighestQuorumCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hqc refl Q _ (inHQC refl) = inj₂ Q
+  ∈BlockTree-upd-hqc refl _ _ (inHCC refl) = inj₁ (inHCC refl)
+
+  ∈BlockTree-upd-hcc : ∀ {bt1 bt2}
+                       → {Q : QuorumCert → Set}
+                       → bt1 ≡L bt2 at btHighestQuorumCert
+                       → Q (bt2 ^∙ btHighestCommitCert)
+                       → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈BlockTree-upd-hcc refl _ _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈BlockTree-upd-hcc refl Q _ (inHCC refl) = inj₂ Q
+
+  ∈Post⇒∈PreOr : (Q : QuorumCert → Set) (pre post : RoundManager) → Set
+  ∈Post⇒∈PreOr = ∈Post⇒∈PreOr' _∈RoundManager_
+
+  ∈Post⇒∈PreOr'-refl : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → ∀ {pre : A}
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre pre
+  ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
+
+  ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → (_≡Prop_ : A → A → Set)
+                      → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
+                      → ∀ {pre post}
+                      → pre ≡Prop post
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
+  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
+
+  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
+
+  ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
+                        → (Q : QuorumCert → Set)
+                        → bt1 ≡L bt2 at btHighestCommitCert
+                        → bt1 ≡L bt2 at btHighestQuorumCert
+                        → ∈Post⇒∈PreOrBT Q bt1 bt2
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHQC refl) = inj₁ (inHQC refl)
+  ∈Post⇒∈PreOrBT-QCs≡ Q refl refl _ (inHCC refl) = inj₁ (inHCC refl)
+
+  ∈Post⇒∈PreOr'-trans : ∀ {A : Set}
+                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → ∀ {pre int post : A}
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre int
+                      → ∈Post⇒∈PreOr' _QC∈_ Q int post
+                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
+  ∈Post⇒∈PreOr'-trans _QC∈_ Q pre→int int→post qc qc∈post
+     with int→post qc qc∈post
+  ... | Right y = Right y
+  ... | Left  x
+     with pre→int qc x
+  ... | Right y = Right y
+  ... | Left x₁ = Left x₁
+
+  ∈Post⇒∈PreOrBT-trans : ∀ (Q : QuorumCert → Set) {pre int post}
+                       → ∈Post⇒∈PreOrBT Q pre int
+                       → ∈Post⇒∈PreOrBT Q int post
+                       → ∈Post⇒∈PreOrBT Q pre post
+  ∈Post⇒∈PreOrBT-trans = ∈Post⇒∈PreOr'-trans _∈BlockTree_
+
+  -- TODO-1: Factor out a property about a single output:
+  -- λ out → ∃₂ λ qc nm → qc QC∈NM nm × nm Msg∈Out out
+  OutputQc∈RoundManager : List Output → RoundManager → Set
+  OutputQc∈RoundManager outs rm =
+    All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → qc ∈RoundManager rm) outs
+
+  ¬OutputQc : List Output → Set
+  ¬OutputQc outs = All (λ out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → ⊥) outs
+
+  ++-OutputQc∈RoundManager
+    : ∀ {rm outs₁ outs₂}
+      → OutputQc∈RoundManager outs₁ rm → OutputQc∈RoundManager outs₂ rm
+      → OutputQc∈RoundManager (outs₁ ++ outs₂) rm
+  ++-OutputQc∈RoundManager = All-++
+
+  ++-¬OutputQc : ∀ {outs₁ outs₂} → ¬OutputQc outs₁ → ¬OutputQc outs₂
+                 → ¬OutputQc (outs₁ ++ outs₂)
+  ++-¬OutputQc = All-++
+
+  NoMsgs⇒¬OutputQc : ∀ outs → OutputProps.NoMsgs outs → ¬OutputQc outs
+  NoMsgs⇒¬OutputQc outs noMsgs =
+    All-map help (noneOfKind⇒All¬ outs _ noMsgs)
+    where
+    help : ∀ {out : Output} → ¬ IsOutputMsg out → ∀ qc nm → qc QC∈NM nm → nm Msg∈Out out → ⊥
+    help ¬msg qc .(P _) qc∈m inBP = ¬msg (Left tt)
+    help ¬msg qc .(V _) qc∈m inSV = ¬msg (Right (Right tt))
+
+  ¬OutputQc⇒OutputQc∈RoundManager : ∀ outs rm → ¬OutputQc outs → OutputQc∈RoundManager outs rm
+  ¬OutputQc⇒OutputQc∈RoundManager outs rm noOutQcs =
+    All-map (λ ¬outqc qc nm qc∈nm nm∈out → ⊥-elim (¬outqc qc nm qc∈nm nm∈out))
+      noOutQcs
+
+  NoMsgs⇒OutputQc∈RoundManager : ∀ outs rm → OutputProps.NoMsgs outs → OutputQc∈RoundManager outs rm
+  NoMsgs⇒OutputQc∈RoundManager outs rm noMsgs =
+    ¬OutputQc⇒OutputQc∈RoundManager outs rm (NoMsgs⇒¬OutputQc outs noMsgs)
+
+  SigForVote∈Rm-SentB4 : Vote → PK → QuorumCert → RoundManager → SentMessages → Set
+  SigForVote∈Rm-SentB4 v pk qc rm pool =
+    qc ∈RoundManager rm
+    → WithVerSig pk v →
+    ∀ {vs : Author × Signature} → let (pid , sig) = vs in
+      vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
+    → ¬(∈GenInfo-impl genesisInfo sig)
+    → MsgWithSig∈ pk sig pool
+
+  SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
+  SigsForVotes∈Rm-SentB4 pool rm = ∀ {qc v pk} → SigForVote∈Rm-SentB4 v pk qc rm pool
+
+  ++-SigsForVote∈Rm-SentB4
+    : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
+      → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
+
+module RoundManagerInvariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
@@ -112,31 +274,76 @@ module StateInvariants where
       field
         sdInv : SafetyDataInv
 
-    -- NOTE: This will be proved by induction on reachable states using the
-    -- property that peer handlers preserve invariants. That is to say, many of
-    -- these cannot be proven as a post-condition of the peer handler: one can
-    -- only prove of the handler that if the invariant holds for the prestate,
-    -- then it holds for the poststate.
-    record RoundManagerInv : Set where
-      constructor mkRoundManagerInv
-      field
-        rmCorrect   : RoundManager-correct rm
-        epochsMatch : EpochsMatch
-        btInv       : BlockStoreInv
-        srInv       : SafetyRulesInv
+  -- NOTE: This will be proved by induction on reachable states using the
+  -- property that peer handlers preserve invariants. That is to say, many of
+  -- these cannot be proven as a post-condition of the peer handler: one can
+  -- only prove of the handler that if the invariant holds for the prestate,
+  -- then it holds for the poststate.
+  record RoundManagerInv (rm : RoundManager) : Set where
+    constructor mkRoundManagerInv
+    field
+      rmCorrect    : RoundManager-correct rm
+      epochsMatch  : EpochsMatch rm
+      btInv        : BlockStoreInv rm
+      srInv        : SafetyRulesInv rm
 
   Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
+  PreservesL : ∀ {ℓ} {A : Set}
+               → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+               → (a₁ a₂ : A) → Set ℓ
+  PreservesL Pred l a₁ a₂ = ∀ rm → Preserves Pred (rm & l ∙~ a₁) (rm & l ∙~ a₂)
+
   reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
+  reflPreservesRoundManagerInv : Reflexive (Preserves RoundManagerInv)
   reflPreservesRoundManagerInv = reflPreserves RoundManagerInv
 
   transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
+  transPreservesL : ∀ {ℓ} {A : Set}
+                  → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
+                  → {a₁ a₂ a₃ : A}
+                  → PreservesL P l a₁ a₂
+                  → PreservesL P l a₂ a₃
+                  → PreservesL P l a₁ a₃
+  transPreservesL Pred l p₁ p₂ rm = transPreserves Pred (p₁ rm) (p₂ rm)
+
+  transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
+
+  substBlockStoreInv
+    : ∀ {rm₁ rm₂}
+      → rm₁ ≡L rm₂ at lBlockStore
+      → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+      → Preserves BlockStoreInv rm₁ rm₂
+  substBlockStoreInv rmbs≡ rmvv≡ (mkBlockTreeInv allValidQCs) =
+    mkBlockTreeInv (help rmbs≡ rmvv≡ allValidQCs)
+    where
+    help
+      : ∀ {rm₁ rm₂}
+        → rm₁ ≡L rm₂ at lBlockStore
+        → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+        → ((rmC : RoundManager-correct rm₁) → AllValidQCs (α-EC-RM rm₁ rmC) (rm₁ ^∙ rmBlockStore ∙ bsInner))
+        → ((rmC : RoundManager-correct rm₂) → AllValidQCs (α-EC-RM rm₂ rmC) (rm₂ ^∙ rmBlockStore ∙ bsInner))
+    help refl refl avqs rmc = obm-dangerous-magic' "TODO: waiting on definition of α-EC"
+
+  substSigsForVotes∈Rm-SentB4
+    : ∀ {pool pre post} → pre ≡L post at rmBlockStore
+      → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
+  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHQC qc≡) sig vs∈qc rbld≈v =
+    qcsB4 (QCProps.inHQC qc≡') sig vs∈qc rbld≈v
+    where
+    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert
+    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestQuorumCert) (sym bs≡))
+  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHCC qc≡) sig vs∈qc rbld≈v =
+    qcsB4 (QCProps.inHCC qc≡') sig vs∈qc rbld≈v
+    where
+    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert
+    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestCommitCert) (sym bs≡))
 
   substSafetyDataInv
     : ∀ {pre post} → pre ≡L post at pssSafetyData-rm → Preserves SafetyDataInv pre post
@@ -164,7 +371,7 @@ module StateInvariants where
   mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
     mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
 
-module StateTransProps where
+module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
   -- the particular peer handler invoked
 
@@ -177,6 +384,15 @@ module StateTransProps where
 
   transNoEpochChange : Transitive NoEpochChange
   transNoEpochChange = trans
+
+  NoSafetyDataChange : (pre post : RoundManager) → Set
+  NoSafetyDataChange pre post = pre ≡L post at pssSafetyData-rm
+
+  reflNoSafetyDataChange : Reflexive NoSafetyDataChange
+  reflNoSafetyDataChange = refl
+
+  transNoSafetyDataChange : Transitive NoSafetyDataChange
+  transNoSafetyDataChange = trans
 
   -- - state changes from generating or not generating a vote
   LastVoteIs : RoundManager → Vote → Set
@@ -287,9 +503,9 @@ module Voting where
   record VoteMadeFromBlock (vote : Vote) (block : Block) : Set where
     constructor mkVoteMadeFromBlock
     field
-      epoch≡ : vote ^∙ vEpoch ≡ block ^∙ bEpoch
-      round≡ : vote ^∙ vRound ≡ block ^∙ bRound
-      proposedID : vote ^∙ vProposedId ≡ block ^∙ bId
+      epoch≡      : vote ^∙ vEpoch ≡ block ^∙ bEpoch
+      round≡      : vote ^∙ vRound ≡ block ^∙ bRound
+      proposedId≡ : vote ^∙ vProposedId ≡ block ^∙ bId
 
   VoteMadeFromBlock⇒VoteEpochRoundIs : ∀ {v b} → VoteMadeFromBlock v b → VoteEpochIs v (b ^∙ bEpoch) × VoteRoundIs v (b ^∙ bRound)
   VoteMadeFromBlock⇒VoteEpochRoundIs (mkVoteMadeFromBlock epoch≡ round≡ proposedID) = epoch≡ , round≡
@@ -301,10 +517,26 @@ module Voting where
   record VoteGeneratedCorrect (pre post : RoundManager) (vote : Vote) (block : Block) : Set where
     constructor mkVoteGeneratedCorrect
     field
-      state          : StateTransProps.VoteGenerated pre post vote
-    voteNew? = StateTransProps.isVoteNewGenerated pre post vote state
+      state          : RoundManagerTransProps.VoteGenerated pre post vote
+    voteNew? = RoundManagerTransProps.isVoteNewGenerated pre post vote state
     field
       blockTriggered : VoteTriggeredByBlock vote block voteNew?
+
+  substVoteGeneratedCorrect
+    : ∀ {pre post vote} (block₁ block₂ : Block) → block₁ ≈Block block₂
+      → VoteGeneratedCorrect pre post vote block₁ → VoteGeneratedCorrect pre post vote block₂
+  substVoteGeneratedCorrect block₁ block₂ bd≡ (mkVoteGeneratedCorrect state blockTriggered)
+     with state
+  ...| RoundManagerTransProps.mkVoteGenerated lv≡v voteSrc
+     with voteSrc
+  ...| Left vog rewrite bd≡ =
+     mkVoteGeneratedCorrect (RoundManagerTransProps.mkVoteGenerated lv≡v (Left vog)) blockTriggered
+  ...| Right vng
+     with blockTriggered
+  ...| mkVoteMadeFromBlock epoch≡ round≡ proposedID rewrite bd≡
+     = mkVoteGeneratedCorrect
+         (RoundManagerTransProps.mkVoteGenerated lv≡v (Right vng))
+         (mkVoteMadeFromBlock epoch≡ round≡ proposedID)
 
   record VoteGeneratedUnsavedCorrect (pre post : RoundManager) (block : Block) : Set where
     constructor mkVoteGeneratedUnsavedCorrect
@@ -315,27 +547,27 @@ module Voting where
   glue-VoteGeneratedCorrect-VoteNotGenerated
     : ∀ {s₁ s₂ s₃ vote block}
       → VoteGeneratedCorrect s₁ s₂ vote block
-      → StateTransProps.VoteNotGenerated s₂ s₃ true
+      → RoundManagerTransProps.VoteNotGenerated s₂ s₃ true
       → VoteGeneratedCorrect s₁ s₃ vote block
-  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
-  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
+  glue-VoteGeneratedCorrect-VoteNotGenerated vgc@(mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) vng =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteGenerated-VoteNotGenerated vg vng) blockTriggered
 
   glue-VoteNotGenerated-VoteGeneratedCorrect
     : ∀ {s₁ s₂ s₃ vote block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedCorrect s₂ s₃ vote block
       → VoteGeneratedCorrect s₁ s₃ vote block
-  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
-  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(StateTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
-    mkVoteGeneratedCorrect (StateTransProps.glue-VoteNotGenerated-VoteGenerated vng vg)
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ oldVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteNotGenerated-VoteGenerated vng vg) blockTriggered
+  glue-VoteNotGenerated-VoteGeneratedCorrect vng (mkVoteGeneratedCorrect vg@(RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ newVG)) blockTriggered) =
+    mkVoteGeneratedCorrect (RoundManagerTransProps.glue-VoteNotGenerated-VoteGenerated vng vg)
       blockTriggered
 
   glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect
     : ∀ {s₁ s₂ s₃ block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true
       → VoteGeneratedUnsavedCorrect s₂ s₃ block
       → VoteGeneratedUnsavedCorrect s₁ s₃ block
   glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng (mkVoteGeneratedUnsavedCorrect vote voteGenCorrect) =
@@ -357,15 +589,15 @@ module Voting where
     constructor mkVoteUnsentCorrect
     field
       noVoteMsgOuts : OutputProps.NoVotes outs
-      nvg⊎vgusc    : StateTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
+      nvg⊎vgusc    : RoundManagerTransProps.VoteNotGenerated pre post lvr≡? ⊎ VoteGeneratedUnsavedCorrect pre post block
 
   glue-VoteNotGenerated-VoteUnsentCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block lvr≡?}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteUnsentCorrect s₂ s₃ outs₂ block lvr≡?
       → VoteUnsentCorrect s₁ s₃ (outs₁ ++ outs₂) block lvr≡?
   glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₁ vng₂)) =
-    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (StateTransProps.transVoteNotGenerated vng₁ vng₂))
+    mkVoteUnsentCorrect (OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts) (inj₁ (RoundManagerTransProps.transVoteNotGenerated vng₁ vng₂))
   glue-VoteNotGenerated-VoteUnsentCorrect{outs₁ = outs₁} vng₁ nvo (mkVoteUnsentCorrect noVoteMsgOuts (inj₂ vgus)) =
     mkVoteUnsentCorrect ((OutputProps.++-NoVotes outs₁ _ nvo noVoteMsgOuts)) (inj₂ (glue-VoteNotGenerated-VoteGeneratedUnsavedCorrect vng₁ vgus))
 
@@ -377,11 +609,11 @@ module Voting where
 
   -- The voting process ended before `pssSafetyData-rm` could be updated
   voteAttemptBailed : ∀ {rm block} outs → OutputProps.NoVotes outs → VoteAttemptCorrect rm rm outs block
-  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ StateTransProps.reflVoteNotGenerated))
+  voteAttemptBailed outs noVotesOuts = inj₁ (true , mkVoteUnsentCorrect noVotesOuts (inj₁ RoundManagerTransProps.reflVoteNotGenerated))
 
   glue-VoteNotGenerated-VoteAttemptCorrect
     : ∀ {s₁ s₂ s₃ outs₁ outs₂ block}
-      → StateTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
+      → RoundManagerTransProps.VoteNotGenerated s₁ s₂ true → OutputProps.NoVotes outs₁
       → VoteAttemptCorrect s₂ s₃ outs₂ block
       → VoteAttemptCorrect s₁ s₃ (outs₁ ++ outs₂) block
   glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs₁} vng nvo (inj₁ (lvr≡? , vusCorrect)) =
@@ -410,9 +642,10 @@ module Voting where
       voteAttempt : VoteAttemptCorrect pre post outs block
       sdEpoch≡?   : VoteAttemptEpochReq voteAttempt
 
-module QC where
-
-  data _∈RoundManager_ (qc : QuorumCert) (rm : RoundManager) : Set where
-    inHQC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert → qc ∈RoundManager rm
-    inHCC : qc ≡ rm ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert → qc ∈RoundManager rm
-
+  voteAttemptCorrectAndSent⇒voteSentCorrect : ∀ {pre post outs block vm}
+                         → send (V vm) ∈ outputsToActions{pre} outs
+                         → VoteAttemptCorrectWithEpochReq pre post outs block
+                         → VoteSentCorrect                pre post outs block
+  voteAttemptCorrectAndSent⇒voteSentCorrect{pre}{outs = outs} vm∈outs (mkVoteAttemptCorrectWithEpochReq (Left (_ , mkVoteUnsentCorrect noVoteMsgOuts _)) _) =
+    ⊥-elim (sendVote∉actions{outs}{st = pre} (sym noVoteMsgOuts) vm∈outs)
+  voteAttemptCorrectAndSent⇒voteSentCorrect{pre}{outs = outs}{vm = vm} vm∈outs (mkVoteAttemptCorrectWithEpochReq (Right vsc) _) = vsc

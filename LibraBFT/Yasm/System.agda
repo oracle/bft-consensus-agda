@@ -296,6 +296,12 @@ module LibraBFT.Yasm.System
                            → peerStates pre pid ≡ peerStates (StepPeer-post {pid'} {s'} {outs} {pre} (step-honest sps)) pid
    pids≢StepDNMPeerStates sps pids≢ = override-target-≢ pids≢
 
+   pids≢StepDNMInitialised : ∀ {pid pid' s' outs}{pre : SystemState}
+                           → (sps : StepPeerState pid' (msgPool pre) (initialised pre) (peerStates pre pid') (s' , outs))
+                           → pid ≢ pid'
+                           → initialised pre pid ≡ initialised (StepPeer-post {pid'} {s'} {outs} {pre} (step-honest sps)) pid
+   pids≢StepDNMInitialised sps pids≢ = override-target-≢ pids≢
+
    data Step : SystemState → SystemState → Set (ℓ+1 ℓ-PeerState) where
      -- TO-NOT-DO: it is tempting to merge this and StepPeer, now that step-peer
      -- is the only constructor here.  I started to do so, but it propagates many
@@ -373,6 +379,42 @@ module LibraBFT.Yasm.System
    Step*-initdStable {st} {pid = pid} (step-s {pre = pre} tr theStep) ini =
                      peersRemainInitialized theStep (Step*-initdStable tr ini)
 
+   peerUninitState
+     : ∀ {pid} {st₁ st₂ : SystemState}
+       → Step* st₁ st₂
+       → initialised st₂ pid ≡ uninitd
+       → peerStates  st₂ pid ≡ peerStates st₁ pid
+   peerUninitState step-0 uni = refl
+   peerUninitState (step-s step* (step-peer sp@(step-cheat _))) uni =
+     trans (cheatStepDNMPeerStates₁ sp unit)
+       (peerUninitState step* (trans (sym $ cheatStepDNMInitialised₁ sp unit) uni))
+   peerUninitState{pid} (step-s step* step@(step-peer{pre = pre} sp@(step-honest{pid'} sps))) uni
+     with pid ≟PeerId pid'
+   ... | no  pid≢ =
+     trans (sym $ pids≢StepDNMPeerStates sps pid≢)
+       (peerUninitState step* (trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) uni))
+   ... | yes pid≡
+     with sps
+   ... | step-init _ = case (initd ≡ uninitd ∋ absurd) of λ ()
+     where
+     absurd : initd ≡ uninitd
+     absurd = begin
+      initd                                          ≡⟨ sym $ StepPeer-post-lemma2{pre = pre} sps ⟩
+       initialised (StepPeer-post{pre = pre} sp) pid' ≡⟨ cong (override (initialised pre) pid' initd) (sym pid≡) ⟩
+       override (initialised pre) pid' initd pid      ≡⟨ uni ⟩
+       uninitd                                        ∎
+       where open ≡-Reasoning
+   ... | step-msg m∈pool ini =
+     case (initd ≡ uninitd ∋ absurd) of λ ()
+     where
+     absurd : initd ≡ uninitd
+     absurd = begin
+       initd                               ≡⟨ sym $ peersRemainInitialized step ini ⟩
+       initialised (StepPeer-post sp) pid' ≡⟨ cong (initialised (StepPeer-post sp)) (sym pid≡) ⟩
+       initialised (StepPeer-post sp) pid  ≡⟨ uni ⟩
+       uninitd                             ∎
+       where open ≡-Reasoning
+
    MsgWithSig∈-Step* : ∀{sig pk}{st : SystemState}{st' : SystemState}
                      → Step* st st'
                      → MsgWithSig∈ pk sig (msgPool st)
@@ -396,7 +438,6 @@ module LibraBFT.Yasm.System
    MsgWithSig∈-Step*-sender step-0        msig = refl
    MsgWithSig∈-Step*-sender (step-s tr (step-peer ps)) msig
      = MsgWithSig∈-Step*-sender tr msig
-
 
    ------------------------------------------
 

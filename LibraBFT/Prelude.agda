@@ -18,7 +18,7 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
+    using (_∘_; _∘′_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
     public
 
   infixl 1 _&_
@@ -29,6 +29,14 @@ module LibraBFT.Prelude where
 
   open import Data.Empty
     public
+
+  -- NOTE: This function is defined to give extra documentation when discharging
+  -- absurd cases where Agda can tell by pattern matching that `A` is not
+  -- inhabited. For example:
+  -- > absurd (just v ≡ nothing) case impossibleProof of λ ()
+  infix 0 absurd_case_of_
+  absurd_case_of_ : ∀ {ℓ₁ ℓ₂} (A : Set ℓ₁) {B : Set ℓ₂} → A → (A → ⊥) → B
+  absurd A case x of f = ⊥-elim (f x)
 
   open import Data.Nat
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
@@ -81,21 +89,27 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.All
     using (All; []; _∷_)
-    renaming (head to All-head; tail to All-tail;
-              lookup to All-lookup; tabulate to All-tabulate;
-              reduce to All-reduce)
+    renaming (head     to All-head;   tail     to All-tail;
+              lookup   to All-lookup; tabulate to All-tabulate;
+              reduce   to All-reduce; map      to All-map)
     public
 
   open import Data.List.Relation.Unary.All.Properties
+    hiding   (All-map)
     renaming ( tabulate⁻ to All-tabulate⁻
              ; tabulate⁺ to All-tabulate⁺
              ; map⁺      to All-map⁺
              ; map⁻      to All-map⁻
+             ; ++⁺       to All-++
              )
     public
 
   open import Data.List.Membership.Propositional
     using (_∈_; _∉_)
+    public
+
+  open import Data.List.Membership.Propositional.Properties
+    renaming (∈-filter⁻ to List-∈-filter⁻)
     public
 
   open import Data.Vec
@@ -233,6 +247,19 @@ module LibraBFT.Prelude where
   open import Data.Product.Properties
     public
 
+
+  module _ {ℓA} {A : Set ℓA} where
+    NoneOfKind : ∀ {ℓ} {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set ℓA
+    NoneOfKind xs p = List-filter p xs ≡ []
+
+    postulate -- TODO-1: Replace with or prove using library properties?  Move to Lemmas?
+      NoneOfKind⇒ : ∀ {ℓ} {P : A → Set ℓ} {Q : A → Set ℓ} {xs : List A}
+                  → (p : (a : A) → Dec (P a))
+                  → {q : (a : A) → Dec (Q a)}
+                  → (∀ {a} → P a → Q a)  -- TODO-1: Use proper notation (Relation.Unary?)
+                  → NoneOfKind xs q
+                  → NoneOfKind xs p
+
   infix 4 _<?ℕ_
   _<?ℕ_ : Decidable _<_
   m <?ℕ n = suc m ≤?ℕ n
@@ -334,6 +361,18 @@ module LibraBFT.Prelude where
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+
+  -- Utility to make passing between `Either` and `EitherD` more convenient
+  record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
+    field
+      fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+      toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+  open EitherLike ⦃ ... ⦄ public
+  instance
+    EitherLike-Either : ∀ {ℓ₁ ℓ₂} → EitherLike{ℓ₁}{ℓ₂}{ℓ₁ ℓ⊔ ℓ₂} Either
+    EitherLike.fromEither EitherLike-Either = id
+    EitherLike.toEither   EitherLike-Either = id
 
   -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
   -- spaces between f and backticks
@@ -457,9 +496,9 @@ module LibraBFT.Prelude where
       return (f x)
 
   instance
-    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Error{ℓ}{C}) = inj₂
-    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
+    Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Either{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ inj₁) _&_
 
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just

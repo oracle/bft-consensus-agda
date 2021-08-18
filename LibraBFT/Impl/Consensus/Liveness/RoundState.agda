@@ -47,7 +47,7 @@ setupTimeoutM : Instant → LBFT Duration
 processLocalTimeoutM : Instant → Epoch → Round → LBFT Bool
 processLocalTimeoutM now obmEpoch round = do
   currentRound ← use (lRoundState ∙ rsCurrentRound)
-  if-RWST round /= currentRound
+  ifD round /= currentRound
     then pure false
     else do
       void (setupTimeoutM now) -- setup the next timeout
@@ -61,11 +61,11 @@ processCertificatesM : Instant → SyncInfo → LBFT (Maybe NewRoundEvent)
 processCertificatesM now syncInfo = do
   -- logEE ("RoundState" ∷ "processCertificatesM" {-∷ lsSI syncInfo-} ∷ []) $ do
   rshcr <- use (lRoundState ∙ rsHighestCommittedRound)
-  when (syncInfo ^∙ siHighestCommitRound >? rshcr) $ do
+  whenD (syncInfo ^∙ siHighestCommitRound >? rshcr) $ do
     lRoundState ∙ rsHighestCommittedRound ∙= (syncInfo ^∙ siHighestCommitRound)
     logInfo fakeInfo -- InfoUpdateHighestCommittedRound (syncInfo^.siHighestCommitRound)
   rscr ← use (lRoundState ∙ rsCurrentRound)
-  maybeS-RWST (maybeAdvanceRound rscr syncInfo) (pure nothing) $ λ (pcr' , reason) → do
+  maybeSD (maybeAdvanceRound rscr syncInfo) (pure nothing) $ λ (pcr' , reason) → do
     lRoundState ∙ rsCurrentRound ∙= pcr'
     lRoundState ∙ rsPendingVotes ∙= PendingVotes∙new
     lRoundState ∙ rsVoteSent     ∙= nothing
@@ -83,7 +83,7 @@ maybeAdvanceRound currentRound syncInfo =
 insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote verifier = do
   currentRound ← use (lRoundState ∙ rsCurrentRound)
-  if-RWST vote ^∙ vVoteData ∙ vdProposed ∙ biRound == currentRound
+  ifD vote ^∙ vVoteData ∙ vdProposed ∙ biRound == currentRound
     then PendingVotes.insertVoteM vote verifier
     else pure (UnexpectedRound (vote ^∙ vVoteData ∙ vdProposed ∙ biRound) currentRound)
 

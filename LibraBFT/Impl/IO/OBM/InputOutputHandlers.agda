@@ -33,7 +33,7 @@ module handleProposal (now : Instant) (pm : ProposalMsg) where
     step₁ myEpoch vv
 
   step₁ myEpoch vv = do
-    caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+    case⊎D Network.processProposal {- {!!} -} pm myEpoch vv of λ where
       (Left (Left e))  → logErr e
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processProposalMsgM now pm
@@ -55,7 +55,11 @@ module handleVote (now : Instant) (vm : VoteMsg) where
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processVoteMsgM now vm
 
-handleVote = handleVote.step₀
+abstract
+  handleVote = handleVote.step₀
+
+  handleVote≡ : handleVote ≡ handleVote.step₀
+  handleVote≡ = refl
 
 handle : NodeId → NetworkMsg → Instant → LBFT Unit
 handle _self msg now =

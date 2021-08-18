@@ -21,8 +21,7 @@ import      Data.String                                     as String
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
 
-postulate
-  -- not needed until epoch change is supported
+postulate -- NOTE: not needed until epoch change is supported
   certificateForGenesisFromLedgerInfo : LedgerInfo → HashValue → QuorumCert
 
 verify : QuorumCert → ValidatorVerifier → Either ErrLog Unit

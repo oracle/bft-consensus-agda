@@ -485,6 +485,13 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bPayload : Lens Block (Maybe TX)
   bPayload = bBlockData ∙ bdPayload
 
+  infix 4 _≈Block_
+  _≈Block_ : (b₁ b₂ : Block) → Set
+  b₁ ≈Block b₂ = b₁ ≡ record b₂ { _bSignature = _bSignature b₁ }
+
+  sym≈Block : Symmetric _≈Block_
+  sym≈Block refl = refl
+
   record BlockRetriever : Set where
     constructor BlockRetriever∙new
     field

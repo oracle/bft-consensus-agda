@@ -4,14 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.ImplShared.Util.RWST
+open import LibraBFT.ImplShared.Util.Dijkstra.RWST
+open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
 open import LibraBFT.Prelude
 open import Optics.All
 
 -- This module contains definitions allowing RWST programs to be written using
 -- Agda's do-notation, as well as convenient short names for operations
 -- (including lens operations).
-module LibraBFT.ImplShared.Util.RWST.Syntax where
+module LibraBFT.ImplShared.Util.Dijkstra.RWST.Syntax where
 
 private
   variable
@@ -23,6 +24,22 @@ instance
   RWST-Monad : Monad (RWST Ev Wr St)
   Monad.return RWST-Monad = RWST-return
   Monad._>>=_ RWST-Monad = RWST-bind
+
+-- These instance declarations give us variant conditional operations that we
+-- can define to play nice with `RWST-weakestPre`
+
+instance
+  RWST-MonadIfD : MonadIfD{ℓ₃ = ℓ0} (RWST Ev Wr St)
+  MonadIfD.monad RWST-MonadIfD = RWST-Monad
+  MonadIfD.ifD‖ RWST-MonadIfD = RWST-if
+
+  RWST-MonadMaybeD : MonadMaybeD (RWST Ev Wr St)
+  MonadMaybeD.monad   RWST-MonadMaybeD = RWST-Monad
+  MonadMaybeD.maybeSD RWST-MonadMaybeD = RWST-maybe
+
+  RWST-MonadEitherD : MonadEitherD (RWST Ev Wr St)
+  MonadEitherD.monad    RWST-MonadEitherD = RWST-Monad
+  MonadEitherD.eitherSD RWST-MonadEitherD = RWST-either
 
 gets : (St → A) → RWST Ev Wr St A
 gets = RWST-gets
@@ -54,57 +71,7 @@ void m = do
   _ ← m
   pure unit
 
-{-
-Within the RWST monad, if and if-RWST are semantically interchangeable.
-Similarly for maybeS and maybe-RWST.
-
-The difference is in how proof obligations are generated
-- with the *-RWST variants generating new weakestPre obligations for each case.
-
-In some cases, this is helpful for structuring proofs, while in other cases it is
-unnecessary and introduces more structure to the proof without adding any benefit.
-
-A rule of thumb is that, if the "scrutinee" (whatever we are doing case analysis on,
-i.e., the first argument) is the value provided via >>= (RWST-bind) by a previous code block,
-then we already have a weakestPre proof obligation, so introducing additional ones via the
-*-RWST variants only creates more work and provides no additional benefit.
--}
-
--- Conditionals
-infix 1 ifM‖_
-ifM‖_ : Guards (RWST Ev Wr St A) → RWST Ev Wr St A
-ifM‖_ = RWST-if
-
-infix 0 if-RWST_then_else_
-if-RWST_then_else_ : ⦃ _ : ToBool B ⦄ → B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
-if-RWST b then c₁ else c₂ =
-  ifM‖ b ≔ c₁
-     ‖ otherwise≔ c₂
-
--- This is like the Haskell version, except Haskell's works for any monad (not just RWST).
-ifM : ⦃ _ : ToBool B ⦄ → RWST Ev Wr St B → (c₁ c₂ : RWST Ev Wr St A) → RWST Ev Wr St A
-ifM mb c₁ c₂ = do
-  x ← mb
-  if-RWST x then c₁ else c₂
-
-infix 0 caseM⊎_of_ caseMM_of_
-caseM⊎_of_ : Either B C → (Either B C → RWST Ev Wr St A) → RWST Ev Wr St A
-caseM⊎ e of f = RWST-either e (f ∘ Left) (f ∘ Right)
-
-caseMM_of_ : Maybe B → (Maybe B → RWST Ev Wr St A) → RWST Ev Wr St A
-caseMM m of f = RWST-maybe m (f nothing) (f ∘ just)
-
-eitherS-RWST : ∀ {A B C} → Either B C
-               → (B → RWST Ev Wr St A) → (C → RWST Ev Wr St A)   → RWST Ev Wr St A
-eitherS-RWST = RWST-either
-
-when : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → RWST Ev Wr St Unit → RWST Ev Wr St Unit
-when b f = if-RWST toBool b then f else pure unit
-
-when-RWST : ⦃ _ : ToBool B ⦄ → B → (c : RWST Ev Wr St Unit) → RWST Ev Wr St Unit
-when-RWST b c = if-RWST b then c else pure unit
-
--- Composition with error monad
+-- -- Composition with error monad
 ok : A → RWST Ev Wr St (B ⊎ A)
 ok = pure ∘ Right
 
@@ -115,26 +82,18 @@ infixl 4 _∙?∙_
 _∙?∙_ : RWST Ev Wr St (Either C A) → (A → RWST Ev Wr St (Either C B)) → RWST Ev Wr St (Either C B)
 _∙?∙_ = RWST-ebind
 
--- Composition/use with partiality monad
-maybeS-RWST : Maybe A → (RWST Ev Wr St B) → (A → RWST Ev Wr St B) → RWST Ev Wr St B
-maybeS-RWST ma n j =
-  caseMM ma of λ where
-    nothing  → n
-    (just x) → j x
-
 maybeSM : RWST Ev Wr St (Maybe A) → RWST Ev Wr St B → (A → RWST Ev Wr St B) → RWST Ev Wr St B
 maybeSM mma mb f = do
   x ← mma
-  caseMM x of λ where
+  caseMD x of λ where
     nothing  → mb
     (just j) → f j
-  where
 
 maybeSMP-RWST : RWST Ev Wr St (Maybe A) → B → (A → RWST Ev Wr St B)
               → RWST Ev Wr St B
 maybeSMP-RWST ma b f = do
   x ← ma
-  caseMM x of λ where
+  caseMD x of λ where
     nothing  → pure b
     (just j) → f j
 

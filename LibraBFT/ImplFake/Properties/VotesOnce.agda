@@ -5,6 +5,7 @@
 -}
 -- This module proves the two "VotesOnce" proof obligations for our fake handler
 
+{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
@@ -198,10 +199,10 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
        -- VoteMsg sent comprises QCs from the peer's state.  Votes represented in
        -- those QCS have signatures that have been sent before, contradicting the
        -- assumption that v's signature has not been sent before.
-  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
+  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inSI si∈m qc∈si)
                   rewrite cong _vSignature v≈rbld
      with qcVotesSentB4 r pinit
-                        (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v⊂m m∈outs qc∈m) vs∈qc ¬init
+                        (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v⊂m m∈outs (obm-dangerous-magic' "see Handle.Properties")) vs∈qc ¬init
   ...| mws = ⊥-elim (vnew mws)
 
   vo₂ {pid = pid} {pk = pk} {pre = pre} r (step-msg {_ , nm} m∈pool pinit) {v = v} {m} {v'} {m'}
@@ -215,8 +216,8 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| here refl
      with v'⊂m'
   ...| vote∈vm = refl
-  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
+  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inSI si∈m qc∈si)
                   rewrite cong _vSignature v≈rbld
      with qcVotesSentB4 r pinit
-                       (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v'⊂m' m'∈outs qc∈m) vs∈qc ¬init'
+                       (VoteMsgQCsFromRoundManager r (step-msg m∈pool pinit) hpk v'⊂m' m'∈outs (obm-dangerous-magic' "see Handle.Properties")) vs∈qc ¬init'
   ...| mws = ⊥-elim (v'new mws)
