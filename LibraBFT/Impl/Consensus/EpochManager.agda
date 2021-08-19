@@ -132,7 +132,7 @@ processEpochRetrieval self {-wireOrInternal-} (EpRRqWire∙new {-why fromE fromR
            ∷ [])
       pure PMContinue
     (Right (liws , more)) →
-      eitherS (self ^∙ emEpoch) (\err -> do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ e -> do
+      eitherSD (self ^∙ emEpoch) (\err -> do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ e -> do
           let ecp = EpochChangeProof∙new liws more
               me  = self ^∙ emAuthor
               r   = eitherS (self ^∙ emObmRoundManager) (const {-Round-} 0) (_^∙ rmRound)
@@ -149,7 +149,7 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
   tell (PMInfo fakeInfo -- (here [ "ReceiveMessageFromDifferentEpoch", lsA peerAddress
                         --       , lsE peerDifferentEpoch, lsR obmPeerRound, logShowI obmI ])
                         ∷ [])
-  eitherS (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
+  eitherSD (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
       case compare peerDifferentEpoch epoch' of λ where
         LT → do -- help nodes that have lower epoch
           -- LBFT-OBM-DIFF : not sure if this is different, but the message that causes
@@ -305,11 +305,11 @@ processMessage self now = λ where
                                      -- , why, lsA from, lsE e, lsR r, lsECP ecp ]))]
                                     doECP ecp
   (IEpochRetrievalRequest frm a@(EpRRqWire∙new {- _why _e _r -} epRrq))
-                                  → eitherS (self ^∙ emEpoch)
+                                  → eitherSD (self ^∙ emEpoch)
                                             (λ e -> do tell (PMErr (withErrCtx (here' []) e) ∷ [])
                                                        pure PMContinue)
                                             $ λ epoch' →
-                                        if-dec (epRrq ^∙ eprrqEndEpoch >? epoch')
+                                        ifD (epRrq ^∙ eprrqEndEpoch >? epoch')
                                         then (do
                                           tell (PMInfo fakeInfo ∷ [])
                                              --["EpochRRq beyond ours", why, lsE (epRrq^.eprrqEndEpoch)]))]
@@ -337,8 +337,8 @@ processMessage self now = λ where
 
   maybeDifferentEpoch : Input → AccountAddress → Epoch → Round → EM ProcessMessageAction
   maybeDifferentEpoch a from e r =
-    eitherS (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
-        if e == epoch'
+    eitherSD (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
+        ifD e == epoch'
         then pure (PMInput a)
         else processDifferentEpoch self a from e r
 
@@ -349,10 +349,10 @@ processMessage self now = λ where
         tell (PMErr e ∷ [])
         pure PMContinue
       (Right _) → do
-       eitherS (ECP-LBFT-OBM-Diff-1.e_EpochManager_doECP_waitForRlec self ecp)
+       eitherSD (ECP-LBFT-OBM-Diff-1.e_EpochManager_doECP_waitForRlec self ecp)
                (\e → do tell (PMErr (withErrCtx (here' []) e) ∷ []); pure PMContinue)
                $ \b →
-        if b
+        ifD b
           then (do
           tell (PMInfo fakeInfo ∷ []) -- [ "doECP", "got ECP", "waiting for RLEC"
                                       -- , "my epoch", lsEE (self^.emEpoch), lsECP ecp])]
@@ -474,13 +474,13 @@ obmStartLoop self initializationOutput
       PMContinue →
         loop em {-to-} rlec
       (PMInput i') →
-       eitherS (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
+       eitherSD (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         --(rm'  ,    o) ← DAR.runInputHandler  rm  to pe i' ih
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
         rm'' ← pure rm -- TMP for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
       (PMNewEpochManager em' newEpochInitializationOutput) → do
-       eitherS (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
+       eitherSD (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TMP for previous line
         loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set
