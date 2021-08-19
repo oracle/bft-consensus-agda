@@ -150,6 +150,7 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
                         --       , lsE peerDifferentEpoch, lsR obmPeerRound, logShowI obmI ])
                         ∷ [])
   eitherSD (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
+    --eitherSD (self ^∙ emObmRoundManager) (λ err -> do tell (PMErr (withErrCtx (here' []) err) :: []); pure PMContinue) $ λ rm →
       case compare peerDifferentEpoch epoch' of λ where
         LT → do -- help nodes that have lower epoch
           -- LBFT-OBM-DIFF : not sure if this is different, but the message that causes
@@ -417,7 +418,7 @@ start self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSi
   - in some  cases it runs the RoundManager in the LBFT monad
   - in other cases it sends messages (via 'stps') to other nodes
 
-The following "implementation" compiles, but has lots of TMP things to get it to compile.
+The following "implementation" compiles, but has lots of TEMPORARY things to get it to compile.
 -}
 
 IO : Set → Set₁
@@ -438,7 +439,7 @@ obmStartLoop self initializationOutput
       -- This line roughly corresponds to Rust expect_new_epoch.
       -- It processes the output from start/startProcessor above.
       -- TODO (rm' , to') ← DAR.runOutputHandler rm toDAR pe initializationOutput oh
-      rm'                 ← pure rm -- TMP for previous line
+      rm'                 ← pure rm -- TEMPORARY for previous line
       loop (setProcessor self rm') {-to'-} RSNothing
  where
   show : ∀ {A : Set} → A → String.String
@@ -459,11 +460,11 @@ obmStartLoop self initializationOutput
   loop : EpochManager {-→ Map ScheduledInputKey ThreadId-} → RlecState → IO Unit
   loop em {-to-} rlec0 = do
     -- i ← U.readChan lbftInR
-    i ← pure (IInit 0) -- TMP for previous line
+    i ← pure (IInit 0) -- TEMPORARY for previous line
     -- when (fnd > 0) $
     --  threadDelay (fnd * oneMillisecond)
     -- now                    ← Time.getCurrentInstant
-    now                    ← pure (0) -- TMP for previous line
+    now                    ← pure (0) -- TEMPORARY for previous line
     let (pma , rlec , pmo) = runEM (processMessage em now i) rlec0
     let myName             = em ^∙ emAuthor ∙ aAuthorName
     forM_ pmo $ λ where
@@ -477,12 +478,12 @@ obmStartLoop self initializationOutput
        eitherSD (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         --(rm'  ,    o) ← DAR.runInputHandler  rm  to pe i' ih
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
-        rm'' ← pure rm -- TMP for previous two lines
+        rm'' ← pure rm -- TEMPORARY for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
       (PMNewEpochManager em' newEpochInitializationOutput) → do
        eitherSD (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
-        rm' ← pure rm -- TMP for previous line
+        rm' ← pure rm -- TEMPORARY for previous line
         loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set
       (PMSendECP ecp peerAddress me {-why-} e r) → do
         -- stps [peerAddress ^∙ aAuthorName] (Messages.mkIEpochChangeProof me why e r ecp)

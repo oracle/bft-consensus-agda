@@ -21,8 +21,6 @@ module LibraBFT.Prelude where
     using (_∘_; _∘′_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
     public
 
-  identity = id
-
   infixl 1 _&_
   _&_ = Function._|>_
 
