@@ -272,7 +272,7 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
     let (_ , processor' , output) = LBFT-run (RoundManager.start now lastVote) processor
     case findFirstErr output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
-      nothing  → pure ( (self & emProcessor ∙~ just (RoundProcessorNormal processor'))
+      nothing  → pure ( (self & emProcessor ?~ (RoundProcessorNormal processor'))
                       , output )
    where
     findFirstErr : List Output → Maybe ErrLog
