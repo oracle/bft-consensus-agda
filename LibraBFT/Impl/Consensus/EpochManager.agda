@@ -433,7 +433,7 @@ obmStartLoop self initializationOutput
              (DAR.DispatchConfig _rm0 toDAR ih oh lg lc stps m)
              lbftInR-} = do
   case self ^∙ emObmRoundManager of λ where
-    (Left   e) → (errorExit ∘ here' ∘ (_∷ []) ∘ show) e
+    (Left   e) → (errorExit ∘ here' ∘ singleShow) e
     (Right rm) → do
       -- This line roughly corresponds to Rust expect_new_epoch.
       -- It processes the output from start/startProcessor above.
@@ -443,6 +443,9 @@ obmStartLoop self initializationOutput
  where
   show : ∀ {A : Set} → A → String.String
   show _ = ""
+
+  singleShow : ∀ {A : Set} → A → List String.String
+  singleShow {A} x = show {A} x ∷ []
 
   errorExit : List String.String → IO Unit
   errorExit _ = pure unit
@@ -471,13 +474,13 @@ obmStartLoop self initializationOutput
       PMContinue →
         loop em {-to-} rlec
       (PMInput i') →
-       eitherS (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ (_∷ []) ∘ show) $ λ rm → do
+       eitherS (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         --(rm'  ,    o) ← DAR.runInputHandler  rm  to pe i' ih
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
         rm'' ← pure rm -- TMP for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
       (PMNewEpochManager em' newEpochInitializationOutput) → do
-       eitherS (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ (_∷ []) ∘ show) $ λ rm → do
+       eitherS (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TMP for previous line
         loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set
