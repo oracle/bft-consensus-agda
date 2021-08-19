@@ -132,7 +132,7 @@ processEpochRetrieval self {-wireOrInternal-} (EpRRqWire∙new {-why fromE fromR
            ∷ [])
       pure PMContinue
     (Right (liws , more)) →
-      eitherSD (self ^∙ emEpoch) (\err -> do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ e -> do
+      eitherSD (self ^∙ emEpoch) (λ err -> do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ e -> do
           let ecp = EpochChangeProof∙new liws more
               me  = self ^∙ emAuthor
               r   = eitherS (self ^∙ emObmRoundManager) (const {-Round-} 0) (_^∙ rmRound)
@@ -198,7 +198,7 @@ startNewEpoch self now mrlec proof = do
   rlec ← case mrlec of λ where
            (just rlec) → pure rlec
            nothing     → eitherS (Left "fakeErr") -- TODO-2 ((self^.emStateComputer.scSyncTo) liws)
-                                 (\e → Left fakeErr) -- (ErrL (here (lsLIWS liws ∷ e))))
+                                 (λ e → Left fakeErr) -- (ErrL (here (lsLIWS liws ∷ e))))
                                  Right
   self' ← ECP-LBFT-OBM-Diff-1.e_EpochManager_startNewEpoch self proof
   pure PMContinue
@@ -272,7 +272,7 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
     let (_ , processor' , output) = LBFT-run (RoundManager.start now lastVote) processor
     case findFirstErr output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
-      nothing  → pure ( (self & emProcessor ?~ (RoundProcessorNormal processor'))
+      nothing  → pure ( (self & emProcessor ?~ RoundProcessorNormal processor')
                       , output )
    where
     findFirstErr : List Output → Maybe ErrLog
@@ -306,9 +306,9 @@ processMessage self now = λ where
                                     doECP ecp
   (IEpochRetrievalRequest frm a@(EpRRqWire∙new {- _why _e _r -} epRrq))
                                   → eitherSD (self ^∙ emEpoch)
-                                            (λ e -> do tell (PMErr (withErrCtx (here' []) e) ∷ [])
-                                                       pure PMContinue)
-                                            $ λ epoch' →
+                                             (λ e -> do tell (PMErr (withErrCtx (here' []) e) ∷ [])
+                                                        pure PMContinue)
+                                             $ λ epoch' →
                                         ifD (epRrq ^∙ eprrqEndEpoch >? epoch')
                                         then (do
                                           tell (PMInfo fakeInfo ∷ [])
@@ -350,8 +350,8 @@ processMessage self now = λ where
         pure PMContinue
       (Right _) → do
        eitherSD (ECP-LBFT-OBM-Diff-1.e_EpochManager_doECP_waitForRlec self ecp)
-               (\e → do tell (PMErr (withErrCtx (here' []) e) ∷ []); pure PMContinue)
-               $ \b →
+                (λ e → do tell (PMErr (withErrCtx (here' []) e) ∷ []); pure PMContinue)
+                $ λ b →
         ifD b
           then (do
           tell (PMInfo fakeInfo ∷ []) -- [ "doECP", "got ECP", "waiting for RLEC"
