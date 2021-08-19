@@ -364,13 +364,20 @@ module LibraBFT.Prelude where
     (Left  a) → fa a
     (Right b) → fb b
 
+  module _ {ℓ₁ ℓ₂ ℓ₃ : Level} where
+    EL-type = Set ℓ₁ → Set ℓ₂ → Set ℓ₃
+    EL-level = ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃
 
-  -- Utility to make passing between `Either` and `EitherD` more convenient
-  record EitherLike {ℓ₁ ℓ₂ ℓ₃} (E : Set ℓ₁ → Set ℓ₂ → Set ℓ₃) : Set (ℓ+1 (ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₃)) where
-    field
-      fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
-      toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
-  open EitherLike ⦃ ... ⦄ public
+    -- Utility to make passing between `Either` and `EitherD` more convenient
+    record EitherLike (E : EL-type) : Set (ℓ+1 EL-level) where
+      field
+        fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+        toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+    open EitherLike ⦃ ... ⦄ public
+
+    EL-func : EL-type → Set (ℓ+1 EL-level)
+    EL-func EL = ⦃ mel : EitherLike EL ⦄ → Set EL-level
+
   instance
     EitherLike-Either : ∀ {ℓ₁ ℓ₂} → EitherLike{ℓ₁}{ℓ₂}{ℓ₁ ℓ⊔ ℓ₂} Either
     EitherLike.fromEither EitherLike-Either = id
