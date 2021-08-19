@@ -32,6 +32,8 @@ module getEpochEndingLedgerInfos where
   D : VariantFor EitherD
   D db ep = fromEither ∘ E db ep
 
+getEpochEndingLedgerInfos = getEpochEndingLedgerInfos.E
+
 module saveTransactions where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ₃ = ℓ} EL
   VariantFor EL =
