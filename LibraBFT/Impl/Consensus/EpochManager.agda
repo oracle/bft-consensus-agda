@@ -124,7 +124,7 @@ processEpochRetrieval
 processEpochRetrieval self {-wireOrInternal-} (EpRRqWire∙new {-why fromE fromR-} request) peerAddress = do
   tell (PMInfo fakeInfo ∷ [])
     -- ["Enter", wireOrInternal, why, lsA peerAddress, lsE fromE, lsR fromR, lsEpochRRq request]))]
-  case DiemDB.getEpochEndingLedgerInfos
+  case DiemDB.getEpochEndingLedgerInfos.E
          (self ^∙ emStorage ∙ msObmDiemDB) (request ^∙ eprrqStartEpoch) (request ^∙ eprrqEndEpoch) of λ where
     (Left e) → do
       tell ( (PMErr (withErrCtx (here'

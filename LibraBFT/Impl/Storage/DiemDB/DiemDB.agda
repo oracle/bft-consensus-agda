@@ -26,11 +26,11 @@ module getEpochEndingLedgerInfos where
   postulate
     step₀ : VariantFor EitherD
 
-getEpochEndingLedgerInfos : getEpochEndingLedgerInfos.VariantFor Either
-getEpochEndingLedgerInfos db ep = toEither ∘ getEpochEndingLedgerInfos.step₀ db ep
+  E : VariantFor Either
+  E db ep = toEither ∘ step₀ db ep
 
-getEpochEndingLedgerInfos-D : getEpochEndingLedgerInfos.VariantFor EitherD
-getEpochEndingLedgerInfos-D db ep = fromEither ∘ getEpochEndingLedgerInfos db ep
+  D : VariantFor EitherD
+  D db ep = fromEither ∘ E db ep
 
 module saveTransactions where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ₃ = ℓ} EL
@@ -41,11 +41,11 @@ module saveTransactions where
   postulate
     step₀ : VariantFor EitherD
 
-saveTransactions   : saveTransactions.VariantFor Either
-saveTransactions   db = toEither ∘ saveTransactions.step₀ db
+  E : VariantFor Either
+  E db = toEither ∘ step₀ db
 
-saveTransactions-D : saveTransactions.VariantFor EitherD
-saveTransactions-D db = fromEither ∘ saveTransactions db
+  D : VariantFor EitherD
+  D db = fromEither ∘ E db
 
 
 
