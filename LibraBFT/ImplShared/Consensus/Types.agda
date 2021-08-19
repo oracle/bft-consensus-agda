@@ -174,6 +174,10 @@ module LibraBFT.ImplShared.Consensus.Types where
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
+  -- getter only in Haskell
+  rmRound : Lens RoundManager Round
+  rmRound = rmRoundState ∙ rsCurrentRound
+
   -- not defined in Haskell
   rmLastVotedRound : Lens RoundManager Round
   rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound

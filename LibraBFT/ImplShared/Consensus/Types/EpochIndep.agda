@@ -180,6 +180,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   liConsensusBlockId = liCommitInfo ∙ biId
 
   -- GETTER only in Haskell
+  liVersion : Lens LedgerInfo Version
+  liVersion = liCommitInfo ∙ biVersion
+
+  -- GETTER only in Haskell
   liNextEpochState : Lens LedgerInfo (Maybe EpochState)
   liNextEpochState = mkLens' g s
    where
@@ -608,6 +612,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   siEpoch : Lens SyncInfo Epoch
   siEpoch  = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
+  -- getter only in Haskell
+  siObmRound : Lens SyncInfo Round
+  siObmRound = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
+
   ----------------------
   -- Network Messages --
   ----------------------
@@ -621,6 +629,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl pmProposal   pmSyncInfo = mkLens (quote ProposalMsg)
              (pmProposal ∷ pmSyncInfo ∷ [])
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
+
+  -- getter only in Haskell
+  pmEpoch : Lens ProposalMsg Epoch
+  pmEpoch = pmProposal ∙ bEpoch
+
+  -- getter only in Haskell
+  pmRound : Lens ProposalMsg Round
+  pmRound = pmProposal ∙ bRound
 
   -- getter only in Haskell
   pmProposer : Lens ProposalMsg (Maybe Author)
@@ -647,6 +663,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- getter-only in Haskell
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
+
+  -- getter-only in Haskell
+  vmRound : Lens VoteMsg Round
+  vmRound = vmVote ∙ vRound
 
   -- IMPL-DIFF : This is defined without record fields in Haskell.
   -- The record fields below are never used.  But RootInfo must be a record for pattern matching.
@@ -782,15 +802,23 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     mkLens (quote SafetyData)
     (sdEpoch ∷ sdLastVotedRound ∷ sdPreferredRound ∷ sdLastVote ∷  [])
 
+  record Waypoint : Set where
+    constructor Waypoint∙new
+    field
+      _wVersion : Version
+      _wValue   : HashValue
+  postulate instance enc-Waypoint : Encoder Waypoint
+
   record PersistentSafetyStorage : Set where
-    constructor PersistentSafetyStorage∙new
+    constructor mkPersistentSafetyStorage
     field
       _pssSafetyData : SafetyData
       _pssAuthor     : Author
-      -- _pssWaypoint : Waypoint
+      _pssWaypoint   : Waypoint
+      _pssObmSK      : Maybe SK
   open PersistentSafetyStorage public
-  unquoteDecl pssSafetyData pssAuthor = mkLens (quote PersistentSafetyStorage)
-    (pssSafetyData ∷ pssAuthor ∷ [])
+  unquoteDecl pssSafetyData   pssAuthor   pssWaypoint   pssObmSK = mkLens (quote PersistentSafetyStorage)
+             (pssSafetyData ∷ pssAuthor ∷ pssWaypoint ∷ pssObmSK ∷ [])
 
   record ValidatorSigner : Set where
     constructor ValidatorSigner∙new
@@ -843,14 +871,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open ProposerElection
 
   record SafetyRules : Set where
-    constructor SafetyRules∙new
+    constructor mkSafetyRules
     field
       _srPersistentStorage  : PersistentSafetyStorage
-      _srExecutionPublicKey : Maybe PK
+      _srExportConsensusKey : Bool
       _srValidatorSigner    : Maybe ValidatorSigner
+      _srEpochState         : Maybe EpochState
   open SafetyRules public
-  unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
-             (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
+  unquoteDecl srPersistentStorage   srExportConsensusKey   srValidatorSigner   srEpochState = mkLens (quote SafetyRules)
+             (srPersistentStorage ∷ srExportConsensusKey ∷ srValidatorSigner ∷ srEpochState ∷ [])
 
   record BlockRetrievalRequest : Set where
     constructor BlockRetrievalRequest∙new
@@ -962,6 +991,21 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockTree → (Maybe ExecutedBlock) → BlockTree
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
+  record LedgerStore : Set where
+    constructor LedgerStore∙new
+    field
+      _lsObmVersionToEpoch : Map.KVMap Version Epoch
+      _lsObmEpochToLIWS    : Map.KVMap Epoch   LedgerInfoWithSignatures
+      _lsLatestLedgerInfo  : Maybe LedgerInfoWithSignatures
+
+  record DiemDB : Set where
+    constructor DiemDB∙new
+    field
+      _ddbLedgerStore : LedgerStore
+  open DiemDB public
+  unquoteDecl ddbLedgerStore = mkLens (quote DiemDB)
+             (ddbLedgerStore ∷ [])
+
   record MockSharedStorage : Set where
     constructor MockSharedStorage∙new
     field
@@ -983,11 +1027,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     constructor MockStorage∙new
     field
       _msSharedStorage : MockSharedStorage
-      --_msStorageLedger : LedgerInfo
-      --_msObmDiemDB     : DiemDB
+      _msStorageLedger : LedgerInfo
+      _msObmDiemDB     : DiemDB
   open MockStorage public
-  unquoteDecl msSharedStorage = mkLens (quote MockStorage)
-             (msSharedStorage ∷ [])
+  unquoteDecl msSharedStorage   msStorageLedger   msObmDiemDB = mkLens (quote MockStorage)
+             (msSharedStorage ∷ msStorageLedger ∷ msObmDiemDB ∷ [])
 
   PersistentLivenessStorage = MockStorage
 

@@ -6,6 +6,7 @@
 
 open import LibraBFT.Base.KVMap                 as Map
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -16,7 +17,9 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.TestUtils.MockStorage where
 
 postulate
-  tryStart : MockStorage → Either ErrLog RecoveryData
+  tryStart        : MockStorage  → Either ErrLog RecoveryData
+  startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
+                  → Either ErrLog (RecoveryData × PersistentLivenessStorage)
 
 ------------------------------------------------------------------------------
 

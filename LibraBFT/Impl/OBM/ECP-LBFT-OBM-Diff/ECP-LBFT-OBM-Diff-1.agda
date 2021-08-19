@@ -5,8 +5,10 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0
 open import LibraBFT.Impl.OBM.Logging.Logging
+import      LibraBFT.Impl.Storage.DiemDB.DiemDB                     as DiemDB
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
@@ -37,6 +39,43 @@ e_RoundState_processLocalTimeoutM e r =
   yes' = do
     logInfo fakeInfo -- InfoRoundTimeout e r
     pure true
+
+------------------------------------------------------------------------------
+
+postulate
+ e_EpochManager_doECP_waitForRlec
+  : EpochManager → EpochChangeProof
+  → Either ErrLog Bool
+
+------------------------------------------------------------------------------
+
+e_EpochManager_startNewEpoch
+  : EpochManager → EpochChangeProof
+  → Either ErrLog EpochManager
+e_EpochManager_startNewEpoch self ecp =
+  if not ECP-LBFT-OBM-Diff-0.enabled
+  then pure self
+  else do
+    -- LBFT-OBM-DIFF: store all the epoch ending LedgerInfos sent in ECP
+    -- (to avoid gaps -- from when a node is not a member).
+    db ← (foldM) (\db l → DiemDB.saveTransactions db (just l))
+                 (self ^∙ emStorage ∙ msObmDiemDB)
+                 (ecp ^∙ ecpLedgerInfoWithSigs)
+    pure (self & emStorage ∙ msObmDiemDB ∙~ db)
+
+------------------------------------------------------------------------------
+
+postulate
+ e_EpochManager_checkEpc
+  : EpochManager → EpochChangeProof
+  → Either ErrLog Unit
+
+------------------------------------------------------------------------------
+
+postulate
+ e_EpochManager_processMessage_ISyncInfo
+  : EpochManager → SyncInfo
+  → Either ErrLog Unit
 
 ------------------------------------------------------------------------------
 

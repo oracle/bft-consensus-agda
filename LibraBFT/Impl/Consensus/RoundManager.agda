@@ -440,3 +440,18 @@ mkRsp request meer bs blocks id =
                     (if null blocks then BRSIdNotFound else BRSNotEnoughBlocks)
                     blocks)
     else BlockRetrievalResponse∙new meer BRSSucceeded blocks
+
+------------------------------------------------------------------------------
+
+start : Instant → Maybe Vote → LBFT Unit
+start now lastVoteSent = do
+  syncInfo <- BlockStore.syncInfoM
+  RoundState.processCertificatesM now syncInfo >>= λ where
+    nothing    →
+      logErr fakeErr -- (here ["Cannot jump start a round_state from existing certificates."]))
+    (just nre) → do
+      maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM
+      processNewRoundEventM now nre -- error!("[RoundManager] Error during start: {:?}", e);
+ where
+  here' : List String.String → List String.String
+  here' t = "RoundManager" ∷ "start" ∷ t
