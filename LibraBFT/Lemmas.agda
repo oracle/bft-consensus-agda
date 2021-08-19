@@ -369,12 +369,6 @@ module LibraBFT.Lemmas where
  lookup⇒Any {_} {_ ∷ _} zero    px = here px
  lookup⇒Any {_} {_ ∷ _} (suc i) px = there (lookup⇒Any i px)
 
-{-
- allDistinct⇒index∘lkp≡ : ∀ {A : Set} {x} {xs : List A} (i : Fin (length xs))
-                        → allDistinct xs
-                        → Any-index (List-lookup {!xs!} {!!}) ≡ i
--}
-
  x∉→AllDistinct : ∀ {A : Set} {x} {xs : List A}
                 → allDistinct xs
                 → x ∉ xs

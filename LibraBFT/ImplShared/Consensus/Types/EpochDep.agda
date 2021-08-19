@@ -62,21 +62,31 @@ open DecLemmas {A = NodeId} _≟_
 -- TODO-2: update and complete when definitions are updated to more recent version
 
 
-index∘lookup-id : ∀ (xs : List ℕ) {α : Fin (length xs)}
+index∘lookup-id : ∀ (xs : List ℕ) → allDistinct xs → {α : Fin (length xs)}
                   → list-index xs (List-lookup xs α) ≡ just α
-index∘lookup-id (x ∷ xs) {zero}
-  with x ≟ x
+index∘lookup-id (x ∷ xs) all≢ {zero}
+   with x ≟ x
 ...| yes x≡x = refl
 ...| no  x≢x = ⊥-elim (x≢x refl)
-index∘lookup-id (x ∷ xs) {suc α}
-  with x ≟ List-lookup xs α
-...| yes x≡ = {!need a proof that all elements are distinct!}
+index∘lookup-id (x ∷ xs) all≢ {suc α}
+   with x ≟ List-lookup xs α
+...| yes x≡ = ⊥-elim (allDistinct⇒∉ all≢ {!!})
 ...| no  x≢
-  with index∘lookup-id xs {α}
-...| eq
-  with list-index xs (List-lookup xs α)
-index∘lookup-id (x ∷ xs) {suc α} | no x≢ | () | nothing
-index∘lookup-id (x ∷ xs) {suc α} | no x≢ | refl | just .α = refl
+   with list-index xs (List-lookup xs α) | index∘lookup-id xs (allDistinctTail all≢) {α}
+...| nothing | ()
+...| just .α | refl = refl
+
+lookup∘index-id : ∀ (xs : List ℕ) → allDistinct xs → {α : Fin (length xs)} {nId : ℕ}
+                  → list-index xs nId ≡ just α
+                  → List-lookup xs α ≡ nId
+lookup∘index-id (x ∷ xs) all≢ {α} {nId} lkp≡α
+   with x ≟ nId
+...| yes refl  rewrite sym (just-injective lkp≡α) = refl
+...| no  x≢nId
+   with list-index xs nId | inspect (list-index xs) nId
+...| just _ | [ eq ]
+   rewrite sym (just-injective lkp≡α) = lookup∘index-id xs (allDistinctTail all≢) eq
+
 
 xxx : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} (dec : Dec A) (f : A → B) (g : ¬ A → B) (a : A)
       → (if-yes dec then f else g) ≡ f a
@@ -86,28 +96,37 @@ xxxxx : ∀ {A : Set} (xs : List A) (α : Fin (length xs)) → allDistinct xs
         → Any-index x∈xs ≡ α
 
 
+
 α-EC : Σ RoundManager RoundManager-correct → EpochConfig
-α-EC (rmec , ok) =
-  let authors    = kvm-keys (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-      numAuthors = length authors --kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-      qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
-      bizF       = numAuthors ∸ qsize
+α-EC (rmec , ok)  =
+  let authorsInfo = kvm-toList (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+      authorsIDs  = List-map proj₁ authorsInfo
+      numAuthors  = length authorsIDs
+      qsize       = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+      bizF        = numAuthors ∸ qsize
+      toNodeId    = List-lookup authorsIDs
    in EpochConfig∙new {!!}
                       (rmec ^∙ rmEpoch)
                       numAuthors
-                      (List-lookup authors)
-                      --(list-index authors)
-                      (λ nId → if-yes nId ∈? authors then just ∘ Any-index else const nothing)
-                      --(index∘lookup-id authors)
-                      (λ {α} → case List-lookup authors α ∈? authors of
-                               λ { (yes α∈authors)
-                                        → trans (xxx (List-lookup authors α ∈? authors)
+                      toNodeId
+                      (list-index authorsIDs)
+                      --(λ nId → if-yes nId ∈? authorsIDs then just ∘ Any-index else const nothing)
+                      (index∘lookup-id authorsIDs {!!})
+                      {-(λ {α} → case List-lookup authorsIDs α ∈? authorsIDs of
+                               λ { (yes α∈authorsIDs)
+                                        → trans (xxx (List-lookup authorsIDs α ∈? authorsIDs)
                                                      (just ∘ Any-index)
                                                      (const nothing)
-                                                     α∈authors)
-                                                (cong just (xxxxx authors α {!!} α∈authors)) ;
-                                   (no imp) → ⊥-elim (imp (lookup⇒Any α refl))} )
-                      {!!} {!!} {!!} {!!} {!!}
+                                                     α∈authorsIDs)
+                                                (cong just (xxxxx authorsIDs α {!!} α∈authorsIDs)) ;
+                                   (no imp) → ⊥-elim (imp (lookup⇒Any α refl))} )-}
+                      (λ lkp≡α → lookup∘index-id authorsIDs {!!} lkp≡α)
+                      (λ member → let member = cast (List-length-map proj₁ authorsInfo) member
+                                      authorInfo = proj₂ (List-lookup authorsInfo member)
+                                  in authorInfo ^∙ vciPublicKey)
+                      {!!}
+                      (λ members → {!!} ≤ {!!} × allDistinct members)
+                      {!!}
 
 postulate
   α-EC-≡ : (rmec1  : RoundManager)
