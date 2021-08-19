@@ -58,7 +58,7 @@ e_EpochManager_startNewEpoch self ecp =
   else do
     -- LBFT-OBM-DIFF: store all the epoch ending LedgerInfos sent in ECP
     -- (to avoid gaps -- from when a node is not a member).
-    db <- (foldM) (\db l → DiemDB.saveTransactions db (just l))
+    db ← (foldM) (\db l → DiemDB.saveTransactions db (just l))
                   (self ^∙ emStorage ∙ msObmDiemDB)
                   (ecp ^∙ ecpLedgerInfoWithSigs)
     pure (self & emStorage ∙ msObmDiemDB ∙~ db)
