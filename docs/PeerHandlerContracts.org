@@ -554,7 +554,7 @@ eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) 
       instance by using ~toEither~ and ~fromEither~.  By using ~EL-func~ and following
       a convention of creating multiple variants using ~toEither~ and ~fromEither~
       and specifying one of them as the default, we can avoid repeating type
-      signatures, minimize explicit usage of variants (e.g., by adding ~.E~ or ~.D)~.
+      signatures, and minimize explicit usage of variants (e.g., by adding ~.E~ or ~.D)~.
 
       Here is an example for =insertQuorumCertE=.
 
@@ -591,9 +591,10 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
 insertQuorumCertE = insertQuorumCertE.E  -- Define which variant is used by default,
                                          -- based on frequency and context of usage.
                                          -- In this case, we choose the .E variant because
-                                         -- insertQuorumCertE is called in 
+                                         -- insertQuorumCertM expects insertQuorumCertE
+                                         -- to be Either ErrLog (BlockTree × List InfoLog).
         #+end_src
-      The =E= variant runs the =EitherD= defined by ==step₀== (for =EitherD=, =toEither= is implemented with
+      The =E= variant runs the =EitherD= defined by =step₀= (for =EitherD=, =toEither= is implemented with
       =EitherD-run=).  The =D= variant can be used by other =EitherD= functions.
 
       Note that this third variant (=D=) is not the same as the first (=step₀=), even
