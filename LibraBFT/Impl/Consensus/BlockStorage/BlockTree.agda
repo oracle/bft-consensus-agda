@@ -86,10 +86,13 @@ insertBlockE₀ block bt = fromEither $ insertBlockE block bt
 
 module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
 
-  step₀     : EitherD ErrLog (BlockTree × List InfoLog)
-  step₁     : HashValue → EitherD ErrLog (BlockTree × List InfoLog)
-  step₂     : HashValue → ExecutedBlock → EitherD ErrLog (BlockTree × List InfoLog)
-  step₃     : HashValue → ExecutedBlock → ExecutedBlock → EitherD ErrLog (BlockTree × List InfoLog)
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockTree × List InfoLog)
+
+  step₀     : VariantFor EitherD
+  step₁     : HashValue → VariantFor EitherD
+  step₂     : HashValue → ExecutedBlock → VariantFor EitherD
+  step₃     : HashValue → ExecutedBlock → ExecutedBlock → VariantFor EitherD
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
   continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
   here' : List String.String → List String.String
@@ -132,11 +135,13 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
     then ((bt & btHighestCommitCert ∙~ qc) , info)
     else (bt , info)
 
-insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
-insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
+  E : VariantFor Either
+  E = toEither step₀
 
-insertQuorumCertE-D : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)
-insertQuorumCertE-D qc = fromEither ∘ insertQuorumCertE qc
+  D : VariantFor EitherD
+  D = fromEither E
+
+insertQuorumCertE = insertQuorumCertE.E
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
