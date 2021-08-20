@@ -178,7 +178,6 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
 
-  step₀ : VariantFor EitherD
   continue step₁ : VariantFor EitherD
   continue = step₁
   step₂ : ExecutedBlock → VariantFor EitherD

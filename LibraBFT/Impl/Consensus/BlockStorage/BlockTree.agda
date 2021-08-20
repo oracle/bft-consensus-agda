@@ -83,7 +83,6 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
 
   -- TODO: break into smaller steps to take advantage of the EitherD-weakestpre machinery to prove
   -- the contract.
-  step₀ : VariantFor EitherD
   step₀ = do
     let blockId = block ^∙ ebId
     caseMD btGetBlock blockId bt of λ where
@@ -119,7 +118,6 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × List InfoLog)
 
-  step₀     : VariantFor EitherD
   step₁     : HashValue → VariantFor EitherD
   step₂     : HashValue → ExecutedBlock → VariantFor EitherD
   step₃     : HashValue → ExecutedBlock → ExecutedBlock → VariantFor EitherD
