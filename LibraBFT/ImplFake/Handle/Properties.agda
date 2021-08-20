@@ -32,7 +32,7 @@ open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open        PeerCanSignForPK
 
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.ImplFake.Handle.Properties where
 

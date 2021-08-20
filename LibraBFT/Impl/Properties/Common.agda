@@ -37,7 +37,7 @@ open        PeerCanSignForPK
 open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 
 -- This module contains definitions and lemmas used by proofs of the
 -- implementation obligations for VotesOnce and PreferredRoundRule.

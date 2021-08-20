@@ -18,7 +18,7 @@ open import LibraBFT.Prelude
 import      LibraBFT.Concrete.Properties.PreferredRound FakeInitAndHandlers as PR
 open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
 open import LibraBFT.Concrete.Obligations

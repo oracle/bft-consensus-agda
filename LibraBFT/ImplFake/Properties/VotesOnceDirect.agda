@@ -27,7 +27,7 @@ open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
 -- This module proves the two "VotesOnce" proof obligations for our fake handler. Unlike the
