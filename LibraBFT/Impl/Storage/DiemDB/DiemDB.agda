@@ -18,7 +18,7 @@ open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax
 module LibraBFT.Impl.Storage.DiemDB.DiemDB where
 
 module getEpochEndingLedgerInfos where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ₃ = ℓ} EL
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL =
     DiemDB → Epoch → Epoch
     → EL ErrLog (List LedgerInfoWithSignatures × Bool)
@@ -35,7 +35,7 @@ module getEpochEndingLedgerInfos where
 getEpochEndingLedgerInfos = getEpochEndingLedgerInfos.E
 
 module saveTransactions where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ₃ = ℓ} EL
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL =
     DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
     → EL ErrLog DiemDB
@@ -49,6 +49,7 @@ module saveTransactions where
   D : VariantFor EitherD
   D db = fromEither ∘ E db
 
+saveTransactions = saveTransactions.D
 
 
 

@@ -50,7 +50,7 @@ postulate
 ------------------------------------------------------------------------------
 
 module e_EpochManager_startNewEpoch where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ₃ = ℓ} EL
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL =
     EpochManager → EpochChangeProof
     → EL ErrLog EpochManager
@@ -62,7 +62,7 @@ module e_EpochManager_startNewEpoch where
     else do
       -- LBFT-OBM-DIFF: store all the epoch ending LedgerInfos sent in ECP
       -- (to avoid gaps -- from when a node is not a member).
-      db ← (foldM) (\db l → DiemDB.saveTransactions.D db (just l))
+      db ← (foldM) (\db l → DiemDB.saveTransactions db (just l))
                     (self ^∙ emStorage ∙ msObmDiemDB)
                     (ecp ^∙ ecpLedgerInfoWithSigs)
       pure (self & emStorage ∙ msObmDiemDB ∙~ db)
