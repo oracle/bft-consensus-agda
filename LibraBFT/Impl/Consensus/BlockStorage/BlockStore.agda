@@ -225,7 +225,7 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         step₄ eb
 
   step₄ eb = do
-        (bt' , eb') ← BlockTree.insertBlockE₀ eb (bs0 ^∙ bsInner)
+        (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
   E : VariantFor Either

@@ -129,7 +129,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         contract₄
            with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
         ...| con
-           with BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
+           with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
            λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost

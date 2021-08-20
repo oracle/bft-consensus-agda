@@ -29,13 +29,26 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
 postulate -- TODO-2: implement
   linkableBlockNew : ExecutedBlock → LinkableBlock
-  addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
 
--- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
--- addChild lb hv =
---   if Set.member hv (lb ^∙ lbChildren)
---   then Left  fakeErr
---   else Right (lb & lbChildren %~ Set.insert hv)
+module addChild (lb : LinkableBlock) (hv : HashValue) where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog LinkableBlock
+
+  postulate -- TODO-2: implement
+    step₀ : VariantFor EitherD
+    -- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
+    -- addChild lb hv =
+    --   if Set.member hv (lb ^∙ lbChildren)
+    --   then Left  fakeErr
+    --   else Right (lb & lbChildren %~ Set.insert hv)
+
+  E : VariantFor Either
+  E = toEither step₀
+
+  D : VariantFor EitherD
+  D = fromEither E
+
+addChild = addChild.D
 
 new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
     → Either ErrLog BlockTree
@@ -64,23 +77,40 @@ replaceTimeoutCertM tc = do
 
 ------------------------------------------------------------------------------
 
-insertBlockE : ExecutedBlock → BlockTree
-             → Either ErrLog (BlockTree × ExecutedBlock)
-insertBlockE block bt = do
-  let blockId = block ^∙ ebId
-  case btGetBlock blockId bt of λ where
-    (just existingBlock) → pure (bt , existingBlock)
-    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
-      nothing → Left fakeErr
-      (just parentBlock) → (do
-        parentBlock' ← addChild parentBlock blockId
-        let bt' = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
-        pure (  (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
-             , block))
+module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
 
-insertBlockE₀ : ExecutedBlock → BlockTree
-              → EitherD ErrLog (BlockTree × ExecutedBlock)
-insertBlockE₀ block bt = fromEither $ insertBlockE block bt
+  -- TODO: break into smaller steps to take advantage of the EitherD-weakestpre machinery to prove
+  -- the contract.
+  step₀ : VariantFor EitherD
+  step₀ = do
+    let blockId = block ^∙ ebId
+    caseMD btGetBlock blockId bt of λ where
+      (just existingBlock) → pure (bt , existingBlock)
+      nothing → caseMD btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+        nothing → LeftD fakeErr
+        (just parentBlock) → (do
+          parentBlock' ← addChild parentBlock blockId
+          let bt' = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+          pure (  (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+               , block))
+
+  E : VariantFor Either
+  E = toEither step₀
+
+  D : VariantFor EitherD
+  D = fromEither E
+
+-- We make the EitherD variant the default, because the only call in code
+-- modeled is in EitherD, so it's nice to keep it exactly like the Haskell
+-- code being modeled.  However, insertBlockESpec.Contract and the proof of
+-- executeAndInsertBlockESpec.contract' (which was written before EitherD
+-- support was developed) both want an Either variant, so they use
+-- insertBlockE.E.  This demonstrates the flexibility of the VariantOf
+-- approach, providing variants for any EitherLike, and means to convert
+-- between them easily.
+insertBlockE = insertBlockE.D
 
 ------------------------------------------------------------------------------
 

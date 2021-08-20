@@ -41,7 +41,7 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
   Contract (Right (bt' , b)) = ContractOk bt' b
 
   postulate -- TODO-1: prove, (waiting on: refinement of `ContractOk`)
-    contract : Contract (insertBlockE block bt)
+    contract : Contract (insertBlockE.E block bt)
 
   module _ (bt“ : BlockTree) (b : ExecutedBlock) (con : ContractOk bt“ b) where
 
