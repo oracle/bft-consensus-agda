@@ -545,34 +545,68 @@ eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) 
       =EitherD ErrLog B=, and similarly for the =Either ErrLog= monad.
 
       At the time of writing, the recommended approach is to have different
-      variants for different contexts in which an error-throwing peer handler might be
-      used:
+      variants for different contexts in which an error-throwing peer handler
+      might be used. This process is facilitated and streamlined by the
+      ~EitherLike~ type and friends in ~LibraBFT.Prelude~.
 
-      - write the steps in =EitherD=
-        e.g.,
-        =insertQuorumCertE.step₀ : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)=
-      - use ~toEither~ to create a version of the function in =Either=, which
-        will be used by =LBFT= peer handlers e.g.,
+      Briefly, the idea is to write the steps in =EitherD=, and then create
+      additional variants as needed for any type for which there is an ~EitherLike~
+      instance by using ~toEither~ and ~fromEither~.  By using ~EL-func~ and following
+      a convention of creating multiple variants using ~toEither~ and ~fromEither~
+      and specifying one of them as the default, we can avoid repeating type
+      signatures, and minimize explicit usage of variants (e.g., by adding ~.E~ or ~.D)~.
+
+      Here is an example for =insertQuorumCertE=.
+
         #+begin_src agda
-        insertQuorumCertE : QuorumCert → BlockTree → Either ErrLog (BlockTree × List InfoLog)
-        insertQuorumCertE qc = toEither ∘ insertQuorumCertE.step₀ qc
+module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
+  -- Define the type of insertQuorumCertE for an arbitrary EitherLike (EL)
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockTree × List InfoLog)
+
+  ...
+
+  step₀ = -- A variant in EitherD (inferred from use of toEither to define E below)
+    case safetyInvariant of λ where
+      (Left  e)    → LeftD e
+      (Right unit) → step₁ blockId
+
+  step₁ blockId =
+        maybeSD (btGetBlock blockId bt0) (LeftD fakeErr) $ step₂ blockId 
+
+  step₂ blockId block =
+        maybeSD (bt0 ^∙ btHighestCertifiedBlock) (LeftD fakeErr) $ step₃ blockId block
+
+  step₃ blockId block hcb =
+        ifD ((block ^∙ ebRound) >? (hcb ^∙ ebRound))
+        then
+          ...
+
+  E : VariantFor Either  -- Use toEither to create a variant for Either
+  E = toEither step₀
+
+  D : VariantFor EitherD -- Use fromEither to create another variant for EitherD
+  D = fromEither E
+
+insertQuorumCertE = insertQuorumCertE.E  -- Define which variant is used by default,
+                                         -- based on frequency and context of usage.
+                                         -- In this case, we choose the .E variant because
+                                         -- insertQuorumCertM expects insertQuorumCertE
+                                         -- to be Either ErrLog (BlockTree × List InfoLog).
         #+end_src
-        This runs the =EitherD= (for =EitherD=, =toEither= is implemented with
-        =EitherD-run=).
+      The =E= variant runs the =EitherD= defined by =step₀= (for =EitherD=, =toEither= is implemented with
+      =EitherD-run=).  The =D= variant can be used by other =EitherD= functions.
 
-      - write a variant in =EitherD= again, to be used by other =EitherD=
-        handlers, e.g.
-        #+begin_src agda
-        insertQuorumCertE-D : QuorumCert → BlockTree → EitherD ErrLog (BlockTree × List InfoLog)
-        insertQuorumCertE-D qc = fromEither ∘ insertQuorumCertE qc
-        #+end_src
-      Note that this third version is not the same as the first, even though it
-      has the same type. While =step₀= may have many uses of binds and
-      branching, the closed normal form of =insertQuorumCertE-D= will only ever
-      be an =EitherD-return= or =EitherD-bail=.
+      Note that this third variant (=D=) is not the same as the first (=step₀=), even
+      though it has the same type. While =step₀= may have many uses of binds and
+      branching, the closed normal form of =insertQuorumCertE.D= will only ever be
+      an =EitherD-return= or =EitherD-bail=.
 
+      =insertBlockE= provides another example that is interesting as its variants
+      are used in a more diverse range of contexts; see comment above the definition
+      of ~insertBlockE~ (the function, not the module).
 
-      Another alternative is to define special syntax for =EitherD ErrLog= peer
+      An alternative to this approach would be to define special syntax for =EitherD ErrLog= peer
       handlers that can bind variables from both =Either ErrLog= and =EitherD
       ErrLog= operations. This would look like:
 

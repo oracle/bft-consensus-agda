@@ -33,7 +33,7 @@ open import LibraBFT.Impl.Handle
 open        ParamsWithInitAndHandlers InitAndHandlers
 open        PeerCanSignForPK
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 open RoundManagerInvariants
 open RoundManagerTransProps

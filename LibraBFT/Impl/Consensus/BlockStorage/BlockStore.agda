@@ -35,7 +35,6 @@ build
   → Either ErrLog BlockStore
 
 executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
-executeAndInsertBlockE₀ : BlockStore → Block → EitherD ErrLog (BlockStore × ExecutedBlock)
 
 executeBlockE
   : BlockStore → Block
@@ -176,12 +175,14 @@ executeAndInsertBlockM b = do
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  step₀ : EitherD ErrLog (BlockStore × ExecutedBlock)
-  continue step₁ : EitherD ErrLog (BlockStore × ExecutedBlock)
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
+
+  continue step₁ : VariantFor EitherD
   continue = step₁
-  step₂ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
-  step₃ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
-  step₄ : ExecutedBlock → EitherD ErrLog (BlockStore × ExecutedBlock)
+  step₂ : ExecutedBlock → VariantFor EitherD
+  step₃ : ExecutedBlock → VariantFor EitherD
+  step₄ : ExecutedBlock → VariantFor EitherD
 
   step₀ =
     maybeSD (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
@@ -223,12 +224,16 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         step₄ eb
 
   step₄ eb = do
-        (bt' , eb') ← BlockTree.insertBlockE₀ eb (bs0 ^∙ bsInner)
+        (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
-executeAndInsertBlockE bs block = toEither $ executeAndInsertBlockE.step₀ bs block
+  E : VariantFor Either
+  E = toEither step₀
 
-executeAndInsertBlockE₀ bs block = fromEither $ executeAndInsertBlockE bs block
+  D : VariantFor EitherD
+  D = fromEither E
+
+executeAndInsertBlockE = executeAndInsertBlockE.E
 
 executeBlockE bs block = do
   -- let compute        = bs ^∙ bsStateComputer.scCompute

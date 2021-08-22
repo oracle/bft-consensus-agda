@@ -29,7 +29,7 @@ import      LibraBFT.Concrete.Properties.Common FakeInitAndHandlers as Common
 import      LibraBFT.Concrete.Properties.VotesOnce FakeInitAndHandlers as VO
 open import LibraBFT.ImplShared.Util.HashCollisions FakeInitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 
 -- In this module, we prove the two implementation obligations for the VotesOnce rule.  Note
 -- that it is not yet 100% clear that the obligations are the best definitions to use.  See comments

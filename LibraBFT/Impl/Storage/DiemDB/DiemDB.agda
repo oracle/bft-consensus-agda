@@ -12,15 +12,44 @@ open import Optics.All
 ------------------------------------------------------------------------------
 import      Data.String                                            as String
 
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax
+
 module LibraBFT.Impl.Storage.DiemDB.DiemDB where
 
-postulate
-  getEpochEndingLedgerInfos
-    : DiemDB → Epoch → Epoch
-    → Either ErrLog (List LedgerInfoWithSignatures × Bool)
-  saveTransactions
-    : DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
-    → Either ErrLog DiemDB
+module getEpochEndingLedgerInfos where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL =
+    DiemDB → Epoch → Epoch
+    → EL ErrLog (List LedgerInfoWithSignatures × Bool)
+
+  postulate
+    step₀ : VariantFor EitherD
+
+  E : VariantFor Either
+  E db ep = toEither ∘ step₀ db ep
+
+  D : VariantFor EitherD
+  D db ep = fromEither ∘ E db ep
+
+getEpochEndingLedgerInfos = getEpochEndingLedgerInfos.E
+
+module saveTransactions where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL =
+    DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
+    → EL ErrLog DiemDB
+
+  postulate
+    step₀ : VariantFor EitherD
+
+  E : VariantFor Either
+  E db = toEither ∘ step₀ db
+
+  D : VariantFor EitherD
+  D db = fromEither ∘ E db
+
+saveTransactions = saveTransactions.D
 
 
 

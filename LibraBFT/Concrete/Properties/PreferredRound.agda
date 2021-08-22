@@ -35,7 +35,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
  open import LibraBFT.ImplShared.Util.HashCollisions iiah
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
  open import LibraBFT.Concrete.Properties.Common iiah 𝓔
 
  -- As with VotesOnce, we will have two implementation obligations, one for when v is sent by the

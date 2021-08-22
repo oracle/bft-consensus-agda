@@ -49,19 +49,29 @@ postulate
 
 ------------------------------------------------------------------------------
 
-e_EpochManager_startNewEpoch
-  : EpochManager → EpochChangeProof
-  → Either ErrLog EpochManager
-e_EpochManager_startNewEpoch self ecp =
-  if not ECP-LBFT-OBM-Diff-0.enabled
-  then pure self
-  else do
-    -- LBFT-OBM-DIFF: store all the epoch ending LedgerInfos sent in ECP
-    -- (to avoid gaps -- from when a node is not a member).
-    db ← (foldM) (\db l → DiemDB.saveTransactions db (just l))
-                 (self ^∙ emStorage ∙ msObmDiemDB)
-                 (ecp ^∙ ecpLedgerInfoWithSigs)
-    pure (self & emStorage ∙ msObmDiemDB ∙~ db)
+module e_EpochManager_startNewEpoch where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL =
+    EpochManager → EpochChangeProof
+    → EL ErrLog EpochManager
+
+  step₀ : VariantFor EitherD
+  step₀ self ecp =
+    ifD not ECP-LBFT-OBM-Diff-0.enabled
+    then pure self
+    else do
+      -- LBFT-OBM-DIFF: store all the epoch ending LedgerInfos sent in ECP
+      -- (to avoid gaps -- from when a node is not a member).
+      db ← (foldM) (\db l → DiemDB.saveTransactions db (just l))
+                    (self ^∙ emStorage ∙ msObmDiemDB)
+                    (ecp ^∙ ecpLedgerInfoWithSigs)
+      pure (self & emStorage ∙ msObmDiemDB ∙~ db)
+
+e_EpochManager_startNewEpoch      : e_EpochManager_startNewEpoch.VariantFor Either
+e_EpochManager_startNewEpoch em   = toEither ∘ e_EpochManager_startNewEpoch.step₀ em
+
+e_EpochManager_startNewEpoch-D    : e_EpochManager_startNewEpoch.VariantFor EitherD
+e_EpochManager_startNewEpoch-D em = fromEither ∘ e_EpochManager_startNewEpoch em
 
 ------------------------------------------------------------------------------
 
