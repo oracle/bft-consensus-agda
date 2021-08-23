@@ -75,3 +75,10 @@ saveHighestTimeoutCertificateM
 saveHighestTimeoutCertificateM tc db = do
   logInfo fakeInfo -- ["MockStorage", "saveHighestTimeoutCertificateM", lsTC tc]
   ok (db & msSharedStorage ∙ mssHighestTimeoutCertificate ?~ tc)
+
+retrieveEpochChangeProofE
+  : Version → MockStorage
+  → Either ErrLog EpochChangeProof
+retrieveEpochChangeProofE v db = case Map.lookup v (db ^∙ msSharedStorage ∙ mssLis) of λ where
+  nothing    → Left fakeErr -- ["MockStorage", "retrieveEpochChangeProofE", "not found", show v])
+  (just lis) → pure (EpochChangeProof∙new (lis ∷ []) false)

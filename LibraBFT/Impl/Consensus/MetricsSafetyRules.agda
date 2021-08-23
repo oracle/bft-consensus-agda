@@ -5,7 +5,9 @@
 -}
 
 open import LibraBFT.Base.Types
-import      LibraBFT.Impl.Consensus.TestUtils.MockStorage as MockStorage
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
+import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules as SafetyRules
+import      LibraBFT.Impl.Consensus.TestUtils.MockStorage   as MockStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -17,5 +19,10 @@ import      Data.String                                   as String
 
 module LibraBFT.Impl.Consensus.MetricsSafetyRules where
 
-postulate
-  performInitialize : SafetyRules → PersistentLivenessStorage → Either ErrLog SafetyRules
+performInitialize : SafetyRules → PersistentLivenessStorage → Either ErrLog SafetyRules
+performInitialize self obmPersistentLivenessStorage = do
+  let consensusState = SafetyRules.consensusState self
+      srWaypoint     = consensusState ^∙ csWaypoint
+  proofs            <- MockStorage.retrieveEpochChangeProofE
+                         (srWaypoint ^∙ wVersion) obmPersistentLivenessStorage
+  SafetyRules.initialize self proofs

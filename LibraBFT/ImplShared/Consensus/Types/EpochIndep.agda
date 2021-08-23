@@ -49,6 +49,13 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   Instant : Set
   Instant = ℕ   -- TODO-2: should eventually be a time stamp
 
+  -- TODO-2
+  postulate
+    _≟-PK_ : (pk1 pk2 : PK) → Dec (pk1 ≡ pk2)
+  instance
+    Eq-PK : Eq PK
+    Eq._≟_ Eq-PK = _≟-PK_
+
   -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
   record Version : Set where
     constructor Version∙new
@@ -815,6 +822,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     field
       _wVersion : Version
       _wValue   : HashValue
+  open Waypoint public
+  unquoteDecl wVersion   wValue = mkLens (quote Waypoint)
+             (wVersion ∷ wValue ∷ [])
   postulate instance enc-Waypoint : Encoder Waypoint
 
   record PersistentSafetyStorage : Set where
