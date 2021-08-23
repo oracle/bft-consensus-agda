@@ -21,7 +21,7 @@ ensureHighestQuorumCertM : Round → LBFT (Either ErrLog QuorumCert)
 
 generateNilBlockM : Round → LBFT (Either ErrLog Block)
 generateNilBlockM round =
-  ensureHighestQuorumCertM round ∙?∙ (ok ∙ Block.newNil round)
+  ensureHighestQuorumCertM round ∙?∙ (ok ∘ Block.newNil round)
 
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)
 generateProposalM _now round = do
