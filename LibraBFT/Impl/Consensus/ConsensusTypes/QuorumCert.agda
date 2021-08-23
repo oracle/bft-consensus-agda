@@ -21,8 +21,21 @@ import      Data.String                                     as String
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
 
-postulate -- NOTE: not needed until epoch change is supported
-  certificateForGenesisFromLedgerInfo : LedgerInfo → HashValue → QuorumCert
+certificateForGenesisFromLedgerInfo : LedgerInfo → HashValue → QuorumCert
+certificateForGenesisFromLedgerInfo ledgerInfo genesisId =
+  let ancestor = BlockInfo∙new
+                 (ledgerInfo ^∙ liEpoch + 1)
+                 0
+                 genesisId
+                 (ledgerInfo ^∙ liTransactionAccumulatorHash)
+                 (ledgerInfo ^∙ liVersion)
+               --(ledgerInfo ^∙ liTimestamp)
+                 nothing
+      voteData = VoteData.new ancestor ancestor
+      li       = LedgerInfo∙new ancestor (hashVD voteData)
+   in QuorumCert∙new
+      voteData
+      (LedgerInfoWithSignatures∙new li Map.empty)
 
 verify : QuorumCert → ValidatorVerifier → Either ErrLog Unit
 verify self validator = do
