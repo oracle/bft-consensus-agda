@@ -38,6 +38,10 @@ makeGenesisBlockFromLedgerInfo li = do
   blockData <- BlockData.newGenesisFromLedgerInfo li
   pure (Block∙new (hashBD blockData) blockData nothing)
 
+newNil : Round → QuorumCert → Block
+newNil r qc = Block∙new (hashBD blockData) blockData nothing
+ where blockData = BlockData.newNil r qc
+
 newProposalFromBlockDataAndSignature : BlockData → Signature → Block
 newProposalFromBlockDataAndSignature blockData signature =
   Block∙new (hashBD blockData) blockData (just signature)

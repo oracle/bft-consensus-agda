@@ -46,6 +46,14 @@ newGenesis {-timestamp-} qc = BlockData∙new
   qc
   Genesis
 
+newNil : Round → QuorumCert → BlockData
+newNil r qc = BlockData∙new
+  (qc ^∙ qcCertifiedBlock ∙ biEpoch)
+  r
+--(qc ^∙ qcCertifiedBlock ∙ biTimestamp)
+  qc
+  NilBlock
+
 newProposal : TX → Author → Round → {-Instant →-} QuorumCert → BlockData
 newProposal payload author round {-timestamp-} quorumCert = BlockData∙new
   (quorumCert ^∙ qcCertifiedBlock ∙ biEpoch) round {-timestamp-} quorumCert (Proposal payload author)
