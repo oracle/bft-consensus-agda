@@ -34,7 +34,9 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
     constructor mkContractOk
     field
       block≈ : b [ _≈Block_ ]L block at ebBlock
-      -- TODO-1: the returned block tree is the same as the previous block tree at all values not equal to b ^∙ ebId
+      -- the returned BlockTree is the same as the previous one except for btIdToBlock
+      bt≡x   : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
+      -- TODO-maybe: the BlockTree changes only by inserting at one or two keys.  Needed?
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
   Contract (Left _) = ⊤
@@ -42,18 +44,6 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
 
   postulate -- TODO-1: prove, (waiting on: refinement of `ContractOk`)
     contract : Contract (insertBlockE.E block bt)
-
-  module _ (bt“ : BlockTree) (b : ExecutedBlock) (con : ContractOk bt“ b) where
-
-    postulate -- TODO-1: prove (waiting on: refinement of assumption)
-      preservesBlockStoreInv
-        : ∀ rm → rm ^∙ rmBlockStore ∙ bsInner ≡ bt
-          → Preserves BlockStoreInv rm (rm & rmBlockStore ∙ bsInner ∙~ bt“)
-            ⊎ ⊥ -- NOTE: This disjunct is for when there is a hash collision
-                -- between b ^∙ ebBlock ∙ bBlockData and block ^∙ ebBlock ∙
-                -- bBlockdata
-
-      qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ ebBlock ∙ bQuorumCert) bt bt“
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where

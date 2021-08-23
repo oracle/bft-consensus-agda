@@ -127,6 +127,22 @@ module QCProps where
   ∈Post⇒∈PreOr' : ∀ {A : Set} (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set) (pre post : A) → Set
   ∈Post⇒∈PreOr' _QC∈_ Q pre post = ∀ qc → qc QC∈ post → qc QC∈ pre ⊎ Q qc
 
+  ∈Post⇒∈PreOr'-∙ : ∀ {A B : Set}
+                    → (l : Lens A B)
+                    → (_QC∈B_ : QuorumCert → B → Set)
+                    → (_QC∈A_ : QuorumCert → A → Set)
+                    → (∀ {q st} → q QC∈B (st ^∙ l) → q QC∈A st)
+                    → (∀ {q st} → q QC∈A st → q QC∈B (st ^∙ l))
+                    → (Q : QuorumCert → Set)
+                    → (pre post : A)
+                    → ∈Post⇒∈PreOr' _QC∈B_ Q (pre ^∙ l) (post ^∙ l)
+                    → ∈Post⇒∈PreOr' _QC∈A_ Q pre post
+  ∈Post⇒∈PreOr'-∙ l _QC∈B_ _QC∈A_ prfBA prfAB Q pre post QCB qc qc∈Apost =
+    ⊎-map₁ prfBA (QCB qc (prfAB qc∈Apost))
+
+  ∈Post⇒∈PreOr'-∙-BT-RM : _
+  ∈Post⇒∈PreOr'-∙-BT-RM = ∈Post⇒∈PreOr'-∙ lBlockTree _∈BlockTree_ _∈RoundManager_ id id
+
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
 
@@ -156,15 +172,16 @@ module QCProps where
   ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
 
   ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
-                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → (_QC∈_ : QuorumCert → A → Set)
                       → (_≡Prop_ : A → A → Set)
                       → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
                       → ∀ {pre post}
+                      → (Q : QuorumCert → Set)
                       → pre ≡Prop post
                       → ∈Post⇒∈PreOr' _QC∈_ Q pre post
-  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
+  ∈Post⇒∈PreOr'-subst _ ≡Prop prf _ ≡P q = inj₁ ∘ prf ≡P
 
-  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
+  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_ _≡_ λ where refl → id
 
   ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
                         → (Q : QuorumCert → Set)
@@ -315,21 +332,29 @@ module RoundManagerInvariants where
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  substBlockStoreInv-qcMap
+    : ∀ {rm₁ rm₂}
+      → rm₁ ≡L rm₂ at (lBlockTree ∙ btIdToQuorumCert)
+      → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+      → Preserves BlockStoreInv rm₁ rm₂
+  substBlockStoreInv-qcMap rmbs≡ rmvv≡ (mkBlockTreeInv allValidQCs) =
+    mkBlockTreeInv (help rmbs≡ rmvv≡ allValidQCs)
+    where
+    help
+      : ∀ {rm₁ rm₂}
+        → rm₁ ≡L rm₂ at (lBlockTree ∙ btIdToQuorumCert)
+        → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
+        → ((rmC : RoundManager-correct rm₁) → AllValidQCs (α-EC-RM rm₁ rmC) (rm₁ ^∙ rmBlockStore ∙ bsInner))
+        → ((rmC : RoundManager-correct rm₂) → AllValidQCs (α-EC-RM rm₂ rmC) (rm₂ ^∙ rmBlockStore ∙ bsInner))
+    help refl refl avqs rmc = obm-dangerous-magic' "TODO: waiting on definition of α-EC"
+
   substBlockStoreInv
     : ∀ {rm₁ rm₂}
       → rm₁ ≡L rm₂ at lBlockStore
       → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
       → Preserves BlockStoreInv rm₁ rm₂
-  substBlockStoreInv rmbs≡ rmvv≡ (mkBlockTreeInv allValidQCs) =
-    mkBlockTreeInv (help rmbs≡ rmvv≡ allValidQCs)
-    where
-    help
-      : ∀ {rm₁ rm₂}
-        → rm₁ ≡L rm₂ at lBlockStore
-        → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
-        → ((rmC : RoundManager-correct rm₁) → AllValidQCs (α-EC-RM rm₁ rmC) (rm₁ ^∙ rmBlockStore ∙ bsInner))
-        → ((rmC : RoundManager-correct rm₂) → AllValidQCs (α-EC-RM rm₂ rmC) (rm₂ ^∙ rmBlockStore ∙ bsInner))
-    help refl refl avqs rmc = obm-dangerous-magic' "TODO: waiting on definition of α-EC"
+  substBlockStoreInv rmbs≡ rmvv≡ bti =
+    substBlockStoreInv-qcMap (cong (_^∙ bsInner ∙ btIdToQuorumCert) rmbs≡) rmvv≡ bti
 
   substSigsForVotes∈Rm-SentB4
     : ∀ {pool pre post} → pre ≡L post at rmBlockStore

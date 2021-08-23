@@ -77,10 +77,8 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
                  → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-      -- TODO-2: The fields below should be about blocks, not QCs. The property
-      -- for QCs then follows as a consequence
-      qcPost : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
-               → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+      -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
+      bs≡x : bs0 ≡ (bs' & (bsInner ∙ btIdToBlock) ∙~ (bs0 ^∙ bsInner ∙ btIdToBlock))
 
   Contract : EitherD-Post ErrLog (BlockStore × ExecutedBlock)
   Contract (Left x) = ⊤
@@ -88,7 +86,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   contract' : EitherD-weakestPre step₀ Contract
   proj₂ contract' eb eb≡ =
-    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left)
+    mkContractOk ebBlock≈ (btP bs0) refl
     where
     ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
     ebBlock≈ bid≡ =
@@ -132,7 +130,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost
+           λ where ._ refl → mkContractOk (const ebBlock≈) btP bss≡x
            where
            module IBE = insertBlockESpec.ContractOk con
 
@@ -151,18 +149,15 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
                ∎
              where open ≡-Reasoning
 
-           btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ (bs0 & bsInner ∙~ bt'))
-           btP rm bs≡
-              with insertBlockESpec.preservesBlockStoreInv eb (bs0 ^∙ bsInner)
-                     bt' eb' con rm (cong (_^∙ bsInner) bs≡)
-           ...| Right hashCollision = ⊥-elim hashCollision -- TODO-2: propagate hash collision upward
-           ...| Left pres rewrite bs≡ = pres
+           bts≡x : _
+           bts≡x = IBE.bt≡x
 
-           qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
-           qcPost
-              with insertBlockESpec.qcPost eb (bs0 ^∙ bsInner)
-                     bt' eb' con
-           ...| qcPost' rewrite eb≈ = qcPost'
+           btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ (bs0 & bsInner ∙~ bt'))
+           btP rm preBS≡ = substBlockStoreInv-qcMap (trans (cong (_^∙ bsInner ∙ btIdToQuorumCert) preBS≡)
+                                                           (cong _btIdToQuorumCert bts≡x)) refl
+
+           bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
+           bss≡x rewrite sym bts≡x = refl
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
