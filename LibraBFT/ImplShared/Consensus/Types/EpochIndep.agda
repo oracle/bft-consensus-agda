@@ -125,8 +125,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       --, _biTimestamp       :: Instant
       _biNextEpochState  : Maybe EpochState
   open BlockInfo public
-  unquoteDecl biEpoch   biRound   biId   biExecutedState   biVersion   biNextEpochState = mkLens (quote BlockInfo)
-             (biEpoch ∷ biRound ∷ biId ∷ biExecutedState ∷ biVersion ∷ biNextEpochState ∷ [])
+  unquoteDecl biEpoch   biRound   biId   biExecutedStateId   biVersion   biNextEpochState = mkLens (quote BlockInfo)
+             (biEpoch ∷ biRound ∷ biId ∷ biExecutedStateId ∷ biVersion ∷ biNextEpochState ∷ [])
   postulate instance enc-BlockInfo : Encoder BlockInfo
 
   postulate
@@ -176,8 +176,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   -- GETTER only in Haskell
+  liEpoch : Lens LedgerInfo Epoch
+  liEpoch = liCommitInfo ∙ biEpoch
+
+  -- GETTER only in Haskell
   liConsensusBlockId : Lens LedgerInfo HashValue
   liConsensusBlockId = liCommitInfo ∙ biId
+
+  -- GETTER only in Haskell
+  liTransactionAccumulatorHash : Lens LedgerInfo HashValue
+  liTransactionAccumulatorHash = liCommitInfo ∙ biExecutedStateId
 
   -- GETTER only in Haskell
   liVersion : Lens LedgerInfo Version
