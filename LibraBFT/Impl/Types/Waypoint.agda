@@ -9,5 +9,5 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.Waypoint where
 
-postulate
+postulate -- TODO-1: newEpochBoundary
   newEpochBoundary : LedgerInfo → Either ErrLog Waypoint

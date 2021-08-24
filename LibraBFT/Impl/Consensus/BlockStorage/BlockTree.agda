@@ -27,14 +27,14 @@ import      Data.String as String
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
 
-postulate -- TODO-2: implement
+postulate -- TODO-2: implement linkableBlockNew
   linkableBlockNew : ExecutedBlock → LinkableBlock
 
 module addChild (lb : LinkableBlock) (hv : HashValue) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog LinkableBlock
 
-  postulate -- TODO-2: implement
+  postulate -- TODO-2: implement addChild
     step₀ : VariantFor EitherD
     -- addChild : LinkableBlock → HashValue → Either ErrLog LinkableBlock
     -- addChild lb hv =

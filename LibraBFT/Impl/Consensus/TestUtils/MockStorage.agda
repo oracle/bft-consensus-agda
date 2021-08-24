@@ -16,7 +16,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.TestUtils.MockStorage where
 
-postulate
+postulate -- TODO-1: implement tryState, startForTesting
   tryStart        : MockStorage  → Either ErrLog RecoveryData
   startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
                   → Either ErrLog (RecoveryData × PersistentLivenessStorage)

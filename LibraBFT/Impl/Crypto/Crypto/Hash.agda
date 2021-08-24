@@ -12,5 +12,5 @@ open import Optics.All
 
 module LibraBFT.Impl.Crypto.Crypto.Hash where
 
-postulate
+postulate -- TODO-1: valueZero
   valueZero : HashValue
