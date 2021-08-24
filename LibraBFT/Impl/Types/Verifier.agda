@@ -6,6 +6,8 @@
 
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.PKCS                  hiding (verify)
+import      LibraBFT.Impl.Types.EpochState      as EpochState
+import      LibraBFT.Impl.Types.Waypoint        as Waypoint
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 
@@ -18,16 +20,12 @@ record Verifier (A : Set) : Set where
 
 open Verifier ⦃ ... ⦄ public
 
-postulate -- TODO-1 EpochState∙verify, Waypoint∙verifierVerify
-  EpochState∙verify       : EpochState → LedgerInfoWithSignatures → Either ErrLog Unit
-  Waypoint∙verifierVerify : Waypoint   → LedgerInfoWithSignatures → Either ErrLog Unit
-
 instance
   VerifierEpochState : Verifier EpochState
   VerifierEpochState = record
-    { verify = EpochState∙verify }
+    { verify = EpochState.verify }
 
 instance
   VerifierWaypoint   : Verifier Waypoint
   VerifierWaypoint   = record
-    { verify = Waypoint∙verifierVerify }
+    { verify = Waypoint.verifierVerify }
