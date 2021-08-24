@@ -49,8 +49,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   Instant : Set
   Instant = ℕ   -- TODO-2: should eventually be a time stamp
 
-  -- TODO-2
-  postulate
+  postulate -- TODO-1: implement/prove PK equality
     _≟-PK_ : (pk1 pk2 : PK) → Dec (pk1 ≡ pk2)
   instance
     Eq-PK : Eq PK

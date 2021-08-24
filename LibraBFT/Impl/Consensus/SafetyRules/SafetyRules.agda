@@ -155,11 +155,12 @@ consensusState : SafetyRules → ConsensusState
 consensusState self =
   ConsensusState∙new (self ^∙ srPersistentStorage ∙ pssSafetyData)
                      (self ^∙ srPersistentStorage ∙ pssWaypoint)
-                     true -- TODO
 
 ------------------------------------------------------------------------------
 
 -- ** NOTE: PAY PARTICULAR ATTENTION TO THIS FUNCTION **
+-- ** Because : it is long with lots of branches, so easy to transcribe wrong. **
+-- ** And if initialization is wrong, everything is wrong. **
 initialize : SafetyRules → EpochChangeProof → Either ErrLog SafetyRules
 initialize self proof = do
   let waypoint   = self ^∙ srPersistentStorage ∙ pssWaypoint
@@ -180,10 +181,10 @@ initialize self proof = do
                 epochState)
     else continue1 self epochState
  where
-  here'     : List String.String → List String.String
   continue2 : SafetyRules → EpochState → Either ErrLog SafetyRules
-  continue1 : SafetyRules → EpochState → Either ErrLog SafetyRules
+  here'     : List String.String → List String.String
 
+  continue1 : SafetyRules → EpochState → Either ErrLog SafetyRules
   continue1 self1 epochState =
     continue2 (self1 & srEpochState ?~ epochState) epochState
 
@@ -194,7 +195,7 @@ initialize self proof = do
       λ expectedKey → do
         let currKey = eitherS (signer self2)
                       (const nothing)
-                      (just ∘ ValidatorSigner.publicKey_ONLY_USE_AT_INIT)
+                      (just ∘ ValidatorSigner.publicKey_USE_ONLY_AT_INIT)
         grd‖ currKey == just expectedKey ≔
              Right self2
 

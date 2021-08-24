@@ -35,7 +35,7 @@ findRoot blocks0 quorumCerts0 (LedgerRecoveryData∙new storageLedger) = do
         else
           pure (storageLedger ^∙ liConsensusBlockId , (blocks0 , quorumCerts0))
   let sorter : Block → Block → Ordering
-      sorter = λ bl br → compareX (bl ^∙ bEpoch , bl ^∙ bRound) (br ^∙ bEpoch , br ^∙ bRound)
+      sorter bl br = compareX (bl ^∙ bEpoch , bl ^∙ bRound) (br ^∙ bEpoch , br ^∙ bRound)
       sortedBlocks = sortBy sorter blocks1
   rootIdx          ← maybeS
         (findIndex (λ x → x ^∙ bId == rootId) sortedBlocks)

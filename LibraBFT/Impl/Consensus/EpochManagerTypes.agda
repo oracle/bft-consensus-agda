@@ -64,10 +64,10 @@ record ConsensusState : Set where
   field
     _csSafetyData     : SafetyData
     _csWaypoint       : Waypoint
-    _csInValidatorSet : Bool
+  --_csInValidatorSet : Bool -- LBFT-OBM-DIFF: only used in tests in Rust
 open ConsensusState public
-unquoteDecl csSafetyData   csWaypoint   csInValidatorSet = mkLens (quote ConsensusState)
-           (csSafetyData ∷ csWaypoint ∷ csInValidatorSet ∷ [])
+unquoteDecl csSafetyData   csWaypoint   {-csInValidatorSet-} = mkLens (quote ConsensusState)
+           (csSafetyData ∷ csWaypoint {-∷ csInValidatorSet-} ∷ [])
 
 data SafetyRulesWrapper : Set where
   SRWLocal : SafetyRules → SafetyRulesWrapper
