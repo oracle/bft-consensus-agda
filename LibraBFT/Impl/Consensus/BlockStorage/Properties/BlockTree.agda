@@ -22,7 +22,6 @@ open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
-open RoundManagerInvariants
 open QCProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where

@@ -26,6 +26,7 @@ open import Optics.All
 
 open RoundManagerInvariants
 open RoundManagerTransProps
+open QCProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
@@ -96,7 +97,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
     btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
 
-    qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) rmBlockStore bs0 bs0
+    qcPres : ∀ qc → PreservesL (qc ∈RoundManager_) rmBlockStore bs0 bs0
     qcPres qc rm = id
 
   proj₁ contract' getBlock≡nothing = contract₁
@@ -196,7 +197,7 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        qcPost : QCProps.∈Post⇒∈PreOr (_≡ qc) pre post
+        qcPost : ∈Post⇒∈PreOr (_≡ qc) pre post
 
     postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
