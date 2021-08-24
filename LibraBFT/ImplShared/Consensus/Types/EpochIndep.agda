@@ -64,6 +64,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open Version public
   postulate instance enc-Version : Encoder Version
 
+  postulate -- TODO-1: implement/prove Version equality
+    _≟-Version_ : (v1 v2 : Version) → Dec (v1 ≡ v2)
+  instance
+    Eq-Version : Eq Version
+    Eq._≟_ Eq-Version = _≟-Version_
+
   _≤-Version_ : Version → Version → Set
   v1 ≤-Version v2 = _vVE v1 < _vVE v2
                   ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 ≤ _vVR v2
@@ -114,6 +120,20 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open EpochState public
   unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
              (esEpoch ∷ esVerifier ∷ [])
+
+  record Ledger2WaypointConverter : Set where
+    constructor mkLedger2WaypointConverter
+    field
+      _l2wcEpoch          : Epoch
+      _l2wcRootHash       : HashValue
+      _l2wcVersion        : Version
+    --_l2wcTimestamp      : Instant
+      _l2wcNextEpochState : Maybe EpochState
+  open Ledger2WaypointConverter public
+  unquoteDecl l2wcEpoch   2wcRootHash   2wcVersion
+              {-l2wcTimestamp-} l2wcNextEpochState = mkLens (quote Ledger2WaypointConverter)
+             (l2wcEpoch ∷ 2wcRootHash ∷ 2wcVersion ∷
+              {-l2wcTimestamp-} l2wcNextEpochState ∷ [])
 
   postulate -- one valid assumption, one that can be proved using it
     instance

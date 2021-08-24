@@ -166,6 +166,21 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| inj₂ cis≡
      = inj₂ (LedgerInfo-η cis≡ cdh≡)
 
+  record Ledger2WaypointConverterInjectivityProps (l1 l2 : Ledger2WaypointConverter) : Set where
+    {- TODO-2 : implement Ledger2WaypointConverterInjectivityProps
+    field
+      l2wcInjEpoch          : ?
+      l2wcInjRootHash       : ?
+      l2wcInjVersion        : ?
+      --timestamp
+      l2wcInjNextEpochState : ?
+    -}
+  postulate
+    hashL2WC     : Ledger2WaypointConverter → HashValue
+    hashL2WC-inj : ∀ {l1 l2}
+                 → hashL2WC l1 ≡ hashL2WC l2
+                 → NonInjective-≡ sha256 ⊎ Ledger2WaypointConverterInjectivityProps l1 l2
+
   constructLI : Vote → LedgerInfo
   constructLI v = LedgerInfo∙new (_liCommitInfo (_vLedgerInfo v)) (hashVD (_vVoteData v))
 
