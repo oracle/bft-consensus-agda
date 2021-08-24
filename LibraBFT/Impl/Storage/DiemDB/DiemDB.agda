@@ -23,7 +23,7 @@ module getEpochEndingLedgerInfos where
     DiemDB → Epoch → Epoch
     → EL ErrLog (List LedgerInfoWithSignatures × Bool)
 
-  postulate
+  postulate -- TODO-1: getEpochEndingLedgerInfos
     step₀ : VariantFor EitherD
 
   E : VariantFor Either
@@ -40,7 +40,7 @@ module saveTransactions where
     DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
     → EL ErrLog DiemDB
 
-  postulate
+  postulate -- TODO-1: saveTransactions
     step₀ : VariantFor EitherD
 
   E : VariantFor Either

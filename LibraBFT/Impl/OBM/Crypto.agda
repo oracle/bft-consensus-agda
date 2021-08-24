@@ -14,12 +14,12 @@ module LibraBFT.Impl.OBM.Crypto where
 ------------------------------------------------------------------------------
 -- keys
 
-postulate
+postulate -- TODO-1 : makePK
   makePK : SK → PK
 
 ------------------------------------------------------------------------------
 
-postulate -- TODO-1: implement it
+postulate -- TODO-1: implement obmHashVersion
   obmHashVersion : Version → HashValue
 
 ------------------------------------------------------------------------------

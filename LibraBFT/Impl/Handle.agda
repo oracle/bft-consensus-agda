@@ -61,7 +61,7 @@ initSR =
 initPG : ProposalGenerator
 initPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: Implement this.
+postulate -- TODO-1: Implement initPe, initBS
   initPE : ProposerElection
   initBS : BlockStore
 

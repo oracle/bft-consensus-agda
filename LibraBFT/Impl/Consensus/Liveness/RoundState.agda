@@ -117,7 +117,7 @@ roundIndexAfterCommittedRound currentRound highestCommittedRound =
      ‖ currentRound <?ℕ highestCommittedRound + 3 ≔ 0
      ‖ otherwise≔                                   currentRound ∸ highestCommittedRound ∸ 3
 
-postulate
+postulate -- TODO-1 : _**_, ceiling (for Floats)
   _**_    : Float → Float → Float
   ceiling : Float → U64
 

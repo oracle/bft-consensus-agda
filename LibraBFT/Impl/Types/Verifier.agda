@@ -18,7 +18,7 @@ record Verifier (A : Set) : Set where
 
 open Verifier ⦃ ... ⦄ public
 
-postulate
+postulate -- TODO-1 EpochState∙verify, Waypoint∙verifierVerify
   EpochState∙verify       : EpochState → LedgerInfoWithSignatures → Either ErrLog Unit
   Waypoint∙verifierVerify : Waypoint   → LedgerInfoWithSignatures → Either ErrLog Unit
 

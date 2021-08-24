@@ -80,5 +80,5 @@ getPublicKey self author =
 getVotingPower self author =
   (_^∙ vciVotingPower) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
 
-postulate
+postulate -- TODO-1: from
   from : ValidatorSet → ValidatorVerifier

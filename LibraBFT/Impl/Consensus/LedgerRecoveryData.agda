@@ -16,7 +16,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.LedgerRecoveryData where
 
-postulate -- TODO-2: Implement
+postulate -- TODO-2: compareX, sortBy, findIndex, deleteAt, find
   compareX  : (Epoch × Round) → (Epoch × Round) → Ordering
   sortBy    : (Block → Block → Ordering) → List Block → List Block
   findIndex : (Block → Bool) → List Block → Maybe ℕ

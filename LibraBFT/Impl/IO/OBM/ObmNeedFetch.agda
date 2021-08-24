@@ -12,7 +12,7 @@ module LibraBFT.Impl.IO.OBM.ObmNeedFetch where
 TODO-1 : add comments about this module.
 -}
 
-postulate
+postulate -- TODO-1: writeRequestReadResponseUNSAFE
   writeRequestReadResponseUNSAFE
     : ObmNeedFetch → Author → Author → BlockRetrievalRequest
     → BlockRetrievalResponse

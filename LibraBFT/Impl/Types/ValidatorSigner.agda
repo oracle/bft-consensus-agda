@@ -14,5 +14,5 @@ module LibraBFT.Impl.Types.ValidatorSigner where
 sign : {C : Set} ⦃ enc : Encoder C ⦄ → ValidatorSigner → C → Signature
 sign (ValidatorSigner∙new _ sk) c = PKCS.sign-encodable c sk
 
-postulate
+postulate -- TODO-1: publicKey_USE_ONLY_AT_INIT
   publicKey_USE_ONLY_AT_INIT : ValidatorSigner → PK

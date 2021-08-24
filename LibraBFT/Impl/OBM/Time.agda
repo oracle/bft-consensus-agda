@@ -10,6 +10,6 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 
 module LibraBFT.Impl.OBM.Time where
 
-postulate
+postulate -- TODO-1 : iPlus, timeT
   iPlus : Instant → Duration → Instant
   timeT : Instant
