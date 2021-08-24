@@ -24,7 +24,7 @@ U128 = ℕ
 Usize : Set
 Usize = ℕ
 
-postulate
+postulate -- TODO-1: VecDeque, vdNew
   VecDeque : Set
   vdNew : VecDeque
 

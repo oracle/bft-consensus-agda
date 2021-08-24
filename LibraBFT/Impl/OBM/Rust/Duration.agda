@@ -11,6 +11,6 @@ module LibraBFT.Impl.OBM.Rust.Duration where
 record Duration : Set where
   constructor Duration∙new
 
-postulate
+postulate -- TODO-1 : fromMillis, asMillis
   fromMillis : U64 → Duration
   asMillis   : Duration → U128

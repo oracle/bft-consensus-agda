@@ -42,7 +42,7 @@ e_RoundState_processLocalTimeoutM e r =
 
 ------------------------------------------------------------------------------
 
-postulate
+postulate -- TODO-1: e_EpochManager_doECP_waitForRlec
  e_EpochManager_doECP_waitForRlec
   : EpochManager → EpochChangeProof
   → Either ErrLog Bool
@@ -75,14 +75,14 @@ e_EpochManager_startNewEpoch-D em = fromEither ∘ e_EpochManager_startNewEpoch 
 
 ------------------------------------------------------------------------------
 
-postulate
+postulate -- TODO-1: e_EpochManager_checkEpc
  e_EpochManager_checkEpc
   : EpochManager → EpochChangeProof
   → Either ErrLog Unit
 
 ------------------------------------------------------------------------------
 
-postulate
+postulate -- TODO-1: e_EpochManager_processMessage_ISyncInfo
  e_EpochManager_processMessage_ISyncInfo
   : EpochManager → SyncInfo
   → Either ErrLog Unit

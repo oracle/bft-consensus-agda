@@ -13,7 +13,7 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.EpochChangeProof where
 
-postulate
+postulate -- TODO-1: verify
   verify
    : {verifier : Set} ⦃ _ : Verifier.Verifier verifier ⦄
    → EpochChangeProof → verifier
