@@ -6,8 +6,9 @@
 
 open import LibraBFT.Base.Encode                             as Encode
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.ConsensusTypes.BlockData as BlockData
-open import LibraBFT.Impl.Types.BlockInfo                    as BlockInfo
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Block     as Block
+import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockData as BlockData
+import      LibraBFT.Impl.Types.BlockInfo                    as BlockInfo
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
@@ -18,8 +19,9 @@ module LibraBFT.Impl.Consensus.Liveness.ProposalGenerator where
 
 ensureHighestQuorumCertM : Round → LBFT (Either ErrLog QuorumCert)
 
-postulate -- TODO-1: Implement
-  generateNilBlockM : Round → LBFT (Either ErrLog Block)
+generateNilBlockM : Round → LBFT (Either ErrLog Block)
+generateNilBlockM round =
+  ensureHighestQuorumCertM round ∙?∙ (ok ∘ Block.newNil round)
 
 generateProposalM : Instant → Round → LBFT (Either ErrLog BlockData)
 generateProposalM _now round = do

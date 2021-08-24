@@ -49,6 +49,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   Instant : Set
   Instant = ℕ   -- TODO-2: should eventually be a time stamp
 
+  postulate -- TODO-1: implement/prove PK equality
+    _≟-PK_ : (pk1 pk2 : PK) → Dec (pk1 ≡ pk2)
+  instance
+    Eq-PK : Eq PK
+    Eq._≟_ Eq-PK = _≟-PK_
+
   -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
   record Version : Set where
     constructor Version∙new
@@ -125,8 +131,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       --, _biTimestamp       :: Instant
       _biNextEpochState  : Maybe EpochState
   open BlockInfo public
-  unquoteDecl biEpoch   biRound   biId   biExecutedState   biVersion   biNextEpochState = mkLens (quote BlockInfo)
-             (biEpoch ∷ biRound ∷ biId ∷ biExecutedState ∷ biVersion ∷ biNextEpochState ∷ [])
+  unquoteDecl biEpoch   biRound   biId   biExecutedStateId   biVersion   biNextEpochState = mkLens (quote BlockInfo)
+             (biEpoch ∷ biRound ∷ biId ∷ biExecutedStateId ∷ biVersion ∷ biNextEpochState ∷ [])
   postulate instance enc-BlockInfo : Encoder BlockInfo
 
   postulate
@@ -176,8 +182,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   -- GETTER only in Haskell
+  liEpoch : Lens LedgerInfo Epoch
+  liEpoch = liCommitInfo ∙ biEpoch
+
+  -- GETTER only in Haskell
   liConsensusBlockId : Lens LedgerInfo HashValue
   liConsensusBlockId = liCommitInfo ∙ biId
+
+  -- GETTER only in Haskell
+  liTransactionAccumulatorHash : Lens LedgerInfo HashValue
+  liTransactionAccumulatorHash = liCommitInfo ∙ biExecutedStateId
 
   -- GETTER only in Haskell
   liVersion : Lens LedgerInfo Version
@@ -807,6 +821,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     field
       _wVersion : Version
       _wValue   : HashValue
+  open Waypoint public
+  unquoteDecl wVersion   wValue = mkLens (quote Waypoint)
+             (wVersion ∷ wValue ∷ [])
   postulate instance enc-Waypoint : Encoder Waypoint
 
   record PersistentSafetyStorage : Set where

@@ -11,8 +11,19 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Crypto where
 
+------------------------------------------------------------------------------
+-- keys
+
+postulate
+  makePK : SK → PK
+
+------------------------------------------------------------------------------
+
 postulate -- TODO-1: implement it
   obmHashVersion : Version → HashValue
+
+------------------------------------------------------------------------------
+-- sign and verify
 
 record CryptoHash (A : Set) : Set where
   field
