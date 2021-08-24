@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -34,6 +35,12 @@ verify self ledgerInfo = do
   lcheck (self ^∙ wValue == Crypto.hashL2WC converter)
          ("Waypoint" ∷ "value mismatch" ∷ []) --show (self^.wValue), show (Crypto.hashL2WC converter)]
   pure unit
+
+epochChangeVerificationRequired : Waypoint → Epoch → Bool
+epochChangeVerificationRequired _self _epoch = true
+
+isLedgerInfoStale : Waypoint → LedgerInfo → Bool
+isLedgerInfoStale self ledgerInfo = ⌊ (ledgerInfo ^∙ liVersion) <?-Version (self ^∙ wVersion) ⌋
 
 verifierVerify : Waypoint → LedgerInfoWithSignatures → Either ErrLog Unit
 verifierVerify self liws = verify self (liws ^∙ liwsLedgerInfo)

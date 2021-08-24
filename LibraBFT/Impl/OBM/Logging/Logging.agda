@@ -46,3 +46,9 @@ lcheck : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String.Stri
 lcheck b t = case check (toBool b) t of λ where
   (Left  e) → Left  fakeErr -- (ErrL [e])
   (Right r) → Right r
+
+lcheckInfo : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String.String → Either ErrLog Unit
+
+lcheckInfo b t = case check (toBool b) t of λ where
+  (Left  _) → Left (ErrInfo fakeInfo {-InfoL [e]-})
+  (Right r) → Right r

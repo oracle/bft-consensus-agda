@@ -88,6 +88,24 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
                                  ; (inj₂ (_ , x)) → rgt x })
 
+  _<-Version_ : Version → Version → Set
+  v1 <-Version v2 = _vVE v1 < _vVE v2
+                  ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 < _vVR v2
+
+  _<?-Version_ : (v1 v2 : Version) → Dec (v1 <-Version v2)
+  v1 <?-Version v2
+     with _vVE v1 <? _vVE v2
+  ...| yes prf = yes (inj₁ prf)
+  ...| no  ege
+     with _vVE v1 ≟ _vVE v2
+  ...| no  rneq = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (x , _)) → rneq x })
+  ...| yes refl
+     with _vVR v1 <? _vVR v2
+  ...| yes rleq = yes (inj₂ (refl , rleq))
+  ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (_ , x)) → rgt x })
+
   -----------------
   -- Information --
   -----------------
