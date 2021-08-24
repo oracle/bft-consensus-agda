@@ -26,16 +26,16 @@ postulate -- TODO-2: Implement
 findRoot : List Block → List QuorumCert → LedgerRecoveryData
          → Either ErrLog (RootInfo × List Block × List QuorumCert)
 findRoot blocks0 quorumCerts0 (LedgerRecoveryData∙new storageLedger) = do
-  let (rootId , (blocks1 , quorumCerts)) =
+  (rootId , (blocks1 , quorumCerts)) ←
         if storageLedger ^∙ liEndsEpoch
-        then
-          (let genesis   = Block.makeGenesisBlockFromLedgerInfo storageLedger
-               genesisQC = QuorumCert.certificateForGenesisFromLedgerInfo storageLedger (genesis ^∙ bId)
-           in (genesis ^∙ bId , (genesis ∷ blocks0 , genesisQC ∷ quorumCerts0)))
+        then (do
+          genesis       ← Block.makeGenesisBlockFromLedgerInfo storageLedger
+          let genesisQC = QuorumCert.certificateForGenesisFromLedgerInfo storageLedger (genesis ^∙ bId)
+          pure (genesis ^∙ bId , (genesis ∷ blocks0 , genesisQC ∷ quorumCerts0)))
         else
-           (storageLedger ^∙ liConsensusBlockId , (blocks0 , quorumCerts0))
-      sorter : Block → Block → Ordering
-      sorter = λ bl br → compareX (bl ^∙ bEpoch , bl ^∙ bRound) (br ^∙ bEpoch , br ^∙ bRound)
+          pure (storageLedger ^∙ liConsensusBlockId , (blocks0 , quorumCerts0))
+  let sorter : Block → Block → Ordering
+      sorter bl br = compareX (bl ^∙ bEpoch , bl ^∙ bRound) (br ^∙ bEpoch , br ^∙ bRound)
       sortedBlocks = sortBy sorter blocks1
   rootIdx          ← maybeS
         (findIndex (λ x → x ^∙ bId == rootId) sortedBlocks)

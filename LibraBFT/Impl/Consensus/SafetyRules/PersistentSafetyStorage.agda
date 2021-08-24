@@ -6,25 +6,13 @@
 
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
-import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
-import      LibraBFT.Impl.OBM.Crypto                          as Crypto
+import      LibraBFT.Impl.OBM.Crypto            as TODO
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
-open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
-import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+import      Data.String                         as String
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage where
@@ -39,3 +27,14 @@ new author waypoint sk = mkPersistentSafetyStorage
      {-, _pssAuthor    =-} author
      {-, _pssWaypoint  =-} waypoint
      {-, _pssObmSK     =-} (just sk)
+
+consensusKeyForVersion : PersistentSafetyStorage → PK → Either ErrLog SK
+consensusKeyForVersion self pk =
+  -- LBFT-OBM-DIFF
+  maybeS (self ^∙ pssObmSK) (Left fakeErr {-"pssObmSK Nothing"-}) $ λ sk →
+    if TODO.makePK sk /= pk
+    then Left fakeErr -- ["sk /= pk"]
+    else pure sk
+ where
+  here' : List String.String → List String.String
+  here' t = "PersistentSafetyStorage" ∷ "consensusKeyForVersion" ∷ t
