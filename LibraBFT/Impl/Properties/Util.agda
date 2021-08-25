@@ -328,27 +328,27 @@ module Invariants where
   Preserves : ∀ {ℓ} {A : Set} → (P : A → Set ℓ) (pre post : A) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
-  PreservesL : ∀ {ℓ} {A : Set}
-               → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
-               → (a₁ a₂ : A) → Set ℓ
-  PreservesL Pred l a₁ a₂ = ∀ rm → Preserves Pred (rm & l ∙~ a₁) (rm & l ∙~ a₂)
+  PreservesL : ∀ {ℓ} {A B : Set}
+               → (P : A → Set ℓ) (l : Lens A B)
+               → (b₁ b₂ : B) → Set ℓ
+  PreservesL Pred l b₁ b₂ = ∀ a → Preserves Pred (a & l ∙~ b₁) (a & l ∙~ b₂)
 
-  reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
+  reflPreserves : ∀ {ℓ} {A : Set} (P : A → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
   reflPreservesRoundManagerInv : Reflexive (Preserves RoundManagerInv)
   reflPreservesRoundManagerInv = reflPreserves RoundManagerInv
 
-  transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
+  transPreserves : ∀ {ℓ} {A : Set} (P : A → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
-  transPreservesL : ∀ {ℓ} {A : Set}
-                  → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
-                  → {a₁ a₂ a₃ : A}
-                  → PreservesL P l a₁ a₂
-                  → PreservesL P l a₂ a₃
-                  → PreservesL P l a₁ a₃
-  transPreservesL Pred l p₁ p₂ rm = transPreserves Pred (p₁ rm) (p₂ rm)
+  transPreservesL : ∀ {ℓ} {A B : Set}
+                  → (P : A → Set ℓ) (l : Lens A B)
+                  → {b₁ b₂ b₃ : B}
+                  → PreservesL P l b₁ b₂
+                  → PreservesL P l b₂ b₃
+                  → PreservesL P l b₁ b₃
+  transPreservesL Pred l p₁ p₂ a = transPreserves Pred (p₁ a) (p₂ a)
 
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
