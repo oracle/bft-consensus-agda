@@ -56,7 +56,7 @@ module insertQuorumCertMSpec
       postulate -- TODO-2: Prove
         contract' : LBFT-weakestPre (step₁ bs) (Contract pre) pre
 
-      contract : ∀ Q → RWST-Post-⇒ (Contract pre) Q → LBFT-weakestPre (step₁ bs) Q pre
+      contract : ∀ Q → RWS-Post-⇒ (Contract pre) Q → LBFT-weakestPre (step₁ bs) Q pre
       contract Q pf = LBFT-⇒ (Contract pre) Q pf (step₁ bs) pre contract'
 
 
@@ -70,14 +70,14 @@ module insertQuorumCertMSpec
       where
       Post₁ : LBFT-Post (Either ErrLog Unit)
       Post₁ =
-        (RWST-weakestPre-∙^∙Post unit (withErrCtx $ "" ∷ [])
-          (RWST-weakestPre-ebindPost unit (λ _ → use lBlockStore >>= (λ _ → logInfo fakeInfo) >> ok unit)
-            (RWST-weakestPre-bindPost unit (λ _ → step₁ bs) (Contract pre))))
+        (RWS-weakestPre-∙^∙Post unit (withErrCtx $ "" ∷ [])
+          (RWS-weakestPre-ebindPost unit (λ _ → use lBlockStore >>= (λ _ → logInfo fakeInfo) >> ok unit)
+            (RWS-weakestPre-bindPost unit (λ _ → step₁ bs) (Contract pre))))
 
       module _ (r₁ : Either ErrLog Unit) (st₁ : RoundManager) (outs₁ : List Output) (con₁ : insertSingleQuorumCertMSpec.Contract qc pre r₁ st₁ outs₁) where
         module ISQC = insertSingleQuorumCertMSpec.Contract con₁
 
-        contract₁' : ∀ outs' → NoMsgs outs' → RWST-Post-⇒ (Contract st₁) (RWST-Post++ (Contract pre) outs')
+        contract₁' : ∀ outs' → NoMsgs outs' → RWS-Post-⇒ (Contract st₁) (RWS-Post++ (Contract pre) outs')
         contract₁' outs' noMsgs r₂ st₂ outs₂ con₂ =
           mkContract
             (transPreservesRoundManagerInv ISQC.rmInv Step₁.rmInv)
@@ -98,13 +98,13 @@ module insertQuorumCertMSpec
           ...| Right qc≡ = Right qc≡
           ...| Left qc∈pre = Left qc∈pre
 
-      contract₁ : RWST-Post-⇒ (insertSingleQuorumCertMSpec.Contract qc pre) Post₁
+      contract₁ : RWS-Post-⇒ (insertSingleQuorumCertMSpec.Contract qc pre) Post₁
       contract₁ (Left _) st₁ outs₁ con₁ ._ refl ._ refl =
-        step₁Spec.contract bs pool st₁ (RWST-Post++ (Contract pre) (outs₁ ++ []))
+        step₁Spec.contract bs pool st₁ (RWS-Post++ (Contract pre) (outs₁ ++ []))
           (contract₁' _ _ _ con₁ (outs₁ ++ [])
             (++-NoMsgs outs₁ [] (insertSingleQuorumCertMSpec.Contract.noMsgOuts con₁) refl))
       contract₁ (Right y) st₁ outs₁ con₁ ._ refl ._ refl ._ refl ._ refl ._ refl =
-        step₁Spec.contract bs pool st₁ (RWST-Post++ (Contract pre) ((outs₁ ++ []) ++ LogInfo fakeInfo ∷ []))
+        step₁Spec.contract bs pool st₁ (RWS-Post++ (Contract pre) ((outs₁ ++ []) ++ LogInfo fakeInfo ∷ []))
           (contract₁' _ _ _ con₁ ((outs₁ ++ []) ++ LogInfo fakeInfo ∷ [])
             (++-NoMsgs (outs₁ ++ []) (LogInfo fakeInfo ∷ [])
               (++-NoMsgs outs₁ [] (insertSingleQuorumCertMSpec.Contract.noMsgOuts con₁) refl)
@@ -134,5 +134,5 @@ module addCertsMSpec
     postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (addCertsM syncInfo retriever) Contract pre
 
-    contract : ∀ Q → RWST-Post-⇒ Contract Q → LBFT-weakestPre (addCertsM syncInfo retriever) Q pre
+    contract : ∀ Q → RWS-Post-⇒ Contract Q → LBFT-weakestPre (addCertsM syncInfo retriever) Q pre
     contract Q pf = LBFT-⇒ Contract Q pf (addCertsM syncInfo retriever) pre contract'
