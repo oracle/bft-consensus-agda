@@ -23,22 +23,6 @@ module LibraBFT.Impl.Consensus.EpochManagerTypes where
 ------------------------------------------------------------------------------
 -- from LBFT.Consensus.Types
 
-record OnChainConfigPayload : Set where
-  constructor OnChainConfigPayload∙new
-  field
-    _occpEpoch           : Epoch
-    _occpObmValidatorSet : ValidatorSet
-open OnChainConfigPayload public
-unquoteDecl occpEpoch   occpObmValidatorSet = mkLens (quote OnChainConfigPayload)
-           (occpEpoch ∷ occpObmValidatorSet ∷ [])
--- instance S.Serialize OnChainConfigPayload
-
-record ReconfigEventEpochChange : Set where
-  constructor ReconfigEventEpochChange∙new
-  field
-    _reecOnChainConfigPayload : OnChainConfigPayload
--- instance S.Serialize ReconfigEventEpochChange
-
 record EpochChangeProof : Set where
   constructor EpochChangeProof∙new
   field

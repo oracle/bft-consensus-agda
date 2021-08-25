@@ -272,6 +272,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   liwsVersion : Lens LedgerInfoWithSignatures Version
   liwsVersion = liwsLedgerInfo ∙ liVersion
 
+  -- GETTER only in Haskell
+  liwsNextEpochState : Lens LedgerInfoWithSignatures (Maybe EpochState)
+  liwsNextEpochState = liwsLedgerInfo ∙ liNextEpochState
+
   -------------------
   -- Votes and QCs --
   -------------------
@@ -796,11 +800,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl scrObmNumLeaves   scrEpochState = mkLens (quote StateComputeResult)
              (scrObmNumLeaves ∷ scrEpochState ∷ [])
 
-  -- Note: this is a placeholder.
-  -- We are not concerned for now with executing transactions, just ordering/committing them.
-  postulate
-    stateComputeResult : StateComputeResult
-
   record ExecutedBlock : Set where
     constructor ExecutedBlock∙new
     field
@@ -1103,15 +1102,53 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   PersistentLivenessStorage = MockStorage
 
+  record OnChainConfigPayload : Set where
+    constructor OnChainConfigPayload∙new
+    field
+      _occpEpoch           : Epoch
+      _occpObmValidatorSet : ValidatorSet
+  open OnChainConfigPayload public
+  unquoteDecl occpEpoch   occpObmValidatorSet = mkLens (quote OnChainConfigPayload)
+             (occpEpoch ∷ occpObmValidatorSet ∷ [])
+  -- instance S.Serialize OnChainConfigPayload
+
+  record ReconfigEventEpochChange : Set where
+    constructor ReconfigEventEpochChange∙new
+    field
+      _reecOnChainConfigPayload : OnChainConfigPayload
+  -- instance S.Serialize ReconfigEventEpochChange
+
+  -- IMPL-DIFF : Haskell StateComputer has pluggable functions.
+  -- The Agda version just calls them directly
+  record StateComputer : Set where
+    constructor StateComputer∙new
+    field
+      _scObmVersion : Version
+  open StateComputer public
+  unquoteDecl scObmVersion = mkLens (quote StateComputer)
+             (scObmVersion ∷ [])
+
+  StateComputerComputeType
+    = StateComputer → Block → HashValue
+    → Either (List String) StateComputeResult
+
+  StateComputerCommitType
+    = StateComputer → DiemDB → ExecutedBlock → LedgerInfoWithSignatures
+    → Either (List String) (StateComputer × DiemDB × Maybe ReconfigEventEpochChange)
+
+  StateComputerSyncToType
+    = LedgerInfoWithSignatures
+    → Either (List String) ReconfigEventEpochChange
+
   record BlockStore : Set where
     constructor BlockStore∙new
     field
       _bsInner         : BlockTree
-      -- bsStateComputer : StateComputer
+      _bsStateComputer : StateComputer
       _bsStorage       : PersistentLivenessStorage
   open BlockStore public
-  unquoteDecl bsInner   bsStorage = mkLens (quote BlockStore)
-             (bsInner ∷ bsStorage ∷ [])
+  unquoteDecl bsInner   bsStateComputer   bsStorage = mkLens (quote BlockStore)
+             (bsInner ∷ bsStateComputer ∷ bsStorage ∷ [])
 
   -- getter only in Haskell
   bsRoot : Lens BlockStore (Maybe ExecutedBlock)

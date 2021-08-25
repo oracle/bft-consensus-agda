@@ -77,6 +77,19 @@ module LibraBFT.Base.ByteString where
   bs-concat : List ByteString -> BitString
   bs-concat = concat ∘ List-map toBitString-pad
 
+  ------------------------------------------------------------------------------
+  -- operations
+
+  -- TODO-1: these are prefixed with "BS∙" because they conflict with the
+  -- versions in List that are imported via Prelude.
+  -- It is possible to rename the List versions when importing them
+  -- but that will make a big diff of the following proofs that
+  -- should (IF renaming is done) in a separate PR.
+  postulate -- to prove these operations
+    BS∙drop       : ℕ → ByteString → ByteString
+    BS∙isPrefixOf : ByteString → ByteString → Bool
+    BS∙length     : ByteString → ℕ
+
   -----------------------
   -- Injectivity Proof --
   -----------------------
