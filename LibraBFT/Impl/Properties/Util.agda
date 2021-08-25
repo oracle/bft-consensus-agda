@@ -129,6 +129,22 @@ module QCProps where
   ∈Post⇒∈PreOr' : ∀ {A : Set} (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set) (pre post : A) → Set
   ∈Post⇒∈PreOr' _QC∈_ Q pre post = ∀ qc → qc QC∈ post → qc QC∈ pre ⊎ Q qc
 
+  ∈Post⇒∈PreOr'-∙ : ∀ {A B : Set}
+                    → (l : Lens A B)
+                    → (_QC∈B_ : QuorumCert → B → Set)
+                    → (_QC∈A_ : QuorumCert → A → Set)
+                    → (∀ {q st} → q QC∈B (st ^∙ l) → q QC∈A st)
+                    → (∀ {q st} → q QC∈A st → q QC∈B (st ^∙ l))
+                    → (Q : QuorumCert → Set)
+                    → (pre post : A)
+                    → ∈Post⇒∈PreOr' _QC∈B_ Q (pre ^∙ l) (post ^∙ l)
+                    → ∈Post⇒∈PreOr' _QC∈A_ Q pre post
+  ∈Post⇒∈PreOr'-∙ l _QC∈B_ _QC∈A_ prfBA prfAB Q pre post QCB qc qc∈Apost =
+    ⊎-map₁ prfBA (QCB qc (prfAB qc∈Apost))
+
+  ∈Post⇒∈PreOr'-∙-BT-RM : _
+  ∈Post⇒∈PreOr'-∙-BT-RM = ∈Post⇒∈PreOr'-∙ lBlockTree _∈BlockTree_ _∈RoundManager_ id id
+
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
 
@@ -158,15 +174,16 @@ module QCProps where
   ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
 
   ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
-                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
+                      → (_QC∈_ : QuorumCert → A → Set)
                       → (_≡Prop_ : A → A → Set)
                       → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
                       → ∀ {pre post}
+                      → (Q : QuorumCert → Set)
                       → pre ≡Prop post
                       → ∈Post⇒∈PreOr' _QC∈_ Q pre post
-  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
+  ∈Post⇒∈PreOr'-subst _ ≡Prop prf _ ≡P q = inj₁ ∘ prf ≡P
 
-  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
+  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_ _≡_ λ where refl → id
 
   ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
                         → (Q : QuorumCert → Set)
@@ -255,6 +272,15 @@ module Invariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
+  ValidBlock : HashValue → ExecutedBlock → Set
+  ValidBlock bid eb = eb ^∙ ebBlock ∙ bId ≡ bid
+                    × hashBD (eb ^∙ ebBlock ∙ bBlockData) ≡ bid
+
+  AllValidBlocks : BlockTree → Set
+  AllValidBlocks bt = ∀ {bid eb}
+                    → btGetBlock bid bt ≡ just eb
+                    → ValidBlock bid eb
+
   record ECinfo : Set where
     constructor mkECinfo
     field
@@ -264,6 +290,9 @@ module Invariants where
 
   rm→ECinfo : RoundManager → ECinfo
   rm→ECinfo rm = mkECinfo (rm ^∙ rmEpochState ∙ esVerifier) (rm ^∙ rmEpoch)
+
+  -- TODO: Maybe refactor into a module with one ECinfo?
+
   module _ (A : Set) where
     record WithECinfo : Set where
       constructor mkWithECinfo
@@ -291,6 +320,7 @@ module Invariants where
       constructor mkBlockTreeInv
       field
         allValidQCs    : (vvC : ValidatorVerifier-correct $ vv) → AllValidQCs (α-EC-VV (vv , vvC) ep) bt
+        allValidBlocks : AllValidBlocks bt
     open BlockTreeInv
 
   module _ (bsEC : BlockStore-EC) where
@@ -342,31 +372,35 @@ module Invariants where
   Preserves : ∀ {ℓ} {A : Set} → (P : A → Set ℓ) (pre post : A) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
-  PreservesL : ∀ {ℓ} {A : Set}
-               → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
-               → (a₁ a₂ : A) → Set ℓ
-  PreservesL Pred l a₁ a₂ = ∀ rm → Preserves Pred (rm & l ∙~ a₁) (rm & l ∙~ a₂)
+  PreservesL : ∀ {ℓ} {A B : Set}
+               → (P : A → Set ℓ) (l : Lens A B)
+               → (b₁ b₂ : B) → Set ℓ
+  PreservesL Pred l b₁ b₂ = ∀ a → Preserves Pred (a & l ∙~ b₁) (a & l ∙~ b₂)
 
-  reflPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Reflexive (Preserves P)
+  reflPreserves : ∀ {ℓ} {A : Set} (P : A → Set ℓ) → Reflexive (Preserves P)
   reflPreserves Pred = id
 
   reflPreservesRoundManagerInv : Reflexive (Preserves RoundManagerInv)
   reflPreservesRoundManagerInv = reflPreserves RoundManagerInv
 
-  transPreserves : ∀ {ℓ} (P : RoundManager → Set ℓ) → Transitive (Preserves P)
+  transPreserves : ∀ {ℓ} {A : Set} (P : A → Set ℓ) → Transitive (Preserves P)
   transPreserves Pred p₁ p₂ = p₂ ∘ p₁
 
-  transPreservesL : ∀ {ℓ} {A : Set}
-                  → (P : RoundManager → Set ℓ) (l : Lens RoundManager A)
-                  → {a₁ a₂ a₃ : A}
-                  → PreservesL P l a₁ a₂
-                  → PreservesL P l a₂ a₃
-                  → PreservesL P l a₁ a₃
-  transPreservesL Pred l p₁ p₂ rm = transPreserves Pred (p₁ rm) (p₂ rm)
+  transPreservesL : ∀ {ℓ} {A B : Set}
+                  → (P : A → Set ℓ) (l : Lens A B)
+                  → {b₁ b₂ b₃ : B}
+                  → PreservesL P l b₁ b₂
+                  → PreservesL P l b₂ b₃
+                  → PreservesL P l b₁ b₃
+  transPreservesL Pred l p₁ p₂ a = transPreserves Pred (p₁ a) (p₂ a)
 
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  BSInv⇒BTInv-pres : ∀ {eci} {pre post : BlockStore}
+                   → Preserves BlockStoreInv (mkWithECinfo pre eci) (mkWithECinfo post eci)
+                   → Preserves BlockTreeInv (mkWithECinfo (pre ^∙ bsInner) eci) (mkWithECinfo (post ^∙ bsInner) eci)
+  BSInv⇒BTInv-pres presBS btiPre = BlockStoreInv.blockTreeValid (presBS $ mkBlockStoreInv btiPre)
 
   mkPreservesSafetyRulesInv
     : ∀ {pre post}

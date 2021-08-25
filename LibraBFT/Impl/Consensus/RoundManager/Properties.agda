@@ -46,6 +46,8 @@ module executeAndVoteMSpec (b : Block) where
   open SafetyRulesProps
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
 
+  isbQc = (_≡ b ^∙ bQuorumCert)
+
   VoteResultCorrect : (pre post : RoundManager) (lvr≡? : Bool) (r : Either ErrLog Vote) → Set
   VoteResultCorrect pre post lvr≡? (Left _) =
     VoteNotGenerated pre post lvr≡? ⊎ Voting.VoteGeneratedUnsavedCorrect pre post b
@@ -53,6 +55,8 @@ module executeAndVoteMSpec (b : Block) where
     Voting.VoteGeneratedCorrect pre post vote b
 
   module _ (pre : RoundManager) where
+
+    open QCProps
 
     record Contract (r : Either ErrLog Vote) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -66,7 +70,7 @@ module executeAndVoteMSpec (b : Block) where
         voteResultCorrect : hashBD (b ^∙ bBlockData) ≡ b ^∙ bId
                             → VoteResultCorrect pre post lvr≡? r
         -- QCs
-        qcPost : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre post
+        qcPost : ∈Post⇒∈PreOr isbQc pre post
 
     contract' :
       LBFT-weakestPre (executeAndVoteM b) Contract pre
@@ -89,7 +93,7 @@ module executeAndVoteMSpec (b : Block) where
         vrc : VoteResultCorrect pre pre true (Left e)
         vrc = inj₁ reflVoteNotGenerated
 
-        qcPost : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre pre
+        qcPost : ∈Post⇒∈PreOr isbQc pre pre
         qcPost qc = Left
 
       module EAIBM = executeAndInsertBlockMSpec b
@@ -105,17 +109,22 @@ module executeAndVoteMSpec (b : Block) where
 
         -- State invariants
         module _  where
-          bsP : Preserves BlockStoreInv pre pre₁
-          bsP = EAIBECon.bsInv pre refl
+          btP : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC pre₁)
+          btP bti = BSInv⇒BTInv-pres EAIBECon.bsInv bti
 
-          srP : Preserves SafetyRulesInv pre pre₁
-          srP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
+          srP : Preserves SafetyRulesInv (pre ^∙ lSafetyRules) (pre₁ ^∙ lSafetyRules)
+          srP = mkPreservesSafetyRulesInv id
 
         invP₁ : Preserves RoundManagerInv pre pre₁
-        invP₁ = mkPreservesRoundManagerInv id id bsP srP
+        invP₁ = mkPreservesRoundManagerInv id id btP srP
 
-        qcPost₁ : QCProps.∈Post⇒∈PreOr (_≡ b ^∙ bQuorumCert) pre pre₁
-        qcPost₁ = EAIBECon.qcPost
+        qcPost-BT : _
+        qcPost-BT = ∈Post⇒∈PreOrBT-QCs≡ isbQc
+                                        (cong (_^∙ bsInner ∙ btHighestCommitCert) EAIBECon.bs≡x)
+                                        (cong (_^∙ bsInner ∙ btHighestQuorumCert) EAIBECon.bs≡x)
+
+        qcPost₁ : ∈Post⇒∈PreOr isbQc pre pre₁
+        qcPost₁ = ∈Post⇒∈PreOr'-∙-BT-RM isbQc pre pre₁ qcPost-BT
 
         -- For the case any of the checks in `step₁` fails
         contractBail₁ : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) pre₁ outs
@@ -370,16 +379,15 @@ module processProposalMSpec (proposal : Block) where
 
                 -- state invariants
                 module _ where
-                  postulate -- TODO-1: prove (waiting on: `α-RM`)
-                    bsP : Preserves BlockStoreInv st stUpdateRS
-                 -- bsP = id
+                  bsP : Preserves BlockStoreInv (rm→BlockStore-EC st) (rm→BlockStore-EC stUpdateRS)
+                  bsP = id
 
-                  srP : Preserves SafetyRulesInv st stUpdateRS
-                  srP = mkPreservesSafetyRulesInv (substSafetyDataInv refl)
+                  srP : Preserves SafetyRulesInv (st ^∙ lSafetyRules) (stUpdateRS ^∙ lSafetyRules)
+                  srP = mkPreservesSafetyRulesInv id
 
                   rmInv₃ : Preserves RoundManagerInv pre stUpdateRS
                   rmInv₃ = transPreservesRoundManagerInv rmInv₂
-                           (mkPreservesRoundManagerInv id id bsP srP)
+                           (mkPreservesRoundManagerInv id id (BSInv⇒BTInv-pres bsP) srP)
 
     contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
     contract Post pf = LBFT-⇒ Contract Post pf (processProposalM proposal) pre contract'
