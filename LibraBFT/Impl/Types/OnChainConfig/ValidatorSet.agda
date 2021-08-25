@@ -18,3 +18,6 @@ new = ValidatorSet∙new ConsensusScheme∙new
 
 empty : ValidatorSet
 empty = new []
+
+postulate -- TODO-1 obmFromVV
+  obmFromVV : ValidatorVerifier → ValidatorSet

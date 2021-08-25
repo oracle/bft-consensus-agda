@@ -4,9 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.ByteString
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 
 module LibraBFT.Impl.OBM.ConfigHardCoded where
+
+postulate -- TODO-1 ePOCHCHANGE
+  ePOCHCHANGE : ByteString
+--ePOCHCHANGE = "EPOCHCHANGE"
 
 roundInitialTimeoutMS : U64
 roundInitialTimeoutMS = 3000

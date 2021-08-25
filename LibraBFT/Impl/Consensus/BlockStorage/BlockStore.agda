@@ -10,9 +10,10 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree       as BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
-open import LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage    as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.StateComputerByteString      as SCBS
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
@@ -22,7 +23,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                          as String
+open import Data.String                                          as String using (String)
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 
@@ -31,7 +32,7 @@ module LibraBFT.Impl.Consensus.BlockStorage.BlockStore where
 build
   : RootInfo      → RootMetadata
   → List Block    → List QuorumCert           → Maybe TimeoutCertificate
-  → {-StateComputer →-} PersistentLivenessStorage → Usize
+  → StateComputer → PersistentLivenessStorage → Usize
   → Either ErrLog BlockStore
 
 executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
@@ -61,20 +62,20 @@ pathFromRootM
 ------------------------------------------------------------------------------
 
 new
-  : PersistentLivenessStorage → RecoveryData {-→ StateComputer a-} → Usize
+  : PersistentLivenessStorage → RecoveryData → StateComputer → Usize
   → Either ErrLog BlockStore
-new storage initialData {-stateComputer-} maxPrunedBlocksInMem =
+new storage initialData stateComputer maxPrunedBlocksInMem =
   build (initialData ^∙ rdRoot)
         (initialData ^∙ rdRootMetadata)
         (initialData ^∙ rdBlocks)
         (initialData ^∙ rdQuorumCerts)
         (initialData ^∙ rdHighestTimeoutCertificate)
-        --stateComputer
+        stateComputer
         storage
         maxPrunedBlocksInMem
 
 build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
-           {-stateComputer-} storage maxPrunedBlocksInMem = do
+           stateComputer storage maxPrunedBlocksInMem = do
   let (RootInfo∙new rootBlock rootQc rootLi) = root
       {- LBFT-OBM-DIFF : OBM does not implement RootMetadata
         assert_eq!(
@@ -86,10 +87,10 @@ build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
       -}
       executedRootBlock = ExecutedBlock∙new
                             rootBlock
-                            stateComputeResult -- (StateComputeResult (stateComputer ^∙ scObmVersion) Nothing)
+                            (StateComputeResult∙new (stateComputer ^∙ scObmVersion) nothing)
   tree ← BlockTree.new executedRootBlock rootQc rootLi maxPrunedBlocksInMem highestTimeoutCert
   bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE bs b)
-                 (BlockStore∙new tree {-stateComputer-} storage)
+                 (BlockStore∙new tree stateComputer storage)
                  blocks
   (foldM) go bs1 quorumCerts
  where
@@ -141,11 +142,11 @@ rebuildM root rootMetadata blocks quorumCerts = do
   case build
          root rootMetadata blocks quorumCerts
          (self0 ^∙ bsHighestTimeoutCert)
-         --(self0 ^∙ bsStateComputer) -- the agda code does not have a state computer (yet?)
+         (self0 ^∙ bsStateComputer)
          (self0 ^∙ bsStorage)
          (self0 ^∙ bsInner ∙ btMaxPrunedBlocksInMem) of λ where
     (Left  e)    → bail e
-    (Right (BlockStore∙new inner _)) → do
+    (Right (BlockStore∙new inner _ _)) → do
       toRemove ← BlockTree.getAllBlockIdM
       PersistentLivenessStorage.pruneTreeM toRemove ∙?∙  λ _ → do
        lRoundManager ∙ rmBlockStore ∙ bsInner ∙= inner
@@ -236,10 +237,12 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
 executeAndInsertBlockE = executeAndInsertBlockE.E
 
 executeBlockE bs block = do
-  -- let compute        = bs ^∙ bsStateComputer.scCompute
-  -- StateComputer may update its internal state and/or throw and exception.
-  -- stateComputeResult ← compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId)
-  pure (ExecutedBlock∙new block stateComputeResult)
+  case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
+    (Left e)                   → Left fakeErr -- (here' e)
+    (Right stateComputeResult) → pure (ExecutedBlock∙new block stateComputeResult)
+ where
+  here' : List String → List String
+  here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
 executeBlockE₀ bs block = fromEither $ executeBlockE bs block
 

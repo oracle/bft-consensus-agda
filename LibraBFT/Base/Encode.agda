@@ -6,6 +6,8 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Prelude
+------------------------------------------------------------------------------
+open import Data.String using (String)
 
 module LibraBFT.Base.Encode where
 
@@ -33,3 +35,6 @@ module LibraBFT.Base.Encode where
    encFin : {n : ℕ} → Encoder (Fin n)
    encFin {n} = record { encode     = encode ⦃ encℕ ⦄ ∘ toℕ ;
                          encode-inj = toℕ-injective ∘ encode-inj ⦃ encℕ ⦄ }
+
+ postulate -- TODO-2 decoder
+   decode : ∀ {A : Set} → ByteString → Either String A
