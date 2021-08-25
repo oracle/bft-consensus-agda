@@ -23,4 +23,4 @@ module saveVoteMSpec (vote : Vote) where
         → (∀ outs → NoMsgs outs → NoErrors outs → P (inj₁ fakeErr) pre outs)
         → (∀ outs → NoMsgs outs → NoErrors outs
            → P (inj₂ unit) pre outs)
-        → RWST-weakestPre (saveVoteM vote) P unit pre
+        → RWS-weakestPre (saveVoteM vote) P unit pre
