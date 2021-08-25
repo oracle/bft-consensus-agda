@@ -30,7 +30,7 @@ module isValidProposalMSpec (b : Block) where
       → (Maybe-Any (getValidProposer (pe pre) round ≡_) mAuthor
          → Post (Right unit) pre [])
       → LBFT-weakestPre (isValidProposalM b) Post pre
-  -- 1. `isValidProposalM` begins with `RWST-maybe`, so we must provide two cases:
+  -- 1. `isValidProposalM` begins with `RWS-maybe`, so we must provide two cases:
   --    one where `b ^∙ bAuthor` is `nothing` and one where it is `just`
   --    something
   -- 2. When it is nothing, we appeal to the assumed proof

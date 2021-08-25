@@ -61,7 +61,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       epvvSpec.contract pre Post-epvv contract-step₁
       where
       Post-epvv : LBFT-Post (Epoch × ValidatorVerifier)
-      Post-epvv = RWST-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) Contract
+      Post-epvv = RWS-weakestPre-bindPost unit (λ where (myEpoch , vv) → step₁ myEpoch vv) Contract
 
       myEpoch = pre ^∙ pssSafetyData-rm ∙ sdEpoch
       vv      = pre ^∙ rmEpochState ∙ esVerifier
@@ -101,7 +101,7 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
            with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = proj₂ con
 
-        pf : RWST-Post-⇒ (PPM.Contract pre) Contract
+        pf : RWS-Post-⇒ (PPM.Contract pre) Contract
         pf unit st outs con =
           mkContract PPMSpec.rmInv PPMSpec.noEpochChange
             vac PPMSpec.outQcs∈RM PPMSpec.qcPost

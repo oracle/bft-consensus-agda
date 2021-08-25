@@ -76,8 +76,8 @@ module executeAndVoteMSpec (b : Block) where
         contract₁
       where
       Post₀ : LBFT-Post (Either ErrLog ExecutedBlock)
-      Post₀ = RWST-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
-                (RWST-weakestPre-ebindPost unit step₁ Contract)
+      Post₀ = RWS-weakestPre-∙^∙Post unit (withErrCtx ("" ∷ []))
+                (RWS-weakestPre-ebindPost unit step₁ Contract)
 
       contractBail : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) pre outs
       contractBail{e} outs noMsgOuts =
@@ -136,11 +136,11 @@ module executeAndVoteMSpec (b : Block) where
           proposedBlock = CASV.proposedBlock maybeSignedVoteProposal'
 
           Post₂ : LBFT-Post (Either ErrLog Vote)
-          Post₂ = RWST-weakestPre-ebindPost unit step₃ Contract
+          Post₂ = RWS-weakestPre-ebindPost unit step₃ Contract
 
-          contract₂ : RWST-weakestPre (step₂ eb) Contract unit pre₁
+          contract₂ : RWS-weakestPre (step₂ eb) Contract unit pre₁
 
-          contract₂⇒ : RWST-Post-⇒ (CASV.Contract pre₁ proposedBlock) Post₂
+          contract₂⇒ : RWS-Post-⇒ (CASV.Contract pre₁ proposedBlock) Post₂
           contract₂⇒ r pre₃ outs con = contract₂⇒-help r CASVCon.voteResCorrect
             where
             module CASVCon = CASV.Contract con
@@ -153,21 +153,21 @@ module executeAndVoteMSpec (b : Block) where
 
             contract₂⇒-help :
               (r : Either ErrLog Vote) (vrc : CASV.VoteResultCorrect pre₁ pre₃ proposedBlock CASVCon.lvr≡? r)
-              → RWST-weakestPre-ebindPost unit step₃ Contract r pre₃ outs
+              → RWS-weakestPre-ebindPost unit step₃ Contract r pre₃ outs
             contract₂⇒-help (Left _) vrc =
               mkContract invP₂ CASVCon.noEpochChange CASVCon.noMsgOuts
                 CASVCon.lvr≡? (const ∘ Left $ (transVoteNotGenerated (mkVoteNotGenerated refl refl) vrc))
                 qcPost₂
             contract₂⇒-help (Right vote) vrc ._ refl = contract₃
               where
-              contract₃ : RWST-weakestPre (step₃ vote) (RWST-Post++ Contract CASVouts) unit pre₃
+              contract₃ : RWS-weakestPre (step₃ vote) (RWS-Post++ Contract CASVouts) unit pre₃
               contract₃ =
                 PersistentLivenessStorageProps.saveVoteMSpec.contract vote
                   Post₃ pre₃
                   contractBail₃ contractOk₃
                 where
                 Post₃ : LBFT-Post (Either ErrLog Unit)
-                Post₃ = RWST-weakestPre-ebindPost unit (const $ ok vote) (RWST-Post++ Contract CASVouts)
+                Post₃ = RWS-weakestPre-ebindPost unit (const $ ok vote) (RWS-Post++ Contract CASVouts)
 
                 vgc₃ : hashBD (b ^∙ bBlockData) ≡ b ^∙ bId
                        → Voting.VoteGeneratedCorrect pre pre₃ vote b {- proposedBlock -}
@@ -200,7 +200,7 @@ module executeAndVoteMSpec (b : Block) where
         → (∀ r st outs → Contract r st outs → Post r st outs)
         → LBFT-weakestPre (executeAndVoteM b) Post pre
     contract Post pf =
-      RWST-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
+      RWS-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
 
 module processProposalMSpec (proposal : Block) where
 
@@ -227,7 +227,7 @@ module processProposalMSpec (proposal : Block) where
     contract' : LBFT-weakestPre (processProposalM proposal) Contract pre
     contract' ._ refl =
       isValidProposalMSpec.contract proposal pre
-        (RWST-weakestPre-bindPost unit (step₁ (pre ^∙ lBlockStore)) Contract)
+        (RWS-weakestPre-bindPost unit (step₁ (pre ^∙ lBlockStore)) Contract)
         (λ where
           mAuthor≡nothing ._ refl → (λ _ → contractBail refl) , (λ where ()))
         (λ where
@@ -258,14 +258,14 @@ module processProposalMSpec (proposal : Block) where
           qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
           qcPost qc = Left
 
-      contract-step₂ : RWST-weakestPre (executeAndVoteM proposal >>= step₂) Contract unit pre
+      contract-step₂ : RWS-weakestPre (executeAndVoteM proposal >>= step₂) Contract unit pre
       contract-step₂ =
         executeAndVoteMSpec.contract proposal pre
-          (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
+          (RWS-weakestPre-bindPost unit step₂ Contract) pf-step₂
         where
         module EAV = executeAndVoteMSpec proposal
 
-        pf-step₂ : RWST-Post-⇒ (EAV.Contract pre) (RWST-weakestPre-bindPost unit step₂ Contract)
+        pf-step₂ : RWS-Post-⇒ (EAV.Contract pre) (RWS-weakestPre-bindPost unit step₂ Contract)
         pf-step₂ r st outs con = pf r EAVSpec.voteResultCorrect
           where
           module EAVSpec = executeAndVoteMSpec.Contract con
@@ -273,7 +273,7 @@ module processProposalMSpec (proposal : Block) where
 
           pf : (r : Either ErrLog Vote) (vrc : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
                                                → EAV.VoteResultCorrect pre st EAVSpec.lvr≡? r)
-               → RWST-weakestPre-bindPost unit step₂ Contract r st outs
+               → RWS-weakestPre-bindPost unit step₂ Contract r st outs
           pf (Left _) vrc ._ refl =
             mkContract rmInv₂ EAVSpec.noEpochChange
               noProposals
@@ -297,7 +297,7 @@ module processProposalMSpec (proposal : Block) where
 
           pf (Right vote) vrc ._ refl ._ refl ._ refl =
             syncInfoMSpec.contract (st & rsVoteSent-rm ?~ vote)
-              (RWST-weakestPre-bindPost unit (step₃ vote) (RWST-Post++ Contract outs))
+              (RWS-weakestPre-bindPost unit (step₃ vote) (RWS-Post++ Contract outs))
               contract-step₃
             where
             stUpdateRS = st & rsVoteSent-rm ?~ vote
@@ -309,7 +309,7 @@ module processProposalMSpec (proposal : Block) where
                             (st ^∙ lBlockStore ∙ bsHighestCommitCert)
                             (st ^∙ lBlockStore ∙ bsHighestTimeoutCert))
               where
-              contract-step₃ : RWST-weakestPre (step₃ vote si) (RWST-Post++ Contract outs) unit stUpdateRS
+              contract-step₃ : RWS-weakestPre (step₃ vote si) (RWS-Post++ Contract outs) unit stUpdateRS
               contract-step₃ ._ refl ._ refl ._ refl ._ refl recipient@._ refl =
                 mkContract rmInv₃
                   (transNoEpochChange{i = pre}{j = st}{k = stUpdateRS} EAVSpec.noEpochChange refl)
@@ -381,7 +381,7 @@ module processProposalMSpec (proposal : Block) where
                   rmInv₃ = transPreservesRoundManagerInv rmInv₂
                            (mkPreservesRoundManagerInv id id bsP srP)
 
-    contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
+    contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
     contract Post pf = LBFT-⇒ Contract Post pf (processProposalM proposal) pre contract'
 
 module syncUpMSpec
@@ -409,12 +409,12 @@ module syncUpMSpec
     contract' : LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Contract pre
     contract' =
       BlockStoreProps.syncInfoMSpec.contract pre
-        (RWST-weakestPre-bindPost unit step₁ Contract)
+        (RWS-weakestPre-bindPost unit step₁ Contract)
         contract₁
       where
       localSyncInfo = BlockStoreProps.syncInfoMSpec.syncInfo pre
 
-      contract₁ : RWST-weakestPre-bindPost unit step₁ Contract (BlockStoreProps.syncInfoMSpec.syncInfo pre) pre []
+      contract₁ : RWS-weakestPre-bindPost unit step₁ Contract (BlockStoreProps.syncInfoMSpec.syncInfo pre) pre []
       proj₂ (contract₁ localSyncInfo lsi≡) hnc≡false =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre}) refl
           (reflVoteNotGenerated{pre})
@@ -430,10 +430,10 @@ module syncUpMSpec
           contract₃
         where
         Post₁ : LBFT-Post (Either ErrLog Unit)
-        Post₁ = (RWST-weakestPre-∙^∙Post unit (withErrCtx (here' []))
-                  (RWST-weakestPre-ebindPost unit (λ _ → step₃ localSyncInfo vv) Contract))
+        Post₁ = (RWS-weakestPre-∙^∙Post unit (withErrCtx (here' []))
+                  (RWS-weakestPre-ebindPost unit (λ _ → step₃ localSyncInfo vv) Contract))
 
-        contract₃ : RWST-Post-⇒ (verifyMSpec.Contract syncInfo vv pre) Post₁
+        contract₃ : RWS-Post-⇒ (verifyMSpec.Contract syncInfo vv pre) Post₁
         contract₃ r st outs con ._ refl
            with VSpec.noStateChange
            where module VSpec = verifyMSpec.Contract con
@@ -457,13 +457,13 @@ module syncUpMSpec
                  Post₃ contract₄
            where
            Post₃ : LBFT-Post (Either ErrLog Unit)
-           Post₃ = (RWST-weakestPre-∙^∙Post unit (withErrCtx (here' []))
-                     (RWST-weakestPre-ebindPost unit (λ _ → step₄ localSyncInfo vv)
-                       (RWST-Post++ Contract (outs₃ ++ []))))
+           Post₃ = (RWS-weakestPre-∙^∙Post unit (withErrCtx (here' []))
+                     (RWS-weakestPre-ebindPost unit (λ _ → step₄ localSyncInfo vv)
+                       (RWS-Post++ Contract (outs₃ ++ []))))
 
            retriever = BlockRetriever∙new now author
 
-           contract₄ : RWST-Post-⇒ (addCertsMSpec.Contract syncInfo retriever st₃) Post₃
+           contract₄ : RWS-Post-⇒ (addCertsMSpec.Contract syncInfo retriever st₃) Post₃
            contract₄ (Left  _) st₄ outs₄ con₄ ._ refl =
              mkContract AC.rmInv AC.noEpochChange noVotes₄ AC.noVote noOutQcs AC.qcPost
              where
@@ -489,7 +489,7 @@ module syncUpMSpec
              obm-dangerous-magic' "TODO: waiting on contract for `processCertificatesM`"
 
     contract
-      : ∀ Post → RWST-Post-⇒ Contract Post
+      : ∀ Post → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Post pre
     contract Post pf =
       LBFT-⇒ Contract Post pf (syncUpM now syncInfo author _helpRemote) pre
@@ -535,7 +535,7 @@ module ensureRoundAndSyncUpMSpec
       contract-step₁ : LBFT-weakestPre step₁ Contract pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pre Post contract-step₁'
         where
-        Post = RWST-weakestPre-ebindPost unit (const step₂) Contract
+        Post = RWS-weakestPre-ebindPost unit (const step₂) Contract
 
         contract-step₁' : _
         contract-step₁' (Left  _   ) st outs con =
@@ -561,7 +561,7 @@ module ensureRoundAndSyncUpMSpec
             mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
               noOutQcs SU.qcPost
 
-    contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
+    contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =
       LBFT-⇒ Contract Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract'
 
@@ -608,17 +608,17 @@ module processProposalMsgMSpec
       proj₂ contract = contract-step₁
         where
         module _ (pAuthor : Author) (pAuthor≡ : pm ^∙ pmProposer ≡ just pAuthor) where
-          pf-step₂ : RWST-Post-⇒ _ (RWST-weakestPre-bindPost unit step₂ Contract)
+          pf-step₂ : RWS-Post-⇒ _ (RWS-weakestPre-bindPost unit step₂ Contract)
 
           contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
           contract-step₁ =
             ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
-              (RWST-weakestPre-bindPost unit step₂ Contract) pf-step₂
+              (RWS-weakestPre-bindPost unit step₂ Contract) pf-step₂
 
           pf-step₂ r st outs con = pf-step₂' r
             where
             module ERASU = ensureRoundAndSyncUpMSpec.Contract con
-            contractBailAfterSync : ∀ outs' → OutputProps.NoMsgs outs' → RWST-Post++ Contract outs unit st outs'
+            contractBailAfterSync : ∀ outs' → OutputProps.NoMsgs outs' → RWS-Post++ Contract outs unit st outs'
             contractBailAfterSync outs' noMsgs' =
               mkContract ERASU.rmInv ERASU.noEpochChange (const vac) outqcs qcPost
               where
@@ -639,15 +639,15 @@ module processProposalMsgMSpec
               ... | Left qc∈pre = Left qc∈pre
               ... | Right qc∈si = Right (inSI inP qc∈si)
 
-            pf-step₂' : (r : Either ErrLog Bool) → RWST-weakestPre-bindPost unit step₂ Contract r st outs
+            pf-step₂' : (r : Either ErrLog Bool) → RWS-weakestPre-bindPost unit step₂ Contract r st outs
             pf-step₂' (Left e) ._ refl =
               contractBailAfterSync _ refl
             pf-step₂' (Right false) ._ refl ._ refl =
               contractBailAfterSync _ refl
             pf-step₂' (Right true) ._ refl =
-              processProposalMSpec.contract (pm ^∙ pmProposal) st (RWST-Post++ Contract outs) pf-step₃
+              processProposalMSpec.contract (pm ^∙ pmProposal) st (RWS-Post++ Contract outs) pf-step₃
               where
-              pf-step₃ : RWST-Post-⇒ _ (RWST-Post++ Contract outs)
+              pf-step₃ : RWS-Post-⇒ _ (RWS-Post++ Contract outs)
               pf-step₃ unit st' outs' con =
                 mkContract
                   (transPreservesRoundManagerInv ERASU.rmInv (PP.rmInv con))
@@ -676,6 +676,6 @@ module processProposalMsgMSpec
                 ... | Right qc∈si = Right (inSI inP qc∈si)
                 ... | Left qc∈pre = Left qc∈pre
 
-    contract : ∀ Post → RWST-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
+    contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =
       LBFT-⇒ Contract Post pf (processProposalMsgM now pm) pre contract'

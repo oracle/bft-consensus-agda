@@ -206,7 +206,7 @@ module insertSingleQuorumCertMSpec
     postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
 
-    contract : ∀ Q → RWST-Post-⇒ Contract Q → LBFT-weakestPre (insertSingleQuorumCertM qc) Q pre
+    contract : ∀ Q → RWS-Post-⇒ Contract Q → LBFT-weakestPre (insertSingleQuorumCertM qc) Q pre
     contract Q pf = LBFT-⇒ Contract Q pf (insertSingleQuorumCertM qc) pre contract'
 
 module syncInfoMSpec where
