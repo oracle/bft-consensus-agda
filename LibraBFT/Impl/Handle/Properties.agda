@@ -35,7 +35,7 @@ open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 
 module LibraBFT.Impl.Handle.Properties where

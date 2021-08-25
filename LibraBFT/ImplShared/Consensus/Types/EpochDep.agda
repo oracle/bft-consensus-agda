@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
+open import LibraBFT.Base.Types
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap                            as Map
@@ -43,41 +44,21 @@ ValidatorVerifier-correct vv =
       bizF       = numAuthors ∸ qsize
    in suc (3 * bizF) ≤ numAuthors
 
-RoundManager-correct : RoundManager → Set
-RoundManager-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
-
-RoundManager-correct-≡ : (rmec1 : RoundManager)
-                           → (rmec2 : RoundManager)
-                           → (rmec1 ^∙ rmEpochState ∙ esVerifier) ≡ (rmec2 ^∙ rmEpochState ∙ esVerifier)
-                           → RoundManager-correct rmec1
-                           → RoundManager-correct rmec2
-RoundManager-correct-≡ rmec1 rmec2 refl = id
-
 -- Given a well-formed set of definitions that defines an EpochConfig,
 -- α-EC will compute this EpochConfig by abstracting away the unecessary
 -- pieces from RoundManager.
 -- TODO-2: update and complete when definitions are updated to more recent version
-α-EC : Σ RoundManager RoundManager-correct → EpochConfig
-α-EC (rmec , ok) =
-  let numAuthors = kvm-size (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-      qsize      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+
+α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
+α-EC-VV (vv , ok) epoch =
+  let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
+      qsize      = vv ^∙ vvQuorumVotingPower
       bizF       = numAuthors ∸ qsize
    in (EpochConfig∙new {! someHash?!}
-              (rmec ^∙ rmEpoch) numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+              epoch numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
-postulate
-  α-EC-≡ : (rmec1  : RoundManager)
-         → (rmec2  : RoundManager)
-         → (vals≡  : rmec1 ^∙ rmEpochState ∙ esVerifier ≡ rmec2 ^∙ rmEpochState ∙ esVerifier)
-         →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
-         → (rmec1-corr : RoundManager-correct rmec1)
-         → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManager-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
-{-
-α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
--}
-
-α-EC-RM : (rm : RoundManager) → RoundManager-correct rm → EpochConfig
-α-EC-RM rm rmc = α-EC (rm , rmc)
+α-EC-RM : (rm : RoundManager) → ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer) → EpochConfig
+α-EC-RM rm vvc = α-EC-VV (rm ^∙ rmValidatorVerifer , vvc) (rm ^∙ rmEpoch)
 
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
   init-EC : GenesisInfo → EpochConfig

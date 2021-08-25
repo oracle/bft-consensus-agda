@@ -174,6 +174,10 @@ module LibraBFT.ImplShared.Consensus.Types where
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
+  -- not defined in Haskell, only used for proofs
+  rmValidatorVerifer : Lens RoundManager ValidatorVerifier
+  rmValidatorVerifer = rmEpochState ∙ esVerifier
+
   -- getter only in Haskell
   rmRound : Lens RoundManager Round
   rmRound = rmRoundState ∙ rsCurrentRound

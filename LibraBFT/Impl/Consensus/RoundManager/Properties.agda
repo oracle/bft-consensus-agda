@@ -32,7 +32,7 @@ open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
 open OutputProps
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 
 -- This module contains properties that are only about the behavior of the handlers, nothing to do

@@ -31,11 +31,13 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 module LibraBFT.Impl.Properties.Util where
 
 module Meta where
-  getLastVoteEpoch : RoundManager → Epoch
-  getLastVoteEpoch rm = maybe{B = const Epoch} (_^∙ vEpoch) (rm ^∙ pssSafetyData-rm ∙ sdEpoch) ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote) $ rm
+  getLastVoteEpoch : SafetyData → Epoch
+  getLastVoteEpoch sd = (maybe{B = const Epoch} (_^∙ vEpoch) (sd ^∙ sdEpoch)) ∘ (_^∙ sdLastVote) $ sd
+  -- getLastVoteEpoch rm = (maybe{B = const Epoch} (_^∙ vEpoch) (rm ^∙ pssSafetyData-rm ∙ sdEpoch)) ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote) $ rm
 
-  getLastVoteRound : RoundManager → Round
-  getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote)
+  getLastVoteRound : SafetyData → Round
+  getLastVoteRound = (maybe{B = const Round} (_^∙ vRound) 0) ∘ (_^∙ sdLastVote)
+  -- getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote)
 
 module OutputProps where
   module _ (outs : List Output) where
@@ -155,17 +157,6 @@ module QCProps where
                       → ∈Post⇒∈PreOr' _QC∈_ Q pre pre
   ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
 
-  ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
-                      → (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set)
-                      → (_≡Prop_ : A → A → Set)
-                      → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
-                      → ∀ {pre post}
-                      → pre ≡Prop post
-                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
-  ∈Post⇒∈PreOr'-subst _ _ ≡Prop prf ≡P q = inj₁ ∘ prf ≡P
-
-  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_
-
   ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
                         → (Q : QuorumCert → Set)
                         → bt1 ≡L bt2 at btHighestCommitCert
@@ -248,46 +239,93 @@ module QCProps where
   ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen =
     MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
 
-module RoundManagerInvariants where
+module Invariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
-  module _ (rm : RoundManager) where
-    EpochsMatch : Set
-    EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
+  record ECinfo : Set where
+    constructor mkECinfo
+    field
+      ecVV : ValidatorVerifier
+      ecEP : Epoch
+  open ECinfo
 
-    record BlockStoreInv : Set where
+  rm→ECinfo : RoundManager → ECinfo
+  rm→ECinfo rm = mkECinfo (rm ^∙ rmEpochState ∙ esVerifier) (rm ^∙ rmEpoch)
+
+  WithECinfo : Set → Set
+  WithECinfo A = A × ECinfo
+
+  BlockTree-EC  = WithECinfo BlockTree
+  BlockStore-EC = WithECinfo BlockStore
+
+  rm→BlockTree-EC : RoundManager → BlockTree-EC
+  rm→BlockTree-EC rm = (rm ^∙ lBlockStore ∙ bsInner , rm→ECinfo rm)
+
+  rm→BlockStore-EC : RoundManager → BlockStore-EC
+  rm→BlockStore-EC rm = (rm ^∙ lBlockStore , rm→ECinfo rm)
+
+  module _ (btEC : BlockTree-EC) where
+    private
+      bt  = proj₁ btEC
+      eci = proj₂ btEC
+      vv = ecVV eci
+      ep = ecEP eci
+
+    record BlockTreeInv : Set where
       constructor mkBlockTreeInv
       field
-        allValidQCs : (rmC : RoundManager-correct rm) → AllValidQCs (α-EC-RM rm rmC) (rm ^∙ rmBlockStore ∙ bsInner)
+        allValidQCs    : (vvC : ValidatorVerifier-correct $ vv) → AllValidQCs (α-EC-VV (vv , vvC) ep) bt
+    open BlockTreeInv
 
+  module _ (bsEC : BlockStore-EC) where
+    private
+      bs   = proj₁ bsEC
+      eci =  proj₂ bsEC
+
+    record BlockStoreInv : Set where
+      constructor mkBlockStoreInv
+      field
+        blockTreeValid : BlockTreeInv (bs ^∙ bsInner , eci)
+    open BlockTreeInv
+
+  module _ (sd : SafetyData) where
     -- SafetyRules invariants
     record SafetyDataInv : Set where
       constructor mkSafetyDataInv
       field
-        lvEpoch≡ : Meta.getLastVoteEpoch rm ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
-        lvRound≤ : Meta.getLastVoteRound rm ≤ rm ^∙ pssSafetyData-rm ∙ sdLastVotedRound
+        lvEpoch≡ : Meta.getLastVoteEpoch sd ≡ sd ^∙ sdEpoch
+        lvRound≤ : Meta.getLastVoteRound sd ≤ sd ^∙ sdLastVotedRound
 
+  module _ (sr : SafetyRules) where
+    -- SafetyRules invariants
     record SafetyRulesInv : Set where
       constructor mkSafetyRulesInv
       field
-        sdInv : SafetyDataInv
+        sdInv : SafetyDataInv (sr ^∙ srPersistentStorage ∙ pssSafetyData)
+  open SafetyRulesInv
 
-  -- NOTE: This will be proved by induction on reachable states using the
-  -- property that peer handlers preserve invariants. That is to say, many of
-  -- these cannot be proven as a post-condition of the peer handler: one can
-  -- only prove of the handler that if the invariant holds for the prestate,
-  -- then it holds for the poststate.
-  record RoundManagerInv (rm : RoundManager) : Set where
-    constructor mkRoundManagerInv
-    field
-      rmCorrect    : RoundManager-correct rm
-      epochsMatch  : EpochsMatch rm
-      btInv        : BlockStoreInv rm
-      srInv        : SafetyRulesInv rm
+  module _ (rm : RoundManager) where
 
-  Preserves : ∀ {ℓ} → (P : RoundManager → Set ℓ) (pre post : RoundManager) → Set ℓ
+    EpochsMatch : Set
+    EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
+
+    -- NOTE: This will be proved by induction on reachable states using the
+    -- property that peer handlers preserve invariants. That is to say, many of
+    -- these cannot be proven as a post-condition of the peer handler: one can
+    -- only prove of the handler that if the invariant holds for the prestate,
+    -- then it holds for the poststate.
+
+    record RoundManagerInv : Set where
+      constructor mkRoundManagerInv
+      field
+        rmCorrect        : ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer)
+        rmEpochsMatch    : EpochsMatch
+        rmBlockTreeInv   : BlockTreeInv (rm→BlockTree-EC rm)
+        rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
+
+  Preserves : ∀ {ℓ} {A : Set} → (P : A → Set ℓ) (pre post : A) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
 
   PreservesL : ∀ {ℓ} {A : Set}
@@ -315,61 +353,22 @@ module RoundManagerInvariants where
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
-  substBlockStoreInv
-    : ∀ {rm₁ rm₂}
-      → rm₁ ≡L rm₂ at lBlockStore
-      → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
-      → Preserves BlockStoreInv rm₁ rm₂
-  substBlockStoreInv rmbs≡ rmvv≡ (mkBlockTreeInv allValidQCs) =
-    mkBlockTreeInv (help rmbs≡ rmvv≡ allValidQCs)
-    where
-    help
-      : ∀ {rm₁ rm₂}
-        → rm₁ ≡L rm₂ at lBlockStore
-        → rm₁ ≡L rm₂ at rmEpochState ∙ esVerifier
-        → ((rmC : RoundManager-correct rm₁) → AllValidQCs (α-EC-RM rm₁ rmC) (rm₁ ^∙ rmBlockStore ∙ bsInner))
-        → ((rmC : RoundManager-correct rm₂) → AllValidQCs (α-EC-RM rm₂ rmC) (rm₂ ^∙ rmBlockStore ∙ bsInner))
-    help refl refl avqs rmc = obm-dangerous-magic' "TODO: waiting on definition of α-EC"
-
-  substSigsForVotes∈Rm-SentB4
-    : ∀ {pool pre post} → pre ≡L post at rmBlockStore
-      → Preserves (QCProps.SigsForVotes∈Rm-SentB4 pool) pre post
-  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHQC qc≡) sig vs∈qc rbld≈v =
-    qcsB4 (QCProps.inHQC qc≡') sig vs∈qc rbld≈v
-    where
-    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestQuorumCert
-    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestQuorumCert) (sym bs≡))
-  substSigsForVotes∈Rm-SentB4{pool}{pre}{post} bs≡ qcsB4 {qc} (QCProps.inHCC qc≡) sig vs∈qc rbld≈v =
-    qcsB4 (QCProps.inHCC qc≡') sig vs∈qc rbld≈v
-    where
-    qc≡' : qc ≡ pre ^∙ lBlockStore ∙ bsInner ∙ btHighestCommitCert
-    qc≡' = trans qc≡ (cong (_^∙ bsInner ∙ btHighestCommitCert) (sym bs≡))
-
-  substSafetyDataInv
-    : ∀ {pre post} → pre ≡L post at pssSafetyData-rm → Preserves SafetyDataInv pre post
-  substSafetyDataInv{pre}{post} sd≡ (mkSafetyDataInv epoch≡ round≤) = mkSafetyDataInv epoch≡' round≤'
-    where
-    epoch≡' : Meta.getLastVoteEpoch post ≡ post ^∙ pssSafetyData-rm ∙ sdEpoch
-    epoch≡' rewrite sym sd≡ = epoch≡
-
-    round≤' : Meta.getLastVoteRound post ≤ post ^∙ pssSafetyData-rm ∙ sdLastVotedRound
-    round≤' rewrite sym sd≡ = round≤
 
   mkPreservesSafetyRulesInv
     : ∀ {pre post}
-      → Preserves SafetyDataInv pre post
+      → Preserves SafetyDataInv (pre ^∙ srPersistentStorage ∙ pssSafetyData) (post ^∙ srPersistentStorage ∙ pssSafetyData)
       → Preserves SafetyRulesInv pre post
   mkPreservesSafetyRulesInv lvP (mkSafetyRulesInv lv) = mkSafetyRulesInv (lvP lv)
 
   mkPreservesRoundManagerInv
     : ∀ {pre post}
-      → Preserves RoundManager-correct pre post
-      → Preserves EpochsMatch          pre post
-      → Preserves BlockStoreInv        pre post
-      → Preserves SafetyRulesInv       pre post
-      → Preserves RoundManagerInv      pre post
-  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch btInv srInv) =
-    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP btInv) (srP srInv)
+      → Preserves ValidatorVerifier-correct (pre ^∙ rmValidatorVerifer) (post ^∙ rmValidatorVerifer)
+      → Preserves EpochsMatch                pre                         post
+      → Preserves BlockTreeInv              (rm→BlockTree-EC pre)       (rm→BlockTree-EC post)
+      → Preserves SafetyRulesInv            (pre ^∙ rmSafetyRules)      (post ^∙ rmSafetyRules)
+      → Preserves RoundManagerInv            pre                         post
+  mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch bsInv srInv) =
+    mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP bsInv) (srP srInv)
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on
