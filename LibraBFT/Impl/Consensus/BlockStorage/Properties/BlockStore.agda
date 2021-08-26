@@ -108,6 +108,9 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       contract₃ : ∀ eb → ExecutedBlock∙new block stateComputeResult ≡ eb
                   → EitherD-weakestPre (step₃ eb) Contract
 
+      -- TODO-2: The structure of this proof changes, and therefore it breaks, when we fully implement
+      -- executeBlockE.  This suggests that we should be using the contract for
+      -- executeBlockE, not depending on looking into its implementation here
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
       proj₂ contract₂ eb eb≡ ._ refl =
         contract₃ eb (inj₂-injective eb≡)

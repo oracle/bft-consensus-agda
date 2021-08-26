@@ -231,7 +231,8 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
   case BlockStore.new
          (self ^∙ emStorage)
          recoveryData
-         -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
+         -- TODO-2 : use real StateComputer when it exists
+         stateComputer -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
          (self ^∙ emConfig ∙ ccMaxPrunedBlocksInMem) of λ where
     (Left  e) -> err ("BlockStore.new" ∷ []) e
     (Right r) -> continue1 lastVote r

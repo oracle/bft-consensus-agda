@@ -237,9 +237,11 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
 executeAndInsertBlockE = executeAndInsertBlockE.E
 
 executeBlockE bs block = do
-  case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
+{-  case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
     (Left e)                   → Left fakeErr -- (here' e)
-    (Right stateComputeResult) → pure (ExecutedBlock∙new block stateComputeResult)
+    (Right stateComputeResult) →
+-}
+    pure (ExecutedBlock∙new block stateComputeResult)
  where
   here' : List String → List String
   here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t

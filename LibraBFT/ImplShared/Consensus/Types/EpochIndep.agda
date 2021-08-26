@@ -800,6 +800,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl scrObmNumLeaves   scrEpochState = mkLens (quote StateComputeResult)
              (scrObmNumLeaves ∷ scrEpochState ∷ [])
 
+  postulate -- TODO: eliminate after fully implementing executeBlockE
+    stateComputeResult : StateComputeResult
+
   record ExecutedBlock : Set where
     constructor ExecutedBlock∙new
     field
@@ -1149,6 +1152,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open BlockStore public
   unquoteDecl bsInner   bsStateComputer   bsStorage = mkLens (quote BlockStore)
              (bsInner ∷ bsStateComputer ∷ bsStorage ∷ [])
+
+  postulate  -- TODO: stateComputer
+    stateComputer : StateComputer
 
   -- getter only in Haskell
   bsRoot : Lens BlockStore (Maybe ExecutedBlock)
