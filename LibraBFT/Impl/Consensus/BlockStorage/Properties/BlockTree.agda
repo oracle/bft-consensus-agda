@@ -30,12 +30,24 @@ module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 
 module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
 
-  record ContractOk (bt“ : BlockTree) (b : ExecutedBlock) : Set where
+  blockId = block ^∙ ebId
+
+  record ContractOk (bt“ : BlockTree) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      block≈  : b [ _≈Block_ ]L block at ebBlock
+      -- This old requirement is too strong; insertBlockE ensures this only under a number of
+      -- assumptions that insertBlockE does not know or check
+      -- block≈  : b [ _≈Block_ ]L block at ebBlock
+      -- Instead: Either the returned block was already in btIdToBlock or it is the given one and
+      -- was associated with the correct key.
+
+      -- TODO-2: Settle ContractOk and propagate up the stack.  Requires changes to Contracts and
+      -- proofs at higher levels, starting with executeAndInsertBlockESpec
+      noNewBlock : Either (btGetBlock blockId bt ≡ nothing × btGetBlock blockId bt“ ≡ just block)
+                          (btGetBlock blockId bt ≡ just eb × btGetBlock blockId bt“ ≡ just eb)
       -- the returned BlockTree is the same as the previous one except for btIdToBlock
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
+      -- TODO: something more specific saying that bt and bt“ are the same for keys other than blockId?
       btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
