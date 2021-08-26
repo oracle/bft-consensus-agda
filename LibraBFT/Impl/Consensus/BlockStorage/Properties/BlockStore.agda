@@ -12,6 +12,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -26,6 +27,7 @@ open import Optics.All
 
 open Invariants
 open RoundManagerTransProps
+open QCProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
@@ -75,12 +77,10 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     constructor mkContractOk
     field
       ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
-      bsInv    : ∀ pre → pre ^∙ lBlockStore ≡ bs0
-                 → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-      -- TODO-2: The fields below should be about blocks, not QCs. The property
-      -- for QCs then follows as a consequence
-      qcPost : ∀ qc → qc QCProps.∈BlockTree (bs' ^∙ bsInner)
-               → qc QCProps.∈BlockTree (bs0 ^∙ bsInner) ⊎ qc ≡ block ^∙ bQuorumCert
+      bsInv    : ∀ {eci}
+                 → Preserves BlockStoreInv (bs0 , eci) (bs' , eci)
+      -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
+      bs≡x : bs0 ≡ (bs' & (bsInner ∙ btIdToBlock) ∙~ (bs0 ^∙ bsInner ∙ btIdToBlock))
 
   Contract : EitherD-Post ErrLog (BlockStore × ExecutedBlock)
   Contract (Left x) = ⊤
@@ -88,17 +88,14 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
   contract' : EitherD-weakestPre step₀ Contract
   proj₂ contract' eb eb≡ =
-    mkContractOk ebBlock≈ (btP bs0) (λ qc → Left)
+    mkContractOk ebBlock≈ id refl
     where
     ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
     ebBlock≈ bid≡ =
       getBlockSpec.correctBlockData
         (block ^∙ bId) bs0 (block ^∙ bBlockData) (bid≡) (eb , eb≡)
 
-    btP : ∀ bs' pre → pre ^∙ lBlockStore ≡ bs' → Preserves BlockStoreInv pre (pre & lBlockStore ∙~ bs')
-    btP bs' pre preBS≡ = substBlockStoreInv preBS≡ refl
-
-    qcPres : ∀ qc → PreservesL (qc QCProps.∈RoundManager_) rmBlockStore bs0 bs0
+    qcPres : ∀ qc → PreservesL (qc ∈RoundManager_) rmBlockStore bs0 bs0
     qcPres qc rm = id
 
   proj₁ contract' getBlock≡nothing = contract₁
@@ -132,7 +129,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk (const ebBlock≈) btP qcPost
+           λ where ._ refl → mkContractOk (const ebBlock≈) btP bss≡x
            where
            module IBE = insertBlockESpec.ContractOk con
 
@@ -151,22 +148,19 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
                ∎
              where open ≡-Reasoning
 
-           btP : ∀ rm → rm ^∙ lBlockStore ≡ bs0 → Preserves BlockStoreInv rm (rm & rmBlockStore ∙~ (bs0 & bsInner ∙~ bt'))
-           btP rm bs≡
-              with insertBlockESpec.preservesBlockStoreInv eb (bs0 ^∙ bsInner)
-                     bt' eb' con rm (cong (_^∙ bsInner) bs≡)
-           ...| Right hashCollision = ⊥-elim hashCollision -- TODO-2: propagate hash collision upward
-           ...| Left pres rewrite bs≡ = pres
+           bts≡x : _
+           bts≡x = IBE.bt≡x
 
-           qcPost : QCProps.∈Post⇒∈PreOrBT (_≡ block ^∙ bQuorumCert) (bs0 ^∙ bsInner) bt'
-           qcPost
-              with insertBlockESpec.qcPost eb (bs0 ^∙ bsInner)
-                     bt' eb' con
-           ...| qcPost' rewrite eb≈ = qcPost'
+           open BlockStoreInv
+
+           btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
+           btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
+
+           bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
+           bss≡x rewrite sym bts≡x = refl
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
-
 
 module executeAndInsertBlockMSpec (b : Block) where
   -- NOTE: This function returns any errors, rather than producing them as output.
@@ -201,7 +195,7 @@ module insertSingleQuorumCertMSpec
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        qcPost : QCProps.∈Post⇒∈PreOr (_≡ qc) pre post
+        qcPost : ∈Post⇒∈PreOr (_≡ qc) pre post
 
     postulate -- TODO-2: prove
       contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
