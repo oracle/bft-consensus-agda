@@ -37,7 +37,7 @@ build
 
 executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
 
-executeBlockE
+executeBlockE executeBlockE₁
   : BlockStore → Block
   → Either ErrLog ExecutedBlock
 
@@ -197,7 +197,6 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
       ifD btRound ≥?ℕ block ^∙ bRound
       then LeftD fakeErr -- block with old round
       else step₂ bsr
-      -- else step₂ bsr
 
   step₂ bsr = do
         eb ← case⊎D executeBlockE bs0 block of λ where
@@ -244,7 +243,8 @@ executeBlockE bs block = do
   here' : List String → List String
   here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
-executeBlockE₀ bs block = fromEither $ executeBlockE bs block
+executeBlockE₀ bs  = fromEither ∘ executeBlockE  bs
+executeBlockE₁ bs  = toEither   ∘ executeBlockE₀ bs
 
 ------------------------------------------------------------------------------
 
