@@ -105,7 +105,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     proj₁ (proj₂ contract₁ bsr bsr≡) _ = tt
     proj₂ (proj₂ contract₁ bsr bsr≡) btr<br = contract₂
       where
-      contract₃ : ∀ eb → ExecutedBlock∙new block stateComputeResult ≡ eb
+      contract₃ : ∀ eb → block ≡ eb ^∙ ebBlock
                   → EitherD-weakestPre (step₃ eb) Contract
 
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
