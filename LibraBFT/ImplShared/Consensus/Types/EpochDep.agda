@@ -38,10 +38,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochDep where
 -- 'RoundManager'.
 ValidatorVerifier-correct : ValidatorVerifier → Set
 ValidatorVerifier-correct vv =
-  let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
-      qsize      = vv ^∙ vvQuorumVotingPower
-      bizF       = numAuthors ∸ qsize
-   in suc (3 * bizF) ≤ numAuthors
+  let authorsInfo = List-map proj₂ (kvm-toList (vv ^∙ vvAddressToValidatorInfo))
+      totalVotPower = f-sum (_^∙ vciVotingPower) authorsInfo
+      quorumVotPower = vv ^∙ vvQuorumVotingPower
+      bizF       = totalVotPower ∸ quorumVotPower
+      pksAll≢        = ∀ {v₁ v₂} nId₁ nId₂ → nId₁ ≢ nId₂
+                       → lookup nId₁ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₁
+                       → lookup nId₂ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₂
+                       → v₁ ^∙ vciPublicKey ≢ v₂ ^∙ vciPublicKey
+   in suc (3 * bizF) ≤ totalVotPower × quorumVotPower ≤ totalVotPower × pksAll≢
 
 RoundManager-correct : RoundManager → Set
 RoundManager-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
@@ -54,6 +59,7 @@ RoundManager-correct-≡ : (rmec1 : RoundManager)
 RoundManager-correct-≡ rmec1 rmec2 refl = id
 
 open DecLemmas {A = NodeId} _≟_
+import LibraBFT.Abstract.BFT
 
 
 -- Given a well-formed set of definitions that defines an EpochConfig,
@@ -91,42 +97,57 @@ lookup∘index-id (x ∷ xs) all≢ {α} {nId} lkp≡α
 xxx : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} (dec : Dec A) (f : A → B) (g : ¬ A → B) (a : A)
       → (if-yes dec then f else g) ≡ f a
 
-xxxxx : ∀ {A : Set} (xs : List A) (α : Fin (length xs)) → allDistinct xs
-        → (x∈xs : List-lookup xs α ∈ xs)
-        → Any-index x∈xs ≡ α
+xxxxx : ∀ {m n o} → m ≡ n → n ≤ o → m ∸ (n ∸ o) ≡ o
+
+postulate
+  sum-f∘g : ∀ {n} (xs : List (Fin n)) (g : ValidatorConsensusInfo → ℕ) (f : Fin n → ValidatorConsensusInfo)
+           → f-sum (g ∘ f) xs ≡ f-sum g (List-map f xs)
+  -- sum-f∘g xs g f = cong sum (List-map-compose {g = g} {f = f} xs)
+  sum-⊆-≤-N : ∀ {ys} (xs : List ValidatorConsensusInfo) (f : ValidatorConsensusInfo → ℕ)
+            → allDistinct xs
+            → xs ⊆List ys
+            → f-sum f xs ≤ f-sum f ys
 
 
 
 α-EC : Σ RoundManager RoundManager-correct → EpochConfig
 α-EC (rmec , ok)  =
-  let authorsInfo = kvm-toList (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-      authorsIDs  = List-map proj₁ authorsInfo
+  let authors     = kvm-toList (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+      authorsIDs  = List-map proj₁ authors
+      authorsInfo = List-map proj₂ authors
       numAuthors  = length authorsIDs
       qsize       = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
       bizF        = numAuthors ∸ qsize
       toNodeId    = List-lookup authorsIDs
+      memberCast = cast (List-length-map proj₁ authors)
+      getAuthorInfo = proj₂ ∘ List-lookup authors ∘ memberCast
+      totalVotingPower = f-sum (_^∙ vciVotingPower ∘ getAuthorInfo)
+      getPubKey = _^∙ vciPublicKey ∘ getAuthorInfo
    in EpochConfig∙new {!!}
                       (rmec ^∙ rmEpoch)
                       numAuthors
                       toNodeId
                       (list-index authorsIDs)
-                      --(λ nId → if-yes nId ∈? authorsIDs then just ∘ Any-index else const nothing)
                       (index∘lookup-id authorsIDs {!!})
-                      {-(λ {α} → case List-lookup authorsIDs α ∈? authorsIDs of
-                               λ { (yes α∈authorsIDs)
-                                        → trans (xxx (List-lookup authorsIDs α ∈? authorsIDs)
-                                                     (just ∘ Any-index)
-                                                     (const nothing)
-                                                     α∈authorsIDs)
-                                                (cong just (xxxxx authorsIDs α {!!} α∈authorsIDs)) ;
-                                   (no imp) → ⊥-elim (imp (lookup⇒Any α refl))} )-}
                       (λ lkp≡α → lookup∘index-id authorsIDs {!!} lkp≡α)
-                      (λ member → let member = cast (List-length-map proj₁ authorsInfo) member
-                                      authorInfo = proj₂ (List-lookup authorsInfo member)
-                                  in authorInfo ^∙ vciPublicKey)
+                      getPubKey
                       {!!}
-                      (λ members → {!!} ≤ {!!} × allDistinct members)
-                      {!!}
+                      (λ quorum → qsize ≤ totalVotingPower quorum
+                                   × allDistinct quorum)
+                      λ q₁ q₂ → LibraBFT.Abstract.BFT.bft-lemma
+                                  numAuthors
+                                  (_^∙ vciVotingPower ∘ getAuthorInfo)
+                                  (f-sum (_^∙ vciVotingPower) authorsInfo ∸ qsize)
+                                  (let x≡x = sym (cong sum (List-map-compose {g = _^∙ vciVotingPower} {f = getAuthorInfo} (allFin numAuthors)))
+                                       y≡y = sym (sum-f∘g (allFin numAuthors) (_^∙ vciVotingPower) getAuthorInfo)
+                                    in ≤-trans (proj₁ ok) (≤-trans (sum-⊆-≤-N authorsInfo (_^∙ vciVotingPower) {!!} {!!}) (≡⇒≤ y≡y))) --(≡⇒≤ (trans {!!} (sym x≡x)))))
+                                --≤-trans (proj₁ ok) (≤-trans (≡⇒≤ {!!}) {!!}))
+                                  --(≤-trans (proj₁ ok) (≤-trans {!!} (≡⇒≤ (sym (sum-f∘g (allFin numAuthors) (_^∙ vciVotingPower ∘ {! !}) toNodeId)))))
+                                  getPubKey
+                                  {!bft-assumption!}
+                                  (proj₂ q₁) (proj₂ q₂)
+                                  (≤-trans {!!} (proj₁ q₁)) {!!}
+                                --(≤-trans (≡⇒≤ (m∸[m∸n]≡n {!!})) (proj₁ q₁)) {!!}
 
 postulate
   α-EC-≡ : (rmec1  : RoundManager)
