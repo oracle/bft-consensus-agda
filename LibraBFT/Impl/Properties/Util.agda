@@ -142,8 +142,8 @@ module QCProps where
   ∈Post⇒∈PreOr'-∙ l _QC∈B_ _QC∈A_ prfBA prfAB Q pre post QCB qc qc∈Apost =
     ⊎-map₁ prfBA (QCB qc (prfAB qc∈Apost))
 
-  ∈Post⇒∈PreOr'-∙-BT-RM : _
-  ∈Post⇒∈PreOr'-∙-BT-RM = ∈Post⇒∈PreOr'-∙ lBlockTree _∈BlockTree_ _∈RoundManager_ id id
+  ∈Post⇒∈PreOr-∙-BT-RM : _
+  ∈Post⇒∈PreOr-∙-BT-RM = ∈Post⇒∈PreOr'-∙ lBlockTree _∈BlockTree_ _∈RoundManager_ id id
 
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
@@ -172,18 +172,6 @@ module QCProps where
                       → ∀ {pre : A}
                       → ∈Post⇒∈PreOr' _QC∈_ Q pre pre
   ∈Post⇒∈PreOr'-refl _ _ _ = inj₁
-
-  ∈Post⇒∈PreOr'-subst : ∀ {A : Set}
-                      → (_QC∈_ : QuorumCert → A → Set)
-                      → (_≡Prop_ : A → A → Set)
-                      → (prf : (∀ {a1 a2 : A} → a1 ≡Prop a2 → (∀ {q} → (q QC∈ a2) → (q QC∈ a1))))
-                      → ∀ {pre post}
-                      → (Q : QuorumCert → Set)
-                      → pre ≡Prop post
-                      → ∈Post⇒∈PreOr' _QC∈_ Q pre post
-  ∈Post⇒∈PreOr'-subst _ ≡Prop prf _ ≡P q = inj₁ ∘ prf ≡P
-
-  ∈Post⇒∈PreOrBT-subst = ∈Post⇒∈PreOr'-subst _∈BlockTree_ _≡_ λ where refl → id
 
   ∈Post⇒∈PreOrBT-QCs≡ : ∀ {bt1 bt2}
                         → (Q : QuorumCert → Set)
@@ -291,30 +279,24 @@ module Invariants where
   rm→ECinfo : RoundManager → ECinfo
   rm→ECinfo rm = mkECinfo (rm ^∙ rmEpochState ∙ esVerifier) (rm ^∙ rmEpoch)
 
-  -- TODO: Maybe refactor into a module with one ECinfo?
-
-  module _ (A : Set) where
-    record WithECinfo : Set where
-      constructor mkWithECinfo
-      field
-        rec : A
-        eci : ECinfo
-  open WithECinfo
+  WithECinfo : Set → Set
+  WithECinfo A = A × ECinfo
 
   BlockTree-EC  = WithECinfo BlockTree
   BlockStore-EC = WithECinfo BlockStore
 
   rm→BlockTree-EC : RoundManager → BlockTree-EC
-  rm→BlockTree-EC rm = mkWithECinfo (rm ^∙ lBlockStore ∙ bsInner) (rm→ECinfo rm)
+  rm→BlockTree-EC rm = (rm ^∙ lBlockStore ∙ bsInner , rm→ECinfo rm)
 
   rm→BlockStore-EC : RoundManager → BlockStore-EC
-  rm→BlockStore-EC rm = mkWithECinfo (rm ^∙ lBlockStore) (rm→ECinfo rm)
+  rm→BlockStore-EC rm = (rm ^∙ lBlockStore , rm→ECinfo rm)
 
   module _ (btEC : BlockTree-EC) where
     private
-      bt = rec btEC
-      vv = ecVV $ eci btEC
-      ep = ecEP $ eci btEC
+      bt  = proj₁ btEC
+      eci = proj₂ btEC
+      vv = ecVV eci
+      ep = ecEP eci
 
     record BlockTreeInv : Set where
       constructor mkBlockTreeInv
@@ -325,13 +307,13 @@ module Invariants where
 
   module _ (bsEC : BlockStore-EC) where
     private
-      bs   = rec bsEC
-      eci' = eci bsEC
+      bs   = proj₁ bsEC
+      eci =  proj₂ bsEC
 
     record BlockStoreInv : Set where
       constructor mkBlockStoreInv
       field
-        blockTreeValid : BlockTreeInv (mkWithECinfo (bs ^∙ bsInner) eci')
+        blockTreeValid : BlockTreeInv (bs ^∙ bsInner , eci)
     open BlockTreeInv
 
   module _ (sd : SafetyData) where
@@ -398,8 +380,8 @@ module Invariants where
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
   BSInv⇒BTInv-pres : ∀ {eci} {pre post : BlockStore}
-                   → Preserves BlockStoreInv (mkWithECinfo pre eci) (mkWithECinfo post eci)
-                   → Preserves BlockTreeInv (mkWithECinfo (pre ^∙ bsInner) eci) (mkWithECinfo (post ^∙ bsInner) eci)
+                   → Preserves BlockStoreInv (pre , eci) (post , eci)
+                   → Preserves BlockTreeInv (pre ^∙ bsInner , eci) (post ^∙ bsInner , eci)
   BSInv⇒BTInv-pres presBS btiPre = BlockStoreInv.blockTreeValid (presBS $ mkBlockStoreInv btiPre)
 
   mkPreservesSafetyRulesInv

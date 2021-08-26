@@ -124,7 +124,7 @@ module executeAndVoteMSpec (b : Block) where
                                         (cong (_^∙ bsInner ∙ btHighestQuorumCert) EAIBECon.bs≡x)
 
         qcPost₁ : ∈Post⇒∈PreOr isbQc pre pre₁
-        qcPost₁ = ∈Post⇒∈PreOr'-∙-BT-RM isbQc pre pre₁ qcPost-BT
+        qcPost₁ = ∈Post⇒∈PreOr-∙-BT-RM isbQc pre pre₁ qcPost-BT
 
         -- For the case any of the checks in `step₁` fails
         contractBail₁ : ∀ {e} outs → OutputProps.NoMsgs outs → Contract (Left e) pre₁ outs

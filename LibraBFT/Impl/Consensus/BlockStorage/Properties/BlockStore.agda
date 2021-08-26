@@ -78,7 +78,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     field
       ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ {eci}
-                 → Preserves BlockStoreInv (mkWithECinfo bs0 eci) (mkWithECinfo bs' eci)
+                 → Preserves BlockStoreInv (bs0 , eci) (bs' , eci)
       -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
       bs≡x : bs0 ≡ (bs' & (bsInner ∙ btIdToBlock) ∙~ (bs0 ^∙ bsInner ∙ btIdToBlock))
 
@@ -153,7 +153,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
 
            open BlockStoreInv
 
-           btP : ∀ {eci} → Preserves BlockStoreInv (mkWithECinfo bs0 eci) (mkWithECinfo (bs0 & bsInner ∙~ bt') eci)
+           btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
            btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
 
            bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))

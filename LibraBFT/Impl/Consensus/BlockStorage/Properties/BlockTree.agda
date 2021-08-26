@@ -36,7 +36,7 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
       block≈  : b [ _≈Block_ ]L block at ebBlock
       -- the returned BlockTree is the same as the previous one except for btIdToBlock
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
-      btiPres : ∀ {eci} → Preserves BlockTreeInv (mkWithECinfo bt eci) (mkWithECinfo bt“ eci)
+      btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
   Contract (Left _) = ⊤
