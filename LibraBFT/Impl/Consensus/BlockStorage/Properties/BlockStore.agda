@@ -111,8 +111,9 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
       proj₂ contract₂ eb eb≡ ._ refl =
         contract₃ eb (inj₂-injective eb≡)
-      proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
-      proj₁ contract₂ (ErrVerify _) executeBlockE≡Left = tt
+      proj₁ contract₂ (ErrCBlockNotFound _) _ = tt
+      proj₁ contract₂ (ErrVerify _)         _ = tt
+      proj₁ contract₂ (ErrInfo _)           _ = tt
       -- > eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
       proj₁ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) _ _ = tt
       -- > case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
