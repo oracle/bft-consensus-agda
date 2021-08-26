@@ -244,6 +244,15 @@ module Invariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
+  ValidBlock : HashValue → ExecutedBlock → Set
+  ValidBlock bid eb = eb ^∙ ebBlock ∙ bId ≡ bid
+                    × hashBD (eb ^∙ ebBlock ∙ bBlockData) ≡ bid
+
+  AllValidBlocks : BlockTree → Set
+  AllValidBlocks bt = ∀ {bid eb}
+                    → btGetBlock bid bt ≡ just eb
+                    → ValidBlock bid eb
+
   record ECinfo : Set where
     constructor mkECinfo
     field
@@ -277,6 +286,7 @@ module Invariants where
       constructor mkBlockTreeInv
       field
         allValidQCs    : (vvC : ValidatorVerifier-correct $ vv) → AllValidQCs (α-EC-VV (vv , vvC) ep) bt
+        allValidBlocks : AllValidBlocks bt
     open BlockTreeInv
 
   module _ (bsEC : BlockStore-EC) where
