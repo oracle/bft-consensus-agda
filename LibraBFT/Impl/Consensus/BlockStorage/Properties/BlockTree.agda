@@ -35,16 +35,7 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
   record ContractOk (bt“ : BlockTree) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      -- This old requirement is too strong; insertBlockE ensures this only under a number of
-      -- assumptions that insertBlockE does not know or check
-      -- block≈  : b [ _≈Block_ ]L block at ebBlock
-      -- Instead: Either the returned block was already in btIdToBlock or it is the given one and
-      -- was associated with the correct key.
-
-      -- TODO-2: Settle ContractOk and propagate up the stack.  Requires changes to Contracts and
-      -- proofs at higher levels, starting with executeAndInsertBlockESpec
-      noNewBlock : Either (btGetBlock blockId bt ≡ nothing × btGetBlock blockId bt“ ≡ just block)
-                          (btGetBlock blockId bt ≡ just eb × btGetBlock blockId bt“ ≡ just eb)
+      block≈  : eb [ _≈Block_ ]L block at ebBlock
       -- the returned BlockTree is the same as the previous one except for btIdToBlock
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
       -- TODO: something more specific saying that bt and bt“ are the same for keys other than blockId?
@@ -56,12 +47,23 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
 
   open insertBlockE
 
+  record Requirements : Set where
+    constructor mkRequirements
+    field
+      bhc  : BlockHash-correct blockId block
+      -- This is one way of expressing an assumption that there is no hash collision between the
+      -- supplied block and a different block already in the BlockTree with the same hash
+      -- TODO-2: discuss how best to capture and propagate (violations of) this assumption
+      nohc : ∀ {eb'} → btGetBlock blockId bt ≡ just eb'
+                     → eb' [ _≈Block_ ]L block at ebBlock
+
   module _ (bt“ : BlockTree) (b : ExecutedBlock) (con : ContractOk bt“ b) where
   postulate
-    contract' : EitherD-weakestPre (step₀ block bt) Contract
+    contract' : Requirements
+              → EitherD-weakestPre (step₀ block bt) Contract
 
-  contract : Contract (insertBlockE.E block bt)
-  contract = EitherD-contract (step₀ block bt) Contract contract'
+  contract : Requirements → Contract (insertBlockE.E block bt)
+  contract reqs = EitherD-contract (step₀ block bt) Contract $ contract' reqs
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where

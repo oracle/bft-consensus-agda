@@ -260,9 +260,12 @@ module Invariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
+  BlockHash-correct : HashValue → ExecutedBlock → Set
+  BlockHash-correct bid eb = hashBD (eb ^∙ ebBlock ∙ bBlockData) ≡ bid
+
   ValidBlock : HashValue → ExecutedBlock → Set
   ValidBlock bid eb = eb ^∙ ebBlock ∙ bId ≡ bid
-                    × hashBD (eb ^∙ ebBlock ∙ bBlockData) ≡ bid
+                    × BlockHash-correct bid eb
 
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}
