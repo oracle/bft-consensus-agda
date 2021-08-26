@@ -129,6 +129,22 @@ module QCProps where
   ∈Post⇒∈PreOr' : ∀ {A : Set} (_QC∈_ : QuorumCert → A → Set) (Q : QuorumCert → Set) (pre post : A) → Set
   ∈Post⇒∈PreOr' _QC∈_ Q pre post = ∀ qc → qc QC∈ post → qc QC∈ pre ⊎ Q qc
 
+  ∈Post⇒∈PreOr'-∙ : ∀ {A B : Set}
+                    → (l : Lens A B)
+                    → (_QC∈B_ : QuorumCert → B → Set)
+                    → (_QC∈A_ : QuorumCert → A → Set)
+                    → (∀ {q st} → q QC∈B (st ^∙ l) → q QC∈A st)
+                    → (∀ {q st} → q QC∈A st → q QC∈B (st ^∙ l))
+                    → (Q : QuorumCert → Set)
+                    → (pre post : A)
+                    → ∈Post⇒∈PreOr' _QC∈B_ Q (pre ^∙ l) (post ^∙ l)
+                    → ∈Post⇒∈PreOr' _QC∈A_ Q pre post
+  ∈Post⇒∈PreOr'-∙ l _QC∈B_ _QC∈A_ prfBA prfAB Q pre post QCB qc qc∈Apost =
+    ⊎-map₁ prfBA (QCB qc (prfAB qc∈Apost))
+
+  ∈Post⇒∈PreOr-∙-BT-RM : _
+  ∈Post⇒∈PreOr-∙-BT-RM = ∈Post⇒∈PreOr'-∙ lBlockTree _∈BlockTree_ _∈RoundManager_ id id
+
   ∈Post⇒∈PreOrBT : (Q : QuorumCert → Set) (pre post : BlockTree) → Set
   ∈Post⇒∈PreOrBT = ∈Post⇒∈PreOr' _∈BlockTree_
 
@@ -363,6 +379,10 @@ module Invariants where
   transPreservesRoundManagerInv : Transitive (Preserves RoundManagerInv)
   transPreservesRoundManagerInv = transPreserves RoundManagerInv
 
+  BSInv⇒BTInv-pres : ∀ {eci} {pre post : BlockStore}
+                   → Preserves BlockStoreInv (pre , eci) (post , eci)
+                   → Preserves BlockTreeInv (pre ^∙ bsInner , eci) (post ^∙ bsInner , eci)
+  BSInv⇒BTInv-pres presBS btiPre = BlockStoreInv.blockTreeValid (presBS $ mkBlockStoreInv btiPre)
 
   mkPreservesSafetyRulesInv
     : ∀ {pre post}
