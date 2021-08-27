@@ -34,8 +34,8 @@ import      Data.String                                              as String
 
 module LibraBFT.Impl.Consensus.EpochManager where
 
-open import LibraBFT.ImplShared.Util.Dijkstra.RWST        public
-open import LibraBFT.ImplShared.Util.Dijkstra.RWST.Syntax public
+open import LibraBFT.ImplShared.Util.Dijkstra.RWS        public
+open import LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax public
 
 ------------------------------------------------------------------------------
 
@@ -56,13 +56,13 @@ data PMOutput : Set where
   PMInfo : InfoLog → PMOutput
 
 EM : Set → Set₁
-EM = RWST Unit PMOutput RlecState
+EM = RWS Unit PMOutput RlecState
 
 runEM : ∀ {r}
       → EM r
       → RlecState
       → (r × RlecState × List PMOutput)
-runEM f = RWST-run f unit
+runEM f = RWS-run f unit
 
 ------------------------------------------------------------------------------
 
@@ -422,7 +422,7 @@ The following "implementation" compiles, but has lots of TEMPORARY things to get
 -}
 
 IO : Set → Set₁
-IO = RWST Unit Unit Unit
+IO = RWS Unit Unit Unit
 
 {-# TERMINATING #-}
 obmStartLoop
