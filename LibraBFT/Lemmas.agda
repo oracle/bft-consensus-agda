@@ -383,6 +383,10 @@ module LibraBFT.Lemmas where
  ...| inj₁ i≡j   = inj₁ (cong suc i≡j)
  ...| inj₂ lkup≢ = inj₂ lkup≢
 
+ sum-f∘g : ∀ {A B : Set} (xs : List A) (g : B → ℕ) (f : A → B)
+           → f-sum (g ∘ f) xs ≡ f-sum g (List-map f xs)
+ sum-f∘g xs g f = cong sum (List-map-compose xs)
+
  module DecLemmas {A : Set} (_≟D_ : Decidable {A = A} (_≡_)) where
 
    _∈?_ : ∀ (x : A) → (xs : List A) → Dec (Any (x ≡_) xs)

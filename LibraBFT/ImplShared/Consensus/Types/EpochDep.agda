@@ -94,60 +94,52 @@ lookup∘index-id (x ∷ xs) all≢ {α} {nId} lkp≡α
    rewrite sym (just-injective lkp≡α) = lookup∘index-id xs (allDistinctTail all≢) eq
 
 
-xxx : ∀ {ℓA ℓB} {A : Set ℓA} {B : Set ℓB} (dec : Dec A) (f : A → B) (g : ¬ A → B) (a : A)
-      → (if-yes dec then f else g) ≡ f a
-
-xxxxx : ∀ {m n o} → m ≡ n → n ≤ o → m ∸ (n ∸ o) ≡ o
-
 postulate
-  sum-f∘g : ∀ {n} (xs : List (Fin n)) (g : ValidatorConsensusInfo → ℕ) (f : Fin n → ValidatorConsensusInfo)
-           → f-sum (g ∘ f) xs ≡ f-sum g (List-map f xs)
-  -- sum-f∘g xs g f = cong sum (List-map-compose {g = g} {f = f} xs)
-  sum-⊆-≤-N : ∀ {ys} (xs : List ValidatorConsensusInfo) (f : ValidatorConsensusInfo → ℕ)
-            → allDistinct xs
-            → xs ⊆List ys
-            → f-sum f xs ≤ f-sum f ys
+  map-lookup-tabulate : ∀ {A : Set} {xs : List A}
+                      → List-map (List-lookup xs) (allFin (length xs)) ≡ xs
+
+  xxxx : ∀ {m n o} → m ≡ n → o ≤ n → m ∸ (n ∸ o) ≡ o
 
 
 
 α-EC : Σ RoundManager RoundManager-correct → EpochConfig
 α-EC (rmec , ok)  =
-  let authors     = kvm-toList (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
-      authorsIDs  = List-map proj₁ authors
-      authorsInfo = List-map proj₂ authors
-      numAuthors  = length authorsIDs
-      qsize       = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
-      bizF        = numAuthors ∸ qsize
-      toNodeId    = List-lookup authorsIDs
-      memberCast = cast (List-length-map proj₁ authors)
-      getAuthorInfo = proj₂ ∘ List-lookup authors ∘ memberCast
-      totalVotingPower = f-sum (_^∙ vciVotingPower ∘ getAuthorInfo)
-      getPubKey = _^∙ vciPublicKey ∘ getAuthorInfo
-   in EpochConfig∙new {!!}
+      EpochConfig∙new {!!}
                       (rmec ^∙ rmEpoch)
                       numAuthors
                       toNodeId
-                      (list-index authorsIDs)
-                      (index∘lookup-id authorsIDs {!!})
-                      (λ lkp≡α → lookup∘index-id authorsIDs {!!} lkp≡α)
+                      {!!} --(list-index authorsIDs)
+                      {!!} --(index∘lookup-id authorsIDs {!!})
+                      {!!} --(λ lkp≡α → lookup∘index-id authorsIDs {!!} lkp≡α)
                       getPubKey
                       {!!}
-                      (λ quorum → qsize ≤ totalVotingPower quorum
+                      (λ quorum → qsize ≤ VotPowerMembers quorum
                                    × allDistinct quorum)
                       λ q₁ q₂ → LibraBFT.Abstract.BFT.bft-lemma
                                   numAuthors
                                   (_^∙ vciVotingPower ∘ getAuthorInfo)
                                   (f-sum (_^∙ vciVotingPower) authorsInfo ∸ qsize)
-                                  (let x≡x = sym (cong sum (List-map-compose {g = _^∙ vciVotingPower} {f = getAuthorInfo} (allFin numAuthors)))
-                                       y≡y = sym (sum-f∘g (allFin numAuthors) (_^∙ vciVotingPower) getAuthorInfo)
-                                    in ≤-trans (proj₁ ok) (≤-trans (sum-⊆-≤-N authorsInfo (_^∙ vciVotingPower) {!!} {!!}) (≡⇒≤ y≡y))) --(≡⇒≤ (trans {!!} (sym x≡x)))))
-                                --≤-trans (proj₁ ok) (≤-trans (≡⇒≤ {!!}) {!!}))
-                                  --(≤-trans (proj₁ ok) (≤-trans {!!} (≡⇒≤ (sym (sum-f∘g (allFin numAuthors) (_^∙ vciVotingPower ∘ {! !}) toNodeId)))))
+                                  (≤-trans (proj₁ ok) (≡⇒≤ (sym totalVotPower≡)))
                                   getPubKey
                                   {!bft-assumption!}
                                   (proj₂ q₁) (proj₂ q₂)
-                                  (≤-trans {!!} (proj₁ q₁)) {!!}
-                                --(≤-trans (≡⇒≤ (m∸[m∸n]≡n {!!})) (proj₁ q₁)) {!!}
+                                  (≤-trans (≡⇒≤ (xxxx totalVotPower≡ ((proj₁ ∘ proj₂) ok))) (proj₁ q₁))
+                                  (≤-trans (≡⇒≤ (xxxx totalVotPower≡ ((proj₁ ∘ proj₂) ok))) (proj₁ q₂))
+      where authors     = kvm-toList (rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo)
+            authorsInfo = List-map proj₂ authors
+            authorsIDs  = List-map proj₁ authors
+            numAuthors  = length authors
+            qsize       = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+            toNodeId    = proj₁ ∘ List-lookup authors
+            getAuthorInfo = proj₂ ∘ List-lookup authors
+            getPubKey = _^∙ vciPublicKey ∘ getAuthorInfo
+            VotPowerMembers = f-sum (_^∙ vciVotingPower ∘ getAuthorInfo)
+            VotPowerAuthors = f-sum (_^∙ vciVotingPower)
+            totalVotPower≡ : VotPowerMembers (allFin numAuthors) ≡ VotPowerAuthors authorsInfo
+            totalVotPower≡ = let sumf∘g = sum-f∘g (allFin numAuthors) (_^∙ vciVotingPower) getAuthorInfo
+                                 comp≡  = List-map-compose {g = proj₂} {f = List-lookup authors} (allFin numAuthors)
+                                 lkp∘≡  = cong (List-map proj₂) (map-lookup-tabulate {xs = authors})
+                             in trans sumf∘g (cong (f-sum (_^∙ vciVotingPower)) (trans comp≡ lkp∘≡))
 
 postulate
   α-EC-≡ : (rmec1  : RoundManager)
