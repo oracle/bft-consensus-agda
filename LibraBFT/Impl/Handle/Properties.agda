@@ -35,19 +35,19 @@ open        PeerCanSignForPK
 open        EpochConfig
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 
 module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
-  initRM-correct : RoundManager-correct initRM
-  initRM-btInv   : BlockStoreInv initRM
+  initRM-correct : ValidatorVerifier-correct (initRM ^∙ rmValidatorVerifer)
+  initRM-btInv   : BlockTreeInv (rm→BlockTree-EC initRM)
   initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
 
-initRMSatisfiesInv : RoundManagerInvariants.RoundManagerInv initRM
+initRMSatisfiesInv : RoundManagerInv initRM
 initRMSatisfiesInv =
-  RoundManagerInvariants.mkRoundManagerInv initRM-correct refl initRM-btInv
+  mkRoundManagerInv initRM-correct refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
@@ -188,7 +188,7 @@ lastVotedRound-mono
     → initialised pre pid ≡ initd
     → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
     → peerStates pre pid ≡L ppost at rmEpoch
-    → Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound ppost
+    → Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (ppost ^∙ pssSafetyData-rm)
 lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
   case (trans (sym ini) ini₁) of λ ()
 lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
@@ -201,10 +201,10 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre {- hpReq -} )
-  open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid pre preach)
+  open RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
-    help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
+    help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
     help = ≡⇒≤ (cong (maybe{B = const ℕ} (_^∙ vRound) 0) lv≡)
 
   module VoteNew {vote : Vote}
@@ -212,10 +212,10 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
     (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
     (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
     where
-    help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
-    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
+    help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
+    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
 
-  help : Meta.getLastVoteRound hpPre ≤ Meta.getLastVoteRound hpPst
+  help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
   help
     with voteAttemptCorrect
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?

@@ -32,7 +32,7 @@ open import LibraBFT.Prelude
 
 open        ParamsWithInitAndHandlers InitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules where
@@ -282,23 +282,29 @@ module constructAndSignVoteMSpec where
 
         -- State invariants
         module _ where
-          postulate -- TODO-1: prove (waiting on : `α-EC`)
-            btip₁ : Preserves BlockStoreInv pre preUpdatedSD
-         -- btip₁ = id
+          btip₁ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD)
+          btip₁ = id
 
           emP : Preserves EpochsMatch pre preUpdatedSD
           emP eq = trans eq (Requirements.es≡₁ reqs)
 
-          srP : Preserves SafetyRulesInv pre preUpdatedSD
-          srP = mkPreservesSafetyRulesInv λ where (mkSafetyDataInv epoch≡ round≤) → mkSafetyDataInv (epoch≡P epoch≡) (round≤P round≤)
+          srPre  = pre ^∙ lSafetyRules
+          srPost = preUpdatedSD ^∙ lSafetyRules
+
+          srP : Preserves SafetyRulesInv srPre srPost
+          srP = mkPreservesSafetyRulesInv λ where (mkSafetyDataInv epoch≡ round≤) →
+                                                    mkSafetyDataInv (epoch≡P epoch≡) (round≤P round≤)
             where
-            epoch≡P : Preserves (λ rm → Meta.getLastVoteEpoch rm ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch) pre preUpdatedSD
+            epoch≡P : Preserves (λ sd → Meta.getLastVoteEpoch sd ≡ sd ^∙ sdEpoch)
+                                (srPre ^∙ (srPersistentStorage ∙ pssSafetyData))
+                                (srPost ^∙ (srPersistentStorage ∙ pssSafetyData))
             epoch≡P epoch≡
               rewrite sym (Requirements.lv≡  reqs)
               |       sym (Requirements.es≡₁ reqs)
               = epoch≡
-
-            round≤P : Preserves (λ rm → Meta.getLastVoteRound rm ≤ rm ^∙ pssSafetyData-rm ∙ sdLastVotedRound) pre preUpdatedSD
+            round≤P : Preserves (λ sd → Meta.getLastVoteRound sd ≤ sd ^∙ sdLastVotedRound)
+                                (srPre ^∙ (srPersistentStorage ∙ pssSafetyData))
+                                (srPost ^∙ (srPersistentStorage ∙ pssSafetyData))
             round≤P round≤
                with pre ^∙ pssSafetyData-rm ∙ sdLastVote
                |    inspect (_^∙ pssSafetyData-rm ∙ sdLastVote) pre
@@ -360,11 +366,10 @@ module constructAndSignVoteMSpec where
 
             -- State invariants
             module _ where
-              postulate -- TODO-1: prove (waiting on: `α-EC`)
-                btiP₂ : Preserves BlockStoreInv pre preUpdatedSD₂
-             -- btiP₂ = id
+              btiP₂ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD₂)
+              btiP₂ = id
 
-              srP₂ : Preserves SafetyRulesInv pre preUpdatedSD₂
+              srP₂ : Preserves SafetyRulesInv (pre ^∙ lSafetyRules) (preUpdatedSD₂ ^∙ lSafetyRules)
               srP₂ = mkPreservesSafetyRulesInv
                        (const $ mkSafetyDataInv (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
 

@@ -28,7 +28,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
@@ -96,7 +96,7 @@ oldVoteRound≤lvr
     → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → PeerCanSignForPK pre v pid pk
     → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-    → v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates pre pid)
+    → v ^∙ vRound ≤ Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm)
 oldVoteRound≤lvr{pid} (step-s preach step@(step-peer{pid'} sp@(step-cheat  cmc))) hpk sig ¬gen mws∈pool pcsfpk epoch≡
   -- `pid`'s state is untouched by this step
   rewrite cheatStepDNMPeerStates₁{pid = pid'}{pid' = pid} sp unit
@@ -116,10 +116,10 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    pcsfpkPre : PeerCanSignForPK pre v pid _
    pcsfpkPre = PeerCanSignForPKProps.msb4 preach step pcsfpk hpk sig msb4
 
-   ovrHyp : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch → v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates pre pid)
+   ovrHyp : peerStates pre pid ^∙ rmEpoch ≡ v ^∙ vEpoch → v ^∙ vRound ≤ Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm)
    ovrHyp ep≡ = oldVoteRound≤lvr{pre = pre} preach hpk sig ¬gen msb4 pcsfpkPre ep≡
 
-   helpSentB4 : v ^∙ vRound ≤ Meta.getLastVoteRound (peerStates post pid)
+   helpSentB4 : v ^∙ vRound ≤ Meta.getLastVoteRound ((peerStates post pid) ^∙ pssSafetyData-rm)
    helpSentB4
       with pid ≟ pid'
    -- A step by `pid'` step cannot affect `pid`'s state
@@ -147,7 +147,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
      ini : initialised pre pid' ≡ initd
      ini = ReachableSystemStateProps.mws∈pool⇒initd preach pcsfpkPre hpk sig ¬gen msb4
 
-     lvr≤ : Meta.getLastVoteRound (peerStates pre pid) ≤ Meta.getLastVoteRound (peerStates post pid)
+     lvr≤ : Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound ((peerStates post pid) ^∙ pssSafetyData-rm)
      lvr≤
        rewrite sym (StepPeer-post-lemma{pre = pre} sp)
        = lastVotedRound-mono pid' pre preach ini sps
@@ -161,7 +161,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
    with PeerCanSignForPKProps.pidInjective pcsfpk pcsfpkPost refl
 ...| refl = ≡⇒≤ vr≡lvrPost
   where
-    vr≡lvrPost : v ^∙ vRound ≡ Meta.getLastVoteRound (peerStates (StepPeer-post sp) pid)
+    vr≡lvrPost : v ^∙ vRound ≡ Meta.getLastVoteRound ((peerStates (StepPeer-post sp) pid) ^∙ pssSafetyData-rm)
     vr≡lvrPost
       rewrite sym (StepPeer-post-lemma sp)
       with newVote⇒lv≡{pre = pre}{pid = pid} preach sps (msg⊆ mws∈pool) m∈outs (msgSigned mws∈pool) hpk ¬gen ¬msb4
@@ -288,7 +288,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
 
       open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
         renaming (rmInv to rmInvP)
-      open RoundManagerInvariants.RoundManagerInv (invariantsCorrect pid“ pre rss)
+      open Invariants.RoundManagerInv (invariantsCorrect pid“ pre rss)
 
       -- when the last vote is the same in pre and post states
       module OldVote (lv≡ : hpPre ≡L hpPos at pssSafetyData-rm ∙ sdLastVote) where
@@ -302,7 +302,8 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
       -- When a new vote is generated, its round is strictly greater than that of the previous vote we attempted to send.
       module NewVote
         (vote : Vote) (lv≡v : just vote ≡ hpPos ^∙ pssSafetyData-rm ∙ sdLastVote)
-        (lvr< : hpPre [ _<_ ]L hpPos at pssSafetyData-rm ∙ sdLastVotedRound) (lvr≡ : vote ^∙ vRound ≡ hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound)
+        (lvr< : hpPre [ _<_ ]L hpPos at pssSafetyData-rm ∙ sdLastVotedRound)
+        (lvr≡ : vote ^∙ vRound ≡ hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound)
         (sdEpoch≡ : hpPre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch)
         (blockTriggered : Voting.VoteMadeFromBlock vote (pm ^∙ pmProposal))
         where
@@ -316,7 +317,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
           where open ≡-Reasoning
 
         -- The round of `v'` must be less than the round of the vote stored in `sdLastVote`
-        rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound hpPre
+        rv'≤lvrPre : v' ^∙ vRound ≤ Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm)
         rv'≤lvrPre = oldVoteRound≤lvr rss hpk sig' ¬gen mws pcsfpkPre'
                        (ReachableSystemStateProps.mws∈pool⇒epoch≡ rss (step-msg m∈pool ini)
                          pcsfpkPre' hpk sig' ¬gen mws ≡epoch“)
@@ -327,7 +328,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
           ≡epoch“ : hpPos ^∙ rmEpoch ≡ v' ^∙ vEpoch
           ≡epoch“ = begin
             hpPos ^∙ rmEpoch                    ≡⟨ sym noEpochChange ⟩
-            hpPre ^∙ rmEpoch                    ≡⟨ epochsMatch ⟩
+            hpPre ^∙ rmEpoch                    ≡⟨ rmEpochsMatch ⟩
             hpPre ^∙ pssSafetyData-rm ∙ sdEpoch ≡⟨ sdEpoch≡ ⟩
             pm    ^∙ pmProposal ∙ bEpoch        ≡⟨ sym $ Voting.VoteMadeFromBlock.epoch≡ blockTriggered ⟩
             vote  ^∙ vEpoch                     ≡⟨ cong (_^∙ vEpoch) (sym v≡vote) ⟩
@@ -336,15 +337,15 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
 
         rv'<rv : v' [ _<_ ]L v at vRound
         rv'<rv = begin
-          (suc $ v' ^∙ vRound)                                 ≤⟨ s≤s rv'≤lvrPre ⟩
-          (suc $ Meta.getLastVoteRound hpPre)                  ≤⟨ s≤s lvRound≤ ⟩
-          (suc $ hpPre ^∙ pssSafetyData-rm ∙ sdLastVotedRound) ≤⟨ lvr< ⟩
-          hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound         ≡⟨ sym lvr≡ ⟩
-          vote  ^∙ vRound                                      ≡⟨ sym (cong (_^∙ vRound) v≡vote) ⟩
-          v     ^∙ vRound                                      ∎
+          (suc $ v' ^∙ vRound)                                      ≤⟨ s≤s rv'≤lvrPre ⟩
+          (suc $ Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm)) ≤⟨ s≤s lvRound≤ ⟩
+          (suc $ hpPre ^∙ pssSafetyData-rm ∙ sdLastVotedRound)      ≤⟨ lvr< ⟩
+          hpPos ^∙ pssSafetyData-rm ∙ sdLastVotedRound              ≡⟨ sym lvr≡ ⟩
+          vote  ^∙ vRound                                           ≡⟨ sym (cong (_^∙ vRound) v≡vote) ⟩
+          v     ^∙ vRound                                           ∎
           where
           open ≤-Reasoning
-          open SafetyDataInv (SafetyRulesInv.sdInv srInv)
+          open SafetyDataInv (SafetyRulesInv.sdInv rmSafetyRulesInv)
 
       analyzeVoteAttempt : just v ≡ peerStates pre pid ^∙ pssSafetyData-rm ∙ sdLastVote
       analyzeVoteAttempt
@@ -474,7 +475,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
        with Voting.VoteGeneratedCorrect.state vgCorrect
        |    Voting.VoteGeneratedCorrect.blockTriggered vgCorrect
     ...| RoundManagerTransProps.mkVoteGenerated lv≡v (Left (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡)) | _
-       with SafetyDataInv.lvEpoch≡ ∘ SafetyRulesInv.sdInv $ srInv
+       with SafetyDataInv.lvEpoch≡ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv
     ...| sdEpochInv rewrite trans lv≡ (sym lv≡v) = sym sdEpochInv
     rmPreSdEpoch≡
        | RoundManagerTransProps.mkVoteGenerated lv≡v (Right (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡)) | bt =
@@ -482,11 +483,11 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
 
     rmPreEsEpoch≡ : rmPre ^∙ rmEpochState ∙ esEpoch ≡ v ^∙ vEpoch
     rmPreEsEpoch≡ =
-      begin rmPre ^∙ rmEpochState ∙ esEpoch ≡⟨ epochsMatch   ⟩
+      begin rmPre ^∙ rmEpochState ∙ esEpoch ≡⟨ rmEpochsMatch   ⟩
             rmPre ^∙ pssSafetyData-rm  ∙ sdEpoch ≡⟨ rmPreSdEpoch≡ ⟩
             v     ^∙ vEpoch                 ∎
 
-    realLVR≤rv : Meta.getLastVoteRound rmPre ≤ v ^∙ vRound
+    realLVR≤rv : Meta.getLastVoteRound (rmPre ^∙ pssSafetyData-rm) ≤ v ^∙ vRound
     realLVR≤rv
       with Voting.VoteGeneratedCorrect.state vgCorrect
     ...| RoundManagerTransProps.mkVoteGenerated lv≡v (inj₁ (RoundManagerTransProps.mkVoteOldGenerated lvr≡ lv≡))
@@ -494,7 +495,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
         = ≤-refl
     ...| RoundManagerTransProps.mkVoteGenerated lv≡v (inj₂ (RoundManagerTransProps.mkVoteNewGenerated lvr< lvr≡))
        with rmPre ^∙ pssSafetyData-rm ∙ sdLastVote
-       |    SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ srInv
+       |    SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
 

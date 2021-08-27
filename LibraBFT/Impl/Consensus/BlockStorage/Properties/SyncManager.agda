@@ -24,7 +24,7 @@ open import LibraBFT.Prelude
 open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
-open RoundManagerInvariants
+open Invariants
 open RoundManagerTransProps
 open OutputProps
 
