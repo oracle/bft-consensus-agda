@@ -282,9 +282,8 @@ module constructAndSignVoteMSpec where
 
         -- State invariants
         module _ where
-          postulate -- TODO-1: prove (waiting on : `α-EC`)
-            btip₁ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD)
-         -- btip₁ = id
+          btip₁ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD)
+          btip₁ = id
 
           emP : Preserves EpochsMatch pre preUpdatedSD
           emP eq = trans eq (Requirements.es≡₁ reqs)
@@ -367,9 +366,8 @@ module constructAndSignVoteMSpec where
 
             -- State invariants
             module _ where
-              postulate -- TODO-1: prove (waiting on: `α-EC`)
-                btiP₂ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD₂)
-             -- btiP₂ = id
+              btiP₂ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD₂)
+              btiP₂ = id
 
               srP₂ : Preserves SafetyRulesInv (pre ^∙ lSafetyRules) (preUpdatedSD₂ ^∙ lSafetyRules)
               srP₂ = mkPreservesSafetyRulesInv

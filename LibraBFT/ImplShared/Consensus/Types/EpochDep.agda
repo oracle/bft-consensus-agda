@@ -57,9 +57,6 @@ ValidatorVerifier-correct vv =
    in (EpochConfig∙new {! someHash?!}
               epoch numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
 
-α-EC-RM : (rm : RoundManager) → ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer) → EpochConfig
-α-EC-RM rm vvc = α-EC-VV (rm ^∙ rmValidatorVerifer , vvc) (rm ^∙ rmEpoch)
-
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
   init-EC : GenesisInfo → EpochConfig
 
