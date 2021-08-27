@@ -225,13 +225,20 @@ module LibraBFT.ImplShared.Consensus.Types where
                        → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
+  -- To enable modeling of logging info that has not been added yet,
+  -- InfoLog and an inhabitant is postulated.
+  postulate
+    InfoLog  : Set
+    fakeInfo : InfoLog
+
   -- The Haskell implementation has many more constructors.
   -- Constructors are being added incrementally as needed for the verification effort.
   data ErrLog : Set where
-    -- Consensus_BlockNotFound
+    -- full name of following field : Consensus_BlockNotFound
     ErrCBlockNotFound   : HashValue   → ErrLog
-    -- ExecutionCorrectnessClient_BlockNotFound
+    -- full name of following field : ExecutionCorrectnessClient_BlockNotFound
     ErrECCBlockNotFound : HashValue   → ErrLog
+    ErrInfo             : InfoLog     → ErrLog -- to exit early, but not an error
     ErrVerify           : VerifyError → ErrLog
 
   -- To enable modeling of logging errors that have not been added yet,
@@ -239,9 +246,4 @@ module LibraBFT.ImplShared.Consensus.Types where
   postulate
     fakeErr : ErrLog
 
-  -- To enable modeling of logging info that has not been added yet,
-  -- InfoLog and an inhabitant is postulated.
-  postulate
-    InfoLog  : Set
-    fakeInfo : InfoLog
 

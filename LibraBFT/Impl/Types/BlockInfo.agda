@@ -5,12 +5,16 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
+import      LibraBFT.Impl.Crypto.Crypto.Hash               as Hash
+import      LibraBFT.Impl.OBM.Crypto                       as Crypto
+import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
+import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Types.BlockInfo where
-
 
 gENESIS_EPOCH   : Epoch
 gENESIS_EPOCH   = {-Epoch-} 0
@@ -25,10 +29,27 @@ empty : BlockInfo
 empty = BlockInfo∙new
   gENESIS_EPOCH
   gENESIS_ROUND
-  (sha256 (false ∷ [])) -- TODO-1 Hash.valueZero
-  (sha256 (false ∷ [])) -- TODO-1 Hash.valueZero
+  Hash.valueZero
+  Hash.valueZero
   gENESIS_VERSION
   nothing
+
+genesis : HashValue → ValidatorSet → BlockInfo
+genesis genesisStateRootHash validatorSet = BlockInfo∙new
+  gENESIS_EPOCH
+  gENESIS_ROUND
+  Hash.valueZero
+  genesisStateRootHash
+  gENESIS_VERSION
+--gENESIS_TIMESTAMP_USECS
+  (just (EpochState∙new {-Epoch-} 1 (ValidatorVerifier.from validatorSet)))
+{-# INLINE genesis #-}
+
+mockGenesis : Maybe ValidatorSet → BlockInfo
+mockGenesis
+  = genesis
+    (Crypto.obmHashVersion gENESIS_VERSION) -- OBM-LBFT-DIFF : Crypto.aCCUMULATOR_PLACEHOLDER_HASH
+  ∘ fromMaybe ValidatorSet.empty
 
 hasReconfiguration : BlockInfo → Bool
 hasReconfiguration = is-just ∘ (_^∙ biNextEpochState)

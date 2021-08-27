@@ -4,22 +4,79 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                 as Map
+open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
+import      LibraBFT.Impl.Consensus.RecoveryData                 as RecoveryData
+import      LibraBFT.Impl.Consensus.TestUtils.MockSharedStorage  as MockSharedStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
+import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore as LedgerStore
+import      LibraBFT.Impl.Types.LedgerInfo                       as LedgerInfo
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+import      LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+import      Data.String                                          as String
 
 module LibraBFT.Impl.Consensus.TestUtils.MockStorage where
 
-postulate -- TODO-1: implement tryState, startForTesting
-  tryStart        : MockStorage  → Either ErrLog RecoveryData
-  startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
-                  → Either ErrLog (RecoveryData × PersistentLivenessStorage)
+------------------------------------------------------------------------------
+
+postulate -- TODO-2: sortOn
+  sortOn : (Block → Round) → List Block → List Block
+
+------------------------------------------------------------------------------
+
+start : MockStorage → Either ErrLog RecoveryData
+
+------------------------------------------------------------------------------
+
+newWithLedgerInfo : MockSharedStorage → LedgerInfo → MockStorage
+newWithLedgerInfo sharedStorage ledgerInfo =
+  let li  = if ledgerInfo ^∙ liEndsEpoch
+            then ledgerInfo
+            else LedgerInfo.mockGenesis (just (sharedStorage ^∙ mssValidatorSet))
+      lis = LedgerInfoWithSignatures∙new li Map.empty
+   in MockStorage∙new
+      (sharedStorage & mssLis %~ Map.insert (lis ^∙ liwsLedgerInfo ∙ liVersion) lis)
+      li
+      (DiemDB∙new LedgerStore.new)
+
+getLedgerRecoveryData : MockStorage → LedgerRecoveryData
+getLedgerRecoveryData self =
+  LedgerRecoveryData∙new (self ^∙ msStorageLedger)
+
+tryStart : MockStorage → Either ErrLog RecoveryData
+tryStart self =
+  withErrCtx' (here' []) $
+  RecoveryData.new
+    (self ^∙ msSharedStorage ∙ mssLastVote)
+    (getLedgerRecoveryData self)
+    (sortOn (_^∙ bRound) (Map.elems (self ^∙ msSharedStorage ∙ mssBlock)))
+    RootMetadata∙new
+    (Map.elems (self ^∙ msSharedStorage ∙ mssQc))
+    (self ^∙ msSharedStorage ∙ mssHighestTimeoutCertificate)
+ where
+  here' : List String.String → List String.String
+  here' t = "MockStorage" ∷ "tryStart" ∷ t
+
+startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
+                → Either ErrLog (RecoveryData × PersistentLivenessStorage)
+startForTesting validatorSet obmMLIWS = do
+  let (sharedStorage , genesisLi) = case obmMLIWS of λ where
+        nothing     → ( MockSharedStorage.new            validatorSet
+                      , LedgerInfo.mockGenesis     (just validatorSet) )
+        (just liws) → ( MockSharedStorage.newObmWithLIWS validatorSet liws
+                      , liws ^∙ liwsLedgerInfo )
+      storage = newWithLedgerInfo sharedStorage genesisLi
+  ss ← withErrCtx' (here' []) (start storage)
+  pure (ss , storage)
+ where
+  here' : List String.String → List String.String
+  here' t = "MockStorage" ∷ "startForTesting" ∷ t
 
 ------------------------------------------------------------------------------
 
@@ -66,7 +123,6 @@ saveStateM v db = do
   logInfo fakeInfo -- ["MockStorage", "saveStateM", lsV v]
   ok (db & msSharedStorage ∙ mssLastVote ?~ v)
 
-start : MockStorage → Either ErrLog RecoveryData
 start  = tryStart
 
 saveHighestTimeoutCertificateM

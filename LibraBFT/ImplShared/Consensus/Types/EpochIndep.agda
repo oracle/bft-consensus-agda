@@ -64,6 +64,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open Version public
   postulate instance enc-Version : Encoder Version
 
+  postulate -- TODO-1: implement/prove Version equality
+    _≟-Version_ : (v1 v2 : Version) → Dec (v1 ≡ v2)
+  instance
+    Eq-Version : Eq Version
+    Eq._≟_ Eq-Version = _≟-Version_
+
   _≤-Version_ : Version → Version → Set
   v1 ≤-Version v2 = _vVE v1 < _vVE v2
                   ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 ≤ _vVR v2
@@ -78,6 +84,24 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
                                  ; (inj₂ (x , _)) → rneq x })
   ...| yes refl
      with _vVR v1 ≤? _vVR v2
+  ...| yes rleq = yes (inj₂ (refl , rleq))
+  ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (_ , x)) → rgt x })
+
+  _<-Version_ : Version → Version → Set
+  v1 <-Version v2 = _vVE v1 < _vVE v2
+                  ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 < _vVR v2
+
+  _<?-Version_ : (v1 v2 : Version) → Dec (v1 <-Version v2)
+  v1 <?-Version v2
+     with _vVE v1 <? _vVE v2
+  ...| yes prf = yes (inj₁ prf)
+  ...| no  ege
+     with _vVE v1 ≟ _vVE v2
+  ...| no  rneq = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (x , _)) → rneq x })
+  ...| yes refl
+     with _vVR v1 <? _vVR v2
   ...| yes rleq = yes (inj₂ (refl , rleq))
   ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
                                  ; (inj₂ (_ , x)) → rgt x })
@@ -102,9 +126,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens (quote ValidatorVerifier)
              (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
-
 
   record EpochState : Set where
     constructor EpochState∙new
@@ -114,6 +137,20 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   open EpochState public
   unquoteDecl esEpoch   esVerifier = mkLens (quote EpochState)
              (esEpoch ∷ esVerifier ∷ [])
+
+  record Ledger2WaypointConverter : Set where
+    constructor mkLedger2WaypointConverter
+    field
+      _l2wcEpoch          : Epoch
+      _l2wcRootHash       : HashValue
+      _l2wcVersion        : Version
+    --_l2wcTimestamp      : Instant
+      _l2wcNextEpochState : Maybe EpochState
+  open Ledger2WaypointConverter public
+  unquoteDecl l2wcEpoch   2wcRootHash   2wcVersion
+              {-l2wcTimestamp-} l2wcNextEpochState = mkLens (quote Ledger2WaypointConverter)
+             (l2wcEpoch ∷ 2wcRootHash ∷ 2wcVersion ∷
+              {-l2wcTimestamp-} l2wcNextEpochState ∷ [])
 
   postulate -- one valid assumption, one that can be proved using it
     instance
@@ -230,6 +267,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl liwsLedgerInfo   liwsSignatures = mkLens (quote LedgerInfoWithSignatures)
              (liwsLedgerInfo ∷ liwsSignatures ∷ [])
   postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
+
+  -- GETTER only in Haskell
+  liwsVersion : Lens LedgerInfoWithSignatures Version
+  liwsVersion = liwsLedgerInfo ∙ liVersion
 
   -------------------
   -- Votes and QCs --
@@ -1009,7 +1050,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
   record LedgerStore : Set where
-    constructor LedgerStore∙new
+    constructor mkLedgerStore
     field
       _lsObmVersionToEpoch : Map.KVMap Version Epoch
       _lsObmEpochToLIWS    : Map.KVMap Epoch   LedgerInfoWithSignatures
@@ -1023,8 +1064,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl ddbLedgerStore = mkLens (quote DiemDB)
              (ddbLedgerStore ∷ [])
 
+  data ConsensusScheme : Set where ConsensusScheme∙new : ConsensusScheme
+  -- instance S.Serialize ConsensusScheme
+
+  record ValidatorSet : Set where
+    constructor ValidatorSet∙new
+    field
+      _vsScheme  : ConsensusScheme
+      _vsPayload : List ValidatorInfo
+  -- instance S.Serialize ValidatorSet
+
   record MockSharedStorage : Set where
-    constructor MockSharedStorage∙new
+    constructor mkMockSharedStorage
     field
       -- Safety state
       _mssBlock                     : Map.KVMap HashValue Block
@@ -1033,12 +1084,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _mssLastVote                  : Maybe Vote
       -- Liveness state
       _mssHighestTimeoutCertificate : Maybe TimeoutCertificate
-      --_mssValidatorSet              : ValidatorSet
+      _mssValidatorSet              : ValidatorSet
   open MockSharedStorage public
   unquoteDecl mssBlock    mssQc   mssLis    mssLastVote
-              mssHighestTimeoutCertificate   {-mssValidatorSet-} = mkLens (quote MockSharedStorage)
+              mssHighestTimeoutCertificate  mssValidatorSet = mkLens (quote MockSharedStorage)
              (mssBlock ∷  mssQc ∷ mssLis ∷ mssLastVote ∷
-              mssHighestTimeoutCertificate {-∷ mssValidatorSet-} ∷ [])
+              mssHighestTimeoutCertificate ∷ mssValidatorSet ∷ [])
 
   record MockStorage : Set where
     constructor MockStorage∙new

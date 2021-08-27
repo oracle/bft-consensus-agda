@@ -23,16 +23,6 @@ module LibraBFT.Impl.Consensus.EpochManagerTypes where
 ------------------------------------------------------------------------------
 -- from LBFT.Consensus.Types
 
-data ConsensusScheme : Set where mkConsensusScheme : ConsensusScheme
--- instance S.Serialize ConsensusScheme
-
-record ValidatorSet : Set where
-  constructor ValidatorSet∙new
-  field
-    _vsScheme  : ConsensusScheme
-    _vsPayload : List ValidatorInfo
--- instance S.Serialize ValidatorSet
-
 record OnChainConfigPayload : Set where
   constructor OnChainConfigPayload∙new
   field
