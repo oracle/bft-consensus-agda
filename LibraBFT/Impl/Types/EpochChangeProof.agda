@@ -26,7 +26,7 @@ verify
 verify self verifier = do
   lcheck (not (null (self ^∙ ecpLedgerInfoWithSigs)))
          (here' ("empty" ∷ []))
-  lastLedgerInfoWithSigs <- last (self ^∙ ecpLedgerInfoWithSigs)
+  lastLedgerInfoWithSigs ← last (self ^∙ ecpLedgerInfoWithSigs)
   lcheckInfo (not (Verifier.isLedgerInfoStale verifier (lastLedgerInfoWithSigs ^∙ liwsLedgerInfo)))
              (here' ("stale" ∷ []))
       -- Skip stale ledger infos in the proof prefix.

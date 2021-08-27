@@ -24,6 +24,8 @@ open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.StateComputerByteString where
 
+-- Note that this differs from the Haskell code, which still contains an errorExit.
+-- TODO-2: better align these and re-review
 compute : StateComputerComputeType
 compute _self block _parentBlockId =
   StateComputeResult∙new
@@ -48,24 +50,18 @@ compute _self block _parentBlockId =
       (Right vv) → Right (EpochState∙new (block ^∙ bEpoch + 1) vv)
 
 -- LBFT-OBM-DIFF : gets block instead of vector of hashes
+-- TODO-2: consider converting to EitherD before proving anything about this
 commit : StateComputerCommitType
 commit self db (ExecutedBlock∙new _b (StateComputeResult∙new version _)) liws =
-  case DiemDB.saveTransactions db (just liws) of λ where
-    (LeftD   e)  → Left (errText e)
-    (RightD db') → pure
+  case (DiemDB.saveTransactions.E db (just liws)) of λ where
+    (Left   e)  → Left (errText e)
+    (Right db') → pure
        ( (self & scObmVersion ∙~ version)
        , db'
        , (maybeS (liws ^∙ liwsLedgerInfo ∙ liNextEpochState) nothing $ λ (EpochState∙new e vv) →
            just (ReconfigEventEpochChange∙new
                  (OnChainConfigPayload∙new e (ValidatorSet.obmFromVV vv))))
        )
-    (EitherD-bind   x x₁)    → Left xTODO
-    (EitherD-if     x)       → Left xTODO
-    (EitherD-either x x₁ x₂) → Left xTODO
-    (EitherD-maybe  x x₁ x₂) → Left xTODO
- where
-  xTODO : List String
-  xTODO = "convert commit to EitherD or what?" ∷ []
 
 -- LBFT-OBM-DIFF : completely different
 syncTo : StateComputerSyncToType
