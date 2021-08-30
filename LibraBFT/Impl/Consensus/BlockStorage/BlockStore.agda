@@ -197,9 +197,8 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
       ifD btRound ≥?ℕ block ^∙ bRound
       then LeftD fakeErr -- block with old round
       else step₂ bsr
-      -- else step₂ bsr
 
-  step₂ bsr = do
+  step₂ _ = do
         eb ← case⊎D executeBlockE bs0 block of λ where
           (Right res) → RightD res
           -- OBM-LBFT-DIFF : This is never thrown in OBM.
@@ -236,7 +235,9 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
 
 executeAndInsertBlockE = executeAndInsertBlockE.E
 
-executeBlockE bs block = do
+module executeBlockE (bs : BlockStore) (block : Block) where
+
+  step₀ = do
 -- TODO-3: hook up proper implementation (in comments below).  Requires addressing the issue that
 -- doing so breaks the existing proof of executeAndInsertBlockESpec.contract₂, which currently
 -- violates an abstraction boundary and looks into the implementation of this function, rather than
@@ -246,12 +247,15 @@ executeBlockE bs block = do
     (Right stateComputeResult) →
 -}
       pure (ExecutedBlock∙new block stateComputeResult)
- where
-  here' : List String → List String
-  here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
+   where
+    here' : List String → List String
+    here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
-executeBlockE₀ bs block = fromEither $ executeBlockE bs block
-
+abstract
+  executeBlockE = executeBlockE.step₀
+  executeBlockE₀ bs block = fromEither $ executeBlockE bs block
+  executeBlockE≡ : ∀ {bs block r} → executeBlockE bs block ≡ r → executeBlockE₀ bs block ≡ fromEither r
+  executeBlockE≡ refl = refl
 ------------------------------------------------------------------------------
 
 insertSingleQuorumCertM
