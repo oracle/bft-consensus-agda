@@ -58,9 +58,16 @@ module LibraBFT.ImplShared.Util.Crypto where
       bdInjBTGen  : bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis
       bdInjBTProp : ∀ {tx}{auth} → bd1 ^∙ bdBlockType ≡ Proposal tx auth
                                  → bd1 ^∙ bdBlockType ≡ bd2 ^∙ bdBlockType
+  postulate
+    hashBD-bs  : BlockData → BitString
+
+  hashBD : BlockData → HashValue
+  hashBD = sha256 ∘ hashBD-bs
+
+  _hasSameHashInput-BD_ : BlockData → BlockData → Set
+  bd1 hasSameHashInput-BD bd2 = hashBD-bs bd1 ≡ hashBD-bs bd2
 
   postulate
-    hashBD     : BlockData → HashValue
     hashBD-inj : ∀ {bd1 bd2}
                → hashBD bd1 ≡ hashBD bd2
                → NonInjective-≡ sha256 ⊎ BlockDataInjectivityProps bd1 bd2
