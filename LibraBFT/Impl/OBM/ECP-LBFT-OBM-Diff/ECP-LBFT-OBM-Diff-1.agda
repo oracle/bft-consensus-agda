@@ -10,16 +10,69 @@ import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.DiemDB                     as DiemDB
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+open import Data.String                                            using (String)
 
 module LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 where
 
 ------------------------------------------------------------------------------
 
+postulate -- TODO-1 : nub (remove duplicates)
+  nub : ∀ {A : Set} → List A → List A
+
+------------------------------------------------------------------------------
+
 amIMemberOfCurrentEpoch : Author → List Author → Bool
 amIMemberOfCurrentEpochM : LBFT Bool
+
+------------------------------------------------------------------------------
+
+e_SyncManager_insertQuorumCertM_commit : LedgerInfoWithSignatures → LBFT (Either ErrLog Unit)
+e_SyncManager_insertQuorumCertM_commit liws =
+  ifD (not ECP-LBFT-OBM-Diff-0.enabled)
+  then (do
+    rcvrs ← use (lRoundManager ∙ rmObmAllAuthors)
+    --act (BroadcastEpochChangeProof (EpochChangeProof∙new (liws ∷ []) false) rcvrs) -- TODO-1
+    ok unit)
+  else do
+    {-
+    LBFT-OBM-DIFF
+    A SyncInfo is sent BEFORE an EpochChangeProof.
+    Only sent to members of current epoch (not the one the EpochChangeProof will transition to).
+
+    This is needed since the highest committed QC from the initial committer/leader of
+    the EPOCHCHANGE transaction needs to be given to followers so they will also
+    commit the EPOCHCHANGE transaction.
+
+    Note: This is similar to how the QC is carried in a ProposalMsg.
+    -}
+    rcvrs    ← use (lRoundManager ∙ rmObmAllAuthors)
+    syncInfo ← SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert)
+                            <*> use (lBlockStore ∙ bsHighestCommitCert)
+                            <*> use (lBlockStore ∙ bsHighestTimeoutCert)
+    act (BroadcastSyncInfo syncInfo rcvrs)
+
+    -- LBFT-OBM-DIFF : PUSH: when sending an ECP when committing an epoch change,
+    -- send all epoch ending ledger info (not just the current one)
+    -- so the receiver will be up-to-date.
+    -- TODO : optimize: let receiver PULL its gaps.
+    db ← use (lBlockStore ∙ bsStorage ∙ msObmDiemDB)
+    maybeSD (liws ^∙ liwsLedgerInfo ∙ liNextEpochState) (bail fakeErr {-"liNextEpochState" ∷ "Nothing" ∷ []-}) $ λ es → do
+      let newRcvrs = es ^∙ esVerifier ∙ vvObmAuthors
+          allRcvrs = nub (rcvrs ++ newRcvrs)
+      eitherS (DiemDB.getEpochEndingLedgerInfos db ({-Epoch-} 1) (liws ^∙ liwsEpoch + 1))
+              bail
+              (λ (liwss , b) -> do
+                  -- act (BroadcastEpochChangeProof lEC (EpochChangeProof.new liwss b) allRcvrs) -- TODO-1
+                  ok unit)
+ where
+  here' : List String → List String
+  here' t = "e_SyncManager_InsertQuorumCertM_commit" ∷ t
 
 ------------------------------------------------------------------------------
 

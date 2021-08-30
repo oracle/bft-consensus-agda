@@ -8,6 +8,7 @@ open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever as BlockRetriever
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore     as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree      as BlockTree
+import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote         as Vote
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage   as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -67,11 +68,11 @@ addCertsM {-reason-} syncInfo retriever =
 ------------------------------------------------------------------------------
 
 module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
-  step₀ :                         LBFT (Either ErrLog Unit)
-  step₁ : BlockStore            → LBFT (Either ErrLog Unit)
-  step₁-else :                    LBFT (Either ErrLog Unit)
-  step₂ : ExecutedBlock         → LBFT (Either ErrLog Unit)
-  step₃ :                         LBFT (Either ErrLog Unit)
+  step₀ :                            LBFT (Either ErrLog Unit)
+  step₁ : BlockStore               → LBFT (Either ErrLog Unit)
+  step₁-else :                       LBFT (Either ErrLog Unit)
+  step₂ : ExecutedBlock            → LBFT (Either ErrLog Unit)
+  step₃ : LedgerInfoWithSignatures → LBFT (Either ErrLog Unit)
 
   step₀ = do
     bs ← use lBlockStore
@@ -99,11 +100,11 @@ module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
   step₂ bsr = do
           let finalityProof = qc ^∙ qcLedgerInfo
           BlockStore.commitM finalityProof ∙?∙ λ xx →
-            step₃
+            step₃ finalityProof
 
-  step₃ = do
+  step₃ finalityProof = do
             ifD qc ^∙ qcEndsEpoch
-              then ok unit -- TODO-1 EPOCH CHANGE
+              then ECP-LBFT-OBM-Diff-1.e_SyncManager_insertQuorumCertM_commit finalityProof
               else ok unit
 
   step₁-else =

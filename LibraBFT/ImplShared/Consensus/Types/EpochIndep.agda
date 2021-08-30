@@ -129,6 +129,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens (quote ValidatorVerifier)
              (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
+  -- getter only in Haskell
+  vvObmAuthors : Lens ValidatorVerifier (List AccountAddress)
+  vvObmAuthors = mkLens' g s
+   where
+    g : ValidatorVerifier → List AccountAddress
+    g vv = Map.kvm-keys (vv ^∙ vvAddressToValidatorInfo)
+    s : ValidatorVerifier → List AccountAddress → ValidatorVerifier
+    s vv _ = vv -- TODO-1 : cannot be done: need a way to defined only getters
+
   record EpochState : Set where
     constructor EpochState∙new
     field
@@ -267,6 +276,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl liwsLedgerInfo   liwsSignatures = mkLens (quote LedgerInfoWithSignatures)
              (liwsLedgerInfo ∷ liwsSignatures ∷ [])
   postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
+
+  -- GETTER only in Haskell
+  liwsEpoch : Lens LedgerInfoWithSignatures Epoch
+  liwsEpoch = liwsLedgerInfo ∙ liEpoch
 
   -- GETTER only in Haskell
   liwsVersion : Lens LedgerInfoWithSignatures Version
