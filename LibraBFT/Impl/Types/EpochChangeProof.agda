@@ -19,6 +19,14 @@ import      Data.String                               as String
 
 module LibraBFT.Impl.Types.EpochChangeProof where
 
+obmLastLIWS : EpochChangeProof → Either ErrLog LedgerInfoWithSignatures
+obmLastLIWS self = maybeS (lastMay (self ^∙ ecpLedgerInfoWithSigs))
+                          (Left fakeErr {-["EpochChangeProof", "obmLastLIWS", "empty"]-})
+                          pure
+
+obmLastEpoch : EpochChangeProof → Epoch
+obmLastEpoch self = eitherS (obmLastLIWS self) (const ({-Epoch-} 0)) (_^∙ liwsLedgerInfo ∙ liEpoch)
+
 verify
   : {verifier : Set} ⦃ _ : Verifier.Verifier verifier ⦄
   → EpochChangeProof → verifier

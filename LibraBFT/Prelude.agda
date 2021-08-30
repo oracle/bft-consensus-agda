@@ -169,6 +169,11 @@ module LibraBFT.Prelude where
   maybe-any-⊥ : ∀{a}{A : Set a} → Maybe-Any {A = A} (λ _ → ⊤) nothing → ⊥
   maybe-any-⊥ ()
 
+  lastMay : ∀ {A : Set} → List A → Maybe A
+  lastMay      []  = nothing
+  lastMay (x ∷ []) = just x
+  lastMay (_ ∷ xs) = lastMay xs
+
   open import Data.Maybe.Properties
     using (just-injective)
     renaming (≡-dec to Maybe-≡-dec)

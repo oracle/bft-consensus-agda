@@ -9,6 +9,7 @@ open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.DiemDB                     as DiemDB
+import      LibraBFT.Impl.Types.EpochChangeProof                    as EpochChangeProof
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
@@ -95,10 +96,17 @@ e_RoundState_processLocalTimeoutM e r =
 
 ------------------------------------------------------------------------------
 
-postulate -- TODO-1: e_EpochManager_doECP_waitForRlec
- e_EpochManager_doECP_waitForRlec
-  : EpochManager → EpochChangeProof
-  → Either ErrLog Bool
+e_EpochManager_doECP_waitForRlec : EpochManager → EpochChangeProof → Either ErrLog Bool
+e_EpochManager_doECP_waitForRlec self ecp =
+  if not ECP-LBFT-OBM-Diff-0.enabled
+  then pure true
+  else do
+    rm ← self ^∙ emObmRoundManager
+    e  ← self ^∙ emEpoch
+    maybeS (rm ^∙ rmObmMe)
+           (Left fakeErr {-["e_EpochManager_doECP_waitForRlec", "rmObmMe", "Nothing"]-})
+           $ λ me → let m = amIMemberOfCurrentEpoch me (rm ^∙ rmObmAllAuthors)
+                     in pure (m ∧ (EpochChangeProof.obmLastEpoch ecp == e))
 
 ------------------------------------------------------------------------------
 
