@@ -183,7 +183,7 @@ module executeAndVoteMSpec (b : Block) where
                 vgc₃ bid≡ =
                   Voting.glue-VoteNotGenerated-VoteGeneratedCorrect
                     (mkVoteNotGenerated refl refl)
-                    (Voting.substVoteGeneratedCorrect proposedBlock b (EAIBECon.ebBlock≈ bid≡) vrc)
+                    (Voting.substVoteGeneratedCorrect proposedBlock b EAIBECon.ebBlock≈ vrc)
 
                 noMsgOutsBail₃ : ∀ outs → NoMsgs outs → NoMsgs (CASVouts ++ outs)
                 noMsgOutsBail₃ outs noMsgs = ++-NoMsgs CASVouts outs CASVCon.noMsgOuts noMsgs
