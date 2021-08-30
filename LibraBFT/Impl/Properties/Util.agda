@@ -263,6 +263,11 @@ module Invariants where
   BlockHash-correct : Block → HashValue → Set
   BlockHash-correct b bid = hashBD (b ^∙ bBlockData) ≡ bid
 
+  postulate -- TODO-2: move somewhere sensible and prove
+    hash≡⇒≈Block : ∀ {b1 b2 : Block} {bid : HashValue}
+                   → BlockHash-correct b1 bid
+                   → BlockHash-correct b2 bid
+                   → b1 ≈Block b2
 
   ExecutedBlockHash-correct : ExecutedBlock → HashValue → Set
   ExecutedBlockHash-correct = BlockHash-correct ∘ (_^∙ ebBlock)

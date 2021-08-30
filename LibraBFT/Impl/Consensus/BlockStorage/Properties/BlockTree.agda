@@ -27,15 +27,25 @@ open Invariants
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 
+module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
 
-module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
+  eb0Id = eb0 ^∙ ebId
 
-  record ContractOk (bt“ : BlockTree) (b : ExecutedBlock) : Set where
+  -- This is not quite right.  It does not yet account for the updating of the parent Block
+  -- Is it needed (see below)?
+  record Updated (hv : HashValue) (pre post : BlockTree) (eb : ExecutedBlock) : Set where
+    field
+      ≢hv¬Upd : ∀ {hv'} → hv' ≢ hv → btGetBlock hv' post ≡ btGetBlock hv' pre
+
+  record ContractOk (bt“ : BlockTree) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      block≈  : b [ _≈Block_ ]L block at ebBlock
-      -- the returned BlockTree is the same as the previous one except for btIdToBlock
-      bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
+      bt≡x       : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
+      blocks≈    : eb [ _≈Block_ ]L eb0 at ebBlock
+      -- The following two fields are not used, but something like this will be useful in proving
+      -- btiPres and may provide value in their own right
+      ¬upd    : ∀ {eb'} → btGetBlock eb0Id bt ≡ just eb' → bt ≡ bt“
+      upd     :           btGetBlock eb0Id bt ≡ nothing  →  Updated eb0Id bt bt“ eb
       btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
@@ -44,12 +54,18 @@ module insertBlockESpec (block : ExecutedBlock) (bt : BlockTree) where
 
   open insertBlockE
 
-  module _ (bt“ : BlockTree) (b : ExecutedBlock) (con : ContractOk bt“ b) where
-  postulate
-    contract' : EitherD-weakestPre (step₀ block bt) Contract
+  record Requirements : Set where
+    constructor mkRequirements
+    field
+      reqNewBlock : ExecutedBlockHash-correct eb0 eb0Id
+      reqPreBlock : ∀ {eb} → btGetBlock eb0Id bt ≡ just eb → ExecutedBlockHash-correct eb eb0Id
 
-  contract : Contract (insertBlockE.E block bt)
-  contract = EitherD-contract (step₀ block bt) Contract contract'
+  postulate -- TODO-1: prove using hash≡⇒≈Block; note that the contract is stronger than we need
+            -- because insertBlockE is called only when btGetBlock eb0Id bt ≡ nothing in LibraBFT
+    contract' : Requirements → EitherD-weakestPre (step₀ eb0 bt) Contract
+
+  contract : Requirements → Contract (insertBlockE.E eb0 bt)
+  contract reqs = EitherD-contract (step₀ eb0 bt) Contract $ contract' reqs
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
