@@ -169,10 +169,14 @@ e_EpochManager_checkEpc self ecp =
 
 ------------------------------------------------------------------------------
 
-postulate -- TODO-1: e_EpochManager_processMessage_ISyncInfo
- e_EpochManager_processMessage_ISyncInfo
-  : EpochManager → SyncInfo
-  → Either ErrLog Unit
+e_EpochManager_processMessage_ISyncInfo : EpochManager → SyncInfo → Either ErrLog Unit
+e_EpochManager_processMessage_ISyncInfo self si = do
+  e ← self ^∙ emEpoch
+  grd‖ not ECP-LBFT-OBM-Diff-0.enabled ≔ pure unit
+     ‖ si ^∙ siEpoch == e              ≔ pure unit
+     ‖ otherwise≔
+       Left fakeErr
+             -- ["si epoch", lsE (si^.siEpoch), "/=", "ours", lsE e]
 
 ------------------------------------------------------------------------------
 
