@@ -269,8 +269,20 @@ module Invariants where
                    → BlockHash-correct b2 bid
                    → b1 ≈Block b2
 
+  module Reqs (b : Block) (bid : HashValue) (bt : BlockTree) where
+   ReqNewBlock = BlockHash-correct b bid
+   ReqPreBlock = ∀ {eb} → btGetBlock bid bt ≡ just eb → BlockHash-correct (eb ^∙ ebBlock) bid
+   -- TODO: State and use assumptions about hash collisions.  The following is one example that will
+   -- likely need to be refined.
+   NoHC1       = ∀ {eb}
+                 → btGetBlock bid bt ≡ just eb
+                   -- TODO-1: do we have a more succinct way to say this?
+                 → hashBD (b ^∙ bBlockData) ≡ hashBD (eb ^∙ ebBlock ∙ bBlockData)
+                 → b ≡L eb ^∙ ebBlock at bBlockData
+
   ExecutedBlockHash-correct : ExecutedBlock → HashValue → Set
   ExecutedBlockHash-correct = BlockHash-correct ∘ (_^∙ ebBlock)
+  
   ValidBlock : HashValue → ExecutedBlock → Set
   ValidBlock bid eb = eb ^∙ ebBlock ∙ bId ≡ bid
                     × ExecutedBlockHash-correct eb bid
