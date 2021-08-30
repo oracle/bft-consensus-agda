@@ -31,18 +31,6 @@ open QCProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
-module getBlockSpec (hv : HashValue) (bs : BlockStore) where
-
-  Ok : Set
-  Ok = ∃[ eb ] (getBlock hv bs ≡ just eb)
-
-  postulate -- TODO-2: Refine contract
-            -- This contract is only a sketch, and will need to be modified when
-            -- hash collisions are are modeled.
-    correctBlockData
-      : ∀ bd → hashBD bd ≡ hv → (isOk : Ok) → let (eb , _) = isOk in
-          eb ^∙ ebBlock ≈Block record (eb ^∙ ebBlock) { _bId = hv ;  _bBlockData = bd }
-
 module executeBlockESpec (bs : BlockStore) (block : Block) where
 
   Ok : Set
@@ -51,15 +39,17 @@ module executeBlockESpec (bs : BlockStore) (block : Block) where
   record ContractOk (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≈ : eb ^∙ ebBlock ≈Block block
+      ebBlock≡ : block ≡ eb ^∙ ebBlock
 
-  postulate -- TODO: Refine `ContractOk` and prove
+  postulate -- TODO: prove
     contract : (isOk : Ok) → ContractOk (proj₁ isOk)
 
 module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   open executeAndInsertBlockE bs0 block
 
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree
+
+  blockId = block ^∙ bId
 
   ------   These are used only outside this module.  
   Ok : Set
@@ -76,7 +66,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
+      ebBlock≈ : eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ {eci}
                  → Preserves BlockStoreInv (bs0 , eci) (bs' , eci)
       -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
@@ -86,73 +76,75 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   Contract (Left x) = ⊤
   Contract (Right (bs' , eb)) = ContractOk bs' eb
 
-  contract' : EitherD-weakestPre step₀ Contract
-  proj₂ contract' eb eb≡ =
+  record Requirements : Set where
+    constructor mkRequirements
+    field
+      -- This must be verified before calling
+      reqNewBlock : BlockHash-correct block blockId
+      -- NOTE: This comes from the inductive assumption that BlockStoreInv holds in the prestate.
+      -- Maybe we should just explicitly say that, and extract the needed properties here?  Or have
+      -- a corollary for that purpose?
+      reqPreBlock : ∀ {eb} → getBlock blockId bs0 ≡ just eb → ExecutedBlockHash-correct eb blockId
+  open Requirements
+
+  contract' : Requirements → EitherD-weakestPre step₀ Contract
+  -- step₀ is a maybeSD in context of EitherD.  Therefore, via MonadMaybeD and EitherD-MonadMaybeD,
+  -- this translates to EitherD-maybe.  We first deal with the easy case.
+  proj₂ (contract' reqs) eb eb≡ =
     mkContractOk ebBlock≈ id refl
     where
-    ebBlock≈ : hashBD (block ^∙ bBlockData) ≡ block ^∙ bId → eb ^∙ ebBlock ≈Block block
-    ebBlock≈ bid≡ =
-      getBlockSpec.correctBlockData
-        (block ^∙ bId) bs0 (block ^∙ bBlockData) (bid≡) (eb , eb≡)
+    ebBlock≈ : eb ^∙ ebBlock ≈Block block
+    ebBlock≈ = hash≡⇒≈Block {b2 = block} (reqPreBlock reqs eb≡) (reqNewBlock reqs)
 
-    qcPres : ∀ qc → PreservesL (qc ∈RoundManager_) rmBlockStore bs0 bs0
-    qcPres qc rm = id
-
-  proj₁ contract' getBlock≡nothing = contract₁
+  proj₁ (contract' reqs) getBlock≡nothing = contract₁
     where
+    -- step₁ is again a maybeSD; if bs0 ^∙ bsRoot ≡ nothing, the Contract is trivial
     contract₁ : EitherD-weakestPre step₁ Contract
     proj₁ contract₁ _ = tt
+    -- otherwise, bs0 ^∙ bsRoot ≡ just bsr, and we have an ifD; in the true branch, step₁ returns a
+    -- Left, so again it is trivial
     proj₁ (proj₂ contract₁ bsr bsr≡) _ = tt
+    -- in the else branch, we call step₂ bsr
     proj₂ (proj₂ contract₁ bsr bsr≡) btr<br = contract₂
       where
-      contract₃ : ∀ eb → ExecutedBlock∙new block stateComputeResult ≡ eb
+      contract₃ : ∀ eb → block ≡ eb ^∙ ebBlock
                   → EitherD-weakestPre (step₃ eb) Contract
 
-      -- TODO-2: The structure of this proof changes, and therefore it breaks, when we fully implement
-      -- executeBlockE.  This suggests that we should be using the contract for
-      -- executeBlockE, not depending on looking into its implementation here
+      module EB = executeBlockESpec bs0 block
+
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
-      proj₂ contract₂ eb eb≡ ._ refl =
-        contract₃ eb (inj₂-injective eb≡)
+      proj₂ contract₂ eb eb≡ ._ refl = contract₃ eb (EB.ContractOk.ebBlock≡ (EB.contract (eb , eb≡)))
       proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
-      proj₁ contract₂ (ErrVerify _) executeBlockE≡Left = tt
+      proj₁ contract₂ (ErrVerify _)         executeBlockE≡Left = tt
+      proj₁ contract₂ (ErrInfo _)           executeBlockE≡Left = tt
       -- > eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
       proj₁ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) _ _ = tt
       -- > case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
       proj₁ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ = tt
-      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ eb eb≡ =
-        contract₃ eb (sym eb≡)
+      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _
+        with  executeBlockE bs0  block | inspect
+             (executeBlockE bs0) block
+      ... | Left  x | [ R ] rewrite executeBlockE≡ R = tt
+      ... | Right y | [ R ] rewrite executeBlockE≡ R =
+        λ where c refl ._ refl →
+                  contract₃ c (EB.ContractOk.ebBlock≡ (EB.contract (c , R)))
+                            _ refl
 
-      contract₃ eb eb≡ bs1 bs1≡ = contract₄
+      contract₃ eb refl _ _ = contract₄
         where
+
         contract₄ : EitherD-weakestPre (step₄ eb) Contract
         contract₄
            with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
+                  (insertBlockESpec.mkRequirements (reqNewBlock reqs)   -- TODO: make these requirements explicitly the same?
+                                                   (reqPreBlock reqs))
         ...| con
            with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
         ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk (const ebBlock≈) btP bss≡x
+           λ where ._ refl → mkContractOk IBE.blocks≈ btP bss≡x
            where
            module IBE = insertBlockESpec.ContractOk con
-
-           eb≈ : block ≡ eb ^∙ ebBlock
-           eb≈ = cong (_^∙ ebBlock) eb≡
-
-           ebBlock≈ : eb' ^∙ ebBlock ≈Block block
-           ebBlock≈ = sym≈Block $ begin
-             block
-               ≡⟨ eb≈ ⟩
-             (eb  ^∙ ebBlock)
-               ≡⟨ cong (λ b → eb ^∙ ebBlock & bSignature ∙~ (b ^∙ bSignature)) (sym eb≈) ⟩
-             (eb  ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature))
-               ≡⟨ sym≈Block IBE.block≈ ⟩
-             (eb' ^∙ ebBlock & bSignature ∙~ (block ^∙ bSignature))
-               ∎
-             where open ≡-Reasoning
-
-           bts≡x : _
-           bts≡x = IBE.bt≡x
 
            open BlockStoreInv
 
@@ -160,10 +152,10 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
 
            bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
-           bss≡x rewrite sym bts≡x = refl
+           bss≡x rewrite sym IBE.bt≡x = refl
 
-  contract : Contract (executeAndInsertBlockE bs0 block)
-  contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
+  contract : Requirements → Contract (executeAndInsertBlockE bs0 block)
+  contract reqs = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract $ contract' reqs
 
 module executeAndInsertBlockMSpec (b : Block) where
   -- NOTE: This function returns any errors, rather than producing them as output.
@@ -180,7 +172,7 @@ module executeAndInsertBlockMSpec (b : Block) where
         → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
     proj₁ (contract Post pfBail pfOk ._ refl) e ≡left = pfBail e
     proj₂ (contract Post pfBail pfOk ._ refl) (bs' , eb) ≡right ._ refl unit refl
-       with executeAndInsertBlockESpec.contract bs b
+       with executeAndInsertBlockESpec.contract bs b (obm-dangerous-magic' "propagate requirements up")
     ...| con rewrite ≡right = pfOk (bs' , eb , refl) con
 
 module insertSingleQuorumCertMSpec

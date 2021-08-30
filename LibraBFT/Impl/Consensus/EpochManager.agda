@@ -83,9 +83,9 @@ startRoundManager'
 ------------------------------------------------------------------------------
 
 new
-  : NodeConfig → {-StateComputer →-} PersistentLivenessStorage → Author → SK
+  : NodeConfig → StateComputer → PersistentLivenessStorage → Author → SK
   → Either ErrLog EpochManager
-new nodeConfig {-stateComputer-} persistentLivenessStorage obmAuthor obmSK = do
+new nodeConfig stateComputer persistentLivenessStorage obmAuthor obmSK = do
   let -- author = node_config.validator_network.as_ref().unwrap().peer_id();
       config = nodeConfig ^∙ ncConsensus
   safetyRulesManager ← SafetyRulesManager.new (config ^∙ ccSafetyRules) obmAuthor obmSK

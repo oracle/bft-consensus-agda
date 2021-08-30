@@ -238,15 +238,10 @@ executeAndInsertBlockE = executeAndInsertBlockE.E
 module executeBlockE (bs : BlockStore) (block : Block) where
 
   step₀ = do
--- TODO-3: hook up proper implementation (in comments below).  Requires addressing the issue that
--- doing so breaks the existing proof of executeAndInsertBlockESpec.contract₂, which currently
--- violates an abstraction boundary and looks into the implementation of this function, rather than
--- using its contract.
-{-  case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
-    (Left e)                   → Left fakeErr -- (here' e)
-    (Right stateComputeResult) →
--}
-      pure (ExecutedBlock∙new block stateComputeResult)
+    case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
+      (Left e)                   → Left fakeErr -- (here' e)
+      (Right stateComputeResult) →
+        pure (ExecutedBlock∙new block stateComputeResult)
    where
     here' : List String → List String
     here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
