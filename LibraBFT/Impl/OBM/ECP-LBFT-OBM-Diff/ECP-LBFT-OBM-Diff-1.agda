@@ -136,10 +136,36 @@ e_EpochManager_startNewEpoch-D em = fromEither ∘ e_EpochManager_startNewEpoch 
 
 ------------------------------------------------------------------------------
 
-postulate -- TODO-1: e_EpochManager_checkEpc
- e_EpochManager_checkEpc
-  : EpochManager → EpochChangeProof
-  → Either ErrLog Unit
+e_EpochManager_checkEpc : EpochManager → EpochChangeProof → Either ErrLog Unit
+e_EpochManager_checkEpc self ecp =
+  if (not ECP-LBFT-OBM-Diff-0.enabled)
+  then checkEpcNot
+  else checkEpcEnable
+ where
+  here' : List String → List String
+
+  checkEpcNot : Either ErrLog Unit
+  checkEpcNot = case EpochChangeProof.epoch ecp of λ where
+    (Left e) → Left (withErrCtx (here' []) e)
+    (Right msgEpoch) → do
+      e ← self ^∙ emEpoch
+      if msgEpoch == e
+        then pure unit
+        else Left fakeErr
+              --(ErrInfo (lEC, InfoL (here ["unexpected epoch proof", lsE msgEpoch, lsE e])))
+
+  -- LBFT-OBM-DIFF : ignore it if it doesn't help
+  checkEpcEnable : Either ErrLog Unit
+  checkEpcEnable = do
+    epoch ← self ^∙ emEpoch
+    if-dec (EpochChangeProof.obmLastEpoch ecp <? epoch)
+      then Left fakeErr
+          --(ErrInfo (lEC, InfoL (here [ "ecp last", lsE (EpochChangeProof.obmLastEpoch ecp)
+          --                           , "< ours"  , lsE epoch ])))
+      else pure unit
+
+  here' t = "e_EpochManager_checkEpc" ∷ t
+
 
 ------------------------------------------------------------------------------
 

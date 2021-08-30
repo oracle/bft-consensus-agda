@@ -24,6 +24,12 @@ obmLastLIWS self = maybeS (lastMay (self ^∙ ecpLedgerInfoWithSigs))
                           (Left fakeErr {-["EpochChangeProof", "obmLastLIWS", "empty"]-})
                           pure
 
+-- first/lowest epoch of the proof to indicate which epoch this proof is helping with
+epoch : EpochChangeProof -> Either ErrLog Epoch
+epoch self = maybeS (headMay (self ^∙ ecpLedgerInfoWithSigs))
+                    (Left fakeErr {-["EpochChangeProof", "epoch", "empty"]-})
+                    (pure ∘ (_^∙ liwsLedgerInfo ∙ liEpoch))
+
 obmLastEpoch : EpochChangeProof → Epoch
 obmLastEpoch self = eitherS (obmLastLIWS self) (const ({-Epoch-} 0)) (_^∙ liwsLedgerInfo ∙ liEpoch)
 
