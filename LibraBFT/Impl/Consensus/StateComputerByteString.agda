@@ -24,15 +24,15 @@ open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.StateComputerByteString where
 
--- Note that this differs from the Haskell code, which still contains an errorExit.
--- TODO-2: better align these and re-review
+-- LBFT-OBM-DIFF: In Rust, the following might throw BlockNotFound
+-- in execution_correctness_client.execute_block (not needed/implemented).
+-- In OBM we call this error ErrECCBlockNotFound so it is easy to see it is
+-- defined, caught, but never thrown.
 compute : StateComputerComputeType
 compute _self block _parentBlockId =
   StateComputeResult∙new
     (Version∙new (block ^∙ bEpoch {-∙ eEpoch-}) (block ^∙ bRound {-∙ rRound-}))
     <$> maybeEC
-  -- In Rust, the following might throw BlockNotFound
-  -- TODO execution_correctness_client.execute_block
  where
   getES : ByteString → Either (List String) EpochState
 
