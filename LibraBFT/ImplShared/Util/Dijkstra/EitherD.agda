@@ -49,6 +49,9 @@ EitherD-Pre E A = Set
 EitherD-Post : (E A : Set) → Set₁
 EitherD-Post E A = Either E A → Set
 
+EitherD-Post-⇒ : ∀ {E A : Set} → (P Q : EitherD-Post E A) → Set
+EitherD-Post-⇒ P Q = ∀ r → P r → Q r
+
 EitherD-PredTrans : (E A : Set) → Set₁
 EitherD-PredTrans E A = EitherD-Post E A → EitherD-Pre E A
 
@@ -107,3 +110,11 @@ EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
   EitherD-contract f₁ P (proj₁ wp refl)
 EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
+
+postulate -- TODO-2: prove
+  EitherD-⇒
+    : (P Q : EitherD-Post E A)
+      → (EitherD-Post-⇒ P Q)
+      → ∀ m
+      → EitherD-weakestPre m P
+      → EitherD-weakestPre m Q

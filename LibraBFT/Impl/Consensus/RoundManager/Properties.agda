@@ -206,7 +206,7 @@ module executeAndVoteMSpec (b : Block) where
 
     contract
       : ∀ Post
-        → (∀ r st outs → Contract r st outs → Post r st outs)
+        → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (executeAndVoteM b) Post pre
     contract Post pf =
       RWS-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
