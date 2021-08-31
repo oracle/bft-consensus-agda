@@ -7,7 +7,6 @@
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert           as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote                 as Vote

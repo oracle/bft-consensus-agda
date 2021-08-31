@@ -5,15 +5,11 @@
 
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
-open import Optics.All
-------------------------------------------------------------------------------
-import      Data.String                                            as String
-
 open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax
+open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Storage.DiemDB.DiemDB where
 

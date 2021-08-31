@@ -6,7 +6,6 @@
 
 open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.Base.PKCS                             hiding (verify)
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types

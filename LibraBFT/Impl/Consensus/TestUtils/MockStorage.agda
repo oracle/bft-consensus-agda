@@ -6,7 +6,6 @@
 
 open import LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.RecoveryData                 as RecoveryData
 import      LibraBFT.Impl.Consensus.TestUtils.MockSharedStorage  as MockSharedStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
