@@ -27,7 +27,7 @@ e_DiemDB_getEpochEndingLedgerInfosImpl_limit : Epoch → Epoch → Epoch → (Ep
 e_DiemDB_getEpochEndingLedgerInfosImpl_limit startEpoch endEpoch limit =
   if not ECP-LBFT-OBM-Diff-0.enabled
   then
-    if-dec endEpoch ∸ startEpoch >? limit
+    if-dec endEpoch >? startEpoch + limit
     then (startEpoch + limit , true)
     else (endEpoch           , false)
   else   (endEpoch           , false)

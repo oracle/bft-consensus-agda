@@ -95,7 +95,7 @@ e_RoundState_processLocalTimeoutM e r =
     pure true
 
 ------------------------------------------------------------------------------
-
+-- TODO-1 : use EitherD
 e_EpochManager_doECP_waitForRlec : EpochManager → EpochChangeProof → Either ErrLog Bool
 e_EpochManager_doECP_waitForRlec self ecp =
   if not ECP-LBFT-OBM-Diff-0.enabled
@@ -135,7 +135,7 @@ e_EpochManager_startNewEpoch-D    : e_EpochManager_startNewEpoch.VariantFor Eith
 e_EpochManager_startNewEpoch-D em = fromEither ∘ e_EpochManager_startNewEpoch em
 
 ------------------------------------------------------------------------------
-
+-- TODO-1 : use EitherD
 e_EpochManager_checkEpc : EpochManager → EpochChangeProof → Either ErrLog Unit
 e_EpochManager_checkEpc self ecp =
   if (not ECP-LBFT-OBM-Diff-0.enabled)
@@ -168,7 +168,7 @@ e_EpochManager_checkEpc self ecp =
 
 
 ------------------------------------------------------------------------------
-
+-- TODO-1 : use EitherD
 e_EpochManager_processMessage_ISyncInfo : EpochManager → SyncInfo → Either ErrLog Unit
 e_EpochManager_processMessage_ISyncInfo self si = do
   e ← self ^∙ emEpoch
