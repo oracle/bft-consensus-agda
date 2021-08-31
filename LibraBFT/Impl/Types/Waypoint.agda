@@ -6,7 +6,6 @@
 
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.Ledger2WaypointConverter as Ledger2WaypointConverter
 open import LibraBFT.ImplShared.Consensus.Types

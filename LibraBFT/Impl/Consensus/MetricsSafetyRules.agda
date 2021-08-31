@@ -5,7 +5,6 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules as SafetyRules
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage   as MockStorage
 open import LibraBFT.Impl.OBM.Logging.Logging

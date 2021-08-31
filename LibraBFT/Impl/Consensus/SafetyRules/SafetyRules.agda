@@ -11,7 +11,6 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert           as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote                 as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData             as VoteData
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage as PersistentSafetyStorage
 import      LibraBFT.Impl.OBM.Crypto                                    as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
