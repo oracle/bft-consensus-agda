@@ -6,10 +6,11 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap            as Map
+open import LibraBFT.Base.KVMap              as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
+open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Prelude
@@ -958,8 +959,21 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
 -- ------------------------------------------------------------------------------
 
--- in LibraBFT.ImplShared.Consensus.Types
--- NewRoundReason, NewRoundEvent, ExponentialTimeInterval, RoundState
+  data NewRoundReason : Set where
+    QCReady : NewRoundReason
+    TOReady : NewRoundReason
+
+  record NewRoundEvent : Set where
+    constructor NewRoundEvent∙new
+    field
+      _nreRound   : Round
+      _nreReason  : NewRoundReason
+      _nreTimeout : Duration
+  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
+
+-- LibraBFT.ImplShared.Consensus.Types contains
+-- ExponentialTimeInterval, RoundState
 
 -- ------------------------------------------------------------------------------
 
