@@ -8,7 +8,6 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap             as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Prelude
 open import Optics.All
@@ -35,19 +34,6 @@ module LibraBFT.ImplShared.Consensus.Types where
   open import LibraBFT.ImplShared.Base.Types                     public
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Util.Crypto                    public
-
-  data NewRoundReason : Set where
-    QCReady : NewRoundReason
-    TOReady : NewRoundReason
-
-  record NewRoundEvent : Set where
-    constructor NewRoundEvent∙new
-    field
-      _nreRound   : Round
-      _nreReason  : NewRoundReason
-      _nreTimeout : Duration
-  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
-             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
 
   record ExponentialTimeInterval : Set where
     constructor mkExponentialTimeInterval
