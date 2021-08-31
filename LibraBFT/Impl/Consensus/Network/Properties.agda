@@ -10,10 +10,13 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.Network
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Consensus.Network.Properties where
+
+open Invariants
 
 module processProposalSpec (proposal : ProposalMsg) (myEpoch : Epoch) (vv : ValidatorVerifier) where
   postulate -- TODO-2: Refine contract
@@ -23,5 +26,5 @@ module processProposalSpec (proposal : ProposalMsg) (myEpoch : Epoch) (vv : Vali
       : case (processProposal proposal myEpoch vv) of λ where
           (Left _) → Unit
           (Right _) → proposal ^∙ pmProposal ∙ bEpoch ≡ myEpoch
-                      × hashBD (proposal ^∙ pmProposal ∙ bBlockData) ≡ proposal ^∙ pmProposal ∙ bId
+                      × BlockId-correct (proposal ^∙ pmProposal)
 

@@ -263,6 +263,9 @@ module Invariants where
   BlockHash-correct : Block → HashValue → Set
   BlockHash-correct b bid = hashBD (b ^∙ bBlockData) ≡ bid
 
+  BlockId-correct : Block → Set
+  BlockId-correct b = BlockHash-correct b (b ^∙ bId)
+
   postulate -- TODO-2: move somewhere sensible and prove
     hash≡⇒≈Block : ∀ {b1 b2 : Block} {bid : HashValue}
                    → BlockHash-correct b1 bid

@@ -96,14 +96,14 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = sym (proj₁ con)
 
-        proposalId≡ : hashBD (pm ^∙ pmProposal ∙ bBlockData) ≡ pm ^∙ pmProposal ∙ bId
+        proposalId≡ : BlockId-correct (pm ^∙ pmProposal)
         proposalId≡
            with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = proj₂ con
 
         pf : RWS-Post-⇒ (PPM.Contract pre) Contract
         pf unit st outs con =
-          mkContract PPMSpec.rmInv PPMSpec.noEpochChange
+          mkContract (PPMSpec.rmInv proposalId≡) PPMSpec.noEpochChange
             vac PPMSpec.outQcs∈RM PPMSpec.qcPost
           where
           module PPMSpec = processProposalMsgMSpec.Contract con
