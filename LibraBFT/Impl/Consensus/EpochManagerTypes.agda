@@ -11,8 +11,6 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.Prelude
 open import Optics.All
-------------------------------------------------------------------------------
-import      Data.String                          as String
 
 module LibraBFT.Impl.Consensus.EpochManagerTypes where
 
@@ -72,37 +70,3 @@ emObmRoundManager = mkLens' g s
            nothing                           → Left fakeErr
   s : EpochManager → Either ErrLog RoundManager -> EpochManager
   s em _ = em
-
-------------------------------------------------------------------------------
--- from LBFT.IO.OBM.Messages
-
-record ECPWire : Set where
-  constructor ECPWire∙new
-  field
-    --_ecpwWhy    : Text           -- for log visualization
-    --_ecpwEpoch  : Epoch          -- for log visualization; epoch of sender
-    --_ecpwRound  : Round          -- for log visualization; round of sender
-    _ecpwECP      : EpochChangeProof
--- instance S.Serialize ECPWire
-
-record EpRRqWire : Set where
-  constructor EpRRqWire∙new
-  field
-    --_eprrqwWhy  : Text           -- for log visualization
-    --_eprrqEpoch : Epoch          -- for log visualization; epoch of sender
-    --_eprrqRound : Round          -- for log visualization; round of sender
-    _eprrqEpRRq   : EpochRetrievalRequest
--- instance S.Serialize EpRRqWire
-
-data Input : Set where
-  IBlockRetrievalRequest    : Instant                  →          BlockRetrievalRequest  → Input
-  IBlockRetrievalResponse   : Instant                  →          BlockRetrievalResponse → Input
-  IEpochChangeProof         :           AccountAddress →          ECPWire                → Input
-  IEpochRetrievalRequest    :           AccountAddress →          EpRRqWire              → Input
-  IInit                     : Instant                                                    → Input
-  IProposal                 : Instant → AccountAddress →          ProposalMsg            → Input
-  IReconfigLocalEpochChange :                                   ReconfigEventEpochChange → Input
-  ISyncInfo                 : Instant → AccountAddress →          SyncInfo               → Input
-  ITimeout                  : Instant → String.String {-String is ThreadId-} → Epoch → Round → Input
-  IVote                     : Instant → AccountAddress →          VoteMsg                → Input
-

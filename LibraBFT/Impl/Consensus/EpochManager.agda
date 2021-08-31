@@ -15,6 +15,7 @@ import      LibraBFT.Impl.Consensus.MetricsSafetyRules               as MetricsS
 import      LibraBFT.Impl.Consensus.RoundManager                     as RoundManager
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager   as SafetyRulesManager
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage            as MockStorage
+open import LibraBFT.Impl.IO.OBM.Messages
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1  as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.OBM.Rust.Duration                          as Duration
