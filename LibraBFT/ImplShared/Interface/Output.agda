@@ -17,6 +17,7 @@ open import Optics.All
 module LibraBFT.ImplShared.Interface.Output where
 
   data Output : Set where
+    --BroadcastEpochChangeProof : EpochChangeProof → List Author → Output -- TODO-1
     BroadcastProposal : ProposalMsg → List Author     → Output
     BroadcastSyncInfo : SyncInfo    → List Author     → Output
     LogErr            : ErrLog                        → Output
