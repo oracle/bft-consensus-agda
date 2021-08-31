@@ -15,7 +15,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                         as String
+open import Data.String                                               using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo where
 
@@ -29,7 +29,7 @@ verifyM self validator = pure (verify self validator)
 
 module verify (self : SyncInfo) (validator : ValidatorVerifier) where
   step₀ step₁ step₂ step₃ step₄ step₅ step₆ : Either ErrLog Unit
-  here' : List String.String → List String.String
+  here' : List String → List String
 
   epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 

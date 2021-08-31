@@ -12,7 +12,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                         as String
+open import Data.String                         using (String)
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage where
@@ -36,5 +36,5 @@ consensusKeyForVersion self pk =
     then Left fakeErr -- ["sk /= pk"]
     else pure sk
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "PersistentSafetyStorage" ∷ "consensusKeyForVersion" ∷ t

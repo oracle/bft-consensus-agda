@@ -21,7 +21,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval where
 
@@ -34,7 +34,7 @@ verify self blockId numBlocks sigVerifier =
      ‖ otherwise≔
        verifyBlocks (self ^∙ brpBlocks)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "BlockRetrieval" ∷ "verify" ∷ t
 
   verifyBlock : HashValue → Block → Either ErrLog HashValue

@@ -5,9 +5,8 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                           as PKCS hiding (sign)
+open import LibraBFT.Base.PKCS                  as PKCS hiding (sign)
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.ValidatorSigner where
 

@@ -15,11 +15,8 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.EpochManagerTypes where
 
 ------------------------------------------------------------------------------
-
--- TODO-1 : These types will eventually go into the existing types modules
-
-------------------------------------------------------------------------------
--- from LBFT.Consensus.Types
+-- in Haskell, this lives in LBFT.Consensus.Types
+-- It lives here because of the dependency on RoundManager.
 
 data RoundProcessor : Set where
   RoundProcessorRecovery : RecoveryManager → RoundProcessor

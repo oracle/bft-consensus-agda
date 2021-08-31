@@ -27,7 +27,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+open import Data.String                                                 using (String)
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
@@ -120,7 +120,7 @@ verifyAuthorM author = do
         then bail fakeErr -- (ErrL (here' ["InvalidProposal", "Proposal author is not validator signer"]))
         else ok unit)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "verifyAuthorM" ∷ t
 
 ------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ initialize self proof = do
     else continue1 self epochState
  where
   continue2 : SafetyRules → EpochState → Either ErrLog SafetyRules
-  here'     : List String.String → List String.String
+  here'     : List String → List String
 
   continue1 : SafetyRules → EpochState → Either ErrLog SafetyRules
   continue1 self1 epochState =
@@ -315,7 +315,7 @@ signProposalM blockData = do
             let signature  = ValidatorSigner.sign validatorSigner blockData
             ok (Block.newProposalFromBlockDataAndSignature blockData signature)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "signProposalM" ∷ t
 
 ------------------------------------------------------------------------------
@@ -348,5 +348,5 @@ signTimeoutM timeout = do
     let signature = ValidatorSigner.sign validatorSigner timeout
     ok signature
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "signTimeoutM" ∷ {-lsTO timeout ∷-}   t

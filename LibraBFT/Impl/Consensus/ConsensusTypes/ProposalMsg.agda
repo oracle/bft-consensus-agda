@@ -15,7 +15,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                               as String
+open import Data.String                                               using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.ProposalMsg where
 
@@ -49,7 +49,7 @@ verifyWellFormed self = do
   lcheck (self ^∙ pmProposal ∙ bParentId == self ^∙ pmProposal ∙ bQuorumCert ∙ qcCertifiedBlock ∙ biId)
          (here' ("parent id /= qcCB" ∷ [])) -- show (self ^∙ pmProposal)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "ProposalMsg" ∷ "verifyWellFormed" {-∷ lsPM self-} ∷ t
 
 
