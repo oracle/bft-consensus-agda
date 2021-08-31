@@ -4,9 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Prelude
 open import LibraBFT.Impl.OBM.Rust.Duration as Duration
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Time where
 

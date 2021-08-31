@@ -13,7 +13,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                   as String
+open import Data.String                                   using (String)
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage where
 
@@ -51,7 +51,7 @@ startM : LBFT (Either ErrLog RecoveryData)
 startM =
   use (lBlockStore ∙ bsStorage) >>= λ s → pure (MockStorage.start s) ∙^∙ withErrCtx (here' [])
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "PersistentLivenessStorage" ∷ "startM" ∷ t
 
 saveHighestTimeoutCertM : TimeoutCertificate → LBFT (Either ErrLog Unit)

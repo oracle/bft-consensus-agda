@@ -6,25 +6,11 @@
 
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
-import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert           as QuorumCert
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote                 as Vote
-import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData             as VoteData
 import      LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage as PersistentSafetyStorage
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules             as SafetyRules
-import      LibraBFT.Impl.OBM.Crypto                                    as Crypto
-open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Impl.Types.BlockInfo                               as BlockInfo
-open import LibraBFT.Impl.Types.ValidatorSigner                         as ValidatorSigner
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-import      LibraBFT.ImplShared.Util.Crypto                             as Crypto
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
-------------------------------------------------------------------------------
-import      Data.String                                       as String
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager where
