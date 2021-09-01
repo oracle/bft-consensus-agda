@@ -19,7 +19,8 @@ module LibraBFT.Impl.OBM.Logging.Logging where
 -- In the future, we may wish to model and reason about errors and logging in more detail.
 
 postulate -- TODO-1 : errText : Note, the existing Agda ErrLog constructors do not contain text.
-  errText : ErrLog → List String
+  errText  : ErrLog → List String
+  errText' : ErrLog →      String
 
 logErr : ErrLog → LBFT Unit
 logErr x = tell1 (LogErr x)

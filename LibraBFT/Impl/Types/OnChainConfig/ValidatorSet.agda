@@ -15,5 +15,6 @@ new = ValidatorSet∙new ConsensusScheme∙new
 empty : ValidatorSet
 empty = new []
 
-postulate -- TODO-1 obmFromVV
+postulate -- TODO-1 obmFromVV, obmGetValidatorInfo
   obmFromVV : ValidatorVerifier → ValidatorSet
+  obmGetValidatorInfo : AuthorName → ValidatorSet → Either ErrLog ValidatorInfo

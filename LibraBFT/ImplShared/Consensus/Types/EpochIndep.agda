@@ -121,13 +121,13 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
                               -- possibility that the corresponding secret
                               -- key may have been leaked.
   open ValidatorSigner public
-  unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
-              (vsAuthor ∷ [])
+  unquoteDecl  vsAuthor   vsPrivateKey = mkLens (quote ValidatorSigner)
+              (vsAuthor ∷ vsPrivateKey ∷ [])
 
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-     _vcConsensusPublicKey : PK
+      _vcConsensusPublicKey : PK
   open ValidatorConfig public
   unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
     (vcConsensusPublicKey ∷ [])
@@ -135,10 +135,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
     field
-      -- _viAccountAddress       : AccountAddress
-      -- _viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
-      _viConfig : ValidatorConfig
+      _viAccountAddress       : AccountAddress
+      _viConsensusVotingPower : U64
+      _viConfig               : ValidatorConfig
   open ValidatorInfo public
+  unquoteDecl viAccountAddress   viConsensusVotingPower   viConfig = mkLens (quote ValidatorInfo)
+             (viAccountAddress ∷ viConsensusVotingPower ∷ viConfig ∷ [])
 
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
@@ -1326,8 +1328,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _ncObmMe     : AuthorName
       _ncConsensus : ConsensusConfig
   open NodeConfig public
-  unquoteDecl ncOmbMe    ncConsensus = mkLens  (quote NodeConfig)
-             (ncOmbMe ∷  ncConsensus ∷ [])
+  unquoteDecl ncObmMe    ncConsensus = mkLens  (quote NodeConfig)
+             (ncObmMe ∷  ncConsensus ∷ [])
 
   record RecoveryManager : Set where
     constructor RecoveryManager∙new
