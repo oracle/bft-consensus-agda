@@ -103,39 +103,30 @@ getEpochEndingLedgerInfo = LedgerStore.getEpochEndingLedgerInfo ∘ _ddbLedgerSt
 
 -- impl DbWriter for DiemDB
 
-module saveTransactions where
+-- LBFT-OBM-DIFF : entire impl
+module saveTransactions (self  : DiemDB)
+                        {- → [TransactionToCommit] → Version-}
+                        (mliws : Maybe LedgerInfoWithSignatures) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
-  VariantFor EL =
-    DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
-    → EL ErrLog DiemDB
+  VariantFor EL = EL ErrLog DiemDB
 
-  postulate -- TODO-1: saveTransactions
-    step₀ : VariantFor EitherD
+  step₁ : LedgerInfoWithSignatures               → VariantFor EitherD
+  step₂ : LedgerInfoWithSignatures → LedgerStore → VariantFor EitherD
+
+  step₀ : VariantFor EitherD
+  step₀ =
+    maybeSD mliws (RightD self) step₁
+
+  step₁ liws =
+    eitherSD (LedgerStore.putLedgerInfo (self ^∙ ddbLedgerStore) liws) LeftD (step₂ liws)
+
+  step₂ liws ls =
+    RightD (self & ddbLedgerStore ∙~ (ls & lsLatestLedgerInfo ?~ liws))
 
   E : VariantFor Either
-  E db = toEither ∘ step₀ db
+  E = toEither step₀
 
   D : VariantFor EitherD
-  D db = fromEither ∘ E db
+  D = fromEither E
 
 saveTransactions = saveTransactions.D
-
--- TODO-2: hook this up with above
--- `first_version` is the version of the first transaction in `txns_to_commit`.
--- When `ledger_info_with_sigs` is provided, verify that the transaction accumulator root hash
--- it carries is generated after the `txns_to_commit` are applied.
--- Note that even if `txns_to_commit` is empty, `frist_version` is checked to be
--- `ledger_info_with_sigs.ledger_info.version + 1` if `ledger_info_with_sigs` is not `None`.
--- LBFT-OBM-DIFF : entire impl
-saveTransactionsX
-  : DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
-  → Either ErrLog DiemDB
-saveTransactionsX self {- txnsToCommit firstVersion-} = λ where
-  nothing     → pure self
-  (just liws) → do
-    ls <- LedgerStore.putLedgerInfo (self ^∙ ddbLedgerStore) liws
-    pure (self & ddbLedgerStore ∙~ (ls & lsLatestLedgerInfo ?~ liws))
-
-
-
-
