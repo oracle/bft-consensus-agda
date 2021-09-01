@@ -24,6 +24,12 @@ getLatestLedgerInfo
   → Either ErrLog LedgerInfoWithSignatures
 ------------------------------------------------------------------------------
 
+mAX_NUM_EPOCH_ENDING_LEDGER_INFO : Epoch -- Usize
+mAX_NUM_EPOCH_ENDING_LEDGER_INFO = 100
+
+------------------------------------------------------------------------------
+-- impl DiemDB
+
 module getEpochEndingLedgerInfos where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL =
@@ -41,35 +47,7 @@ module getEpochEndingLedgerInfos where
 
 getEpochEndingLedgerInfos = getEpochEndingLedgerInfos.E
 
-module saveTransactions where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
-  VariantFor EL =
-    DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
-    → EL ErrLog DiemDB
-
-  postulate -- TODO-1: saveTransactions
-    step₀ : VariantFor EitherD
-
-  E : VariantFor Either
-  E db = toEither ∘ step₀ db
-
-  D : VariantFor EitherD
-  D db = fromEither ∘ E db
-
-saveTransactions = saveTransactions.D
-
-------------------------------------------------------------------------------
-
--- TODO-1 integrate the following with the above.
-
-------------------------------------------------------------------------------
-
-mAX_NUM_EPOCH_ENDING_LEDGER_INFO : Epoch -- Usize
-mAX_NUM_EPOCH_ENDING_LEDGER_INFO = 100
-
-------------------------------------------------------------------------------
--- impl DiemDB
-
+-- TODO-2: hook this up with above
 -- Returns ledger infos for epoch changes starting with the given epoch.
 -- If there are less than `MAX_NUM_EPOCH_ENDING_LEDGER_INFO` results, it returns all of them.
 -- Otherwise the first `MAX_NUM_EPOCH_ENDING_LEDGER_INFO` results are returned
@@ -108,6 +86,7 @@ getEpochEndingLedgerInfosImpl self startEpoch endEpoch limit = do
  where
   here t = "DiemDB":"getEpochEndingLedgerInfosImpl":t
 -}
+
 ------------------------------------------------------------------------------
 
 -- impl DbReader for DiemDB
@@ -124,6 +103,24 @@ getEpochEndingLedgerInfo = LedgerStore.getEpochEndingLedgerInfo ∘ _ddbLedgerSt
 
 -- impl DbWriter for DiemDB
 
+module saveTransactions where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL =
+    DiemDB {- → [TransactionToCommit] → Version-} → Maybe LedgerInfoWithSignatures
+    → EL ErrLog DiemDB
+
+  postulate -- TODO-1: saveTransactions
+    step₀ : VariantFor EitherD
+
+  E : VariantFor Either
+  E db = toEither ∘ step₀ db
+
+  D : VariantFor EitherD
+  D db = fromEither ∘ E db
+
+saveTransactions = saveTransactions.D
+
+-- TODO-2: hook this up with above
 -- `first_version` is the version of the first transaction in `txns_to_commit`.
 -- When `ledger_info_with_sigs` is provided, verify that the transaction accumulator root hash
 -- it carries is generated after the `txns_to_commit` are applied.
