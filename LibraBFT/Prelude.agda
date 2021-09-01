@@ -603,3 +603,13 @@ module LibraBFT.Prelude where
   []       !?      _   = nothing
   (x ∷ _ ) !?      0   = just x
   (_ ∷ xs) !? (suc n)  = xs !? n
+
+  fromToList : ℕ → ℕ → List ℕ
+  fromToList from to with from ≤′? to
+  ... | no ¬pr = []
+  ... | yes pr = fromToList-le from to pr []
+   where
+    fromToList-le : ∀ (from to : ℕ) (klel : from ≤′ to) (acc : List ℕ) → List ℕ
+    fromToList-le from ._        ≤′-refl       acc = from ∷ acc
+    fromToList-le from (suc to) (≤′-step klel) acc = fromToList-le from to klel (suc to ∷ acc)
+
