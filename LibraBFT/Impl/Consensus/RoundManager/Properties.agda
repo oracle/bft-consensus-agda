@@ -637,7 +637,7 @@ module processProposalMsgMSpec
           contract-step₁ =
             ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true vrm
             (RWS-weakestPre-bindPost unit step₂ Contract)
-            (RWS-Post-⇒-trans pf-step₂ λ where r st outs → proj₁)
+            (RWS-Post-⇒-trans pf-step₂ λ r st outs → proj₁)
 
           -- Need to know roundManagerInv st,
           pf-step₂ r st outs con = (pf-step₂' r , vrmPost)

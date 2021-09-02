@@ -92,32 +92,6 @@ module OutputProps where
 
 module QCProps where
 
-  record MsgRequirements (pool : SentMessages) (msg : NetworkMsg) : Set where
-    constructor mkMsgRequirements
-    field
-      mSndr  : NodeId
-      m∈pool : (mSndr , msg) ∈ pool
-
-  record SyncInfoRequirements (pool : SentMessages) (syncInfo : SyncInfo) : Set where
-    constructor mkSyncInfoRequirements
-    field
-      msg     : NetworkMsg
-      msgReqs : MsgRequirements pool msg
-      syncInfo∈msg : syncInfo SyncInfo∈NM msg
-    open MsgRequirements msgReqs
-
-  record BlockRequirements (pool : SentMessages) (block : Block) : Set where
-    constructor mkBlockRequirements
-    field
-      msg       : NetworkMsg
-      msgReqs   : MsgRequirements pool msg
-      block∈msg : block Block∈Msg msg
-
-  QCRequirements : (pool : SentMessages) (qc : QuorumCert) → Set
-  QCRequirements pool qc =
-    ∃[ si ] (qc QC∈SyncInfo si × SyncInfoRequirements pool si)
-    ⊎ ⊥ -- TODO: qc came from aggregated votes received by proposer
-
   data _∈BlockTree_ (qc : QuorumCert) (bt : BlockTree) : Set where
     inHQC : qc ≡ bt ^∙ btHighestQuorumCert → qc ∈BlockTree bt
     inHCC : qc ≡ bt ^∙ btHighestCommitCert → qc ∈BlockTree bt
@@ -256,9 +230,8 @@ module QCProps where
     MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
 
 module Invariants where
-  -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
-  AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
-  AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
+
+  ------------ properties relating the ids of (Executed)Blocks to hashes of their BlockData
 
   BlockHash≡ : Block → HashValue → Set
   BlockHash≡ b hv =  hashBD (b ^∙ bBlockData) ≡ hv
@@ -266,13 +239,10 @@ module Invariants where
   BlockId-correct : Block → Set
   BlockId-correct b = BlockHash≡ b (b ^∙ bId)
 
-  ValidBlock         = Σ Block BlockId-correct
+  ExecutedBlockId-correct : ExecutedBlock → Set
+  ExecutedBlockId-correct = BlockId-correct ∘ (_^∙ ebBlock)
 
-  vbBlock : ValidBlock → Block
-  vbBlock = proj₁
-
-  vbValid : (vb : ValidBlock) → BlockId-correct (vbBlock vb)
-  vbValid = proj₂
+  ------------ initial experimentation for dealing with potential hash collisions and relating them
 
   postulate -- TODO-2: move somewhere sensible and prove; note this will need to be updated so that
             -- the Blocks are in some context where we can assume there are no hash collisions
@@ -289,33 +259,23 @@ module Invariants where
             → b ≡L (eb ^∙ ebBlock) f= hashBD at bBlockData
             → b ≡L eb ^∙ ebBlock at bBlockData
 
-  ExecutedBlockId-correct : ExecutedBlock → Set
-  ExecutedBlockId-correct = BlockId-correct ∘ (_^∙ ebBlock)
+  ------------ properties for BlockTree validity
 
-  ValidExecutedBlock = Σ ExecutedBlock ExecutedBlockId-correct
-  vebBlock : ValidExecutedBlock → ExecutedBlock
-  vebBlock = proj₁
-
-  vebValid : (veb : ValidExecutedBlock) → ExecutedBlockId-correct (vebBlock veb)
-  vebValid = proj₂
-
-  vEB⇒vB : ValidExecutedBlock → ValidBlock
-  vEB⇒vB (eb , refl) = (eb ^∙ ebBlock) , refl
+  -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
+  AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
+  AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}
                     → btGetBlock bid bt ≡ just eb
                     → BlockHash≡ (eb ^∙ ebBlock) bid
 
-  ValidBlockTree  = Σ BlockTree AllValidBlocks
+  ValidBlock         = Σ Block         BlockId-correct
+  ValidExecutedBlock = Σ ExecutedBlock ExecutedBlockId-correct
+  ValidBlockTree     = Σ BlockTree     AllValidBlocks
+  ValidBlockStore    = Σ BlockStore   (AllValidBlocks ∘ (_^∙ bsInner))
 
-  ValidBlockStore = Σ BlockStore (AllValidBlocks ∘ (_^∙ bsInner))
-
-  vBS⇒vBT : ValidBlockStore → ValidBlockTree
-  vBS⇒vBT (bs , bs-v) = (bs ^∙ bsInner) , bs-v
-
-  vbsBlockStore : ValidBlockStore → BlockStore
-  vbsBlockStore = proj₁
+  ------------ types for and definitions of invariants for BlockTree, BlockStore, SafetyData, SafetyRules
 
   record ECinfo : Set where
     constructor mkECinfo
@@ -324,20 +284,11 @@ module Invariants where
       ecEP : Epoch
   open ECinfo
 
-  rm→ECinfo : RoundManager → ECinfo
-  rm→ECinfo rm = mkECinfo (rm ^∙ rmEpochState ∙ esVerifier) (rm ^∙ rmEpoch)
-
   WithECinfo : Set → Set
   WithECinfo A = A × ECinfo
 
   BlockTree-EC  = WithECinfo BlockTree
   BlockStore-EC = WithECinfo BlockStore
-
-  rm→BlockTree-EC : RoundManager → BlockTree-EC
-  rm→BlockTree-EC rm = (rm ^∙ lBlockStore ∙ bsInner , rm→ECinfo rm)
-
-  rm→BlockStore-EC : RoundManager → BlockStore-EC
-  rm→BlockStore-EC rm = (rm ^∙ lBlockStore , rm→ECinfo rm)
 
   module _ (btEC : BlockTree-EC) where
     private
@@ -351,7 +302,7 @@ module Invariants where
       field
         allValidQCs    : (vvC : ValidatorVerifier-correct $ vv) → AllValidQCs (α-EC-VV (vv , vvC) ep) bt
         allValidBlocks : AllValidBlocks bt
-    open BlockTreeInv
+  open BlockTreeInv
 
   module _ (bsEC : BlockStore-EC) where
     private
@@ -380,8 +331,19 @@ module Invariants where
         sdInv : SafetyDataInv (sr ^∙ srPersistentStorage ∙ pssSafetyData)
   open SafetyRulesInv
 
+  ------------ types for and definition of RoundManagerInv
+
   EpochsMatch : RoundManager → Set
   EpochsMatch rm = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
+
+  rm→ECinfo : RoundManager → ECinfo
+  rm→ECinfo rm = mkECinfo (rm ^∙ rmEpochState ∙ esVerifier) (rm ^∙ rmEpoch)
+
+  rm→BlockTree-EC : RoundManager → BlockTree-EC
+  rm→BlockTree-EC rm = (rm ^∙ lBlockStore ∙ bsInner , rm→ECinfo rm)
+
+  rm→BlockStore-EC : RoundManager → BlockStore-EC
+  rm→BlockStore-EC rm = (rm ^∙ lBlockStore , rm→ECinfo rm)
 
   -- NOTE: This will be proved by induction on reachable states using the
   -- property that peer handlers preserve invariants. That is to say, many of
@@ -394,11 +356,16 @@ module Invariants where
     field
       rmCorrect        : ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer)
       rmEpochsMatch    : EpochsMatch rm
-      rmBlockStoreInv  : BlockStoreInv (rm→BlockStore-EC rm)
+      rmBlockStoreInv  : BlockStoreInv  (rm→BlockStore-EC rm)
       rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
   open RoundManagerInv
 
   ValidRoundManager = Σ RoundManager RoundManagerInv
+
+  ------------ convenience functions
+
+  vbsBlockStore : ValidBlockStore → BlockStore
+  vbsBlockStore = proj₁
 
   vrmRM : ValidRoundManager → RoundManager
   vrmRM = proj₁
@@ -406,8 +373,28 @@ module Invariants where
   vrmValid : (vrm : ValidRoundManager) → RoundManagerInv (vrmRM vrm)
   vrmValid = proj₂
 
+  vbBlock : ValidBlock → Block
+  vbBlock = proj₁
+
+  vbValid : (vb : ValidBlock) → BlockId-correct (vbBlock vb)
+  vbValid = proj₂
+
+  vebBlock : ValidExecutedBlock → ExecutedBlock
+  vebBlock = proj₁
+
+  vebValid : (veb : ValidExecutedBlock) → ExecutedBlockId-correct (vebBlock veb)
+  vebValid = proj₂
+
+  vEB⇒vB : ValidExecutedBlock → ValidBlock
+  vEB⇒vB (eb , refl) = (eb ^∙ ebBlock) , refl
+
+  vBS⇒vBT : ValidBlockStore → ValidBlockTree
+  vBS⇒vBT (bs , bs-v) = (bs ^∙ bsInner) , bs-v
+
   vrm⇒vBS : ValidRoundManager → ValidBlockStore
   vrm⇒vBS (rm , vrm) = rm ^∙ lBlockStore , (BlockTreeInv.allValidBlocks $ blockTreeValid (rmBlockStoreInv vrm))
+
+  ------------ Preserves and related definitions and utilities
 
   Preserves : ∀ {ℓ} {A : Set} → (P : A → Set ℓ) (pre post : A) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
