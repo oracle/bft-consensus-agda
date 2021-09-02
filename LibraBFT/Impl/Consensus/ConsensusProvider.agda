@@ -74,32 +74,27 @@ obmInitialData me ( _numFaults , genesisLIWS , validatorSigners
 -- 'start_consensus' in Rust inits and loops
 -- that is split so 'startConsensus' returns init data
 -- then loop is called with that data.
--- IMPL-DIFF: This is IO (Either ...) in Haskell.   Just Either here.
 startConsensus
-  : Instant -- IMPL-DIFF
-  → NodeConfig
+  : NodeConfig
   -- BEGIN OBM
+  → Instant
   → OnChainConfigPayload → LedgerInfoWithSignatures → SK
   → ObmNeedFetch → ProposalGenerator → StateComputer
   -- END OBM
   → Either ErrLog (EpochManager × List Output)
-startConsensus obmNow
-               nodeConfig
+startConsensus nodeConfig
+               obmNow
                obmPayload obmGenesisLIWS obmSK
                obmNeedFetch obmProposalGenerator obmStateComputer = do
   let obmValidatorSet = obmPayload ^∙ occpObmValidatorSet
-  case MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS) of λ where
-    (Left e) → Left e
-    (Right (_obmRecoveryData , persistentLivenessStorage)) → do
+  eitherS (MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS)) Left $
+    λ (_obmRecoveryData , persistentLivenessStorage) → do
       let stateComputer = obmStateComputer
-      case ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet of λ where
-        (Left   e) → Left e
-        (Right vi) → case EpochManager.new nodeConfig {-stateComputer-} persistentLivenessStorage
-                          (vi ^∙ viAccountAddress) obmSK of λ where
-          (Left  e)        → Left e
-          (Right epochMgr) → do
-            -- obmNow <- Time.getCurrentInstant
-            EpochManager.start
-              epochMgr obmNow
-              obmPayload obmNeedFetch obmProposalGenerator
-              obmGenesisLIWS
+      eitherS (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) Left $
+        λ vi → eitherS (EpochManager.new nodeConfig {-stateComputer-} persistentLivenessStorage
+                          (vi ^∙ viAccountAddress) obmSK) Left $
+                 λ epochMgr →
+                     EpochManager.start
+                       epochMgr obmNow
+                       obmPayload obmNeedFetch obmProposalGenerator
+                       obmGenesisLIWS
