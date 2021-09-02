@@ -42,7 +42,9 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
 
   open handleProposal now pm
 
-  module _ (pool : SentMessages) (pre : RoundManager) where
+  module _ (pool : SentMessages) (vrm : ValidRoundManager) where
+    pre   = vrmRM vrm
+    pre-v = vrmValid vrm
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -87,21 +89,22 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
       proj₁ (contract-step₁ (myEpoch@._ , vv@._) refl) (inj₂ i) pp≡Left =
         contractBail _ refl
       proj₂ (contract-step₁ (myEpoch@._ , vv@._) refl) unit pp≡Right =
-        processProposalMsgMSpec.contract now pm pre Contract pf
+        processProposalMsgMSpec.contract now pm proposalId≡ vrm Contract pf
         where
-        module PPM = processProposalMsgMSpec now pm
 
         sdEpoch≡ : pre ^∙ pssSafetyData-rm ∙ sdEpoch ≡ pm ^∙ pmProposal ∙ bEpoch
         sdEpoch≡
           with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = sym (proj₁ con)
 
-        proposalId≡ : hashBD (pm ^∙ pmProposal ∙ bBlockData) ≡ pm ^∙ pmProposal ∙ bId
+        proposalId≡ : BlockId-correct (pm ^∙ pmProposal)
         proposalId≡
            with processProposalSpec.contract pm myEpoch vv
         ...| con rewrite pp≡Right = proj₂ con
 
-        pf : RWS-Post-⇒ (PPM.Contract pre) Contract
+        module PPM = processProposalMsgMSpec now pm proposalId≡
+
+        pf : RWS-Post-⇒ (PPM.Contract vrm) Contract
         pf unit st outs con =
           mkContract PPMSpec.rmInv PPMSpec.noEpochChange
             vac PPMSpec.outQcs∈RM PPMSpec.qcPost
@@ -109,8 +112,8 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
           module PPMSpec = processProposalMsgMSpec.Contract con
 
           vac : Voting.VoteAttemptCorrectWithEpochReq pre st outs (pm ^∙ pmProposal)
-          vac = Voting.mkVoteAttemptCorrectWithEpochReq (PPMSpec.voteAttemptCorrect proposalId≡)
-                  (Voting.voteAttemptEpochReq! (PPMSpec.voteAttemptCorrect proposalId≡) sdEpoch≡)
+          vac = Voting.mkVoteAttemptCorrectWithEpochReq PPMSpec.voteAttemptCorrect
+                  (Voting.voteAttemptEpochReq! PPMSpec.voteAttemptCorrect sdEpoch≡)
 
     contract! : LBFT-Post-True Contract (handleProposal now pm) pre
     contract! = LBFT-contract (handleProposal now pm) Contract pre contract
