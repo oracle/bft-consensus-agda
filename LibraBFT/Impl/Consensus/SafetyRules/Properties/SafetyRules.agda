@@ -282,8 +282,8 @@ module constructAndSignVoteMSpec where
 
         -- State invariants
         module _ where
-          btip₁ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD)
-          btip₁ = id
+          bsip₁ : Preserves BlockStoreInv (rm→BlockStore-EC pre) (rm→BlockStore-EC preUpdatedSD)
+          bsip₁ = id
 
           emP : Preserves EpochsMatch pre preUpdatedSD
           emP eq = trans eq (Requirements.es≡₁ reqs)
@@ -313,7 +313,7 @@ module constructAndSignVoteMSpec where
               ≤-trans round≤ (≤-trans (≡⇒≤ (Requirements.lvr≡ reqs)) (<⇒≤ r>lvr))
 
           invP₁ : Preserves RoundManagerInv pre preUpdatedSD
-          invP₁ = mkPreservesRoundManagerInv id emP btip₁ srP
+          invP₁ = mkPreservesRoundManagerInv id emP bsip₁ srP
 
         -- Some lemmas
         module _ where
@@ -366,15 +366,15 @@ module constructAndSignVoteMSpec where
 
             -- State invariants
             module _ where
-              btiP₂ : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC preUpdatedSD₂)
-              btiP₂ = id
+              bsiP₂ : Preserves BlockStoreInv (rm→BlockStore-EC pre) (rm→BlockStore-EC preUpdatedSD₂)
+              bsiP₂ = id
 
               srP₂ : Preserves SafetyRulesInv (pre ^∙ lSafetyRules) (preUpdatedSD₂ ^∙ lSafetyRules)
               srP₂ = mkPreservesSafetyRulesInv
                        (const $ mkSafetyDataInv (Requirements.es≡₂ reqs) (≡⇒≤ (cong (_^∙ bRound) pb≡vpb)))
 
               invP₂ : Preserves RoundManagerInv pre preUpdatedSD₂
-              invP₂ = mkPreservesRoundManagerInv id emP btiP₂ srP₂
+              invP₂ = mkPreservesRoundManagerInv id emP bsiP₂ srP₂
 
     contract
       : ∀ pre Post

@@ -260,25 +260,62 @@ module Invariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
-  BlockHash-correct : Block → HashValue → Set
-  BlockHash-correct b bid = hashBD (b ^∙ bBlockData) ≡ bid
+  BlockHash≡ : Block → HashValue → Set
+  BlockHash≡ b hv =  hashBD (b ^∙ bBlockData) ≡ hv
 
-  postulate -- TODO-2: move somewhere sensible and prove
-    hash≡⇒≈Block : ∀ {b1 b2 : Block} {bid : HashValue}
-                   → BlockHash-correct b1 bid
-                   → BlockHash-correct b2 bid
+  BlockId-correct : Block → Set
+  BlockId-correct b = BlockHash≡ b (b ^∙ bId)
+
+  ValidBlock         = Σ Block BlockId-correct
+
+  vbBlock : ValidBlock → Block
+  vbBlock = proj₁
+
+  vbValid : (vb : ValidBlock) → BlockId-correct (vbBlock vb)
+  vbValid = proj₂
+
+  postulate -- TODO-2: move somewhere sensible and prove; note this will need to be updated so that
+            -- the Blocks are in some context where we can assume there are no hash collisions
+    hash≡⇒≈Block : ∀ {hv : HashValue}{b1 b2 : Block}
+                   → BlockHash≡ b1 hv
+                   → BlockHash≡ b2 hv
                    → b1 ≈Block b2
 
-  ExecutedBlockHash-correct : ExecutedBlock → HashValue → Set
-  ExecutedBlockHash-correct = BlockHash-correct ∘ (_^∙ ebBlock)
-  ValidBlock : HashValue → ExecutedBlock → Set
-  ValidBlock bid eb = eb ^∙ ebBlock ∙ bId ≡ bid
-                    × ExecutedBlockHash-correct eb bid
+  module Reqs (b : Block) (bid : HashValue) (bt : BlockTree) where
+    -- TODO: State and use assumptions about hash collisions.  The following is one example that will
+    -- likely need to be refined.
+    NoHC1 = ∀ {eb}
+            → btGetBlock bid bt ≡ just eb
+            → b ≡L (eb ^∙ ebBlock) f= hashBD at bBlockData
+            → b ≡L eb ^∙ ebBlock at bBlockData
+
+  ExecutedBlockId-correct : ExecutedBlock → Set
+  ExecutedBlockId-correct = BlockId-correct ∘ (_^∙ ebBlock)
+
+  ValidExecutedBlock = Σ ExecutedBlock ExecutedBlockId-correct
+  vebBlock : ValidExecutedBlock → ExecutedBlock
+  vebBlock = proj₁
+
+  vebValid : (veb : ValidExecutedBlock) → ExecutedBlockId-correct (vebBlock veb)
+  vebValid = proj₂
+
+  vEB⇒vB : ValidExecutedBlock → ValidBlock
+  vEB⇒vB (eb , refl) = (eb ^∙ ebBlock) , refl
 
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}
                     → btGetBlock bid bt ≡ just eb
-                    → ValidBlock bid eb
+                    → BlockHash≡ (eb ^∙ ebBlock) bid
+
+  ValidBlockTree  = Σ BlockTree AllValidBlocks
+
+  ValidBlockStore = Σ BlockStore (AllValidBlocks ∘ (_^∙ bsInner))
+
+  vBS⇒vBT : ValidBlockStore → ValidBlockTree
+  vBS⇒vBT (bs , bs-v) = (bs ^∙ bsInner) , bs-v
+
+  vbsBlockStore : ValidBlockStore → BlockStore
+  vbsBlockStore = proj₁
 
   record ECinfo : Set where
     constructor mkECinfo
@@ -325,7 +362,7 @@ module Invariants where
       constructor mkBlockStoreInv
       field
         blockTreeValid : BlockTreeInv (bs ^∙ bsInner , eci)
-    open BlockTreeInv
+  open BlockStoreInv
 
   module _ (sd : SafetyData) where
     -- SafetyRules invariants
@@ -343,24 +380,34 @@ module Invariants where
         sdInv : SafetyDataInv (sr ^∙ srPersistentStorage ∙ pssSafetyData)
   open SafetyRulesInv
 
-  module _ (rm : RoundManager) where
+  EpochsMatch : RoundManager → Set
+  EpochsMatch rm = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
 
-    EpochsMatch : Set
-    EpochsMatch = rm ^∙ rmEpochState ∙ esEpoch ≡ rm ^∙ pssSafetyData-rm ∙ sdEpoch
+  -- NOTE: This will be proved by induction on reachable states using the
+  -- property that peer handlers preserve invariants. That is to say, many of
+  -- these cannot be proven as a post-condition of the peer handler: one can
+  -- only prove of the handler that if the invariant holds for the prestate,
+  -- then it holds for the poststate.
 
-    -- NOTE: This will be proved by induction on reachable states using the
-    -- property that peer handlers preserve invariants. That is to say, many of
-    -- these cannot be proven as a post-condition of the peer handler: one can
-    -- only prove of the handler that if the invariant holds for the prestate,
-    -- then it holds for the poststate.
+  record RoundManagerInv (rm : RoundManager) : Set where
+    constructor mkRoundManagerInv
+    field
+      rmCorrect        : ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer)
+      rmEpochsMatch    : EpochsMatch rm
+      rmBlockStoreInv  : BlockStoreInv (rm→BlockStore-EC rm)
+      rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
+  open RoundManagerInv
 
-    record RoundManagerInv : Set where
-      constructor mkRoundManagerInv
-      field
-        rmCorrect        : ValidatorVerifier-correct (rm ^∙ rmValidatorVerifer)
-        rmEpochsMatch    : EpochsMatch
-        rmBlockTreeInv   : BlockTreeInv (rm→BlockTree-EC rm)
-        rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
+  ValidRoundManager = Σ RoundManager RoundManagerInv
+
+  vrmRM : ValidRoundManager → RoundManager
+  vrmRM = proj₁
+
+  vrmValid : (vrm : ValidRoundManager) → RoundManagerInv (vrmRM vrm)
+  vrmValid = proj₂
+
+  vrm⇒vBS : ValidRoundManager → ValidBlockStore
+  vrm⇒vBS (rm , vrm) = rm ^∙ lBlockStore , (BlockTreeInv.allValidBlocks $ blockTreeValid (rmBlockStoreInv vrm))
 
   Preserves : ∀ {ℓ} {A : Set} → (P : A → Set ℓ) (pre post : A) → Set ℓ
   Preserves Pred pre post = Pred pre → Pred post
@@ -405,7 +452,7 @@ module Invariants where
     : ∀ {pre post}
       → Preserves ValidatorVerifier-correct (pre ^∙ rmValidatorVerifer) (post ^∙ rmValidatorVerifer)
       → Preserves EpochsMatch                pre                         post
-      → Preserves BlockTreeInv              (rm→BlockTree-EC pre)       (rm→BlockTree-EC post)
+      → Preserves BlockStoreInv             (rm→BlockStore-EC pre)      (rm→BlockStore-EC post)
       → Preserves SafetyRulesInv            (pre ^∙ rmSafetyRules)      (post ^∙ rmSafetyRules)
       → Preserves RoundManagerInv            pre                         post
   mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch bsInv srInv) =
@@ -533,6 +580,8 @@ module RoundManagerTransProps where
 
 -- Properties for voting
 module Voting where
+
+  open Invariants
 
   VoteEpochIs : (vote : Vote) (e : Epoch) → Set
   VoteEpochIs vote e = vote ^∙ vEpoch ≡ e

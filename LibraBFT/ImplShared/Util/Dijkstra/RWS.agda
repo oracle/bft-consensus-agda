@@ -104,6 +104,10 @@ RWS-Post Wr St A = (x : A) (post : St) (outs : List Wr) → Set
 RWS-Post-⇒ : (P Q : RWS-Post Wr St A) → Set
 RWS-Post-⇒ P Q = ∀ r st outs → P r st outs → Q r st outs
 
+RWS-Post-⇒-trans : {P Q R : RWS-Post Wr St A}
+                 → RWS-Post-⇒ P Q → RWS-Post-⇒ Q R → RWS-Post-⇒ P R
+RWS-Post-⇒-trans p⇒q q⇒r r st outs p = q⇒r _ _ _ (p⇒q _ _ _ p)
+
 -- RWS-weakestPre computes a predicate transformer: it maps a RWS
 -- computation `m` and desired postcondition `Post` to the weakest precondition
 -- needed to prove `P` holds after running `m`.
