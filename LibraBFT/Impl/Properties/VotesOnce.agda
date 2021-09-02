@@ -58,7 +58,7 @@ newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈
 ...| refl = ⊥-elim ∘′ ¬msb4 $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬gen
 
 newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vote∈vm m∈outs sig hpk ¬gen ¬msb4
-  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid)
+  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid , invariantsCorrect pid pre preach)
 ...| handleProposalSpec.mkContract _ _ (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡?) _ _ =
   ⊥-elim (¬voteUnsent voteUnsent)
   where
@@ -247,7 +247,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss step@(step-peer{pre = pre} sp@(st
    rewrite sym (StepPeer-post-lemma sp)
    = absurd just v ≡ nothing case ≡pidLV of λ ()
 
-sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+sameERasLV⇒sameId{pid}{pid'}{pk}{st} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
    with newMsg⊎msgSentB4 rss sps hpk sig' ¬gen v'⊂m' m'∈pool
 -- The message has been sent before
 ...| Right mws'
@@ -286,7 +286,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
       hpPre  = peerStates pre pid“
       hpPos  = LBFT-post (handleProposal 0 pm) hpPre
 
-      open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
+      open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) (hpPre , invariantsCorrect pid“ pre rss))
         renaming (rmInv to rmInvP)
       open Invariants.RoundManagerInv (invariantsCorrect pid“ pre rss)
 
@@ -367,7 +367,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
          ⊥-elim (<⇒≢ (NewVote.rv'<rv (vm ^∙ vmVote) lv≡v lvr< lvr≡ sdEpoch≡? blockTriggered) (sym ≡round))
 
 -- This is the origin of the message
-sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
+sameERasLV⇒sameId{pid}{pid'}{pk}{st} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬gen ≡epoch ≡round
    | Left (m'∈acts , pcsfpk' , ¬msb4)
    -- So `pid“` must be `pid`
    with PeerCanSignForPKProps.pidInjective pcsfpk pcsfpk' ≡epoch
@@ -393,7 +393,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
    sameId : ∀ m → send (V (VoteMsg∙new v' _)) ∈ outputsToActions{State = handlePre} (handleOuts m) → just v ≡ handlePst m ^∙ pssSafetyData-rm ∙ sdLastVote → v ≡L v' at vProposedId
    sameId (P pm) m'∈acts ≡pidLV = analyzeVoteAttempt
      where
-     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) handlePre)
+     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) (handlePre , invariantsCorrect pid pre rss))
 
      analyzeVoteAttempt : v ≡L v' at vProposedId
      analyzeVoteAttempt
@@ -431,7 +431,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
 ...| refl = ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬gen
 
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
-  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid)
+  with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid , invariantsCorrect pid pre preach)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?) _ _ =
   ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈outs)
 ...| handleProposalSpec.mkContract _ noEpochChange (Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?) _ _
@@ -534,7 +534,7 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
   hpPool = msgPool pre
   hpPre  = peerStates pre pid
   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool (hpPre , invariantsCorrect pid pre rss))
 
   v≡v' : v ≡ v'
   v≡v'

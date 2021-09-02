@@ -69,7 +69,7 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest 
    = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini))))
    | yes refl
-   with handleProposalSpec.Contract.rmInv $ handleProposalSpec.contract! 0 pm (msgPool pre') (peerStates pre' pid)
+   with handleProposalSpec.Contract.rmInv $ handleProposalSpec.contract! 0 pm (msgPool pre') (peerStates pre' pid , invariantsCorrect pid pre' preach)
 ...| invPres
   rewrite override-target-≡{a = pid}{b = LBFT-post (handleProposal 0 pm) (peerStates pre' pid)}{f = peerStates pre'}
   = invPres (invariantsCorrect pid pre' preach)
@@ -104,7 +104,7 @@ handlePreservesSigsB4 {nm} {pid} {pre} {sndr} preach m∈pool {qc} {v} {pk} = hy
 
    qcPost' : (nm' : NetworkMsg) → nm' ≡ nm → QCProps.∈Post⇒∈PreOr (_QC∈NM nm) hPre hPost
    qcPost' (P pm) refl = qcPost
-      where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool hPre)
+      where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hPool (hPre , invariantsCorrect pid pre preach))
    qcPost' (V vm) refl = qcPost
       where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hPool hPre)
    qcPost' (C cm) refl qc qc∈pre = Left qc∈pre
@@ -157,7 +157,7 @@ qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} q
    -- TODO-2: refactor for DRY
 ...| P pm = help
    where
-   hpPre = peerStates pre pid
+   hpPre = (peerStates pre pid , invariantsCorrect pid pre rss)
    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
 
    help : MsgWithSig∈ pk (proj₂ vs) (msgPool pre)
@@ -200,7 +200,7 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   hpPst  = LBFT-post (handleProposal 0 pm) hpPre
   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
-  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre {- hpReq -} )
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool (hpPre , invariantsCorrect pid pre preach) {- hpReq -} )
   open RoundManagerInv (invariantsCorrect pid pre preach)
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
@@ -268,6 +268,6 @@ qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-msg {_ , nm} m
       where
         outQcs∈RM1 : (nm' : NetworkMsg) → nm ≡ nm' → QCProps.OutputQc∈RoundManager hdOut hdPst
         outQcs∈RM1 (P pm) refl = outQcs∈RM
-          where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hdPool hdPre)
+          where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hdPool (hdPre , invariantsCorrect pid pre preach))
         outQcs∈RM1 (V vm) refl = outQcs∈RM
           where open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm hdPool hdPre)

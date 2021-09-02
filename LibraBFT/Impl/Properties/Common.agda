@@ -202,7 +202,7 @@ module ReachableSystemStateProps where
     hpPre  = peerStates st pid
     hpPos  = LBFT-post (handleProposal 0 pm) hpPre
 
-    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
+    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool (hpPre , invariantsCorrect pid st rss))
     open ≡-Reasoning
 
   mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
