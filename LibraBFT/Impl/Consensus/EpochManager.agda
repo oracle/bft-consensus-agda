@@ -151,7 +151,7 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
                         --       , lsE peerDifferentEpoch, lsR obmPeerRound, logShowI obmI ])
                         ∷ [])
   eitherSD (self ^∙ emEpoch)               pmerr $ λ epoch' →
-    --eitherSD (self ^∙ emObmRoundManager) pmerr $ λ rm →
+    eitherSD (self ^∙ emObmRoundManager) pmerr $ λ rm-NotUsedInAgda-OnlyLoggingInHaskell →
       case compare peerDifferentEpoch epoch' of λ where
         LT → do -- help nodes that have lower epoch
           -- LBFT-OBM-DIFF : not sure if this is different, but the message that causes
