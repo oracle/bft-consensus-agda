@@ -75,6 +75,11 @@ getEpochEndingLedgerInfoIter self startEpoch endEpoch =
   -- TODO-2: prove endEpoch > 0
   -- Use of monus in context where it is not clear that endEpoch > 0.
   -- If not, Agda and Haskell code would behave differently.
+  -- TODO-2: IMPL-DIFF: Haskell uses a list comprehension; Agda uses homegrown 'fromToList'
+  -- The combination of monus and fromToList risks misunderstanding/misuse of fromToList later.
+  -- Ranges would differ in Haskell and Agda if, say, startEpoch were negative and endEpoch was 0.
+  -- It could be correct and verified in Agda, but wrong in Haskell
+  -- (e.g., if the Haskell code accidentally calculates a negative epoch).
   EpochEndingLedgerInfoIter∙new <$> (foldM) go [] (fromToList startEpoch (endEpoch ∸ 1))
  where
   go : List LedgerInfoWithSignatures → Epoch → Either ErrLog (List LedgerInfoWithSignatures)
