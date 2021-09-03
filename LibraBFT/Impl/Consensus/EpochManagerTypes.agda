@@ -27,13 +27,13 @@ record EpochManager : Set where
   field
     _emAuthor             : Author
     _emConfig             : ConsensusConfig
-  --_emStateComputer      : StateComputer
+    _emStateComputer      : StateComputer
     _emStorage            : PersistentLivenessStorage
     _emSafetyRulesManager : SafetyRulesManager
     _emProcessor          : Maybe RoundProcessor
 open EpochManager public
-unquoteDecl emAuthor   emConfig {-  emStateComputer-}   emStorage   emSafetyRulesManager   emProcessor = mkLens (quote EpochManager)
-           (emAuthor ∷ emConfig {-∷ emStateComputer-} ∷ emStorage ∷ emSafetyRulesManager ∷ emProcessor ∷ [])
+unquoteDecl emAuthor   emConfig   emStateComputer   emStorage   emSafetyRulesManager   emProcessor = mkLens (quote EpochManager)
+           (emAuthor ∷ emConfig ∷ emStateComputer ∷ emStorage ∷ emSafetyRulesManager ∷ emProcessor ∷ [])
 
 -- getter only in Haskell
 emEpochState : Lens EpochManager (Either ErrLog EpochState)

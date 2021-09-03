@@ -121,13 +121,13 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
                               -- possibility that the corresponding secret
                               -- key may have been leaked.
   open ValidatorSigner public
-  unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
-              (vsAuthor ∷ [])
+  unquoteDecl  vsAuthor   vsPrivateKey = mkLens (quote ValidatorSigner)
+              (vsAuthor ∷ vsPrivateKey ∷ [])
 
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-     _vcConsensusPublicKey : PK
+      _vcConsensusPublicKey : PK
   open ValidatorConfig public
   unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
     (vcConsensusPublicKey ∷ [])
@@ -135,10 +135,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
     field
-      -- _viAccountAddress       : AccountAddress
-      -- _viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
-      _viConfig : ValidatorConfig
+      _viAccountAddress       : AccountAddress
+      _viConsensusVotingPower : U64
+      _viConfig               : ValidatorConfig
   open ValidatorInfo public
+  unquoteDecl viAccountAddress   viConsensusVotingPower   viConfig = mkLens (quote ValidatorInfo)
+             (viAccountAddress ∷ viConsensusVotingPower ∷ viConfig ∷ [])
 
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
@@ -244,6 +246,16 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   BlockInfo-η refl refl refl = refl
 -}
 
+  biNextBlockEpoch : Lens BlockInfo Epoch
+  biNextBlockEpoch = mkLens' g s
+   where
+    g : BlockInfo → Epoch
+    g bi = maybeS (bi ^∙ biNextEpochState)
+                  (bi ^∙ biEpoch)
+                  (  _^∙ esEpoch)
+    s : BlockInfo → Epoch → BlockInfo
+    s bi _ = bi -- TODO-1 : cannot be done: need a way to defined only getters
+
 -- ------------------------------------------------------------------------------
 
   record LedgerInfo : Set where
@@ -260,6 +272,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- GETTER only in Haskell
   liEpoch : Lens LedgerInfo Epoch
   liEpoch = liCommitInfo ∙ biEpoch
+
+  -- GETTER only in Haskell
+  liNextBlockEpoch : Lens LedgerInfo Epoch
+  liNextBlockEpoch = liCommitInfo ∙ biNextBlockEpoch
 
   -- GETTER only in Haskell
   liConsensusBlockId : Lens LedgerInfo HashValue
@@ -799,6 +815,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _lsObmVersionToEpoch : Map.KVMap Version Epoch
       _lsObmEpochToLIWS    : Map.KVMap Epoch   LedgerInfoWithSignatures
       _lsLatestLedgerInfo  : Maybe LedgerInfoWithSignatures
+  open LedgerStore public
+  unquoteDecl lsObmVersionToEpoch   lsObmEpochToLIWS   lsLatestLedgerInfo = mkLens (quote LedgerStore)
+             (lsObmVersionToEpoch ∷ lsObmEpochToLIWS ∷ lsLatestLedgerInfo ∷ [])
 
   record DiemDB : Set where
     constructor DiemDB∙new
@@ -1309,8 +1328,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _ncObmMe     : AuthorName
       _ncConsensus : ConsensusConfig
   open NodeConfig public
-  unquoteDecl ncOmbMe    ncConsensus = mkLens  (quote NodeConfig)
-             (ncOmbMe ∷  ncConsensus ∷ [])
+  unquoteDecl ncObmMe    ncConsensus = mkLens  (quote NodeConfig)
+             (ncObmMe ∷  ncConsensus ∷ [])
 
   record RecoveryManager : Set where
     constructor RecoveryManager∙new
