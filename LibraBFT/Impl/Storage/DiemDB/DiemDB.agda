@@ -30,34 +30,18 @@ mAX_NUM_EPOCH_ENDING_LEDGER_INFO = 100
 ------------------------------------------------------------------------------
 -- impl DiemDB
 
-module getEpochEndingLedgerInfos where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
-  VariantFor EL =
-    DiemDB → Epoch → Epoch
-    → EL ErrLog (List LedgerInfoWithSignatures × Bool)
-
-  postulate -- TODO-1: getEpochEndingLedgerInfos
-    step₀ : VariantFor EitherD
-
-  E : VariantFor Either
-  E db ep = toEither ∘ step₀ db ep
-
-  D : VariantFor EitherD
-  D db ep = fromEither ∘ E db ep
-
-getEpochEndingLedgerInfos = getEpochEndingLedgerInfos.E
-
--- TODO-2: hook this up with above
 -- Returns ledger infos for epoch changes starting with the given epoch.
 -- If there are less than `MAX_NUM_EPOCH_ENDING_LEDGER_INFO` results, it returns all of them.
 -- Otherwise the first `MAX_NUM_EPOCH_ENDING_LEDGER_INFO` results are returned
 -- and a flag is set to True to indicate there are more.
-getEpochEndingLedgerInfosX
+getEpochEndingLedgerInfos
   : DiemDB → Epoch → Epoch
-  → Either ErrLog (List LedgerInfoWithSignatures × Bool)
-getEpochEndingLedgerInfosX self startEpoch endEpoch =
+    → Either ErrLog (List LedgerInfoWithSignatures × Bool)
+getEpochEndingLedgerInfos self startEpoch endEpoch =
   getEpochEndingLedgerInfosImpl self startEpoch endEpoch mAX_NUM_EPOCH_ENDING_LEDGER_INFO
 
+-- TODO-2: provide EitherD variants before writing proofs about this function;
+-- at that time, use `whenD` in place of the two `if`s below
 getEpochEndingLedgerInfosImpl self startEpoch endEpoch limit = do
   if (not ⌊ (startEpoch ≤? endEpoch) ⌋)
     then
@@ -78,7 +62,7 @@ getEpochEndingLedgerInfosImpl self startEpoch endEpoch limit = do
         ECP-LBFT-OBM-Diff-2.e_DiemDB_getEpochEndingLedgerInfosImpl_limit startEpoch endEpoch limit
   lis0    ← LedgerStore.getEpochEndingLedgerInfoIter (self ^∙ ddbLedgerStore) startEpoch pagingEpoch
   let lis = LedgerStore.obmEELIICollect lis0
-  if length lis /= (pagingEpoch {-^∙ eEpoch-}) ∸ (startEpoch {-^∙ eEpoch-})
+  if length lis + (startEpoch {-^∙ eEpoch-}) /= (pagingEpoch {-^∙ eEpoch-})
     then Left fakeErr -- [ "DB corruption: missing epoch ending ledger info"
                       -- , lsE startEpoch, lsE endEpoch, lsE pagingEpoch ]
     else pure (lis , more)
