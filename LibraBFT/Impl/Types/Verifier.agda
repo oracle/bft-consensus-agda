@@ -35,7 +35,7 @@ instance
   VerifierWaypoint   : Verifier Waypoint
   VerifierWaypoint   = record
     { verify                          = Waypoint.verifierVerify
-    ;  epochChangeVerificationRequired = Waypoint.epochChangeVerificationRequired
-    ;  isLedgerInfoStale               = Waypoint.isLedgerInfoStale
+    ; epochChangeVerificationRequired = Waypoint.epochChangeVerificationRequired
+    ; isLedgerInfoStale               = Waypoint.isLedgerInfoStale
     }
 

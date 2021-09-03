@@ -5,7 +5,6 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Crypto.Crypto.Hash               as Hash
 import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet

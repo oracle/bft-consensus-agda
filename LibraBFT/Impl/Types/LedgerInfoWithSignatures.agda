@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                   as Map
+import      LibraBFT.Base.KVMap                   as Map
 open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.OBM.Crypto              as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging

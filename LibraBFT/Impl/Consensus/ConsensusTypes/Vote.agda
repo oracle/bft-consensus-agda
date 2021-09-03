@@ -14,7 +14,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                         as String
+open import Data.String                                     using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.Vote where
 
@@ -41,7 +41,7 @@ verify self validator = do
         (ValidatorVerifier.verify validator (self ^∙ vAuthor) (timeout self) tos)
   withErrCtx' (here' ("VoteData" ∷ [])) (VoteData.verify (self ^∙ vVoteData))
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "Vote" ∷ "verify" ∷ "failed" {-∷lsV self-} ∷ t
 
 addTimeoutSignature : Vote → Signature → Vote

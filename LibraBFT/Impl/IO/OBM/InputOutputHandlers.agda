@@ -5,12 +5,10 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.Network as Network
-open import LibraBFT.Impl.Consensus.RoundManager as RoundManager
+import      LibraBFT.Impl.Consensus.Network      as Network
+import      LibraBFT.Impl.Consensus.RoundManager as RoundManager
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All

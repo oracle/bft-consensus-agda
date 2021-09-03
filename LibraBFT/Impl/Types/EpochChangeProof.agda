@@ -5,17 +5,16 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                        hiding (verify)
+open import LibraBFT.Base.PKCS                  hiding (verify)
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
-import      LibraBFT.Impl.Types.Verifier              as Verifier
+import      LibraBFT.Impl.Types.Verifier        as Verifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.List.Base                            as List
-import      Data.String                               as String
+import      Data.List.Base                      as List
+open import Data.String                         using (String)
 
 module LibraBFT.Impl.Types.EpochChangeProof where
 
@@ -67,7 +66,7 @@ verify self verifier = do
         (just vs) → pure vs
       loop verifierRef' liwss
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochChangeProof" ∷ "verify" ∷ t
 
   last : ∀ {A : Set} → List A → Either ErrLog A

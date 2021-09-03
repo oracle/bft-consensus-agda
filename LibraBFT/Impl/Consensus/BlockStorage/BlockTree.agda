@@ -5,12 +5,12 @@
 -}
 
 open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap                                  as Map
+import      LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.Impl.OBM.Rust.RustTypes
@@ -22,7 +22,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String as String
+open import Data.String                                          using (String)
 
 
 module LibraBFT.Impl.Consensus.BlockStorage.BlockTree where
@@ -123,7 +123,7 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
   step₃     : HashValue → ExecutedBlock → ExecutedBlock → VariantFor EitherD
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
   continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
 
   blockId = qc ^∙ qcCertifiedBlock ∙ biId

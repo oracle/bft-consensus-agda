@@ -15,6 +15,7 @@ import      LibraBFT.Impl.Consensus.MetricsSafetyRules               as MetricsS
 import      LibraBFT.Impl.Consensus.RoundManager                     as RoundManager
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager   as SafetyRulesManager
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage            as MockStorage
+open import LibraBFT.Impl.IO.OBM.Messages
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1  as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.OBM.Rust.Duration                          as Duration
@@ -30,7 +31,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                              as String
+open import Data.String                                              using (String)
 
 module LibraBFT.Impl.Consensus.EpochManager where
 
@@ -139,7 +140,7 @@ processEpochRetrieval self {-wireOrInternal-} (EpRRqWire∙new {-why fromE fromR
           tell (PMInfo fakeInfo {-["Exit", "SendEpochRRp", why, lsA peerAddress, lsECP ecp]-} ∷ [])
           pure (PMSendECP ecp peerAddress me {-why-} e r)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processEpochRetrieval" ∷ t
 
 processDifferentEpoch
@@ -174,7 +175,7 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
           tell (PMErr fakeErr ∷ []) -- (here ["EQ should not happen"])
           pure PMContinue
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processDifferentEpoch" ∷ t
 {-
   why    = show (msgType obmI)               <> "/" <>
@@ -205,7 +206,7 @@ startNewEpoch self now mrlec proof = do
   pure PMContinue
   expectNewEpoch self' now rlec liws
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "startNewEpoch" ∷ t
 
 startRoundManager
@@ -237,9 +238,9 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
     (Left  e) -> err ("BlockStore.new" ∷ []) e
     (Right r) -> continue1 lastVote r
  where
-  err : ∀ {B} → List String.String → ErrLog → Either ErrLog B
+  err : ∀ {B} → List String → ErrLog → Either ErrLog B
   err  t = withErrCtx' t ∘ Left
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "startRoundManager" ∷ t
 
   continue2 : Maybe Vote → BlockStore → SafetyRules → Either ErrLog (EpochManager × List Output)
@@ -334,7 +335,7 @@ processMessage self now = λ where
  where
   doRlecEcp : Maybe ReconfigEventEpochChange → EpochChangeProof → EM ProcessMessageAction
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processMessage" ∷ t
 
   maybeDifferentEpoch : Input → AccountAddress → Epoch → Round → EM ProcessMessageAction
@@ -443,16 +444,16 @@ obmStartLoop self initializationOutput
       rm'                 ← pure rm -- TEMPORARY for previous line
       loop (setProcessor self rm') {-to'-} RSNothing
  where
-  show : ∀ {A : Set} → A → String.String
+  show : ∀ {A : Set} → A → String
   show _ = ""
 
-  singleShow : ∀ {A : Set} → A → List String.String
+  singleShow : ∀ {A : Set} → A → List String
   singleShow {A} x = show {A} x ∷ []
 
-  errorExit : List String.String → IO Unit
+  errorExit : List String → IO Unit
   errorExit _ = pure unit
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "obmStartLoop" ∷ t
 
   setProcessor : EpochManager → RoundManager → EpochManager
