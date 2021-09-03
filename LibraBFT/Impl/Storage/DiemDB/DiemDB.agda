@@ -98,9 +98,8 @@ module saveTransactions (self  : DiemDB)
   step₁ : LedgerInfoWithSignatures               → VariantFor EitherD
   step₂ : LedgerInfoWithSignatures → LedgerStore → VariantFor EitherD
 
-  step₀ : (mliws' : Maybe LedgerInfoWithSignatures) → mliws' ≡ mliws → VariantFor EitherD
-  step₀ nothing     refl = RightD self
-  step₀ (just liws) refl = step₁ liws
+  step₀ : VariantFor EitherD
+  step₀ = maybeSD mliws (LeftD fakeErr) step₁
 
   step₁ liws =
     eitherSD (LedgerStore.putLedgerInfo (self ^∙ ddbLedgerStore) liws) LeftD (step₂ liws)
@@ -109,7 +108,7 @@ module saveTransactions (self  : DiemDB)
     RightD (self & ddbLedgerStore ∙~ (ls & lsLatestLedgerInfo ?~ liws))
 
   E : VariantFor Either
-  E = toEither $ step₀ mliws refl
+  E = toEither step₀
 
   D : VariantFor EitherD
   D = fromEither E
