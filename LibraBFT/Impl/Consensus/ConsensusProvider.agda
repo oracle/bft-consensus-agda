@@ -9,12 +9,12 @@ open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.EpochManager           as EpochManager
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage  as MockStorage
-open import LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
-open import LibraBFT.Impl.Types.ValidatorSigner            as ValidatorSigner
-open import LibraBFT.Impl.Types.Waypoint                   as Waypoint
-open import LibraBFT.Impl.OBM.ConfigHardCoded              as ConfigHardCoded
+import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
+import      LibraBFT.Impl.Types.ValidatorSigner            as ValidatorSigner
+import      LibraBFT.Impl.Types.Waypoint                   as Waypoint
+import      LibraBFT.Impl.IO.OBM.GenKeyFile                as GenKeyFile
+import      LibraBFT.Impl.OBM.ConfigHardCoded              as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
@@ -25,30 +25,20 @@ open import Data.String                                    using (String; _++_)
 
 module LibraBFT.Impl.Consensus.ConsensusProvider where
 
-NfLiwsVssVvPe =
-  (U64 × LedgerInfoWithSignatures × List ValidatorSigner × ValidatorVerifier × ProposerElection)
-
--- IMPL-DIFF: Haskell uses panic/errorExit.  This version uses Either.
 obmInitialData
   : AuthorName
-  → {-GenKeyFile.-}NfLiwsVssVvPe
-  → Either String (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
+  → GenKeyFile.NfLiwsVssVvPe
+  → Either ErrLog
+           (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
 obmInitialData me ( _numFaults , genesisLIWS , validatorSigners
                   , validatorVerifier , proposerElection ) = do
   let vs   = ValidatorSet.obmFromVV validatorVerifier
       occp = onChainConfigPayload vs
-  wp       ← eitherS (Waypoint.newEpochBoundary (genesisLIWS ^∙ liwsLedgerInfo))
-                     (\e → Left (here' ++ errText' e))
-                     Right
+  wp       ← Waypoint.newEpochBoundary (genesisLIWS ^∙ liwsLedgerInfo)
   let nc   = nodeConfig wp
-  eitherS (ValidatorSigner.obmGetValidatorSigner (nc ^∙ ncObmMe) validatorSigners)
-          (λ e → Left (here' ++ errText' e))
-          (λ vsigner →
-            Right (nc , occp , genesisLIWS , vsigner ^∙ vsPrivateKey , proposerElection))
+  vsigner  ← ValidatorSigner.obmGetValidatorSigner (nc ^∙ ncObmMe) validatorSigners
+  pure (nc , occp , genesisLIWS , vsigner ^∙ vsPrivateKey , proposerElection)
  where
-  here' : String
-  here' = "ConsensusProvider.obmInitialData' "
-
   onChainConfigPayload : ValidatorSet → OnChainConfigPayload
   onChainConfigPayload = OnChainConfigPayload∙new ({-Epoch-} 1)
 
