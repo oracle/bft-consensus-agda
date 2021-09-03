@@ -94,16 +94,14 @@ module saveTransactions (self  : DiemDB)
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog DiemDB
 
-  step₁ : LedgerInfoWithSignatures               → VariantFor EitherD
-  step₂ : LedgerInfoWithSignatures → LedgerStore → VariantFor EitherD
+  step₁ : LedgerInfoWithSignatures → VariantFor EitherD
 
   step₀ : VariantFor EitherD
   step₀ = maybeSD mliws (LeftD fakeErr) step₁
 
-  step₁ liws =
-    eitherSD (LedgerStore.putLedgerInfo (self ^∙ ddbLedgerStore) liws) LeftD (step₂ liws)
-
-  step₂ liws ls =
+  step₁ liws = do
+         -- TODO-2: Make an EitherD variant of putLedgerInfo and make D version default
+    ls ← fromEither $ LedgerStore.putLedgerInfo (self ^∙ ddbLedgerStore) liws
     RightD (self & ddbLedgerStore ∙~ (ls & lsLatestLedgerInfo ?~ liws))
 
   E : VariantFor Either
