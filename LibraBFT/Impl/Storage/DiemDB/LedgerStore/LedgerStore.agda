@@ -72,6 +72,8 @@ getEpochEndingLedgerInfoIter
   : LedgerStore → Epoch → Epoch
   → Either ErrLog EpochEndingLedgerInfoIter
 getEpochEndingLedgerInfoIter self startEpoch endEpoch =
+  -- TODO-2: Use of monus in context where it is not clear that endEpoch > 0; if not,
+  -- Agda and Haskell code would behave differently, so we should prove that endEpoch > 0
   EpochEndingLedgerInfoIter∙new <$> (foldM) go [] (fromToList startEpoch (endEpoch ∸ 1))
  where
   go : List LedgerInfoWithSignatures → Epoch → Either ErrLog (List LedgerInfoWithSignatures)
