@@ -62,7 +62,8 @@ getEpochEndingLedgerInfosImpl self startEpoch endEpoch limit = do
         ECP-LBFT-OBM-Diff-2.e_DiemDB_getEpochEndingLedgerInfosImpl_limit startEpoch endEpoch limit
   lis0    ← LedgerStore.getEpochEndingLedgerInfoIter (self ^∙ ddbLedgerStore) startEpoch pagingEpoch
   let lis = LedgerStore.obmEELIICollect lis0
-  if length lis + (startEpoch {-^∙ eEpoch-}) /= (pagingEpoch {-^∙ eEpoch-})
+  if -- genericLength lis /= (pagingEpoch^.eEpoch) - (startEpoch^.eEpoch)
+    length lis + (startEpoch {-^∙ eEpoch-}) /= (pagingEpoch {-^∙ eEpoch-}) -- rewritten to avoid monus
     then Left fakeErr -- [ "DB corruption: missing epoch ending ledger info"
                       -- , lsE startEpoch, lsE endEpoch, lsE pagingEpoch ]
     else pure (lis , more)
