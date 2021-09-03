@@ -81,7 +81,7 @@ startConsensus nodeConfig
     λ (_obmRecoveryData , persistentLivenessStorage) → do
       let stateComputer = obmStateComputer
       eitherS (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) Left $
-        λ vi → eitherS (EpochManager.new nodeConfig {-stateComputer-} persistentLivenessStorage
+        λ vi → eitherS (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
                           (vi ^∙ viAccountAddress) obmSK) Left $
                  λ epochMgr →
                      EpochManager.start
