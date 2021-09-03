@@ -36,12 +36,12 @@ mAX_NUM_EPOCH_ENDING_LEDGER_INFO = 100
 -- and a flag is set to True to indicate there are more.
 getEpochEndingLedgerInfos
   : DiemDB → Epoch → Epoch
-    → Either ErrLog (List LedgerInfoWithSignatures × Bool)
+  → Either ErrLog (List LedgerInfoWithSignatures × Bool)
 getEpochEndingLedgerInfos self startEpoch endEpoch =
   getEpochEndingLedgerInfosImpl self startEpoch endEpoch mAX_NUM_EPOCH_ENDING_LEDGER_INFO
 
 -- TODO-2: provide EitherD variants before writing proofs about this function;
--- at that time, use `whenD` in place of the two `if`s below
+-- TODO-2: then use `whenD` in place of the two `if`s below
 getEpochEndingLedgerInfosImpl self startEpoch endEpoch limit = do
   if (not ⌊ (startEpoch ≤? endEpoch) ⌋)
     then
