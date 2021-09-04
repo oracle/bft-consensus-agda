@@ -23,7 +23,8 @@ open EpochEndingLedgerInfoIter public
 new : LedgerStore
 new = mkLedgerStore Map.empty Map.empty nothing
 
--- OBM-LBFT-DIFF : this entire impl file is VERY different
+-- OBM-LBFT-DIFF : the entire Haskell impl file is VERY different from the Rust code.
+-- The Agda below mirrors Haskell.
 
 getEpoch : LedgerStore → Version → Either ErrLog Epoch
 getEpoch self version =
