@@ -5,12 +5,10 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.Network as Network
-open import LibraBFT.Impl.Consensus.RoundManager as RoundManager
+import      LibraBFT.Impl.Consensus.Network      as Network
+import      LibraBFT.Impl.Consensus.RoundManager as RoundManager
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
@@ -33,7 +31,7 @@ module handleProposal (now : Instant) (pm : ProposalMsg) where
     step₁ myEpoch vv
 
   step₁ myEpoch vv = do
-    caseM⊎ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+    case⊎D Network.processProposal {- {!!} -} pm myEpoch vv of λ where
       (Left (Left e))  → logErr e
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processProposalMsgM now pm
@@ -55,7 +53,11 @@ module handleVote (now : Instant) (vm : VoteMsg) where
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processVoteMsgM now vm
 
-handleVote = handleVote.step₀
+abstract
+  handleVote = handleVote.step₀
+
+  handleVote≡ : handleVote ≡ handleVote.step₀
+  handleVote≡ = refl
 
 handle : NodeId → NetworkMsg → Instant → LBFT Unit
 handle _self msg now =

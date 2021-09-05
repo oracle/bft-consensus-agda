@@ -18,8 +18,10 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
+    using (_∘_; _∘′_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
     public
+
+  identity = id
 
   infixl 1 _&_
   _&_ = Function._|>_
@@ -30,11 +32,20 @@ module LibraBFT.Prelude where
   open import Data.Empty
     public
 
+  -- NOTE: This function is defined to give extra documentation when discharging
+  -- absurd cases where Agda can tell by pattern matching that `A` is not
+  -- inhabited. For example:
+  -- > absurd (just v ≡ nothing) case impossibleProof of λ ()
+  infix 0 absurd_case_of_
+  absurd_case_of_ : ∀ {ℓ₁ ℓ₂} (A : Set ℓ₁) {B : Set ℓ₂} → A → (A → ⊥) → B
+  absurd A case x of f = ⊥-elim (f x)
+
   open import Data.Nat
     renaming (_≟_ to _≟ℕ_; _≤?_ to _≤?ℕ_; _≥?_ to _≥?ℕ_; compare to compareℕ; Ordering to Orderingℕ)
     public
 
   max = _⊔_
+  min = _⊓_
 
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
@@ -45,6 +56,8 @@ module LibraBFT.Prelude where
               tabulate to List-tabulate; foldl to List-foldl)
     hiding (fromMaybe; [_])
     public
+
+  foldl' = List-foldl
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
@@ -78,21 +91,27 @@ module LibraBFT.Prelude where
 
   open import Data.List.Relation.Unary.All
     using (All; []; _∷_)
-    renaming (head to All-head; tail to All-tail;
-              lookup to All-lookup; tabulate to All-tabulate;
-              reduce to All-reduce)
+    renaming (head     to All-head;   tail     to All-tail;
+              lookup   to All-lookup; tabulate to All-tabulate;
+              reduce   to All-reduce; map      to All-map)
     public
 
   open import Data.List.Relation.Unary.All.Properties
+    hiding   (All-map)
     renaming ( tabulate⁻ to All-tabulate⁻
              ; tabulate⁺ to All-tabulate⁺
              ; map⁺      to All-map⁺
              ; map⁻      to All-map⁻
+             ; ++⁺       to All-++
              )
     public
 
   open import Data.List.Membership.Propositional
     using (_∈_; _∉_)
+    public
+
+  open import Data.List.Membership.Propositional.Properties
+    renaming (∈-filter⁻ to List-∈-filter⁻)
     public
 
   open import Data.Vec
@@ -149,6 +168,15 @@ module LibraBFT.Prelude where
 
   maybe-any-⊥ : ∀{a}{A : Set a} → Maybe-Any {A = A} (λ _ → ⊤) nothing → ⊥
   maybe-any-⊥ ()
+
+  headMay : ∀ {A : Set} → List A → Maybe A
+  headMay     []  = nothing
+  headMay (x ∷ _) = just x
+
+  lastMay : ∀ {A : Set} → List A → Maybe A
+  lastMay          []  = nothing
+  lastMay     (x ∷ []) = just x
+  lastMay (_ ∷ x ∷ xs) = lastMay (x ∷ xs)
 
   open import Data.Maybe.Properties
     using (just-injective)
@@ -207,7 +235,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Sum
-    renaming ([_,_] to either; map to ⊎-map; map₂ to ⊎-map₂)
+    renaming ([_,_] to either; map to ⊎-map; map₁ to ⊎-map₁; map₂ to ⊎-map₂)
     public
 
   open import Data.Sum.Properties
@@ -225,8 +253,23 @@ module LibraBFT.Prelude where
     hiding (zip)
     public
 
+  fst = proj₁
+
   open import Data.Product.Properties
     public
+
+
+  module _ {ℓA} {A : Set ℓA} where
+    NoneOfKind : ∀ {ℓ} {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set ℓA
+    NoneOfKind xs p = List-filter p xs ≡ []
+
+    postulate -- TODO-1: Replace with or prove using library properties?  Move to Lemmas?
+      NoneOfKind⇒ : ∀ {ℓ} {P : A → Set ℓ} {Q : A → Set ℓ} {xs : List A}
+                  → (p : (a : A) → Dec (P a))
+                  → {q : (a : A) → Dec (Q a)}
+                  → (∀ {a} → P a → Q a)  -- TODO-1: Use proper notation (Relation.Unary?)
+                  → NoneOfKind xs q
+                  → NoneOfKind xs p
 
   infix 4 _<?ℕ_
   _<?ℕ_ : Decidable _<_
@@ -329,6 +372,25 @@ module LibraBFT.Prelude where
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+  module _ {ℓ₀ ℓ₁ ℓ₂ : Level} where
+    EL-type = Set ℓ₁ → Set ℓ₂ → Set ℓ₀
+    EL-level = ℓ₁ ℓ⊔ ℓ₂ ℓ⊔ ℓ₀
+
+    -- Utility to make passing between `Either` and `EitherD` more convenient
+    record EitherLike (E : EL-type) : Set (ℓ+1 EL-level) where
+      field
+        fromEither : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → Either A B → E A B
+        toEither   : ∀ {A : Set ℓ₁} {B : Set ℓ₂} → E A B → Either A B
+    open EitherLike ⦃ ... ⦄ public
+
+    EL-func : EL-type → Set (ℓ+1 EL-level)
+    EL-func EL = ⦃ mel : EitherLike EL ⦄ → Set EL-level
+
+  instance
+    EitherLike-Either : ∀ {ℓ₁ ℓ₂} → EitherLike{ℓ₁ ℓ⊔ ℓ₂}{ℓ₁}{ℓ₂} Either
+    EitherLike.fromEither EitherLike-Either = id
+    EitherLike.toEither   EitherLike-Either = id
 
   -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
   -- spaces between f and backticks
@@ -452,9 +514,9 @@ module LibraBFT.Prelude where
       return (f x)
 
   instance
-    Monad-Error : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Error{ℓ}{C}) = inj₂
-    Monad._>>=_ (Monad-Error{ℓ}{C}) = either (const ∘ inj₁) _&_
+    Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
+    Monad.return (Monad-Either{ℓ}{C}) = inj₂
+    Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ inj₁) _&_
 
     Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
     Monad.return (Monad-Maybe{ℓ}) = just
@@ -495,6 +557,17 @@ module LibraBFT.Prelude where
   foldrM _ b      []  = return b
   foldrM f b (a ∷ as) = foldrM f b as >>= f a
 
+  foldlM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M B
+  foldlM _ z      []  = pure z
+  foldlM f z (x ∷ xs) = do
+    z' ← f z x
+    foldlM f z' xs
+
+  foldM = foldlM
+
+  foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
+  foldM_ f a xs = foldlM f a xs >> pure unit
+
   open import LibraBFT.Base.Util public
 
   record Eq {a} (A : Set a) : Set a where
@@ -530,3 +603,21 @@ module LibraBFT.Prelude where
   []       !?      _   = nothing
   (x ∷ _ ) !?      0   = just x
   (_ ∷ xs) !? (suc n)  = xs !? n
+
+  -- Like a Haskell list-comprehension for ℕ : [ n | n <- [from .. to] ]
+  fromToList : ℕ → ℕ → List ℕ
+  fromToList from to with from ≤′? to
+  ... | no ¬pr = []
+  ... | yes pr = fromToList-le from to pr []
+   where
+    fromToList-le : ∀ (from to : ℕ) (klel : from ≤′ to) (acc : List ℕ) → List ℕ
+    fromToList-le from ._        ≤′-refl       acc = from ∷ acc
+    fromToList-le from (suc to) (≤′-step klel) acc = fromToList-le from to klel (suc to ∷ acc)
+
+  _ : fromToList 1 1 ≡ 1 ∷ []
+  _ = refl
+  _ : fromToList 1 2 ≡ 1 ∷ 2 ∷ []
+  _ = refl
+  _ : fromToList 2 1 ≡ []
+  _ = refl
+

@@ -19,7 +19,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.Block where
 
@@ -32,6 +32,15 @@ isGenesisBlock b = BlockData.isGenesisBlock (b ^∙ bBlockData)
 
 isNilBlock : Block → Bool
 isNilBlock b = BlockData.isNilBlock (b ^∙ bBlockData)
+
+makeGenesisBlockFromLedgerInfo : LedgerInfo → Either ErrLog Block
+makeGenesisBlockFromLedgerInfo li = do
+  blockData <- BlockData.newGenesisFromLedgerInfo li
+  pure (Block∙new (hashBD blockData) blockData nothing)
+
+newNil : Round → QuorumCert → Block
+newNil r qc = Block∙new (hashBD blockData) blockData nothing
+ where blockData = BlockData.newNil r qc
 
 newProposalFromBlockDataAndSignature : BlockData → Signature → Block
 newProposalFromBlockDataAndSignature blockData signature =
@@ -48,7 +57,7 @@ validateSignature self validator = case self ^∙ bBlockData ∙ bdBlockType of 
         (ValidatorVerifier.verify validator author (self ^∙ bBlockData) sig)
     QuorumCert.verify (self ^∙ bQuorumCert) validator
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "Block" ∷ "validateSignatures" {-∷ lsB self-} ∷ t
 
 verifyWellFormed : Block → Either ErrLog Unit
@@ -69,5 +78,5 @@ verifyWellFormed self = do
   lcheck (self ^∙ bId == hashBD (self ^∙ bBlockData))
          (here' ("Block id hash mismatch" ∷ []))
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "Block" ∷ "verifyWellFormed" {-∷ lsB self-} ∷ t

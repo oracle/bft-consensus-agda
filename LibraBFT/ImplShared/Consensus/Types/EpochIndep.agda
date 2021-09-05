@@ -3,12 +3,15 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap            as Map
+open import LibraBFT.Base.KVMap              as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
+open import LibraBFT.Impl.OBM.Rust.Duration
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -38,12 +41,6 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   aAuthorName : Lens Author AuthorName
   aAuthorName = mkLens' (λ x → x) (λ x → const x)
 
-  U64 : Set
-  U64 = ℕ
-
-  Usize : Set
-  Usize = ℕ
-
   HashValue : Set
   HashValue = Hash
 
@@ -53,6 +50,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   Instant : Set
   Instant = ℕ   -- TODO-2: should eventually be a time stamp
 
+  postulate -- TODO-1: implement/prove PK equality
+    _≟-PK_ : (pk1 pk2 : PK) → Dec (pk1 ≡ pk2)
+  instance
+    Eq-PK : Eq PK
+    Eq._≟_ Eq-PK = _≟-PK_
+
   -- LBFT-OBM-DIFF: We do not have world state.  We just count the Epoch/Round as the version.
   record Version : Set where
     constructor Version∙new
@@ -61,6 +64,12 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _vVR : Round
   open Version public
   postulate instance enc-Version : Encoder Version
+
+  postulate -- TODO-1: implement/prove Version equality
+    _≟-Version_ : (v1 v2 : Version) → Dec (v1 ≡ v2)
+  instance
+    Eq-Version : Eq Version
+    Eq._≟_ Eq-Version = _≟-Version_
 
   _≤-Version_ : Version → Version → Set
   v1 ≤-Version v2 = _vVE v1 < _vVE v2
@@ -80,9 +89,58 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
                                  ; (inj₂ (_ , x)) → rgt x })
 
-  -----------------
-  -- Information --
-  -----------------
+  _<-Version_ : Version → Version → Set
+  v1 <-Version v2 = _vVE v1 < _vVE v2
+                  ⊎ _vVE v1 ≡ _vVE v2 × _vVR v1 < _vVR v2
+
+  _<?-Version_ : (v1 v2 : Version) → Dec (v1 <-Version v2)
+  v1 <?-Version v2
+     with _vVE v1 <? _vVE v2
+  ...| yes prf = yes (inj₁ prf)
+  ...| no  ege
+     with _vVE v1 ≟ _vVE v2
+  ...| no  rneq = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (x , _)) → rneq x })
+  ...| yes refl
+     with _vVR v1 <? _vVR v2
+  ...| yes rleq = yes (inj₂ (refl , rleq))
+  ...| no  rgt  = no (⊥-elim ∘ λ { (inj₁ x) → ege x
+                                 ; (inj₂ (_ , x)) → rgt x })
+
+-- ------------------------------------------------------------------------------
+
+  record ValidatorSigner : Set where
+    constructor ValidatorSigner∙new
+    field
+      _vsAuthor     : AccountAddress
+      _vsPrivateKey : SK      -- Note that the SystemModel doesn't
+                              -- allow one node to examine another's
+                              -- state, so we don't model someone being
+                              -- able to impersonate someone else unless
+                              -- PK is "dishonest", which models the
+                              -- possibility that the corresponding secret
+                              -- key may have been leaked.
+  open ValidatorSigner public
+  unquoteDecl  vsAuthor   vsPrivateKey = mkLens (quote ValidatorSigner)
+              (vsAuthor ∷ vsPrivateKey ∷ [])
+
+  record ValidatorConfig : Set where
+    constructor ValidatorConfig∙new
+    field
+      _vcConsensusPublicKey : PK
+  open ValidatorConfig public
+  unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
+    (vcConsensusPublicKey ∷ [])
+
+  record ValidatorInfo : Set where
+    constructor ValidatorInfo∙new
+    field
+      _viAccountAddress       : AccountAddress
+      _viConsensusVotingPower : U64
+      _viConfig               : ValidatorConfig
+  open ValidatorInfo public
+  unquoteDecl viAccountAddress   viConsensusVotingPower   viConfig = mkLens (quote ValidatorInfo)
+             (viAccountAddress ∷ viConsensusVotingPower ∷ viConfig ∷ [])
 
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
@@ -100,9 +158,27 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens  (quote ValidatorVerifier)
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens (quote ValidatorVerifier)
              (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
 
+  -- getter only in Haskell
+  vvObmAuthors : Lens ValidatorVerifier (List AccountAddress)
+  vvObmAuthors = mkLens' g s
+   where
+    g : ValidatorVerifier → List AccountAddress
+    g vv = Map.kvm-keys (vv ^∙ vvAddressToValidatorInfo)
+    s : ValidatorVerifier → List AccountAddress → ValidatorVerifier
+    s vv _ = vv -- TODO-1 : cannot be done: need a way to defined only getters
+
+  data ConsensusScheme : Set where ConsensusScheme∙new : ConsensusScheme
+  -- instance S.Serialize ConsensusScheme
+
+  record ValidatorSet : Set where
+    constructor ValidatorSet∙new
+    field
+      _vsScheme  : ConsensusScheme
+      _vsPayload : List ValidatorInfo
+  -- instance S.Serialize ValidatorSet
 
   record EpochState : Set where
     constructor EpochState∙new
@@ -118,6 +194,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       Enc-EpochState   : Encoder EpochState
       Enc-EpochStateMB : Encoder (Maybe EpochState)  -- TODO-1: make combinator to build this
 
+-- ------------------------------------------------------------------------------
+
   record BlockInfo : Set where
     constructor BlockInfo∙new
     field
@@ -129,8 +207,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       --, _biTimestamp       :: Instant
       _biNextEpochState  : Maybe EpochState
   open BlockInfo public
-  unquoteDecl biEpoch   biRound   biId   biExecutedState   biVersion   biNextEpochState = mkLens (quote BlockInfo)
-             (biEpoch ∷ biRound ∷ biId ∷ biExecutedState ∷ biVersion ∷ biNextEpochState ∷ [])
+  unquoteDecl biEpoch   biRound   biId   biExecutedStateId   biVersion   biNextEpochState = mkLens (quote BlockInfo)
+             (biEpoch ∷ biRound ∷ biId ∷ biExecutedStateId ∷ biVersion ∷ biNextEpochState ∷ [])
   postulate instance enc-BlockInfo : Encoder BlockInfo
 
   postulate
@@ -168,6 +246,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   BlockInfo-η refl refl refl = refl
 -}
 
+  biNextBlockEpoch : Lens BlockInfo Epoch
+  biNextBlockEpoch = mkLens' g s
+   where
+    g : BlockInfo → Epoch
+    g bi = maybeS (bi ^∙ biNextEpochState)
+                  (bi ^∙ biEpoch)
+                  (  _^∙ esEpoch)
+    s : BlockInfo → Epoch → BlockInfo
+    s bi _ = bi -- TODO-1 : cannot be done: need a way to defined only getters
+
+-- ------------------------------------------------------------------------------
+
   record LedgerInfo : Set where
     constructor LedgerInfo∙new
     field
@@ -180,8 +270,24 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   postulate instance ws-LedgerInfo  : WithSig LedgerInfo
 
   -- GETTER only in Haskell
+  liEpoch : Lens LedgerInfo Epoch
+  liEpoch = liCommitInfo ∙ biEpoch
+
+  -- GETTER only in Haskell
+  liNextBlockEpoch : Lens LedgerInfo Epoch
+  liNextBlockEpoch = liCommitInfo ∙ biNextBlockEpoch
+
+  -- GETTER only in Haskell
   liConsensusBlockId : Lens LedgerInfo HashValue
   liConsensusBlockId = liCommitInfo ∙ biId
+
+  -- GETTER only in Haskell
+  liTransactionAccumulatorHash : Lens LedgerInfo HashValue
+  liTransactionAccumulatorHash = liCommitInfo ∙ biExecutedStateId
+
+  -- GETTER only in Haskell
+  liVersion : Lens LedgerInfo Version
+  liVersion = liCommitInfo ∙ biVersion
 
   -- GETTER only in Haskell
   liNextEpochState : Lens LedgerInfo (Maybe EpochState)
@@ -190,6 +296,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     g : LedgerInfo → Maybe EpochState
     g = (_^∙ liCommitInfo ∙ biNextEpochState)
     s : LedgerInfo → Maybe EpochState → LedgerInfo
+    s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
+
+  -- GETTER only in Haskell
+  liEndsEpoch : Lens LedgerInfo Bool
+  liEndsEpoch = mkLens' g s
+   where
+    g : LedgerInfo → Bool
+    g = is-just ∘ (_^∙ liNextEpochState)
+    s : LedgerInfo → Bool → LedgerInfo
     s l _ = l -- TODO-1 : cannot be done: need a way to defined only getters
 
   LedgerInfo-η : ∀ {ci1 ci2 : BlockInfo} {cdh1 cdh2 : Hash}
@@ -208,9 +323,31 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (liwsLedgerInfo ∷ liwsSignatures ∷ [])
   postulate instance enc-LedgerInfoWithSignatures : Encoder LedgerInfoWithSignatures
 
-  -------------------
-  -- Votes and QCs --
-  -------------------
+  -- GETTER only in Haskell
+  liwsEpoch : Lens LedgerInfoWithSignatures Epoch
+  liwsEpoch = liwsLedgerInfo ∙ liEpoch
+
+  -- GETTER only in Haskell
+  liwsVersion : Lens LedgerInfoWithSignatures Version
+  liwsVersion = liwsLedgerInfo ∙ liVersion
+
+  -- GETTER only in Haskell
+  liwsNextEpochState : Lens LedgerInfoWithSignatures (Maybe EpochState)
+  liwsNextEpochState = liwsLedgerInfo ∙ liNextEpochState
+
+-- ------------------------------------------------------------------------------
+
+  record Timeout : Set where
+    constructor Timeout∙new
+    field
+      _toEpoch : Epoch
+      _toRound : Round
+  open Timeout public
+  unquoteDecl toEpoch   toRound = mkLens (quote Timeout)
+             (toEpoch ∷ toRound ∷ [])
+  postulate instance enc-Timeout : Encoder Timeout
+
+-- ------------------------------------------------------------------------------
 
   record VoteData : Set where
     constructor VoteData∙new
@@ -269,6 +406,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   -- getter only in Haskell
   vRound : Lens Vote Round
   vRound = vVoteData ∙ vdProposed ∙ biRound
+
+-- ------------------------------------------------------------------------------
 
   record QuorumCert : Set where
     constructor QuorumCert∙new
@@ -350,9 +489,29 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   _qcRound : QuorumCert → Round
   _qcRound q = q ^∙ qcRound
 
-  ------------
-  -- Blocks --
-  ------------
+-- ------------------------------------------------------------------------------
+
+  record TimeoutCertificate : Set where
+    constructor mkTimeoutCertificate
+    field
+      _tcTimeout    : Timeout
+      _tcSignatures : KVMap Author Signature
+  open TimeoutCertificate public
+  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
+             (tcTimeout ∷ tcSignatures ∷ [])
+
+  TimeoutCertificate∙new : Timeout → TimeoutCertificate
+  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
+
+  -- getter only in haskell
+  tcEpoch : Lens TimeoutCertificate Epoch
+  tcEpoch = tcTimeout ∙ toEpoch
+
+  -- getter only in haskell
+  tcRound : Lens TimeoutCertificate Round
+  tcRound = tcTimeout ∙ toRound
+
+-- ------------------------------------------------------------------------------
 
   data BlockType : Set where
     Proposal : TX → Author → BlockType
@@ -436,6 +595,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     s : BlockData → Maybe TX → BlockData
     s bd _ = bd -- TODO-1 : cannot be done: need a way to define only getters
 
+-- ------------------------------------------------------------------------------
 
   -- The signature is a Maybe to allow us to use 'nothing' as the
   -- 'bSignature' when constructing a block to sign later.  Also,
@@ -465,6 +625,10 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bEpoch = bBlockData ∙ bdEpoch
 
   -- getter only in Haskell
+  bRound : Lens Block Round
+  bRound = bBlockData ∙ bdRound
+
+  -- getter only in Haskell
   bQuorumCert : Lens Block QuorumCert
   bQuorumCert  = bBlockData ∙ bdQuorumCert
 
@@ -476,18 +640,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bPayload : Lens Block (Maybe TX)
   bPayload = bBlockData ∙ bdPayload
 
-  -- getter only in Haskell
-  bRound : Lens Block Round
-  bRound =  bBlockData ∙ bdRound
+  infix 4 _≈Block_
+  _≈Block_ : (b₁ b₂ : Block) → Set
+  b₁ ≈Block b₂ = b₁ ≡ record b₂ { _bSignature = _bSignature b₁ }
 
-  record BlockRetriever : Set where
-    constructor BlockRetriever∙new
-    field
-      _brDeadline      : Instant
-      _brPreferredPeer : Author
-  open BlockRetriever public
-  unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
-             (brDeadline ∷ brPreferredPeer ∷ [])
+  sym≈Block : Symmetric _≈Block_
+  sym≈Block refl = refl
+
+-- ------------------------------------------------------------------------------
 
   record AccumulatorExtensionProof : Set where
     constructor AccumulatorExtensionProof∙new
@@ -515,35 +675,421 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl  msvpVoteProposal = mkLens (quote MaybeSignedVoteProposal)
               (msvpVoteProposal ∷ [])
 
-  record Timeout : Set where
-    constructor Timeout∙new
-    field
-      _toEpoch : Epoch
-      _toRound : Round
-  open Timeout public
-  unquoteDecl toEpoch   toRound = mkLens (quote Timeout)
-             (toEpoch ∷ toRound ∷ [])
-  postulate instance enc-Timeout : Encoder Timeout
+-- ------------------------------------------------------------------------------
 
-  record TimeoutCertificate : Set where
-    constructor mkTimeoutCertificate
+  record LastVoteInfo : Set where
+    constructor LastVoteInfo∙new
     field
-      _tcTimeout    : Timeout
-      _tcSignatures : KVMap Author Signature
-  open TimeoutCertificate public
-  unquoteDecl tcTimeout   tcSignatures = mkLens (quote TimeoutCertificate)
-             (tcTimeout ∷ tcSignatures ∷ [])
+      _lviLiDigest  : HashValue
+      _lviRound     : Round
+      _lviIsTimeout : Bool
+  open LastVoteInfo public
 
-  TimeoutCertificate∙new : Timeout → TimeoutCertificate
-  TimeoutCertificate∙new to = mkTimeoutCertificate to Map.empty
+  record PendingVotes : Set where
+    constructor mkPendingVotes
+    field
+      _pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
+      _pvMaybePartialTC    : Maybe TimeoutCertificate
+      _pvAuthorToVote      : KVMap Author Vote
+  open PendingVotes public
+  unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
+             (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
+
+  PendingVotes∙new : PendingVotes
+  PendingVotes∙new = mkPendingVotes Map.empty nothing Map.empty
+
+-- ------------------------------------------------------------------------------
+
+  record StateComputeResult : Set where
+    constructor StateComputeResult∙new
+    field
+      _scrObmNumLeaves : Version
+      _scrEpochState   : Maybe EpochState
+  open StateComputeResult public
+  unquoteDecl scrObmNumLeaves   scrEpochState = mkLens (quote StateComputeResult)
+             (scrObmNumLeaves ∷ scrEpochState ∷ [])
+
+  postulate -- TODO: eliminate after fully implementing executeBlockE
+    stateComputeResult : StateComputeResult
+
+  record ExecutedBlock : Set where
+    constructor ExecutedBlock∙new
+    field
+      _ebBlock              : Block
+      _ebStateComputeResult : StateComputeResult
+  open ExecutedBlock public
+  unquoteDecl ebBlock   ebStateComputeResult = mkLens (quote ExecutedBlock)
+             (ebBlock ∷ ebStateComputeResult ∷ [])
+
+  -- getter only in Haskell
+  ebId : Lens ExecutedBlock HashValue
+  ebId = ebBlock ∙ bId
+
+  -- getter only in Haskell
+  ebQuorumCert : Lens ExecutedBlock QuorumCert
+  ebQuorumCert = ebBlock ∙ bQuorumCert
+
+  -- getter only in Haskell
+  ebParentId : Lens ExecutedBlock HashValue
+  ebParentId = ebQuorumCert ∙ qcCertifiedBlock ∙ biId
+
+  -- getter only in Haskell
+  ebRound : Lens ExecutedBlock Round
+  ebRound = ebBlock ∙ bRound
+
+-- ------------------------------------------------------------------------------
+
+  record LinkableBlock : Set where
+    constructor LinkableBlock∙new
+    field
+      _lbExecutedBlock : ExecutedBlock
+      -- _lbChildren      : Set HashValue
+  open LinkableBlock public
+  unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
+             (lbExecutedBlock ∷ [])
+
+  -- getter only in Haskell
+  lbId : Lens LinkableBlock HashValue
+  lbId = lbExecutedBlock ∙ ebId
+
+-- ------------------------------------------------------------------------------
+
+  -- A block tree depends on a epoch config but works regardlesss of which
+  -- EpochConfig we have.
+  record BlockTree : Set where
+    constructor mkBlockTree
+    field
+      _btIdToBlock               : KVMap HashValue LinkableBlock
+      _btRootId                  : HashValue
+      _btHighestCertifiedBlockId : HashValue
+      _btHighestQuorumCert       : QuorumCert
+      _btHighestTimeoutCert      : Maybe TimeoutCertificate
+      _btHighestCommitCert       : QuorumCert
+      _btIdToQuorumCert          : KVMap HashValue QuorumCert
+      _btPrunedBlockIds          : VecDeque
+      _btMaxPrunedBlocksInMem    : ℕ
+  open BlockTree public
+  unquoteDecl btIdToBlock   btRootId  btHighestCertifiedBlockId   btHighestQuorumCert
+              btHighestTimeoutCert   btHighestCommitCert
+              btIdToQuorumCert   btPrunedBlockIds
+              btMaxPrunedBlocksInMem = mkLens (quote BlockTree)
+             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
+              btHighestTimeoutCert ∷ btHighestCommitCert ∷
+              btIdToQuorumCert ∷ btPrunedBlockIds ∷
+              btMaxPrunedBlocksInMem ∷ [])
+
+  btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
+  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
+
+  btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
+  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
+
+  -- getter only in Haskell
+  btRoot : Lens BlockTree (Maybe ExecutedBlock)
+  btRoot = mkLens' g s
+    where
+    g : BlockTree → Maybe ExecutedBlock
+    g bt = btGetBlock (bt ^∙ btRootId) bt
+
+    -- TODO-1 : the setter is not needed/defined in Haskell
+    -- Defining it just to make progress, but it can't be defined
+    -- correctly in terms of type correctness (let alone setting a new root!)
+    s : BlockTree → Maybe ExecutedBlock → BlockTree
+    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
 
   -- getter only in haskell
-  tcEpoch : Lens TimeoutCertificate Epoch
-  tcEpoch = tcTimeout ∙ toEpoch
+  btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
+  btHighestCertifiedBlock = mkLens' g s
+    where
+    g : BlockTree → (Maybe ExecutedBlock)
+    g bt = btGetBlock (bt ^∙ btHighestCertifiedBlockId) bt
 
-  -- getter only in haskell
-  tcRound : Lens TimeoutCertificate Round
-  tcRound = tcTimeout ∙ toRound
+    s : BlockTree → (Maybe ExecutedBlock) → BlockTree
+    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
+
+-- ------------------------------------------------------------------------------
+
+  record LedgerStore : Set where
+    constructor mkLedgerStore
+    field
+      _lsObmVersionToEpoch : Map.KVMap Version Epoch
+      _lsObmEpochToLIWS    : Map.KVMap Epoch   LedgerInfoWithSignatures
+      _lsLatestLedgerInfo  : Maybe LedgerInfoWithSignatures
+  open LedgerStore public
+  unquoteDecl lsObmVersionToEpoch   lsObmEpochToLIWS   lsLatestLedgerInfo = mkLens (quote LedgerStore)
+             (lsObmVersionToEpoch ∷ lsObmEpochToLIWS ∷ lsLatestLedgerInfo ∷ [])
+
+  record DiemDB : Set where
+    constructor DiemDB∙new
+    field
+      _ddbLedgerStore : LedgerStore
+  open DiemDB public
+  unquoteDecl ddbLedgerStore = mkLens (quote DiemDB)
+             (ddbLedgerStore ∷ [])
+
+  record LedgerRecoveryData : Set where
+    constructor LedgerRecoveryData∙new
+    field
+      _lrdStorageLedger : LedgerInfo
+
+  record MockSharedStorage : Set where
+    constructor mkMockSharedStorage
+    field
+      -- Safety state
+      _mssBlock                     : Map.KVMap HashValue Block
+      _mssQc                        : Map.KVMap HashValue QuorumCert
+      _mssLis                       : Map.KVMap Version   LedgerInfoWithSignatures
+      _mssLastVote                  : Maybe Vote
+      -- Liveness state
+      _mssHighestTimeoutCertificate : Maybe TimeoutCertificate
+      _mssValidatorSet              : ValidatorSet
+  open MockSharedStorage public
+  unquoteDecl mssBlock    mssQc   mssLis    mssLastVote
+              mssHighestTimeoutCertificate  mssValidatorSet = mkLens (quote MockSharedStorage)
+             (mssBlock ∷  mssQc ∷ mssLis ∷ mssLastVote ∷
+              mssHighestTimeoutCertificate ∷ mssValidatorSet ∷ [])
+
+  record MockStorage : Set where
+    constructor MockStorage∙new
+    field
+      _msSharedStorage : MockSharedStorage
+      _msStorageLedger : LedgerInfo
+      _msObmDiemDB     : DiemDB
+  open MockStorage public
+  unquoteDecl msSharedStorage   msStorageLedger   msObmDiemDB = mkLens (quote MockStorage)
+             (msSharedStorage ∷ msStorageLedger ∷ msObmDiemDB ∷ [])
+
+  PersistentLivenessStorage = MockStorage
+
+  -- IMPL-DIFF : This is defined without record fields in Haskell.
+  -- The record fields below are never used.  But RootInfo must be a record for pattern matching.
+  record RootInfo : Set where
+    constructor RootInfo∙new
+    field
+      _riBlock : Block
+      _riQC1   : QuorumCert
+      _riQC2   : QuorumCert
+
+-- ------------------------------------------------------------------------------
+
+  record SafetyData : Set where
+    constructor SafetyData∙new
+    field
+      _sdEpoch          : Epoch
+      _sdLastVotedRound : Round
+      _sdPreferredRound : Round
+      _sdLastVote       : Maybe Vote
+  open SafetyData public
+  unquoteDecl sdEpoch sdLastVotedRound sdPreferredRound sdLastVote =
+    mkLens (quote SafetyData)
+    (sdEpoch ∷ sdLastVotedRound ∷ sdPreferredRound ∷ sdLastVote ∷  [])
+
+  record Waypoint : Set where
+    constructor Waypoint∙new
+    field
+      _wVersion : Version
+      _wValue   : HashValue
+  open Waypoint public
+  unquoteDecl wVersion   wValue = mkLens (quote Waypoint)
+             (wVersion ∷ wValue ∷ [])
+  postulate instance enc-Waypoint : Encoder Waypoint
+
+  record PersistentSafetyStorage : Set where
+    constructor mkPersistentSafetyStorage
+    field
+      _pssSafetyData : SafetyData
+      _pssAuthor     : Author
+      _pssWaypoint   : Waypoint
+      _pssObmSK      : Maybe SK
+  open PersistentSafetyStorage public
+  unquoteDecl pssSafetyData   pssAuthor   pssWaypoint   pssObmSK = mkLens (quote PersistentSafetyStorage)
+             (pssSafetyData ∷ pssAuthor ∷ pssWaypoint ∷ pssObmSK ∷ [])
+
+  record OnChainConfigPayload : Set where
+    constructor OnChainConfigPayload∙new
+    field
+      _occpEpoch           : Epoch
+      _occpObmValidatorSet : ValidatorSet
+  open OnChainConfigPayload public
+  unquoteDecl occpEpoch   occpObmValidatorSet = mkLens (quote OnChainConfigPayload)
+             (occpEpoch ∷ occpObmValidatorSet ∷ [])
+  -- instance S.Serialize OnChainConfigPayload
+
+  record ReconfigEventEpochChange : Set where
+    constructor ReconfigEventEpochChange∙new
+    field
+      _reecOnChainConfigPayload : OnChainConfigPayload
+  -- instance S.Serialize ReconfigEventEpochChange
+
+-- ------------------------------------------------------------------------------
+
+  -- IMPL-DIFF : Haskell StateComputer has pluggable functions.
+  -- The Agda version just calls them directly
+  record StateComputer : Set where
+    constructor StateComputer∙new
+    field
+      _scObmVersion : Version
+  open StateComputer public
+  unquoteDecl scObmVersion = mkLens (quote StateComputer)
+             (scObmVersion ∷ [])
+
+  StateComputerComputeType
+    = StateComputer → Block → HashValue
+    → Either (List String) StateComputeResult
+
+  StateComputerCommitType
+    = StateComputer → DiemDB → ExecutedBlock → LedgerInfoWithSignatures
+    → Either (List String) (StateComputer × DiemDB × Maybe ReconfigEventEpochChange)
+
+  StateComputerSyncToType
+    = LedgerInfoWithSignatures
+    → Either (List String) ReconfigEventEpochChange
+
+-- ------------------------------------------------------------------------------
+
+  record BlockStore : Set where
+    constructor BlockStore∙new
+    field
+      _bsInner         : BlockTree
+      _bsStateComputer : StateComputer
+      _bsStorage       : PersistentLivenessStorage
+  open BlockStore public
+  unquoteDecl bsInner   bsStateComputer   bsStorage = mkLens (quote BlockStore)
+             (bsInner ∷ bsStateComputer ∷ bsStorage ∷ [])
+
+  postulate  -- TODO: stateComputer
+    stateComputer : StateComputer
+
+  -- getter only in Haskell
+  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
+  bsRoot = bsInner ∙ btRoot
+
+  -- getter only in Haskell
+  bsHighestQuorumCert : Lens BlockStore QuorumCert
+  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
+
+  -- getter only in Haskell
+  bsHighestCommitCert : Lens BlockStore QuorumCert
+  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
+
+  -- getter only in Haskell
+  bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
+  bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
+
+-- ------------------------------------------------------------------------------
+
+  data NewRoundReason : Set where
+    QCReady : NewRoundReason
+    TOReady : NewRoundReason
+
+  record NewRoundEvent : Set where
+    constructor NewRoundEvent∙new
+    field
+      _nreRound   : Round
+      _nreReason  : NewRoundReason
+      _nreTimeout : Duration
+  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
+             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
+
+-- LibraBFT.ImplShared.Consensus.Types contains
+-- ExponentialTimeInterval, RoundState
+
+-- ------------------------------------------------------------------------------
+
+  record ProposalGenerator : Set where
+    constructor ProposalGenerator∙new
+    field
+      _pgLastRoundGenerated : Round
+  open ProposalGenerator
+  unquoteDecl pgLastRoundGenerated = mkLens (quote ProposalGenerator)
+              (pgLastRoundGenerated ∷ [])
+
+-- ------------------------------------------------------------------------------
+
+  data ObmNotValidProposerReason : Set where
+    ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
+
+  record ProposerElection : Set where
+    constructor ProposerElection∙new
+    -- field
+      -- _peProposers : Set Author
+      -- _peObmLeaderOfRound : LeaderOfRoundFn
+      -- _peObmNodesInOrder  : NodesInOrder
+  open ProposerElection
+
+-- ------------------------------------------------------------------------------
+
+  record SafetyRules : Set where
+    constructor mkSafetyRules
+    field
+      _srPersistentStorage  : PersistentSafetyStorage
+      _srExportConsensusKey : Bool
+      _srValidatorSigner    : Maybe ValidatorSigner
+      _srEpochState         : Maybe EpochState
+  open SafetyRules public
+  unquoteDecl srPersistentStorage   srExportConsensusKey   srValidatorSigner   srEpochState = mkLens (quote SafetyRules)
+             (srPersistentStorage ∷ srExportConsensusKey ∷ srValidatorSigner ∷ srEpochState ∷ [])
+
+-- ------------------------------------------------------------------------------
+
+  record BlockRetrievalRequest : Set where
+    constructor BlockRetrievalRequest∙new
+    field
+      _brqObmFrom   : Author
+      _brqBlockId   : HashValue
+      _brqNumBlocks : U64
+  open BlockRetrievalRequest public
+  unquoteDecl brqObmFrom   brqBlockId   brqNumBlocks = mkLens (quote BlockRetrievalRequest)
+             (brqObmFrom ∷ brqBlockId ∷ brqNumBlocks ∷ [])
+  postulate instance enc-BlockRetrievalRequest : Encoder BlockRetrievalRequest
+
+  data BlockRetrievalStatus : Set where
+    BRSSucceeded BRSIdNotFound BRSNotEnoughBlocks : BlockRetrievalStatus
+  open BlockRetrievalStatus public
+  postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
+
+  brs-eq : (brs₁ brs₂ : BlockRetrievalStatus) → Dec (brs₁ ≡ brs₂)
+  brs-eq BRSSucceeded       BRSSucceeded       = yes refl
+  brs-eq BRSSucceeded       BRSIdNotFound      = no λ ()
+  brs-eq BRSSucceeded       BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSIdNotFound      BRSSucceeded       = no λ ()
+  brs-eq BRSIdNotFound      BRSIdNotFound      = yes refl
+  brs-eq BRSIdNotFound      BRSNotEnoughBlocks = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSSucceeded       = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSIdNotFound      = no λ ()
+  brs-eq BRSNotEnoughBlocks BRSNotEnoughBlocks = yes refl
+
+  instance
+    Eq-BlockRetrievalStatus : Eq BlockRetrievalStatus
+    Eq._≟_ Eq-BlockRetrievalStatus = brs-eq
+
+  record BlockRetrievalResponse : Set where
+    constructor BlockRetrievalResponse∙new
+    field
+      _brpObmFrom : (Author × Epoch × Round) -- for logging
+      _brpStatus  : BlockRetrievalStatus
+      _brpBlocks  : List Block
+  unquoteDecl brpObmFrom   brpStatus   brpBlocks   = mkLens (quote BlockRetrievalResponse)
+             (brpObmFrom ∷ brpStatus ∷ brpBlocks ∷ [])
+  postulate instance enc-BlockRetrievalResponse : Encoder BlockRetrievalResponse
+
+-- ------------------------------------------------------------------------------
+
+-- LibraBFT.ImplShared.Consensus.Types contains
+-- ObmNeedFetch, RoundManager
+
+-- ------------------------------------------------------------------------------
+
+  record BlockRetriever : Set where
+    constructor BlockRetriever∙new
+    field
+      _brDeadline      : Instant
+      _brPreferredPeer : Author
+  open BlockRetriever public
+  unquoteDecl brDeadline   brPreferredPeer = mkLens (quote BlockRetriever)
+             (brDeadline ∷ brPreferredPeer ∷ [])
+
+-- ------------------------------------------------------------------------------
 
   record SyncInfo : Set where
     constructor mkSyncInfo -- Bare constructor to enable pattern matching against SyncInfo; "smart"
@@ -596,9 +1142,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   siEpoch : Lens SyncInfo Epoch
   siEpoch  = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
-  ----------------------
-  -- Network Messages --
-  ----------------------
+  -- getter only in Haskell
+  siObmRound : Lens SyncInfo Round
+  siObmRound = siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
+
+-- ------------------------------------------------------------------------------
 
   record ProposalMsg : Set where
     constructor ProposalMsg∙new
@@ -611,8 +1159,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   postulate instance enc-ProposalMsg : Encoder ProposalMsg
 
   -- getter only in Haskell
+  pmEpoch : Lens ProposalMsg Epoch
+  pmEpoch = pmProposal ∙ bEpoch
+
+  -- getter only in Haskell
+  pmRound : Lens ProposalMsg Round
+  pmRound = pmProposal ∙ bRound
+
+  -- getter only in Haskell
   pmProposer : Lens ProposalMsg (Maybe Author)
   pmProposer = pmProposal ∙ bAuthor
+
+-- ------------------------------------------------------------------------------
 
   record VoteMsg : Set where
     constructor  VoteMsg∙new
@@ -636,32 +1194,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   vmEpoch : Lens VoteMsg Epoch
   vmEpoch = vmVote ∙ vEpoch
 
-  -- IMPL-DIFF : This is defined without record fields in Haskell.
-  -- The record fields below are never used.  But RootInfo must be a record for pattern matching.
-  record RootInfo : Set where
-    constructor RootInfo∙new
-    field
-      _riBlock : Block
-      _riQC1   : QuorumCert
-      _riQC2   : QuorumCert
+  -- getter-only in Haskell
+  vmRound : Lens VoteMsg Round
+  vmRound = vmVote ∙ vRound
 
-  data RootMetadata : Set where RootMetadata∙new : RootMetadata
-
-  record RecoveryData : Set where
-    constructor mkRecoveryData
-    field
-      _rdLastVote                  : Maybe Vote
-      _rdRoot                      : RootInfo
-      _rdRootMetadata              : RootMetadata
-      _rdBlocks                    : List Block
-      _rdQuorumCerts               : List QuorumCert
-      _rdBlocksToPrune             : Maybe (List HashValue)
-      _rdHighestTimeoutCertificate : Maybe TimeoutCertificate
-  open RecoveryData public
-  unquoteDecl rdLastVote      rdRoot            rdRootMetadata                rdBlocks
-              rdQuorumCerts   rdBlocksToPrune   rdHighestTimeoutCertificate = mkLens (quote RecoveryData)
-             (rdLastVote    ∷ rdRoot          ∷ rdRootMetadata              ∷ rdBlocks ∷
-              rdQuorumCerts ∷ rdBlocksToPrune ∷ rdHighestTimeoutCertificate ∷ [])
+-- ------------------------------------------------------------------------------
 
   -- This is a notification of a commit.  It may not be explicitly included in an implementation,
   -- but we need something to be able to express correctness conditions.  It will
@@ -679,192 +1216,136 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (cmEpoch ∷ cmAuthor ∷ cmRound ∷ cmCert ∷ cmSigMB ∷ [])
   postulate instance enc-CommitMsg : Encoder CommitMsg
 
-  record LastVoteInfo : Set where
-    constructor LastVoteInfo∙new
-    field
-      _lviLiDigest  : HashValue
-      _lviRound     : Round
-      _lviIsTimeout : Bool
-  open LastVoteInfo public
+-- ------------------------------------------------------------------------------
 
-  record PendingVotes : Set where
-    constructor mkPendingVotes
-    field
-      _pvLiDigestToVotes   : KVMap HashValue LedgerInfoWithSignatures
-      _pvMaybePartialTC    : Maybe TimeoutCertificate
-      _pvAuthorToVote      : KVMap Author Vote
-  open PendingVotes public
-  unquoteDecl pvLiDigestToVotes   pvMaybePartialTC   pvAuthorToVote = mkLens (quote PendingVotes)
-             (pvLiDigestToVotes ∷ pvMaybePartialTC ∷ pvAuthorToVote ∷ [])
-
-  PendingVotes∙new : PendingVotes
-  PendingVotes∙new = mkPendingVotes Map.empty nothing Map.empty
-
-  record StateComputeResult : Set where
-    constructor StateComputeResult∙new
-    field
-      _scrObmNumLeaves : Version
-      _scrEpochState   : Maybe EpochState
-  open StateComputeResult public
-  unquoteDecl scrObmNumLeaves   scrEpochState = mkLens (quote StateComputeResult)
-             (scrObmNumLeaves ∷ scrEpochState ∷ [])
-
-  -- Note: this is a placeholder.
-  -- We are not concerned for now with executing transactions, just ordering/committing them.
-  postulate
-    stateComputeResult : StateComputeResult
-
-  record ExecutedBlock : Set where
-    constructor ExecutedBlock∙new
-    field
-      _ebBlock              : Block
-      _ebStateComputeResult : StateComputeResult
-  open ExecutedBlock public
-  unquoteDecl ebBlock   ebStateComputeResult = mkLens (quote ExecutedBlock)
-             (ebBlock ∷ ebStateComputeResult ∷ [])
-
-  -- getter only in Haskell
-  ebId : Lens ExecutedBlock HashValue
-  ebId = ebBlock ∙ bId
-
-  -- getter only in Haskell
-  ebQuorumCert : Lens ExecutedBlock QuorumCert
-  ebQuorumCert = ebBlock ∙ bQuorumCert
-
-  -- getter only in Haskell
-  ebParentId : Lens ExecutedBlock HashValue
-  ebParentId = ebQuorumCert ∙ qcCertifiedBlock ∙ biId
-
-  -- getter only in Haskell
-  ebRound : Lens ExecutedBlock Round
-  ebRound = ebBlock ∙ bRound
+  data RootMetadata : Set where RootMetadata∙new : RootMetadata
 
 -- ------------------------------------------------------------------------------
 
-  record LinkableBlock : Set where
-    constructor LinkableBlock∙new
+  record RecoveryData : Set where
+    constructor mkRecoveryData
     field
-      _lbExecutedBlock : ExecutedBlock
-      -- _lbChildren      : Set HashValue
-  open LinkableBlock public
-  unquoteDecl lbExecutedBlock = mkLens (quote LinkableBlock)
-             (lbExecutedBlock ∷ [])
+      _rdLastVote                  : Maybe Vote
+      _rdRoot                      : RootInfo
+      _rdRootMetadata              : RootMetadata
+      _rdBlocks                    : List Block
+      _rdQuorumCerts               : List QuorumCert
+      _rdBlocksToPrune             : Maybe (List HashValue)
+      _rdHighestTimeoutCertificate : Maybe TimeoutCertificate
+  open RecoveryData public
+  unquoteDecl rdLastVote      rdRoot            rdRootMetadata                rdBlocks
+              rdQuorumCerts   rdBlocksToPrune   rdHighestTimeoutCertificate = mkLens (quote RecoveryData)
+             (rdLastVote    ∷ rdRoot          ∷ rdRootMetadata              ∷ rdBlocks ∷
+              rdQuorumCerts ∷ rdBlocksToPrune ∷ rdHighestTimeoutCertificate ∷ [])
 
-  -- getter only in Haskell
-  lbId : Lens LinkableBlock HashValue
-  lbId = lbExecutedBlock ∙ ebId
+------------------------------------------------------------------------------
+
+  record EpochChangeProof : Set where
+    constructor EpochChangeProof∙new
+    field
+      _ecpLedgerInfoWithSigs : List LedgerInfoWithSignatures
+      _ecpMore               : Bool
+  open EpochChangeProof public
+  unquoteDecl ecpLedgerInfoWithSigs   ecpMore = mkLens (quote EpochChangeProof)
+             (ecpLedgerInfoWithSigs ∷ ecpMore ∷ [])
+  -- instance S.Serialize EpochChangeProof
+
+  record Ledger2WaypointConverter : Set where
+    constructor mkLedger2WaypointConverter
+    field
+      _l2wcEpoch          : Epoch
+      _l2wcRootHash       : HashValue
+      _l2wcVersion        : Version
+    --_l2wcTimestamp      : Instant
+      _l2wcNextEpochState : Maybe EpochState
+  open Ledger2WaypointConverter public
+  unquoteDecl l2wcEpoch   2wcRootHash   2wcVersion
+              {-l2wcTimestamp-} l2wcNextEpochState = mkLens (quote Ledger2WaypointConverter)
+             (l2wcEpoch ∷ 2wcRootHash ∷ 2wcVersion ∷
+              {-l2wcTimestamp-} l2wcNextEpochState ∷ [])
+
+  record EpochRetrievalRequest : Set where
+    constructor EpochRetrievalRequest∙new
+    field
+      _eprrqStartEpoch : Epoch
+      _eprrqEndEpoch   : Epoch
+  unquoteDecl eprrqStartEpoch   eprrqEndEpoch   = mkLens (quote EpochRetrievalRequest)
+             (eprrqStartEpoch ∷ eprrqEndEpoch ∷ [])
+  -- instance S.Serialize EpochRetrievalRequest
+
+------------------------------------------------------------------------------
+
+  record ConsensusState : Set where
+    constructor ConsensusState∙new
+    field
+      _csSafetyData     : SafetyData
+      _csWaypoint       : Waypoint
+    --_csInValidatorSet : Bool -- LBFT-OBM-DIFF: only used in tests in Rust
+  open ConsensusState public
+  unquoteDecl csSafetyData   csWaypoint   {-csInValidatorSet-} = mkLens (quote ConsensusState)
+             (csSafetyData ∷ csWaypoint {-∷ csInValidatorSet-} ∷ [])
+
+------------------------------------------------------------------------------
+
+  data SafetyRulesWrapper : Set where
+    SRWLocal : SafetyRules → SafetyRulesWrapper
+
+  record SafetyRulesManager : Set where
+    constructor mkSafetyRulesManager
+    field
+      _srmInternalSafetyRules : SafetyRulesWrapper
+  open SafetyRulesWrapper public
+  unquoteDecl srmInternalSafetyRules = mkLens  (quote SafetyRulesManager)
+             (srmInternalSafetyRules ∷ [])
+
+  data SafetyRulesService : Set where
+    SRSLocal : SafetyRulesService
+
+  record SafetyRulesConfig : Set where
+    constructor SafetyRulesConfig∙new
+    field
+      _srcService                     : SafetyRulesService
+      _srcExportConsensusKey          : Bool
+      _srcObmGenesisWaypoint          : Waypoint
+  open SafetyRulesConfig public
+  unquoteDecl srcService   srcExportConsensusKey   srcObmGenesisWaypoint = mkLens  (quote SafetyRulesConfig)
+             (srcService ∷ srcExportConsensusKey ∷ srcObmGenesisWaypoint ∷ [])
+
+  record ConsensusConfig : Set where
+    constructor ConsensusConfig∙new
+    field
+      _ccMaxPrunedBlocksInMem  : Usize
+      _ccRoundInitialTimeoutMS : U64
+      _ccSafetyRules           : SafetyRulesConfig
+      _ccSyncOnly              : Bool
+  open ConsensusConfig public
+  unquoteDecl ccMaxPrunedBlocksInMem   ccRoundInitialTimeoutMS   ccSafetyRules   ccSyncOnly = mkLens (quote ConsensusConfig)
+             (ccMaxPrunedBlocksInMem ∷ ccRoundInitialTimeoutMS ∷ ccSafetyRules ∷ ccSyncOnly ∷ [])
+
+  record NodeConfig : Set where
+    constructor NodeConfig∙new
+    field
+      _ncObmMe     : AuthorName
+      _ncConsensus : ConsensusConfig
+  open NodeConfig public
+  unquoteDecl ncObmMe    ncConsensus = mkLens  (quote NodeConfig)
+             (ncObmMe ∷  ncConsensus ∷ [])
+
+  record RecoveryManager : Set where
+    constructor RecoveryManager∙new
+    field
+      _rcmEpochState         : EpochState
+      _rcmStorage            : PersistentLivenessStorage
+    --_rcmStateComputer      : StateComputer
+      _rcmLastCommittedRound : Round
+  open RecoveryManager public
+  unquoteDecl rcmEpochState   rcmStorage {-  rcmStateComputer-}  rcmLastCommittedRound = mkLens (quote RecoveryManager)
+             (rcmEpochState ∷ rcmStorage {-∷ rcmStateComputer-} ∷ rcmLastCommittedRound ∷ [])
+
+  -- RoundProcessor  in EpochManagerTypes (because it depends on RoundManager)
+  -- EpochManager    in EpochManagerTypes (because it depends on RoundProcessor)
 
 -- ------------------------------------------------------------------------------
-
-  -- Note BlockTree and BlockStore are defined in EpochDep.agda as they depend on an EpochConfig
-
-  record SafetyData : Set where
-    constructor SafetyData∙new
-    field
-      _sdEpoch          : Epoch
-      _sdLastVotedRound : Round
-      _sdPreferredRound : Round
-      _sdLastVote       : Maybe Vote
-  open SafetyData public
-  unquoteDecl sdEpoch sdLastVotedRound sdPreferredRound sdLastVote =
-    mkLens (quote SafetyData)
-    (sdEpoch ∷ sdLastVotedRound ∷ sdPreferredRound ∷ sdLastVote ∷  [])
-
-  record PersistentSafetyStorage : Set where
-    constructor PersistentSafetyStorage∙new
-    field
-      _pssSafetyData : SafetyData
-      _pssAuthor     : Author
-      -- _pssWaypoint : Waypoint
-  open PersistentSafetyStorage public
-  unquoteDecl pssSafetyData pssAuthor = mkLens (quote PersistentSafetyStorage)
-    (pssSafetyData ∷ pssAuthor ∷ [])
-
-  record ValidatorSigner : Set where
-    constructor ValidatorSigner∙new
-    field
-      _vsAuthor     : AccountAddress
-      _vsPrivateKey : SK      -- Note that the SystemModel doesn't
-                              -- allow one node to examine another's
-                              -- state, so we don't model someone being
-                              -- able to impersonate someone else unless
-                              -- PK is "dishonest", which models the
-                              -- possibility that the corresponding secret
-                              -- key may have been leaked.
-  open ValidatorSigner public
-  unquoteDecl  vsAuthor = mkLens (quote ValidatorSigner)
-              (vsAuthor ∷ [])
-
-  record ValidatorConfig : Set where
-    constructor ValidatorConfig∙new
-    field
-     _vcConsensusPublicKey : PK
-  open ValidatorConfig public
-  unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
-    (vcConsensusPublicKey ∷ [])
-
-  record ValidatorInfo : Set where
-    constructor ValidatorInfo∙new
-    field
-      -- _viAccountAddress       : AccountAddress
-      -- _viConsensusVotingPower : Int -- TODO-2: Each validator has one vote. Generalize later.
-      _viConfig : ValidatorConfig
-  open ValidatorInfo public
-
-  data ObmNotValidProposerReason : Set where
-    ProposalDoesNotHaveAnAuthor ProposerForBlockIsNotValidForThisRound NotValidProposer : ObmNotValidProposerReason
-
-  record ProposalGenerator : Set where
-    constructor ProposalGenerator∙new
-    field
-      _pgLastRoundGenerated : Round
-  open ProposalGenerator
-  unquoteDecl pgLastRoundGenerated = mkLens (quote ProposalGenerator)
-              (pgLastRoundGenerated ∷ [])
-
-  record ProposerElection : Set where
-    constructor ProposerElection∙new
-    -- field
-      -- _peProposers : Set Author
-      -- _peObmLeaderOfRound : LeaderOfRoundFn
-      -- _peObmNodesInOrder  : NodesInOrder
-  open ProposerElection
-
-  record SafetyRules : Set where
-    constructor SafetyRules∙new
-    field
-      _srPersistentStorage  : PersistentSafetyStorage
-      _srExecutionPublicKey : Maybe PK
-      _srValidatorSigner    : Maybe ValidatorSigner
-  open SafetyRules public
-  unquoteDecl srPersistentStorage   srExecutionPublicKey   srValidatorSigner = mkLens (quote SafetyRules)
-             (srPersistentStorage ∷ srExecutionPublicKey ∷ srValidatorSigner ∷ [])
-
-  record BlockRetrievalRequest : Set where
-    constructor BlockRetrievalRequest∙new
-    field
-      _brqObmFrom   : Author
-      _brqBlockId   : HashValue
-      _brqNumBlocks : U64
-  open BlockRetrievalRequest public
-  unquoteDecl brqObmFrom   brqBlockId   brqNumBlocks = mkLens (quote BlockRetrievalRequest)
-             (brqObmFrom ∷ brqBlockId ∷ brqNumBlocks ∷ [])
-  postulate instance enc-BlockRetrievalRequest : Encoder BlockRetrievalRequest
-
-  data BlockRetrievalStatus : Set where
-    BRSSucceeded BRSIdNotFound BRSNotEnoughBlocks : BlockRetrievalStatus
-  open BlockRetrievalStatus public
-  postulate instance enc-BlockRetrievalState : Encoder BlockRetrievalStatus
-
-  record BlockRetrievalResponse : Set where
-    constructor BlockRetrievalResponse∙new
-    field
-      _brpObmFrom : (Author × Epoch × Round) -- for logging
-      _brpStatus  : BlockRetrievalStatus
-      _brpBlocks  : List Block
-  unquoteDecl brpObmFrom   brpStatus   brpBlocks   = mkLens (quote BlockRetrievalResponse)
-             (brpObmFrom ∷ brpStatus ∷ brpBlocks ∷ [])
-  postulate instance enc-BlockRetrievalResponse : Encoder BlockRetrievalResponse
 
   data VoteReceptionResult : Set where
     QCVoteAdded           : U64 →                VoteReceptionResult
@@ -876,96 +1357,15 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     UnexpectedRound       : Round → Round →      VoteReceptionResult
     VRR_TODO              :                      VoteReceptionResult
 
+-- ------------------------------------------------------------------------------
+
+-- LibraBFT.ImplShared.Interface.Output contains
+-- Output
+
+-- ------------------------------------------------------------------------------
+
   data VerifyError : Set where
     UnknownAuthor        : AuthorName →    VerifyError
     TooLittleVotingPower : U64 → U64 →     VerifyError
     TooManySignatures    : Usize → Usize → VerifyError
     InvalidSignature     :                 VerifyError
-
-  -- A block tree depends on a epoch config but works regardlesss of which
-  -- EpochConfig we have.
-  record BlockTree : Set where
-    constructor BlockTree∙new
-    field
-      _btIdToBlock               : KVMap HashValue LinkableBlock
-      _btRootId                  : HashValue
-      _btHighestCertifiedBlockId : HashValue
-      _btHighestQuorumCert       : QuorumCert
-      _btHighestTimeoutCert      : Maybe TimeoutCertificate
-      _btHighestCommitCert       : QuorumCert
-      _btPendingVotes            : PendingVotes
-      _btPrunedBlockIds          : List HashValue
-      _btMaxPrunedBlocksInMem    : ℕ
-      _btIdToQuorumCert          : KVMap HashValue QuorumCert
-  open BlockTree public
-  unquoteDecl btIdToBlock   btRootId   btHighestCertifiedBlockId   btHighestQuorumCert
-              btHighestTimeoutCert
-              btHighestCommitCert   btPendingVotes   btPrunedBlockIds
-              btMaxPrunedBlocksInMem btIdToQuorumCert = mkLens (quote BlockTree)
-             (btIdToBlock ∷ btRootId ∷ btHighestCertifiedBlockId ∷ btHighestQuorumCert ∷
-              btHighestTimeoutCert ∷
-              btHighestCommitCert ∷ btPendingVotes ∷ btPrunedBlockIds ∷
-              btMaxPrunedBlocksInMem ∷ btIdToQuorumCert ∷ [])
-
-  btGetLinkableBlock : HashValue → BlockTree → Maybe LinkableBlock
-  btGetLinkableBlock hv bt = Map.lookup hv (bt ^∙ btIdToBlock)
-
-  btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
-  btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
-
-  -- getter only in Haskell
-  btRoot : Lens BlockTree (Maybe ExecutedBlock)
-  btRoot = mkLens' g s
-    where
-    g : BlockTree → Maybe ExecutedBlock
-    g bt = btGetBlock (bt ^∙ btRootId) bt
-
-    -- TODO-1 : the setter is not needed/defined in Haskell
-    -- Defining it just to make progress, but it can't be defined
-    -- correctly in terms of type correctness (let alone setting a new root!)
-    s : BlockTree → Maybe ExecutedBlock → BlockTree
-    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
-
-  -- getter only in haskell
-  btHighestCertifiedBlock : Lens BlockTree (Maybe ExecutedBlock)
-  btHighestCertifiedBlock = mkLens' g s
-    where
-    g : BlockTree → (Maybe ExecutedBlock)
-    g bt = btGetBlock (bt ^∙ btHighestCertifiedBlockId) bt
-
-    s : BlockTree → (Maybe ExecutedBlock) → BlockTree
-    s bt _ = bt -- TODO-1 : cannot be done: need a way to defined only getters
-
-  record PersistentLivenessStorage : Set where
-    constructor PersistentLivenessStorage∙new
-
-  record BlockStore : Set where
-    constructor BlockStore∙new
-    field
-      _bsInner         : BlockTree
-      -- bsStateComputer : StateComputer
-      _bsStorage       : PersistentLivenessStorage
-  open BlockStore public
-  unquoteDecl bsInner   bsStorage = mkLens (quote BlockStore)
-             (bsInner ∷ bsStorage ∷ [])
-
-  -- getter only in Haskell
-  bsRoot : Lens BlockStore (Maybe ExecutedBlock)
-  bsRoot = bsInner ∙ btRoot
-
-  -- getter only in Haskell
-  bsHighestQuorumCert : Lens BlockStore QuorumCert
-  bsHighestQuorumCert = bsInner ∙ btHighestQuorumCert
-
-  -- getter only in Haskell
-  bsHighestCommitCert : Lens BlockStore QuorumCert
-  bsHighestCommitCert = bsInner ∙ btHighestCommitCert
-
-  -- getter only in Haskell
-  bsHighestTimeoutCert : Lens BlockStore (Maybe TimeoutCertificate)
-  bsHighestTimeoutCert = bsInner ∙ btHighestTimeoutCert
-
-  record LedgerRecoveryData : Set where
-    constructor LedgerRecoveryData∙new
-    field
-      _lrdStorageLedger : LedgerInfo

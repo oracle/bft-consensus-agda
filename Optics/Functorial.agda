@@ -76,5 +76,6 @@ module Optics.Functorial where
   _[_]L_at_ : ∀ {ℓ} {S A} → S → (A → A → Set ℓ) → S → Lens S A → Set ℓ
   s₁ [ _~_ ]L s₂ at l = (s₁ ^∙ l) ~ (s₂ ^∙ l)
 
+  infix 4 _≡L_at_
   _≡L_at_ : ∀ {S A} → (s₁ s₂ : S) → Lens S A → Set
   _≡L_at_ = _[ _≡_ ]L_at_

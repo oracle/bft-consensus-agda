@@ -30,7 +30,7 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
   open        SystemInitAndHandlers iiah
   open        ParamsWithInitAndHandlers iiah
   open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah
-                                 PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                                 PeerCanSignForPK PeerCanSignForPK-stable
 
   record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field

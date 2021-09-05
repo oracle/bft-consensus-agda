@@ -15,7 +15,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                         as String
+open import Data.String                                               using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo where
 
@@ -27,32 +27,49 @@ verify : SyncInfo → ValidatorVerifier → Either ErrLog Unit
 verifyM : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
 verifyM self validator = pure (verify self validator)
 
-verify self validator = do
-  let epoch      = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
+module verify (self : SyncInfo) (validator : ValidatorVerifier) where
+  step₀ step₁ step₂ step₃ step₄ step₅ step₆ : Either ErrLog Unit
+  here' : List String → List String
 
-  lcheck (epoch == self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch)
-         (here' ("Multi epoch in SyncInfo - HCC and HQC" ∷ []))
+  epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
-  lcheck (maybeS (self ^∙ siHighestTimeoutCert) true (λ tc -> epoch == tc ^∙ tcEpoch))
-         (here' ("Multi epoch in SyncInfo - TC and HQC" ∷ []))
+  step₀ = do
+    lcheck (epoch == self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch)
+           (here' ("Multi epoch in SyncInfo - HCC and HQC" ∷ []))
+    step₁
 
-  lcheck (   self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
-          ≥? self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biRound)
-         (here' ("HQC has lower round than HCC" ∷ []))
+  step₁ = do
+    lcheck (maybeS (self ^∙ siHighestTimeoutCert) true (λ tc -> epoch == tc ^∙ tcEpoch))
+           (here' ("Multi epoch in SyncInfo - TC and HQC" ∷ []))
+    step₂
 
-  lcheck (self ^∙ siHighestCommitCert ∙ qcCommitInfo /= BlockInfo.empty)
-         (here' ("HCC has no committed block" ∷ []))
+  step₂ = do
+    lcheck (   self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
+           ≥? self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biRound)
+           (here' ("HQC has lower round than HCC" ∷ []))
+    step₃
 
-  QuorumCert.verify (self ^∙ siHighestQuorumCert) validator
+  step₃ = do
+    lcheck (self ^∙ siHighestCommitCert ∙ qcCommitInfo /= BlockInfo.empty)
+           (here' ("HCC has no committed block" ∷ []))
+    step₄
 
-  -- Note: do not use (self ^∙ siHighestCommitCert) because it might be
-  -- same as siHighestQuorumCert -- so no need to check again
-  maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
+  step₄ = do
+    QuorumCert.verify (self ^∙ siHighestQuorumCert) validator
+    step₅
 
-  maybeS (self ^∙ siHighestTimeoutCert)   (pure unit) (` TimeoutCertificate.verify ` validator)
- where
-  here' : List String.String → List String.String
+  step₅ = do
+    -- Note: do not use (self ^∙ siHighestCommitCert) because it might be
+    -- same as siHighestQuorumCert -- so no need to check again
+    maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
+    step₆
+
+  step₆ = do
+    maybeS (self ^∙ siHighestTimeoutCert)   (pure unit) (` TimeoutCertificate.verify ` validator)
+
   here' t = "SyncInfo" ∷ "verify" ∷ t
+
+verify = verify.step₀
 
 hasNewerCertificates : SyncInfo → SyncInfo → Bool
 hasNewerCertificates self other

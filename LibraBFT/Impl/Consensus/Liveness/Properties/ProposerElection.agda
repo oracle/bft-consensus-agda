@@ -30,7 +30,7 @@ module isValidProposalMSpec (b : Block) where
       → (Maybe-Any (getValidProposer (pe pre) round ≡_) mAuthor
          → Post (Right unit) pre [])
       → LBFT-weakestPre (isValidProposalM b) Post pre
-  -- 1. `isValidProposalM` begins with `caseMM`, so we must provide two cases:
+  -- 1. `isValidProposalM` begins with `RWS-maybe`, so we must provide two cases:
   --    one where `b ^∙ bAuthor` is `nothing` and one where it is `just`
   --    something
   -- 2. When it is nothing, we appeal to the assumed proof
@@ -50,11 +50,11 @@ module isValidProposalMSpec (b : Block) where
   --    `isValidProposer`, we perform case-analysis on each of the equality
   --    proofs (we can't pattern match on `ma≡just-a` directly)
   -- > proj₂ (contract pre Post pfNone pf≢ pfOk) a ma≡just-a ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl = {!!}
-  -- 5. Now we encounter an `ifM`, which means we must provide two cases, one corresponding to each branch.
+  -- 5. Now we encounter an `ifD`, which means we must provide two cases, one corresponding to each branch.
   proj₁ (proj₂ (contract pre Post pfNone pf≢ pfOk) a ma≡just-a ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl) vp≡true
   -- 6. The types of `pfOk` and `pf≢` are still "stuck" on the expression
   -- > b ^∙ bAuthor
-  --    So, both the `false` and `true` cases we rewrite by `ma≡just-a`, which
+  --    So, in both the `false` and `true` cases we rewrite by `ma≡just-a`, which
   --    tells us that the result is `just a`
     rewrite ma≡just-a =
   -- 7. To finish, we use `toWitnessF` to convert between the two forms of evidence.

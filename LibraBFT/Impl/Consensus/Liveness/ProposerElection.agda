@@ -13,7 +13,7 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Liveness.ProposerElection where
 
-postulate
+postulate -- TODO-1: Implement getValidProposer
   getValidProposer : ProposerElection → Round → Author
 
 isValidProposerM : Author → Round → LBFT Bool
@@ -21,10 +21,10 @@ isValidProposer : ProposerElection → Author → Round → Bool
 
 isValidProposalM : Block → LBFT (Either ObmNotValidProposerReason Unit)
 isValidProposalM b =
-  maybeS-RWST (b ^∙ bAuthor) (bail ProposalDoesNotHaveAnAuthor) $ λ a → do
+  maybeSD (b ^∙ bAuthor) (bail ProposalDoesNotHaveAnAuthor) $ λ a → do
     -- IMPL-DIFF: `ifM` in Haskell means something else
     vp ← isValidProposerM a (b ^∙ bRound)
-    if-RWST vp
+    ifD vp
       then ok unit
       else bail ProposerForBlockIsNotValidForThisRound
 

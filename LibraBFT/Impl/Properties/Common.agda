@@ -18,46 +18,61 @@ open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.Impl.Handle
-open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
+open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open StateInvariants
-open StateTransProps
+open Invariants
+open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 open        ParamsWithInitAndHandlers InitAndHandlers
+open        PeerCanSignForPK
+
 open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
-open        Structural impl-sps-avp
+                               PeerCanSignForPK PeerCanSignForPK-stable
 
 -- This module contains definitions and lemmas used by proofs of the
 -- implementation obligations for VotesOnce and PreferredRoundRule.
 
 module LibraBFT.Impl.Properties.Common where
 
-postulate -- TODO-2: prove (waiting on: `handle`, refinements to handler contracts)
-  -- This will be proved for the implementation, confirming that honest
-  -- participants only store QCs comprising votes that have actually been sent.
-  -- Votes stored in highesQuorumCert and highestCommitCert were sent before.
-  -- Note that some implementations might not ensure this, but LibraBFT does
-  -- because even the leader of the next round sends its own vote to itself,
-  -- as opposed to using it to construct a QC using its own unsent vote.
-  qcVotesSentB4
-    : ∀ {pid qc vs pk}{st : SystemState}
+postulate -- TODO-3: prove (note: advanced; waiting on: `handle`)
+  -- This will require updates to the existing proofs for the peer handlers. We
+  -- will need to show that honest peers sign things only for their only PK, and
+  -- that they either resend messages signed before or if sending a new one,
+  -- that signature hasn't been sent before
+  impl-sps-avp : StepPeerState-AllValidParts
+
+open Structural impl-sps-avp
+
+-- We can prove this easily for the Agda model because (unlike the Haskell
+-- prototype) it does not yet do epoch changes, so only the initial EC is
+-- relevant. Later, this will require us to use the fact that epoch changes
+-- require proof of committing an epoch-changing transaction.
+availEpochsConsistent :
+   ∀{pid pid' v v' pk}{st : SystemState}
+   → (pkvpf  : PeerCanSignForPK st v  pid  pk)
+   → (pkvpf' : PeerCanSignForPK st v' pid' pk)
+   → v ^∙ vEpoch ≡ v' ^∙ vEpoch
+   → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
+availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
+
+postulate -- TODO-1: Prove (waiting on: complete definition of `initRM`)
+  uninitQcs∈Gen
+    : ∀ {pid qc vs}{st : SystemState}
       → ReachableSystemState st
-      → initialised st pid ≡ initd
-      → qc QC.∈RoundManager (peerStates st pid)
+      → initialised st pid ≡ uninitd
+      → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
-      → ¬ (∈GenInfo-impl genesisInfo (proj₂ vs))
-      → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
+      → ∈GenInfo-impl genesisInfo (proj₂ vs)
 
 module ∈GenInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}
@@ -122,7 +137,6 @@ module PeerCanSignForPKProps where
       pcsfpk₂∙pk ∎
 
 module ReachableSystemStateProps where
-
   mws∈pool⇒initd
     : ∀ {pid pk v}{st : SystemState}
       → ReachableSystemState st
@@ -176,25 +190,31 @@ module ReachableSystemStateProps where
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
   mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
-    case uninitd ≡ initd ∋ trans (sym uni) ini of λ ()
+    absurd (uninitd ≡ initd) case (trans (sym uni) ini) of λ ()
     where
     ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , P pm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{_ , P pm} m∈pool ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
     hpPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
     hpPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
     v ^∙ vEpoch      ∎
     where
-    hpPre = peerStates st pid
-    hpPos = LBFT-post (handleProposal 0 pm) hpPre
-    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPre)
+    hpPool = msgPool st
+    hpPre  = peerStates st pid
+    hpPos  = LBFT-post (handleProposal 0 pm) hpPre
+
+    open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
     open ≡-Reasoning
 
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+    hvPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
+    hvPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
+    v ^∙ vEpoch      ∎
     where
-    postulate -- TODO-3: prove (waiting on: epoch config changes)
-      TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
+    hvPre = peerStates st pid
+    hvPos = LBFT-post (handleVote 0 vm) hvPre
 
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = TODO
-    where
-    postulate -- TODO-3: prove (waiting on: epoch config changes)
-      TODO : peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
+    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool st) hvPre)
+    open ≡-Reasoning
+
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = epoch≡
+

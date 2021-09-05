@@ -32,7 +32,7 @@ open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open        PeerCanSignForPK
 
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.ImplFake.Handle.Properties where
 
@@ -182,7 +182,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   newVoteSameEpochGreaterRound {pre = pre} {pid} {v = v} {m} {pk} r (step-msg {(_ , P pm)} msg∈pool pinit) ¬init hpk v⊂m m∈outs sig vnew
      rewrite pinit
      with msgsToSendWereSent {pid} {P pm} {m} {peerStates pre pid} m∈outs
-  ...| _ , vm , _ , refl
+  ...| vm , pm , refl , refl
     with m∈outs
   ...| here refl
     with v⊂m
@@ -191,9 +191,10 @@ module LibraBFT.ImplFake.Handle.Properties where
        -- those QCS have signatures that have been sent before, contradicting the
        -- assumption that v's signature has not been sent before.
   ...| vote∈vm {si} = refl , refl
-  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inV qc∈m)
+  ...| vote∈qc {vs = vs} {qc} vs∈qc v≈rbld (inSI {.(V vm)} {si} {qc} si∈m qc∈si)
                   rewrite cong _vSignature v≈rbld
-    with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager r (step-msg msg∈pool pinit) hpk v⊂m (here refl) qc∈m) vs∈qc ¬init
+    with qcVotesSentB4 r pinit (VoteMsgQCsFromRoundManager {pid = pid} r (step-msg msg∈pool pinit) {vm = vm} hpk v⊂m (here refl)
+                                                           (subst (qc QC∈SyncInfo_) (obm-dangerous-magic' "something to do with how fake handler creates SyncInfo") qc∈si)) vs∈qc ¬init
   ...| sentb4 = ⊥-elim (vnew sentb4)
 
   -- We resist the temptation to combine this with the noEpochChangeYet because in future there will be epoch changes

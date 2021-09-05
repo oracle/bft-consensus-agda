@@ -8,7 +8,7 @@ open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap             as KVMap
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.OBM.Rust.Duration
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -35,33 +35,31 @@ module LibraBFT.ImplShared.Consensus.Types where
   open import LibraBFT.ImplShared.Consensus.Types.EpochIndep     public
   open import LibraBFT.ImplShared.Util.Crypto                    public
 
-  data NewRoundReason : Set where
-    QCReady : NewRoundReason
-    TOReady : NewRoundReason
-
-  record NewRoundEvent : Set where
-    constructor NewRoundEvent∙new
+  record ExponentialTimeInterval : Set where
+    constructor mkExponentialTimeInterval
     field
-      _nreRound   : Round
-      _nreReason  : NewRoundReason
-      _nreTimeout : Duration
-  unquoteDecl nreRound   nreReason   nreTimeout = mkLens (quote NewRoundEvent)
-             (nreRound ∷ nreReason ∷ nreTimeout ∷ [])
+      _etiBaseMs       : U64
+      _etiExponentBase : F64
+      _etiMaxExponent  : Usize
+  unquoteDecl etiBaseMs   etiExponentBase   etiMaxExponent  = mkLens (quote ExponentialTimeInterval)
+             (etiBaseMs ∷ etiExponentBase ∷ etiMaxExponent ∷ [])
+
+  RoundStateTimeInterval = ExponentialTimeInterval
 
   record RoundState : Set where
-    constructor RoundState∙new
+    constructor mkRoundState
     field
-      -- ...
+      _rsTimeInterval          : RoundStateTimeInterval
       _rsHighestCommittedRound : Round
       _rsCurrentRound          : Round
+      _rsCurrentRoundDeadline  : Instant
       _rsPendingVotes          : PendingVotes
       _rsVoteSent              : Maybe Vote
-      -- ...
   open RoundState public
-  unquoteDecl rsHighestCommittedRound   rsCurrentRound   rsPendingVotes
-              rsVoteSent = mkLens (quote RoundState)
-             (rsHighestCommittedRound ∷ rsCurrentRound ∷ rsPendingVotes ∷
-              rsVoteSent ∷ [])
+  unquoteDecl rsTimeInterval           rsHighestCommittedRound   rsCurrentRound
+              rsCurrentRoundDeadline   rsPendingVotes            rsVoteSent = mkLens (quote RoundState)
+             (rsTimeInterval         ∷ rsHighestCommittedRound ∷ rsCurrentRound ∷
+              rsCurrentRoundDeadline ∷ rsPendingVotes          ∷ rsVoteSent ∷ [])
 
   record ObmNeedFetch : Set where
     constructor ObmNeedFetch∙new
@@ -162,6 +160,14 @@ module LibraBFT.ImplShared.Consensus.Types where
   rmEpoch : Lens RoundManager Epoch
   rmEpoch = rmEpochState ∙ esEpoch
 
+  -- not defined in Haskell, only used for proofs
+  rmValidatorVerifer : Lens RoundManager ValidatorVerifier
+  rmValidatorVerifer = rmEpochState ∙ esVerifier
+
+  -- getter only in Haskell
+  rmRound : Lens RoundManager Round
+  rmRound = rmRoundState ∙ rsCurrentRound
+
   -- not defined in Haskell
   rmLastVotedRound : Lens RoundManager Round
   rmLastVotedRound = rmSafetyRules ∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound
@@ -205,20 +211,37 @@ module LibraBFT.ImplShared.Consensus.Types where
                        → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
-  -- The Haskell implementation has many more constructors.
-  -- Constructors are being added incrementally as needed for the verification effort.
-  data ErrLog : Set where
-    ErrBlockNotFound : HashValue   → ErrLog
-    ErrVerify        : VerifyError → ErrLog
-
-  -- To enable modeling of logging errors that have not been added yet,
-  -- an inhabitant of ErrLog is postulated.
-  postulate
-    fakeErr : ErrLog
-
   -- To enable modeling of logging info that has not been added yet,
   -- InfoLog and an inhabitant is postulated.
   postulate
     InfoLog  : Set
     fakeInfo : InfoLog
 
+  -- The Haskell implementation has many more constructors.
+  -- Constructors are being added incrementally as needed for the verification effort.
+  data ErrLog : Set where
+    -- full name of following field : Consensus_BlockNotFound
+    ErrCBlockNotFound   : HashValue   → ErrLog
+    -- full name of following field : ExecutionCorrectnessClient_BlockNotFound
+    ErrECCBlockNotFound : HashValue   → ErrLog
+    ErrInfo             : InfoLog     → ErrLog -- to exit early, but not an error
+    ErrVerify           : VerifyError → ErrLog
+
+  -- To enable modeling of logging errors that have not been added yet,
+  -- an inhabitant of ErrLog is postulated.
+  postulate
+    fakeErr : ErrLog
+
+  record TxTypeDependentStuff : Set where
+    constructor TxTypeDependentStuff∙new
+    field
+      _ttdsBlockStore        : BlockStore
+      _ttdsRoundState        : RoundState
+      _ttdsProposalGenerator : ProposalGenerator
+      _ttdsTime              : Instant
+      _ttdsStateComputer     : StateComputer
+  open TxTypeDependentStuff public
+  unquoteDecl ttdsBlockStore   ttdsRoundState   ttdsProposalGenerator
+              ttdsTime   ttdsStateComputer     = mkLens (quote TxTypeDependentStuff)
+             (ttdsBlockStore ∷ ttdsRoundState ∷ ttdsProposalGenerator ∷
+              ttdsTime ∷ ttdsStateComputer    ∷ [])

@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                            as Map
+import      LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.Base.PKCS                             hiding (verify)
 import      LibraBFT.Impl.OBM.Crypto                       as Crypto
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Types.ValidatorVerifier where
 
-checkNumOfSignatures : ValidatorVerifier → KVMap AccountAddress Signature → Either ErrLog Unit
+checkNumOfSignatures : ValidatorVerifier → Map.KVMap AccountAddress Signature → Either ErrLog Unit
 checkVotingPower     : ValidatorVerifier → List AccountAddress → Either ErrLog Unit
 getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
 getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
@@ -39,7 +39,7 @@ verify = verifyIfAuthor -- (icSemi ["ValidatorVerifier", "verifySignature"])
 
 verifyAggregatedStructSignature
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
-  → ValidatorVerifier → V → KVMap AccountAddress Signature
+  → ValidatorVerifier → V → Map.KVMap AccountAddress Signature
   → Either ErrLog Unit
 verifyAggregatedStructSignature self v aggregatedSignature = do
   checkNumOfSignatures self aggregatedSignature
@@ -49,7 +49,7 @@ verifyAggregatedStructSignature self v aggregatedSignature = do
 
 batchVerifyAggregatedSignatures
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
-  → ValidatorVerifier → V → KVMap AccountAddress Signature
+  → ValidatorVerifier → V → Map.KVMap AccountAddress Signature
   → Either ErrLog Unit
 batchVerifyAggregatedSignatures = verifyAggregatedStructSignature
 
@@ -77,3 +77,6 @@ getPublicKey self author =
 
 getVotingPower self author =
   (_^∙ vciVotingPower) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
+
+postulate -- TODO-1: from
+  from : ValidatorSet → ValidatorVerifier

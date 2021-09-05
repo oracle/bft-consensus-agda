@@ -3,13 +3,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                                       as Map
+import      LibraBFT.Base.KVMap                                       as Map
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
-open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
-open import LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
-open import LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
-open import LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
+open import LibraBFT.Impl.OBM.Rust.RustTypes
+import      LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
+import      LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
@@ -22,9 +23,9 @@ insertVoteM : Vote → ValidatorVerifier → LBFT VoteReceptionResult
 insertVoteM vote vv = do
   let liDigest = hashLI (vote ^∙ vLedgerInfo)
   atv          ← use (lPendingVotes ∙ pvAuthorToVote)
-  case Map.lookup (vote ^∙ vAuthor) atv of λ where
+  caseMD Map.lookup (vote ^∙ vAuthor) atv of λ where
     (just previouslySeenVote) →
-      if-RWST liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
+      ifD liDigest ≟Hash (hashLI (previouslySeenVote ^∙ vLedgerInfo))
       then (do
         let newTimeoutVote = Vote.isTimeout vote ∧ not (Vote.isTimeout previouslySeenVote)
         if not newTimeoutVote
@@ -47,7 +48,7 @@ insertVoteM vote vv = do
                       (fromMaybe (LedgerInfoWithSignatures∙new (vote ^∙ vLedgerInfo) Map.empty)
                                  (Map.lookup liDigest (pv ^∙ pvLiDigestToVotes)))
     lPendingVotes ∙ pvLiDigestToVotes %= Map.kvm-insert-Haskell liDigest liWithSig
-    case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
+    case⊎D ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (liWithSig ^∙ liwsSignatures)) of λ where
       (Right unit) →
         pure (NewQuorumCertificate (QuorumCert∙new (vote ^∙ vVoteData) liWithSig))
       (Left (ErrVerify (TooLittleVotingPower votingPower _))) →
@@ -56,14 +57,14 @@ insertVoteM vote vv = do
         pure VRR_TODO
 
   continue2 qcVotingPower =
-    case vote ^∙ vTimeoutSignature of λ where
+    caseMD vote ^∙ vTimeoutSignature of λ where
       (just timeoutSignature) → do
         pv            ← use lPendingVotes
         let partialTc = TimeoutCertificate.addSignature (vote ^∙ vAuthor) timeoutSignature
                           (fromMaybe (TimeoutCertificate∙new (Vote.timeout vote))
                                      (pv ^∙ pvMaybePartialTC))
         lPendingVotes ∙ pvMaybePartialTC %= const (just partialTc)
-        case ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
+        case⊎D ValidatorVerifier.checkVotingPower vv (Map.kvm-keys (partialTc ^∙ tcSignatures)) of λ where
           (Right unit) →
             pure (NewTimeoutCertificate partialTc)
           (Left (ErrVerify (TooLittleVotingPower votingPower _))) →

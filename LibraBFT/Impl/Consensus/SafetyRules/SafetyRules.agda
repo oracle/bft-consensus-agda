@@ -7,25 +7,40 @@
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
-import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
-import      LibraBFT.Impl.OBM.Crypto                          as Crypto
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
+import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert           as QuorumCert
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote                 as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData             as VoteData
+import      LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage as PersistentSafetyStorage
+import      LibraBFT.Impl.OBM.Crypto                                    as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
-open import LibraBFT.Impl.Types.ValidatorSigner               as ValidatorSigner
+import      LibraBFT.Impl.Types.BlockInfo                               as BlockInfo
+import      LibraBFT.Impl.Types.EpochChangeProof                        as EpochChangeProof
+import      LibraBFT.Impl.Types.ValidatorSigner                         as ValidatorSigner
+import      LibraBFT.Impl.Types.ValidatorVerifier                       as ValidatorVerifier
+open import LibraBFT.Impl.Types.Verifier
+import      LibraBFT.Impl.Types.Waypoint                                as Waypoint
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
+import      LibraBFT.ImplShared.Util.Crypto                             as Crypto
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+open import Data.String                                                 using (String)
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRules where
+
+------------------------------------------------------------------------------
+
+new : PersistentSafetyStorage → Bool → Either ErrLog SafetyRules
+new persistentStorage exportConsensusKey = do
+  pure $ mkSafetyRules
+    persistentStorage
+    exportConsensusKey
+    nothing
+    nothing
 
 ------------------------------------------------------------------------------
 
@@ -77,7 +92,7 @@ verifyAndUpdatePreferredRoundM quorumCert safetyData = do
       twoChainRound  = quorumCert ^∙ qcParentBlock ∙ biRound
   -- LBFT-ALGO v3:p6: "... votes in round k only if the QC inside the k proposal
   -- is at least" PreferredRound."
-  if-RWST oneChainRound <? preferredRound
+  ifD oneChainRound <? preferredRound
     then bail fakeErr -- error: incorrect preferred round, QC round does not match preferred round
     else do
       updated ← case (compare twoChainRound preferredRound) of λ where
@@ -97,22 +112,22 @@ verifyAuthorM : Maybe Author → LBFT (Either ErrLog Unit)
 verifyAuthorM author = do
   vs ← use (lSafetyRules ∙ srValidatorSigner)
   maybeS vs (bail fakeErr) {-(ErrL (here' ["srValidatorSigner", "Nothing"]))-} $ λ validatorSigner →
-    maybeS-RWST
+    maybeSD
       author
       (bail fakeErr) -- (ErrL (here' ["InvalidProposal", "No author found in the proposal"])))
       (\a ->
-        if-RWST validatorSigner ^∙ vsAuthor /= a
+        ifD validatorSigner ^∙ vsAuthor /= a
         then bail fakeErr -- (ErrL (here' ["InvalidProposal", "Proposal author is not validator signer"]))
         else ok unit)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "verifyAuthorM" ∷ t
 
 ------------------------------------------------------------------------------
 
 verifyEpochM : Epoch → SafetyData → LBFT (Either ErrLog Unit)
 verifyEpochM epoch safetyData =
-  if-RWST epoch /= safetyData ^∙ sdEpoch
+  ifD epoch /= safetyData ^∙ sdEpoch
     then bail fakeErr -- incorrect epoch
     else ok unit
 
@@ -122,7 +137,7 @@ verifyEpochM epoch safetyData =
 verifyAndUpdateLastVoteRoundM : Round → SafetyData → LBFT (Either ErrLog SafetyData)
 verifyAndUpdateLastVoteRoundM round safetyData =
   -- LBFT-ALGO v3:p6 : "... votes in round k it if is higher than" LastVotedRound
-  if-RWST round >? (safetyData ^∙ sdLastVotedRound)
+  ifD round >? (safetyData ^∙ sdLastVotedRound)
     then ok (safetyData & sdLastVotedRound ∙~ round )
     else bail fakeErr -- incorrect last vote round
 
@@ -132,6 +147,66 @@ verifyQcM : QuorumCert → LBFT (Either ErrLog Unit)
 verifyQcM qc = do
   validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
   pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtx ("InvalidQuorumCertificate" ∷ [])
+
+------------------------------------------------------------------------------
+
+consensusState : SafetyRules → ConsensusState
+consensusState self =
+  ConsensusState∙new (self ^∙ srPersistentStorage ∙ pssSafetyData)
+                     (self ^∙ srPersistentStorage ∙ pssWaypoint)
+
+------------------------------------------------------------------------------
+
+-- ** NOTE: PAY PARTICULAR ATTENTION TO THIS FUNCTION **
+-- ** Because : it is long with lots of branches, so easy to transcribe wrong. **
+-- ** And if initialization is wrong, everything is wrong. **
+initialize : SafetyRules → EpochChangeProof → Either ErrLog SafetyRules
+initialize self proof = do
+  let waypoint   = self ^∙ srPersistentStorage ∙ pssWaypoint
+  lastLi         ← withErrCtx' (here' ("EpochChangeProof.verify" ∷ []))
+                               (        EpochChangeProof.verify proof waypoint)
+  let ledgerInfo = lastLi ^∙ liwsLedgerInfo
+  epochState     ← maybeS (ledgerInfo ^∙ liNextEpochState)
+                          (Left fakeErr) -- ["last ledger info has no epoch state"]
+                          pure
+  let currentEpoch = self ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
+  if-dec currentEpoch <? epochState ^∙ esEpoch
+    then (do
+      waypoint'  ← withErrCtx' (here' ("Waypoint.newEpochBoundary" ∷ []))
+                               (        Waypoint.newEpochBoundary ledgerInfo)
+      continue1 (self & srPersistentStorage ∙ pssWaypoint    ∙~ waypoint'
+                      & srPersistentStorage ∙ pssSafetyData  ∙~
+                          SafetyData∙new (epochState ^∙ esEpoch) {-Round-} 0 {-Round-} 0 nothing)
+                epochState)
+    else continue1 self epochState
+ where
+  continue2 : SafetyRules → EpochState → Either ErrLog SafetyRules
+  here'     : List String → List String
+
+  continue1 : SafetyRules → EpochState → Either ErrLog SafetyRules
+  continue1 self1 epochState =
+    continue2 (self1 & srEpochState ?~ epochState) epochState
+
+  continue2 self2 epochState = do
+    let author = self2 ^∙ srPersistentStorage ∙ pssAuthor
+    maybeS (ValidatorVerifier.getPublicKey (epochState ^∙ esVerifier) author)
+      (Left fakeErr) -- ["ValidatorNotInSet", lsA author] $
+      λ expectedKey → do
+        let currKey = eitherS (signer self2)
+                      (const nothing)
+                      (just ∘ ValidatorSigner.publicKey_USE_ONLY_AT_INIT)
+        grd‖ currKey == just expectedKey ≔
+             Right self2
+
+           ‖ self2 ^∙ srExportConsensusKey ≔ (do
+              consensusKey ← withErrCtx' (here' ("ValidatorKeyNotFound" ∷ []))
+                (PersistentSafetyStorage.consensusKeyForVersion
+                  (self2 ^∙ srPersistentStorage) expectedKey)
+              Right (self2 & srValidatorSigner ?~ ValidatorSigner∙new author consensusKey))
+
+           ‖ otherwise≔
+             Left fakeErr -- ["srExportConsensusKey", "False", "NOT IMPLEMENTED"]
+  here' t = "SafetyRules" ∷ "initialize" ∷ t
 
 ------------------------------------------------------------------------------
 
@@ -157,9 +232,9 @@ module constructAndSignVoteM-continue0 (voteProposal : VoteProposal) (validatorS
     verifyEpochM (proposedBlock ^∙ bEpoch) safetyData0 ∙?∙ λ _ → step₁ safetyData0
 
   step₁ safetyData0 = do
-      caseMM (safetyData0 ^∙ sdLastVote) of λ where
+      caseMD (safetyData0 ^∙ sdLastVote) of λ where
         (just vote) →
-          if-RWST vote ^∙ vVoteData ∙ vdProposed ∙ biRound == proposedBlock ^∙ bRound
+          ifD vote ^∙ vVoteData ∙ vdProposed ∙ biRound == proposedBlock ^∙ bRound
             then ok vote
             else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
         nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
@@ -224,23 +299,23 @@ constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.step₀
 signProposalM : BlockData → LBFT (Either ErrLog Block)
 signProposalM blockData = do
  vs ← use (lSafetyRules ∙ srValidatorSigner)
- maybeS vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner -> do
+ maybeS vs (bail fakeErr) {-ErrL (here' ["srValidatorSigner", "Nothing"])-} $ λ validatorSigner → do
   safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
   verifyAuthorM (blockData ^∙ bdAuthor) ∙?∙ λ _ →
     verifyEpochM (blockData ^∙ bdEpoch) safetyData ∙?∙ λ _ →
-      if-RWST blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
+      ifD blockData ^∙ bdRound ≤?ℕ safetyData ^∙ sdLastVotedRound
       then bail fakeErr
       -- {-     ErrL (here' [ "InvalidProposal"
       --                    , "Proposed round is not higher than last voted round "
       --                    , lsR (blockData ^∙ bdRound), lsR (safetyData ^∙ sdLastVotedRound) ])-}
       else do
         verifyQcM (blockData ^∙ bdQuorumCert) ∙?∙ λ _ →
-          verifyAndUpdatePreferredRoundM (blockData ^∙ bdQuorumCert) safetyData ∙?∙ λ safetyData1 -> do
+          verifyAndUpdatePreferredRoundM (blockData ^∙ bdQuorumCert) safetyData ∙?∙ λ safetyData1 → do
             pssSafetyData-rm ∙= safetyData1
             let signature  = ValidatorSigner.sign validatorSigner blockData
             ok (Block.newProposalFromBlockDataAndSignature blockData signature)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "signProposalM" ∷ t
 
 ------------------------------------------------------------------------------
@@ -250,19 +325,19 @@ signTimeoutM timeout = do
  vs ← use (lSafetyRules ∙ srValidatorSigner)
  maybeS vs (bail fakeErr) {-"srValidatorSigner", "Nothing"-} $ λ validatorSigner → do
    safetyData ← use (lPersistentSafetyStorage ∙ pssSafetyData)
-   verifyEpochM (timeout ^∙ toEpoch) safetyData ∙^∙ withErrCtx (here' []) ∙?∙ λ _ -> do
-     ifM‖ timeout ^∙ toRound ≤? safetyData ^∙ sdPreferredRound ≔
+   verifyEpochM (timeout ^∙ toEpoch) safetyData ∙^∙ withErrCtx (here' []) ∙?∙ λ _ → do
+     ifD‖ timeout ^∙ toRound ≤? safetyData ^∙ sdPreferredRound ≔
           bail fakeErr
-          --(ErrIncorrectPreferredRound (here []) (timeout^.toRound) (safetyData^.sdPreferredRound))
+          --(ErrIncorrectPreferredRound (here []) (timeout ^∙ toRound) (safetyData ^∙ sdPreferredRound))
         ‖ timeout ^∙ toRound <? safetyData ^∙ sdLastVotedRound ≔
           bail fakeErr
-          --(ErrIncorrectLastVotedRound (here []) (timeout^.toRound) (safetyData^.sdLastVotedRound))
+          --(ErrIncorrectLastVotedRound (here []) (timeout ^∙ toRound) (safetyData ^∙ sdLastVotedRound))
         ‖ timeout ^∙ toRound >? safetyData ^∙ sdLastVotedRound ≔
           verifyAndUpdateLastVoteRoundM (timeout ^∙ toRound) safetyData
             ∙^∙ withErrCtx (here' [])
             ∙?∙ (λ safetyData1 → do
             pssSafetyData-rm ∙= safetyData1
-            logInfo fakeInfo -- (InfoUpdateLastVotedRound (timeout^.toRound))
+            logInfo fakeInfo -- (InfoUpdateLastVotedRound (timeout ^∙ toRound))
             continue validatorSigner)
 
         ‖ otherwise≔
@@ -273,5 +348,5 @@ signTimeoutM timeout = do
     let signature = ValidatorSigner.sign validatorSigner timeout
     ok signature
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SafetyRules" ∷ "signTimeoutM" ∷ {-lsTO timeout ∷-}   t

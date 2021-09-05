@@ -16,9 +16,12 @@ open import Optics.All
 module LibraBFT.Impl.Consensus.Network.Properties where
 
 module processProposalSpec (proposal : ProposalMsg) (myEpoch : Epoch) (vv : ValidatorVerifier) where
-  postulate
+  postulate -- TODO-2: Refine contract
+    -- We also need to know that the the proposal message was successfully
+    -- checked by `ProposalMsg.verify`
     contract
       : case (processProposal proposal myEpoch vv) of λ where
           (Left _) → Unit
           (Right _) → proposal ^∙ pmProposal ∙ bEpoch ≡ myEpoch
+                      × hashBD (proposal ^∙ pmProposal ∙ bBlockData) ≡ proposal ^∙ pmProposal ∙ bId
 

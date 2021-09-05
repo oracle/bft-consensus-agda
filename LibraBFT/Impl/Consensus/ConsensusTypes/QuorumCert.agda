@@ -16,10 +16,26 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                     as String
+open import Data.String                                     using (String)
 
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert where
+
+certificateForGenesisFromLedgerInfo : LedgerInfo → HashValue → QuorumCert
+certificateForGenesisFromLedgerInfo ledgerInfo genesisId =
+  let ancestor = BlockInfo∙new
+                 (ledgerInfo ^∙ liEpoch + 1)
+                 0
+                 genesisId
+                 (ledgerInfo ^∙ liTransactionAccumulatorHash)
+                 (ledgerInfo ^∙ liVersion)
+               --(ledgerInfo ^∙ liTimestamp)
+                 nothing
+      voteData = VoteData.new ancestor ancestor
+      li       = LedgerInfo∙new ancestor (hashVD voteData)
+   in QuorumCert∙new
+      voteData
+      (LedgerInfoWithSignatures∙new li Map.empty)
 
 verify : QuorumCert → ValidatorVerifier → Either ErrLog Unit
 verify self validator = do
@@ -42,5 +58,5 @@ verify self validator = do
         (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo) validator)
       VoteData.verify (self ^∙ qcVoteData)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "QuorumCert" ∷ "verify" {- ∷ lsQC self-} ∷ t

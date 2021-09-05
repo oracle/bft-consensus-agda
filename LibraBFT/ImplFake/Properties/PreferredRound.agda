@@ -3,6 +3,7 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import LibraBFT.ImplShared.Base.Types
 
@@ -17,7 +18,7 @@ open import LibraBFT.Prelude
 import      LibraBFT.Concrete.Properties.PreferredRound FakeInitAndHandlers as PR
 open        ParamsWithInitAndHandlers FakeInitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms FakeInitAndHandlers
-                               PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+                               PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
 open import LibraBFT.Concrete.Obligations
@@ -46,11 +47,11 @@ module LibraBFT.ImplFake.Properties.PreferredRound (𝓔 : EpochConfig) where
                                                                              -- must be the same,
                                                                              -- contradicting
                                                                              -- vround<
-  ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inV qc∈m')
+  ...| vote∈vm                         | vote∈qc vs∈qc' v≈rbld' (inSI si∈m' qc∈si)
        rewrite cong _vSignature v≈rbld'
-       = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) qc∈m'
+       = let qc∈rm' = VoteMsgQCsFromRoundManager r stMsg pkH v'⊂m' (here refl) (obm-dangerous-magic' "see Handle.Properties")
          in ⊥-elim (v'new (qcVotesSentB4 r psI qc∈rm' vs∈qc' ¬gen'))
-  ...| vote∈qc vs∈qc v≈rbld (inV qc∈m) | _
+  ...| vote∈qc vs∈qc v≈rbld (inSI si∈m qc∈si) | _
        rewrite cong _vSignature v≈rbld
-       = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) qc∈m
+       = let qc∈rm = VoteMsgQCsFromRoundManager r stMsg pkH v⊂m (here refl) (obm-dangerous-magic' "see Handle.Properties")
          in ⊥-elim (vnew (qcVotesSentB4 r psI qc∈rm vs∈qc ¬gen))

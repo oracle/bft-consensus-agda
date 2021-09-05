@@ -51,7 +51,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
  open import LibraBFT.ImplShared.Util.HashCollisions iiah
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK (λ {st} {part} {pk} → PeerCanSignForPK-stable {st} {part} {pk})
+ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
  open import LibraBFT.Concrete.Properties.Common iiah 𝓔
 
 

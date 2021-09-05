@@ -5,7 +5,7 @@
 -}
 
 open import LibraBFT.Base.PKCS
-open import LibraBFT.Impl.Types.LedgerInfoWithSignatures as LedgerInfoWithSignatures
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures as LedgerInfoWithSignatures
 open import LibraBFT.ImplShared.Consensus.Types
 
 module LibraBFT.Impl.Types.CryptoProxies where

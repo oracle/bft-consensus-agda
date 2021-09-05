@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 {-# OPTIONS --allow-unsolved-metas #-}
+open import LibraBFT.Base.Types
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap                            as Map
@@ -48,15 +49,6 @@ ValidatorVerifier-correct vv =
                        → v₁ ^∙ vciPublicKey ≢ v₂ ^∙ vciPublicKey
    in suc (3 * bizF) ≤ totalVotPower × quorumVotPower ≤ totalVotPower × pksAll≢
 
-RoundManager-correct : RoundManager → Set
-RoundManager-correct rmec = ValidatorVerifier-correct (rmec ^∙ rmEpochState ∙ esVerifier)
-
-RoundManager-correct-≡ : (rmec1 : RoundManager)
-                           → (rmec2 : RoundManager)
-                           → (rmec1 ^∙ rmEpochState ∙ esVerifier) ≡ (rmec2 ^∙ rmEpochState ∙ esVerifier)
-                           → RoundManager-correct rmec1
-                           → RoundManager-correct rmec2
-RoundManager-correct-≡ rmec1 rmec2 refl = id
 
 open DecLemmas {A = NodeId} _≟_
 import LibraBFT.Abstract.BFT
@@ -68,10 +60,10 @@ import LibraBFT.Abstract.BFT
 -- TODO-2: update and complete when definitions are updated to more recent version
 
 
-α-EC : Σ RoundManager RoundManager-correct → EpochConfig
-α-EC (rmec , ok)  =
+α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
+α-EC-VV (vv , ok) epoch =
       EpochConfig∙new {!!}
-                      (rmec ^∙ rmEpoch)
+                      epoch
                       numAuthors
                       toNodeId
                       (list-index (_≟_ ∘ proj₁) authors)
@@ -91,13 +83,13 @@ import LibraBFT.Abstract.BFT
                                   (proj₂ q₁) (proj₂ q₂)
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₁))
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₂))
-      where authorsMap      = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvAddressToValidatorInfo
+      where authorsMap      = vv ^∙ vvAddressToValidatorInfo
             authors         = kvm-toList authorsMap
             authorsIDs≢     = kvm-keys-All≢ authorsMap
             authorsInfo     = List-map proj₂ authors
             numAuthors      = length authors
             members         = allFin numAuthors
-            qsize           = rmec ^∙ rmEpochState ∙ esVerifier ∙ vvQuorumVotingPower
+            qsize           = vv ^∙ vvQuorumVotingPower
             toNodeId        = proj₁ ∘ List-lookup authors
             getAuthorInfo   = proj₂ ∘ List-lookup authors
             getPubKey       = _^∙ vciPublicKey ∘ getAuthorInfo
@@ -120,19 +112,6 @@ import LibraBFT.Abstract.BFT
                                                            (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
                                          pk≡)
 
-postulate
-  α-EC-≡ : (rmec1  : RoundManager)
-         → (rmec2  : RoundManager)
-         → (vals≡  : rmec1 ^∙ rmEpochState ∙ esVerifier ≡ rmec2 ^∙ rmEpochState ∙ esVerifier)
-         →           rmec1 ^∙ rmEpoch      ≡ rmec2 ^∙ rmEpoch
-         → (rmec1-corr : RoundManager-correct rmec1)
-         → α-EC (rmec1 , rmec1-corr) ≡ α-EC (rmec2 , RoundManager-correct-≡ rmec1 rmec2 vals≡ rmec1-corr)
-{-
-α-EC-≡ rmec1 rmec2 refl refl rmec1-corr = refl
--}
-
-α-EC-RM : (rm : RoundManager) → RoundManager-correct rm → EpochConfig
-α-EC-RM rm rmc = α-EC (rm , rmc)
 
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
   init-EC : GenesisInfo → EpochConfig
@@ -236,6 +215,19 @@ module WithEC (𝓔 : EpochConfig) where
       _ivqcMetaVotesValid      : All (IsValidVote ∘ rebuildVote qc) (qcVotes qc)
       _ivqcMetaIsQuorum        : IsQuorum (All-reduce _ivvMember _ivqcMetaVotesValid)
   open MetaIsValidQC public
+
+  -- A valid TimeoutCertificate has a quorum of signatures that are valid for the current
+  -- EpochConfig.  There will be a lot of overlap with MetaIsValidQc and IsValidVote.
+  -- TODO-2: flesh out the details.
+  postulate
+    MetaIsValidTimeoutCert : TimeoutCertificate → Set
+
+  {-
+  record MetaIsValidTimeoutCert (tc : TimeoutCertificate) : Set where
+    field
+      _ivtcMetaSigsValid :
+      _ivtcMetaIsQuorum  : 
+  -}
 
   vqcMember : (qc : QuorumCert) → MetaIsValidQC qc
              → ∀ {as} → as ∈ qcVotes qc → Member
