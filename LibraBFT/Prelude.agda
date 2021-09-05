@@ -48,7 +48,7 @@ module LibraBFT.Prelude where
 
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
-    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; tabulate-cong; tabulate-lookup; ++-identityʳ)
     public
 
   open import Data.List.Relation.Binary.Subset.Propositional
@@ -165,8 +165,8 @@ module LibraBFT.Prelude where
   fins n = Vec-toList (Vec-allFin n)
 
   open import Data.Fin.Properties
-    using (toℕ-injective)
-    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin)
+    using (toℕ-injective; toℕ<n)
+    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin; suc-injective to Fin-suc-injective)
     public
 
   open import Relation.Binary.PropositionalEquality
