@@ -10,8 +10,11 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
+import      LibraBFT.Impl.Consensus.Liveness.ExponentialTimeInterval as ExponentialTimeInterval
+import      LibraBFT.Impl.Consensus.Liveness.RoundState              as RoundState
+import      LibraBFT.Impl.OBM.ConfigHardCoded                        as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Init
+open import LibraBFT.Impl.OBM.Rust.Duration                          as Duration
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -55,7 +58,12 @@ module LibraBFT.ImplFake.Handle where
  initPE = obm-dangerous-magic!
 
  initRS : RoundState
- initRS = RoundState.new etiT timeT
+ initRS = RoundState.new
+            (ExponentialTimeInterval.new
+              (Duration.fromMillis ConfigHardCoded.roundInitialTimeoutMS)
+              1.2
+              6)
+            timeT
 
  initRM : RoundManager
  initRM = RoundManager∙new

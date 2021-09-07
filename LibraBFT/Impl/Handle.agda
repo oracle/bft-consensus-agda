@@ -14,7 +14,9 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
+import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 import      LibraBFT.Impl.OBM.Init                      as Init
 open import LibraBFT.Impl.OBM.Time
@@ -64,15 +66,34 @@ initPG = ProposalGenerator∙new 0
 postulate -- TODO-1: Implement initPE, initBS
   initPE : ProposerElection
   initBS : BlockStore
-
-initRS : RoundState
-initRS = Init.rsT
+  initRS : RoundState
 
 initRM : RoundManager
 initRM = RoundManager∙new
            ObmNeedFetch∙new
            (EpochState∙new 1 (initVV genesisInfo))
            initBS initRS initPE initPG initSR false
+
+postulate
+  nfLiwsVssVvPe : GenKeyFile.NfLiwsVssVvPe
+  now           : Instant
+  pg            : ProposalGenerator
+  me            : AuthorName
+
+initRMWithOutput : RoundManager × List Output
+initRMWithOutput =
+  case Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg of λ where
+    (Left  _)          → err
+    (Right (em , out)) →
+      case em ^∙ emObmRoundManager of λ where
+        (Left   _) → err
+        (Right rm) → (rm , out)
+ where
+  err : RoundManager × List Output
+  err = (fakeRM , [])
+
+initRM' : RoundManager
+initRM' = fst initRMWithOutput
 
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.
