@@ -16,7 +16,7 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
-open import LibraBFT.Impl.OBM.Init
+import      LibraBFT.Impl.OBM.Init                      as Init
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
@@ -61,12 +61,12 @@ initSR =
 initPG : ProposalGenerator
 initPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: Implement initPe, initBS
+postulate -- TODO-1: Implement initPE, initBS
   initPE : ProposerElection
   initBS : BlockStore
 
 initRS : RoundState
-initRS = RoundState.new etiT timeT
+initRS = Init.rsT
 
 initRM : RoundManager
 initRM = RoundManager∙new
@@ -74,10 +74,11 @@ initRM = RoundManager∙new
            (EpochState∙new 1 (initVV genesisInfo))
            initBS initRS initPE initPG initSR false
 
--- Eventually, the initialization should establish some properties we care about, but for now we
--- just initialise again to fakeRM, which means we cannot prove the base case for various
--- properties, e.g., in Impl.Properties.VotesOnce
--- TODO: create real RoundManager using GenesisInfo
+-- Eventually, the initialization should establish properties we care about.
+-- For now we just initialise to fakeRM.
+-- That means we cannot prove the base case for various properties,
+-- e.g., in Impl.Properties.VotesOnce
+-- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
 initialRoundManagerAndMessages
   : (a : Author) → GenesisInfo
   → RoundManager × List NetworkMsg
