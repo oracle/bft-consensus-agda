@@ -80,20 +80,19 @@ postulate
   pg            : ProposalGenerator
   me            : AuthorName
 
-initRMWithOutput : RoundManager × List Output
-initRMWithOutput =
-  case Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg of λ where
-    (Left  _)          → err
-    (Right (em , out)) →
-      case em ^∙ emObmRoundManager of λ where
-        (Left   _) → err
-        (Right rm) → (rm , out)
- where
-  err : RoundManager × List Output
-  err = (fakeRM , [])
+initRMWithOutput : Either ErrLog (RoundManager × List Output)
+initRMWithOutput = do
+  (em , out) ← Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+  rm         ← em ^∙ emObmRoundManager
+  pure (rm , out)
 
 initRM' : RoundManager
-initRM' = fst initRMWithOutput
+initRM' = case initRMWithOutput of λ where
+  (Left _)         → initRM
+  (Right (rm , _)) → rm
+
+genQC : QuorumCert
+genQC = initRM' ^∙ rmBlockStore ∙ bsInner ∙ btHighestQuorumCert
 
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.
