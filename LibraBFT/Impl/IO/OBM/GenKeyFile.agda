@@ -28,7 +28,6 @@ mkAuthors : {-Crypto.SystemDRG →-} U64 → List EndpointAddress
 mkValidatorSignersAndVerifierAndProposerElection
           : U64 → AddressToSkAndPkAssocList
           → Either ErrLog (List ValidatorSigner × ValidatorVerifier × ProposerElection)
-
 ------------------------------------------------------------------------------
 
 NfLiwsVssVvPe =
@@ -58,6 +57,7 @@ mkAuthors {-drg-} numFailures0 addresses0 = do
 postulate
   mkSK : NodeId → SK
   mkPK : NodeId → PK
+
 genKeys    zero   = []
 genKeys x@(suc n) = (mkSK x , mkPK x) ∷ genKeys n
 
