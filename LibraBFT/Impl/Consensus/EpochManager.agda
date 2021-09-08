@@ -283,19 +283,19 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
     findFirstErr : List Output → Maybe ErrLog
     findFirstErr = λ where
       []              → nothing
-      (LogErr e ∷ xs) → just e
+      (LogErr e ∷  _) → just e
       (_        ∷ xs) → findFirstErr xs
 
 startProcessor self now payload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures = do
   let validatorSet = payload ^∙ occpObmValidatorSet
-      epochState0  = EpochState∙new (payload ^∙ occpEpoch) (ValidatorVerifier.from validatorSet)
+  vv               ← ValidatorVerifier.from validatorSet
+  let epochState0  = EpochState∙new (payload ^∙ occpEpoch) vv
       -- OBM TODO case storage.start of RecoveryData | LedgerRecoveryData
   (initialData , _pls)
                    ← MockStorage.startForTesting validatorSet
                                                  (just obmLedgerInfoWithSignatures)
   startRoundManager self now initialData epochState0 obmNeedFetch obmProposalGenerator
                     (obmLedgerInfoWithSignatures ^∙ liwsLedgerInfo ∙ liVersion)
-
 
 processMessage
   : EpochManager → Instant → Input

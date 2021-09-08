@@ -142,6 +142,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl viAccountAddress   viConsensusVotingPower   viConfig = mkLens (quote ValidatorInfo)
              (viAccountAddress ∷ viConsensusVotingPower ∷ viConfig ∷ [])
 
+  -- getter only in Haskell
+  -- key for validating signed messages from this validator
+  viConsensusPublicKey : Lens ValidatorInfo PK
+  viConsensusPublicKey = viConfig ∙ vcConsensusPublicKey
+
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
@@ -152,14 +157,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (vciPublicKey ∷ vciVotingPower ∷ [])
 
   record ValidatorVerifier : Set where
-    constructor ValidatorVerifier∙new
+    constructor mkValidatorVerifier
     field
       _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
       _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
-      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
+      _vvTotalVotingPower       : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens (quote ValidatorVerifier)
-             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower   vvTotalVotingPower = mkLens (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ vvTotalVotingPower ∷ [])
 
   -- getter only in Haskell
   vvObmAuthors : Lens ValidatorVerifier (List AccountAddress)
@@ -179,6 +184,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _vsScheme  : ConsensusScheme
       _vsPayload : List ValidatorInfo
   -- instance S.Serialize ValidatorSet
+  open ValidatorSet public
+  unquoteDecl vsScheme   vsPayload = mkLens (quote ValidatorSet)
+             (vsScheme ∷ vsPayload ∷ [])
 
   record EpochState : Set where
     constructor EpochState∙new

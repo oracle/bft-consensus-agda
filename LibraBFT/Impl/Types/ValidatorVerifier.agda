@@ -11,13 +11,36 @@ open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
+------------------------------------------------------------------------------
+open import Data.String                                    using (String)
 
 module LibraBFT.Impl.Types.ValidatorVerifier where
 
-checkNumOfSignatures : ValidatorVerifier → Map.KVMap AccountAddress Signature → Either ErrLog Unit
-checkVotingPower     : ValidatorVerifier → List AccountAddress → Either ErrLog Unit
-getPublicKey         : ValidatorVerifier → AccountAddress → Maybe PK
-getVotingPower       : ValidatorVerifier → AccountAddress → Maybe U64
+------------------------------------------------------------------------------
+calculateQuorumVotingPower : U64 -> U64
+checkNumOfSignatures       : ValidatorVerifier → Map.KVMap AccountAddress Signature
+                           → Either ErrLog Unit
+checkVotingPower           : ValidatorVerifier → List AccountAddress → Either ErrLog Unit
+getPublicKey               : ValidatorVerifier → AccountAddress → Maybe PK
+getVotingPower             : ValidatorVerifier → AccountAddress → Maybe U64
+sumVotingPower             : (List String → List String)
+                           → Map.KVMap AccountAddress ValidatorConsensusInfo
+                           → Either ErrLog U64
+------------------------------------------------------------------------------
+
+new : Map.KVMap AccountAddress ValidatorConsensusInfo → Either ErrLog ValidatorVerifier
+new addressToValidatorInfo = do
+  totalVotingPower      ← sumVotingPower here' addressToValidatorInfo
+  let quorumVotingPower = if Map.kvm-size addressToValidatorInfo == 0 then 0
+                          else calculateQuorumVotingPower totalVotingPower
+  pure (mkValidatorVerifier addressToValidatorInfo quorumVotingPower totalVotingPower)
+ where
+  here' : List String → List String
+  here' t = "ValidatorVerifier" ∷ "new" ∷ t
+
+-- This scales up the number of faults tolerated with the number of votes.
+-- see TestValidatorVerifier in Haskell
+calculateQuorumVotingPower totalVotingPower = (div (totalVotingPower * 2) 3) + 1
 
 verifyIfAuthor
   : {V : Set} ⦃ _ : Crypto.CryptoHash V ⦄
@@ -73,10 +96,32 @@ checkVotingPower self authors = do
     else Right unit
 
 getPublicKey self author =
-  (_^∙ vciPublicKey) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
+  (_^∙ vciPublicKey)   <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
 
 getVotingPower self author =
   (_^∙ vciVotingPower) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
 
-postulate -- TODO-1: from
-  from : ValidatorSet → ValidatorVerifier
+sumVotingPower here' addressToValidatorInfo =
+  foldr go (Right 0) (Map.elems addressToValidatorInfo)
+ where
+  maxBoundU64 : U64
+  maxBoundU64 = 18446744073709551615
+  go : ValidatorConsensusInfo → Either ErrLog U64 → Either ErrLog U64
+  go x (Right sum') =
+    if-dec sum' ≤? maxBoundU64 ∸ (x ^∙ vciVotingPower)
+    then Right (sum' + x ^∙ vciVotingPower)
+    else Left fakeErr -- (ErrL (here' ("sum too big" ∷ [])))
+  go _ (Left err) = Left err
+
+from : ValidatorSet → Either ErrLog ValidatorVerifier
+from validatorSet =
+  new (foldl' go Map.empty (validatorSet ^∙ vsPayload))
+ where
+  go : Map.KVMap AccountAddress ValidatorConsensusInfo → ValidatorInfo
+     → Map.KVMap AccountAddress ValidatorConsensusInfo
+  go map0 validator =
+    Map.insert (validator ^∙ viAccountAddress)
+               (ValidatorConsensusInfo∙new
+                 (validator ^∙ viConsensusPublicKey)
+                 (validator ^∙ viConsensusVotingPower))
+                map0
