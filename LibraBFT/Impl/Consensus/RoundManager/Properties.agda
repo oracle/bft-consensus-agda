@@ -40,7 +40,8 @@ open RoundManagerTransProps
 
 module LibraBFT.Impl.Consensus.RoundManager.Properties where
 
-module executeAndVoteMSpec (b : Block) where
+module executeAndVoteMSpec (vb : ValidBlock) where
+  b = vbBlock vb
 
   open executeAndVoteM b
   open SafetyRulesProps
@@ -57,6 +58,7 @@ module executeAndVoteMSpec (b : Block) where
   module _ (pre : RoundManager) where
 
     open QCProps
+    open Invariants.Reqs b (pre ^∙ lBlockTree)
 
     record Contract (r : Either ErrLog Vote) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -67,15 +69,14 @@ module executeAndVoteMSpec (b : Block) where
         noMsgOuts     : OutputProps.NoMsgs outs
         -- Voting
         lvr≡?             : Bool
-        voteResultCorrect : hashBD (b ^∙ bBlockData) ≡ b ^∙ bId
-                            → VoteResultCorrect pre post lvr≡? r
+        voteResultCorrect : NoHC1 → VoteResultCorrect pre post lvr≡? r
         -- QCs
         qcPost : ∈Post⇒∈PreOr isbQc pre post
 
     contract' :
       LBFT-weakestPre (executeAndVoteM b) Contract pre
     contract' =
-      executeAndInsertBlockMSpec.contract b pre Post₀
+      executeAndInsertBlockMSpec.contract vb pre Post₀
         (λ where e ._ refl → contractBail [] refl)
         contract₁
       where
@@ -96,8 +97,8 @@ module executeAndVoteMSpec (b : Block) where
         qcPost : ∈Post⇒∈PreOr isbQc pre pre
         qcPost qc = Left
 
-      module EAIBM = executeAndInsertBlockMSpec b
-      module EAIBE = executeAndInsertBlockESpec (EAIBM.bs pre) b
+      module EAIBM = executeAndInsertBlockMSpec vb
+      module EAIBE = executeAndInsertBlockESpec (EAIBM.bs pre) vb
       module _ (isOk : EAIBE.Ok) (con : EAIBE.ContractOk (proj₁ isOk) (proj₁ (proj₂ isOk))) where
 
         module EAIBECon = EAIBE.ContractOk con
@@ -109,14 +110,14 @@ module executeAndVoteMSpec (b : Block) where
 
         -- State invariants
         module _  where
-          btP : Preserves BlockTreeInv (rm→BlockTree-EC pre) (rm→BlockTree-EC pre₁)
-          btP bti = BSInv⇒BTInv-pres EAIBECon.bsInv bti
+          bsP : Preserves BlockStoreInv (rm→BlockStore-EC pre) (rm→BlockStore-EC pre₁)
+          bsP bsi = EAIBECon.bsInv bsi
 
           srP : Preserves SafetyRulesInv (pre ^∙ lSafetyRules) (pre₁ ^∙ lSafetyRules)
           srP = mkPreservesSafetyRulesInv id
 
         invP₁ : Preserves RoundManagerInv pre pre₁
-        invP₁ = mkPreservesRoundManagerInv id id btP srP
+        invP₁ = mkPreservesRoundManagerInv id id bsP srP
 
         qcPost-BT : _
         qcPost-BT = ∈Post⇒∈PreOrBT-QCs≡ isbQc
@@ -169,6 +170,11 @@ module executeAndVoteMSpec (b : Block) where
                 qcPost₂
             contract₂⇒-help (Right vote) vrc ._ refl = contract₃
               where
+
+              open RoundManagerInv
+              open BlockStoreInv
+              open BlockTreeInv
+
               contract₃ : RWS-weakestPre (step₃ vote) (RWS-Post++ Contract CASVouts) unit pre₃
               contract₃ =
                 PersistentLivenessStorageProps.saveVoteMSpec.contract vote
@@ -178,12 +184,13 @@ module executeAndVoteMSpec (b : Block) where
                 Post₃ : LBFT-Post (Either ErrLog Unit)
                 Post₃ = RWS-weakestPre-ebindPost unit (const $ ok vote) (RWS-Post++ Contract CASVouts)
 
-                vgc₃ : hashBD (b ^∙ bBlockData) ≡ b ^∙ bId
-                       → Voting.VoteGeneratedCorrect pre pre₃ vote b {- proposedBlock -}
-                vgc₃ bid≡ =
+                vgc₃ : NoHC1 → Voting.VoteGeneratedCorrect pre pre₃ vote b {- proposedBlock -}
+                vgc₃ nohc =
                   Voting.glue-VoteNotGenerated-VoteGeneratedCorrect
                     (mkVoteNotGenerated refl refl)
-                    (Voting.substVoteGeneratedCorrect proposedBlock b EAIBECon.ebBlock≈ vrc)
+                    (Voting.substVoteGeneratedCorrect proposedBlock b
+                      (EAIBECon.ebBlock≈ nohc)
+                      vrc)
 
                 noMsgOutsBail₃ : ∀ outs → NoMsgs outs → NoMsgs (CASVouts ++ outs)
                 noMsgOutsBail₃ outs noMsgs = ++-NoMsgs CASVouts outs CASVCon.noMsgOuts noMsgs
@@ -194,7 +201,7 @@ module executeAndVoteMSpec (b : Block) where
                 contractBail₃ : ∀ outs → NoMsgs outs → NoErrors outs → Post₃ (Left fakeErr) pre₃ outs
                 contractBail₃ outs noMsgOuts noErrOuts =
                   mkContract invP₂ CASVCon.noEpochChange (noMsgOutsBail₃ outs noMsgOuts)
-                    CASVCon.lvr≡? (Right ∘ Voting.mkVoteGeneratedUnsavedCorrect vote ∘ vgc₃)
+                    CASVCon.lvr≡? ((Right ∘ Voting.mkVoteGeneratedUnsavedCorrect vote) ∘ vgc₃)
                     qcPost₂
 
                 contractOk₃ : ∀ outs → NoMsgs outs → NoErrors outs → Post₃ (Right unit) pre₃ outs
@@ -211,13 +218,16 @@ module executeAndVoteMSpec (b : Block) where
     contract Post pf =
       RWS-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
 
-module processProposalMSpec (proposal : Block) where
+module processProposalMSpec (vproposal : ValidBlock) where
+  proposal = vbBlock vproposal
 
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore
   open import LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection
   open        LibraBFT.Impl.Consensus.RoundManager.processProposalM proposal
 
   module _ (pre : RoundManager) where
+
+    open Invariants.Reqs (vbBlock vproposal) (pre ^∙ lBlockTree)
 
     record Contract (u : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -227,8 +237,7 @@ module processProposalMSpec (proposal : Block) where
         noEpochChange : NoEpochChange pre post
         noProposals   : OutputProps.NoProposals outs
         -- Voting
-        voteAttemptCorrect : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
-                             → Voting.VoteAttemptCorrect pre post outs proposal
+        voteAttemptCorrect : NoHC1 → Voting.VoteAttemptCorrect pre post outs proposal
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcPost    : QCProps.∈Post⇒∈PreOr (_≡ proposal ^∙ bQuorumCert) pre post
@@ -253,13 +262,13 @@ module processProposalMSpec (proposal : Block) where
       contractBail : ∀ {outs} → OutputProps.NoMsgs outs → Contract unit pre outs
       contractBail{outs} nmo =
         mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre})
-          noProposals (const vac) outQcs qcPost
+          noProposals vac outQcs qcPost
         where
           noProposals : NoProposals outs
           noProposals = OutputProps.NoMsgs⇒NoProposals outs nmo
 
-          vac : Voting.VoteAttemptCorrect pre pre outs proposal
-          vac = Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo)
+          vac : NoHC1 → Voting.VoteAttemptCorrect pre pre outs proposal
+          vac _ = Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo)
 
           outQcs : QCProps.OutputQc∈RoundManager outs pre
           outQcs = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre nmo
@@ -269,10 +278,10 @@ module processProposalMSpec (proposal : Block) where
 
       contract-step₂ : RWS-weakestPre (executeAndVoteM proposal >>= step₂) Contract unit pre
       contract-step₂ =
-        executeAndVoteMSpec.contract proposal pre
+        executeAndVoteMSpec.contract vproposal pre
           (RWS-weakestPre-bindPost unit step₂ Contract) pf-step₂
         where
-        module EAV = executeAndVoteMSpec proposal
+        module EAV = executeAndVoteMSpec vproposal
 
         pf-step₂ : RWS-Post-⇒ (EAV.Contract pre) (RWS-weakestPre-bindPost unit step₂ Contract)
         pf-step₂ r st outs con = pf r EAVSpec.voteResultCorrect
@@ -280,8 +289,7 @@ module processProposalMSpec (proposal : Block) where
           module EAVSpec = executeAndVoteMSpec.Contract con
           rmInv₂ = transPreservesRoundManagerInv reflPreservesRoundManagerInv EAVSpec.rmInv
 
-          pf : (r : Either ErrLog Vote) (vrc : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
-                                               → EAV.VoteResultCorrect pre st EAVSpec.lvr≡? r)
+          pf : (r : Either ErrLog Vote) (vrc : NoHC1 → EAV.VoteResultCorrect pre st EAVSpec.lvr≡? r)
                → RWS-weakestPre-bindPost unit step₂ Contract r st outs
           pf (Left _) vrc ._ refl =
             mkContract rmInv₂ EAVSpec.noEpochChange
@@ -295,11 +303,11 @@ module processProposalMSpec (proposal : Block) where
             noProposals : NoProposals (outs ++ LogErr _ ∷ [])
             noProposals = NoMsgs⇒NoProposals (outs ++ LogErr _ ∷ []) noMsgs
 
-            vac : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId → Voting.VoteAttemptCorrect pre st (outs ++ LogErr _ ∷ []) proposal
-            vac bid≡ =
+            vac : NoHC1 → Voting.VoteAttemptCorrect pre st (outs ++ LogErr _ ∷ []) proposal
+            vac nohc =
               inj₁ (EAVSpec.lvr≡?
                    , Voting.mkVoteUnsentCorrect
-                       (NoMsgs⇒NoVotes (outs ++ LogErr _ ∷ []) noMsgs) (vrc bid≡))
+                       (NoMsgs⇒NoVotes (outs ++ LogErr _ ∷ []) noMsgs) (vrc nohc))
 
             qcOuts : QCProps.OutputQc∈RoundManager (outs ++ LogErr _ ∷ []) st
             qcOuts = QCProps.NoMsgs⇒OutputQc∈RoundManager (outs ++ LogErr _ ∷ []) st noMsgs
@@ -328,13 +336,12 @@ module processProposalMSpec (proposal : Block) where
                 where
                 vm = VoteMsg∙new vote si
 
-                vac : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
-                      → Voting.VoteAttemptCorrect pre stUpdateRS (outs ++ SendVote vm _ ∷ []) proposal
-                vac bid≡ =
+                vac : NoHC1 → Voting.VoteAttemptCorrect pre stUpdateRS (outs ++ SendVote vm _ ∷ []) proposal
+                vac nohc =
                   inj₂ (Voting.mkVoteSentCorrect vm recipient
                          (OutputProps.++-NoVotes-OneVote outs _ (OutputProps.NoMsgs⇒NoVotes outs EAVSpec.noMsgOuts) refl)
                          (Voting.glue-VoteGeneratedCorrect-VoteNotGenerated{s₂ = st}
-                           (vrc bid≡) (mkVoteNotGenerated refl refl)))
+                           (vrc nohc) (mkVoteNotGenerated refl refl)))
 
                 outQcs : QCProps.OutputQc∈RoundManager (outs ++ SendVote vm _ ∷ []) stUpdateRS
                 outQcs =
@@ -387,7 +394,7 @@ module processProposalMSpec (proposal : Block) where
 
                   rmInv₃ : Preserves RoundManagerInv pre stUpdateRS
                   rmInv₃ = transPreservesRoundManagerInv rmInv₂
-                           (mkPreservesRoundManagerInv id id (BSInv⇒BTInv-pres bsP) srP)
+                           (mkPreservesRoundManagerInv id id bsP srP)
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
     contract Post pf = LBFT-⇒ Contract Post pf (processProposalM proposal) pre contract'
@@ -406,6 +413,7 @@ module syncUpMSpec
       field
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
+        dnmBtIdToBlk  : post ≡L pre at (lBlockTree ∙ btIdToBlock)
         noEpochChange : NoEpochChange pre post
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
@@ -424,7 +432,7 @@ module syncUpMSpec
 
       contract₁ : RWS-weakestPre-bindPost unit step₁ Contract (BlockStoreProps.syncInfoMSpec.syncInfo pre) pre []
       proj₂ (contract₁ localSyncInfo lsi≡) hnc≡false =
-        mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre}) refl
+        mkContract reflPreservesRoundManagerInv refl (reflNoEpochChange{pre}) refl
           (reflVoteNotGenerated{pre})
           [] qcPost
         where
@@ -447,7 +455,7 @@ module syncUpMSpec
            where module VSpec = verifyMSpec.Contract con
         contract₃ (Left x) st outs con ._ refl
            | refl
-           = mkContract VSpec.rmInv (reflNoEpochChange{st})
+           = mkContract VSpec.rmInv (cong (_^∙ lBlockTree ∙ btIdToBlock) VSpec.noStateChange) (reflNoEpochChange{st})
                (++-NoVotes outs [] (NoMsgs⇒NoVotes outs VSpec.noMsgOuts) refl)
                (reflVoteNotGenerated{st})
                noOutQcs qcPost
@@ -473,7 +481,7 @@ module syncUpMSpec
 
            contract₄ : RWS-Post-⇒ (addCertsMSpec.Contract syncInfo retriever st₃) Post₃
            contract₄ (Left  _) st₄ outs₄ con₄ ._ refl =
-             mkContract AC.rmInv AC.noEpochChange noVotes₄ AC.noVote noOutQcs AC.qcPost
+             mkContract AC.rmInv AC.dnmBtIdToBlk AC.noEpochChange noVotes₄ AC.noVote noOutQcs AC.qcPost
              where
              module AC    = addCertsMSpec.Contract con₄
              module VSpec = verifyMSpec.Contract con₃
@@ -516,6 +524,7 @@ module ensureRoundAndSyncUpMSpec
       field
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
+        dnmBtIdToBlk  : post ≡L pre at (lBlockTree ∙ btIdToBlock)
         noEpochChange : NoEpochChange pre post
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
@@ -527,7 +536,7 @@ module ensureRoundAndSyncUpMSpec
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
     proj₁ (contract' ._ refl) _         =
-      mkContract id refl refl vng outqcs qcPost
+      mkContract id refl refl refl vng outqcs qcPost
       where
         vng : VoteNotGenerated pre pre true
         vng = mkVoteNotGenerated refl refl
@@ -547,7 +556,7 @@ module ensureRoundAndSyncUpMSpec
 
         contract-step₁' : _
         contract-step₁' (Left  _   ) st outs con =
-          mkContract SU.rmInv SU.noEpochChange SU.noVoteOuts SU.noVote SU.noOutQcs SU.qcPost
+          mkContract SU.rmInv SU.dnmBtIdToBlk SU.noEpochChange SU.noVoteOuts SU.noVote SU.noOutQcs SU.qcPost
           where
           module SU = syncUpMSpec.Contract con
         contract-step₁' (Right unit) st outs con = contract-step₂
@@ -563,10 +572,10 @@ module ensureRoundAndSyncUpMSpec
 
           contract-step₂ : Post (Right unit) st outs
           proj₁ (contract-step₂ ._ refl ._ refl) _ =
-            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+            mkContract SU.rmInv SU.dnmBtIdToBlk SU.noEpochChange noVoteOuts' SU.noVote
               noOutQcs SU.qcPost
           proj₂ (contract-step₂ ._ refl ._ refl) _ =
-            mkContract SU.rmInv SU.noEpochChange noVoteOuts' SU.noVote
+            mkContract SU.rmInv SU.dnmBtIdToBlk SU.noEpochChange noVoteOuts' SU.noVote
               noOutQcs SU.qcPost
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
@@ -574,13 +583,14 @@ module ensureRoundAndSyncUpMSpec
       LBFT-⇒ Contract Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract'
 
 module processProposalMsgMSpec
-  (now : Instant) (pm : ProposalMsg) where
+  (now : Instant) (pm : ProposalMsg) (vproposal : BlockId-correct (pm ^∙ pmProposal)) where
 
   proposal = pm ^∙ pmProposal
-
   open processProposalMsgM now pm
 
   module _ (pre : RoundManager) where
+
+    open Invariants.Reqs proposal (pre ^∙ lBlockTree)
 
     record Contract (_ : Unit) (post : RoundManager) (outs : List Output) : Set where
       constructor mkContract
@@ -589,8 +599,7 @@ module processProposalMsgMSpec
         rmInv         : Preserves RoundManagerInv pre post
         noEpochChange : NoEpochChange pre post
         -- Voting
-        voteAttemptCorrect : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
-                             → Voting.VoteAttemptCorrect pre post outs proposal
+        voteAttemptCorrect : NoHC1 → Voting.VoteAttemptCorrect pre post outs proposal
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre post
@@ -600,10 +609,10 @@ module processProposalMsgMSpec
       where
       contractBail : ∀ outs → OutputProps.NoMsgs outs → Contract unit pre outs
       contractBail outs nmo =
-        mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre}) (const vac) outqcs qcPost
+        mkContract reflPreservesRoundManagerInv (reflNoEpochChange{pre}) vac outqcs qcPost
         where
-        vac : Voting.VoteAttemptCorrect pre pre outs proposal
-        vac = Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo)
+        vac : NoHC1 → Voting.VoteAttemptCorrect pre pre outs proposal
+        vac _ = Voting.voteAttemptBailed outs (OutputProps.NoMsgs⇒NoVotes outs nmo)
 
         outqcs : QCProps.OutputQc∈RoundManager outs pre
         outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager outs pre nmo
@@ -615,25 +624,27 @@ module processProposalMsgMSpec
       proj₁ contract ≡nothing = contractBail _ refl
       proj₂ contract = contract-step₁
         where
+        -- These arguments come from the second proof obligation of RWS-weakestPre for RWS-maybe
         module _ (pAuthor : Author) (pAuthor≡ : pm ^∙ pmProposer ≡ just pAuthor) where
           pf-step₂ : RWS-Post-⇒ _ (RWS-weakestPre-bindPost unit step₂ Contract)
 
           contract-step₁ : LBFT-weakestPre (step₁ pAuthor) Contract pre
           contract-step₁ =
             ensureRoundAndSyncUpMSpec.contract now (pm ^∙ pmProposal ∙ bRound) (pm ^∙ pmSyncInfo) pAuthor true pre
-              (RWS-weakestPre-bindPost unit step₂ Contract) pf-step₂
+            (RWS-weakestPre-bindPost unit step₂ Contract)
+            pf-step₂
 
           pf-step₂ r st outs con = pf-step₂' r
             where
             module ERASU = ensureRoundAndSyncUpMSpec.Contract con
             contractBailAfterSync : ∀ outs' → OutputProps.NoMsgs outs' → RWS-Post++ Contract outs unit st outs'
             contractBailAfterSync outs' noMsgs' =
-              mkContract ERASU.rmInv ERASU.noEpochChange (const vac) outqcs qcPost
+              mkContract ERASU.rmInv ERASU.noEpochChange vac outqcs qcPost
               where
-              vac : Voting.VoteAttemptCorrect pre st (outs ++ outs') proposal
-              vac = Left (true , (Voting.mkVoteUnsentCorrect
-                                   (OutputProps.++-NoVotes outs _ ERASU.noVoteOuts (OutputProps.NoMsgs⇒NoVotes outs' noMsgs'))
-                                   (Left ERASU.noVote)))
+              vac : NoHC1 → Voting.VoteAttemptCorrect pre st (outs ++ outs') proposal
+              vac _ = Left (true , (Voting.mkVoteUnsentCorrect
+                                     (OutputProps.++-NoVotes outs _ ERASU.noVoteOuts (OutputProps.NoMsgs⇒NoVotes outs' noMsgs'))
+                                     (Left ERASU.noVote)))
 
               outqcs : QCProps.OutputQc∈RoundManager (outs ++ outs') st
               outqcs =
@@ -653,9 +664,15 @@ module processProposalMsgMSpec
             pf-step₂' (Right false) ._ refl ._ refl =
               contractBailAfterSync _ refl
             pf-step₂' (Right true) ._ refl =
-              processProposalMSpec.contract (pm ^∙ pmProposal) st (RWS-Post++ Contract outs) pf-step₃
+              processProposalMSpec.contract (proposal , vproposal)
+                                            st
+                                            (RWS-Post++ Contract outs)
+                                            pf-step₃
               where
-              pf-step₃ : RWS-Post-⇒ _ (RWS-Post++ Contract outs)
+
+              pf-step₃ : RWS-Post-⇒
+                           (processProposalMSpec.Contract (proposal , vproposal) _)
+                           (RWS-Post++ Contract outs)
               pf-step₃ unit st' outs' con =
                 mkContract
                   (transPreservesRoundManagerInv ERASU.rmInv (PP.rmInv con))
@@ -663,11 +680,10 @@ module processProposalMsgMSpec
                   vac outqcs qcPost
                 where
                 module PP = processProposalMSpec.Contract
-                vac : hashBD (proposal ^∙ bBlockData) ≡ proposal ^∙ bId
-                      → Voting.VoteAttemptCorrect pre st' (outs ++ outs') proposal
-                vac bid≡ =
+                vac : NoHC1 → Voting.VoteAttemptCorrect pre st' (outs ++ outs') proposal
+                vac nohc rewrite sym ERASU.dnmBtIdToBlk =
                   Voting.glue-VoteNotGenerated-VoteAttemptCorrect{outs₁ = outs}
-                    ERASU.noVote ERASU.noVoteOuts (PP.voteAttemptCorrect con bid≡)
+                    ERASU.noVote ERASU.noVoteOuts (PP.voteAttemptCorrect con nohc)
 
                 outqcs : QCProps.OutputQc∈RoundManager (outs ++ outs') st'
                 outqcs =
