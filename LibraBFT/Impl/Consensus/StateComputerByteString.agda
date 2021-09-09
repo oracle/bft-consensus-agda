@@ -8,15 +8,11 @@ open import LibraBFT.Base.ByteString                          as BS
 import      LibraBFT.Base.Encode                              as S
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
-import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.OBM.ConfigHardCoded                 as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.DiemDB               as DiemDB
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet    as ValidatorSet
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -24,15 +20,15 @@ open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.StateComputerByteString where
 
--- Note that this differs from the Haskell code, which still contains an errorExit.
--- TODO-2: better align these and re-review
+-- LBFT-OBM-DIFF: In Rust, the following might throw BlockNotFound
+-- in execution_correctness_client.execute_block (not needed/implemented).
+-- In OBM we call this error ErrECCBlockNotFound so it is easy to see it is
+-- defined, caught, but never thrown.
 compute : StateComputerComputeType
 compute _self block _parentBlockId =
   StateComputeResult∙new
     (Version∙new (block ^∙ bEpoch {-∙ eEpoch-}) (block ^∙ bRound {-∙ rRound-}))
     <$> maybeEC
-  -- In Rust, the following might throw BlockNotFound
-  -- TODO execution_correctness_client.execute_block
  where
   getES : ByteString → Either (List String) EpochState
 

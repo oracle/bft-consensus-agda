@@ -4,12 +4,11 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Impl.OBM.Rust.Duration as Duration
-open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 
-module LibraBFT.Impl.OBM.Time where
+module LibraBFT.Impl.IO.OBM.GenKeyFile where
 
-postulate -- TODO-1 : iPlus, timeT
-  iPlus : Instant → Duration → Instant
-  timeT : Instant
+NfLiwsVssVvPe =
+  (U64 × LedgerInfoWithSignatures × List ValidatorSigner × ValidatorVerifier × ProposerElection)

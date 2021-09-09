@@ -3,14 +3,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                                       as Map
+import      LibraBFT.Base.KVMap                                       as Map
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
-open import LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
+import      LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.OBM.Rust.RustTypes
-open import LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
-open import LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
-open import LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
+import      LibraBFT.Impl.Types.CryptoProxies                         as CryptoProxies
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerInfoWithSignatures
+import      LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util

@@ -186,6 +186,10 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
   step₄ : ExecutedBlock → VariantFor EitherD
 
   step₀ =
+    -- NOTE: if the hash is already in our blockstore, then HASH-COLLISION
+    -- because we have already confirmed the new block is for the expected round
+    -- and if there is already a block for that round then our expected round
+    -- should be higher.
     maybeSD (getBlock (block ^∙ bId) bs0) continue (pure ∘ (bs0 ,_))
 
   here' : List String.String → List String.String

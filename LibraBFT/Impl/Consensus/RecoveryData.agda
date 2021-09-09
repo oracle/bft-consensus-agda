@@ -9,7 +9,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                as String
+open import Data.String                                using (String)
 
 module LibraBFT.Impl.Consensus.RecoveryData where
 
@@ -44,7 +44,7 @@ new lastVote storageLedger blocks0 rootMetadata quorumCerts0 highestTimeoutCerti
         (just tc) → if-dec tc ^∙ tcEpoch ≟ epoch then just tc else nothing
         nothing   → nothing)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "RecoveryData" ∷ "new" ∷ t
 
 -- TODO (the "TODO" is in the Haskell code)

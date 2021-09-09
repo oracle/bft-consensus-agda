@@ -6,7 +6,7 @@
 
 ------------------------------------------------------------------------------
 open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap                                  as Map
+import      LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Hash
@@ -30,7 +30,7 @@ open import LibraBFT.Prelude
 open import Optics.All
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -----------------------------------------------------------------------------
-import      Data.String                                          as String
+open import Data.String                                          using (String)
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.RoundManager where
@@ -64,7 +64,7 @@ processNewRoundEventM now nre@(NewRoundEvent∙new r _ _) = do
           (Left e)            → logErr (withErrCtx (here' ("Error generating proposal" ∷ [])) e)
           (Right proposalMsg) → act (BroadcastProposal proposalMsg rcvrs)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "RoundManager" ∷ "processNewRoundEventM" ∷ t
 
 generateProposalM now newRoundEvent =
@@ -116,7 +116,7 @@ module syncUpM (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRem
   step₁ step₂ : SyncInfo                     → LBFT (Either ErrLog Unit)
   step₃ step₄ : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
 
-  here' : List String.String → List String.String
+  here' : List String → List String
 
   step₀ = do
     -- logEE (here' []) $ do
@@ -192,7 +192,7 @@ processSyncInfoMsgM now syncInfo peer =
     (Left  e) → logErr (withErrCtx (here' []) e)
     (Right _) → pure unit
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "RoundManager" ∷ "processSyncInfoMsgM" ∷ {- lsA peer ∷ lsSI syncInfo ∷ -} t
 
 ------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ processLocalTimeoutM now obmEpoch round = do
   -- logEE lTO (here []) $
   ifMD (RoundState.processLocalTimeoutM now obmEpoch round) continue1 (pure unit)
  where
-  here'     : List String.String → List String.String
+  here'     : List String → List String
   continue2 : LBFT Unit
   continue3 : (Bool × Vote) → LBFT Unit
   continue4 : Vote → LBFT Unit
@@ -453,5 +453,5 @@ start now lastVoteSent = do
       maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM
       processNewRoundEventM now nre -- error!("[RoundManager] Error during start: {:?}", e);
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "RoundManager" ∷ "start" ∷ t

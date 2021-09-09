@@ -5,9 +5,10 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                           as PKCS hiding (sign)
+open import LibraBFT.Base.PKCS                  as PKCS hiding (sign)
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
+open import Optics.All
 
 module LibraBFT.Impl.Types.ValidatorSigner where
 
@@ -16,3 +17,14 @@ sign (ValidatorSigner∙new _ sk) c = PKCS.sign-encodable c sk
 
 postulate -- TODO-1: publicKey_USE_ONLY_AT_INIT
   publicKey_USE_ONLY_AT_INIT : ValidatorSigner → PK
+
+obmGetValidatorSigner : AuthorName → List ValidatorSigner → Either ErrLog ValidatorSigner
+obmGetValidatorSigner name vss =
+  case List-filter go vss of λ where
+    (vs ∷ []) → pure vs
+    _         → Left fakeErr -- ["ValidatorSigner", "obmGetSigner", "TODO better err msg"]
+ where
+  go : (vs : ValidatorSigner) → Dec (vs ^∙ vsAuthor ≡ name)
+  go (ValidatorSigner∙new _vsAuthor _) = _vsAuthor ≟ name
+
+

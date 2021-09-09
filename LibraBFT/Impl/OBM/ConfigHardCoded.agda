@@ -9,9 +9,18 @@ open import LibraBFT.Impl.OBM.Rust.RustTypes
 
 module LibraBFT.Impl.OBM.ConfigHardCoded where
 
+------------------------------------------------------------------------------
+
 postulate -- TODO-1 ePOCHCHANGE
   ePOCHCHANGE : ByteString
 --ePOCHCHANGE = "EPOCHCHANGE"
 
+------------------------------------------------------------------------------
+
+maxPrunedBlocksInMem : Usize
+maxPrunedBlocksInMem = 10
+
 roundInitialTimeoutMS : U64
 roundInitialTimeoutMS = 3000
+
+------------------------------------------------------------------------------

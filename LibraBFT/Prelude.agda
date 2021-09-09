@@ -169,6 +169,15 @@ module LibraBFT.Prelude where
   maybe-any-⊥ : ∀{a}{A : Set a} → Maybe-Any {A = A} (λ _ → ⊤) nothing → ⊥
   maybe-any-⊥ ()
 
+  headMay : ∀ {A : Set} → List A → Maybe A
+  headMay     []  = nothing
+  headMay (x ∷ _) = just x
+
+  lastMay : ∀ {A : Set} → List A → Maybe A
+  lastMay          []  = nothing
+  lastMay     (x ∷ []) = just x
+  lastMay (_ ∷ x ∷ xs) = lastMay (x ∷ xs)
+
   open import Data.Maybe.Properties
     using (just-injective)
     renaming (≡-dec to Maybe-≡-dec)
@@ -594,3 +603,21 @@ module LibraBFT.Prelude where
   []       !?      _   = nothing
   (x ∷ _ ) !?      0   = just x
   (_ ∷ xs) !? (suc n)  = xs !? n
+
+  -- Like a Haskell list-comprehension for ℕ : [ n | n <- [from .. to] ]
+  fromToList : ℕ → ℕ → List ℕ
+  fromToList from to with from ≤′? to
+  ... | no ¬pr = []
+  ... | yes pr = fromToList-le from to pr []
+   where
+    fromToList-le : ∀ (from to : ℕ) (klel : from ≤′ to) (acc : List ℕ) → List ℕ
+    fromToList-le from ._        ≤′-refl       acc = from ∷ acc
+    fromToList-le from (suc to) (≤′-step klel) acc = fromToList-le from to klel (suc to ∷ acc)
+
+  _ : fromToList 1 1 ≡ 1 ∷ []
+  _ = refl
+  _ : fromToList 1 2 ≡ 1 ∷ 2 ∷ []
+  _ = refl
+  _ : fromToList 2 1 ≡ []
+  _ = refl
+

@@ -15,6 +15,7 @@ import      LibraBFT.Impl.Consensus.MetricsSafetyRules               as MetricsS
 import      LibraBFT.Impl.Consensus.RoundManager                     as RoundManager
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager   as SafetyRulesManager
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage            as MockStorage
+open import LibraBFT.Impl.IO.OBM.Messages
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1  as ECP-LBFT-OBM-Diff-1
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.OBM.Rust.Duration                          as Duration
@@ -30,7 +31,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                              as String
+open import Data.String                                              using (String)
 
 module LibraBFT.Impl.Consensus.EpochManager where
 
@@ -92,7 +93,7 @@ new nodeConfig stateComputer persistentLivenessStorage obmAuthor obmSK = do
   pure $ mkEpochManager
     obmAuthor
     config
-    --stateComputer
+    stateComputer
     persistentLivenessStorage
     safetyRulesManager
     nothing
@@ -139,7 +140,7 @@ processEpochRetrieval self {-wireOrInternal-} (EpRRqWire∙new {-why fromE fromR
           tell (PMInfo fakeInfo {-["Exit", "SendEpochRRp", why, lsA peerAddress, lsECP ecp]-} ∷ [])
           pure (PMSendECP ecp peerAddress me {-why-} e r)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processEpochRetrieval" ∷ t
 
 processDifferentEpoch
@@ -149,8 +150,8 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
   tell (PMInfo fakeInfo -- (here [ "ReceiveMessageFromDifferentEpoch", lsA peerAddress
                         --       , lsE peerDifferentEpoch, lsR obmPeerRound, logShowI obmI ])
                         ∷ [])
-  eitherSD (self ^∙ emEpoch) (λ err → do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue) $ λ epoch' →
-    --eitherSD (self ^∙ emObmRoundManager) (λ err -> do tell (PMErr (withErrCtx (here' []) err) :: []); pure PMContinue) $ λ rm →
+  eitherSD (self ^∙ emEpoch)               pmerr $ λ epoch' →
+    eitherSD (self ^∙ emObmRoundManager) pmerr $ λ rm-NotUsedInAgda-OnlyLoggingInHaskell →
       case compare peerDifferentEpoch epoch' of λ where
         LT → do -- help nodes that have lower epoch
           -- LBFT-OBM-DIFF : not sure if this is different, but the message that causes
@@ -174,8 +175,10 @@ processDifferentEpoch self obmI peerAddress peerDifferentEpoch obmPeerRound = do
           tell (PMErr fakeErr ∷ []) -- (here ["EQ should not happen"])
           pure PMContinue
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processDifferentEpoch" ∷ t
+  pmerr : ErrLog → EM ProcessMessageAction
+  pmerr err = do tell (PMErr (withErrCtx (here' []) err) ∷ []); pure PMContinue
 {-
   why    = show (msgType obmI)               <> "/" <>
            peerAddress^.aAuthorName          <> "/" <>
@@ -205,7 +208,7 @@ startNewEpoch self now mrlec proof = do
   pure PMContinue
   expectNewEpoch self' now rlec liws
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "startNewEpoch" ∷ t
 
 startRoundManager
@@ -237,9 +240,9 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
     (Left  e) -> err ("BlockStore.new" ∷ []) e
     (Right r) -> continue1 lastVote r
  where
-  err : ∀ {B} → List String.String → ErrLog → Either ErrLog B
+  err : ∀ {B} → List String → ErrLog → Either ErrLog B
   err  t = withErrCtx' t ∘ Left
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "startRoundManager" ∷ t
 
   continue2 : Maybe Vote → BlockStore → SafetyRules → Either ErrLog (EpochManager × List Output)
@@ -334,7 +337,7 @@ processMessage self now = λ where
  where
   doRlecEcp : Maybe ReconfigEventEpochChange → EpochChangeProof → EM ProcessMessageAction
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "processMessage" ∷ t
 
   maybeDifferentEpoch : Input → AccountAddress → Epoch → Round → EM ProcessMessageAction
@@ -434,26 +437,27 @@ obmStartLoop self initializationOutput
              {-(CLI.FakeNetworkDelay fnd)
              (DAR.DispatchConfig _rm0 toDAR ih oh lg lc stps m)
              lbftInR-} = do
-  case self ^∙ emObmRoundManager of λ where
-    (Left   e) → (errorExit ∘ here' ∘ singleShow) e
-    (Right rm) → do
-      -- This line roughly corresponds to Rust expect_new_epoch.
-      -- It processes the output from start/startProcessor above.
-      -- TODO (rm' , to') ← DAR.runOutputHandler rm toDAR pe initializationOutput oh
-      rm'                 ← pure rm -- TEMPORARY for previous line
-      loop (setProcessor self rm') {-to'-} RSNothing
+  eitherS (self ^∙ emObmRoundManager) ee $ λ rm → do
+    -- This line roughly corresponds to Rust expect_new_epoch.
+    -- It processes the output from start/startProcessor above.
+    -- TODO (rm' , to') ← DAR.runOutputHandler rm toDAR pe initializationOutput oh
+    rm'                 ← pure rm -- TEMPORARY for previous line
+    loop (setProcessor self rm') {-to'-} RSNothing
  where
-  show : ∀ {A : Set} → A → String.String
+  show : ∀ {A : Set} → A → String
   show _ = ""
 
-  singleShow : ∀ {A : Set} → A → List String.String
+  singleShow : ∀ {A : Set} → A → List String
   singleShow {A} x = show {A} x ∷ []
 
-  errorExit : List String.String → IO Unit
+  errorExit : List String → IO Unit
   errorExit _ = pure unit
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochManager" ∷ "obmStartLoop" ∷ t
+
+  ee : ErrLog → IO Unit
+  ee = errorExit ∘ here' ∘ singleShow
 
   setProcessor : EpochManager → RoundManager → EpochManager
   setProcessor em p = em & emProcessor ?~ RoundProcessorNormal p
@@ -476,13 +480,13 @@ obmStartLoop self initializationOutput
       PMContinue →
         loop em {-to-} rlec
       (PMInput i') →
-       eitherSD (em ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
+       eitherSD (em ^∙ emObmRoundManager) ee $ λ rm → do
         --(rm'  ,    o) ← DAR.runInputHandler  rm  to pe i' ih
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
         rm'' ← pure rm -- TEMPORARY for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
       (PMNewEpochManager em' newEpochInitializationOutput) → do
-       eitherSD (em' ^∙ emObmRoundManager) (errorExit ∘ here' ∘ singleShow) $ λ rm → do
+       eitherSD (em' ^∙ emObmRoundManager) ee $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TEMPORARY for previous line
         loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set

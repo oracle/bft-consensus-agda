@@ -4,12 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
-open import Optics.All
 
 module LibraBFT.Impl.Types.OnChainConfig.ValidatorSet where
 
@@ -19,5 +15,6 @@ new = ValidatorSet∙new ConsensusScheme∙new
 empty : ValidatorSet
 empty = new []
 
-postulate -- TODO-1 obmFromVV
+postulate -- TODO-1 obmFromVV, obmGetValidatorInfo
   obmFromVV : ValidatorVerifier → ValidatorSet
+  obmGetValidatorInfo : AuthorName → ValidatorSet → Either ErrLog ValidatorInfo

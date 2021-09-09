@@ -5,18 +5,19 @@
 -}
 
 open import LibraBFT.Hash
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever as BlockRetriever
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore     as BlockStore
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree      as BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote         as Vote
-open import LibraBFT.Impl.Consensus.PersistentLivenessStorage   as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever     as BlockRetriever
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree          as BlockTree
+import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-1 as ECP-LBFT-OBM-Diff-1
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
+import      LibraBFT.Impl.Consensus.PersistentLivenessStorage       as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                       as String
+open import Data.String                                             using (String)
 
 module LibraBFT.Impl.Consensus.BlockStorage.SyncManager where
 
@@ -37,7 +38,7 @@ needSyncForQuorumCert qc bs = maybeS (bs ^∙ bsRoot) (Left fakeErr) {-bsRootErr
   (not (  BlockStore.blockExists (qc ^∙ qcCommitInfo ∙ biId) bs
         ∨ ⌊ btr ^∙ ebRound ≥?ℕ qc ^∙ qcCommitInfo ∙ biRound ⌋ ))
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SyncManager" ∷ "needSyncForQuorumCert" ∷ t
 
 needFetchForQuorumCert : QuorumCert → BlockStore → Either ErrLog NeedFetchResult
@@ -51,7 +52,7 @@ needFetchForQuorumCert qc bs = maybeS (bs ^∙ bsRoot) (Left fakeErr) {-bsRootEr
     ‖ otherwise≔
       Right NeedFetch
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SyncManager" ∷ "needFetchForQuorumCert" ∷ t
 
 ------------------------------------------------------------------------------
@@ -67,11 +68,11 @@ addCertsM {-reason-} syncInfo retriever =
 ------------------------------------------------------------------------------
 
 module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
-  step₀ :                         LBFT (Either ErrLog Unit)
-  step₁ : BlockStore            → LBFT (Either ErrLog Unit)
-  step₁-else :                    LBFT (Either ErrLog Unit)
-  step₂ : ExecutedBlock         → LBFT (Either ErrLog Unit)
-  step₃ :                         LBFT (Either ErrLog Unit)
+  step₀ :                            LBFT (Either ErrLog Unit)
+  step₁ : BlockStore               → LBFT (Either ErrLog Unit)
+  step₁-else :                       LBFT (Either ErrLog Unit)
+  step₂ : ExecutedBlock            → LBFT (Either ErrLog Unit)
+  step₃ : LedgerInfoWithSignatures → LBFT (Either ErrLog Unit)
 
   step₀ = do
     bs ← use lBlockStore
@@ -99,11 +100,11 @@ module insertQuorumCertM (qc : QuorumCert) (retriever : BlockRetriever) where
   step₂ bsr = do
           let finalityProof = qc ^∙ qcLedgerInfo
           BlockStore.commitM finalityProof ∙?∙ λ xx →
-            step₃
+            step₃ finalityProof
 
-  step₃ = do
+  step₃ finalityProof = do
             ifD qc ^∙ qcEndsEpoch
-              then ok unit -- TODO-1 EPOCH CHANGE
+              then ECP-LBFT-OBM-Diff-1.e_SyncManager_insertQuorumCertM_commit finalityProof
               else ok unit
 
   step₁-else =
@@ -115,7 +116,7 @@ insertQuorumCertM = insertQuorumCertM.step₀
 
 loop1     : BlockRetriever → List Block → QuorumCert → LBFT (Either ErrLog (List Block))
 loop2     : List Block → LBFT (Either ErrLog Unit)
-hereFQCM' : List String.String → List String.String
+hereFQCM' : List String → List String
 
 fetchQuorumCertM qc retriever =
   loop1 retriever [] qc ∙?∙ loop2
@@ -171,7 +172,7 @@ syncToHighestCommitCertM highestCommitCert retriever = do
               pure unit
             ok unit
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "SyncManager" ∷ "syncToHighestCommitCertM" ∷ t
 
 ------------------------------------------------------------------------------
@@ -189,7 +190,7 @@ fastForwardSyncM highestCommitCert retriever = do
 
  where
 
-  here' : List String.String → List String.String
+  here' : List String → List String
 
   zipWithNatsFrom : {A : Set} → ℕ → List A → List (ℕ × A)
   zipWithNatsFrom n = λ where

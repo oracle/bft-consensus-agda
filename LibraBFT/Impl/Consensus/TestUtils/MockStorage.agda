@@ -4,22 +4,19 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                                  as Map
+import      LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.RecoveryData                 as RecoveryData
 import      LibraBFT.Impl.Consensus.TestUtils.MockSharedStorage  as MockSharedStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore as LedgerStore
 import      LibraBFT.Impl.Types.LedgerInfo                       as LedgerInfo
-open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-import      LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.String                                          as String
+open import Data.String                                          using (String)
 
 module LibraBFT.Impl.Consensus.TestUtils.MockStorage where
 
@@ -60,7 +57,7 @@ tryStart self =
     (Map.elems (self ^∙ msSharedStorage ∙ mssQc))
     (self ^∙ msSharedStorage ∙ mssHighestTimeoutCertificate)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "MockStorage" ∷ "tryStart" ∷ t
 
 startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
@@ -75,7 +72,7 @@ startForTesting validatorSet obmMLIWS = do
   ss ← withErrCtx' (here' []) (start storage)
   pure (ss , storage)
  where
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "MockStorage" ∷ "startForTesting" ∷ t
 
 ------------------------------------------------------------------------------

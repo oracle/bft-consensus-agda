@@ -5,19 +5,32 @@
 -}
 
 open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                        hiding (verify)
+open import LibraBFT.Base.PKCS                  hiding (verify)
 open import LibraBFT.Base.Types
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
-import      LibraBFT.Impl.Types.Verifier              as Verifier
+import      LibraBFT.Impl.Types.Verifier        as Verifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
-import      Data.List.Base                            as List
-import      Data.String                               as String
+import      Data.List.Base                      as List
+open import Data.String                         using (String)
 
 module LibraBFT.Impl.Types.EpochChangeProof where
+
+obmLastLIWS : EpochChangeProof → Either ErrLog LedgerInfoWithSignatures
+obmLastLIWS self = maybeS (lastMay (self ^∙ ecpLedgerInfoWithSigs))
+                          (Left fakeErr {-["EpochChangeProof", "obmLastLIWS", "empty"]-})
+                          pure
+
+-- first/lowest epoch of the proof to indicate which epoch this proof is helping with
+epoch : EpochChangeProof -> Either ErrLog Epoch
+epoch self = maybeS (headMay (self ^∙ ecpLedgerInfoWithSigs))
+                    (Left fakeErr {-["EpochChangeProof", "epoch", "empty"]-})
+                    (pure ∘ (_^∙ liwsLedgerInfo ∙ liEpoch))
+
+obmLastEpoch : EpochChangeProof → Epoch
+obmLastEpoch self = eitherS (obmLastLIWS self) (const ({-Epoch-} 0)) (_^∙ liwsLedgerInfo ∙ liEpoch)
 
 verify
   : {verifier : Set} ⦃ _ : Verifier.Verifier verifier ⦄
@@ -53,7 +66,7 @@ verify self verifier = do
         (just vs) → pure vs
       loop verifierRef' liwss
 
-  here' : List String.String → List String.String
+  here' : List String → List String
   here' t = "EpochChangeProof" ∷ "verify" ∷ t
 
   last : ∀ {A : Set} → List A → Either ErrLog A
