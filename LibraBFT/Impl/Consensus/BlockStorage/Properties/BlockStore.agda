@@ -44,7 +44,9 @@ module executeBlockESpec (bs : BlockStore) (block : Block) where
   postulate -- TODO: prove
     contract : (isOk : Ok) → ContractOk (proj₁ isOk)
 
-module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
+module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
+  block   = vbBlock vblock
+  block-c = vbValid vblock
   open executeAndInsertBlockE bs0 block
 
   open import LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree
@@ -55,18 +57,12 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   Ok : Set
   Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
 
-  private
-    Ok' : BlockStore → ExecutedBlock → Either ErrLog (BlockStore × ExecutedBlock) → Set
-    Ok' bs' eb m = m ≡ Right (bs' , eb)
-
-  Err : Set
-  Err = ∃[ e ] (executeAndInsertBlockE bs0 block ≡ Left e)
-  ------
+  open Reqs block (bs0 ^∙ bsInner)
 
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≈ : eb ^∙ ebBlock ≈Block block
+      ebBlock≈ : NoHC1 → eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ {eci}
                  → Preserves BlockStoreInv (bs0 , eci) (bs' , eci)
       -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
@@ -76,27 +72,17 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
   Contract (Left x) = ⊤
   Contract (Right (bs' , eb)) = ContractOk bs' eb
 
-  record Requirements : Set where
-    constructor mkRequirements
-    field
-      -- This must be verified before calling
-      reqNewBlock : BlockHash-correct block blockId
-      -- NOTE: This comes from the inductive assumption that BlockStoreInv holds in the prestate.
-      -- Maybe we should just explicitly say that, and extract the needed properties here?  Or have
-      -- a corollary for that purpose?
-      reqPreBlock : ∀ {eb} → getBlock blockId bs0 ≡ just eb → ExecutedBlockHash-correct eb blockId
-  open Requirements
-
-  contract' : Requirements → EitherD-weakestPre step₀ Contract
+  -- TUTORIAL: This proof has some additional commentary helping to understand the structure of the
+  -- proof, and showing an example of how using abstract variants of functions makes proofs more
+  -- resilient to change, as explained in
+  -- https://github.com/oracle/bft-consensus-agda/blob/main/docs/PeerHandlerContracts.org
+  contract' : EitherD-weakestPre step₀ Contract
   -- step₀ is a maybeSD in context of EitherD.  Therefore, via MonadMaybeD and EitherD-MonadMaybeD,
-  -- this translates to EitherD-maybe.  We first deal with the easy case.
-  proj₂ (contract' reqs) eb eb≡ =
-    mkContractOk ebBlock≈ id refl
-    where
-    ebBlock≈ : eb ^∙ ebBlock ≈Block block
-    ebBlock≈ = hash≡⇒≈Block {b2 = block} (reqPreBlock reqs eb≡) (reqNewBlock reqs)
-
-  proj₁ (contract' reqs) getBlock≡nothing = contract₁
+  -- this translates to EitherD-maybe.  We first deal with the easy case, applying the NoHC1
+  -- function provided to ebBlock≈ to evidence eb≡ that eb is in btIdToBlock.
+  proj₂ contract' eb eb≡ =
+    mkContractOk (λ nohc → nohc eb≡ block-c) id refl
+  proj₁ contract' getBlock≡nothing = contract₁
     where
     -- step₁ is again a maybeSD; if bs0 ^∙ bsRoot ≡ nothing, the Contract is trivial
     contract₁ : EitherD-weakestPre step₁ Contract
@@ -107,27 +93,42 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
     -- in the else branch, we call step₂ bsr
     proj₂ (proj₂ contract₁ bsr bsr≡) btr<br = contract₂
       where
-      contract₃ : ∀ eb → block ≡ eb ^∙ ebBlock
+      contract₃ : ∀ eb → block ≡ (eb ^∙ ebBlock)
                   → EitherD-weakestPre (step₃ eb) Contract
 
       module EB = executeBlockESpec bs0 block
+      open EB.ContractOk
 
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
-      proj₂ contract₂ eb eb≡ ._ refl = contract₃ eb (EB.ContractOk.ebBlock≡ (EB.contract (eb , eb≡)))
+      proj₂ contract₂ eb eb≡ ._             executeBlockE≡Right@refl = let con = (EB.contract (eb , eb≡))
+                                                                       in contract₃ eb
+                                                                                    (EB.ContractOk.ebBlock≡ con)
+
       proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
       proj₁ contract₂ (ErrVerify _)         executeBlockE≡Left = tt
       proj₁ contract₂ (ErrInfo _)           executeBlockE≡Left = tt
-      -- > eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
-      proj₁ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) _ _ = tt
-      -- > case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+      -- if executeBlockE returns Left (ErrECCBlockNotFound parentBlockId), then we have two casesdue to
+      -- eitherSD (pathFromRoot parentBlockId bs0) LeftD λ blocksToReexecute →
+      -- in the first case, we have a Left, so it's easy
+      proj₁        (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) _ _ = tt
+      -- in the second case, we have
+      -- case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+      -- and therefore two more cases; if the case⊎D returns Left, it's easy again
       proj₁ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ = tt
+      -- if the case⊎D returns a Right, we call executeBlockE₀ (the EitherD variant).  We use executeBlockE≡ to handle case
+      -- analysis on the result of calling the abstract executeBlockE variant, ensuring we must use the contract for
+      -- executeBlockE because the proof cannot "look into" the implementation of executeBlockE, which makes the proof
+      -- more resilient in case of changes in its implementation.
+      -- TODO-2: clean this up by writing a general version of the contract for executeBlockE
       proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _
         with  executeBlockE bs0  block | inspect
              (executeBlockE bs0) block
       ... | Left  x | [ R ] rewrite executeBlockE≡ R = tt
       ... | Right y | [ R ] rewrite executeBlockE≡ R =
         λ where c refl ._ refl →
-                  contract₃ c (EB.ContractOk.ebBlock≡ (EB.contract (c , R)))
+                  let con = EB.contract (c , R) in
+                  contract₃ c
+                            (ebBlock≡ con)
                             _ refl
 
       contract₃ eb refl _ _ = contract₄
@@ -136,8 +137,6 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
         contract₄ : EitherD-weakestPre (step₄ eb) Contract
         contract₄
            with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
-                  (insertBlockESpec.mkRequirements (reqNewBlock reqs)   -- TODO: make these requirements explicitly the same?
-                                                   (reqPreBlock reqs))
         ...| con
            with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
         ...| Left _ = tt
@@ -154,25 +153,26 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (block : Block) where
            bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
            bss≡x rewrite sym IBE.bt≡x = refl
 
-  contract : Requirements → Contract (executeAndInsertBlockE bs0 block)
-  contract reqs = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract $ contract' reqs
+  contract : Contract (executeAndInsertBlockE bs0 block)
+  contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
 
-module executeAndInsertBlockMSpec (b : Block) where
+module executeAndInsertBlockMSpec (vb : ValidBlock) where
+  b = vbBlock vb
+
   -- NOTE: This function returns any errors, rather than producing them as output.
   module _ (pre : RoundManager) where
-
-    bs = pre ^∙ rmBlockStore
+    bs = pre ^∙ lBlockStore
 
     contract
       : ∀ Post
         → (∀ e → {- At the moment we do not need to know why it failed -} Post (Left e) pre [])
-        → ((isOk : executeAndInsertBlockESpec.Ok bs b) → let (bs' , eb , _) = isOk in
-             executeAndInsertBlockESpec.ContractOk bs b bs' eb
+        → ((isOk : executeAndInsertBlockESpec.Ok bs vb) → let (bs' , eb , _) = isOk in
+             executeAndInsertBlockESpec.ContractOk bs vb bs' eb
            → Post (Right eb) (pre & rmBlockStore ∙~ bs') [])
         → LBFT-weakestPre (executeAndInsertBlockM b) Post pre
     proj₁ (contract Post pfBail pfOk ._ refl) e ≡left = pfBail e
     proj₂ (contract Post pfBail pfOk ._ refl) (bs' , eb) ≡right ._ refl unit refl
-       with executeAndInsertBlockESpec.contract bs b (obm-dangerous-magic' "propagate requirements up")
+       with executeAndInsertBlockESpec.contract bs vb
     ...| con rewrite ≡right = pfOk (bs' , eb , refl) con
 
 module insertSingleQuorumCertMSpec
