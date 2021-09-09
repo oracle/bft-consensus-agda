@@ -42,12 +42,12 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct : ValidatorVerifier-correct (initRM ^∙ rmValidatorVerifer)
-  initRM-btInv   : BlockTreeInv (rm→BlockTree-EC initRM)
+  initRM-bsInv   : BlockStoreInv (rm→BlockStore-EC initRM)
   initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
 
 initRMSatisfiesInv : RoundManagerInv initRM
 initRMSatisfiesInv =
-  mkRoundManagerInv initRM-correct refl initRM-btInv
+  mkRoundManagerInv initRM-correct refl initRM-bsInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
@@ -215,9 +215,21 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
     help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
     help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
 
+  open Invariants
+  open Reqs (pm ^∙ pmProposal) (hpPre ^∙ lBlockTree)
+  open BlockTreeInv
+  open BlockStoreInv
+  open RoundManagerInv
+
+  rmi : _
+  rmi = invariantsCorrect pid pre preach
+
   help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
   help
-    with voteAttemptCorrect
+    with BlockId-correct? (pm ^∙ pmProposal)
+  ...| no ¬validProposal = VoteOld.help (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (proj₁ $ invalidProposal ¬validProposal))
+  ...| yes pmIdCorr
+       with voteAttemptCorrect pmIdCorr (nohc preach m∈pool pid ini rmi refl pmIdCorr)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
     with nvg⊎vgusc
   ...| inj₁ (mkVoteNotGenerated lv≡ lvr≤) = VoteOld.help lv≡
@@ -226,6 +238,7 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
   ...| inj₁ (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
   ...| inj₂ (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
   help
+     | yes refl
      | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
     with voteSrc
   ...| Left (mkVoteOldGenerated lvr≡ lv≡) = VoteOld.help lv≡
