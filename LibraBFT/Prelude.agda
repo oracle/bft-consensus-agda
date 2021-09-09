@@ -300,7 +300,26 @@ module LibraBFT.Prelude where
     using (_∪?_)
     public
 
-  -- Evidence that a function is not injective
+  -- Injectivity for a function of two potentially different types (A and B) via functions to a
+  -- common type (C).
+
+  Injective' : ∀ {b c d e}{B : Set b}{C : Set c}{D : Set d} → (hB : B → D) → (hC : C → D) → (_≈_ : B → C → Set e) → Set _
+  Injective' {C = C} hB hC _≈_ = ∀ {b c} → hB b ≡ hC c → b ≈ c
+
+  Injective  : ∀ {c d e}{C : Set c}{D : Set d} → (h : C → D) → (_≈_ : Rel C e) → Set _
+  Injective h _≈_ = Injective' h h _≈_
+
+  Injective-≡ : ∀ {c d}{C : Set c}{D : Set d} → (h : C → D) → Set _
+  Injective-≡ h = Injective h _≡_
+
+  Injective-int : ∀{a b c d e}{A : Set a}{B : Set b}{C : Set c}{D : Set d}
+                → (_≈_ : A → B → Set e)
+                → (h  : C → D)
+                → (f₁ : A → C)
+                → (f₂ : B → C)
+                → Set (a ℓ⊔ b ℓ⊔ d ℓ⊔ e)
+  Injective-int _≈_ h f₁ f₂ = ∀ {a₁} {b₁} → h (f₁ a₁) ≡ h (f₂ b₁) → a₁ ≈ b₁
+
   NonInjective : ∀{a b c}{A : Set a}{B : Set b}
                → (_≈_ : Rel A c)
                → (A → B) → Set (a ℓ⊔ b ℓ⊔ c)
