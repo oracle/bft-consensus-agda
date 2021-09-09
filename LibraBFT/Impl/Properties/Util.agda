@@ -359,6 +359,14 @@ module Invariants where
       rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
   open RoundManagerInv
 
+  module Reqs (b : Block) (bt : BlockTree) where
+    -- TODO: State and use assumptions about hash collisions.  The following is one example that will
+    -- likely need to be refined.
+    NoHC1 = ∀ {eb}
+            → btGetBlock (b ^∙ bId) bt ≡ just eb
+            → BlockId-correct b
+            → (eb ^∙ ebBlock) ≈Block b
+
 
   -- Valid blocks have IDs computed by the hash of their BlockData
   -- These are passed as module parameters through the proofs
