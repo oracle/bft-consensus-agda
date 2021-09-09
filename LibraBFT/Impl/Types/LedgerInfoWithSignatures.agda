@@ -15,6 +15,9 @@ open import Optics.All
 
 module LibraBFT.Impl.Types.LedgerInfoWithSignatures where
 
+obmNewNoSigs : LedgerInfo → LedgerInfoWithSignatures
+obmNewNoSigs li = LedgerInfoWithSignatures∙new li Map.empty
+
 -- HC-TODO : refactor this and TimeoutCertificate
 addSignature : AccountAddress → Signature → LedgerInfoWithSignatures → LedgerInfoWithSignatures
 addSignature validator sig liws =

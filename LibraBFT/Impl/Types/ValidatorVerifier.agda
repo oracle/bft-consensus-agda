@@ -8,6 +8,7 @@ import      LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.Base.PKCS                             hiding (verify)
 import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import LibraBFT.Impl.OBM.Util
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 open import Optics.All
@@ -27,6 +28,25 @@ sumVotingPower             : (List String → List String)
                            → Map.KVMap AccountAddress ValidatorConsensusInfo
                            → Either ErrLog U64
 ------------------------------------------------------------------------------
+
+-- LBFT-OBM-DIFF : this is specific to OBM.
+-- It enables specifying the number of faults allowed.
+-- Assumes everyone has 1 vote
+-- IMPL-DIFF : gets an alist instead of list of Author
+initValidatorVerifier
+  : U64 → List (Author × (SK × PK))
+  → Either ErrLog ValidatorVerifier
+initValidatorVerifier numFailures0 authors0 =
+  checkBftAndRun numFailures0 authors0 f
+ where
+  f : U64 → List (Author × (SK × PK)) → ValidatorVerifier
+  f numFailures authors =
+    record -- ValidatorVerifier
+    { _vvAddressToValidatorInfo = Map.fromList (fmap (λ (author , (_ , pk)) →
+                                                       (author , ValidatorConsensusInfo∙new pk 1))
+                                                    authors)
+    ; _vvQuorumVotingPower      = numNodesNeededForNFailures numFailures ∸ numFailures
+    ; _vvTotalVotingPower       = length authors }
 
 new : Map.KVMap AccountAddress ValidatorConsensusInfo → Either ErrLog ValidatorVerifier
 new addressToValidatorInfo = do
@@ -112,6 +132,11 @@ sumVotingPower here' addressToValidatorInfo =
     then Right (sum' + x ^∙ vciVotingPower)
     else Left fakeErr -- (ErrL (here' ("sum too big" ∷ [])))
   go _ (Left err) = Left err
+
+getOrderedAccountAddressesObmTODO : ValidatorVerifier → List AccountAddress
+getOrderedAccountAddressesObmTODO self =
+  -- TODO ORDER
+  Map.kvm-keys (self ^∙ vvAddressToValidatorInfo)
 
 from : ValidatorSet → Either ErrLog ValidatorVerifier
 from validatorSet =

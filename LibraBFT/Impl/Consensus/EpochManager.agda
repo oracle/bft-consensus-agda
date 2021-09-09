@@ -117,8 +117,8 @@ createRoundState self now =
 
 createProposerElection : EpochState → ProposerElection
 createProposerElection epochState0 =
-  ProposerElection∙new -- TODO-1
-  -- (ValidatorVerifier.getOrderedAccountAddressesObmTODO (epochState0 ^∙ esVerifier))
+  ProposerElection∙new
+  (ValidatorVerifier.getOrderedAccountAddressesObmTODO (epochState0 ^∙ esVerifier))
 
 processEpochRetrieval
   : EpochManager {-Text-} → EpRRqWire → AccountAddress → EM ProcessMessageAction

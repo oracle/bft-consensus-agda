@@ -124,13 +124,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl  vsAuthor   vsPrivateKey = mkLens (quote ValidatorSigner)
               (vsAuthor ∷ vsPrivateKey ∷ [])
 
+  RawEncNetworkAddress = Author
+
+
+
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-      _vcConsensusPublicKey : PK
+      _vcConsensusPublicKey      : PK
+      _vcValidatorNetworkAddress : RawEncNetworkAddress
   open ValidatorConfig public
-  unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
-    (vcConsensusPublicKey ∷ [])
+  unquoteDecl vcConsensusPublicKey   vcValidatorNetworkAddress = mkLens (quote ValidatorConfig)
+             (vcConsensusPublicKey ∷ vcValidatorNetworkAddress ∷ [])
 
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
@@ -1019,8 +1024,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   record ProposerElection : Set where
     constructor ProposerElection∙new
-    -- field
-      -- _peProposers : Set Author
+    field
+      _peProposers : List Author -- TODO-1 : this should be 'Set Author'
       -- _peObmLeaderOfRound : LeaderOfRoundFn
       -- _peObmNodesInOrder  : NodesInOrder
   open ProposerElection

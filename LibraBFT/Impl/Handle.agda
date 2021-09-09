@@ -75,15 +75,16 @@ initRM = RoundManager∙new
            initBS initRS initPE initPG initSR false
 
 postulate
-  nfLiwsVssVvPe : GenKeyFile.NfLiwsVssVvPe
   now           : Instant
   pg            : ProposalGenerator
-  me            : AuthorName
 
 initRMWithOutput : Either ErrLog (RoundManager × List Output)
 initRMWithOutput = do
-  (em , out) ← Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
-  rm         ← em ^∙ emObmRoundManager
+  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  (em , out)                      ← Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+  rm                              ← em ^∙ emObmRoundManager
   pure (rm , out)
 
 initRM' : RoundManager

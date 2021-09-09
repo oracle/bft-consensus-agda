@@ -5,44 +5,46 @@
 -}
 
 open import LibraBFT.Base.PKCS
+import      LibraBFT.Impl.OBM.Genesis                      as Genesis
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
+import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
+import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude
 
 module LibraBFT.Impl.IO.OBM.GenKeyFile where
 
-EndpointAddress           = NodeId
+------------------------------------------------------------------------------
+
+EndpointAddress           = Author
 AddressToSkAndPkAssocList = List (EndpointAddress × (SK × PK))
 
 ------------------------------------------------------------------------------
 genKeys   : {-Crypto.SystemDRG →-} ℕ   → List (SK × PK)
 mkAuthors : {-Crypto.SystemDRG →-} U64 → List EndpointAddress
           → Either ErrLog AddressToSkAndPkAssocList
--- mkValidatorSignersAndVerifierAndProposerElection
---           : U64 → AddressToSkAndAuthorAssocList
---           → (List ValidatorSigner × ValidatorVerifier × ProposerElection)
+mkValidatorSignersAndVerifierAndProposerElection
+          : U64 → AddressToSkAndPkAssocList
+          → Either ErrLog (List ValidatorSigner × ValidatorVerifier × ProposerElection)
+
 ------------------------------------------------------------------------------
 
 NfLiwsVssVvPe =
   (U64 × LedgerInfoWithSignatures × List ValidatorSigner × ValidatorVerifier × ProposerElection)
 
--- create
---   : U64 → List EndpointAddress {-→ SystemDRG-}
---   → Either ErrLog -- IMPL-DIFF : Haskell does errorExit
---     ( U64 × AddressToSkAndPkAssocList
---     × List ValidatorSigner × ValidatorVerifier × ProposerElection × LedgerInfoWithSignatures )
--- create numFailures addresses {-drg-} = do
---    let authors     = mkAuthors {-drg-} numFailures addresses
---    {!!}
---       (s ,vv ,pe) = mkValidatorSignersAndVerifierAndProposerElection
---                       numFailures
---                       (convertSkPkToSkAuthorAssocList authors)
---     -------------------------
---    in case Genesis.obmMkGenesisLedgerInfoWithSignatures s (ValidatorSet.obmFromVV vv) of
---         Left err   → errorExit (errText err)
---         Right liws → (numFailures , authors , s , vv , pe , liws)
+create
+  : U64 → List EndpointAddress {-→ SystemDRG-}
+  → Either ErrLog
+    ( U64 × AddressToSkAndPkAssocList
+    × List ValidatorSigner × ValidatorVerifier × ProposerElection × LedgerInfoWithSignatures )
+create numFailures addresses {-drg-} = do
+ authors       ← mkAuthors {-drg-} numFailures addresses
+ (s , vv , pe) ← mkValidatorSignersAndVerifierAndProposerElection numFailures authors
+ case Genesis.obmMkGenesisLedgerInfoWithSignatures s (ValidatorSet.obmFromVV vv) of λ where
+       (Left err)   → Left err
+       (Right liws) → pure (numFailures , authors , s , vv , pe , liws)
 
 mkAuthors {-drg-} numFailures0 addresses0 = do
   addrs <- checkAddresses
@@ -59,10 +61,13 @@ postulate
 genKeys    zero   = []
 genKeys x@(suc n) = (mkSK x , mkPK x) ∷ genKeys n
 
--- mkValidatorSignersAndVerifierAndProposerElection numFaults ks =
---   let allAuthors          = fmap (snd . snd) ks
---       validatorVerifier   = ValidatorVerifier.initValidatorVerifier numFaults allAuthors
---       authorKeyPairs      = fmap (\(_, (sk, a)) → (a, sk)) ks
---       go acc (author, sk) = ValidatorSigner.new author sk : acc
---       validatorSigners    = foldl' go [] authorKeyPairs
---    in (validatorSigners, validatorVerifier, ProposerElection.new allAuthors)
+mkValidatorSignersAndVerifierAndProposerElection numFaults ks = do
+  -- IMPL-DIFF: Agda Author type does NOT contain a PK
+  let allAuthors       = fmap fst ks
+  validatorVerifier    ← ValidatorVerifier.initValidatorVerifier numFaults ks
+  let authorKeyPairs   = fmap (λ (a , (sk , _)) → (a , sk)) ks
+      validatorSigners = foldl' go [] authorKeyPairs
+  pure (validatorSigners , validatorVerifier , ProposerElection∙new allAuthors)
+ where
+  go : List ValidatorSigner → (Author × SK) → List ValidatorSigner
+  go acc (author , sk) = ValidatorSigner∙new author sk ∷ acc
