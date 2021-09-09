@@ -48,7 +48,8 @@ module LibraBFT.ImplShared.Util.Crypto where
   -- of serializable types), and then define hashBD using this and prove that it ensures hashBD-inj.
   -- Note also the TODO below related to HashTags.
 
-  record BlockDataInjectivityProps (bd1 bd2 : BlockData) : Set where
+  record _BlockDataInjectivityProps_ (bd1 bd2 : BlockData) : Set where
+    constructor mkBdInjProps
     field
       bdInjEpoch  : bd1 ≡L bd2 at bdEpoch
       bdInjRound  : bd1 ≡L bd2 at bdRound
@@ -58,19 +59,44 @@ module LibraBFT.ImplShared.Util.Crypto where
       bdInjBTGen  : bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis
       bdInjBTProp : ∀ {tx}{auth} → bd1 ^∙ bdBlockType ≡ Proposal tx auth
                                  → bd1 ^∙ bdBlockType ≡ bd2 ^∙ bdBlockType
+
+  sameBlockData⇒≈ : ∀ {b1 b2}
+                    → b1 ^∙ bId ≡ b2 ^∙ bId
+                    → (b1 ^∙ bBlockData) BlockDataInjectivityProps (b2 ^∙ bBlockData)
+                    → b1 ≈Block b2
+  sameBlockData⇒≈ {b1} {b2} refl (mkBdInjProps refl refl refl refl nil gen prop)
+     with b1 ^∙ bBlockData ∙ bdBlockType
+  ...| NilBlock         rewrite nil  refl = refl
+  ...| Genesis          rewrite gen  refl = refl
+  ...| Proposal tx auth rewrite prop refl = refl
+
+
+  BSL : Set
+  BSL = List ByteString
+
+  _≟-BSL_ : ∀ (bsl1 bsl2 : List ByteString) → Dec (bsl1 ≡ bsl2)
+  _≟-BSL_ = List-≡-dec _≟ByteString_
+
+  hashBSL = sha256 ∘ bs-concat
+
   postulate
-    hashBD-bs  : BlockData → BitString
+    hashBSL-inj : Injective-≡ hashBSL
+
+  postulate
+    blockData-bsl     : BlockData → List ByteString
 
   hashBD : BlockData → HashValue
-  hashBD = sha256 ∘ hashBD-bs
+  hashBD = hashBSL ∘ blockData-bsl
 
-  _hasSameHashInput-BD_ : BlockData → BlockData → Set
-  bd1 hasSameHashInput-BD bd2 = hashBD-bs bd1 ≡ hashBD-bs bd2
+  Injective-BlockData : Set
+  Injective-BlockData = Injective-int _BlockDataInjectivityProps_ hashBSL blockData-bsl blockData-bsl
 
+  -- TODO-1: prove it using bs-concat-inj
   postulate
-    hashBD-inj : ∀ {bd1 bd2}
-               → hashBD bd1 ≡ hashBD bd2
-               → NonInjective-≡ sha256 ⊎ BlockDataInjectivityProps bd1 bd2
+    hashBD-inj : Injective-BlockData
+
+  hashBlock : Block → HashValue
+  hashBlock = hashBD ∘ (_^∙ bBlockData)
 
   blockInfoBSList : BlockInfo → List ByteString
   blockInfoBSList (BlockInfo∙new epoch round id execStId ver mes) =
