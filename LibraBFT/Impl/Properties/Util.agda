@@ -359,6 +359,15 @@ module Invariants where
       rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
   open RoundManagerInv
 
+  hash≡⇒≈Block : ∀ {b1 b2 : Block}
+               → BlockId-correct b1
+               → BlockId-correct b2
+               → BlockHash≡ b1 (b2 ^∙ bId)
+               → b1 ≈Block b2
+  hash≡⇒≈Block {b1} {b2} refl refl hashb1≡idb2
+     with hashBD-inj hashb1≡idb2
+  ...| bdInj = sameBlockData⇒≈ {b1} {b2} hashb1≡idb2 bdInj
+
   module Reqs (b : Block) (bt : BlockTree) where
     -- TODO: State and use assumptions about hash collisions.  The following is one example that will
     -- likely need to be refined.
@@ -367,6 +376,34 @@ module Invariants where
             → BlockId-correct b
             → (eb ^∙ ebBlock) ≈Block b
 
+  -- TODO: probably don't need this generality, consider moving into Handle.Properties (only place
+  -- it is used so far), then we could streamline as rmi is required only to avoid cyclic lookups
+  module _ {st} (reach : ReachableSystemState st)
+           {pm : ProposalMsg} {sndr : NodeId} (nm∈pool : (sndr , P pm) ∈ msgPool st)
+           (pid : NodeId) (ini : initialised st pid ≡ initd) where
+
+    open PerReachableState reach
+
+    private
+      rm  = peerStates st pid
+      bt  = rm ^∙ lBlockTree
+      b   = pm ^∙ pmProposal
+
+    nohc : RoundManagerInv rm
+         → rm ^∙ lBlockTree ≡ bt
+         → BlockId-correct b
+         → Reqs.NoHC1 b bt
+    nohc rmi refl refl {eb} jeb refl
+       with allValidBlocks (blockTreeValid (rmBlockStoreInv rmi)) jeb
+    ...| bidCorr , bid
+       with (blockData-bsl (b ^∙ bBlockData)) ≟-BSL (blockData-bsl (eb ^∙ ebBlock ∙ bBlockData))
+    ...| yes bsls≡ = hash≡⇒≈Block {eb ^∙ ebBlock} {b} bidCorr refl bid
+    ...| no  neq rewrite sym bid
+       = ⊥-elim (meta-specific-cr (msgRmHC (inP nm∈pool (inPM inB))
+                                            ini
+                                            (inRM (inBS jeb inB))
+                                            (sym bid)
+                                            neq))
 
   -- Valid blocks have IDs computed by the hash of their BlockData
   -- These are passed as module parameters through the proofs
