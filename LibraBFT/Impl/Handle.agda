@@ -63,7 +63,7 @@ initSR =
 initPG : ProposalGenerator
 initPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: Implement initPE, initBS
+postulate -- TODO-1: initPE, initBS, initRS
   initPE : ProposerElection
   initBS : BlockStore
   initRS : RoundState
@@ -78,22 +78,21 @@ postulate
   now           : Instant
   pg            : ProposalGenerator
 
-initRMWithOutput : Either ErrLog (RoundManager × List Output)
-initRMWithOutput = do
+initEMWithOutput : Either ErrLog (EpochManager × List Output)
+initEMWithOutput = do
   (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
   let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
       me                          = 0
-  (em , out)                      ← Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
-  rm                              ← em ^∙ emObmRoundManager
+  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initRMWithOutput : Either ErrLog (RoundManager × List Output)
+initRMWithOutput = do
+  (em , out) ← initEMWithOutput
+  rm         ← em ^∙ emObmRoundManager
   pure (rm , out)
 
-initRM' : RoundManager
-initRM' = case initRMWithOutput of λ where
-  (Left _)         → initRM
-  (Right (rm , _)) → rm
-
-genQC : QuorumCert
-genQC = initRM' ^∙ rmBlockStore ∙ bsInner ∙ btHighestQuorumCert
+initRM' : Either ErrLog RoundManager
+initRM' = fst <$> initRMWithOutput
 
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.

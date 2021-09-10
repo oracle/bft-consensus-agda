@@ -164,7 +164,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   record ValidatorVerifier : Set where
     constructor mkValidatorVerifier
     field
-      _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      _vvAddressToValidatorInfo : KVMap AccountAddress ValidatorConsensusInfo
       _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
       _vvTotalVotingPower       : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public

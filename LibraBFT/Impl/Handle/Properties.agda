@@ -38,25 +38,19 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 open Invariants
 open RoundManagerTransProps
 
+-- TODO-2 : pass in RoundManager (instead of using 'initRM')
+-- and the proof that the RoundManager is valid.
 module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct  : ValidatorVerifier-correct (initRM  ^∙ rmValidatorVerifer)
-  initRM-correct' : ValidatorVerifier-correct (initRM' ^∙ rmValidatorVerifer)
   initRM-btInv    : BlockTreeInv (rm→BlockTree-EC initRM)
-  initRM-btInv'   : BlockTreeInv (rm→BlockTree-EC initRM')
   initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
-  initRM-qcs'     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM'
 
 initRMSatisfiesInv : RoundManagerInv initRM
 initRMSatisfiesInv =
   mkRoundManagerInv initRM-correct refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
-
--- initRMSatisfiesInv' : RoundManagerInv initRM'
--- initRMSatisfiesInv' =
---   mkRoundManagerInv initRM-correct' {!!} initRM-btInv'
---     (mkSafetyRulesInv (mkSafetyDataInv {!!} {!!}))
 
 invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
   : ∀ pid (pre : SystemState)
