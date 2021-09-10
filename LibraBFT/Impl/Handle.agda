@@ -64,7 +64,7 @@ fakeInitSR =
 fakeInitPG : ProposalGenerator
 fakeInitPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: initPE, initBS, initRS
+postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
   fakeInitPE : ProposerElection
   fakeInitBS : BlockStore
   fakeInitRS : RoundState
