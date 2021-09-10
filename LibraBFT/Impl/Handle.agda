@@ -63,7 +63,7 @@ initSR =
 initPG : ProposalGenerator
 initPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: initPE, initBS
+postulate -- TODO-1: initPE, initBS, initRS
   initPE : ProposerElection
   initBS : BlockStore
   initRS : RoundState
