@@ -13,7 +13,6 @@ open import Optics.All
 
 module LibraBFT.Impl.Handle.InitProperties where
 
-
 module initEMWithOutputSpec where
 
   record ContractOk (em : EpochManager) (lo : List Output) : Set where
