@@ -33,17 +33,22 @@ mkValidatorSignersAndVerifierAndProposerElection
 NfLiwsVssVvPe =
   (U64 × LedgerInfoWithSignatures × List ValidatorSigner × ValidatorVerifier × ProposerElection)
 
-create
+create'
   : U64 → List EndpointAddress {-→ SystemDRG-}
   → Either ErrLog
     ( U64 × AddressToSkAndPkAssocList
     × List ValidatorSigner × ValidatorVerifier × ProposerElection × LedgerInfoWithSignatures )
-create numFailures addresses {-drg-} = do
+create' numFailures addresses {-drg-} = do
  authors       ← mkAuthors {-drg-} numFailures addresses
  (s , vv , pe) ← mkValidatorSignersAndVerifierAndProposerElection numFailures authors
  case Genesis.obmMkGenesisLedgerInfoWithSignatures s (ValidatorSet.obmFromVV vv) of λ where
        (Left err)   → Left err
        (Right liws) → pure (numFailures , authors , s , vv , pe , liws)
+
+abstract
+  create = create'
+  create≡ : create ≡ create'
+  create≡ = refl
 
 mkAuthors {-drg-} numFailures0 addresses0 = do
   addrs <- checkAddresses
