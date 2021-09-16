@@ -79,7 +79,7 @@ module LibraBFT.Concrete.Properties
        → {b b' : Abs.Block}
        → CommitRule rc  b
        → CommitRule rc' b'
-       → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
+       → NonInjective-≡-preds _ _ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
     ConcCommitsDoNotConflict = CommitsDoNotConflict
            (VO-obl.proof intSystemState (vss-votes-once validState))
            (PR-obl.proof intSystemState (vss-preferred-round validState))
@@ -91,7 +91,7 @@ module LibraBFT.Concrete.Properties
         → InSys (Abs.Q q) → InSys (Abs.Q q')
         → CommitRule rc  b
         → CommitRule rc' b'
-        → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
+        → NonInjective-≡-preds _ _ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
       ConcCommitsDoNotConflict' = CommitsDoNotConflict'
            (VO-obl.proof intSystemState (vss-votes-once validState))
            (PR-obl.proof intSystemState (vss-preferred-round validState))
