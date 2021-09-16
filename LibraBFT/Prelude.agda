@@ -330,6 +330,17 @@ module LibraBFT.Prelude where
                  → (A → B) → Set (a ℓ⊔ b)
   NonInjective-≡ = NonInjective _≡_
 
+  NonInjective-≡-preds : ∀{a b}{A : Set a}{B : Set b}{ℓ₁ ℓ₂ : Level}
+                      → (P1 : A → Set ℓ₁)
+                      → (P2 : A → Set ℓ₂)
+                      → (A → B) → Set (a ℓ⊔ b ℓ⊔ ℓ₁ ℓ⊔ ℓ₂)
+  NonInjective-≡-preds Pred1 Pred2 f = Σ (NonInjective _≡_ f) λ { ((a₀ , a₁) , a₀≢a₁ , fa₀≡fa₁) → Pred1 a₀ × Pred2 a₁ }
+
+  NonInjective-≡-pred : ∀{a b}{A : Set a}{B : Set b}{ℓ : Level}
+                      → (P : A → Set ℓ)
+                      → (A → B) → Set (a ℓ⊔ b ℓ⊔ ℓ)
+  NonInjective-≡-pred Pred = NonInjective-≡-preds Pred Pred
+
   NonInjective-∘ : ∀{a b c}{A : Set a}{B : Set b}{C : Set c}
                  → {f : A → B}(g : B → C)
                  → NonInjective-≡  f
