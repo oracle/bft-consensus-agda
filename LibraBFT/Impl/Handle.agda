@@ -78,16 +78,23 @@ postulate
   now           : Instant
   pg            : ProposalGenerator
 
-initEMWithOutput : Either ErrLog (EpochManager × List Output)
-initEMWithOutput = do
+initEMWithOutput' : Either ErrLog (EpochManager × List Output)
+initEMWithOutput' = do
   (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
   let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
       me                          = 0
   Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
 
+initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
+initEMWithOutput = do
+  (nf , _ , vss , vv , pe , liws) ← fromEither $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
 initRMWithOutput : Either ErrLog (RoundManager × List Output)
 initRMWithOutput = do
-  (em , out) ← initEMWithOutput
+  (em , out) ← toEither initEMWithOutput
   rm         ← em ^∙ emObmRoundManager
   pure (rm , out)
 
