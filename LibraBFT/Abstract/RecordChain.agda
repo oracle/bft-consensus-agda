@@ -113,6 +113,53 @@ module LibraBFT.Abstract.RecordChain
  _≈RC_ : ∀{o₀ o₁ r₀ r₁} → RecordChainFrom o₀ r₀ → RecordChainFrom o₁ r₁ → Set
  _≈RC_ = ≈RC-pw _≈Rec_
 
+ ≈RC-sym : ∀{o₀ o₁ r₀ r₁}{rc₀ : RecordChainFrom o₀ r₀}{rc₁ : RecordChainFrom o₁ r₁}
+         → rc₀ ≈RC rc₁ → rc₁ ≈RC rc₀
+ ≈RC-sym (eq-empty x) = eq-empty (≈Rec-sym x)
+ ≈RC-sym (eq-step rc₀ rc₁ x ext₀ ext₁ hyp) = eq-step rc₁ rc₀ (≈Rec-sym x) ext₁ ext₀ (≈RC-sym hyp)
+
+ ≈RC-trans : ∀ {r₀ r₁ r₂}
+           → {rc₀ : RecordChain r₀}{rc₁ : RecordChain r₁}{rc₂ : RecordChain r₂}
+           → rc₀ ≈RC rc₁ → rc₁ ≈RC rc₂ → rc₀ ≈RC rc₂
+ ≈RC-trans (eq-empty x) q = q
+ ≈RC-trans (eq-step rc₀ rc₁ x ext₀ ext₁ p) (eq-step .rc₁ rc₂ x₁ .ext₁ ext₂ q)
+    = eq-step rc₀ rc₂ (≈Rec-trans x x₁) ext₀ ext₂ (≈RC-trans p q)
+
+ --------------------------
+ -- RecordChain elements
+
+ data _∈RC-simple_ {o : Record}(r₀ : Record) : ∀{r₁} → RecordChainFrom o r₁ → Set where
+   here   : ∀{rc : RecordChainFrom o r₀} → r₀ ∈RC-simple rc
+   there  : ∀{r₁ r₂}{rc : RecordChainFrom o r₁}(p : r₁ ← r₂)
+          → r₀ ∈RC-simple rc
+          → r₀ ∈RC-simple (step rc p)
+
+  -- States that a given record belongs in a record chain.
+ data _∈RC_ {o : Record}(r₀ : Record) : ∀{r₁} → RecordChainFrom o r₁ → Set where
+   here   : ∀{rc : RecordChainFrom o r₀} → r₀ ∈RC rc
+   there  : ∀{r₁ r₂}{rc : RecordChainFrom o r₁}(p : r₁ ← r₂)
+          → r₀ ∈RC rc
+          → r₀ ∈RC (step rc p)
+   -- This is an important rule. It is the equivalent of a
+   -- /congruence/ on record chains and enables us to prove
+   -- the 𝕂-chain-∈RC property.
+   transp : ∀{r}{rc₀ : RecordChainFrom o r}{rc₁ : RecordChainFrom o r}
+          → r₀ ∈RC rc₀ → rc₀ ≈RC rc₁ → r₀ ∈RC rc₁
+
+ ∈RC-empty-I : ∀{r} → r ∈RC (empty {o = I}) → r ≡ I
+ ∈RC-empty-I here                      = refl
+ ∈RC-empty-I (transp old (eq-empty x)) = ∈RC-empty-I old
+
+ b∉RCempty : ∀ {b} → B b ∈RC empty → ⊥
+ b∉RCempty xx with ∈RC-empty-I xx
+ ...| ()
+
+ transp-B∈RC : ∀{r r' b}{rc : RecordChain r}{rc' : RecordChain r'}
+             → rc ≈RC rc' → B b ∈RC rc → B b ∈RC rc'
+ transp-B∈RC rc≈rc' (transp b∈rc x) = transp-B∈RC (≈RC-trans x rc≈rc') b∈rc
+ transp-B∈RC (eq-step rc₀ rc₁ (eq-B refl) ext₀ ext₁ rc≈rc') here = here
+ transp-B∈RC (eq-step rc₀ rc₁ x .p ext₁ rc≈rc') (there p b∈rc) = there ext₁ (transp-B∈RC rc≈rc' b∈rc)
+
  ≈RC-head : ∀{o₀ o₁ r₀ r₁}{rc₀ : RecordChainFrom o₀ r₀}{rc₁ : RecordChainFrom o₁ r₁}
           → rc₀ ≈RC rc₁ → o₀ ≈Rec o₁
  ≈RC-head (eq-empty x)          = x
@@ -138,18 +185,6 @@ module LibraBFT.Abstract.RecordChain
  ≈RC-refl (step r0 (I←B x x₁)) empty ()
  ≈RC-refl (step r0 (Q←B x x₁)) empty ()
  ≈RC-refl (step r0 (B←Q x x₁)) empty ()
-
- ≈RC-sym : ∀{o₀ o₁ r₀ r₁}{rc₀ : RecordChainFrom o₀ r₀}{rc₁ : RecordChainFrom o₁ r₁}
-         → rc₀ ≈RC rc₁ → rc₁ ≈RC rc₀
- ≈RC-sym (eq-empty x) = eq-empty (≈Rec-sym x)
- ≈RC-sym (eq-step rc₀ rc₁ x ext₀ ext₁ hyp) = eq-step rc₁ rc₀ (≈Rec-sym x) ext₁ ext₀ (≈RC-sym hyp)
-
- ≈RC-trans : ∀ {r₀ r₁ r₂}
-           → {rc₀ : RecordChain r₀}{rc₁ : RecordChain r₁}{rc₂ : RecordChain r₂}
-           → rc₀ ≈RC rc₁ → rc₁ ≈RC rc₂ → rc₀ ≈RC rc₂
- ≈RC-trans (eq-empty x) q = q
- ≈RC-trans (eq-step rc₀ rc₁ x ext₀ ext₁ p) (eq-step .rc₁ rc₂ x₁ .ext₁ ext₂ q)
-    = eq-step rc₀ rc₂ (≈Rec-trans x x₁) ext₀ ext₂ (≈RC-trans p q)
 
  -- Heterogeneous irrelevance proves that two record chains that end at the same record
  -- have the same blocks and equivalent QCs.
@@ -209,41 +244,6 @@ module LibraBFT.Abstract.RecordChain
              → parentUID rc₀ ≡ parentUID rc₁
  parentUID-≈ _ _ (eq-step _ _ (eq-B refl) _ _ (eq-empty x)) = refl
  parentUID-≈ _ _ (eq-step _ _ (eq-B refl) _ _ (eq-step _ _ (eq-Q refl) _ _ _)) = refl
-
- --------------------------
- -- RecordChain elements
-
- data _∈RC-simple_ {o : Record}(r₀ : Record) : ∀{r₁} → RecordChainFrom o r₁ → Set where
-   here   : ∀{rc : RecordChainFrom o r₀} → r₀ ∈RC-simple rc
-   there  : ∀{r₁ r₂}{rc : RecordChainFrom o r₁}(p : r₁ ← r₂)
-          → r₀ ∈RC-simple rc
-          → r₀ ∈RC-simple (step rc p)
-
- -- States that a given record belongs in a record chain.
- data _∈RC_ {o : Record}(r₀ : Record) : ∀{r₁} → RecordChainFrom o r₁ → Set where
-   here   : ∀{rc : RecordChainFrom o r₀} → r₀ ∈RC rc
-   there  : ∀{r₁ r₂}{rc : RecordChainFrom o r₁}(p : r₁ ← r₂)
-          → r₀ ∈RC rc
-          → r₀ ∈RC (step rc p)
-   -- This is an important rule. It is the equivalent of a
-   -- /congruence/ on record chains and enables us to prove
-   -- the 𝕂-chain-∈RC property.
-   transp : ∀{r}{rc₀ : RecordChainFrom o r}{rc₁ : RecordChainFrom o r}
-          → r₀ ∈RC rc₀ → rc₀ ≈RC rc₁ → r₀ ∈RC rc₁
-
- ∈RC-empty-I : ∀{r} → r ∈RC (empty {o = I}) → r ≡ I
- ∈RC-empty-I here                      = refl
- ∈RC-empty-I (transp old (eq-empty x)) = ∈RC-empty-I old
-
- b∉RCempty : ∀ {b} → B b ∈RC empty → ⊥
- b∉RCempty xx with ∈RC-empty-I xx
- ...| ()
-
- transp-B∈RC : ∀{r r' b}{rc : RecordChain r}{rc' : RecordChain r'}
-             → rc ≈RC rc' → B b ∈RC rc → B b ∈RC rc'
- transp-B∈RC rc≈rc' (transp b∈rc x) = transp-B∈RC (≈RC-trans x rc≈rc') b∈rc
- transp-B∈RC (eq-step rc₀ rc₁ (eq-B refl) ext₀ ext₁ rc≈rc') here = here
- transp-B∈RC (eq-step rc₀ rc₁ x .p ext₁ rc≈rc') (there p b∈rc) = there ext₁ (transp-B∈RC rc≈rc' b∈rc)
 
  -- A k-chain (paper Section 5.2; see Abstract.Properties) is a sequence of
  -- blocks and quorum certificates for said blocks:
