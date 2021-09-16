@@ -50,7 +50,7 @@ module LibraBFT.Abstract.Properties
         → {b b' : Block}
         → CommitRule rc  b
         → CommitRule rc' b'
-        → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
+        → NonInjective-≡-pred (InSys ∘ B) bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
    CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once preferred-round-rule
 
    -- When we are dealing with a /Complete/ InSys predicate, we can go a few steps
@@ -66,7 +66,7 @@ module LibraBFT.Abstract.Properties
       → InSys (Q q) → InSys (Q q')
       → CommitRule rc  b
       → CommitRule rc' b'
-      → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
+      → NonInjective-≡-preds (InSys ∘ B) (const Unit) bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
     CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
        with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
@@ -76,15 +76,17 @@ module LibraBFT.Abstract.Properties
     ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
        with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
             RecordChain-irrelevant (step arc' ab←q') (step rc' b←q')
-    ...| inj₁ hb     | _       = inj₁ hb
-    ...| inj₂ _      | inj₁ hb = inj₁ hb
-    ...| inj₂ arc≈rc | inj₂ arc'≈rc'
+    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ (hb , ( ais (∈RC-simple-¬here arc  ab←q (λ ()) p1)
+                                                                    , unit ))
+    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ (hb , ( ais' ( ∈RC-simple-¬here arc' ab←q' (λ ()) p1)
+                                                                    , unit ))
+    ...| inj₂ arc≈rc           | inj₂ arc'≈rc'
        with CommitsDoNotConflict
                  (All-InSys-step ais  ab←q  q∈sys )
                  (All-InSys-step ais' ab←q' q'∈sys)
                  (transp-CR (≈RC-sym arc≈rc  ) cr )
                  (transp-CR (≈RC-sym arc'≈rc') cr')
-    ...| inj₁ hb = inj₁ hb
+    ...| inj₁ (hb , (p1 , _)) = inj₁ (hb , (p1 , unit))
     ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (transp-B∈RC arc'≈rc' b∈arc'))
     ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (transp-B∈RC arc≈rc   b'∈arc))
 
@@ -103,8 +105,9 @@ module LibraBFT.Abstract.Properties
       → InSys (Q q')
       → CommitRuleFrom rcf  b
       → CommitRuleFrom rcf' b'
-      → NonInjective-≡ bId ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
-                           ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
+      → NonInjective-≡ bId
+      ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
+      ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
        with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
@@ -115,10 +118,10 @@ module LibraBFT.Abstract.Properties
        with step arc  ab←q | step arc' ab←q'
     ...| rcq | rcq'
        with crf⇒cr rcf  rcq  crf | crf⇒cr rcf' rcq' crf'
-    ...| inj₁ hb | _       = inj₁ hb
-    ...| inj₂ _  | inj₁ hb = inj₁ hb
-    ...| inj₂ cr | inj₂ cr'
+    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ hb
+    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ hb
+    ...| inj₂ cr               | inj₂ cr'
        with CommitsDoNotConflict' q∈sys q'∈sys cr cr'
-    ...| inj₁ hb = inj₁ hb
+    ...| inj₁ (hb , (p1 , p2)) = inj₁ hb
     ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (rcq' , b∈arc'))
     ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (rcq  , b'∈arc))
