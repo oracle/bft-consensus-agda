@@ -19,6 +19,7 @@ import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 import      LibraBFT.Impl.OBM.Init                      as Init
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
@@ -74,33 +75,6 @@ initRM = RoundManager∙new
            (EpochState∙new 1 (initVV genesisInfo))
            initBS initRS initPE initPG initSR false
 
-postulate
-  now           : Instant
-  pg            : ProposalGenerator
-
-initEMWithOutput' : Either ErrLog (EpochManager × List Output)
-initEMWithOutput' = do
-  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
-      me                          = 0
-  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
-
-initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
-initEMWithOutput = do
-  (nf , _ , vss , vv , pe , liws) ← fromEither $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
-      me                          = 0
-  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
-
-initRMWithOutput : Either ErrLog (RoundManager × List Output)
-initRMWithOutput = do
-  (em , out) ← toEither initEMWithOutput
-  rm         ← em ^∙ emObmRoundManager
-  pure (rm , out)
-
-initRM' : Either ErrLog RoundManager
-initRM' = fst <$> initRMWithOutput
-
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.
 -- That means we cannot prove the base case for various properties,
@@ -136,4 +110,46 @@ InitAndHandlers = mkSysInitAndHandlers
                     initRM
                     initWrapper
                     peerStep
+
+------------------------------------------------------------------------------
+-- real initialization
+
+postulate
+  now           : Instant
+  pg            : ProposalGenerator
+
+initEMWithOutput' : Either ErrLog (EpochManager × List Output)
+initEMWithOutput' = do
+  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
+initEMWithOutput = do
+  (nf , _ , vss , vv , pe , liws) ← fromEither $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ Right x → initEMWithOutput' ≡ Right x
+initEMWithOutput≡ {x} iewo
+  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Right (nf , _ , vss , vv , pe , liws)
+  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
+... | Right y rewrite iewo = cong Right refl
+
+------------------------------------------------------------------------------
+-- TODO : ASK CHRIS : regarding EitherD-run
+
+zzz : EitherD ErrLog ℕ
+zzz = do
+  r ← RightD 0
+  RightD r
+
+zzz' : Either ErrLog ℕ
+zzz' = Right 0
+
+zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
+zzz≡zzz' ()
 
