@@ -149,3 +149,18 @@ initEMWithOutput≡' iewo
   with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
 ... | Left err rewrite iewo = refl
 ... | Right y rewrite iewo = refl
+
+------------------------------------------------------------------------------
+-- TODO : ASK CHRIS : regarding EitherD-run
+
+zzz : EitherD ErrLog ℕ
+zzz = do
+  r ← RightD 0
+  RightD r
+
+zzz' : Either ErrLog ℕ
+zzz' = Right 0
+
+zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
+zzz≡zzz' ()
+
