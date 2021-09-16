@@ -122,12 +122,16 @@ module LibraBFT.Abstract.RecordChain
  -- propositional non-injectivity of block ids.
  ≈RC-refl : ∀{r₀ r₁}(rc₀ : RecordChain r₀)(rc₁ : RecordChain r₁)
           → r₀ ≈Rec r₁
-          → NonInjective _≡_ bId ⊎ (rc₀ ≈RC rc₁)
+          → NonInjective-≡-preds ((_∈RC-simple rc₀) ∘ B) ((_∈RC-simple rc₁) ∘ B) bId ⊎ (rc₀ ≈RC rc₁)
  ≈RC-refl empty empty hyp
     = inj₂ (eq-empty hyp)
  ≈RC-refl (step r0 x) (step r1 x₁) hyp
-    = (←-≈Rec x x₁ hyp ⊎⟫= ≈RC-refl r0 r1)
-       ⊎⟫= (inj₂ ∘ eq-step r0 r1 hyp x x₁)
+    with ←-≈Rec x x₁ hyp
+ ...| inj₁ (hb , (refl ,  refl)) = inj₁ (hb , there x here , there x₁ here) 
+ ...| inj₂ cont
+    with ≈RC-refl r0 r1 cont
+ ...| inj₁ (¬inj , (x1 , x2)) = inj₁ (¬inj , (there x x1 , there x₁ x2))
+ ...| inj₂ xx = inj₂ $ eq-step r0 r1 hyp x x₁ xx
  ≈RC-refl empty (step r1 (I←B x x₁)) ()
  ≈RC-refl empty (step r1 (Q←B x x₁)) ()
  ≈RC-refl empty (step r1 (B←Q x x₁)) ()
@@ -150,7 +154,7 @@ module LibraBFT.Abstract.RecordChain
  -- Heterogeneous irrelevance proves that two record chains that end at the same record
  -- have the same blocks and equivalent QCs.
  RecordChain-irrelevant : ∀{r}(rc₀ : RecordChain r)(rc₁ : RecordChain r)
-                        → NonInjective _≡_ bId ⊎ rc₀ ≈RC rc₁
+                        → NonInjective-≡-preds _ _ bId ⊎ rc₀ ≈RC rc₁
  RecordChain-irrelevant rc0 rc1 = ≈RC-refl rc0 rc1 ≈Rec-refl
 
  -------------------------------------------------
@@ -176,13 +180,17 @@ module LibraBFT.Abstract.RecordChain
  -- The ⊆RC relation is used to establish irrelevance of suffixes
  RecordChainFrom-irrelevant : ∀{o₀ o₁ r₀ r₁}(rc₀ : RecordChainFrom o₀ r₀)(rc₁ : RecordChainFrom o₁ r₁)
                             → r₀ ≈Rec r₁
-                            → NonInjective _≡_ bId ⊎ (rc₀ ⊆RC rc₁ ⊎ rc₁ ⊆RC rc₀)
+                            → NonInjective-≡-preds (_∈RC-simple rc₀ ∘ B) (_∈RC-simple rc₁ ∘ B) bId ⊎ (rc₀ ⊆RC rc₁ ⊎ rc₁ ⊆RC rc₀)
  RecordChainFrom-irrelevant empty empty hyp = inj₂ (inj₁ (sub-empty hyp))
  RecordChainFrom-irrelevant empty (step rc1 x) hyp = inj₂ (inj₁ (sub-empty hyp))
  RecordChainFrom-irrelevant (step rc0 x) empty hyp = inj₂ (inj₂ (sub-empty (≈Rec-sym hyp)))
  RecordChainFrom-irrelevant (step rc0 x) (step rc1 x₁) hyp
-   = (←-≈Rec x x₁ hyp ⊎⟫= RecordChainFrom-irrelevant rc0 rc1)
-     ⊎⟫= (inj₂ ∘ either (inj₁ ∘ sub-step rc0 rc1 hyp x x₁) (inj₂ ∘ sub-step rc1 rc0 (≈Rec-sym hyp) x₁ x))
+    with ←-≈Rec x x₁ hyp
+ ...| inj₁ (hb , (refl , refl)) = inj₁ (hb , (there x here) , (there x₁ here))
+ ...| inj₂ cont
+    with RecordChainFrom-irrelevant rc0 rc1 cont
+ ...| inj₁ (hb , (z1 , z2)) = inj₁ (hb , (there x z1) , (there x₁ z2))
+ ...| inj₂ cont1 = inj₂ $ either (inj₁ ∘ sub-step rc0 rc1 hyp x x₁) (inj₂ ∘ sub-step rc1 rc0 (≈Rec-sym hyp) x₁ x) cont1
 
  -- If a chain from the initial record is a suffix from a second chain,
  -- then the second chain is also from the initial record.
@@ -454,13 +462,15 @@ module LibraBFT.Abstract.RecordChain
              → x ≤Fin y
              → {b : Block}(prf : kchainBlock x c ≡ b)
              → (rc₁ : RecordChain (B b))
-             → NonInjective _≡_ bId ⊎ (B (kchainBlock y c) ∈RC rc₁)
+             → NonInjective-≡-preds (_∈RC-simple rc ∘ B) (_∈RC-simple rc₁ ∘ B) bId ⊎ (B (kchainBlock y c) ∈RC rc₁)
  𝕂-chain-∈RC (s-chain r←b prf b←q c) zero y z≤n refl rc1
    with RecordChain-irrelevant (step (kchainForget c) r←b) rc1
- ...| inj₁ hb   = inj₁ hb
+ ...| inj₁ (hb , (xx , yy)) = inj₁ (hb , (there b←q xx , yy))
  ...| inj₂ res  = inj₂ (transp (kchainBlock-correct (s-chain r←b prf b←q c) y) res)
  𝕂-chain-∈RC (s-chain r←b prf b←q c) (suc x) (suc y) (s≤s x≤y) hyp rc1
-   = 𝕂-chain-∈RC c x y x≤y hyp rc1
+    with 𝕂-chain-∈RC c x y x≤y hyp rc1
+ ...| inj₁ (hb , (c1 , c2)) = inj₁ (hb , (there b←q (there r←b c1) , c2))
+ ...| inj₂ cont = inj₂ cont
 
  -----------------
  -- Commit Rule --
@@ -488,7 +498,7 @@ module LibraBFT.Abstract.RecordChain
         → (rcf : RecordChainFrom o (Q q))
         → (rc : RecordChain (Q q))
         → CommitRuleFrom rcf b
-        → NonInjective-≡ bId ⊎ CommitRule {Q q} rc b
+        → NonInjective-≡-preds (_∈RC-simple rcf ∘ B) (_∈RC-simple rc ∘ B) bId ⊎ CommitRule {Q q} rc b
  crf⇒cr rcf rc (commit-rule c3 prf)
    with RecordChainFrom-irrelevant rcf rc ≈Rec-refl
  ...| inj₁ hb = inj₁ hb
