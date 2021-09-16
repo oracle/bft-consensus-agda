@@ -134,6 +134,17 @@ module LibraBFT.Abstract.RecordChain
           → r₀ ∈RC-simple rc
           → r₀ ∈RC-simple (step rc p)
 
+ ∈RC-simple-¬here : ∀ {o r r₀ r₁}
+                    → (rcf : RecordChainFrom o r₀)
+                    → (ext : r₀ ← r₁)
+                    → ¬( r ≡ r₁ )
+                    → r ∈RC-simple (step rcf ext)
+                    → r ∈RC-simple rcf
+ ∈RC-simple-¬here _ _ r≢r₁ r∈rcf+
+    with r∈rcf+
+ ... | here = ⊥-elim (r≢r₁ refl)
+ ... | there _ xxx = xxx
+
   -- States that a given record belongs in a record chain.
  data _∈RC_ {o : Record}(r₀ : Record) : ∀{r₁} → RecordChainFrom o r₁ → Set where
    here   : ∀{rc : RecordChainFrom o r₀} → r₀ ∈RC rc

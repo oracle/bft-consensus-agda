@@ -55,7 +55,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → (p₀ : B b₀ ← Q q₀)
            → (p₁ : B b₁ ← Q q₁)
            → getRound b₀ ≡ getRound b₁
-           → NonInjective-≡ bId ⊎ b₀ ≡ b₁
+           → b₀ ≢ b₁ × bId b₀ ≡ bId b₁ ⊎ b₀ ≡ b₁
    lemmaS2 {b₀} {b₁} {q₀} {q₁} ex₀ ex₁ (B←Q refl h₀) (B←Q refl h₁) refl
      with b₀ ≟Block b₁
    ...| yes done = inj₂ done
@@ -75,7 +75,7 @@ module LibraBFT.Abstract.RecordChain.Properties
          v₁∈q₁ = ∈QC-Vote-correct q₁ a∈q₁
          ppp   = trans h₀ (trans (vote≡⇒QPrevId≡ {q₀} {q₁} v₀∈q₀ v₁∈q₁ (votes-only-once a honest ex₀ ex₁ a∈q₀ a∈q₁ v₀≡v₁))
                                  (sym h₁))
-     in inj₁ ((b₀ , b₁) , (imp , ppp))
+     in inj₁ (imp , ppp)
 
    ----------------
    -- Lemma S3
@@ -85,7 +85,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → (rc' : RecordChain (Q q')) → InSys (Q q')  -- Immediately before a (Q q), we have the certified block (B b), which is the 'B' in S3
            → (c3 : 𝕂-chain Contig 3 rc)                 -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S3
            → round r₂ < getRound q'
-           → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
+           → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
    lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
      with bft-assumption (qVotes-C1 q₂) (qVotes-C1 q')
    ...| (a , (a∈q₂mem , a∈q'mem , honest))
@@ -161,47 +161,49 @@ module LibraBFT.Abstract.RecordChain.Properties
        {rc : RecordChain r} → All-InSys rc
      → (q' : QC) → InSys (Q q')
      → {b' : Block}
-     → (rc' : RecordChain (B b')) → (ext : (B b') ← (Q q'))
+     → (rc' : RecordChain (B b')) → All-InSys rc' → (ext : (B b') ← (Q q'))
      → (c  : 𝕂-chain Contig k rc)
      → (ix : Fin k)
      → getRound (kchainBlock ix c) ≡ getRound b'
-     → NonInjective-≡ bId ⊎ (kchainBlock ix c ≡ b')
-   propS4-base-lemma-2 {rc = rc} prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) zero hyp
-     = lemmaS2 (All-InSys⇒last-InSys prev∈sys) q'∈sys b←q ext hyp
-   propS4-base-lemma-2 prev∈sys q' q'∈sys rc' ext (s-chain r←b prf b←q c) (suc ix)
-     = propS4-base-lemma-2 (All-InSys-unstep (All-InSys-unstep prev∈sys)) q' q'∈sys rc' ext c ix
+     → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (kchainBlock ix c ≡ b')
+   propS4-base-lemma-2 {rc = rc} prev∈sys q' q'∈sys {b'} rc' rc'All∈sys ext (s-chain {b = b} r←b prf b←q c) zero hyp
+      with lemmaS2 (All-InSys⇒last-InSys prev∈sys) q'∈sys b←q ext hyp
+   ... | Left  (b≢b' , bIds≡) = inj₁ (((b , b') , b≢b' , bIds≡) , All-InSys-unstep prev∈sys here , rc'All∈sys here)
+   ... | Right y = Right y
+   propS4-base-lemma-2 prev∈sys q' q'∈sys rc' rc'All∈sys ext (s-chain r←b prf b←q c) (suc ix)
+     = propS4-base-lemma-2 (All-InSys-unstep (All-InSys-unstep prev∈sys)) q' q'∈sys rc' rc'All∈sys ext c ix
 
    propS4-base : ∀{q q'}
                → {rc : RecordChain (Q q)}   → All-InSys rc
-               → (rc' : RecordChain (Q q')) → InSys (Q q')
+               → (rc' : RecordChain (Q q')) → All-InSys rc'
                → (c3 : 𝕂-chain Contig 3 rc) -- This is B₀ ← C₀ ← B₁ ← C₁ ← B₂ ← C₂ in S4
                → getRound (c3 b⟦ suc (suc zero) ⟧) ≤ getRound q'
                → getRound q' ≤ getRound (c3 b⟦ zero ⟧)
-               → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
-   propS4-base {q' = q'} prev∈sys (step {B b} rc'@(step rc'' q←b) b←q@(B←Q refl _)) q'∈sys c3 hyp0 hyp1
+               → NonInjective-≡-pred (InSys ∘ B) bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
+   propS4-base {q' = q'} prev∈sys rc0@(step {B b} rc'@(step rc'' q←b) b←q@(B←Q refl _)) rc'All∈sys c3 hyp0 hyp1
      with propS4-base-lemma-1 c3 (getRound b) hyp0 hyp1
    ...| here r
-     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' b←q c3 zero (sym r)
+     with propS4-base-lemma-2 prev∈sys q' (All-InSys⇒last-InSys rc'All∈sys) rc' (All-InSys-unstep rc'All∈sys) b←q c3 zero (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 zero (suc (suc zero)) z≤n res rc'
-   ...| inj₁ hb   = inj₁ hb
+   ...| inj₁ (hb , (p1 , p2))  = inj₁ (hb , (prev∈sys p1 , rc'All∈sys (there b←q p2)))
    ...| inj₂ res' = inj₂ (there b←q res')
-   propS4-base {q} {q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
+   propS4-base {q} {q'} prev∈sys rc0@(step rc' b←q@(B←Q refl x₀)) rc'All∈sys c3 hyp0 hyp1
       | there (here r)
-     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' (B←Q refl x₀) c3 (suc zero) (sym r)
+     with propS4-base-lemma-2 prev∈sys q' (All-InSys⇒last-InSys rc'All∈sys) rc' (All-InSys-unstep rc'All∈sys) (B←Q refl x₀) c3 (suc zero) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 (suc zero) (suc (suc zero)) (s≤s z≤n) res rc'
-   ...| inj₁ hb   = inj₁ hb
+   ...| inj₁ (hb , (p1 , p2))  = inj₁ (hb , ((prev∈sys p1) , (rc'All∈sys (there b←q p2))))
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
-   propS4-base {q' = q'} prev∈sys (step rc' (B←Q refl x₀)) q'∈sys c3 hyp0 hyp1
+   propS4-base {q' = q'} prev∈sys rc0@(step rc' (B←Q refl x₀)) rc'All∈sys c3 hyp0 hyp1
       | there (there (here r))
-     with propS4-base-lemma-2 prev∈sys q' q'∈sys rc' (B←Q refl x₀) c3 (suc (suc zero)) (sym r)
+     with propS4-base-lemma-2 prev∈sys q' (All-InSys⇒last-InSys rc'All∈sys) rc' (All-InSys-unstep rc'All∈sys) (B←Q refl x₀) c3 (suc (suc zero)) (sym r)
    ...| inj₁ hb = inj₁ hb
    ...| inj₂ res
      with 𝕂-chain-∈RC c3 (suc (suc zero)) (suc (suc zero)) (s≤s (s≤s z≤n)) res rc'
-   ...| inj₁ hb   = inj₁ hb
+   ...| inj₁ (hb , (p1 , p2))  = inj₁ (hb , (prev∈sys p1 , rc'All∈sys (there (B←Q refl x₀) p2)))
    ...| inj₂ res' = inj₂ (there (B←Q refl x₀) res')
 
    propS4 : ∀{q q'}
@@ -212,10 +214,10 @@ module LibraBFT.Abstract.RecordChain.Properties
           -- In the paper, the proposition states that B₀ ←⋆ B, yet, B is the block preceding
           -- C, which in our case is 'prevBlock rc''. Hence, to say that B₀ ←⋆ B is
           -- to say that B₀ is a block in the RecordChain that goes all the way to C.
-          → NonInjective-≡ bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
+          → NonInjective-≡-pred (InSys ∘ B) bId ⊎ B (c3 b⟦ suc (suc zero) ⟧) ∈RC rc'
    propS4 {q' = q'} {rc} prev∈sys (step rc' b←q') prev∈sys' c3 hyp
      with getRound q' ≤?ℕ getRound (c3 b⟦ zero ⟧)
-   ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') (All-InSys⇒last-InSys prev∈sys') c3 hyp rq≤rb₂
+   ...| yes rq≤rb₂ = propS4-base {q' = q'} prev∈sys (step rc' b←q') prev∈sys' c3 hyp rq≤rb₂
    propS4 {q' = q'} prev∈sys (step rc' b←q') all∈sys c3 hyp
       | no  rb₂<rq
      with lemmaS3 (All-InSys⇒last-InSys prev∈sys) (step rc' b←q')
@@ -242,7 +244,7 @@ module LibraBFT.Abstract.RecordChain.Properties
          → {b b' : Block}
          → CommitRule rc  b
          → CommitRule rc' b'
-         → NonInjective-≡ bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
+         → NonInjective-≡-pred (InSys ∘ B) bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc) -- Not conflicting means one extends the other.
    thmS5 {rc = rc} prev∈sys {rc'} prev∈sys' (commit-rule c3 refl) (commit-rule c3' refl)
      with <-cmp (getRound (c3 b⟦ suc (suc zero) ⟧)) (getRound (c3' b⟦ suc (suc zero) ⟧))
    ...| tri≈ _ r≡r' _ = inj₁ <⊎$> (propS4 prev∈sys  rc' prev∈sys' c3  (≤-trans (≡⇒≤ r≡r')      (kchain-round-≤-lemma' c3' (suc (suc zero)))))

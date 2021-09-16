@@ -103,7 +103,7 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    -- checks have been performed and we can infer this information solely
    -- by seeing α has knowledge of the 2-chain in Fig2 above.
    --
-   PreferredRoundRule : Set ℓ
+   PreferredRoundRule : Set _
    PreferredRoundRule
      = ∀(α : Member) → Meta-Honest-Member α
      → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
@@ -112,4 +112,4 @@ module LibraBFT.Abstract.RecordChain.Assumptions
      → (rc' : RecordChain (Q q'))
      → (v' : α ∈QC q')
      → abs-vRound (∈QC-Vote q v) < abs-vRound (∈QC-Vote q' v')
-     → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
+     → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
