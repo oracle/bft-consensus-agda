@@ -180,7 +180,7 @@ module LibraBFT.Abstract.RecordChain
  -- propositional non-injectivity of block ids.
  ≈RC-refl : ∀{r₀ r₁}(rc₀ : RecordChain r₀)(rc₁ : RecordChain r₁)
           → r₀ ≈Rec r₁
-          → NonInjective-≡-preds ((_∈RC-simple rc₀) ∘ B) ((_∈RC-simple rc₁) ∘ B) bId ⊎ (rc₀ ≈RC rc₁)
+          → NonInjective-≡-preds (_∈RC-simple rc₀ ∘ B) (_∈RC-simple rc₁ ∘ B) bId ⊎ (rc₀ ≈RC rc₁)
  ≈RC-refl empty empty hyp
     = inj₂ (eq-empty hyp)
  ≈RC-refl (step r0 x) (step r1 x₁) hyp
@@ -200,7 +200,7 @@ module LibraBFT.Abstract.RecordChain
  -- Heterogeneous irrelevance proves that two record chains that end at the same record
  -- have the same blocks and equivalent QCs.
  RecordChain-irrelevant : ∀{r}(rc₀ : RecordChain r)(rc₁ : RecordChain r)
-                        → NonInjective-≡-preds _ _ bId ⊎ rc₀ ≈RC rc₁
+                        → NonInjective-≡-preds (_∈RC-simple rc₀ ∘ B) (_∈RC-simple rc₁ ∘ B) bId ⊎ rc₀ ≈RC rc₁
  RecordChain-irrelevant rc0 rc1 = ≈RC-refl rc0 rc1 ≈Rec-refl
 
  -------------------------------------------------
