@@ -58,70 +58,39 @@ module LibraBFT.Abstract.Properties
    -- knowledge about Records represented in the system.
    module _ (∈QC⇒AllSent : Complete InSys) where
 
-    -- For a /complete/ system we can go even further; if we have evidence that
-    -- only the tip of the record chains is in the system, we can infer
-    -- the rest of it is also in the system (or blockIDs are not injective).
+    -- For a /complete/ system (i.e., one in which peers vote for a Block only if
+    -- they know of a RecordChain up to that Block whose Records are all InSys), we
+    -- can prove that CommitRules based on RecordChainFroms similarly do not
+    -- conflict, provided all of the Records in the RecordChainFroms are InSys.
+    -- This enables peers not participating in consensus to confirm commits even if
+    -- they are sent only a "commit certificate" that contains enough of a
+    -- RecordChain to confirm the CommitRule.  Note that it is this "sending" that
+    -- justfies the assumption that the RecordChainFroms on which the CommitRules
+    -- are based are All-InSys.
     CommitsDoNotConflict'
-      : ∀{q q'}{rc  : RecordChain (Q q)}{rc' : RecordChain (Q q')}{b b' : Block}
-      → InSys (Q q) → InSys (Q q')
-      → CommitRule rc  b
-      → CommitRule rc' b'
-      → NonInjective-≡-preds (InSys ∘ B) (const Unit) bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-    CommitsDoNotConflict' {q} {q'} {step {r = B bb} rc b←q} {step {r = B bb'} rc' b←q'} {b} {b'} q∈sys q'∈sys cr cr'
-       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
-    ...| α , α∈qmem , α∈q'mem , hα
-       with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
-    ...| α∈q | α∈q'
-       with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
-    ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
-       with RecordChain-irrelevant (step arc  ab←q)  (step rc  b←q) |
-            RecordChain-irrelevant (step arc' ab←q') (step rc' b←q')
-    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ (hb , ( ais (∈RC-simple-¬here arc  ab←q (λ ()) p1)
-                                                                    , unit ))
-    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ (hb , ( ais' ( ∈RC-simple-¬here arc' ab←q' (λ ()) p1)
-                                                                    , unit ))
-    ...| inj₂ arc≈rc           | inj₂ arc'≈rc'
-       with CommitsDoNotConflict
-                 (All-InSys-step ais  ab←q  q∈sys )
-                 (All-InSys-step ais' ab←q' q'∈sys)
-                 (transp-CR (≈RC-sym arc≈rc  ) cr )
-                 (transp-CR (≈RC-sym arc'≈rc') cr')
-    ...| inj₁ (hb , (p1 , _)) = inj₁ (hb , (p1 , unit))
-    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (transp-B∈RC arc'≈rc' b∈arc'))
-    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (transp-B∈RC arc≈rc   b'∈arc))
-
-    -- The final property is even stronger; it states that even if an observer
-    -- has access only to suffixes of record chains that match the commit rule,
-    -- we can still guarantee that b and b' are non-conflicting blocks.  This
-    -- will be important for showing that observers can have confidence in commit
-    -- messages without participating in the protocol and without having access to
-    -- all previously sent records.
-    CommitsDoNotConflict''
       : ∀{o o' q q'}
       → {rcf  : RecordChainFrom o  (Q q)}
       → {rcf' : RecordChainFrom o' (Q q')}
       → {b b' : Block}
-      → InSys (Q q)
-      → InSys (Q q')
+      → All-InSys rcf
+      → All-InSys rcf'
       → CommitRuleFrom rcf  b
       → CommitRuleFrom rcf' b'
-      → NonInjective-≡ bId
+      → NonInjective-≡-pred (InSys ∘ B) bId
       ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
       ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
-    CommitsDoNotConflict'' {cb} {q = q} {q'} {rcf} {rcf'} q∈sys q'∈sys crf crf'
+    CommitsDoNotConflict' {cb} {q = q} {q'} {rcf} {rcf'} rcfAll∈sys rcf'All∈sys crf crf'
        with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'
-       with ∈QC⇒AllSent {q = q} hα α∈q q∈sys | ∈QC⇒AllSent {q = q'} hα α∈q' q'∈sys
+       with ∈QC⇒AllSent {q = q} hα α∈q (rcfAll∈sys here) | ∈QC⇒AllSent {q = q'} hα α∈q' (rcf'All∈sys here)
     ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
-       with step arc  ab←q | step arc' ab←q'
-    ...| rcq | rcq'
-       with crf⇒cr rcf  rcq  crf | crf⇒cr rcf' rcq' crf'
-    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ hb
-    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ hb
+      with crf⇒cr rcf (step arc ab←q) crf | crf⇒cr rcf' (step arc' ab←q') crf'
+    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ (hb , (rcfAll∈sys p1 ) , (ais  (∈RC-simple-¬here arc  ab←q  (λ ()) p2)))
+    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ (hb , (rcf'All∈sys p1) , (ais' (∈RC-simple-¬here arc' ab←q' (λ ()) p2)))
     ...| inj₂ cr               | inj₂ cr'
-       with CommitsDoNotConflict' q∈sys q'∈sys cr cr'
-    ...| inj₁ (hb , (p1 , p2)) = inj₁ hb
-    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (rcq' , b∈arc'))
-    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (rcq  , b'∈arc))
+      with CommitsDoNotConflict (All-InSys-step ais ab←q (rcfAll∈sys here)) (All-InSys-step ais' ab←q' (rcf'All∈sys here)) cr cr'
+    ...| inj₁ (hb , (p1 , p2)) = inj₁ (hb , (p1 , p2))
+    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ ((step arc' ab←q') , b∈arc'))
+    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (step arc ab←q , b'∈arc))
