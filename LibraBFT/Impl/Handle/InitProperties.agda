@@ -4,16 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.ImplShared.Base.Types
-
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
-open import LibraBFT.Impl.Handle
-import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
-import      LibraBFT.Impl.OBM.Init                      as Init
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.Impl.Properties.Util
+import      LibraBFT.Impl.Properties.Util             as Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -25,11 +19,12 @@ module initEMWithOutputSpec where
   record ContractOk (em : EpochManager) (lo : List Output) : Set where
     constructor mkContractOk
     field
-       rmInv : Σ RoundManager λ rm → Invariants.RoundManagerInv rm
-                                   × em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
+       rmInv : Σ RoundManager
+                 λ rm → em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
+                      × Util.Invariants.RoundManagerInv rm
 
   Contract : Either ErrLog (EpochManager × List Output) → Set
-  Contract (Left _) = ⊤
+  Contract (Left _)          = ⊤
   Contract (Right (em , lo)) = ContractOk em lo
 
 --  open initEMWithOutputSpec
