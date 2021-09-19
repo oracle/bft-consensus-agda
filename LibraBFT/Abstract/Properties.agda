@@ -69,17 +69,15 @@ module LibraBFT.Abstract.Properties
     -- are based are All-InSys.
     CommitsDoNotConflict'
       : ∀{o o' q q'}
-      → {rcf  : RecordChainFrom o  (Q q)}
-      → {rcf' : RecordChainFrom o' (Q q')}
+      → {rcf  : RecordChainFrom o  (Q q)}  → All-InSys rcf
+      → {rcf' : RecordChainFrom o' (Q q')} → All-InSys rcf'
       → {b b' : Block}
-      → All-InSys rcf
-      → All-InSys rcf'
       → CommitRuleFrom rcf  b
       → CommitRuleFrom rcf' b'
       → NonInjective-≡-pred (InSys ∘ B) bId
       ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
       ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
-    CommitsDoNotConflict' {cb} {q = q} {q'} {rcf} {rcf'} rcfAll∈sys rcf'All∈sys crf crf'
+    CommitsDoNotConflict' {cb} {q = q} {q'} {rcf} rcfAll∈sys {rcf'} rcf'All∈sys crf crf'
        with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
@@ -92,5 +90,5 @@ module LibraBFT.Abstract.Properties
     ...| inj₂ cr               | inj₂ cr'
       with CommitsDoNotConflict (All-InSys-step ais ab←q (rcfAll∈sys here)) (All-InSys-step ais' ab←q' (rcf'All∈sys here)) cr cr'
     ...| inj₁ (hb , (p1 , p2)) = inj₁ (hb , (p1 , p2))
-    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ ((step arc' ab←q') , b∈arc'))
-    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (step arc ab←q , b'∈arc))
+    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (step arc' ab←q' , b∈arc'))
+    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (step arc  ab←q  , b'∈arc))
