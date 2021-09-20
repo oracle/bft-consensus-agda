@@ -51,29 +51,29 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   fakeRM : RoundManager
 
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  initVV  : GenesisInfo → ValidatorVerifier
+  fakeInitVV  : GenesisInfo → ValidatorVerifier
 
-initSR : SafetyRules
-initSR =
+fakeInitSR : SafetyRules
+fakeInitSR =
   let sr = fakeRM ^∙ lSafetyRules
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
   in sr
 
-initPG : ProposalGenerator
-initPG = ProposalGenerator∙new 0
+fakeInitPG : ProposalGenerator
+fakeInitPG = ProposalGenerator∙new 0
 
 postulate -- TODO-1: initPE, initBS, initRS
-  initPE : ProposerElection
-  initBS : BlockStore
-  initRS : RoundState
+  fakeInitPE : ProposerElection
+  fakeInitBS : BlockStore
+  fakeInitRS : RoundState
 
-initRM : RoundManager
-initRM = RoundManager∙new
+fakeInitRM : RoundManager
+fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (initVV fakeGenesisInfo))
-           initBS initRS initPE initPG initSR false
+           (EpochState∙new 1 (fakeInitVV fakeGenesisInfo))
+           fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
 
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.
@@ -83,7 +83,7 @@ initRM = RoundManager∙new
 initialRoundManagerAndMessages
   : (a : Author) → GenesisInfo
   → RoundManager × List NetworkMsg
-initialRoundManagerAndMessages a _ = initRM , []
+initialRoundManagerAndMessages a _ = fakeInitRM , []
 
 -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
@@ -104,10 +104,10 @@ runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run han
 peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
 peerStep nid msg st = runHandler st (handle nid msg 0)
 
-InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
-InitAndHandlers = mkSysInitAndHandlers
+fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+fakeInitAndHandlers = mkSysInitAndHandlers
                     fakeGenesisInfo
-                    initRM
+                    fakeInitRM
                     initWrapper
                     peerStep
 

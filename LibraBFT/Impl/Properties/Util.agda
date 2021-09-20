@@ -19,14 +19,14 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle as Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open        ParamsWithInitAndHandlers InitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 
