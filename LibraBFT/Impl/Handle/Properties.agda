@@ -149,7 +149,7 @@ qcVoteSigsSentB4-sps
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬ ∈GenInfo-impl genesisInfo sig
+    → ¬ ∈GenInfo-impl fakeGenesisInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
 qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬gen
    rewrite sym $ ++-identityʳ (msgPool pre)
@@ -252,7 +252,7 @@ qcVoteSigsSentB4-handle
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬ ∈GenInfo-impl genesisInfo sig
+    → ¬ ∈GenInfo-impl fakeGenesisInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-init ini) ()
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-msg {_ , nm} m∈pool ini) m∈acts {qc} qc∈m sig vs∈qc v≈rbld ¬gen =

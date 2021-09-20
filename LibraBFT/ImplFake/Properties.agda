@@ -27,7 +27,7 @@ module LibraBFT.ImplFake.Properties (𝓔 : EpochConfig) where
                               ; gvc     = genVotesConsistent
                               ; gvr     = genVotesRound≡0
                               ; v≢0     = ¬genVotesRound≢0
-                              ; ∈GI?    = ∈GenInfo?-impl genesisInfo
+                              ; ∈GI?    = ∈GenInfo?-impl fakeGenesisInfo
                               ; iro     = Common.vo₁ 𝓔
                               ; vo₂     = VO.vo₂ 𝓔
                               ; pr₁     = PR.pr₁ 𝓔

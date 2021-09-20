@@ -72,14 +72,14 @@ postulate -- TODO-1: Prove (waiting on: complete definition of `initRM`)
       → initialised st pid ≡ uninitd
       → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
-      → ∈GenInfo-impl genesisInfo (proj₂ vs)
+      → ∈GenInfo-impl fakeGenesisInfo (proj₂ vs)
 
 module ∈GenInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}
              → (sig : WithVerSig pk v) (sig' : WithVerSig pk v')
-             → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig)
+             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig)
              → ver-signature sig' ≡ ver-signature sig
-             → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig')
+             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig')
   sameSig∉ _ _ ¬gen ≡sig rewrite ≡sig = ¬gen
 
 -- Lemmas for `PeerCanSignForPK`
@@ -142,7 +142,7 @@ module ReachableSystemStateProps where
       → ReachableSystemState st
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → initialised st pid ≡ initd
   mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬gen mws∈pool =
@@ -185,7 +185,7 @@ module ReachableSystemStateProps where
       → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch

@@ -194,7 +194,7 @@ module LibraBFT.ImplShared.Consensus.Types where
   postulate -- valid assumption
     -- We postulate the existence of GenesisInfo known to all
     -- TODO: construct one or write a function that generates one from some parameters.
-    genesisInfo : GenesisInfo
+    fakeGenesisInfo : GenesisInfo
 
   data ∈GenInfo-impl (gi : GenesisInfo) : Signature → Set where
    inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC gi) → ∈GenInfo-impl gi (proj₂ vs)
@@ -205,10 +205,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   postulate -- TODO-1: prove after defining genInfo
     genVotesRound≡0     : ∀ {pk v}
                        → (wvs : WithVerSig pk v)
-                       → ∈GenInfo-impl genesisInfo (ver-signature wvs)
+                       → ∈GenInfo-impl fakeGenesisInfo (ver-signature wvs)
                        → v ^∙ vRound ≡ 0
     genVotesConsistent : (v1 v2 : Vote)
-                       → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
+                       → ∈GenInfo-impl fakeGenesisInfo (_vSignature v1)
+                       → ∈GenInfo-impl fakeGenesisInfo (_vSignature v2)
                      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
   -- To enable modeling of logging info that has not been added yet,

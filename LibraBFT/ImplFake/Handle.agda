@@ -68,7 +68,7 @@ module LibraBFT.ImplFake.Handle where
  initRM : RoundManager
  initRM = RoundManager∙new
             ObmNeedFetch∙new
-            (EpochState∙new 1 (initVV genesisInfo))
+            (EpochState∙new 1 (initVV fakeGenesisInfo))
             initBS initRS initPE initPG initSR false
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
@@ -103,7 +103,7 @@ module LibraBFT.ImplFake.Handle where
 
  FakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
  FakeInitAndHandlers = mkSysInitAndHandlers
-                         genesisInfo
+                         fakeGenesisInfo
                          initRM
                          initWrapper
                          peerStep
