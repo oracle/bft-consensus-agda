@@ -109,6 +109,7 @@ fakeInitAndHandlers = mkSysInitAndHandlers
                     fakeGenesisInfo
                     fakeInitRM
                     fakeInitWrapper
+                    peerStep
 
 ------------------------------------------------------------------------------
 -- real initialization
