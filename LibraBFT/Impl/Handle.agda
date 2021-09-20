@@ -80,17 +80,17 @@ fakeInitRM = RoundManager∙new
 -- That means we cannot prove the base case for various properties,
 -- e.g., in Impl.Properties.VotesOnce
 -- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
-initialRoundManagerAndMessages
+fakeInitialRoundManagerAndMessages
   : (a : Author) → GenesisInfo
   → RoundManager × List NetworkMsg
-initialRoundManagerAndMessages a _ = fakeInitRM , []
+fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 
 -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
 -- be renamed?)
 
-initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
-initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
+fakeInitWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
 -- Here we invoke the handler that models the real implementation handler.
 runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
@@ -108,7 +108,7 @@ fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 fakeInitAndHandlers = mkSysInitAndHandlers
                     fakeGenesisInfo
                     fakeInitRM
-                    initWrapper
+                    fakeInitWrapper
                     peerStep
 
 ------------------------------------------------------------------------------
