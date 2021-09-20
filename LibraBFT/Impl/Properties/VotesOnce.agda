@@ -17,7 +17,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle                       as Handle
 open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
@@ -33,10 +33,10 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers InitAndHandlers
-open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
@@ -425,7 +425,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
      open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) handlePre)
    sameId (C x) ()
 
-votesOnce₁ : Common.IncreasingRoundObligation InitAndHandlers 𝓔
+votesOnce₁ : Common.IncreasingRoundObligation Handle.fakeInitAndHandlers 𝓔
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig ¬gen ¬msb pcspkv v'⊂m' m'∈pool sig' ¬gen' eid≡
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬gen
@@ -499,7 +499,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
 
-  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
+  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ Handle.fakeInitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
   ret
     with <-cmp (v' ^∙ vRound) (v ^∙ vRound)
   ...| tri< rv'<rv _ _ = Left rv'<rv
@@ -518,7 +518,7 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
-votesOnce₂ : VO.ImplObligation₂ InitAndHandlers 𝓔
+votesOnce₂ : VO.ImplObligation₂ Handle.fakeInitAndHandlers 𝓔
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈acts sig ¬gen ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬gen' ¬msb4' pcsfpk' ≡epoch ≡round
    with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =

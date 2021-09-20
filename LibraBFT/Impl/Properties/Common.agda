@@ -17,7 +17,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle                       as Handle
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Handle.Properties
@@ -31,12 +31,12 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
 open        PeerCanSignForPK
 
-open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 
 -- This module contains definitions and lemmas used by proofs of the

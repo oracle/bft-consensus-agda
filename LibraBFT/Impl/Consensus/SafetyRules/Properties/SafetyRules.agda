@@ -16,7 +16,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle                              as Handle
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Impl.OBM.Crypto                          as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -30,8 +30,8 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
-open        ParamsWithInitAndHandlers InitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 open Invariants
 open RoundManagerTransProps
 
