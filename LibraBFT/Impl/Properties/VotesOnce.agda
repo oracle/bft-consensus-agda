@@ -50,7 +50,7 @@ newVote⇒lv≡
     → StepPeerState pid (msgPool pre) (initialised pre)
         (peerStates pre pid) (s' , acts)
     → v ⊂Msg m → send m ∈ acts → (sig : WithVerSig pk v)
-    → Meta-Honest-PK pk → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+    → Meta-Honest-PK pk → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
 newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈pool ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬gen ¬msb4
@@ -92,7 +92,7 @@ oldVoteRound≤lvr
   : ∀ {pid pk v}{pre : SystemState}
     → (r : ReachableSystemState pre)
     → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-    → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+    → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
     → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → PeerCanSignForPK pre v pid pk
     → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
@@ -176,11 +176,11 @@ sameERasLV⇒sameId-lem₁ :
   → (sp : StepPeer pre pid' s acts)
   → ∀ {v v'} → Meta-Honest-PK pk
   → PeerCanSignForPK (StepPeer-post sp) v pid pk
-  → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig'))
+  → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig'))
   → (mws : MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
   → v ≡L v' at vEpoch → v ≡L v' at vRound
   → Σ[ mws ∈ MsgWithSig∈ pk (ver-signature sig') (msgPool pre) ]
-      (¬ ∈GenInfo-impl genesisInfo (ver-signature ∘ msgSigned $ mws)
+      (¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature ∘ msgSigned $ mws)
        × PeerCanSignForPK pre v pid pk
        × v  ≡L msgPart mws at vEpoch
        × v  ≡L msgPart mws at vRound
@@ -196,7 +196,7 @@ sameERasLV⇒sameId-lem₁{pid}{pid'}{pk}{pre = pre} rss sp {v}{v'} hpk pcsfpk s
   ≡voteData : msgPart mws ≡L v' at vVoteData
   ≡voteData = ⊎-elimˡ (PerReachableState.meta-sha256-cr rss) (sameSig⇒sameVoteData sig' (msgSigned mws) (sym ∘ msgSameSig $ mws))
 
-  ¬gen' : ¬ ∈GenInfo-impl genesisInfo (ver-signature ∘ msgSigned $ mws)
+  ¬gen' : ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature ∘ msgSigned $ mws)
   ¬gen' rewrite msgSameSig mws = ¬gen
 
   -- The peer can sign for `v` now, so it can sign for `v` in the preceeding
@@ -212,7 +212,7 @@ sameERasLV⇒sameId
     → just v ≡ peerStates st pid ^∙ pssSafetyData-rm ∙ sdLastVote
     → PeerCanSignForPK st v pid pk
     → v' ⊂Msg m' → (pid' , m') ∈ (msgPool st)
-    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig'))
+    → (sig' : WithVerSig pk v') → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig'))
     → v ≡L v' at vEpoch → v ≡L v' at vRound
     → v ≡L v' at vProposedId
 -- Cheat steps cannot be where an honestly signed message originated.

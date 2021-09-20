@@ -72,7 +72,7 @@ postulate -- TODO-1: initPE, initBS, initRS
 initRM : RoundManager
 initRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (initVV genesisInfo))
+           (EpochState∙new 1 (initVV fakeGenesisInfo))
            initBS initRS initPE initPG initSR false
 
 -- Eventually, the initialization should establish properties we care about.
@@ -106,7 +106,7 @@ peerStep nid msg st = runHandler st (handle nid msg 0)
 
 InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 InitAndHandlers = mkSysInitAndHandlers
-                    genesisInfo
+                    fakeGenesisInfo
                     initRM
                     initWrapper
                     peerStep
