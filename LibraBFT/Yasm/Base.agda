@@ -53,6 +53,5 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
       bootstrap : PeerId → Genesis → Maybe (PeerState × List (Action Msg))
 
       -- Handles a message on a previously initialized peer.
-      -- TODO-1 : replace Maybe with Either after adding error type (to mkSysTypeParms ?).
-      handle : PeerId → Msg → PeerState → Maybe (PeerState × List (Action Msg))
+      handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
 

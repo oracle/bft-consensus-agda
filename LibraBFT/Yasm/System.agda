@@ -219,7 +219,7 @@ module LibraBFT.Yasm.System
      step-msg  : ∀{m}
                → m ∈ pool
                → peerInits pid ≡ initd
-               → StepPeerState pid pool peerInits ps (handle pid (proj₂ m) ps)
+               → StepPeerState pid pool peerInits ps (just (handle pid (proj₂ m) ps))
 
    -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
    data StepPeer (pre : SystemState) : PeerId → Maybe (PeerState × List (LYT.Action Msg)) → Set ℓ-PeerState where
