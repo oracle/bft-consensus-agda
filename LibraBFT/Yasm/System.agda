@@ -222,11 +222,11 @@ module LibraBFT.Yasm.System
                → StepPeerState pid pool peerInits ps (just (handle pid (proj₂ m) ps))
 
    -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
-   data StepPeer (pre : SystemState) : PeerId → Maybe (PeerState × List (LYT.Action Msg)) → Set ℓ-PeerState where
+   data StepPeer (pre : SystemState) : PeerId → PeerState → List (LYT.Action Msg) → Set ℓ-PeerState where
      -- it can be obtained by a handle or init call.
      step-honest : ∀{pid st outs}
-                 → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just ((st , outs)))
-                 → StepPeer pre pid (just (st , outs))
+                 → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (st , outs))
+                 → StepPeer pre pid st outs
 
      -- or the peer decides to cheat.  CheatMsgConstraint ensures it cannot
      -- forge signatures by honest peers.  Cheat steps do not modify peer
@@ -234,14 +234,14 @@ module LibraBFT.Yasm.System
      -- handlers.
      step-cheat  : ∀{pid m}
                  → CheatMsgConstraint (msgPool pre) m
-                 → StepPeer pre pid (just (peerStates pre pid , (LYT.send m ∷ [])))
+                 → StepPeer pre pid (peerStates pre pid) (LYT.send m ∷ [])
 
-   isCheat : ∀ {pre pid ms outs} → StepPeer pre pid (just (ms , outs)) → Set
+   isCheat : ∀ {pre pid ms outs} → StepPeer pre pid ms outs → Set
    isCheat (step-honest _) = ⊥
    isCheat (step-cheat  _) = Unit
 
    initStatus : ∀ {pid pre ms outs}
-              → StepPeer pre pid (just (ms , outs))
+              → StepPeer pre pid ms outs
               → InitStatus
               → InitStatus
    initStatus {pid} (step-honest _) preinit = initd
@@ -249,7 +249,8 @@ module LibraBFT.Yasm.System
 
    -- Computes the post-sysstate for a given step-peer.
    StepPeer-post : ∀{pid st' outs}{pre : SystemState }
-                 → StepPeer pre pid (just (st' , outs)) → SystemState
+                 → StepPeer pre pid st' outs
+                 → SystemState
    StepPeer-post {pid} {st'} {outs} {pre} sp = record pre
      { peerStates  = ⟦ peerStates pre  , pid ← st' ⟧
      ; initialised = ⟦ initialised pre , pid ← initStatus sp (initialised pre pid) ⟧
@@ -257,7 +258,7 @@ module LibraBFT.Yasm.System
      }
 
    StepPeer-post-lemma : ∀{pid st' outs}{pre : SystemState}
-                 → (pstep : StepPeer pre pid (just (st' , outs)))
+                 → (pstep : StepPeer pre pid st' outs)
                  → st' ≡ peerStates (StepPeer-post pstep) pid
    StepPeer-post-lemma pstep = sym override-target-≡
 
@@ -267,25 +268,25 @@ module LibraBFT.Yasm.System
    StepPeer-post-lemma2 {pre = pre} _ = override-target-≡
 
    cheatStepDNMPeerStates : ∀{pid st' outs}{pre : SystemState}
-                          → (theStep : StepPeer pre pid (just (st' , outs)))
+                          → (theStep : StepPeer pre pid st' outs)
                           → isCheat theStep
                           → peerStates (StepPeer-post theStep) ≡ peerStates pre
    cheatStepDNMPeerStates {pid = pid} {pre = pre} (step-cheat _) _ = overrideSameVal-correct-ext {f = peerStates pre} {pid}
 
    cheatStepDNMInitialised : ∀{pid st' outs}{pre : SystemState}
-                          → (theStep : StepPeer pre pid (just (st' , outs)))
+                          → (theStep : StepPeer pre pid st' outs)
                           → isCheat theStep
                           → initialised (StepPeer-post theStep) ≡ initialised pre
    cheatStepDNMInitialised {pid = pid} {pre = pre} (step-cheat _) _ = overrideSameVal-correct-ext
 
    cheatStepDNMInitialised₁ : ∀{pid pid' st' outs}{pre : SystemState}
-                          → (theStep : StepPeer pre pid (just (st' , outs)))
+                          → (theStep : StepPeer pre pid st' outs)
                           → isCheat theStep
                           → initialised (StepPeer-post theStep) pid' ≡ initialised pre pid'
    cheatStepDNMInitialised₁ {pid} {pid'} {pre = pre} (step-cheat _) _ = overrideSameVal-correct pid pid'
 
    cheatStepDNMPeerStates₁ : ∀{pid pid' st' outs}{pre : SystemState}
-                           → (theStep : StepPeer pre pid (just (st' , outs)))
+                           → (theStep : StepPeer pre pid st' outs)
                            → isCheat theStep
                            → peerStates (StepPeer-post theStep) pid' ≡ peerStates pre pid'
    cheatStepDNMPeerStates₁ {pid} {pid'} (step-cheat _) x = overrideSameVal-correct pid pid'
@@ -309,7 +310,7 @@ module LibraBFT.Yasm.System
      -- not performed by a specific peer (for example, if we model some notion of
      -- time to prove liveness properties).
      step-peer : ∀{pid st' outs}{pre : SystemState}
-               → (pstep : StepPeer pre pid (just (st' , outs)))
+               → (pstep : StepPeer pre pid st' outs)
                → Step pre (StepPeer-post pstep)
 
 
@@ -499,7 +500,7 @@ module LibraBFT.Yasm.System
 
      Step*-Step-fold : (∀{pid st' outs}{st : SystemState}
                           → ReachableSystemState st
-                          → (pstep : StepPeer st pid (just (st' , outs)))
+                          → (pstep : StepPeer st pid st' outs)
                           → P st
                           → P (StepPeer-post pstep))
                      → P initialState
