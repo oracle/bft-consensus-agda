@@ -38,6 +38,7 @@ module LibraBFT.Abstract.Properties
 
  module WithAssumptions {ℓ}
    (InSys                 : Record → Set ℓ)
+   (no-collisions-InSys   : NoCollisions InSys)
    (votes-only-once       : VotesOnlyOnceRule InSys)
    (preferred-round-rule  : PreferredRoundRule InSys)
   where
@@ -50,8 +51,13 @@ module LibraBFT.Abstract.Properties
         → {b b' : Block}
         → CommitRule rc  b
         → CommitRule rc' b'
-        → NonInjective-≡-pred (InSys ∘ B) bId ⊎ ((B b) ∈RC rc' ⊎ (B b') ∈RC rc)
-   CommitsDoNotConflict = WithInvariants.thmS5 InSys votes-only-once preferred-round-rule
+        → (B b) ∈RC rc' ⊎ (B b') ∈RC rc
+   CommitsDoNotConflict ais ais' cr cr'
+      with WithInvariants.thmS5 InSys votes-only-once preferred-round-rule ais ais' cr cr'
+       -- We use the implementation-provided evidence that Block ids are injective among
+       -- Block actually in the system to dismiss the first possibility
+   ...| inj₁ ((_ , neq , h≡) , (is1 , is2)) = ⊥-elim (neq (no-collisions-InSys is1 is2 h≡))
+   ...| inj₂ corr = corr
 
    -- When we are dealing with a /Complete/ InSys predicate, we can go a few steps
    -- further and prove that commits do not conflict even if we have only partial
@@ -74,8 +80,7 @@ module LibraBFT.Abstract.Properties
       → {b b' : Block}
       → CommitRuleFrom rcf  b
       → CommitRuleFrom rcf' b'
-      → NonInjective-≡-pred (InSys ∘ B) bId
-      ⊎ Σ (RecordChain (Q q')) ((B b)  ∈RC_)
+      → Σ (RecordChain (Q q')) ((B b)  ∈RC_)
       ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict' {cb} {q = q} {q'} {rcf} rcfAll∈sys {rcf'} rcf'All∈sys crf crf'
        with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
@@ -85,10 +90,9 @@ module LibraBFT.Abstract.Properties
        with ∈QC⇒AllSent {q = q} hα α∈q (rcfAll∈sys here) | ∈QC⇒AllSent {q = q'} hα α∈q' (rcf'All∈sys here)
     ...| ab , (arc , ais) , ab←q | ab' , (arc' , ais') , ab←q'
       with crf⇒cr rcf (step arc ab←q) crf | crf⇒cr rcf' (step arc' ab←q') crf'
-    ...| inj₁ (hb , (p1 , p2)) | _                     = inj₁ (hb , (rcfAll∈sys p1 ) , (ais  (∈RC-simple-¬here arc  ab←q  (λ ()) p2)))
-    ...| inj₂ _                | inj₁ (hb , (p1 , p2)) = inj₁ (hb , (rcf'All∈sys p1) , (ais' (∈RC-simple-¬here arc' ab←q' (λ ()) p2)))
+    ...| inj₁ ((_ , neq , h≡) , (is1 , is2)) | _                     = ⊥-elim (neq (no-collisions-InSys (rcfAll∈sys  is1) (ais  (∈RC-simple-¬here arc  ab←q  (λ ()) is2)) h≡))
+    ...| inj₂ _                | inj₁ ((_ , neq , h≡) , (is1 , is2)) = ⊥-elim (neq (no-collisions-InSys (rcf'All∈sys is1) (ais' (∈RC-simple-¬here arc' ab←q' (λ ()) is2)) h≡))
     ...| inj₂ cr               | inj₂ cr'
       with CommitsDoNotConflict (All-InSys-step ais ab←q (rcfAll∈sys here)) (All-InSys-step ais' ab←q' (rcf'All∈sys here)) cr cr'
-    ...| inj₁ (hb , (p1 , p2)) = inj₁ (hb , (p1 , p2))
-    ...| inj₂ (inj₁ b∈arc') = inj₂ (inj₁ (step arc' ab←q' , b∈arc'))
-    ...| inj₂ (inj₂ b'∈arc) = inj₂ (inj₂ (step arc  ab←q  , b'∈arc))
+    ...| inj₁ b∈arc' = inj₁ (step arc' ab←q' , b∈arc')
+    ...| inj₂ b'∈arc = inj₂ (step arc  ab←q  , b'∈arc)

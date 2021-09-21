@@ -47,6 +47,12 @@ module LibraBFT.Abstract.System
     All-InSys-step hyp ext r here = r
     All-InSys-step hyp ext r (there .ext r∈rc) = hyp r∈rc
 
+
+  -- We say an InSys predicate has NoCollisions if there are no two different Blocks that satisfy
+  -- InSys and have different ids.
+  NoCollisions : ∀{ℓ} → (Record → Set ℓ) → Set ℓ
+  NoCollisions ∈sys = ∀ {b₀ b₁} → ∈sys (B b₀) → ∈sys (B b₁) → bId b₀ ≡ bId b₁ → b₀ ≡ b₁
+
   -- We say an InSys predicate is /Complete/ when we can construct a record chain
   -- from any vote by an honest participant. This essentially says that whenever
   -- an honest participant casts a vote, they have checked that the voted-for
