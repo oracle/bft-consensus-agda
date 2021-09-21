@@ -420,22 +420,52 @@ module LibraBFT.Lemmas where
                  → allDistinct (List-map f xs) → α₁ ≢ α₂
                  → f (List-lookup xs α₁) ≢ f (List-lookup xs α₂)
  allDistinct-Map {_} {_} {xs} {α₁} {α₂} f all≢ α₁≢α₂ flkp≡
-   with all≢ (cast (sym (List-length-map f xs)) α₁)
+    with all≢ (cast (sym (List-length-map f xs)) α₁)
              (cast (sym (List-length-map f xs)) α₂)
- ... | inj₁ cα₁≡cα₂  = ⊥-elim (α₁≢α₂ (cast-injective {eq = sym (List-length-map f xs)} cα₁≡cα₂))
- ... | inj₂ lkpα₁α₂≢ = ⊥-elim (lkpα₁α₂≢ (trans (sym (List-lookup-map xs f α₁))
+ ...| inj₁ cα₁≡cα₂  = ⊥-elim (α₁≢α₂ (cast-injective {eq = sym (List-length-map f xs)} cα₁≡cα₂))
+ ...| inj₂ lkpα₁α₂≢ = ⊥-elim (lkpα₁α₂≢ (trans (sym (List-lookup-map xs f α₁))
                                                (trans flkp≡ (List-lookup-map xs f α₂))))
+
+ filter⊆ : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs : List A}
+         → List-filter P? xs ⊆List xs
+ filter⊆ {P? = P?} x∈fxs = Any-filter⁻ P? x∈fxs
+
+ ⊆⇒filter⊆ : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs ys : List A}
+           → xs ⊆List ys
+           → List-filter P? xs ⊆List List-filter P? ys
+ ⊆⇒filter⊆ {P? = P?} {xs = xs} {ys = ys} xs∈ys x∈fxs
+   with List-∈-filter⁻ P? {xs = xs} x∈fxs
+ ...| x∈xs , px = List-∈-filter⁺ P? (xs∈ys x∈xs) px
+
+ map∘filter : ∀ {A B : Set} (xs : List A) (ys : List B) (f : A → B)
+                {P : B → Set} (P? : (b : B) → Dec (P b))
+            → List-map f xs ≡ ys
+            → List-map f (List-filter (P? ∘ f) xs) ≡ List-filter P? ys
+ map∘filter [] [] _ _ _ = refl
+ map∘filter (x ∷ xs) (.(f x) ∷ .(List-map f xs)) f P? refl
+    with P? (f x)
+ ...| yes prf = cong (f x ∷_) (map∘filter xs (List-map f xs) f P? refl)
+ ...| no imp = map∘filter xs (List-map f xs) f P? refl
+
+
+ allDistinct-Filter : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs : List A}
+                    → allDistinct xs
+                    → allDistinct (List-filter P? xs)
+ allDistinct-Filter {P? = P?} {xs = x ∷ xs} all≢ i j
+    with P? x
+ ...| no imp = allDistinct-Filter {P? = P?} {xs = xs} (allDistinctTail all≢) i j
+ ...| yes prf = let all≢Tail = allDistinct-Filter {P? = P?} {xs = xs} (allDistinctTail all≢)
+                    x∉Tail = allDistinct⇒∉ all≢
+                in x∉→AllDistinct all≢Tail (∉∧⊆List⇒∉ x∉Tail filter⊆) i j
 
 
  sum-f∘g : ∀ {A B : Set} (xs : List A) (g : B → ℕ) (f : A → B)
          → f-sum (g ∘ f) xs ≡ f-sum g (List-map f xs)
  sum-f∘g xs g f = cong sum (List-map-compose xs)
 
- map-lookup-allFin : ∀ {A : Set} {xs : List A}
+ map-lookup-allFin : ∀ {A : Set} (xs : List A)
                    → List-map (List-lookup xs) (allFin (length xs)) ≡ xs
- map-lookup-allFin {xs = xs} = trans (map-tabulate id (List-lookup xs))
-                                     (trans (tabulate-cong λ _ → refl)
-                                            (tabulate-lookup xs))
+ map-lookup-allFin xs = trans (map-tabulate id (List-lookup xs)) (tabulate-lookup xs)
 
  list-index : ∀ {A B : Set} {P : A → B → Set} (_∼_ : Decidable P)
               (xs : List A) → B → Maybe (Fin (length xs))
@@ -494,6 +524,9 @@ module LibraBFT.Lemmas where
             xs⊆ys-x = ⊆List-Elim (xs⊆ys (here refl)) x∉xs xs⊆ysT
             disTail = allDistinctTail dxs
        in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)
+
+   ⊆-allFin : ∀ {n} {xs : List (Fin n)} → xs ⊆List allFin n
+   ⊆-allFin {x = x} _ = Any-tabulate⁺ x refl
 
    intersect : List A → List A → List A
    intersect xs [] = []

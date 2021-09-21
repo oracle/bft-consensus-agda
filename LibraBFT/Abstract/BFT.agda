@@ -56,22 +56,14 @@ module LibraBFT.Abstract.BFT
  -- `bizF`. Therefore, for any list of distinct participants, the
  -- combined power of the dishonest nodes is less than or equal to
  -- `bizF`.
- module _  (bft-assumption : ∀ (xs : List Member)
-                           → allDistinct xs
-                           → CombinedPower (List-filter Meta-dishonest? xs) ≤ bizF)
+ module _  (bft-assumption : CombinedPower (List-filter Meta-dishonest? (allFin authorsN)) ≤ bizF)
    where
-
-   participants : List Member
-   participants = allFin authorsN
-
-   members⊆ : ∀ {xs : List Member} → xs ⊆List participants
-   members⊆ {_} {x} _ = Any-tabulate⁺ {f = id} x refl
 
    union-votPower≤N : ∀ (xs ys : List Member)
                   → allDistinct xs → allDistinct ys
                   → CombinedPower (union xs ys) ≤ TotalVotPower
    union-votPower≤N xs ys dxs dys
-     = sum-⊆-≤ (union xs ys) votPower (unionDistinct xs ys dxs dys) members⊆
+     = sum-⊆-≤ (union xs ys) votPower (unionDistinct xs ys dxs dys) ⊆-allFin
 
    union-votPower≡ :  ∀ (xs ys : List Member)
                       → allDistinct xs → allDistinct ys
@@ -169,8 +161,11 @@ module LibraBFT.Abstract.BFT
    find-honest {xs} sxs biz<
      with partition Meta-dishonest? xs | inspect (partition Meta-dishonest?) xs
    ...| dis , [] | [ eq ]
-          = let bft     = bft-assumption xs sxs
-                xsVot≤f = subst (_≤ bizF) (cong CombinedPower (partition-dis {xs} eq)) bft
+          = let fxs⊆fall = ⊆⇒filter⊆ {xs = xs} ⊆-allFin
+                all≢flt  = allDistinct-Filter {xs = xs} sxs
+                sum≤     = sum-⊆-≤ (List-filter Meta-dishonest? xs) votPower all≢flt fxs⊆fall
+                bft      = ≤-trans sum≤ bft-assumption
+                xsVot≤f  = subst (_≤ bizF) (cong CombinedPower (partition-dis {xs} eq)) bft
             in ⊥-elim (<⇒≱ biz< xsVot≤f)
    ...| dis , x ∷ hon | [ eq ] = x , partition-hon eq
 

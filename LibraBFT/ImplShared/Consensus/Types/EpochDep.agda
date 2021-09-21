@@ -47,7 +47,10 @@ ValidatorVerifier-correct vv =
                        → lookup nId₁ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₁
                        → lookup nId₂ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₂
                        → v₁ ^∙ vciPublicKey ≢ v₂ ^∙ vciPublicKey
-   in suc (3 * bizF) ≤ totalVotPower × quorumVotPower ≤ totalVotPower × pksAll≢
+   in   suc (3 * bizF) ≤ totalVotPower
+      × quorumVotPower ≤ totalVotPower
+      × pksAll≢
+      × f-sum (_^∙ vciVotingPower) (List-filter (Meta-DishonestPK? ∘ (_^∙ vciPublicKey)) authorsInfo) ≤ bizF
 
 
 open DecLemmas {A = NodeId} _≟_
@@ -62,7 +65,7 @@ import LibraBFT.Abstract.BFT
 
 α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
 α-EC-VV (vv , ok) epoch =
-      EpochConfig∙new {!!}
+      EpochConfig∙new genId
                       epoch
                       numAuthors
                       toNodeId
@@ -79,11 +82,17 @@ import LibraBFT.Abstract.BFT
                                   (f-sum (_^∙ vciVotingPower) authorsInfo ∸ qsize)
                                   (≤-trans (proj₁ ok) (≡⇒≤ totalVotPower≡))
                                   getPubKey
-                                  {!bft-assumption!}
+                                  (let disMembers  = List-filter (Meta-DishonestPK? ∘ getPubKey) members
+                                       sumDisM≡    = sum-f∘g disMembers (_^∙ vciVotingPower) getAuthorInfo
+                                       disM≡disNId = map∘filter members authorsInfo getAuthorInfo
+                                                                (Meta-DishonestPK? ∘ (_^∙ vciPublicKey)) getAuthInfo≡VCI
+                                       sumDis≤bizF = (proj₂ ∘ proj₂ ∘ proj₂) ok
+                                   in ≤-trans (≡⇒≤ (trans sumDisM≡ (cong (f-sum _vciVotingPower) disM≡disNId))) sumDis≤bizF)
                                   (proj₂ q₁) (proj₂ q₂)
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₁))
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₂))
-      where authorsMap      = vv ^∙ vvAddressToValidatorInfo
+      where genId           = GenesisInfo.genQC genesisInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
+            authorsMap      = vv ^∙ vvAddressToValidatorInfo
             authors         = kvm-toList authorsMap
             authorsIDs≢     = kvm-keys-All≢ authorsMap
             authorsInfo     = List-map proj₂ authors
@@ -96,22 +105,22 @@ import LibraBFT.Abstract.BFT
             VotPowerMembers = f-sum (_^∙ vciVotingPower ∘ getAuthorInfo)
             VotPowerAuthors = f-sum (_^∙ vciVotingPower)
             bizF            = VotPowerAuthors authorsInfo ∸ qsize
+            getAuthInfo≡VCI : List-map getAuthorInfo members ≡ authorsInfo
+            getAuthInfo≡VCI = trans (List-map-compose members) (cong (List-map proj₂) (map-lookup-allFin authors))
             totalVotPower≡  : VotPowerAuthors authorsInfo ≡ VotPowerMembers members
             totalVotPower≡  = let sumf∘g = sum-f∘g members (_^∙ vciVotingPower) getAuthorInfo
-                                  comp≡  = List-map-compose {g = proj₂} {f = List-lookup authors} members
-                                  lkp∘≡  = cong (List-map proj₂) (map-lookup-allFin {xs = authors})
-                              in sym (trans sumf∘g (cong (f-sum (_^∙ vciVotingPower)) (trans comp≡ lkp∘≡)))
+                              in sym (trans sumf∘g (cong (f-sum (_^∙ vciVotingPower)) getAuthInfo≡VCI))
             N∸bizF≡Qsize    = subst ((_≡ qsize) ∘ (_∸ bizF)) totalVotPower≡ (m∸[m∸n]≡n ((proj₁ ∘ proj₂) ok))
             getPKey-Inj   : ∀ {m₁ m₂} → getPubKey m₁ ≡ getPubKey m₂ → m₁ ≡ m₂
             getPKey-Inj {m₁} {m₂} pk≡
               with m₁ ≟Fin m₂
             ...| yes m₁≡m₂ = m₁≡m₂
             ...| no  m₁≢m₂ = let nIdm₁≢nIdm₂ = allDistinct-Map {xs = authors} proj₁ authorsIDs≢ m₁≢m₂
-                             in ⊥-elim ((proj₂ ∘ proj₂) ok (getAuthorInfo m₁) (getAuthorInfo m₂)
-                                                           (toNodeId m₁) (toNodeId m₂) nIdm₁≢nIdm₂
-                                                           (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
+                                 pksAll≢ = (proj₁ ∘ proj₂ ∘ proj₂) ok
+                             in ⊥-elim (pksAll≢ (getAuthorInfo m₁) (getAuthorInfo m₂)
+                                                (toNodeId m₁) (toNodeId m₂) nIdm₁≢nIdm₂
+                                                (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
                                          pk≡)
-
 
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
   init-EC : GenesisInfo → EpochConfig
