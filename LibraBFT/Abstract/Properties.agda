@@ -37,10 +37,10 @@ module LibraBFT.Abstract.Properties
  open        EpochConfig 𝓔
 
  module WithAssumptions {ℓ}
-   (InSys                 : Record → Set ℓ)
-   (no-collisions-InSys   : NoCollisions InSys)
-   (votes-only-once       : VotesOnlyOnceRule InSys)
-   (preferred-round-rule  : PreferredRoundRule InSys)
+   (InSys               : Record → Set ℓ)
+   (no-collisions-InSys : NoCollisions InSys)
+   (votes-once          : VotesOnlyOnceRule InSys)
+   (preferred-round     : PreferredRoundRule InSys)
   where
 
    open All-InSys-props InSys
@@ -53,7 +53,7 @@ module LibraBFT.Abstract.Properties
         → CommitRule rc' b'
         → (B b) ∈RC rc' ⊎ (B b') ∈RC rc
    CommitsDoNotConflict ais ais' cr cr'
-      with WithInvariants.thmS5 InSys votes-only-once preferred-round-rule ais ais' cr cr'
+      with WithInvariants.thmS5 InSys votes-once preferred-round ais ais' cr cr'
        -- We use the implementation-provided evidence that Block ids are injective among
        -- Block actually in the system to dismiss the first possibility
    ...| inj₁ ((_ , neq , h≡) , (is1 , is2)) = ⊥-elim (neq (no-collisions-InSys is1 is2 h≡))
