@@ -132,24 +132,20 @@ initEMWithOutput = do
       me                          = 0
   fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
 
-initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ Right x → initEMWithOutput' ≡ Right x
-initEMWithOutput≡ {x} iewo
+initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ x → initEMWithOutput' ≡ x
+initEMWithOutput≡ iewo
   with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Left err rewrite iewo = refl
 ... | Right (nf , _ , vss , vv , pe , liws)
   with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Right y rewrite iewo = cong Right refl
+... | Left err rewrite iewo = refl
+... | Right y  rewrite iewo = refl
 
-------------------------------------------------------------------------------
--- TODO : ASK CHRIS : regarding EitherD-run
-
-zzz : EitherD ErrLog ℕ
-zzz = do
-  r ← RightD 0
-  RightD r
-
-zzz' : Either ErrLog ℕ
-zzz' = Right 0
-
-zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
-zzz≡zzz' ()
-
+initEMWithOutput≡' : ∀ {x} → initEMWithOutput' ≡ x → EitherD-run initEMWithOutput ≡ x
+initEMWithOutput≡' iewo
+  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Left err rewrite iewo = refl
+... | Right (nf , _ , vss , vv , pe , liws)
+  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
+... | Left err rewrite iewo = refl
+... | Right y rewrite iewo = refl
