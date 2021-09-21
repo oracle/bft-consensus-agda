@@ -132,10 +132,14 @@ initEMWithOutput = do
       me                          = 0
   fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
 
-initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ x → initEMWithOutput' ≡ x
-initEMWithOutput≡ iewo
+-- This shows that the Either and EitherD versions are equivalent.  This
+-- is a first step towards eliminating the painful VariantOf stuff, so
+-- we can have the version that looks (almost) exactly like the Haskell,
+-- and the EitherD variant, broken into explicit steps, etc. for proving.
+initEMWithOutput≡ : initEMWithOutput' ≡ EitherD-run initEMWithOutput
+initEMWithOutput≡
   with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-... | Left err rewrite iewo = refl
+... | Left err = refl
 ... | Right (nf , _ , vss , vv , pe , liws)
   with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
 ... | Left err rewrite iewo = refl
