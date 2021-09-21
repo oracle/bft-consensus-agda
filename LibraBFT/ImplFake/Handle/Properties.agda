@@ -126,7 +126,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
-                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (just (ppost , msgs))
                      → initialised pre pid ≡ initd
                      → ppre ^∙ rmEpoch ≡ ppost ^∙ rmEpoch
   noEpochIdChangeYet _ ppre≡ (step-init uni) ini = ⊥-elim (uninitd≢initd (trans (sym uni) ini))
@@ -143,7 +143,7 @@ module LibraBFT.ImplFake.Handle.Properties where
        ∀ {pid s' outs pk}{pre : SystemState}
        → ReachableSystemState pre
        -- For any honest call to /handle/ or /init/,
-       → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+       → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
        → ∀{v vm qc} → Meta-Honest-PK pk
        -- For every vote v represented in a message output by the call
        → v ⊂Msg (V vm)
@@ -172,7 +172,7 @@ module LibraBFT.ImplFake.Handle.Properties where
 
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
-                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs)
+                               → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs))
                                → ¬ (∈GenInfo-impl fakeGenesisInfo (_vSignature v))
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
@@ -201,7 +201,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   lastVoteRound-mono : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
                      → ReachableSystemState pre
                      → ppre ≡ peerStates pre pid
-                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (ppost , msgs)
+                     → StepPeerState pid (msgPool pre) (initialised pre) ppre (just (ppost , msgs))
                      → initialised pre pid ≡ initd
                      → ppre ^∙ rmEpoch ≡ ppost ^∙ rmEpoch
                      → ppre ^∙ rmLastVotedRound ≤ ppost ^∙ rmLastVotedRound
@@ -217,7 +217,7 @@ module LibraBFT.ImplFake.Handle.Properties where
     ¬genVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
                       → ReachableSystemState pre
                       -- For any honest call to /handle/ or /init/,
-                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+                      → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
                       → ∀{v m} → Meta-Honest-PK pk
                       -- For signed every vote v of every outputted message
                       → v ⊂Msg m → send m ∈ outs

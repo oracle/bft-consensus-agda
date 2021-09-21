@@ -144,7 +144,7 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
 qcVoteSigsSentB4-sps
   : ∀ pid (pre : SystemState) {s acts}
     → ReachableSystemState pre
-    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
+    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s , acts)))
     → ∀ {qc v pk} → qc QCProps.∈RoundManager s
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
@@ -188,7 +188,7 @@ lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
     → ReachableSystemState pre
     → initialised pre pid ≡ initd
-    → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (ppost , msgs)
+    → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (ppost , msgs))
     → peerStates pre pid ≡L ppost at rmEpoch
     → Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (ppost ^∙ pssSafetyData-rm)
 lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
@@ -246,7 +246,7 @@ lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) 
 qcVoteSigsSentB4-handle
     : ∀ pid {pre m s acts}
     → ReachableSystemState pre
-    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
+    → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s , acts)))
     → send m ∈ acts
     → ∀ {qc v pk} → qc QC∈NM m
     → WithVerSig pk v

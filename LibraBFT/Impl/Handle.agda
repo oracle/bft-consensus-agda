@@ -108,7 +108,7 @@ fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 fakeInitAndHandlers = mkSysInitAndHandlers
                     fakeGenesisInfo
                     fakeInitRM
-                    fakeInitWrapper
+                    (λ pid genesis → just (fakeInitWrapper pid genesis))
                     peerStep
 
 ------------------------------------------------------------------------------

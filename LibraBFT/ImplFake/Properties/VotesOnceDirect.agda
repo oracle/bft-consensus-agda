@@ -39,7 +39,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   newVoteEpoch≡⇒Round≡ : ∀ {st : SystemState}{pid s' outs v m pk}
                        → ReachableSystemState st
                        → StepPeerState pid (msgPool st) (initialised st)
-                                       (peerStates st pid) (s' , outs)
+                                       (peerStates st pid) (just (s' , outs))
                        → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                        → Meta-Honest-PK pk → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
                        → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
@@ -159,7 +159,7 @@ module LibraBFT.ImplFake.Properties.VotesOnceDirect (𝓔 : EpochConfig) where
   noEpochChange : ∀ {pid s' outs v pk}{st : SystemState}
                 → ReachableSystemState st
                 → (stP : StepPeerState pid (msgPool st) (initialised st)
-                                       (peerStates st pid) (s' , outs))
+                                       (peerStates st pid) (just (s' , outs)))
                 → PeerCanSignForPK st v pid pk
                 → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                 → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig)

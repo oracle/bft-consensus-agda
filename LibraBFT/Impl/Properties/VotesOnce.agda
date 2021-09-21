@@ -48,7 +48,7 @@ newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' acts v m pk}
     → ReachableSystemState pre
     → StepPeerState pid (msgPool pre) (initialised pre)
-        (peerStates pre pid) (s' , acts)
+        (peerStates pre pid) (just (s' , acts))
     → v ⊂Msg m → send m ∈ acts → (sig : WithVerSig pk v)
     → Meta-Honest-PK pk → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
