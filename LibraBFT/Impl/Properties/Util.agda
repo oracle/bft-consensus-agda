@@ -243,7 +243,7 @@ module QCProps where
     → WithVerSig pk v →
     ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬(∈GenInfo-impl fakeGenesisInfo sig)
+    → ¬(∈BootstrapInfo-impl fakeBootstrapInfo sig)
     → MsgWithSig∈ pk sig pool
 
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set

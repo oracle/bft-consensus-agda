@@ -65,7 +65,7 @@ module LibraBFT.ImplFake.Handle.Properties where
      | vote∈vm {si}
      with MsgWithSig∈? {pk} {ver-signature ver} {msgPool st}
   ...| yes msg∈ = inj₂ msg∈
-  ...| no  msg∉ = inj₁ ( mkPCS4PK {!!} (inGenInfo refl) {!!}
+  ...| no  msg∉ = inj₁ ( mkPCS4PK {!!} (inBootstrapInfo refl) {!!}
        -- The implementation will need to provide evidence that the peer is a member of
        -- the epoch of the message it's sending and that it is assigned pk for that epoch.
                         , msg∉)
@@ -107,7 +107,7 @@ module LibraBFT.ImplFake.Handle.Properties where
                  → initialised st pid ≡ initd
                  → qc ∈RoundManager (peerStates st pid)
                  → vs ∈ qcVotes qc
-                 → ¬ (∈GenInfo-impl fakeGenesisInfo (proj₂ vs))
+                 → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (proj₂ vs))
                  → MsgWithSig∈ pk (proj₂ vs) (msgPool st)
 
   -- We can prove this easily because we don't yet do epoch changes,
@@ -119,8 +119,8 @@ module LibraBFT.ImplFake.Handle.Properties where
      → (pkvpf' : PeerCanSignForPK st v' pid' pk)
      → v ^∙ vEpoch ≡ v' ^∙ vEpoch
      → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
-  availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _)
-                        (mkPCS4PK _ (inGenInfo refl) _) refl = refl
+  availEpochsConsistent (mkPCS4PK _ (inBootstrapInfo refl) _)
+                        (mkPCS4PK _ (inBootstrapInfo refl) _) refl = refl
 
   -- Always true, so far, as no epoch changes.
   noEpochIdChangeYet : ∀ {pre : SystemState}{pid}{ppre ppost msgs}
@@ -173,7 +173,7 @@ module LibraBFT.ImplFake.Handle.Properties where
   newVoteSameEpochGreaterRound : ∀ {pre : SystemState}{pid s' outs v m pk}
                                → ReachableSystemState pre
                                → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs))
-                               → ¬ (∈GenInfo-impl fakeGenesisInfo (_vSignature v))
+                               → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (_vSignature v))
                                → Meta-Honest-PK pk
                                → v ⊂Msg m → send m ∈ outs → (sig : WithVerSig pk v)
                                → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
@@ -214,7 +214,7 @@ module LibraBFT.ImplFake.Handle.Properties where
 
   postulate -- TODO-1: prove it
 
-    ¬genVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
+    ¬bootstrapVotesRound≢0  : ∀{pid s' outs pk}{pre : SystemState}
                       → ReachableSystemState pre
                       -- For any honest call to /handle/ or /init/,
                       → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
@@ -222,5 +222,5 @@ module LibraBFT.ImplFake.Handle.Properties where
                       -- For signed every vote v of every outputted message
                       → v ⊂Msg m → send m ∈ outs
                       → (wvs : WithVerSig pk v)
-                      → (¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature wvs))
+                      → (¬ ∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature wvs))
                       → v ^∙ vRound ≢ 0

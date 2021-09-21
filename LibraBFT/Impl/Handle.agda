@@ -50,8 +50,8 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   -- the initial RoundManager for every peer until it is initialised.
   fakeRM : RoundManager
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  fakeInitVV  : GenesisInfo → ValidatorVerifier
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  fakeInitVV  : BootstrapInfo → ValidatorVerifier
 
 fakeInitSR : SafetyRules
 fakeInitSR =
@@ -72,7 +72,7 @@ postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
 fakeInitRM : RoundManager
 fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (fakeInitVV fakeGenesisInfo))
+           (EpochState∙new 1 (fakeInitVV fakeBootstrapInfo))
            fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
 
 -- Eventually, the initialization should establish properties we care about.
@@ -81,7 +81,7 @@ fakeInitRM = RoundManager∙new
 -- e.g., in Impl.Properties.VotesOnce
 -- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
 fakeInitialRoundManagerAndMessages
-  : (a : Author) → GenesisInfo
+  : (a : Author) → BootstrapInfo
   → RoundManager × List NetworkMsg
 fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 
@@ -89,7 +89,7 @@ fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
 -- be renamed?)
 
-fakeInitWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+fakeInitWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
 fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
 -- Here we invoke the handler that models the real implementation handler.
@@ -106,9 +106,9 @@ peerStep nid msg st = runHandler st (handle nid msg 0)
 
 fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 fakeInitAndHandlers = mkSysInitAndHandlers
-                    fakeGenesisInfo
+                    fakeBootstrapInfo
                     fakeInitRM
-                    (λ pid genesis → just (fakeInitWrapper pid genesis))
+                    (λ pid bootstrapInfo → just (fakeInitWrapper pid bootstrapInfo))
                     peerStep
 
 ------------------------------------------------------------------------------

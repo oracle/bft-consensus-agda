@@ -51,12 +51,12 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v'  ⊂Msg m'  → send m' ∈ outs
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
    -- If v is really new and valid
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- And if there exists another v' that has been sent before
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo genInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    -- If v and v' share the same epoch
    → v ^∙  vEpoch ≡ v' ^∙ vEpoch
    -- and v is for a smaller round
@@ -83,13 +83,13 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo genInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- If v and v' share the same epoch and round
@@ -104,9 +104,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
   -- Next, we prove that given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-gvr : ImplObl-genVotesRound≡0)
+   (Impl-gvr : ImplObl-bootstrapVotesRound≡0)
    (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
-   (Impl-∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig))
+   (Impl-∈GI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
    (Impl-IRO : IncreasingRoundObligation)
    (Impl-PR1 : ImplObligation₁)
    (Impl-PR2 : ImplObligation₂)
@@ -181,25 +181,25 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                    m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4
         = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ v₂)
-              ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH v₂ ¬init₂ (msgSigned v₂sb4) round≡
+              ¬bootstrapV₂ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH v₂ ¬init₂ (msgSigned v₂sb4) round≡
               epoch≡ = sym (msgEpoch≡ v₂sb4)
           in either (λ r₂<r₁ → ⊥-elim (<⇒≯ r₁<r₂ (<-transʳ (≡⇒≤ (sym round≡)) r₂<r₁)))
                     (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
                                    v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
                                in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
                     (Impl-IRO r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ v₁New v₁pk
-                              (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
+                              (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬bootstrapV₂ epoch≡)
    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , _)
         = let rv₁<r₂ = <-transʳ (≡⇒≤ (msgRound≡ v₁sb4)) r₁<r₂
               round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ v₁)
-              ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
+              ¬bootstrapV₁ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
               v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
           in either id
                     (λ v₂sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
                                    v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
                                in PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3)
                     (Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
-                              (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
+                              (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬bootstrapV₁
                               (msgEpoch≡ v₁sb4) rv₁<r₂ v₁abs refl c3)
 
 

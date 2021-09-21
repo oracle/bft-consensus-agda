@@ -45,15 +45,15 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
      msgBId≡   : msgVote ^∙ vProposedId ≡ bId
  open VoteForRound∈ public
 
- ImplObl-genVotesRound≡0 : Set
- ImplObl-genVotesRound≡0 = ∀ {pk v}
+ ImplObl-bootstrapVotesRound≡0 : Set
+ ImplObl-bootstrapVotesRound≡0 = ∀ {pk v}
                          → (wvs : WithVerSig pk v)
-                         → ∈GenInfo genInfo (ver-signature wvs)
+                         → ∈BootstrapInfo bootstrapInfo (ver-signature wvs)
                          → v ^∙ vRound ≡ 0
 
- ImplObl-genVotesConsistent : Set
- ImplObl-genVotesConsistent = (v1 v2 : Vote)
-                             → ∈GenInfo genInfo (_vSignature v1) → ∈GenInfo genInfo (_vSignature v2)
+ ImplObl-bootstrapVotesConsistent : Set
+ ImplObl-bootstrapVotesConsistent = (v1 v2 : Vote)
+                             → ∈BootstrapInfo bootstrapInfo (_vSignature v1) → ∈BootstrapInfo bootstrapInfo (_vSignature v2)
                              → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
  ImplObl-NewVoteRound≢0 : Set (ℓ+1 ℓ-RoundManager)
@@ -66,7 +66,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    -- For signed every vote v of every outputted message
    → v ⊂Msg m → send m ∈ outs
    → (wvs : WithVerSig pk v)
-   → (¬ ∈GenInfo genInfo (ver-signature wvs))
+   → (¬ ∈BootstrapInfo bootstrapInfo (ver-signature wvs))
    → v ^∙ vRound ≢ 0
 
  IncreasingRoundObligation : Set (ℓ+1 ℓ-RoundManager)
@@ -78,12 +78,12 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo genInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that has been sent before
    → v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
    -- If v and v' share the same epoch
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → v' ^∙ vRound < v ^∙ vRound
@@ -93,7 +93,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
         (st         : SystemState)
         (r          : ReachableSystemState st)
         (sps-corr   : StepPeerState-AllValidParts)
-        (Impl-gvr   : ImplObl-genVotesRound≡0)
+        (Impl-gvr   : ImplObl-bootstrapVotesRound≡0)
         (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
    where
 
@@ -109,46 +109,46 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    ...| refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
                                 (msg∈pool m) (msgSigned m) refl refl refl
 
-    -- If a Vote signed for an honest PK has been sent, and it is not in genInfo, then
+    -- If a Vote signed for an honest PK has been sent, and it is not in bootstrapInfo, then
     -- it is for a round > 0
    NewVoteRound≢0 : ∀ {pk round epoch bId} {st : SystemState}
                      → ReachableSystemState st
                      → Meta-Honest-PK pk
                      → (v : VoteForRound∈ pk round epoch bId (msgPool st))
-                     → ¬ ∈GenInfo genInfo (ver-signature (msgSigned v))
+                     → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned v))
                      → round ≢ 0
-   NewVoteRound≢0 (step-s r (step-peer (step-honest stP))) pkH v ¬gen r≡0
+   NewVoteRound≢0 (step-s r (step-peer (step-honest stP))) pkH v ¬bootstrap r≡0
      with msgRound≡ v
    ...| refl
-     with newMsg⊎msgSentB4 r stP pkH (msgSigned v) ¬gen (msg⊆ v) (msg∈pool v)
+     with newMsg⊎msgSentB4 r stP pkH (msgSigned v) ¬bootstrap (msg⊆ v) (msg∈pool v)
    ...| Left (m∈outs , _ , _) = ⊥-elim (Impl-nvr≢0 r stP pkH (msg⊆ v) m∈outs
-                                                    (msgSigned v) ¬gen r≡0)
+                                                    (msgSigned v) ¬bootstrap r≡0)
    ...| Right m
       with msgSameSig m
    ...| refl
       with sameSig⇒sameVoteDataNoCol (msgSigned m) (msgSigned v) (msgSameSig m)
    ...| refl = let vsb4 = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
                                           (msg∈pool m) (msgSigned m) refl refl refl
-               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬gen r≡0)
-   NewVoteRound≢0 (step-s r (step-peer cheat@(step-cheat c))) pkH v ¬gen r≡0
-     with ¬cheatForgeNewSig r cheat unit pkH (msgSigned v) (msg⊆ v) (msg∈pool v) ¬gen
+               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬bootstrap r≡0)
+   NewVoteRound≢0 (step-s r (step-peer cheat@(step-cheat c))) pkH v ¬bootstrap r≡0
+     with ¬cheatForgeNewSig r cheat unit pkH (msgSigned v) (msg⊆ v) (msg∈pool v) ¬bootstrap
    ...| m
      with msgSameSig m
    ...| refl
       with sameSig⇒sameVoteDataNoCol (msgSigned m) (msgSigned v) (msgSameSig m)
    ...| refl = let vsb4 = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
                                        (msg∈pool m) (msgSigned m) refl refl refl
-               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬gen (trans (msgRound≡ v) r≡0))
+               in ⊥-elim (NewVoteRound≢0 r pkH vsb4 ¬bootstrap (trans (msgRound≡ v) r≡0))
 
 
-   ¬Gen∧Round≡⇒¬Gen : ∀ {v pk round epoch bId} {st : SystemState}
+   ¬Bootstrap∧Round≡⇒¬Bootstrap : ∀ {v pk round epoch bId} {st : SystemState}
                      → ReachableSystemState st
                      → Meta-Honest-PK pk
                      → (vfr : VoteForRound∈ pk round epoch bId (msgPool st))
-                     → ¬ (∈GenInfo genInfo (ver-signature (msgSigned vfr)))
+                     → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned vfr)))
                      → (sig : WithVerSig pk v)
                      → v ^∙ vRound ≡ round
-                     → ¬ (∈GenInfo genInfo (ver-signature sig))
-   ¬Gen∧Round≡⇒¬Gen r pkH v₁ ¬genV₁ sigV₂ refl genV₂
-     = let v₁r≢0 = NewVoteRound≢0 r pkH v₁ ¬genV₁
-       in ⊥-elim (v₁r≢0 (Impl-gvr sigV₂ genV₂))
+                     → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
+   ¬Bootstrap∧Round≡⇒¬Bootstrap r pkH v₁ ¬bootstrapV₁ sigV₂ refl bootstrapV₂
+     = let v₁r≢0 = NewVoteRound≢0 r pkH v₁ ¬bootstrapV₁
+       in ⊥-elim (v₁r≢0 (Impl-gvr sigV₂ bootstrapV₂))

@@ -72,12 +72,12 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → send m ∈ outs
-   → (sig : WithVerSig pk v) → ¬ (∈GenInfo genInfo (ver-signature sig))
+   → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
-   → (sig' : WithVerSig pk v') → ¬ (∈GenInfo genInfo (ver-signature sig'))
+   → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
    → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- If v and v' share the same epoch and round
@@ -90,10 +90,10 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
  -- Next, we prove that, given the necessary obligations,
  module Proof
    (sps-corr   : StepPeerState-AllValidParts)
-   (Impl-gvc   : ImplObl-genVotesConsistent)
-   (Impl-gvr   : ImplObl-genVotesRound≡0)
+   (Impl-gvc   : ImplObl-bootstrapVotesConsistent)
+   (Impl-gvr   : ImplObl-bootstrapVotesRound≡0)
    (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
-   (Impl-∈GI?  : (sig : Signature) → Dec (∈GenInfo genInfo sig))
+   (Impl-∈GI?  : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
    (Impl-IRO   : IncreasingRoundObligation)
    (Impl-VO2   : ImplObligation₂)
    where
@@ -183,19 +183,19 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
                     (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂New v₂pk refl refl
     ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4
          = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ m₂)
-               ¬genV₂ = ¬Gen∧Round≡⇒¬Gen step pkH m₂ ¬init₂ (msgSigned v₂sb4) round≡
+               ¬bootstrapV₂ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH m₂ ¬init₂ (msgSigned v₂sb4) round≡
                epoch≡ = sym (msgEpoch≡ v₂sb4)
            in either (λ v₂<v₁ → ⊥-elim (<⇒≢ v₂<v₁ (msgRound≡ v₂sb4)))
                      (λ v₁sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
                      (Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁New v₁pk
-                               (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬genV₂ epoch≡)
+                               (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬bootstrapV₂ epoch≡)
     ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , v₂New)
          = let round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ m₁)
-               ¬genV₁ = ¬Gen∧Round≡⇒¬Gen step pkH m₁ ¬init₁ (msgSigned v₁sb4) round≡
+               ¬bootstrapV₁ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH m₁ ¬init₁ (msgSigned v₁sb4) round≡
            in either (λ v₁<v₂ → ⊥-elim (<⇒≢ v₁<v₂ (msgRound≡ v₁sb4)))
                      (λ v₂sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
                      (Impl-IRO r stP pkH (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂New v₂pk
-                               (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬genV₁
+                               (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬bootstrapV₁
                                (sym (msgEpoch≡ v₁sb4)))
 
 

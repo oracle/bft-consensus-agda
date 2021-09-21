@@ -63,24 +63,24 @@ availEpochsConsistent :
    → (pkvpf' : PeerCanSignForPK st v' pid' pk)
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
    → pcs4𝓔 pkvpf ≡ pcs4𝓔 pkvpf'
-availEpochsConsistent (mkPCS4PK _ (inGenInfo refl) _) (mkPCS4PK _ (inGenInfo refl) _) refl = refl
+availEpochsConsistent (mkPCS4PK _ (inBootstrapInfo refl) _) (mkPCS4PK _ (inBootstrapInfo refl) _) refl = refl
 
 postulate -- TODO-1: Prove (waiting on: complete definition of `initRM`)
-  uninitQcs∈Gen
+  uninitQcs∈Bootstrap
     : ∀ {pid qc vs}{st : SystemState}
       → ReachableSystemState st
       → initialised st pid ≡ uninitd
       → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
-      → ∈GenInfo-impl fakeGenesisInfo (proj₂ vs)
+      → ∈BootstrapInfo-impl fakeBootstrapInfo (proj₂ vs)
 
-module ∈GenInfoProps where
+module ∈BootstrapInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}
              → (sig : WithVerSig pk v) (sig' : WithVerSig pk v')
-             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig)
+             → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig)
              → ver-signature sig' ≡ ver-signature sig
-             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig')
-  sameSig∉ _ _ ¬gen ≡sig rewrite ≡sig = ¬gen
+             → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig')
+  sameSig∉ _ _ ¬bootstrap ≡sig rewrite ≡sig = ¬bootstrap
 
 -- Lemmas for `PeerCanSignForPK`
 module PeerCanSignForPKProps where
@@ -92,8 +92,8 @@ module PeerCanSignForPKProps where
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
       → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
       → PeerCanSignForPK pre v pid pk
-  msb4 preach step (mkPCS4PK 𝓔@._ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)) hpk sig mws∈pool =
-    mkPCS4PK 𝓔 (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)
+  msb4 preach step (mkPCS4PK 𝓔@._ (inBootstrapInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)) hpk sig mws∈pool =
+    mkPCS4PK 𝓔 (inBootstrapInfo refl) (mkPCS4PKin𝓔 𝓔id≡ mbr nid≡ pk≡)
 
   msb4-eid≡
     : ∀ {pre post : SystemState} {v v' pid pk}
@@ -142,28 +142,28 @@ module ReachableSystemStateProps where
       → ReachableSystemState st
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
+      → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → initialised st pid ≡ initd
-  mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬gen mws∈pool =
-    peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre) hpk sig ¬gen mws∈poolPre)
+  mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬bootstrap mws∈pool =
+    peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre) hpk sig ¬bootstrap mws∈poolPre)
     where
-    ¬gen' = ∈GenInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬gen (msgSameSig mws∈pool)
+    ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
 
     mws∈poolPre : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬gen'
-  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init ini)))) pcsfpk hpk sig ¬gen mws∈pool
-     with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬gen' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
+    mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬bootstrap'
+  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+     with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
-     ¬gen' = ∈GenInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬gen (msgSameSig mws∈pool)
-  ... | Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬gen mws∈poolPre')
+     ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
+  ... | Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
-  mws∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬gen mws∈pool
-     with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬gen' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
+  mws∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+     with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
-     ¬gen' = ∈GenInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬gen (msgSameSig mws∈pool)
+     ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
   ... | Left (m∈outs , pcsfpk' , ¬msb4)
      with pid≡
      where
@@ -173,8 +173,8 @@ module ReachableSystemStateProps where
      pid≡ : pid₁ ≡ pid₂
      pid≡ = PeerCanSignForPKProps.pidInjective pcsfpk pcsfpk' (cong (_^∙ vdProposed ∙ biEpoch) vd₁≡vd₂)
   ... | refl rewrite StepPeer-post-lemma2{pid₂}{pre = pre} sps = refl
-  mws∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬gen mws∈pool | Right mws∈poolPre =
-    peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬gen mws∈poolPre')
+  mws∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool | Right mws∈poolPre =
+    peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
@@ -185,15 +185,15 @@ module ReachableSystemStateProps where
       → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (just (s' , outs)))
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
+      → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-  mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬gen mws∈pool epoch≡ =
+  mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ =
     absurd (uninitd ≡ initd) case (trans (sym uni) ini) of λ ()
     where
-    ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬gen mws∈pool
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{_ , P pm} m∈pool ini) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+    ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬bootstrap mws∈pool
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{_ , P pm} m∈pool ini) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ = begin
     hpPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
     hpPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
     v ^∙ vEpoch      ∎
@@ -205,7 +205,7 @@ module ReachableSystemStateProps where
     open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre)
     open ≡-Reasoning
 
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = begin
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , V vm} _ _) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ = begin
     hvPre ^∙ rmEpoch ≡⟨ noEpochChange ⟩
     hvPos ^∙ rmEpoch ≡⟨ epoch≡ ⟩
     v ^∙ vEpoch      ∎
@@ -216,5 +216,5 @@ module ReachableSystemStateProps where
     open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool st) hvPre)
     open ≡-Reasoning
 
-  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬gen mws∈pool epoch≡ = epoch≡
+  mws∈pool⇒epoch≡{pid}{v}{st = st} rss (step-msg{sndr , C cm} _ _) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ = epoch≡
 

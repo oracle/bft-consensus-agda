@@ -169,7 +169,7 @@ module LibraBFT.Yasm.System
    --
    -- A part of a cheat message can contain a verifiable signature only if it
    -- is for a dishonest public key, or a message with the same signature has
-   -- been sent before or can be derived from GenesisInfo (a cheater can
+   -- been sent before or can be derived from BootstrapInfo (a cheater can
    -- "reuse" an honest signature sent before; it just can't produce a new
    -- one).  Note that this constraint precludes a peer sending a message
    -- that contains a new verifiable signature for an honest PK, even if the
@@ -180,7 +180,7 @@ module LibraBFT.Yasm.System
    -- that epoch using a cheat step.
    CheatPartConstraint : SentMessages → Part → Set
    CheatPartConstraint pool m = ∀{pk} → (ver : WithVerSig pk m)
-                                      → ¬ ∈GenInfo genInfo (ver-signature ver)
+                                      → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature ver)
                                       → Meta-Dishonest-PK pk
                                       ⊎ MsgWithSig∈ pk (ver-signature ver) pool
 
@@ -213,7 +213,7 @@ module LibraBFT.Yasm.System
                       (Maybe (PeerState × List (LYT.Action Msg))) → Set where
      -- An uninitialized peer can be initialized
      step-init : peerInits pid ≡ uninitd
-               → StepPeerState pid pool peerInits ps (bootstrap pid genInfo)
+               → StepPeerState pid pool peerInits ps (bootstrap pid bootstrapInfo)
 
      -- The peer processes a message in the pool
      step-msg  : ∀{m}

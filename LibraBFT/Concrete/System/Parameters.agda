@@ -27,8 +27,8 @@ module LibraBFT.Concrete.System.Parameters where
  ConcSysParms = mkSysTypeParms
                  NodeId
                  _≟NodeId_
-                 GenesisInfo
-                 ∈GenInfo-impl
+                 BootstrapInfo
+                 ∈BootstrapInfo-impl
                  RoundManager
                  NetworkMsg
                  Vote         -- TODO-3: This should be a type that also allows Block, because
@@ -51,7 +51,7 @@ module LibraBFT.Concrete.System.Parameters where
    -- implementation creates and stores and EpochChangeProof even for the
    -- initial epoch, so longer term just the inECP constructor may suffice.
    data EpochConfig∈Sys (st : SystemState) (𝓔 : EpochConfig) : Set ℓ-EC where
-     inGenInfo : init-EC genInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
+     inBootstrapInfo : init-EC bootstrapInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
      -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
 
    -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in a known
@@ -78,10 +78,10 @@ module LibraBFT.Concrete.System.Parameters where
    PCS4PK⇒NodeId-PK-OK : ∀ {st v pid pk 𝓔 𝓔∈Sys} → (pcs : PeerCanSignForPKinEpoch st v pid pk 𝓔 𝓔∈Sys) → NodeId-PK-OK 𝓔 pk pid
    PCS4PK⇒NodeId-PK-OK (mkPCS4PKin𝓔 _ mbr n≡ pk≡) = mbr , n≡ , pk≡
 
-   -- This is super simple for now because the only known EpochConfig is dervied from genInfo, which is not state-dependent
+   -- This is super simple for now because the only known EpochConfig is dervied from bootstrapInfo, which is not state-dependent
    PeerCanSignForPK-stable : ValidSenderForPK-stable-type PeerCanSignForPK
-   PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) =
-                               (mkPCS4PK 𝓔₁ (inGenInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁))
+   PeerCanSignForPK-stable _ _ (mkPCS4PK 𝓔₁ (inBootstrapInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁)) =
+                               (mkPCS4PK 𝓔₁ (inBootstrapInfo refl) (mkPCS4PKin𝓔 𝓔id≡₁ mbr₁ nid≡₁ pk≡₁))
 
    peerCanSignEp≡ : ∀ {pid v v' pk s'}
                   → PeerCanSignForPK s' v pid pk

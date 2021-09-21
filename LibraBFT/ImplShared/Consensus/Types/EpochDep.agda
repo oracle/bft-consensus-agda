@@ -119,8 +119,8 @@ import LibraBFT.Abstract.BFT
                                                 (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
                                          pk≡)
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  init-EC : GenesisInfo → EpochConfig
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  init-EC : BootstrapInfo → EpochConfig
 
 module WithEC (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
