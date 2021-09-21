@@ -48,9 +48,11 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
       -- Represents an uninitialised PeerState, about which we know nothing whatsoever
       initPS    : PeerState
 
-      -- Initializes a potentially-empty state with an EpochConfig
-      init : PeerId → Genesis → PeerState × List (Action Msg)
+      -- Bootstraps a peer.
+      -- TODO-1 : replace Maybe with Either after adding error type (to mkSysTypeParms ?).
+      bootstrap : PeerId → Genesis → Maybe (PeerState × List (Action Msg))
 
       -- Handles a message on a previously initialized peer.
-      handle : PeerId → Msg → PeerState → PeerState × List (Action Msg)
+      -- TODO-1 : replace Maybe with Either after adding error type (to mkSysTypeParms ?).
+      handle : PeerId → Msg → PeerState → Maybe (PeerState × List (Action Msg))
 
