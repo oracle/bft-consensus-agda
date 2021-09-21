@@ -105,6 +105,6 @@ module LibraBFT.ImplFake.Handle where
  FakeInitAndHandlers = mkSysInitAndHandlers
                          fakeBootstrapInfo
                          initRM
-                         (λ pid genesis → just (initWrapper pid genesis))
+                         (λ pid bootstrap → just (initWrapper pid bootstrap))
                          peerStep
 

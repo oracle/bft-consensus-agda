@@ -41,7 +41,7 @@ module LibraBFT.Yasm.Properties
  open WithInitAndHandlers iiah
  open import Util.FunctionOverride PeerId _≟PeerId_
 
- -- A few handy properties for transporting information about whether a Signature is ∈GenInfo to
+ -- A few handy properties for transporting information about whether a Signature is ∈BootstrapInfo to
  -- another type containing the same signature
  transp-∈BootstrapInfo₀ : ∀ {pk p1 p2}
                   → (ver1 : WithVerSig {Part} ⦃ Part-sig ⦄ pk p1)

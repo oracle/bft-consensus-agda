@@ -18,7 +18,7 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
     PeerId    : Set
     _≟PeerId_ : ∀ (p₁ p₂ : PeerId) → Dec (p₁ ≡ p₂)
     Bootstrap : Set
-    -- A relation specifying what Signatures are included in genInfo
+    -- A relation specifying what Signatures are included in bootstrapInfo
     ∈BootstrapInfo  : Bootstrap → Signature → Set
     PeerState : Set ℓ-PeerState
     Msg       : Set
@@ -41,7 +41,7 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
    record SystemInitAndHandlers : Set (ℓ+1 ℓ-PeerState) where
     constructor mkSysInitAndHandlers
     field
-      -- The same genesis information is given to any uninitialised peer before
+      -- The same bootstrap information is given to any uninitialised peer before
       -- it can handle any messages.
       bootstrapInfo : Bootstrap
 

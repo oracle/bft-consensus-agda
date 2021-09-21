@@ -139,13 +139,13 @@ module WithEC (𝓔 : EpochConfig) where
   open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 ConcreteVoteEvidence as Abs hiding (qcVotes; Vote)
 
   data VoteCoherence (v : Vote) (b : Abs.Block) : Set where
-    initial  : v ^∙ vParentId    ≡ genesisUID
+    initial  : v ^∙ vParentId    ≡ bootstrapUID
              → v ^∙ vParentRound ≡ 0
              → Abs.bPrevQC b     ≡ nothing
              → VoteCoherence v b
 
     ¬initial : ∀{b' q}
-             → v ^∙ vParentId    ≢ genesisUID
+             → v ^∙ vParentId    ≢ bootstrapUID
              → v ^∙ vParentRound ≢ 0
              → v ^∙ vParentId    ≡ Abs.bId b'
              → v ^∙ vParentRound ≡ Abs.bRound b'

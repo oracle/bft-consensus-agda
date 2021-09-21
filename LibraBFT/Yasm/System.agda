@@ -481,7 +481,7 @@ module LibraBFT.Yasm.System
 
    -- A predicate over peer states, parts and peerIds, representing which peers can send new
    -- signatures for which PKs.  The PeerState is needed to provide access to information the peer has
-   -- about who uses what keys for what parts (in our case, EpochConfigs either derived from genesis
+   -- about who uses what keys for what parts (in our case, EpochConfigs either derived from bootstrap
    -- information or agreed during epoch changes).
    ValidSenderForPK-type : Set (ℓ+1 ℓ-VSFP ℓ⊔ ℓ+1 ℓ-PeerState)
    ValidSenderForPK-type = SystemState → Part → PeerId → PK → Set ℓ-VSFP

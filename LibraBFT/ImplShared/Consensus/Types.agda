@@ -183,7 +183,7 @@ module LibraBFT.ImplShared.Consensus.Types where
   -- END : lens mimicking Haskell/LBFT RW* setters.
 
   record BootstrapInfo : Set where
-    constructor mkGenInfo
+    constructor mkBootstrapInfo
     field
       -- TODO-1 : Nodes, PKs for initial epoch
       -- TODO-1 : Faults to tolerate (or quorum size?)

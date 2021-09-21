@@ -30,7 +30,7 @@ module LibraBFT.Abstract.Types.EpochConfig
   record EpochConfig : Set ℓ-EC where
     constructor EpochConfig∙new
     field
-      genesisUID : UID
+      bootstrapUID : UID
       epoch      : Epoch
       authorsN  : ℕ
 
