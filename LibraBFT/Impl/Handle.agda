@@ -163,4 +163,3 @@ zzz' = Right 0
 
 zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
 zzz≡zzz' ()
-
