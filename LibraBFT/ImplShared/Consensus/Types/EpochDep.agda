@@ -31,38 +31,31 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.ImplShared.Consensus.Types.EpochDep where
 
--- Note that the definitions below are relevant only to the verificat, not the implementation.
+-- Note that the definitions below are relevant only to the verification, not the implementation.
 -- They should probably move somewhere else.
 
--- We need enough authors to withstand the desired number of
--- byzantine failures.  We enforce this with a predicate over
--- 'RoundManager'.
+-- ValidatorVerifier-correct imposes requirements on a ValidatorVerifier that are sufficient to
+-- ensure that we can construct an abstract EpochConfig based on it (see α-EC-VV below).
 ValidatorVerifier-correct : ValidatorVerifier → Set
 ValidatorVerifier-correct vv =
-  let authorsInfo = List-map proj₂ (kvm-toList (vv ^∙ vvAddressToValidatorInfo))
-      totalVotPower = f-sum (_^∙ vciVotingPower) authorsInfo
+  let authorsInfo    = List-map proj₂ (kvm-toList (vv ^∙ vvAddressToValidatorInfo))
+      totalVotPower  = f-sum (_^∙ vciVotingPower) authorsInfo
       quorumVotPower = vv ^∙ vvQuorumVotingPower
-      bizF       = totalVotPower ∸ quorumVotPower
+      bizF           = totalVotPower ∸ quorumVotPower
       pksAll≢        = ∀ v₁ v₂ nId₁ nId₂ → nId₁ ≢ nId₂
                        → lookup nId₁ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₁
                        → lookup nId₂ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₂
                        → v₁ ^∙ vciPublicKey ≢ v₂ ^∙ vciPublicKey
-   in   suc (3 * bizF) ≤ totalVotPower
+   in   3 * bizF       < totalVotPower
       × quorumVotPower ≤ totalVotPower
       × pksAll≢
       × f-sum (_^∙ vciVotingPower) (List-filter (Meta-DishonestPK? ∘ (_^∙ vciPublicKey)) authorsInfo) ≤ bizF
 
-
 open DecLemmas {A = NodeId} _≟_
 import LibraBFT.Abstract.BFT
 
-
--- Given a well-formed set of definitions that defines an EpochConfig,
--- α-EC will compute this EpochConfig by abstracting away the unecessary
--- pieces from RoundManager.
--- TODO-2: update and complete when definitions are updated to more recent version
-
-
+-- α-EC-VV computes an abstract EpochConfig given a ValidatorVerifier
+-- that satisfies the conditions stipulated by ValidVerifier-correct
 α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
 α-EC-VV (vv , ok) epoch =
       EpochConfig∙new genId
@@ -91,6 +84,10 @@ import LibraBFT.Abstract.BFT
                                   (proj₂ q₁) (proj₂ q₂)
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₁))
                                   (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₂))
+                              -- TODO-2: this takes the per-epoch genesisUID from the GenesisInfo
+                              -- for the *first* epoch (soon to be renamed to BootStrapInfo avoid
+                              -- this confusion).  This is temporary until we do epoch change; then
+                              -- it will need to be provided by the caller.
       where genId           = GenesisInfo.genQC genesisInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
             authorsMap      = vv ^∙ vvAddressToValidatorInfo
             authors         = kvm-toList authorsMap
