@@ -46,7 +46,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → (r : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
-   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
    → ∀{mbr v vabs m v' v'abs m'}
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
@@ -78,7 +78,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    ∀{pid s' outs pk}{pre : SystemState}
    → (r  : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
-   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
    → ∀{mbr v vabs m v' v'abs m'}
    → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
