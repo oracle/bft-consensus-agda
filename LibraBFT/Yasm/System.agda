@@ -395,8 +395,8 @@ module LibraBFT.Yasm.System
      trans (sym $ pids≢StepDNMPeerStates sps pid≢)
        (peerUninitState step* (trans (pids≢StepDNMInitialised{pre = pre} sps pid≢) uni))
    ... | yes pid≡
-     with sps
-   ... | xxx {-step-init _-} = case (initd ≡ uninitd ∋ absurd) of λ ()
+     with sps -- TODO-1 : Mark : why does this type-check? And why unreachable code (the commented out code)?
+   ... | _ {-step-init _-} = case (initd ≡ uninitd ∋ absurd) of λ ()
      where
      absurd : initd ≡ uninitd
      absurd = begin
@@ -405,18 +405,17 @@ module LibraBFT.Yasm.System
        override (initialised pre) pid' initd pid      ≡⟨ uni ⟩
        uninitd                                        ∎
        where open ≡-Reasoning
-{-
-   ... | yyy {-step-msg m∈pool ini-} = {!!}
-     case (initd ≡ uninitd ∋ absurd) of λ ()
-     where
-     absurd : initd ≡ uninitd
-     absurd = begin
-       initd                               ≡⟨ sym $ peersRemainInitialized step ini ⟩
-       initialised (StepPeer-post sp) pid' ≡⟨ cong (initialised (StepPeer-post sp)) (sym pid≡) ⟩
-       initialised (StepPeer-post sp) pid  ≡⟨ uni ⟩
-       uninitd                             ∎
-       where open ≡-Reasoning
--}
+   -- ... | step-msg m∈pool ini =
+   --   case (initd ≡ uninitd ∋ absurd) of λ ()
+   --   where
+   --   absurd : initd ≡ uninitd
+   --   absurd = begin
+   --     initd                               ≡⟨ sym $ peersRemainInitialized step ini ⟩
+   --     initialised (StepPeer-post sp) pid' ≡⟨ cong (initialised (StepPeer-post sp)) (sym pid≡) ⟩
+   --     initialised (StepPeer-post sp) pid  ≡⟨ uni ⟩
+   --     uninitd                             ∎
+   --     where open ≡-Reasoning
+
    MsgWithSig∈-Step* : ∀{sig pk}{st : SystemState}{st' : SystemState}
                      → Step* st st'
                      → MsgWithSig∈ pk sig (msgPool st)
