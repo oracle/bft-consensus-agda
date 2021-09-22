@@ -104,9 +104,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
   -- Next, we prove that given the necessary obligations,
  module Proof
    (sps-corr : StepPeerState-AllValidParts)
-   (Impl-gvr : ImplObl-bootstrapVotesRound≡0)
+   (Impl-bsvr : ImplObl-bootstrapVotesRound≡0)
    (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
-   (Impl-∈GI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
+   (Impl-∈BI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
    (Impl-IRO : IncreasingRoundObligation)
    (Impl-PR1 : ImplObligation₁)
    (Impl-PR2 : ImplObligation₂)
@@ -119,7 +119,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    open        PerState st
    open        PerReachableState r
    open        PerEpoch 𝓔
-   open        ConcreteCommonProperties st r sps-corr Impl-gvr Impl-nvr≢0
+   open        ConcreteCommonProperties st r sps-corr Impl-bsvr Impl-nvr≢0
 
 
    α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)
@@ -147,14 +147,14 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
       with msgRound≡ v₁ | msgEpoch≡ v₁ | msgBId≡ v₁
          | msgRound≡ v₂ | msgEpoch≡ v₂ | msgBId≡ v₂
    ...| refl | refl | refl | refl | refl | refl
-      with Impl-∈GI? (_vSignature (msgVote v₁)) | Impl-∈GI? (_vSignature (msgVote v₂))
-   ...| yes init₁  | yes init₂  = let r₁≡0 = Impl-gvr (msgSigned v₁) init₁
-                                      r₂≡0 = Impl-gvr (msgSigned v₂) init₂
+      with Impl-∈BI? (_vSignature (msgVote v₁)) | Impl-∈BI? (_vSignature (msgVote v₂))
+   ...| yes init₁  | yes init₂  = let r₁≡0 = Impl-bsvr (msgSigned v₁) init₁
+                                      r₂≡0 = Impl-bsvr (msgSigned v₂) init₂
                                   in ⊥-elim (<⇒≢ r₁<r₂ (trans r₁≡0 (sym r₂≡0)))
-   ...| yes init₁  | no  ¬init₂ = let 0≡rv = sym (Impl-gvr (msgSigned v₁) init₁)
+   ...| yes init₁  | no  ¬init₂ = let 0≡rv = sym (Impl-bsvr (msgSigned v₁) init₁)
                                       0<rv = v-cand-3-chain⇒0<roundv c3
                                   in ⊥-elim (<⇒≢ 0<rv 0≡rv)
-   ...| no  ¬init₁ | yes init₂  = let 0≡r₂ = sym (Impl-gvr (msgSigned v₂) init₂)
+   ...| no  ¬init₁ | yes init₂  = let 0≡r₂ = sym (Impl-bsvr (msgSigned v₂) init₂)
                                       r₁   = msgVote v₁ ^∙ vRound
                                   in ⊥-elim (<⇒≱ r₁<r₂ (subst (r₁ ≥_) 0≡r₂ z≤n))
    ...| no  ¬init₁ | no ¬init₂

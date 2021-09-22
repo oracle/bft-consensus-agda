@@ -93,7 +93,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
         (st         : SystemState)
         (r          : ReachableSystemState st)
         (sps-corr   : StepPeerState-AllValidParts)
-        (Impl-gvr   : ImplObl-bootstrapVotesRound≡0)
+        (Impl-bsvr  : ImplObl-bootstrapVotesRound≡0)
         (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
    where
 
@@ -151,4 +151,4 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
                      → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    ¬Bootstrap∧Round≡⇒¬Bootstrap r pkH v₁ ¬bootstrapV₁ sigV₂ refl bootstrapV₂
      = let v₁r≢0 = NewVoteRound≢0 r pkH v₁ ¬bootstrapV₁
-       in ⊥-elim (v₁r≢0 (Impl-gvr sigV₂ bootstrapV₂))
+       in ⊥-elim (v₁r≢0 (Impl-bsvr sigV₂ bootstrapV₂))

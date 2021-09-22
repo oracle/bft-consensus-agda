@@ -90,10 +90,10 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
  -- Next, we prove that, given the necessary obligations,
  module Proof
    (sps-corr   : StepPeerState-AllValidParts)
-   (Impl-gvc   : ImplObl-bootstrapVotesConsistent)
-   (Impl-gvr   : ImplObl-bootstrapVotesRound≡0)
+   (Impl-bsvc  : ImplObl-bootstrapVotesConsistent)
+   (Impl-bsvr  : ImplObl-bootstrapVotesRound≡0)
    (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
-   (Impl-∈GI?  : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
+   (Impl-∈BI?  : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
    (Impl-IRO   : IncreasingRoundObligation)
    (Impl-VO2   : ImplObligation₂)
    where
@@ -106,7 +106,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    open PerState st
    open PerReachableState r
    open PerEpoch 𝓔
-   open ConcreteCommonProperties st r sps-corr Impl-gvr Impl-nvr≢0
+   open ConcreteCommonProperties st r sps-corr Impl-bsvr Impl-nvr≢0
    open WithEC
 
    open import LibraBFT.Concrete.Obligations.VotesOnce 𝓔 (ConcreteVoteEvidence 𝓔) as VO
@@ -159,10 +159,10 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
        with msgRound≡ m₁ | msgEpoch≡ m₁ | msgBId≡ m₁
           | msgRound≡ m₂ | msgEpoch≡ m₂ | msgBId≡ m₂
     ...| refl | refl | refl | refl | refl | refl
-       with Impl-∈GI? (_vSignature (msgVote m₁)) | Impl-∈GI? (_vSignature (msgVote m₂))
-    ...| yes init₁  | yes init₂  = Impl-gvc (msgVote m₁) (msgVote m₂) init₁ init₂
-    ...| yes init₁  | no  ¬init₂ = ⊥-elim (NewVoteRound≢0 step pkH m₂ ¬init₂ (Impl-gvr (msgSigned m₁) init₁))
-    ...| no  ¬init₁ | yes init₂  = ⊥-elim (NewVoteRound≢0 step pkH m₁ ¬init₁ (Impl-gvr (msgSigned m₂) init₂))
+       with Impl-∈BI? (_vSignature (msgVote m₁)) | Impl-∈BI? (_vSignature (msgVote m₂))
+    ...| yes init₁  | yes init₂  = Impl-bsvc (msgVote m₁) (msgVote m₂) init₁ init₂
+    ...| yes init₁  | no  ¬init₂ = ⊥-elim (NewVoteRound≢0 step pkH m₂ ¬init₂ (Impl-bsvr (msgSigned m₁) init₁))
+    ...| no  ¬init₁ | yes init₂  = ⊥-elim (NewVoteRound≢0 step pkH m₁ ¬init₁ (Impl-bsvr (msgSigned m₂) init₂))
     ...| no  ¬init₁ | no ¬init₂
        with theStep
     ...| step-peer cheat@(step-cheat c)
