@@ -114,6 +114,33 @@ fakeInitAndHandlers = mkSysInitAndHandlers
 ------------------------------------------------------------------------------
 -- real initialization
 
+{-
+IMPL-DIFF: In Haskell, nodes are started with a filepath of a file containing
+- number of faults allowed
+- genesis LedgerInfoWithSignatures
+- network addresses/name and secret and public keys of all nodes in the genesis epoch
+
+Main reads/checks that file then calls a network specific 'run' functions (e.g., ZMQ.hs)
+that setup the network handlers then eventually call 'Start.startViaConsensusProvider'.
+
+That functions calls 'ConsensusProvider.startConsensus' which returns
+'(EpochManager, [Output]'.
+
+'Start.startViaConsensusProvider' then goes on to create and wire up internal communication
+channels and starts threads.  The most relevant thread starts up
+`(EpochManager.obmStartLoop epochManager output ...)' to handle the initialization output
+and then to handle new messages from the network.
+
+In Agda functions below, assuming no initialization errors,
+- the 'GenKeyFile.create' function
+  - creates everything that would have been written to disk and then later read
+    to create ValidatorSigner(s), ValidatorVerifier, LIWS, etc.
+- there is no network transport in Agda
+- the 'Init.initialize' calls 'ConsensusProvider.startConsensus' which returns
+  '(EpochManager, List Output)', just like Haskell.
+- Since there is no network, internal channels and threads, this is the end of this process.
+-}
+
 postulate
   now           : Instant
   pg            : ProposalGenerator
