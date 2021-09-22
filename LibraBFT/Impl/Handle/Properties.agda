@@ -29,11 +29,11 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open import LibraBFT.Impl.Handle
-open        ParamsWithInitAndHandlers InitAndHandlers
+import      LibraBFT.Impl.Handle as Handle
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
 open        PeerCanSignForPK
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 open Invariants
 open RoundManagerTransProps
@@ -43,11 +43,11 @@ open RoundManagerTransProps
 module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
-  initRM-correct  : ValidatorVerifier-correct (initRM  ^∙ rmValidatorVerifer)
-  initRM-btInv    : BlockTreeInv (rm→BlockTree-EC initRM)
-  initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
+  initRM-correct  : ValidatorVerifier-correct (Handle.fakeInitRM  ^∙ rmValidatorVerifer)
+  initRM-btInv    : BlockTreeInv (rm→BlockTree-EC Handle.fakeInitRM)
+  initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] Handle.fakeInitRM
 
-initRMSatisfiesInv : RoundManagerInv initRM
+initRMSatisfiesInv : RoundManagerInv Handle.fakeInitRM
 initRMSatisfiesInv =
   mkRoundManagerInv initRM-correct refl initRM-btInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
@@ -66,7 +66,7 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-ho
   = invariantsCorrect pid pre' preach
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini))))
    | yes refl
-  rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre'}
+  rewrite override-target-≡{a = pid}{b = Handle.fakeInitRM}{f = peerStates pre'}
    |       sym $ ++-identityʳ (msgPool pre')
    = initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini))))
@@ -134,9 +134,9 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
    = ret
    where
    ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
-   ret rewrite override-target-≡{a = pid}{b = initRM}{f = peerStates pre}
+   ret rewrite override-target-≡{a = pid}{b = Handle.fakeInitRM}{f = peerStates pre}
        |       sym $ ++-identityʳ (msgPool pre)
-       = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs
+       = QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs
 ...| step-msg{sndr , nm} m∈pool init
    rewrite override-target-≡{a = pid}{b = LBFT-post (handle pid nm 0) (peerStates pre pid)} {f = peerStates pre}
    = QCProps.++-SigsForVote∈Rm-SentB4 {rm = LBFT-post (handle pid nm 0) (peerStates pre pid)} _ (handlePreservesSigsB4 rss m∈pool)
@@ -149,11 +149,11 @@ qcVoteSigsSentB4-sps
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬ ∈GenInfo-impl genesisInfo sig
+    → ¬ ∈GenInfo-impl fakeGenesisInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
 qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬gen
    rewrite sym $ ++-identityʳ (msgPool pre)
-   = QCProps.++-SigsForVote∈Rm-SentB4{rm = initRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
+   = QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬gen
 qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} qc∈s sig {vs} vs∈qcvs ≈v ¬gen
    with m
    -- TODO-2: refactor for DRY
@@ -252,7 +252,7 @@ qcVoteSigsSentB4-handle
     → WithVerSig pk v
     → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬ ∈GenInfo-impl genesisInfo sig
+    → ¬ ∈GenInfo-impl fakeGenesisInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-init ini) ()
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-msg {_ , nm} m∈pool ini) m∈acts {qc} qc∈m sig vs∈qc v≈rbld ¬gen =

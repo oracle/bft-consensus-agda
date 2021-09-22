@@ -17,7 +17,7 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle                       as Handle
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Handle.Properties
@@ -31,12 +31,12 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
 open        PeerCanSignForPK
 
-open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 
 -- This module contains definitions and lemmas used by proofs of the
@@ -72,14 +72,14 @@ postulate -- TODO-1: Prove (waiting on: complete definition of `initRM`)
       → initialised st pid ≡ uninitd
       → qc QCProps.∈RoundManager (peerStates st pid)
       → vs ∈ qcVotes qc
-      → ∈GenInfo-impl genesisInfo (proj₂ vs)
+      → ∈GenInfo-impl fakeGenesisInfo (proj₂ vs)
 
 module ∈GenInfoProps where
   sameSig∉ : ∀ {pk} {v v' : Vote}
              → (sig : WithVerSig pk v) (sig' : WithVerSig pk v')
-             → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig)
+             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig)
              → ver-signature sig' ≡ ver-signature sig
-             → ¬ ∈GenInfo-impl genesisInfo (ver-signature sig')
+             → ¬ ∈GenInfo-impl fakeGenesisInfo (ver-signature sig')
   sameSig∉ _ _ ¬gen ≡sig rewrite ≡sig = ¬gen
 
 -- Lemmas for `PeerCanSignForPK`
@@ -142,7 +142,7 @@ module ReachableSystemStateProps where
       → ReachableSystemState st
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → initialised st pid ≡ initd
   mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬gen mws∈pool =
@@ -185,7 +185,7 @@ module ReachableSystemStateProps where
       → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈GenInfo-impl genesisInfo (ver-signature sig))
+      → ¬ (∈GenInfo-impl fakeGenesisInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch

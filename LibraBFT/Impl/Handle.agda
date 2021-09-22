@@ -19,6 +19,7 @@ import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 import      LibraBFT.Impl.OBM.Init                      as Init
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
@@ -50,66 +51,46 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   fakeRM : RoundManager
 
 postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  initVV  : GenesisInfo → ValidatorVerifier
+  fakeInitVV  : GenesisInfo → ValidatorVerifier
 
-initSR : SafetyRules
-initSR =
+fakeInitSR : SafetyRules
+fakeInitSR =
   let sr = fakeRM ^∙ lSafetyRules
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
   in sr
 
-initPG : ProposalGenerator
-initPG = ProposalGenerator∙new 0
+fakeInitPG : ProposalGenerator
+fakeInitPG = ProposalGenerator∙new 0
 
 postulate -- TODO-1: initPE, initBS, initRS
-  initPE : ProposerElection
-  initBS : BlockStore
-  initRS : RoundState
+  fakeInitPE : ProposerElection
+  fakeInitBS : BlockStore
+  fakeInitRS : RoundState
 
-initRM : RoundManager
-initRM = RoundManager∙new
+fakeInitRM : RoundManager
+fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (initVV genesisInfo))
-           initBS initRS initPE initPG initSR false
-
-postulate
-  now           : Instant
-  pg            : ProposalGenerator
-
-initEMWithOutput : Either ErrLog (EpochManager × List Output)
-initEMWithOutput = do
-  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
-      me                          = 0
-  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
-
-initRMWithOutput : Either ErrLog (RoundManager × List Output)
-initRMWithOutput = do
-  (em , out) ← initEMWithOutput
-  rm         ← em ^∙ emObmRoundManager
-  pure (rm , out)
-
-initRM' : Either ErrLog RoundManager
-initRM' = fst <$> initRMWithOutput
+           (EpochState∙new 1 (fakeInitVV fakeGenesisInfo))
+           fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
 
 -- Eventually, the initialization should establish properties we care about.
 -- For now we just initialise to fakeRM.
 -- That means we cannot prove the base case for various properties,
 -- e.g., in Impl.Properties.VotesOnce
 -- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
-initialRoundManagerAndMessages
+fakeInitialRoundManagerAndMessages
   : (a : Author) → GenesisInfo
   → RoundManager × List NetworkMsg
-initialRoundManagerAndMessages a _ = initRM , []
+fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 
 -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
 -- be renamed?)
 
-initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
-initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
+fakeInitWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
 -- Here we invoke the handler that models the real implementation handler.
 runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
@@ -123,10 +104,48 @@ runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run han
 peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
 peerStep nid msg st = runHandler st (handle nid msg 0)
 
-InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
-InitAndHandlers = mkSysInitAndHandlers
-                    genesisInfo
-                    initRM
-                    initWrapper
+fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+fakeInitAndHandlers = mkSysInitAndHandlers
+                    fakeGenesisInfo
+                    fakeInitRM
+                    fakeInitWrapper
                     peerStep
 
+------------------------------------------------------------------------------
+-- real initialization
+
+postulate
+  now           : Instant
+  pg            : ProposalGenerator
+
+initEMWithOutput' : Either ErrLog (EpochManager × List Output)
+initEMWithOutput' = do
+  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
+initEMWithOutput = do
+  (nf , _ , vss , vv , pe , liws) ← fromEither $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ x → initEMWithOutput' ≡ x
+initEMWithOutput≡ iewo
+  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Left err rewrite iewo = refl
+... | Right (nf , _ , vss , vv , pe , liws)
+  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
+... | Left err rewrite iewo = refl
+... | Right y  rewrite iewo = refl
+
+initEMWithOutput≡' : ∀ {x} → initEMWithOutput' ≡ x → EitherD-run initEMWithOutput ≡ x
+initEMWithOutput≡' iewo
+  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Left err rewrite iewo = refl
+... | Right (nf , _ , vss , vv , pe , liws)
+  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
+... | Left err rewrite iewo = refl
+... | Right y rewrite iewo = refl

@@ -24,12 +24,17 @@ module LibraBFT.Impl.OBM.Init where
 ------------------------------------------------------------------------------
 -- Everything below is specific to Agda.
 
-initialize
+initialize'
   : AuthorName → GenKeyFile.NfLiwsVssVvPe → Instant → ObmNeedFetch → ProposalGenerator
   → Either ErrLog (EpochManager × List Output)
-initialize me nfLiwsVssVvPe now obmNeedFetch proposalGenerator = do
+initialize' me nfLiwsVssVvPe now obmNeedFetch proposalGenerator = do
   (nc , occp , liws , sk , pe) ← ConsensusProvider.obmInitialData me nfLiwsVssVvPe
   ConsensusProvider.startConsensus
     nc now occp liws sk
     obmNeedFetch proposalGenerator
     (StateComputer∙new BlockInfo.gENESIS_VERSION)
+
+abstract
+  initialize = initialize'
+  initialize≡ : initialize ≡ initialize'
+  initialize≡ = refl
