@@ -10,6 +10,10 @@ open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
+open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import LibraBFT.Impl.OBM.Util
+import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
+import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Prelude

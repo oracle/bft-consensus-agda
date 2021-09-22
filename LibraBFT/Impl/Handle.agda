@@ -50,8 +50,8 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   -- the initial RoundManager for every peer until it is initialised.
   fakeRM : RoundManager
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  fakeInitVV  : GenesisInfo → ValidatorVerifier
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  fakeInitVV  : BootstrapInfo → ValidatorVerifier
 
 fakeInitSR : SafetyRules
 fakeInitSR =
@@ -64,7 +64,7 @@ fakeInitSR =
 fakeInitPG : ProposalGenerator
 fakeInitPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: initPE, initBS, initRS
+postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
   fakeInitPE : ProposerElection
   fakeInitBS : BlockStore
   fakeInitRS : RoundState
@@ -72,7 +72,7 @@ postulate -- TODO-1: initPE, initBS, initRS
 fakeInitRM : RoundManager
 fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (fakeInitVV fakeGenesisInfo))
+           (EpochState∙new 1 (fakeInitVV fakeBootstrapInfo))
            fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
 
 -- Eventually, the initialization should establish properties we care about.
@@ -81,7 +81,7 @@ fakeInitRM = RoundManager∙new
 -- e.g., in Impl.Properties.VotesOnce
 -- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
 fakeInitialRoundManagerAndMessages
-  : (a : Author) → GenesisInfo
+  : (a : Author) → BootstrapInfo
   → RoundManager × List NetworkMsg
 fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 
@@ -89,7 +89,7 @@ fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
 -- be renamed?)
 
-fakeInitWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+fakeInitWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
 fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
 -- Here we invoke the handler that models the real implementation handler.
@@ -106,9 +106,9 @@ peerStep nid msg st = runHandler st (handle nid msg 0)
 
 fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 fakeInitAndHandlers = mkSysInitAndHandlers
-                    fakeGenesisInfo
+                    fakeBootstrapInfo
                     fakeInitRM
-                    fakeInitWrapper
+                    (λ pid bootstrapInfo → just (fakeInitWrapper pid bootstrapInfo))
                     peerStep
 
 ------------------------------------------------------------------------------
@@ -127,25 +127,35 @@ initEMWithOutput' = do
 
 initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
 initEMWithOutput = do
-  (nf , _ , vss , vv , pe , liws) ← fromEither $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  (nf , _ , vss , vv , pe , liws) ← fromEither
+                                  $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
   let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
       me                          = 0
   fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
 
-initEMWithOutput≡ : ∀ {x} → EitherD-run initEMWithOutput ≡ x → initEMWithOutput' ≡ x
-initEMWithOutput≡ iewo
+-- This shows that the Either and EitherD versions are equivalent.  This
+-- is a first step towards eliminating the painful VariantOf stuff, so
+-- we can have the version that looks (almost) exactly like the Haskell,
+-- and the EitherD variant, broken into explicit steps, etc. for proving.
+initEMWithOutput≡ : initEMWithOutput' ≡ EitherD-run initEMWithOutput
+initEMWithOutput≡
   with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-... | Left err rewrite iewo = refl
+... | Left err = refl
 ... | Right (nf , _ , vss , vv , pe , liws)
   with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Left err rewrite iewo = refl
-... | Right y  rewrite iewo = refl
+... | Left err = refl
+... | Right y  = refl
 
-initEMWithOutput≡' : ∀ {x} → initEMWithOutput' ≡ x → EitherD-run initEMWithOutput ≡ x
-initEMWithOutput≡' iewo
-  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-... | Left err rewrite iewo = refl
-... | Right (nf , _ , vss , vv , pe , liws)
-  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Left err rewrite iewo = refl
-... | Right y rewrite iewo = refl
+------------------------------------------------------------------------------
+-- TODO : ASK CHRIS : regarding EitherD-run
+
+zzz : EitherD ErrLog ℕ
+zzz = do
+  r ← RightD 0
+  RightD r
+
+zzz' : Either ErrLog ℕ
+zzz' = Right 0
+
+zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
+zzz≡zzz' ()

@@ -243,7 +243,7 @@ module QCProps where
     → WithVerSig pk v →
     ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬(∈GenInfo-impl fakeGenesisInfo sig)
+    → ¬(∈BootstrapInfo-impl fakeBootstrapInfo sig)
     → MsgWithSig∈ pk sig pool
 
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
@@ -252,8 +252,8 @@ module QCProps where
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
       → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
-  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen =
-    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬bootstrap =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬bootstrap)
 
 module Invariants where
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`

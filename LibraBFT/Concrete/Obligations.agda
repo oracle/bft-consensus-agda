@@ -40,10 +40,10 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
       -- Semantic obligations:
       --
       -- VotesOnce:
-      gvc  : Common.ImplObl-genVotesConsistent 𝓔
-      gvr  : Common.ImplObl-genVotesRound≡0 𝓔
+      bsvc  : Common.ImplObl-bootstrapVotesConsistent 𝓔
+      bsvr  : Common.ImplObl-bootstrapVotesRound≡0 𝓔
       v≢0  : Common.ImplObl-NewVoteRound≢0 𝓔
-      ∈GI? : (sig : Signature) → Dec (∈GenInfo genInfo sig)
+      ∈BI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig)
       iro : Common.IncreasingRoundObligation 𝓔
       vo₂ : VO.ImplObligation₂ 𝓔
 

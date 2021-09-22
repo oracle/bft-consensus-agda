@@ -58,7 +58,7 @@ import LibraBFT.Abstract.BFT
 -- that satisfies the conditions stipulated by ValidVerifier-correct
 α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
 α-EC-VV (vv , ok) epoch =
-      EpochConfig∙new genId
+      EpochConfig∙new bsId
                       epoch
                       numAuthors
                       toNodeId
@@ -88,7 +88,7 @@ import LibraBFT.Abstract.BFT
                               -- for the *first* epoch (soon to be renamed to BootStrapInfo avoid
                               -- this confusion).  This is temporary until we do epoch change; then
                               -- it will need to be provided by the caller.
-      where genId           = GenesisInfo.genQC fakeGenesisInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
+      where bsId            = BootstrapInfo.bootstrapQC fakeBootstrapInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
             authorsMap      = vv ^∙ vvAddressToValidatorInfo
             authors         = kvm-toList authorsMap
             authorsIDs≢     = kvm-keys-All≢ authorsMap
@@ -119,8 +119,8 @@ import LibraBFT.Abstract.BFT
                                                 (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
                                          pk≡)
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  init-EC : GenesisInfo → EpochConfig
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  init-EC : BootstrapInfo → EpochConfig
 
 module WithEC (𝓔 : EpochConfig) where
   open EpochConfig 𝓔
