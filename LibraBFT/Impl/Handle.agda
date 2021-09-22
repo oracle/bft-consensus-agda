@@ -143,17 +143,8 @@ initEMWithOutput≡
 ... | Left err = refl
 ... | Right (nf , _ , vss , vv , pe , liws)
   with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Left err rewrite iewo = refl
-... | Right y  rewrite iewo = refl
-
-initEMWithOutput≡' : ∀ {x} → initEMWithOutput' ≡ x → EitherD-run initEMWithOutput ≡ x
-initEMWithOutput≡' iewo
-  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-... | Left err rewrite iewo = refl
-... | Right (nf , _ , vss , vv , pe , liws)
-  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Left err rewrite iewo = refl
-... | Right y rewrite iewo = refl
+... | Left err = refl
+... | Right y  = refl
 
 ------------------------------------------------------------------------------
 -- TODO : ASK CHRIS : regarding EitherD-run
