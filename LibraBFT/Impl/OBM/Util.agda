@@ -11,8 +11,10 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Util where
 
--- to tolerate f failures, cluster must contain at least n ≥ 3f + 1 nodes,
--- where n − f nodes form a quorum
+-- To tolerate f failures, cluster must contain at least n ≥ 3f + 1 nodes,
+-- where n − f nodes form a quorum, assuming 1 vote per node.
+-- Note: our Haskell implementation and our model of it support non-uniform voting power,
+-- that is NOT reflected in these functions, but is reflected in functions in ValidatorVerifier.
 
 numNodesNeededForNFailures : U64 -> U64
 numNodesNeededForNFailures numFaultsAllowed = 3 * numFaultsAllowed + 1

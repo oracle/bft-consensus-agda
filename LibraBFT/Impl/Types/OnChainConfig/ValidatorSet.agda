@@ -33,8 +33,7 @@ obmFromVV vv0 = record -- ValidatorSet
                   ; _vcValidatorNetworkAddress = address ^∙ aAuthorName } }
 
 obmGetValidatorInfo : AuthorName → ValidatorSet → Either ErrLog ValidatorInfo
-obmGetValidatorInfo name vs = go (vs ^∙ vsPayload)
- where
-  go : List ValidatorInfo → Either ErrLog ValidatorInfo
-  go        []  = Left fakeErr -- ["ValidatorSet", "obmGetValidatorInfo", "TODO better err msg"]
-  go (vi ∷ vis) = if-dec vi ^∙ viAccountAddress ∙ aAuthorName ≟ name then pure vi else go vis
+obmGetValidatorInfo name vs =
+  case List-filter (λ vi → vi ^∙ viAccountAddress ∙ aAuthorName ≟ name) (vs ^∙ vsPayload) of λ where
+    (vi ∷ []) → pure vi
+    _         → Left fakeErr  -- ["ValidatorSet", "obmGetValidatorInfo", "TODO better err msg"]
