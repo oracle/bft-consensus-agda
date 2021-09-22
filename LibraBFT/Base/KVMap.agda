@@ -60,6 +60,8 @@ module LibraBFT.Base.KVMap  where
    elems          : KVMap Key Val → List Val
    delete         : Key → KVMap Key Val → KVMap Key Val
    singleton      : Key → Val → KVMap Key Val
+   fromList       : List (Key × Val) → KVMap Key Val
+   toList         : KVMap Key Val    → List (Key × Val)
 
    -- TODO-3: update properties to reflect kvm-update, consider combining insert/update
    kvm-update     : (k : Key)(v : Val)(kvm : KVMap Key Val)

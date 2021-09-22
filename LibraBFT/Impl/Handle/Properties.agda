@@ -38,12 +38,14 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHan
 open Invariants
 open RoundManagerTransProps
 
+-- TODO-2 : pass in RoundManager (instead of using 'initRM')
+-- and the proof that the RoundManager is valid.
 module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
-  initRM-correct : ValidatorVerifier-correct (initRM ^∙ rmValidatorVerifer)
-  initRM-btInv   : BlockTreeInv (rm→BlockTree-EC initRM)
-  initRM-qcs     : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
+  initRM-correct  : ValidatorVerifier-correct (initRM  ^∙ rmValidatorVerifer)
+  initRM-btInv    : BlockTreeInv (rm→BlockTree-EC initRM)
+  initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] initRM
 
 initRMSatisfiesInv : RoundManagerInv initRM
 initRMSatisfiesInv =

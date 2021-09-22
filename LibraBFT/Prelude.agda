@@ -47,6 +47,9 @@ module LibraBFT.Prelude where
   max = _⊔_
   min = _⊓_
 
+  open import Data.Nat.DivMod using (_/_)
+  div = _/_
+
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public

@@ -232,16 +232,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   postulate
     fakeErr : ErrLog
 
-  record TxTypeDependentStuff : Set where
-    constructor TxTypeDependentStuff∙new
+  record TxTypeDependentStuffForNetwork : Set where
+    constructor TxTypeDependentStuffForNetwork∙new
     field
-      _ttdsBlockStore        : BlockStore
-      _ttdsRoundState        : RoundState
-      _ttdsProposalGenerator : ProposalGenerator
-      _ttdsTime              : Instant
-      _ttdsStateComputer     : StateComputer
-  open TxTypeDependentStuff public
-  unquoteDecl ttdsBlockStore   ttdsRoundState   ttdsProposalGenerator
-              ttdsTime   ttdsStateComputer     = mkLens (quote TxTypeDependentStuff)
-             (ttdsBlockStore ∷ ttdsRoundState ∷ ttdsProposalGenerator ∷
-              ttdsTime ∷ ttdsStateComputer    ∷ [])
+      _ttdsnProposalGenerator : ProposalGenerator
+      _ttdsnStateComputer     : StateComputer
+  open TxTypeDependentStuffForNetwork public
+  unquoteDecl ttdsnProposalGenerator   ttdsnStateComputer = mkLens (quote TxTypeDependentStuffForNetwork)
+             (ttdsnProposalGenerator ∷ ttdsnStateComputer ∷ [])
