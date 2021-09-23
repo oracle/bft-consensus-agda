@@ -153,9 +153,8 @@ module LibraBFT.Lemmas where
  _ = refl
 
  allDistinct : ∀ {A : Set} → List A → Set
- allDistinct l = ∀ (i j : Σ ℕ (_< length l)) →
-                   proj₁ i ≡ proj₁ j
-                   ⊎ List-lookup l (fromℕ< (proj₂ i)) ≢ List-lookup l (fromℕ< (proj₂ j))
+ allDistinct l = ∀ (i j : Fin (length l))
+                 → i ≡ j ⊎ List-lookup l i ≢ List-lookup l j
 
  postulate -- TODO-1: currently unused; prove it, if needed
    allDistinct? : ∀ {A : Set} → {≟A : (a₁ a₂ : A) → Dec (a₁ ≡ a₂)} → (l : List A) → Dec (allDistinct l)
@@ -329,9 +328,9 @@ module LibraBFT.Lemmas where
  allDistinctTail : ∀ {A : Set} {x} {xs : List A}
                  → allDistinct (x ∷ xs)
                  → allDistinct xs
- allDistinctTail allDist (i , i<l) (j , j<l)
-   with allDist (suc i , s≤s i<l) (suc j , s≤s j<l)
- ...| inj₁ 1+i≡1+j = inj₁ (cong pred 1+i≡1+j)
+ allDistinctTail allDist i j
+   with allDist (suc i) (suc j)
+ ...| inj₁ refl    = inj₁ refl
  ...| inj₂ lookup≢ = inj₂ lookup≢
 
  ∈-Any-Index-elim : ∀ {A : Set} {x y} {ys : List A} (x∈ys : x ∈ ys)
@@ -347,31 +346,34 @@ module LibraBFT.Lemmas where
            → x ∉ ys
  ∉∧⊆List⇒∉ x∉xs ys∈xs x∈ys = ⊥-elim (x∉xs (ys∈xs x∈ys))
 
+
  allDistinctʳʳ : ∀ {A : Set} {x x₁ : A} {xs : List A}
                → allDistinct (x ∷ x₁ ∷ xs)
                → allDistinct (x ∷ xs)
- allDistinctʳʳ _ (zero , _) (zero , _) = inj₁ refl
- allDistinctʳʳ allDist (zero , i<l) (suc j , j<l)
-   with allDist (0 , s≤s z≤n) (suc (suc j) , s≤s j<l)
+ allDistinctʳʳ _ zero zero = inj₁ refl
+ allDistinctʳʳ allDist zero (suc j)
+   with allDist zero (suc (suc j))
  ...| inj₂ x≢lookup
       = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
- allDistinctʳʳ allDist (suc i , i<l) (zero , j<l)
-   with allDist (suc (suc i) , s≤s i<l) (0 , s≤s z≤n)
+ allDistinctʳʳ allDist (suc i) zero
+   with allDist (suc (suc i)) zero
  ...| inj₂ x≢lookup
       = inj₂ λ x≡lkpxs → ⊥-elim (x≢lookup x≡lkpxs)
- allDistinctʳʳ allDist (suc i , i<l) (suc j , j<l)
-   with allDist (2 + i , (s≤s i<l)) (2 + j , s≤s j<l)
- ...| inj₁ si≡sj   = inj₁ (cong pred si≡sj)
+ allDistinctʳʳ allDist (suc i) (suc j)
+   with allDist (suc (suc i)) (suc (suc j))
+ ...| inj₁ refl    = inj₁ refl
  ...| inj₂ lookup≡ = inj₂ lookup≡
+
 
  allDistinct⇒∉ : ∀ {A : Set} {x} {xs : List A}
                → allDistinct (x ∷ xs)
                → x ∉ xs
  allDistinct⇒∉ allDist (here x≡x₁)
-   with allDist (0 , s≤s z≤n) (1 , s≤s (s≤s z≤n))
+   with allDist zero (suc zero)
  ... | inj₂ x≢x₁ = ⊥-elim (x≢x₁ x≡x₁)
  allDistinct⇒∉ allDist (there x∈xs)
    = allDistinct⇒∉ (allDistinctʳʳ allDist) x∈xs
+
 
  sumListMap : ∀ {A : Set} {x} {xs : List A} (f : A → ℕ) → (x∈xs : x ∈ xs)
             → f-sum f xs ≡ f x + f-sum f (xs ─ Any-index x∈xs)
@@ -382,6 +384,7 @@ module LibraBFT.Lemmas where
          | +-comm (f x) (f x₁)
          | +-assoc (f x₁) (f x) (f-sum f (xs ─ Any-index x∈xs)) = refl
 
+
  lookup⇒Any : ∀ {A : Set} {xs : List A} {P : A → Set} (i : Fin (length xs))
             → P (List-lookup xs i) → Any P xs
  lookup⇒Any {_} {_ ∷ _} zero    px = here px
@@ -391,15 +394,90 @@ module LibraBFT.Lemmas where
                 → allDistinct xs
                 → x ∉ xs
                 → allDistinct (x ∷ xs)
- x∉→AllDistinct _ _ (0 , _) (0 , _) = inj₁ refl
- x∉→AllDistinct _ x∉xs (0 , _) (suc j , j<l)
-   = inj₂ (λ x≡lkp → x∉xs (lookup⇒Any (fromℕ< (≤-pred j<l)) x≡lkp))
- x∉→AllDistinct _ x∉xs (suc i , i<l) (0 , _)
-   = inj₂ (λ x≡lkp → x∉xs (lookup⇒Any (fromℕ< (≤-pred i<l)) (sym x≡lkp)))
- x∉→AllDistinct allDist x∉xs (suc i , i<l) (suc j , j<l)
-   with allDist (i , (≤-pred i<l)) (j , (≤-pred j<l))
- ...| inj₁ i≡j   = inj₁ (cong suc i≡j)
+ x∉→AllDistinct _ _ zero zero = inj₁ refl
+ x∉→AllDistinct _ x∉xs zero (suc j)
+   = inj₂ λ x≡lkp → x∉xs (lookup⇒Any j x≡lkp)
+ x∉→AllDistinct _ x∉xs (suc i) (zero)
+   = inj₂ λ x≡lkp → x∉xs (lookup⇒Any i (sym x≡lkp))
+ x∉→AllDistinct allDist x∉xs (suc i) (suc j)
+   with allDist i j
+ ...| inj₁ refl  = inj₁ refl
  ...| inj₂ lkup≢ = inj₂ lkup≢
+
+ cast-injective : ∀ {n m} {i j : Fin n} {eq : n ≡ m}
+                → cast eq i ≡ cast eq j → i ≡ j
+ cast-injective {_} {_} {zero} {zero}   {refl} _ = refl
+ cast-injective {_} {_} {suc i} {suc j} {refl} ci≡cj
+   = cong suc (cast-injective {eq = refl} (Fin-suc-injective ci≡cj))
+
+ List-lookup-map : ∀ {A B : Set} (xs : List A) (f : A → B) (α : Fin (length xs))
+                 → let cα = cast (sym (List-length-map f xs)) α
+                   in f (List-lookup xs α) ≡ List-lookup (List-map f xs) cα
+ List-lookup-map (x ∷ xs) f zero = refl
+ List-lookup-map (x ∷ xs) f (suc α) = List-lookup-map xs f α
+
+ allDistinct-Map : ∀ {A B : Set} {xs : List A} {α₁ α₂ : Fin (length xs)} (f : A → B)
+                 → allDistinct (List-map f xs) → α₁ ≢ α₂
+                 → f (List-lookup xs α₁) ≢ f (List-lookup xs α₂)
+ allDistinct-Map {_} {_} {xs} {α₁} {α₂} f all≢ α₁≢α₂ flkp≡
+    with all≢ (cast (sym (List-length-map f xs)) α₁)
+             (cast (sym (List-length-map f xs)) α₂)
+ ...| inj₁ cα₁≡cα₂  = ⊥-elim (α₁≢α₂ (cast-injective {eq = sym (List-length-map f xs)} cα₁≡cα₂))
+ ...| inj₂ lkpα₁α₂≢ = ⊥-elim (lkpα₁α₂≢ (trans (sym (List-lookup-map xs f α₁))
+                                               (trans flkp≡ (List-lookup-map xs f α₂))))
+
+ filter⊆ : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs : List A}
+         → List-filter P? xs ⊆List xs
+ filter⊆ {P? = P?} x∈fxs = Any-filter⁻ P? x∈fxs
+
+ ⊆⇒filter⊆ : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs ys : List A}
+           → xs ⊆List ys
+           → List-filter P? xs ⊆List List-filter P? ys
+ ⊆⇒filter⊆ {P? = P?} {xs = xs} {ys = ys} xs∈ys x∈fxs
+   with List-∈-filter⁻ P? {xs = xs} x∈fxs
+ ...| x∈xs , px = List-∈-filter⁺ P? (xs∈ys x∈xs) px
+
+ map∘filter : ∀ {A B : Set} (xs : List A) (ys : List B) (f : A → B)
+                {P : B → Set} (P? : (b : B) → Dec (P b))
+            → List-map f xs ≡ ys
+            → List-map f (List-filter (P? ∘ f) xs) ≡ List-filter P? ys
+ map∘filter [] [] _ _ _ = refl
+ map∘filter (x ∷ xs) (.(f x) ∷ .(List-map f xs)) f P? refl
+    with P? (f x)
+ ...| yes prf = cong (f x ∷_) (map∘filter xs (List-map f xs) f P? refl)
+ ...| no imp = map∘filter xs (List-map f xs) f P? refl
+
+
+ allDistinct-Filter : ∀ {A : Set} {P : A → Set} {P? : (a : A) → Dec (P a)} {xs : List A}
+                    → allDistinct xs
+                    → allDistinct (List-filter P? xs)
+ allDistinct-Filter {P? = P?} {xs = x ∷ xs} all≢ i j
+    with P? x
+ ...| no imp = allDistinct-Filter {P? = P?} {xs = xs} (allDistinctTail all≢) i j
+ ...| yes prf = let all≢Tail = allDistinct-Filter {P? = P?} {xs = xs} (allDistinctTail all≢)
+                    x∉Tail = allDistinct⇒∉ all≢
+                in x∉→AllDistinct all≢Tail (∉∧⊆List⇒∉ x∉Tail filter⊆) i j
+
+
+ sum-f∘g : ∀ {A B : Set} (xs : List A) (g : B → ℕ) (f : A → B)
+         → f-sum (g ∘ f) xs ≡ f-sum g (List-map f xs)
+ sum-f∘g xs g f = cong sum (List-map-compose xs)
+
+ map-lookup-allFin : ∀ {A : Set} (xs : List A)
+                   → List-map (List-lookup xs) (allFin (length xs)) ≡ xs
+ map-lookup-allFin xs = trans (map-tabulate id (List-lookup xs)) (tabulate-lookup xs)
+
+ list-index : ∀ {A B : Set} {P : A → B → Set} (_∼_ : Decidable P)
+              (xs : List A) → B → Maybe (Fin (length xs))
+ list-index _∼_ [] x = nothing
+ list-index _∼_ (x ∷ xs) y
+    with x ∼ y
+ ...| yes x≡y = just zero
+ ...| no  x≢y
+    with list-index _∼_ xs y
+ ...| nothing = nothing
+ ...| just i  = just (suc i)
+
 
  module DecLemmas {A : Set} (_≟D_ : Decidable {A = A} (_≡_)) where
 
@@ -446,6 +524,9 @@ module LibraBFT.Lemmas where
             xs⊆ys-x = ⊆List-Elim (xs⊆ys (here refl)) x∉xs xs⊆ysT
             disTail = allDistinctTail dxs
        in +-monoʳ-≤ (f x) (sum-⊆-≤ xs f disTail xs⊆ys-x)
+
+   ⊆-allFin : ∀ {n} {xs : List (Fin n)} → xs ⊆List allFin n
+   ⊆-allFin {x = x} _ = Any-tabulate⁺ x refl
 
    intersect : List A → List A → List A
    intersect xs [] = []
@@ -532,3 +613,34 @@ module LibraBFT.Lemmas where
                        | sym (sum-++-commute (List-map f xs) (List-map f ys))
                        | sym (map-++-commute f xs ys)
                          = ≤-stepsʳ (f y) (sumIntersect≤ xs ys f)
+
+
+   index∘lookup-id : ∀ {B : Set} (xs : List B) (f : B → A)
+                   → allDistinct (List-map f xs) → {α : Fin (length xs)}
+                   → list-index (_≟D_ ∘ f) xs ((f ∘ List-lookup xs) α) ≡ just α
+   index∘lookup-id (x ∷ xs) f all≢ {zero}
+      with f x ≟D f x
+   ...| yes fx≡fx = refl
+   ...| no  fx≢fx = ⊥-elim (fx≢fx refl)
+   index∘lookup-id (x ∷ xs) f all≢ {suc α}
+      with f x ≟D f (List-lookup xs α)
+   ...| yes fx≡lkp = ⊥-elim (allDistinct⇒∉ all≢ (Any-map⁺ (lookup⇒Any α fx≡lkp)))
+   ...| no  fx≢lkp
+      with list-index (_≟D_ ∘ f) xs (f (List-lookup xs α))
+         | index∘lookup-id xs f (allDistinctTail all≢) {α}
+   ...| just .α | refl = refl
+
+
+   lookup∘index-id : ∀ {B : Set} (xs : List B) (f : B → A)
+                   → allDistinct (List-map f xs) → {α : Fin (length xs)} {x : A}
+                   → list-index (_≟D_ ∘ f) xs x ≡ just α
+                   → (f ∘ List-lookup xs) α ≡ x
+   lookup∘index-id (x₁ ∷ xs) f all≢ {α} {x} lkp≡α
+      with f x₁ ≟D x
+   ...| yes fx≡nId rewrite sym (just-injective lkp≡α) = fx≡nId
+   ...| no  fx≢nId
+      with list-index (_≟D_ ∘ f) xs x | inspect (list-index (_≟D_ ∘ f) xs) x
+   ...| just _ | [ eq ] rewrite sym (just-injective lkp≡α)
+        = lookup∘index-id xs f (allDistinctTail all≢) eq
+
+

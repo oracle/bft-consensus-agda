@@ -31,34 +31,96 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
 module LibraBFT.ImplShared.Consensus.Types.EpochDep where
 
--- Note that the definitions below are relevant only to the verificat, not the implementation.
+-- Note that the definitions below are relevant only to the verification, not the implementation.
 -- They should probably move somewhere else.
 
--- We need enough authors to withstand the desired number of
--- byzantine failures.  We enforce this with a predicate over
--- 'RoundManager'.
+-- ValidatorVerifier-correct imposes requirements on a ValidatorVerifier that are sufficient to
+-- ensure that we can construct an abstract EpochConfig based on it (see α-EC-VV below).
 ValidatorVerifier-correct : ValidatorVerifier → Set
 ValidatorVerifier-correct vv =
-  let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
-      qsize      = vv ^∙ vvQuorumVotingPower
-      bizF       = numAuthors ∸ qsize
-   in suc (3 * bizF) ≤ numAuthors
+  let authorsInfo    = List-map proj₂ (kvm-toList (vv ^∙ vvAddressToValidatorInfo))
+      totalVotPower  = f-sum (_^∙ vciVotingPower) authorsInfo
+      quorumVotPower = vv ^∙ vvQuorumVotingPower
+      bizF           = totalVotPower ∸ quorumVotPower
+      pksAll≢        = ∀ v₁ v₂ nId₁ nId₂ → nId₁ ≢ nId₂
+                       → lookup nId₁ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₁
+                       → lookup nId₂ (vv ^∙ vvAddressToValidatorInfo) ≡ just v₂
+                       → v₁ ^∙ vciPublicKey ≢ v₂ ^∙ vciPublicKey
+   in   3 * bizF       < totalVotPower
+      × quorumVotPower ≤ totalVotPower
+      × pksAll≢
+      × f-sum (_^∙ vciVotingPower) (List-filter (Meta-DishonestPK? ∘ (_^∙ vciPublicKey)) authorsInfo) ≤ bizF
 
--- Given a well-formed set of definitions that defines an EpochConfig,
--- α-EC will compute this EpochConfig by abstracting away the unecessary
--- pieces from RoundManager.
--- TODO-2: update and complete when definitions are updated to more recent version
+open DecLemmas {A = NodeId} _≟_
+import LibraBFT.Abstract.BFT
 
+-- α-EC-VV computes an abstract EpochConfig given a ValidatorVerifier
+-- that satisfies the conditions stipulated by ValidVerifier-correct
 α-EC-VV : Σ ValidatorVerifier ValidatorVerifier-correct → Epoch → EpochConfig
 α-EC-VV (vv , ok) epoch =
-  let numAuthors = kvm-size (vv ^∙ vvAddressToValidatorInfo)
-      qsize      = vv ^∙ vvQuorumVotingPower
-      bizF       = numAuthors ∸ qsize
-   in (EpochConfig∙new {! someHash?!}
-              epoch numAuthors {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
+      EpochConfig∙new bsId
+                      epoch
+                      numAuthors
+                      toNodeId
+                      (list-index (_≟_ ∘ proj₁) authors)
+                      (index∘lookup-id authors proj₁ authorsIDs≢)
+                      (λ lkp≡α → lookup∘index-id authors proj₁ authorsIDs≢ lkp≡α)
+                      getPubKey
+                      getPKey-Inj
+                      (λ quorum → qsize ≤ VotPowerMembers quorum
+                                   × allDistinct quorum)
+                      λ q₁ q₂ → LibraBFT.Abstract.BFT.bft-lemma
+                                  numAuthors
+                                  (_^∙ vciVotingPower ∘ getAuthorInfo)
+                                  (f-sum (_^∙ vciVotingPower) authorsInfo ∸ qsize)
+                                  (≤-trans (proj₁ ok) (≡⇒≤ totalVotPower≡))
+                                  getPubKey
+                                  (let disMembers  = List-filter (Meta-DishonestPK? ∘ getPubKey) members
+                                       sumDisM≡    = sum-f∘g disMembers (_^∙ vciVotingPower) getAuthorInfo
+                                       disM≡disNId = map∘filter members authorsInfo getAuthorInfo
+                                                                (Meta-DishonestPK? ∘ (_^∙ vciPublicKey)) getAuthInfo≡VCI
+                                       sumDis≤bizF = (proj₂ ∘ proj₂ ∘ proj₂) ok
+                                   in ≤-trans (≡⇒≤ (trans sumDisM≡ (cong (f-sum _vciVotingPower) disM≡disNId))) sumDis≤bizF)
+                                  (proj₂ q₁) (proj₂ q₂)
+                                  (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₁))
+                                  (≤-trans (≡⇒≤ N∸bizF≡Qsize) (proj₁ q₂))
+                              -- TODO-2: this takes the per-epoch genesisUID from the GenesisInfo
+                              -- for the *first* epoch (soon to be renamed to BootStrapInfo avoid
+                              -- this confusion).  This is temporary until we do epoch change; then
+                              -- it will need to be provided by the caller.
+      where bsId            = BootstrapInfo.bootstrapQC fakeBootstrapInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
+            authorsMap      = vv ^∙ vvAddressToValidatorInfo
+            authors         = kvm-toList authorsMap
+            authorsIDs≢     = kvm-keys-All≢ authorsMap
+            authorsInfo     = List-map proj₂ authors
+            numAuthors      = length authors
+            members         = allFin numAuthors
+            qsize           = vv ^∙ vvQuorumVotingPower
+            toNodeId        = proj₁ ∘ List-lookup authors
+            getAuthorInfo   = proj₂ ∘ List-lookup authors
+            getPubKey       = _^∙ vciPublicKey ∘ getAuthorInfo
+            VotPowerMembers = f-sum (_^∙ vciVotingPower ∘ getAuthorInfo)
+            VotPowerAuthors = f-sum (_^∙ vciVotingPower)
+            bizF            = VotPowerAuthors authorsInfo ∸ qsize
+            getAuthInfo≡VCI : List-map getAuthorInfo members ≡ authorsInfo
+            getAuthInfo≡VCI = trans (List-map-compose members) (cong (List-map proj₂) (map-lookup-allFin authors))
+            totalVotPower≡  : VotPowerAuthors authorsInfo ≡ VotPowerMembers members
+            totalVotPower≡  = let sumf∘g = sum-f∘g members (_^∙ vciVotingPower) getAuthorInfo
+                              in sym (trans sumf∘g (cong (f-sum (_^∙ vciVotingPower)) getAuthInfo≡VCI))
+            N∸bizF≡Qsize    = subst ((_≡ qsize) ∘ (_∸ bizF)) totalVotPower≡ (m∸[m∸n]≡n ((proj₁ ∘ proj₂) ok))
+            getPKey-Inj   : ∀ {m₁ m₂} → getPubKey m₁ ≡ getPubKey m₂ → m₁ ≡ m₂
+            getPKey-Inj {m₁} {m₂} pk≡
+              with m₁ ≟Fin m₂
+            ...| yes m₁≡m₂ = m₁≡m₂
+            ...| no  m₁≢m₂ = let nIdm₁≢nIdm₂ = allDistinct-Map {xs = authors} proj₁ authorsIDs≢ m₁≢m₂
+                                 pksAll≢ = (proj₁ ∘ proj₂ ∘ proj₂) ok
+                             in ⊥-elim (pksAll≢ (getAuthorInfo m₁) (getAuthorInfo m₂)
+                                                (toNodeId m₁) (toNodeId m₂) nIdm₁≢nIdm₂
+                                                (kvm-toList-lookup authorsMap) (kvm-toList-lookup authorsMap)
+                                         pk≡)
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  init-EC : GenesisInfo → EpochConfig
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  init-EC : BootstrapInfo → EpochConfig
 
 module WithEC (𝓔 : EpochConfig) where
   open EpochConfig 𝓔

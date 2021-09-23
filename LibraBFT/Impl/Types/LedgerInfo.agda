@@ -11,5 +11,5 @@ open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.LedgerInfo where
 
-mockGenesis : Maybe ValidatorSet → LedgerInfo
-mockGenesis mvs = LedgerInfo∙new (BlockInfo.mockGenesis mvs) Hash.valueZero
+mockGenesis : Maybe ValidatorSet → Either ErrLog LedgerInfo
+mockGenesis mvs = LedgerInfo∙new <$> BlockInfo.mockGenesis mvs <*> pure Hash.valueZero

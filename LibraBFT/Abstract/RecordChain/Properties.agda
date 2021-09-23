@@ -60,7 +60,7 @@ module LibraBFT.Abstract.RecordChain.Properties
      with b₀ ≟Block b₁
    ...| yes done = inj₂ done
    ...| no  imp
-     with bft-assumption (qVotes-C1 q₀) (qVotes-C1 q₁)
+     with bft-property (qVotes-C1 q₀) (qVotes-C1 q₁)
    ...|  (a , (a∈q₀mem , a∈q₁mem , honest))
      with Any-sym (Any-map⁻ a∈q₀mem) | Any-sym (Any-map⁻ a∈q₁mem)
    ...| a∈q₀ | a∈q₁
@@ -87,7 +87,7 @@ module LibraBFT.Abstract.RecordChain.Properties
            → round r₂ < getRound q'
            → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
    lemmaS3 {r₂} {q'} ex₀ (step rc' b←q') ex₁ (s-chain {rc = rc} {b = b₂} {q₂} r←b₂ _ b₂←q₂ c2) hyp
-     with bft-assumption (qVotes-C1 q₂) (qVotes-C1 q')
+     with bft-property (qVotes-C1 q₂) (qVotes-C1 q')
    ...| (a , (a∈q₂mem , a∈q'mem , honest))
         with Any-sym (Any-map⁻ a∈q₂mem) | Any-sym (Any-map⁻ a∈q'mem)
    ...| a∈q₂ | a∈q'

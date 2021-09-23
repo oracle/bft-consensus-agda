@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Prelude
+open import LibraBFT.Lemmas
 
 -- This module contains a model of a key-value store, along with its
 -- functionality and various properties about it.  Most of the properties
@@ -59,6 +60,8 @@ module LibraBFT.Base.KVMap  where
    elems          : KVMap Key Val → List Val
    delete         : Key → KVMap Key Val → KVMap Key Val
    singleton      : Key → Val → KVMap Key Val
+   fromList       : List (Key × Val) → KVMap Key Val
+   toList         : KVMap Key Val    → List (Key × Val)
 
    -- TODO-3: update properties to reflect kvm-update, consider combining insert/update
    kvm-update     : (k : Key)(v : Val)(kvm : KVMap Key Val)
@@ -78,6 +81,12 @@ module LibraBFT.Base.KVMap  where
    kvm-toList     : KVMap Key Val → List (Key × Val)
    kvm-toList-length : (kvm : KVMap Key Val)
                      → length (kvm-toList kvm) ≡ kvm-size kvm
+   kvm-keys-All≢  : ∀ (kvm : KVMap Key Val) → allDistinct (List-map proj₁ (kvm-toList kvm))
+   kvm-toList-lookup : ∀ (kvm : KVMap Key Val)
+                     → let kvmL  = kvm-toList kvm
+                           key   = proj₁ ∘ List-lookup kvmL
+                           value = proj₂ ∘ List-lookup kvmL
+                       in ∀ {α} → lookup (key α) kvm ≡ just (value α)
 
    -- TODO-1: need properties showing that the resulting map contains (k , v) for
    --         each pair in the list, provided there is no pair (k , v') in the list

@@ -10,8 +10,11 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
+import      LibraBFT.Impl.Consensus.Liveness.ExponentialTimeInterval as ExponentialTimeInterval
+import      LibraBFT.Impl.Consensus.Liveness.RoundState              as RoundState
+import      LibraBFT.Impl.OBM.ConfigHardCoded                        as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Init
+open import LibraBFT.Impl.OBM.Rust.Duration                          as Duration
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -40,7 +43,7 @@ module LibraBFT.ImplFake.Handle where
    initBS : BlockStore
 
  postulate -- Only in fake implementation.
-   initVV  : GenesisInfo → ValidatorVerifier
+   initVV  : BootstrapInfo → ValidatorVerifier
 
  initSR : SafetyRules
  initSR =  over (srPersistentStorage ∙ pssSafetyData ∙ sdEpoch) (const 1)
@@ -55,20 +58,25 @@ module LibraBFT.ImplFake.Handle where
  initPE = obm-dangerous-magic!
 
  initRS : RoundState
- initRS = RoundState.new etiT timeT
+ initRS = RoundState.new
+            (ExponentialTimeInterval.new
+              (Duration.fromMillis ConfigHardCoded.roundInitialTimeoutMS)
+              1.2
+              6)
+            timeT
 
  initRM : RoundManager
  initRM = RoundManager∙new
             ObmNeedFetch∙new
-            (EpochState∙new 1 (initVV genesisInfo))
+            (EpochState∙new 1 (initVV fakeBootstrapInfo))
             initBS initRS initPE initPG initSR false
 
  -- Eventually, the initialization should establish some properties we care about, but for now we
  -- just initialise again to fakeRM, which means we cannot prove the base case for various
  -- properties, e.g., in Impl.Properties.VotesOnce
- -- TODO: create real RoundManager using GenesisInfo
+ -- TODO: create real RoundManager using BootstrapInfo
  initialRoundManagerAndMessages
-     : (a : Author) → GenesisInfo
+     : (a : Author) → BootstrapInfo
      → RoundManager × List NetworkMsg
  initialRoundManagerAndMessages a _ = initRM , []
 
@@ -79,7 +87,7 @@ module LibraBFT.ImplFake.Handle where
  ...| V v = processVote now v
  ...| C c = return unit            -- We don't do anything with commit messages, they are just for defining Correctness.
 
- initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
+ initWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
  initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
 
  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
@@ -95,8 +103,8 @@ module LibraBFT.ImplFake.Handle where
 
  FakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
  FakeInitAndHandlers = mkSysInitAndHandlers
-                         genesisInfo
+                         fakeBootstrapInfo
                          initRM
-                         initWrapper
+                         (λ pid bootstrap → just (initWrapper pid bootstrap))
                          peerStep
 

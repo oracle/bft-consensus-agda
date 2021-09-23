@@ -182,34 +182,37 @@ module LibraBFT.ImplShared.Consensus.Types where
   pssSafetyData-rm = lPersistentSafetyStorage ∙ pssSafetyData
   -- END : lens mimicking Haskell/LBFT RW* setters.
 
-  record GenesisInfo : Set where
-    constructor mkGenInfo
+  record BootstrapInfo : Set where
+    constructor mkBootstrapInfo
     field
       -- TODO-1 : Nodes, PKs for initial epoch
       -- TODO-1 : Faults to tolerate (or quorum size?)
-      genQC      : QuorumCert            -- We use the same genesis QC for both highestQC and
-                                         -- highestCommitCert.
-  open GenesisInfo
+      bootstrapQC : QuorumCert -- use the same bootstrap QC for highestQC and highestCommitCert
+  open BootstrapInfo
 
   postulate -- valid assumption
-    -- We postulate the existence of GenesisInfo known to all
+    -- We postulate the existence of BootstrapInfo known to all
     -- TODO: construct one or write a function that generates one from some parameters.
-    genesisInfo : GenesisInfo
+    fakeBootstrapInfo : BootstrapInfo
 
-  data ∈GenInfo-impl (gi : GenesisInfo) : Signature → Set where
-   inGenQC : ∀ {vs} → vs ∈ qcVotes (genQC gi) → ∈GenInfo-impl gi (proj₂ vs)
+  data ∈BootstrapInfo-impl (bi : BootstrapInfo) : Signature → Set where
+   inBootstrapQC : ∀ {vs} → vs ∈ qcVotes (bootstrapQC bi) → ∈BootstrapInfo-impl bi (proj₂ vs)
 
   postulate -- TODO-1 : prove
-    ∈GenInfo?-impl : (gi : GenesisInfo) (sig : Signature) → Dec (∈GenInfo-impl gi sig)
+    ∈BootstrapInfo?-impl : (bi : BootstrapInfo) (sig : Signature)
+                         → Dec (∈BootstrapInfo-impl bi sig)
 
-  postulate -- TODO-1: prove after defining genInfo
-    genVotesRound≡0     : ∀ {pk v}
-                       → (wvs : WithVerSig pk v)
-                       → ∈GenInfo-impl genesisInfo (ver-signature wvs)
-                       → v ^∙ vRound ≡ 0
-    genVotesConsistent : (v1 v2 : Vote)
-                       → ∈GenInfo-impl genesisInfo (_vSignature v1) → ∈GenInfo-impl genesisInfo (_vSignature v2)
-                     → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
+  postulate -- TODO-1: prove after defining bootstrapInfo
+    bootstrapVotesRound≡0
+      : ∀ {pk v}
+      → (wvs : WithVerSig pk v)
+      → ∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature wvs)
+      → v ^∙ vRound ≡ 0
+    bootstrapVotesConsistent
+      : (v1 v2 : Vote)
+      → ∈BootstrapInfo-impl fakeBootstrapInfo (_vSignature v1)
+      → ∈BootstrapInfo-impl fakeBootstrapInfo (_vSignature v2)
+      → v1 ^∙ vProposedId ≡ v2 ^∙ vProposedId
 
   -- To enable modeling of logging info that has not been added yet,
   -- InfoLog and an inhabitant is postulated.
@@ -232,16 +235,11 @@ module LibraBFT.ImplShared.Consensus.Types where
   postulate
     fakeErr : ErrLog
 
-  record TxTypeDependentStuff : Set where
-    constructor TxTypeDependentStuff∙new
+  record TxTypeDependentStuffForNetwork : Set where
+    constructor TxTypeDependentStuffForNetwork∙new
     field
-      _ttdsBlockStore        : BlockStore
-      _ttdsRoundState        : RoundState
-      _ttdsProposalGenerator : ProposalGenerator
-      _ttdsTime              : Instant
-      _ttdsStateComputer     : StateComputer
-  open TxTypeDependentStuff public
-  unquoteDecl ttdsBlockStore   ttdsRoundState   ttdsProposalGenerator
-              ttdsTime   ttdsStateComputer     = mkLens (quote TxTypeDependentStuff)
-             (ttdsBlockStore ∷ ttdsRoundState ∷ ttdsProposalGenerator ∷
-              ttdsTime ∷ ttdsStateComputer    ∷ [])
+      _ttdsnProposalGenerator : ProposalGenerator
+      _ttdsnStateComputer     : StateComputer
+  open TxTypeDependentStuffForNetwork public
+  unquoteDecl ttdsnProposalGenerator   ttdsnStateComputer = mkLens (quote TxTypeDependentStuffForNetwork)
+             (ttdsnProposalGenerator ∷ ttdsnStateComputer ∷ [])

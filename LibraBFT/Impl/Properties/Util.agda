@@ -19,15 +19,15 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
-open import LibraBFT.Impl.Handle
+import      LibraBFT.Impl.Handle as Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
 open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open        ParamsWithInitAndHandlers InitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 
@@ -232,7 +232,7 @@ module QCProps where
     → WithVerSig pk v →
     ∀ {vs : Author × Signature} → let (pid , sig) = vs in
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
-    → ¬(∈GenInfo-impl genesisInfo sig)
+    → ¬(∈BootstrapInfo-impl fakeBootstrapInfo sig)
     → MsgWithSig∈ pk sig pool
 
   SigsForVotes∈Rm-SentB4 : SentMessages → RoundManager → Set
@@ -241,8 +241,8 @@ module QCProps where
   ++-SigsForVote∈Rm-SentB4
     : ∀ {pool rm} → (msgs : SentMessages) → SigsForVotes∈Rm-SentB4 pool rm
       → SigsForVotes∈Rm-SentB4 (msgs ++ pool) rm
-  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen =
-    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬gen)
+  ++-SigsForVote∈Rm-SentB4{pool} msgs sfvb4 qc∈rm sig vs∈qc rbld≈v ¬bootstrap =
+    MsgWithSig∈-++ʳ{ms = msgs} (sfvb4 qc∈rm sig vs∈qc rbld≈v ¬bootstrap)
 
 module Invariants where
 

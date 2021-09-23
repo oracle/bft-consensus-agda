@@ -41,29 +41,29 @@ module LibraBFT.Yasm.Properties
  open WithInitAndHandlers iiah
  open import Util.FunctionOverride PeerId _≟PeerId_
 
- -- A few handy properties for transporting information about whether a Signature is ∈GenInfo to
+ -- A few handy properties for transporting information about whether a Signature is ∈BootstrapInfo to
  -- another type containing the same signature
- transp-∈GenInfo₀ : ∀ {pk p1 p2}
+ transp-∈BootstrapInfo₀ : ∀ {pk p1 p2}
                   → (ver1 : WithVerSig {Part} ⦃ Part-sig ⦄ pk p1)
                   → (ver2 : WithVerSig {Part} ⦃ Part-sig ⦄ pk p2)
                   → ver-signature ver1 ≡ ver-signature ver2
-                  → ∈GenInfo genInfo (ver-signature ver1)
-                  → ∈GenInfo genInfo (ver-signature ver2)
- transp-∈GenInfo₀ ver1 ver2 sigs≡ init = subst (∈GenInfo genInfo) sigs≡ init
+                  → ∈BootstrapInfo bootstrapInfo (ver-signature ver1)
+                  → ∈BootstrapInfo bootstrapInfo (ver-signature ver2)
+ transp-∈BootstrapInfo₀ ver1 ver2 sigs≡ init = subst (∈BootstrapInfo bootstrapInfo) sigs≡ init
 
- transp-¬∈GenInfo₁ : ∀ {pk pool sig}
-                  → ¬ ∈GenInfo genInfo sig
+ transp-¬∈BootstrapInfo₁ : ∀ {pk pool sig}
+                  → ¬ ∈BootstrapInfo bootstrapInfo sig
                   → (mws : MsgWithSig∈ pk sig pool)
-                  → ¬ ∈GenInfo genInfo (ver-signature (msgSigned mws))
- transp-¬∈GenInfo₁ ¬init mws rewrite sym (msgSameSig mws) = ¬init
+                  → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws))
+ transp-¬∈BootstrapInfo₁ ¬init mws rewrite sym (msgSameSig mws) = ¬init
 
- transp-¬∈GenInfo₂ : ∀ {pk sig1 sig2 pool}
+ transp-¬∈BootstrapInfo₂ : ∀ {pk sig1 sig2 pool}
                   → (mws1 : MsgWithSig∈ pk sig1 pool)
-                  → ¬ (∈GenInfo genInfo (ver-signature (msgSigned mws1)))
+                  → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws1)))
                   → (mws2 : MsgWithSig∈ pk sig2 pool)
                   → sig2 ≡ sig1
-                  → ¬ (∈GenInfo genInfo (ver-signature (msgSigned mws2)))
- transp-¬∈GenInfo₂ mws1 ¬init mws2 refl = ¬subst {P = ∈GenInfo genInfo} ¬init (trans (msgSameSig mws2) (sym (msgSameSig mws1)))
+                  → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws2)))
+ transp-¬∈BootstrapInfo₂ mws1 ¬init mws2 refl = ¬subst {P = ∈BootstrapInfo bootstrapInfo} ¬init (trans (msgSameSig mws2) (sym (msgSameSig mws1)))
 
  ¬cheatForgeNew : ∀ {pid pk vsig mst outs m}{st : SystemState}
                 → (sp : StepPeer st pid mst outs)
@@ -71,7 +71,7 @@ module LibraBFT.Yasm.Properties
                 → (ic : isCheat sp)
                 → Meta-Honest-PK pk
                 → (mws : MsgWithSig∈ pk vsig ((pid , m) ∷ msgPool st))
-                → ¬ (∈GenInfo genInfo (ver-signature (msgSigned mws)))
+                → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws)))
                 → MsgWithSig∈ pk vsig (msgPool st)
  ¬cheatForgeNew {st = st} sc@(step-cheat isch) refl _ hpk mws ¬init
     with msg∈pool mws
@@ -91,7 +91,7 @@ module LibraBFT.Yasm.Properties
                     → Meta-Honest-PK pk
                     → (sig : WithVerSig pk p)
                     → p ⊂MsgG m → (sndr , m) ∈ msgPool (StepPeer-post sp)
-                    → ¬ ∈GenInfo genInfo (ver-signature sig)
+                    → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature sig)
                     → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
  ¬cheatForgeNewSig {p} {m} {sndr} r (step-cheat chConstraint) ic pkH sig p⊂m m∈pool ¬init
    with m∈pool
@@ -119,9 +119,9 @@ module LibraBFT.Yasm.Properties
  StepPeerState-AllValidParts = ∀{s m part pk outs}{α}{st : SystemState}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
+   → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (just (s , outs)))
    → LYT.send m ∈ outs → part ⊂MsgG m → (ver : WithVerSig pk part)
-   → ¬ (∈GenInfo genInfo (ver-signature ver))
+   → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature ver))
      -- Note that we require that α can send for the PK according to the *post* state.  This allows
      -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
      -- it changed to the epoch in the same step.  If this is too painful, we could require that the
@@ -137,7 +137,7 @@ module LibraBFT.Yasm.Properties
  IsValidNewPart {pre} {post} sig pk (step-peer {pid = pid} pstep)
     -- the part has never been seen before
     = ReachableSystemState pre
-    × ¬ ∈GenInfo genInfo sig
+    × ¬ ∈BootstrapInfo bootstrapInfo sig
     × ¬ (MsgWithSig∈ pk sig (msgPool pre))
     × Σ (MsgWithSig∈ pk sig (msgPool (StepPeer-post pstep)))
         (λ m → msgSender m ≡ pid × initialised post pid ≡ initd × ValidSenderForPK post (msgPart m) (msgSender m) pk)
@@ -171,7 +171,7 @@ module LibraBFT.Yasm.Properties
      unwind : ∀{st : SystemState}(tr : ReachableSystemState st)
             → ∀{p m σ pk} → Meta-Honest-PK pk
             → p ⊂MsgG m → (σ , m) ∈ msgPool st → (ver : WithVerSig pk p)
-            → ¬ ∈GenInfo genInfo (ver-signature ver)
+            → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature ver)
             → Any-Step (IsValidNewPart (ver-signature ver) pk) tr
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig ¬init
        with Any-++⁻ (actionsToSentMessages β outs) {msgPool pre} m∈sm
@@ -185,7 +185,7 @@ module LibraBFT.Yasm.Properties
      ...| inj₁ abs    = ⊥-elim (hpk abs)
      ...| inj₂ sentb4
        with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
-                                           (transp-¬∈GenInfo₁ ¬init sentb4)
+                                           (transp-¬∈BootstrapInfo₁ ¬init sentb4)
      ...| res rewrite msgSameSig sentb4 = step-there res
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) hpk p⊂m m∈sm sig ¬init
         | inj₁ thisStep
@@ -194,7 +194,7 @@ module LibraBFT.Yasm.Properties
      ...| m∈outs , refl
        with sps-avp tr hpk x m∈outs p⊂m sig ¬init
      ...| inj₂ sentb4 with unwind tr {p = msgPart sentb4} hpk (msg⊆ sentb4) (msg∈pool sentb4) (msgSigned sentb4)
-                                  (¬subst {P = ∈GenInfo genInfo} ¬init (msgSameSig sentb4))
+                                  (¬subst {P = ∈BootstrapInfo bootstrapInfo} ¬init (msgSameSig sentb4))
      ...| res rewrite msgSameSig sentb4 = step-there res
      unwind (step-s tr (step-peer {pid = β} {outs = outs} {pre = pre} sp)) {p} hpk p⊂m m∈sm sig ¬init
         | inj₁ thisStep
@@ -213,7 +213,7 @@ module LibraBFT.Yasm.Properties
      honestPartValid : ∀ {st} → ReachableSystemState st → ∀ {pk nm v sender}
                      → Meta-Honest-PK pk
                      → v ⊂MsgG nm → (sender , nm) ∈ msgPool st → (ver : WithVerSig pk v)
-                     → ¬ ∈GenInfo genInfo (ver-signature ver)
+                     → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature ver)
                      → Σ (MsgWithSig∈ pk (ver-signature ver) (msgPool st))
                          (λ msg → (ValidSenderForPK st (msgPart msg) (msgSender msg) pk))
      honestPartValid {st} r {pk = pk} hpk v⊂m m∈pool ver ¬init
@@ -223,7 +223,7 @@ module LibraBFT.Yasm.Properties
         = Any-Step-elim (λ { {st = step-peer {pid = pid} (step-honest sps)} (preReach , ¬init , ¬sentb4 , new , refl , ini , valid) tr
                              → mwsAndVspk-stable (step-s preReach (step-peer (step-honest sps))) tr new ini valid
                            ; {st = step-peer {pid = pid} {pre = pre} (step-cheat {pid} sps)} (preReach , ¬init , ¬sentb4 , new , refl , valid) tr
-                            → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new (transp-¬∈GenInfo₁ ¬init new)))
+                            → ⊥-elim (¬sentb4 (¬cheatForgeNew {st = pre} (step-cheat sps) refl unit hpk new (transp-¬∈BootstrapInfo₁ ¬init new)))
                         })
                         (unwind r hpk v⊂m m∈pool ver ¬init)
 
@@ -235,7 +235,7 @@ module LibraBFT.Yasm.Properties
        -- If a message m has been sent by α, containing part
        → (α , m) ∈ msgPool st → part ⊂MsgG m
        -- And the part can be verified with an honest public key,
-       → (sig : WithVerSig pk part) → ¬ ∈GenInfo genInfo (ver-signature sig)
+       → (sig : WithVerSig pk part) → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature sig)
        → Meta-Honest-PK pk
        -- then either the part is a valid part by α (meaning that α can
        -- sign the part itself) or a message with the same signature has
@@ -268,7 +268,7 @@ module LibraBFT.Yasm.Properties
      ext-unforgeability
        : ∀{α₀ m part pk}{st : SystemState} → ReachableSystemState st
        → (α₀ , m) ∈ msgPool st → part ⊂MsgG m
-       → (sig : WithVerSig pk part) → ¬ ∈GenInfo genInfo (ver-signature sig)
+       → (sig : WithVerSig pk part) → ¬ ∈BootstrapInfo bootstrapInfo (ver-signature sig)
        → Meta-Honest-PK pk
        → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      ext-unforgeability {α₀} {m} {st = st} rst m∈sm p⊂m sig ¬init hpk
@@ -281,14 +281,14 @@ module LibraBFT.Yasm.Properties
                             → ReachableSystemState st
                             → Meta-Honest-PK pk
                             → (mws : MsgWithSig∈ pk sig (msgPool st))
-                            → ¬ (∈GenInfo genInfo (ver-signature (msgSigned mws)))
+                            → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws)))
                             → (Σ (MsgWithSig∈ pk sig (msgPool st))
                                  λ mws' → ValidSenderForPK st (msgPart mws') (msgSender mws') pk)
      msgWithSigSentByAuthor step-0 _ ()
      msgWithSigSentByAuthor {pk} {sig} (step-s {pre = pre} preach (step-peer theStep@(step-cheat cheatCons))) hpk mws ¬init
         with (¬cheatForgeNew theStep refl unit hpk mws ¬init)
      ...| mws'
-        with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈GenInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') refl)
+        with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈BootstrapInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') refl)
      ...| (mws'' , vpb'') = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach (step-peer theStep) vpb''
      msgWithSigSentByAuthor (step-s {pre = pre} preach theStep@(step-peer {pid = pid} {outs = outs} (step-honest sps))) hpk mws ¬init
        with Any-++⁻ (actionsToSentMessages pid outs) {msgPool pre} (msg∈pool mws)
@@ -302,14 +302,14 @@ module LibraBFT.Yasm.Properties
         with sps-avp preach hpk sps m∈outs (msg⊆ mws) (msgSigned mws) ¬init
      ...| inj₁ (vpbα₀ , _) = mws , vpbα₀
      ...| inj₂ mws'
-        with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈GenInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') (msgSameSig mws))
+        with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈BootstrapInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') (msgSameSig mws))
      ...| (mws'' , vpb'') rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
 
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
+                      → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (just (s' , outs)))
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-                      → ¬ (∈GenInfo genInfo (ver-signature sig))
+                      → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
                       → v ⊂MsgG m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
                       → ( LYT.send m ∈ outs × ValidSenderForPK (StepPeer-post {pre = st} (step-honest stP)) v pid pk
                         × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
@@ -350,7 +350,7 @@ module LibraBFT.Yasm.Properties
                                                  (msgPool pre)
                                                  (initialised pre)
                                                  (peerStates pre (msgSender (carrSent pc)))
-                                                 (ps' , outs))
+                                                 (just (ps' , outs)))
                       → P (msgPart (carrSent pc)) ps'
 
   module _ (PSP : PeerStepPreserves) where
