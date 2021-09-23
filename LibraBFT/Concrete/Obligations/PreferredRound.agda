@@ -193,10 +193,10 @@ module LibraBFT.Concrete.Obligations.PreferredRound
            cand hyp
   ...| va'Par , res
     with vdParent-prevRound-lemma rc' va' va'Par
-  ...| inj₁ hb    = inj₁ hb
+  ...| inj₁ hb    = inj₁ (hb , obm-dangerous-magic' "TODO-3: connect to InSys")
   ...| inj₂ final
     with make-cand-3-chain-lemma c3 va
-  ...| inj₁ hb = inj₁ hb
+  ...| inj₁ hb = inj₁ (hb , obm-dangerous-magic' "TODO-3: connect to InSys")
   ...| inj₂ xx = inj₂ (subst₂ _≤_
           (cong bRound (trans (cong (kchainBlock (suc zero) ∘ is-2chain) (sym R)) xx))
           final

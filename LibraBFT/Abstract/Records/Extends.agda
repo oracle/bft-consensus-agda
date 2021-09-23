@@ -47,9 +47,9 @@ module LibraBFT.Abstract.Records.Extends
 
   -- Equivalent records extend equivalent records (modulo injectivity
   -- failure of bId).
-  ←-≈Rec : ∀{r₀ r₁ s₀ s₁} → s₀ ← r₀ → s₁ ← r₁
+  ←-≈Rec : ∀{r₀ r₁ s₀ s₁} → (ext₀ : s₀ ← r₀) → (ext₁ : s₁ ← r₁)
            → r₀ ≈Rec r₁
-           → NonInjective-≡ bId ⊎ (s₀ ≈Rec s₁)
+           → NonInjective-≡-preds ((s₀ ≡_) ∘ B) ((s₁ ≡_) ∘ B) bId ⊎ (s₀ ≈Rec s₁)
   ←-≈Rec (I←B x x₁) (I←B x₂ x₃) hyp = inj₂ eq-I
   ←-≈Rec (I←B x x₁) (Q←B x₂ x₃) (eq-B refl)
     = ⊥-elim (maybe-⊥ (sym x₃) x₁)
@@ -61,7 +61,7 @@ module LibraBFT.Abstract.Records.Extends
                        -- in eq-Q
   ←-≈Rec (B←Q {b₀} x refl) (B←Q {b₁} w refl) (eq-Q refl)
     with b₀ ≟Block b₁
-  ...| no  hb  = inj₁ ((b₀ , b₁) , (λ x → hb x) , refl)
+  ...| no  hb  = inj₁ (((b₀ , b₁) , (λ x → hb x) , refl) , refl , refl)
   ...| yes prf = inj₂ (eq-B prf)
 
   ←-irrelevant : Irrelevant _←_

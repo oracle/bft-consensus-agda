@@ -112,4 +112,4 @@ module LibraBFT.Abstract.RecordChain.Assumptions
      → (rc' : RecordChain (Q q'))
      → (v' : α ∈QC q')
      → abs-vRound (∈QC-Vote q v) < abs-vRound (∈QC-Vote q' v')
-     → NonInjective-≡ bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
+     → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')
