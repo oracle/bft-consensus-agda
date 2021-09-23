@@ -74,7 +74,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   ...| step-cheat isCheat
      with thisStep
   ...| here refl
-     with isCheat (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws)
+     with isCheat (msg⊆ mws) (msgSigned mws) (transp-¬∈BootstrapInfo₁ ¬init mws)
   ...| inj₁ dis = ⊥-elim (hpk dis)
   ...| inj₂ sentb4 rewrite msgSameSig mws = ⊥-elim (¬sentb4 sentb4)
 
@@ -86,7 +86,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
      with hstep
   ...| step-msg {_ , P m} m∈pool ini
      with ⊎-elimʳ (¬subst ¬sentb4 (msgSameSig mws))
-                  (impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈GenInfo₁ ¬init mws))
+                  (impl-sps-avp {m = msgWhole mws} r hpk hstep nm∈outs (msg⊆ mws) (msgSigned mws) (transp-¬∈BootstrapInfo₁ ¬init mws))
   ...| (vpk' , _)
      with noEpochIdChangeYet {ppre = peerStates pre β} r refl hstep ini
   ...| eids≡
@@ -142,7 +142,7 @@ module LibraBFT.ImplFake.Properties.VotesOnce (𝓔 : EpochConfig) where
   vo₁ : Common.IncreasingRoundObligation 𝓔
   -- Initialization doesn't send any messages at all so far; Agda figures that out so no proof
   -- required here.  In future it may send messages, but any verifiable Signatures for honest PKs
-  -- they contain will be from GenesisInfo.
+  -- they contain will be from BootstrapInfo.
   vo₁ {pid} {pk = pk} {pre = pre} r sm@(step-msg {(_ , nm)} m∈pool pidini)
       {m = m} {v'} hpk v⊂m m∈outs sig ¬init ¬sentb4 vspk v'⊂m' m'∈pool sig' ¬init' refl
      -- Use unwind to find the step that first sent the signature for v', then Any-Step-elim to

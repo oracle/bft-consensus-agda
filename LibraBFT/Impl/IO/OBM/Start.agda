@@ -43,12 +43,12 @@ startViaConsensusProvider
   : Instant
   → AuthorName
   → GenKeyFile.NfLiwsVssVvPe
-  → TxTypeDependentStuff
+  → TxTypeDependentStuffForNetwork
   → Either ErrLog (EpochManager × List Output)
 startViaConsensusProvider now me nfLiwsVssVvPe txTDS = do
   let onf                       = ObmNeedFetch.newNetwork {-stps'-}
   (nc , occp , liws , sk , _pe) ← ConsensusProvider.obmInitialData me nfLiwsVssVvPe
   ConsensusProvider.startConsensus
     nc now occp liws sk onf
-    (txTDS ^∙ ttdsProposalGenerator) (txTDS ^∙ ttdsStateComputer)
+    (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 

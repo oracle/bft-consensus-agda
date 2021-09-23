@@ -31,13 +31,13 @@ start : MockStorage → Either ErrLog RecoveryData
 
 ------------------------------------------------------------------------------
 
-newWithLedgerInfo : MockSharedStorage → LedgerInfo → MockStorage
-newWithLedgerInfo sharedStorage ledgerInfo =
-  let li  = if ledgerInfo ^∙ liEndsEpoch
-            then ledgerInfo
+newWithLedgerInfo : MockSharedStorage → LedgerInfo → Either ErrLog MockStorage
+newWithLedgerInfo sharedStorage ledgerInfo = do
+  li      ← if ledgerInfo ^∙ liEndsEpoch
+            then pure ledgerInfo
             else LedgerInfo.mockGenesis (just (sharedStorage ^∙ mssValidatorSet))
-      lis = LedgerInfoWithSignatures∙new li Map.empty
-   in MockStorage∙new
+  let lis = LedgerInfoWithSignatures∙new li Map.empty
+  pure $ MockStorage∙new
       (sharedStorage & mssLis %~ Map.insert (lis ^∙ liwsLedgerInfo ∙ liVersion) lis)
       li
       (DiemDB∙new LedgerStore.new)
@@ -63,13 +63,15 @@ tryStart self =
 startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
                 → Either ErrLog (RecoveryData × PersistentLivenessStorage)
 startForTesting validatorSet obmMLIWS = do
-  let (sharedStorage , genesisLi) = case obmMLIWS of λ where
-        nothing     → ( MockSharedStorage.new            validatorSet
-                      , LedgerInfo.mockGenesis     (just validatorSet) )
-        (just liws) → ( MockSharedStorage.newObmWithLIWS validatorSet liws
-                      , liws ^∙ liwsLedgerInfo )
-      storage = newWithLedgerInfo sharedStorage genesisLi
-  ss ← withErrCtx' (here' []) (start storage)
+  (sharedStorage , genesisLi) ←
+    case obmMLIWS of λ where
+        nothing     → do
+          g ← LedgerInfo.mockGenesis (just validatorSet)
+          pure (MockSharedStorage.new validatorSet            , g)
+        (just liws) →
+          pure (MockSharedStorage.newObmWithLIWS validatorSet liws , liws ^∙ liwsLedgerInfo)
+  storage ← newWithLedgerInfo sharedStorage genesisLi
+  ss      ← withErrCtx' (here' []) (start storage)
   pure (ss , storage)
  where
   here' : List String → List String

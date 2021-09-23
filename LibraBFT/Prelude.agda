@@ -47,6 +47,9 @@ module LibraBFT.Prelude where
   max = _⊔_
   min = _⊓_
 
+  open import Data.Nat.DivMod using (_/_)
+  div = _/_
+
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public
@@ -60,8 +63,8 @@ module LibraBFT.Prelude where
   foldl' = List-foldl
 
   open import Data.List.Properties
-    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++)
-    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; ++-identityʳ)
+    renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++; length-filter to List-length-filter)
+    using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; tabulate-lookup; ++-identityʳ)
     public
 
   open import Data.List.Relation.Binary.Subset.Propositional
@@ -86,6 +89,7 @@ module LibraBFT.Prelude where
              ; ++⁺ˡ       to Any-++ˡ
              ; singleton⁻ to Any-singleton⁻
              ; tabulate⁺  to Any-tabulate⁺
+             ; filter⁻    to Any-filter⁻
              )
     public
 
@@ -111,7 +115,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.List.Membership.Propositional.Properties
-    renaming (∈-filter⁻ to List-∈-filter⁻)
+    renaming (∈-filter⁺ to List-∈-filter⁺; ∈-filter⁻ to List-∈-filter⁻)
     public
 
   open import Data.Vec
@@ -186,15 +190,15 @@ module LibraBFT.Prelude where
   open import Data.Fin
     using (Fin; suc; zero; fromℕ; fromℕ< ; toℕ ; cast)
     renaming (_≟_ to _≟Fin_; _≤?_ to _≤?Fin_; _≤_ to _≤Fin_ ; _<_ to _<Fin_;
-              inject₁ to Fin-inject₁; inject+ to Fin-inject+)
+              inject₁ to Fin-inject₁; inject+ to Fin-inject+; inject≤ to Fin-inject≤)
     public
 
   fins : (n : ℕ) → List (Fin n)
   fins n = Vec-toList (Vec-allFin n)
 
   open import Data.Fin.Properties
-    using (toℕ-injective)
-    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin)
+    using (toℕ-injective; toℕ<n)
+    renaming (<-cmp to Fin-<-cmp; <⇒≢ to <⇒≢Fin; suc-injective to Fin-suc-injective)
     public
 
   open import Relation.Binary.PropositionalEquality

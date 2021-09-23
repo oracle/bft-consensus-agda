@@ -33,18 +33,19 @@ empty = BlockInfo∙new
   gENESIS_VERSION
   nothing
 
-genesis : HashValue → ValidatorSet → BlockInfo
-genesis genesisStateRootHash validatorSet = BlockInfo∙new
-  gENESIS_EPOCH
-  gENESIS_ROUND
-  Hash.valueZero
-  genesisStateRootHash
-  gENESIS_VERSION
---gENESIS_TIMESTAMP_USECS
-  (just (EpochState∙new {-Epoch-} 1 (ValidatorVerifier.from validatorSet)))
-{-# INLINE genesis #-}
+genesis : HashValue → ValidatorSet → Either ErrLog BlockInfo
+genesis genesisStateRootHash validatorSet = do
+  vv ← ValidatorVerifier.from validatorSet
+  pure $ BlockInfo∙new
+    gENESIS_EPOCH
+    gENESIS_ROUND
+    Hash.valueZero
+    genesisStateRootHash
+    gENESIS_VERSION
+  --gENESIS_TIMESTAMP_USECS
+    (just (EpochState∙new {-Epoch-} 1 vv))
 
-mockGenesis : Maybe ValidatorSet → BlockInfo
+mockGenesis : Maybe ValidatorSet → Either ErrLog BlockInfo
 mockGenesis
   = genesis
     (Crypto.obmHashVersion gENESIS_VERSION) -- OBM-LBFT-DIFF : Crypto.aCCUMULATOR_PLACEHOLDER_HASH

@@ -54,7 +54,7 @@ module LibraBFT.Abstract.Types.EpochConfig
 
       IsQuorum : List Member → Set
 
-      bft-assumption : ∀ {xs ys}
+      bft-property : ∀ {xs ys}
                      → IsQuorum xs → IsQuorum ys
                      → ∃[ α ] (α ∈ xs × α ∈ ys × Meta-Honest-PK (getPubKey α))
 

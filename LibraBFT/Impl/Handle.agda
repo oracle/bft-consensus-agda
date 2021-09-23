@@ -14,9 +14,12 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
+import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
-open import LibraBFT.Impl.OBM.Init
+import      LibraBFT.Impl.OBM.Init                      as Init
+open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Time
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
@@ -47,48 +50,47 @@ postulate -- TODO-1: reasonable assumption that some RoundManager exists, though
   -- the initial RoundManager for every peer until it is initialised.
   fakeRM : RoundManager
 
-postulate -- TODO-2: define GenesisInfo to match implementation and write these functions
-  initVV  : GenesisInfo → ValidatorVerifier
+postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
+  fakeInitVV  : BootstrapInfo → ValidatorVerifier
 
-initSR : SafetyRules
-initSR =
+fakeInitSR : SafetyRules
+fakeInitSR =
   let sr = fakeRM ^∙ lSafetyRules
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1
       sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
   in sr
 
-initPG : ProposalGenerator
-initPG = ProposalGenerator∙new 0
+fakeInitPG : ProposalGenerator
+fakeInitPG = ProposalGenerator∙new 0
 
-postulate -- TODO-1: Implement initPe, initBS
-  initPE : ProposerElection
-  initBS : BlockStore
+postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
+  fakeInitPE : ProposerElection
+  fakeInitBS : BlockStore
+  fakeInitRS : RoundState
 
-initRS : RoundState
-initRS = RoundState.new etiT timeT
-
-initRM : RoundManager
-initRM = RoundManager∙new
+fakeInitRM : RoundManager
+fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
-           (EpochState∙new 1 (initVV genesisInfo))
-           initBS initRS initPE initPG initSR false
+           (EpochState∙new 1 (fakeInitVV fakeBootstrapInfo))
+           fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
 
--- Eventually, the initialization should establish some properties we care about, but for now we
--- just initialise again to fakeRM, which means we cannot prove the base case for various
--- properties, e.g., in Impl.Properties.VotesOnce
--- TODO: create real RoundManager using GenesisInfo
-initialRoundManagerAndMessages
-  : (a : Author) → GenesisInfo
+-- Eventually, the initialization should establish properties we care about.
+-- For now we just initialise to fakeRM.
+-- That means we cannot prove the base case for various properties,
+-- e.g., in Impl.Properties.VotesOnce
+-- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
+fakeInitialRoundManagerAndMessages
+  : (a : Author) → BootstrapInfo
   → RoundManager × List NetworkMsg
-initialRoundManagerAndMessages a _ = initRM , []
+fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 
 -- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
 -- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
 -- be renamed?)
 
-initWrapper : NodeId → GenesisInfo → RoundManager × List (LYT.Action NetworkMsg)
-initWrapper nid g = ×-map₂ (List-map LYT.send) (initialRoundManagerAndMessages nid g)
+fakeInitWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
+fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
 -- Here we invoke the handler that models the real implementation handler.
 runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
@@ -102,10 +104,85 @@ runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run han
 peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
 peerStep nid msg st = runHandler st (handle nid msg 0)
 
-InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
-InitAndHandlers = mkSysInitAndHandlers
-                    genesisInfo
-                    initRM
-                    initWrapper
+fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+fakeInitAndHandlers = mkSysInitAndHandlers
+                    fakeBootstrapInfo
+                    fakeInitRM
+                    (λ pid bootstrapInfo → just (fakeInitWrapper pid bootstrapInfo))
                     peerStep
 
+------------------------------------------------------------------------------
+-- real initialization
+
+{-
+IMPL-DIFF: In Haskell, nodes are started with a filepath of a file containing
+- number of faults allowed
+- genesis LedgerInfoWithSignatures
+- network addresses/name and secret and public keys of all nodes in the genesis epoch
+
+Main reads/checks that file then calls a network specific 'run' functions (e.g., ZMQ.hs)
+that setup the network handlers then eventually call 'Start.startViaConsensusProvider'.
+
+That functions calls 'ConsensusProvider.startConsensus' which returns
+'(EpochManager, [Output]'.
+
+'Start.startViaConsensusProvider' then goes on to create and wire up internal communication
+channels and starts threads.  The most relevant thread starts up
+`(EpochManager.obmStartLoop epochManager output ...)' to handle the initialization output
+and then to handle new messages from the network.
+
+In Agda functions below, assuming no initialization errors,
+- the 'GenKeyFile.create' function
+  - creates everything that would have been written to disk and then later read
+    to create ValidatorSigner(s), ValidatorVerifier, LIWS, etc.
+- there is no network transport in Agda
+- the 'Init.initialize' calls 'ConsensusProvider.startConsensus' which returns
+  '(EpochManager, List Output)', just like Haskell.
+- Since there is no network, internal channels and threads, this is the end of this process.
+-}
+
+postulate
+  now           : Instant
+  pg            : ProposalGenerator
+
+initEMWithOutput' : Either ErrLog (EpochManager × List Output)
+initEMWithOutput' = do
+  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
+initEMWithOutput = do
+  (nf , _ , vss , vv , pe , liws) ← fromEither
+                                  $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
+      me                          = 0
+  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+
+-- This shows that the Either and EitherD versions are equivalent.  This
+-- is a first step towards eliminating the painful VariantOf stuff, so
+-- we can have the version that looks (almost) exactly like the Haskell,
+-- and the EitherD variant, broken into explicit steps, etc. for proving.
+initEMWithOutput≡ : initEMWithOutput' ≡ EitherD-run initEMWithOutput
+initEMWithOutput≡
+  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
+... | Left err = refl
+... | Right (nf , _ , vss , vv , pe , liws)
+  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
+... | Left err = refl
+... | Right y  = refl
+
+------------------------------------------------------------------------------
+-- TODO : ASK CHRIS : regarding EitherD-run
+
+zzz : EitherD ErrLog ℕ
+zzz = do
+  r ← RightD 0
+  RightD r
+
+zzz' : Either ErrLog ℕ
+zzz' = Right 0
+
+zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
+zzz≡zzz' ()

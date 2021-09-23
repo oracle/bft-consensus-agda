@@ -124,13 +124,18 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl  vsAuthor   vsPrivateKey = mkLens (quote ValidatorSigner)
               (vsAuthor ∷ vsPrivateKey ∷ [])
 
+  RawEncNetworkAddress = Author
+
+
+
   record ValidatorConfig : Set where
     constructor ValidatorConfig∙new
     field
-      _vcConsensusPublicKey : PK
+      _vcConsensusPublicKey      : PK
+      _vcValidatorNetworkAddress : RawEncNetworkAddress
   open ValidatorConfig public
-  unquoteDecl vcConsensusPublicKey = mkLens (quote ValidatorConfig)
-    (vcConsensusPublicKey ∷ [])
+  unquoteDecl vcConsensusPublicKey   vcValidatorNetworkAddress = mkLens (quote ValidatorConfig)
+             (vcConsensusPublicKey ∷ vcValidatorNetworkAddress ∷ [])
 
   record ValidatorInfo : Set where
     constructor ValidatorInfo∙new
@@ -142,6 +147,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   unquoteDecl viAccountAddress   viConsensusVotingPower   viConfig = mkLens (quote ValidatorInfo)
              (viAccountAddress ∷ viConsensusVotingPower ∷ viConfig ∷ [])
 
+  -- getter only in Haskell
+  -- key for validating signed messages from this validator
+  viConsensusPublicKey : Lens ValidatorInfo PK
+  viConsensusPublicKey = viConfig ∙ vcConsensusPublicKey
+
   record ValidatorConsensusInfo : Set where
     constructor ValidatorConsensusInfo∙new
     field
@@ -152,14 +162,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
              (vciPublicKey ∷ vciVotingPower ∷ [])
 
   record ValidatorVerifier : Set where
-    constructor ValidatorVerifier∙new
+    constructor mkValidatorVerifier
     field
-      _vvAddressToValidatorInfo : (KVMap AccountAddress ValidatorConsensusInfo)
+      _vvAddressToValidatorInfo : KVMap AccountAddress ValidatorConsensusInfo
       _vvQuorumVotingPower      : ℕ  -- TODO-2: see above; for now, this is QuorumSize
-      -- :vvTotalVotingPower    : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
+      _vvTotalVotingPower       : ℕ  -- TODO-2: see above; for now, this is number of peers in EpochConfig
   open ValidatorVerifier public
-  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower = mkLens (quote ValidatorVerifier)
-             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ [])
+  unquoteDecl vvAddressToValidatorInfo   vvQuorumVotingPower   vvTotalVotingPower = mkLens (quote ValidatorVerifier)
+             (vvAddressToValidatorInfo ∷ vvQuorumVotingPower ∷ vvTotalVotingPower ∷ [])
 
   -- getter only in Haskell
   vvObmAuthors : Lens ValidatorVerifier (List AccountAddress)
@@ -179,6 +189,9 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _vsScheme  : ConsensusScheme
       _vsPayload : List ValidatorInfo
   -- instance S.Serialize ValidatorSet
+  open ValidatorSet public
+  unquoteDecl vsScheme   vsPayload = mkLens (quote ValidatorSet)
+             (vsScheme ∷ vsPayload ∷ [])
 
   record EpochState : Set where
     constructor EpochState∙new
@@ -1016,8 +1029,8 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
 
   record ProposerElection : Set where
     constructor ProposerElection∙new
-    -- field
-      -- _peProposers : Set Author
+    field
+      _peProposers : List Author -- TODO-1 : this should be 'Set Author'
       -- _peObmLeaderOfRound : LeaderOfRoundFn
       -- _peObmNodesInOrder  : NodesInOrder
   open ProposerElection

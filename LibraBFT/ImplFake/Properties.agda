@@ -24,10 +24,10 @@ open import LibraBFT.Prelude
 module LibraBFT.ImplFake.Properties (𝓔 : EpochConfig) where
   theImplObligations : ImplObligations FakeInitAndHandlers 𝓔
   theImplObligations = record { sps-cor = impl-sps-avp
-                              ; gvc     = genVotesConsistent
-                              ; gvr     = genVotesRound≡0
-                              ; v≢0     = ¬genVotesRound≢0
-                              ; ∈GI?    = ∈GenInfo?-impl genesisInfo
+                              ; bsvc    = bootstrapVotesConsistent
+                              ; bsvr    = bootstrapVotesRound≡0
+                              ; v≢0     = ¬bootstrapVotesRound≢0
+                              ; ∈BI?    = ∈BootstrapInfo?-impl fakeBootstrapInfo
                               ; iro     = Common.vo₁ 𝓔
                               ; vo₂     = VO.vo₂ 𝓔
                               ; pr₁     = PR.pr₁ 𝓔
