@@ -26,18 +26,16 @@ open import Data.String                                    using (String; _++_)
 module LibraBFT.Impl.Consensus.ConsensusProvider where
 
 obmInitialData
-  : AuthorName
-  → GenKeyFile.NfLiwsVssVvPe
+  : GenKeyFile.NfLiwsVsVvPe
   → Either ErrLog
            (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
-obmInitialData me ( _numFaults , genesisLIWS , validatorSigners
-                  , validatorVerifier , proposerElection ) = do
+obmInitialData ( _numFaults , genesisLIWS , validatorSigner
+               , validatorVerifier , proposerElection ) = do
   let vs   = ValidatorSet.obmFromVV validatorVerifier
       occp = onChainConfigPayload vs
   wp       ← Waypoint.newEpochBoundary (genesisLIWS ^∙ liwsLedgerInfo)
   let nc   = nodeConfig wp
-  vsigner  ← ValidatorSigner.obmGetValidatorSigner (nc ^∙ ncObmMe) validatorSigners
-  pure (nc , occp , genesisLIWS , vsigner ^∙ vsPrivateKey , proposerElection)
+  pure (nc , occp , genesisLIWS , validatorSigner ^∙ vsPrivateKey , proposerElection)
  where
   onChainConfigPayload : ValidatorSet → OnChainConfigPayload
   onChainConfigPayload = OnChainConfigPayload∙new ({-Epoch-} 1)
@@ -45,7 +43,7 @@ obmInitialData me ( _numFaults , genesisLIWS , validatorSigners
   nodeConfig : Waypoint → NodeConfig
   nodeConfig genesisWaypoint =
     record -- NodeConfig
-    { _ncObmMe     = me
+    { _ncObmMe     = validatorSigner ^∙ vsAuthor
     ; _ncConsensus = record -- ConsensusConfig
       { _ccMaxPrunedBlocksInMem  = ConfigHardCoded.maxPrunedBlocksInMem
       ; _ccRoundInitialTimeoutMS = ConfigHardCoded.roundInitialTimeoutMS

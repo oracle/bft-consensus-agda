@@ -18,11 +18,14 @@ open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
-import      LibraBFT.Impl.OBM.Init                      as Init
+import      LibraBFT.Impl.IO.OBM.Start                  as Start
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Time
+import      LibraBFT.Impl.Types.BlockInfo               as BlockInfo
+import      LibraBFT.Impl.Types.ValidatorSigner         as ValidatorSigner
 open import LibraBFT.Impl.Consensus.RoundManager
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
@@ -32,15 +35,26 @@ open import LibraBFT.Yasm.Base
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
--- This module provides scaffolding to define the handlers for our implementation model and connect
--- them to the interface of the SystemModel.  Initially it inherits a bunch of postulated stuff for
--- initial state from the fake implementation, but these will evolve here, while the fake one
--- probably won't.  There is probably more refactoring we can do with FakeImpl too (see comment
--- below).
+-- This module provides scaffolding to define handlers for the implementation model and
+-- to connect those handlers to the interface of the SystemModel.
 
 module LibraBFT.Impl.Handle where
 
 open EpochConfig
+
+------------------------------------------------------------------------------
+
+-- This invokes the real implementation handler.
+runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
+runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
+
+-- NOTE: The system layer only cares about this step function.
+-- 0 is given as a timestamp.
+peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
+peerStep nid msg st = runHandler st (handle nid msg 0)
+
+------------------------------------------------------------------------------
+-- BEGIN fake initialization - TODO : DELETE
 
 postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
           -- it by construction; eventually we will construct an entire RoundManager, so
@@ -69,6 +83,7 @@ postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
   fakeInitBS : BlockStore
   fakeInitRS : RoundState
 
+-- TODO-1 : postulate
 fakeInitRM : RoundManager
 fakeInitRM = RoundManager∙new
            ObmNeedFetch∙new
@@ -92,97 +107,140 @@ fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
 fakeInitWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
 fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
 
--- Here we invoke the handler that models the real implementation handler.
-runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
-runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
-
--- And ultimately, the all-knowing system layer only cares about the
--- step function.
---
--- Note that we currently do not do anything non-trivial with the timestamp.
--- Here, we just pass 0 to `handle`.
-peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
-peerStep nid msg st = runHandler st (handle nid msg 0)
-
 fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
 fakeInitAndHandlers = mkSysInitAndHandlers
                     fakeBootstrapInfo
                     fakeInitRM
                     (λ pid bootstrapInfo → just (fakeInitWrapper pid bootstrapInfo))
                     peerStep
-
+-- END fake initialization - TODO : DELETE
 ------------------------------------------------------------------------------
--- real initialization
 
-{-
-IMPL-DIFF: In Haskell, nodes are started with a filepath of a file containing
-- number of faults allowed
-- genesis LedgerInfoWithSignatures
-- network addresses/name and secret and public keys of all nodes in the genesis epoch
+module RealHandler
+  --(bsi0 : BootstrapInfo) -- TODO-1 : properties about BootstrapInfo
+  where
 
-Main reads/checks that file then calls a network specific 'run' functions (e.g., ZMQ.hs)
-that setup the network handlers then eventually call 'Start.startViaConsensusProvider'.
+  ------------------------------------------------------------------------------
+  -- real initialization
 
-That functions calls 'ConsensusProvider.startConsensus' which returns
-'(EpochManager, [Output]'.
+  {-
+  IMPL-DIFF: In Haskell, nodes are started with a filepath of a file containing
+  - number of faults allowed
+  - genesis LedgerInfoWithSignatures
+  - network addresses/name and secret and public keys of all nodes in the genesis epoch
 
-'Start.startViaConsensusProvider' then goes on to create and wire up internal communication
-channels and starts threads.  The most relevant thread starts up
-`(EpochManager.obmStartLoop epochManager output ...)' to handle the initialization output
-and then to handle new messages from the network.
+  Main reads/checks that file then calls a network specific 'run' functions (e.g., ZMQ.hs)
+  that setup the network handlers then eventually call 'Start.startViaConsensusProvider'.
 
-In Agda functions below, assuming no initialization errors,
-- the 'GenKeyFile.create' function
-  - creates everything that would have been written to disk and then later read
-    to create ValidatorSigner(s), ValidatorVerifier, LIWS, etc.
-- there is no network transport in Agda
-- the 'Init.initialize' calls 'ConsensusProvider.startConsensus' which returns
-  '(EpochManager, List Output)', just like Haskell.
-- Since there is no network, internal channels and threads, this is the end of this process.
--}
+  That functions calls 'ConsensusProvider.startConsensus' which returns
+  '(EpochManager, [Output]'.
 
-postulate
-  now           : Instant
-  pg            : ProposalGenerator
+  'Start.startViaConsensusProvider' then goes on to create and wire up internal communication
+  channels and starts threads.  The most relevant thread starts up
+  `(EpochManager.obmStartLoop epochManager output ...)' to handle the initialization output
+  and then to handle new messages from the network.
 
-initEMWithOutput' : Either ErrLog (EpochManager × List Output)
-initEMWithOutput' = do
-  (nf , _ , vss , vv , pe , liws) ← GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
-      me                          = 0
-  Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+  In Agda functions below, assuming no initialization errors,
+  - the 'GenKeyFile.create' function
+    - creates everything that would have been written to disk and then later read
+      to create ValidatorSigner(s), ValidatorVerifier, LIWS, etc.
+  - there is no network transport in Agda
+  - 'initialize' calls 'State.startViaConsensusProvider'
+    when then calls 'ConsensusProvider.startConsensus' which returns
+    '(EpochManager, List Output)', just like Haskell.
+  - Since there is no network, internal channels and threads, this is the end of this process.
 
-initEMWithOutput : EitherD ErrLog (EpochManager × List Output)
-initEMWithOutput = do
-  (nf , _ , vss , vv , pe , liws) ← fromEither
-                                  $ GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-  let nfLiwsVssVvPe               = (nf , liws , vss , vv , pe)
-      me                          = 0
-  fromEither $ Init.initialize me nfLiwsVssVvPe now ObmNeedFetch∙new pg
+  Note: although both the Haskell and Agda version support non-uniform voting, the
+  above initialization process assumes one-vote per peer.
+  -}
 
--- This shows that the Either and EitherD versions are equivalent.  This
--- is a first step towards eliminating the painful VariantOf stuff, so
--- we can have the version that looks (almost) exactly like the Haskell,
--- and the EitherD variant, broken into explicit steps, etc. for proving.
-initEMWithOutput≡ : initEMWithOutput' ≡ EitherD-run initEMWithOutput
-initEMWithOutput≡
-  with GenKeyFile.create 1 (0 ∷ 1 ∷ 2 ∷ 3 ∷ [])
-... | Left err = refl
-... | Right (nf , _ , vss , vv , pe , liws)
-  with Init.initialize 0 (nf , liws , vss , vv , pe) now ObmNeedFetch∙new pg
-... | Left err = refl
-... | Right y  = refl
+  postulate
+    now           : Instant
+    pg            : ProposalGenerator
 
-------------------------------------------------------------------------------
--- TODO : ASK CHRIS : regarding EitherD-run
+  initialize' : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
+  initialize' now nfLiwsVsVvPe =
+    Start.startViaConsensusProvider
+      now nfLiwsVsVvPe
+      (TxTypeDependentStuffForNetwork∙new pg (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
-zzz : EitherD ErrLog ℕ
-zzz = do
-  r ← RightD 0
-  RightD r
+  abstract
+    initialize  : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
+    initialize  = initialize'
+    initialize≡ : initialize ≡ initialize'
+    initialize≡ = refl
 
-zzz' : Either ErrLog ℕ
-zzz' = Right 0
+  mkNfLiwsVsVvPe : BootstrapInfo → ValidatorSigner → GenKeyFile.NfLiwsVsVvPe
+  mkNfLiwsVsVvPe bsi vs = (bsi ^∙ bsiNumFaults , bsi ^∙ bsiLIWS , vs , bsi ^∙ bsiVV , bsi ^∙ bsiPE)
 
-zzz≡zzz' : zzz ≡ RightD 0 → zzz' ≡ Right 0
-zzz≡zzz' ()
+  initEMWithOutput' : BootstrapInfo → ValidatorSigner → Either  ErrLog (EpochManager × List Output)
+  initEMWithOutput' bsi vs =
+    initialize now (mkNfLiwsVsVvPe bsi vs)
+
+  initEMWithOutput  : BootstrapInfo → ValidatorSigner → EitherD ErrLog (EpochManager × List Output)
+  initEMWithOutput  bsi vs =
+    fromEither $
+    initialize now (mkNfLiwsVsVvPe bsi vs)
+
+  getEmRm : EpochManager → Either ErrLog RoundManager
+  getEmRm em =
+    case em ^∙ emProcessor of λ where
+      nothing  → Left fakeErr
+      (just p) → case p of λ where
+                   (RoundProcessorRecovery _) → Left fakeErr
+                   (RoundProcessorNormal rm)  → Right rm
+
+  initRMWithOutput' : BootstrapInfo → ValidatorSigner → Either  ErrLog (RoundManager × List Output)
+  initRMWithOutput' bsi vs = do
+    (em , lo) ← initEMWithOutput' bsi vs
+    rm        ← getEmRm em
+    Right (rm , lo)
+
+  initRMWithOutput  : BootstrapInfo → ValidatorSigner → EitherD ErrLog (RoundManager × List Output)
+  initRMWithOutput  bsi vs = do
+    (em , lo) ← initEMWithOutput bsi vs
+    rm        ← fromEither
+              $ getEmRm em
+    fromEither $ Right (rm , lo)
+
+  -- This shows that the Either and EitherD versions are equivalent.
+  -- This is a first step towards eliminating the painful VariantOf stuff,
+  -- so we can have the version that looks (almost) exactly like the Haskell,
+  -- and the EitherD variant, broken into explicit steps, etc. for proving.
+  initEMWithOutput≡
+    : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
+    → initEMWithOutput' bsi vs ≡ EitherD-run (initEMWithOutput bsi vs)
+  initEMWithOutput≡ {bsi} {vs}
+    with initialize now (mkNfLiwsVsVvPe bsi vs)
+  ... | Left  _ = refl
+  ... | Right _ = refl
+
+  initRMWithOutput≡
+    : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
+    → initRMWithOutput' bsi vs ≡ EitherD-run (initRMWithOutput bsi vs)
+  initRMWithOutput≡ {bsi} {vs}
+    with initialize now (mkNfLiwsVsVvPe bsi vs)
+  ... | Left  _ = refl
+  ... | Right (em , _)
+    with getEmRm em
+  ... | Left  _ = refl
+  ... | Right _ = refl
+
+  abstract
+   realHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
+   realHandler pid bsi =
+    case ValidatorSigner.obmGetValidatorSigner pid (bsi ^∙ bsiVSS) of λ where
+      (Left _)   → nothing
+      (Right vs) →
+        case initRMWithOutput' bsi vs of λ where
+          (Left _)          → nothing
+          (Right (rm , lo)) → just (rm , outputsToActions {State = rm} lo)
+
+  InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+  InitAndHandlers =
+    mkSysInitAndHandlers
+      fakeBootstrapInfo -- bsi0
+      fakeInitRM
+      realHandler
+      peerStep
+

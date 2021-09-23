@@ -25,9 +25,7 @@ The responses are received by a different thread that then feeds them to the wai
 which then proceeds.
 -}
 
-postulate -- TODO-3: newNetwork, writeRequestReadResponseUNSAFE
-  newNetwork
-    : {-SEND_TO_PEERS a-} {-IO-} ObmNeedFetch
+postulate -- TODO-3: writeRequestReadResponseUNSAFE
   writeRequestReadResponseUNSAFE
     : ObmNeedFetch → Author → Author → BlockRetrievalRequest
     → BlockRetrievalResponse

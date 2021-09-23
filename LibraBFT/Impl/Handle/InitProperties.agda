@@ -7,31 +7,38 @@
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 import      LibraBFT.Impl.Properties.Util             as Util
 open import LibraBFT.Prelude
 open import Optics.All
 
 module LibraBFT.Impl.Handle.InitProperties where
 
-module initEMWithOutputSpec where
+module realHandlerSpec
+  (pid : Author)
+  (bsi : BootstrapInfo)
+  where
 
-  record ContractOk (em : EpochManager) (lo : List Output) : Set where
+  import LibraBFT.Impl.Handle as Handle
+  open   Handle.RealHandler --bsi
+  import LibraBFT.Yasm.Types as LYT
+
+  record ContractOk (rm : RoundManager) (acts : List (LYT.Action NetworkMsg)) : Set where
     constructor mkContractOk
     field
-       rmInv : Σ RoundManager
-                 λ rm → em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
-                      × Util.Invariants.RoundManagerInv rm
+      rmInv   : Util.Invariants.RoundManagerInv rm
+      sigs∈bs : ∀ {vs qc}
+              → vs              ∈     qcVotes qc
+              → qc Util.QCProps.∈RoundManager rm
+              → ∈BootstrapInfo-impl bsi (proj₂ vs)
 
-  Contract : Either ErrLog (EpochManager × List Output) → Set
-  Contract (Left _)          = ⊤
-  Contract (Right (em , lo)) = ContractOk em lo
+  Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
+  Contract nothing            = ⊤
+  Contract (just (rm , acts)) = ContractOk rm acts
 
---  open initEMWithOutputSpec
+  open import LibraBFT.Impl.Handle
 
-  -- module _ (bt“ : BlockTree) (b : ExecutedBlock) (con : ContractOk bt“ b) where
-  -- postulate
-  --   contract' : EitherD-weakestPre (step₀ block bt) Contract
-
-  -- contract : Contract (initEMWithOutput.E block bt)
-  -- contract = EitherD-contract (step₀ block bt) Contract contract'
+  postulate
+    contract : ∀ {x} → realHandler pid bsi ≡ x → Contract x
+    -- contract = EitherD-contract {!!} Contract contract'
 
