@@ -44,7 +44,7 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct  : ValidatorVerifier-correct (Handle.fakeInitRM  ^∙ rmValidatorVerifer)
-  initRM-bsInv    : BlockTStoreInv (rm→BlockTree-EC Handle.fakeInitRM)
+  initRM-bsInv    : BlockStoreInv (rm→BlockStore-EC Handle.fakeInitRM)
   initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] Handle.fakeInitRM
 
 initRMSatisfiesInv : RoundManagerInv Handle.fakeInitRM

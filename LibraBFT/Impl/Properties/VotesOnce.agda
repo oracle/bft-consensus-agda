@@ -451,7 +451,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
 
-votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈outs sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
+votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {.(V (VoteMsg∙new v _))} {v'} {m'} hpk vote∈vm m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
   with handleProposalSpec.contract! 0 pm (msgPool pre) (peerStates pre pid)
 ...| handleProposalSpec.mkContract _ invProp noEpochChange vac _ _
    with BlockId-correct? (pm ^∙ pmProposal)

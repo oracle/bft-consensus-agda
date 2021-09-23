@@ -83,7 +83,7 @@ module LibraBFT.Abstract.Properties
       → Σ (RecordChain (Q q')) ((B b)  ∈RC_)
       ⊎ Σ (RecordChain (Q q))  ((B b') ∈RC_)
     CommitsDoNotConflict' {cb} {q = q} {q'} {rcf} rcfAll∈sys {rcf'} rcf'All∈sys crf crf'
-       with bft-assumption (qVotes-C1 q) (qVotes-C1 q')
+       with bft-property (qVotes-C1 q) (qVotes-C1 q')
     ...| α , α∈qmem , α∈q'mem , hα
        with Any-sym (Any-map⁻ α∈qmem) | Any-sym (Any-map⁻ α∈q'mem)
     ...| α∈q | α∈q'

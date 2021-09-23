@@ -24,7 +24,7 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open import LibraBFT.ImplShared.Util.HashCollisions InitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
