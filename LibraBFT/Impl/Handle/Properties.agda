@@ -44,12 +44,12 @@ module LibraBFT.Impl.Handle.Properties where
 
 postulate -- TODO-2: prove (waiting on: `initRM`)
   initRM-correct  : ValidatorVerifier-correct (Handle.fakeInitRM  ^∙ rmValidatorVerifer)
-  initRM-btInv    : BlockTreeInv (rm→BlockTree-EC Handle.fakeInitRM)
+  initRM-bsInv    : BlockStoreInv (rm→BlockStore-EC Handle.fakeInitRM)
   initRM-qcs      : QCProps.SigsForVotes∈Rm-SentB4 [] Handle.fakeInitRM
 
 initRMSatisfiesInv : RoundManagerInv Handle.fakeInitRM
 initRMSatisfiesInv =
-  mkRoundManagerInv initRM-correct refl initRM-btInv
+  mkRoundManagerInv initRM-correct refl initRM-bsInv
     (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 invariantsCorrect -- TODO-1: Decide whether this and direct corollaries should live in an `Properties.Invariants` module
