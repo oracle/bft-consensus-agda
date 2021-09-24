@@ -91,8 +91,8 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
         nothing → LeftD fakeErr
         (just parentBlock) → (do
           parentBlock' ← addChild parentBlock blockId
-          let bt' = bt & btIdToBlock ∙~ Map.insert (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
-          pure (  (bt' & btIdToBlock ∙~ Map.insert blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+          let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+          pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
                , block))
 
   E : VariantFor Either

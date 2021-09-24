@@ -123,6 +123,7 @@ module addCertsMSpec
       field
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
+        dnmBtIdToBlk  : post ≡L pre at (lBlockTree ∙ btIdToBlock)
         noEpochChange : NoEpochChange pre post
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting

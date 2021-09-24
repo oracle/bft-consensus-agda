@@ -72,10 +72,21 @@ module Optics.Functorial where
   _∙_ : ∀{S A B} → Lens S A → Lens A B → Lens S B
   (lens p) ∙ (lens q) = lens (λ F rf x x₁ → p F rf (q F rf x) x₁)
 
-  -- Relation between the same field of two states
+  -- Relation between the same field of two states This most general form allows us to specify a
+  -- Lens S A, a function A → B, and a relation between two B's, and holds iff the relation holds
+  -- between the values yielded by applying the Lens to two S's and then applying the function to
+  -- the results; more specific variants are provided below
+  _[_]L_f=_at_ : ∀ {ℓ} {S A B : Set} → S → (B → B → Set ℓ) → S → (A → B) → Lens S A → Set ℓ
+  s₁ [ _~_ ]L s₂ f= f at l = f (s₁ ^∙ l) ~ f (s₂ ^∙ l)
+
   _[_]L_at_ : ∀ {ℓ} {S A} → S → (A → A → Set ℓ) → S → Lens S A → Set ℓ
-  s₁ [ _~_ ]L s₂ at l = (s₁ ^∙ l) ~ (s₂ ^∙ l)
+  s₁ [ _~_ ]L s₂ at l = _[_]L_f=_at_ s₁ _~_ s₂ id l
+
+  infix 4 _≡L_f=_at_
+  _≡L_f=_at_ : ∀ {S A B : Set} → (s₁ s₂ : S) → (A → B) → Lens S A → Set
+  s₁ ≡L s₂ f= f at l = _[_]L_f=_at_ s₁ _≡_ s₂ f l
 
   infix 4 _≡L_at_
   _≡L_at_ : ∀ {S A} → (s₁ s₂ : S) → Lens S A → Set
-  _≡L_at_ = _[ _≡_ ]L_at_
+  s₁ ≡L s₂ at l = _[_]L_f=_at_ s₁ _≡_ s₂ id l
+

@@ -98,6 +98,11 @@ module LibraBFT.Base.KVMap  where
                   → (prf : lookup k kvm ≡ nothing)
                   → lookup k (kvm-insert k v kvm prf) ≡ just v
 
+   -- Haskell's insert updates the value even if the key is already in the map
+   lookup-correct-haskell
+                  : {kvm : KVMap Key Val}
+                  → lookup k (kvm-insert-Haskell k v kvm) ≡ just v
+
    lookup-correct-update
                   : {kvm : KVMap Key Val}
                   → (prf : lookup k kvm ≢ nothing)
