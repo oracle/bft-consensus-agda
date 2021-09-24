@@ -31,19 +31,24 @@ module LibraBFT.Concrete.Properties
          (impl-correct : ImplObligations iiah 𝓔)
          where
 
-    open WithEC
-    open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
-    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
-    import      LibraBFT.Concrete.Obligations.VotesOnce          𝓔 (ConcreteVoteEvidence 𝓔) as VO-obl
-    import      LibraBFT.Concrete.Obligations.PreferredRound     𝓔 (ConcreteVoteEvidence 𝓔) as PR-obl
-    open import LibraBFT.Concrete.Properties.VotesOnce                                       as VO
-    open import LibraBFT.Concrete.Properties.PreferredRound                                  as PR
-    open import LibraBFT.ImplShared.Util.HashCollisions iiah
+  open WithEC
+  open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
+  open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
+  import      LibraBFT.Concrete.Obligations.VotesOnce          𝓔 (ConcreteVoteEvidence 𝓔) as VO-obl
+  import      LibraBFT.Concrete.Obligations.PreferredRound     𝓔 (ConcreteVoteEvidence 𝓔) as PR-obl
+  open import LibraBFT.Concrete.Properties.VotesOnce                                       as VO
+  open import LibraBFT.Concrete.Properties.PreferredRound                                  as PR
+  open import LibraBFT.ImplShared.Util.HashCollisions iiah
 
-    open        ImplObligations impl-correct
-    open        PerState st
-    open        PerReachableState r
-    open        PerEpoch 𝓔
+  open        ImplObligations impl-correct
+  open        PerState st
+  open        PerReachableState r
+  open        PerEpoch 𝓔
+  open        IntermediateSystemState intSystemState
+
+  -- This module parameter asserts that there are no hash collisions between Blocks *in the system*,
+  -- allowing us to eliminate that case when the abstract properties claim it is the case.
+  module _ (no-collisions-InSys : NoCollisions InSys) where
 
     --------------------------------------------------------------------------------------------
     -- * A /ValidSysState/ is one in which both peer obligations are obeyed by honest peers * --
@@ -61,10 +66,8 @@ module LibraBFT.Concrete.Properties
       ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor bsvr v≢0 ∈BI? iro pr₁ pr₂ st r
       }
 
-    open IntermediateSystemState intSystemState
-
     open All-InSys-props InSys
-    open WithAssumptions InSys
+    open WithAssumptions InSys no-collisions-InSys
 
     -- We can now invoke the various abstract correctness properties.  Note that the arguments are
     -- expressed in Abstract terms (RecordChain, CommitRule).  Proving the corresponding properties
@@ -79,37 +82,25 @@ module LibraBFT.Concrete.Properties
        → {b b' : Abs.Block}
        → CommitRule rc  b
        → CommitRule rc' b'
-       → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
-    ConcCommitsDoNotConflict = CommitsDoNotConflict
-           (VO-obl.proof intSystemState (vss-votes-once validState))
-           (PR-obl.proof intSystemState (vss-preferred-round validState))
+       → (Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc
+    ConcCommitsDoNotConflict =
+      CommitsDoNotConflict
+        (VO-obl.proof intSystemState (vss-votes-once validState))
+        (PR-obl.proof intSystemState (vss-preferred-round validState))
 
     module _ (∈QC⇒AllSent : Complete InSys) where
 
-      ConcCommitsDoNotConflict' :
-        ∀{q q'}{rc  : RecordChain (Abs.Q q)}{rc' : RecordChain (Abs.Q q')}{b b' : Abs.Block}
-        → InSys (Abs.Q q) → InSys (Abs.Q q')
-        → CommitRule rc  b
-        → CommitRule rc' b'
-        → NonInjective-≡ Abs.bId ⊎ ((Abs.B b) ∈RC rc' ⊎ (Abs.B b') ∈RC rc)
-      ConcCommitsDoNotConflict' = CommitsDoNotConflict'
-           (VO-obl.proof intSystemState (vss-votes-once validState))
-           (PR-obl.proof intSystemState (vss-preferred-round validState))
-           ∈QC⇒AllSent
-
-      ConcCommitsDoNotConflict''
+      ConcCommitsDoNotConflict'
         : ∀{o o' q q'}
-        → {rcf  : RecordChainFrom o  (Abs.Q q)}
-        → {rcf' : RecordChainFrom o' (Abs.Q q')}
+        → {rcf  : RecordChainFrom o  (Abs.Q q)}  → All-InSys rcf
+        → {rcf' : RecordChainFrom o' (Abs.Q q')} → All-InSys rcf'
         → {b b' : Abs.Block}
-        → InSys (Abs.Q q)
-        → InSys (Abs.Q q')
         → CommitRuleFrom rcf  b
         → CommitRuleFrom rcf' b'
-        → NonInjective-≡ Abs.bId ⊎ Σ (RecordChain (Abs.Q q')) ((Abs.B b)  ∈RC_)
-                                 ⊎ Σ (RecordChain (Abs.Q q))  ((Abs.B b') ∈RC_)
-      ConcCommitsDoNotConflict'' = CommitsDoNotConflict''
-           (VO-obl.proof intSystemState (vss-votes-once validState))
-           (PR-obl.proof intSystemState (vss-preferred-round validState))
-           ∈QC⇒AllSent
-
+        →   Σ (RecordChain (Abs.Q q')) ((Abs.B b)  ∈RC_)
+          ⊎ Σ (RecordChain (Abs.Q q))  ((Abs.B b') ∈RC_)
+      ConcCommitsDoNotConflict' =
+        CommitsDoNotConflict'
+          (VO-obl.proof intSystemState (vss-votes-once validState))
+          (PR-obl.proof intSystemState (vss-preferred-round validState))
+          ∈QC⇒AllSent
