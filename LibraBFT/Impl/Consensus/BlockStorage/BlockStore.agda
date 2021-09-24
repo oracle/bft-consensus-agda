@@ -201,9 +201,8 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
       ifD btRound ≥?ℕ block ^∙ bRound
       then LeftD fakeErr -- block with old round
       else step₂ bsr
-      -- else step₂ bsr
 
-  step₂ bsr = do
+  step₂ _ = do
         eb ← case⊎D executeBlockE bs0 block of λ where
           (Right res) → RightD res
           -- OBM-LBFT-DIFF : This is never thrown in OBM.
@@ -240,22 +239,22 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
 
 executeAndInsertBlockE = executeAndInsertBlockE.E
 
-executeBlockE bs block = do
--- TODO-3: hook up proper implementation (in comments below).  Requires addressing the issue that
--- doing so breaks the existing proof of executeAndInsertBlockESpec.contract₂, which currently
--- violates an abstraction boundary and looks into the implementation of this function, rather than
--- using its contract.
-{-  case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
-    (Left e)                   → Left fakeErr -- (here' e)
-    (Right stateComputeResult) →
--}
-      pure (ExecutedBlock∙new block stateComputeResult)
- where
-  here' : List String → List String
-  here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
+module executeBlockE (bs : BlockStore) (block : Block) where
 
-executeBlockE₀ bs block = fromEither $ executeBlockE bs block
+  step₀ = do
+    case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
+      (Left e)                   → Left fakeErr -- (here' e)
+      (Right stateComputeResult) →
+        pure (ExecutedBlock∙new block stateComputeResult)
+   where
+    here' : List String → List String
+    here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
+abstract
+  executeBlockE = executeBlockE.step₀
+  executeBlockE₀ bs block = fromEither $ executeBlockE bs block
+  executeBlockE≡ : ∀ {bs block r} → executeBlockE bs block ≡ r → executeBlockE₀ bs block ≡ fromEither r
+  executeBlockE≡ refl = refl
 ------------------------------------------------------------------------------
 
 insertSingleQuorumCertM

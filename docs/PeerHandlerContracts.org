@@ -479,12 +479,17 @@ abstract
     general) behaves in Agda.
 
     At the time of writing, there is no set discipline for when to use
-    =abstract= blocks. Conceivably, they could be used for *every* function,
-    since this would greatly improve the readability of the proof state for any
+    =abstract= blocks. Arguably, they should be used for *every* nontrivial function,
+    for several reasons.  First, it significantly improves the readability of the proof state for any
     peer handler contract proof. This is especially true in the instances where
     =with= or =rewrite= are used, which irrevocably normalize the proof state in
     an attempt to abstract over the given expression in both the goal type and
-    the type of (non-parameter) variables in context.
+    the type of (non-parameter) variables in context.  Second, it enforces
+    abstraction boundaries between functions, ensuring that changing the
+    implementation of a function doesn't change the shape of proofs of
+    functions that call it.  The overhead of this is that we must state and prove
+    explicit contracts for each function, but it is worth it for the sake of
+    sustainability.  For an example, see ~executeBlockESpec~ in 
 
 
 * Peer handler code
