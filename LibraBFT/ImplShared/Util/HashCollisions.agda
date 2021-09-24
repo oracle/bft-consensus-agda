@@ -4,8 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -28,6 +30,44 @@ module LibraBFT.ImplShared.Util.HashCollisions
   open WithInitAndHandlers iiah
 
   module PerReachableState {st} (r : ReachableSystemState st) where
+
+    -- Note that we do not need to capture all ways in which a ByteString might be represented,
+    -- only those for which our proofs require injectivity properties.  Initially, we are
+    -- interested only in hash collisions for blockIds.
+
+    data _∈Block_ : BSL → Block → Set where
+      inB : ∀ {b} → blockData-bsl (b ^∙ bBlockData) ∈Block b
+
+    data _∈ProposalMsg_ (bsl : BSL) (pm : ProposalMsg) : Set where
+      inPM : bsl ∈Block (pm ^∙ pmProposal) → bsl ∈ProposalMsg pm
+
+    data _∈nm (bsl : BSL) : Set where
+      inP : ∀ {sndr pm} → (sndr , P pm) ∈ msgPool st → bsl ∈ProposalMsg pm → bsl ∈nm
+
+    -- We could refine this further (∈BlockTree, ∈btIdToBlock), but I don't think we need to.
+    data _∈BS_ (bsl : BSL) (bs : BlockStore) : Set where
+      inBS : ∀ {eb} → (getBlock (hashBSL bsl) bs ≡ just eb) → bsl ∈Block (eb ^∙ ebBlock) → bsl ∈BS bs
+
+    data _∈RM_ (bsl : BSL) (rm : RoundManager) : Set where
+      inRM : bsl ∈BS (rm ^∙ lBlockStore) → bsl ∈RM rm
+
+    -- This amounts to an assumption that the sender of nm (which might be a cheat step) is unable
+    -- to find a hash collision with data already represented in the system, and also that an
+    -- honest peer executing a handler is unable to find a hash collision with something already
+    -- in a peer state or a message sent previously.  We could take it back further and express it
+    -- more explicitly as such.
+
+    data HashCollisionFound : Set where
+      msgRmHC : ∀ {bs1 bs2 pid}
+              → bs1 ∈nm
+              → initialised st pid ≡ initd
+              → bs2 ∈RM (peerStates st pid)
+              → hashBSL bs1 ≡ hashBSL bs2
+              → bs1 ≢ bs2
+              → HashCollisionFound
+
+    postulate
+      meta-specific-cr : ¬ HashCollisionFound
 
     -- TODO-3: Remove this postulate when we are satisfied with the
     -- "hash-collision-tracking" solution. For example, when proving voo

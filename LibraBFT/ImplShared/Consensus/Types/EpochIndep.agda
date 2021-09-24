@@ -653,9 +653,14 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   bPayload : Lens Block (Maybe TX)
   bPayload = bBlockData ∙ bdPayload
 
+  bdQcSigs : Lens Block (KVMap Author Signature)
+  bdQcSigs = bBlockData ∙ bdQuorumCert ∙ qcLedgerInfo ∙ liwsSignatures
+
+  -- Equivalence of Blocks modulo signatures (both on the Block and in the QuorumCert it contains)
   infix 4 _≈Block_
   _≈Block_ : (b₁ b₂ : Block) → Set
-  b₁ ≈Block b₂ = b₁ ≡ record b₂ { _bSignature = _bSignature b₁ }
+  b₁ ≈Block b₂ = b₁ ≡ (b₂ & bSignature ∙~ (b₁ ^∙ bSignature)
+                          & bdQcSigs   ∙~ (b₁ ^∙ bdQcSigs))
 
   sym≈Block : Symmetric _≈Block_
   sym≈Block refl = refl
