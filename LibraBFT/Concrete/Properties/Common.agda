@@ -61,7 +61,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v ⊂Msg m → send m ∈ outs
@@ -74,7 +74,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    ∀{pid pid' s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
-   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (s' , outs)))
+   → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
    → ∀{v m v' m'} → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v  ⊂Msg m → send m ∈ outs

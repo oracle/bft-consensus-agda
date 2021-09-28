@@ -152,10 +152,11 @@ module ReachableSystemStateProps where
 
     mws∈poolPre : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬bootstrap'
-  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
      ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
+  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: bootstrap does not send messages"     
   ... | Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
@@ -182,14 +183,14 @@ module ReachableSystemStateProps where
   mws∈pool⇒epoch≡
     : ∀ {pid v s' outs pk}{st : SystemState}
       → ReachableSystemState st
-      → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (just (s' , outs)))
+      → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
       → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
       → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
       → s' ^∙ rmEpoch ≡ v ^∙ vEpoch
       → peerStates st pid ^∙ rmEpoch ≡ v ^∙ vEpoch
-  mws∈pool⇒epoch≡ rss (step-init uni) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ =
+  mws∈pool⇒epoch≡ rss (step-init _ uni) pcsfpk hpk sig ¬bootstrap mws∈pool epoch≡ =
     absurd (uninitd ≡ initd) case (trans (sym uni) ini) of λ ()
     where
     ini = mws∈pool⇒initd rss pcsfpk hpk sig ¬bootstrap mws∈pool
