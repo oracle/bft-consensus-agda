@@ -64,11 +64,11 @@ invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer step@(step-ho
 ...| no pid≢pid'
   rewrite sym (pids≢StepDNMPeerStates{pre = pre'} sps pid≢pid')
   = invariantsCorrect pid pre' preach
-invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init ini))))
+invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-init initSucc ini))))
    | yes refl
   rewrite override-target-≡{a = pid}{b = Handle.fakeInitRM}{f = peerStates pre'}
    |       sym $ ++-identityʳ (msgPool pre')
-   = initRMSatisfiesInv
+   = obm-dangerous-magic' "TODO: Use initSucc and The Contract for the init handler says that" -- initRMSatisfiesInv
 invariantsCorrect pid pre@._ (step-s{pre = pre'} preach (step-peer (step-honest (step-msg{sndr , P pm} m∈pool ini))))
    | yes refl
    with handleProposalSpec.Contract.rmInv $ handleProposalSpec.contract! 0 pm (msgPool pre') (peerStates pre' pid)
@@ -130,16 +130,16 @@ qcVoteSigsSentB4 pid st (step-s rss (step-peer{pid'}{pre = pre} (step-honest sps
      = QCProps.++-SigsForVote∈Rm-SentB4{rm = peerStates pre pid} _ (qcVoteSigsSentB4 pid pre rss)
 ...| yes refl
    with sps
-...| step-init uni
+...| step-init initSucc uni
    = ret
    where
    ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
    ret rewrite override-target-≡{a = pid}{b = Handle.fakeInitRM}{f = peerStates pre}
        |       sym $ ++-identityʳ (msgPool pre)
-       = QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs
+       = obm-dangerous-magic' "TODO: Use initSucc and the Contract for the init handler" -- QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs
 ...| step-msg{sndr , nm} m∈pool init
    rewrite override-target-≡{a = pid}{b = LBFT-post (handle pid nm 0) (peerStates pre pid)} {f = peerStates pre}
-   = QCProps.++-SigsForVote∈Rm-SentB4 {rm = LBFT-post (handle pid nm 0) (peerStates pre pid)} _ (handlePreservesSigsB4 rss m∈pool)
+   = obm-dangerous-magic' "TODO: Use initSucc and the Contract for the init handler" -- QCProps.++-SigsForVote∈Rm-SentB4 {rm = LBFT-post (handle pid nm 0) (peerStates pre pid)} _ (handlePreservesSigsB4 rss m∈pool)
 
 qcVoteSigsSentB4-sps
   : ∀ pid (pre : SystemState) {s acts}
@@ -151,9 +151,9 @@ qcVoteSigsSentB4-sps
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
     → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
-qcVoteSigsSentB4-sps pid pre rss (step-init uni) qc∈s sig vs∈qcvs ≈v ¬bootstrap
+qcVoteSigsSentB4-sps pid pre rss (step-init initSucc uni) qc∈s sig vs∈qcvs ≈v ¬bootstrap
    rewrite sym $ ++-identityʳ (msgPool pre)
-   = QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬bootstrap
+   = obm-dangerous-magic' "TODO: Use initSucc and the Contract for the init handler" -- QCProps.++-SigsForVote∈Rm-SentB4{rm = Handle.fakeInitRM} (msgPool pre) initRM-qcs qc∈s sig vs∈qcvs ≈v ¬bootstrap
 qcVoteSigsSentB4-sps pid pre rss (step-msg{sndr , m} m∈pool ini) {qc}{v}{pk} qc∈s sig {vs} vs∈qcvs ≈v ¬bootstrap
    with m
    -- TODO-2: refactor for DRY
@@ -191,7 +191,7 @@ lastVotedRound-mono
     → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (just (ppost , msgs))
     → peerStates pre pid ≡L ppost at rmEpoch
     → Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (ppost ^∙ pssSafetyData-rm)
-lastVotedRound-mono pid pre preach ini (step-init       ini₁) epoch≡ =
+lastVotedRound-mono pid pre preach ini (step-init _ ini₁) epoch≡ =
   case (trans (sym ini) ini₁) of λ ()
 lastVotedRound-mono pid pre{ppost} preach ini (step-msg{_ , m} m∈pool ini₁) epoch≡
   with m
@@ -267,7 +267,7 @@ qcVoteSigsSentB4-handle
       vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
     → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo sig
     → MsgWithSig∈ pk sig (msgPool pre)
-qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-init ini) ()
+qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-init _ ini) send∈acts = ⊥-elim (obm-dangerous-magic' "TODO: Use Contract for init handler, it does not send any messages")
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach sps@(step-msg {_ , nm} m∈pool ini) m∈acts {qc} qc∈m sig vs∈qc v≈rbld ¬bootstrap =
   qcVoteSigsSentB4-sps pid pre preach sps qc∈rm sig vs∈qc v≈rbld ¬bootstrap
     where

@@ -53,6 +53,7 @@ newVote⇒lv≡
     → Meta-Honest-PK pk → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
     → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     → LastVoteIs s' v
+newVote⇒lv≡ _ (step-init initSucc ini) _ send∈acts = ⊥-elim (obm-dangerous-magic' "The Contract for the init handler should say that it sends no messages, contradicting send∈acts")
 newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈pool ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬bootstrap ¬msb4
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb4 $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
@@ -243,22 +244,26 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} rss (step-peer sp@(step-ch
    ≡pidLVPre = trans ≡pidLV (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (cheatStepDNMPeerStates₁ sp unit))
 
 -- Initialization steps cannot be where an honestly signed message originated
-sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init                 uni)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
+sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init _ uni)))) {v}{v'}{m'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
    with pid ≟ pid“
    -- If this isn't `pid`, the step does not affect `pid`'s state
 ...| no  pid≢
    rewrite sym $ pids≢StepDNMPeerStates{pre = pre} sps pid≢
-   = sameERasLV⇒sameId rss hpk ≡pidLV pcsfpkPre v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
+   = sameERasLV⇒sameId rss hpk ≡pidLV pcsfpkPre v'⊂m' m'∈poolb4 sig' ¬bootstrap ≡epoch ≡round
    where
+
+   m'∈poolb4 : (pid' , m') ∈ (msgPool pre)
+   m'∈poolb4 = obm-dangerous-magic' "The Contract for initialisation should say that no vote messages are sent, and from that we can deduce that m' was in the pool before the step (do we have a util for this?)"
+
    mws : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
-   mws = mkMsgWithSig∈ _ _ v'⊂m' _ m'∈pool sig' refl
+   mws = mkMsgWithSig∈ _ _ v'⊂m' _ m'∈poolb4 sig' refl
 
    pcsfpkPre : PeerCanSignForPK pre v pid pk
    pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ rss step hpk pcsfpk ≡epoch sig' mws
    -- If this is `pid`, the last vote cannot be a `just`!
 ...| yes refl
    rewrite sym (StepPeer-post-lemma sp)
-   = absurd just v ≡ nothing case ≡pidLV of λ ()
+   = absurd just v ≡ nothing case trans ≡pidLV (obm-dangerous-magic' "The Contract for the init handler should say that sdLastVote is nothing, I think!  Confirm with Harold") of λ ()
 
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
    with newMsg⊎msgSentB4 rss sps hpk sig' ¬bootstrap v'⊂m' m'∈pool
@@ -447,6 +452,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
    sameId (C x) _ ()
 
 votesOnce₁ : Common.IncreasingRoundObligation Handle.fakeInitAndHandlers 𝓔
+votesOnce₁ _ (step-init initSucc ini) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "The Contract for the init handler should say that it sends no messages")
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
@@ -548,6 +554,7 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
 votesOnce₂ : VO.ImplObligation₂ Handle.fakeInitAndHandlers 𝓔
+votesOnce₂ _ (step-init initSucc ini) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "The Contract for init handler should say it sends no messages, contradiction m∈acts")
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
    with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =
