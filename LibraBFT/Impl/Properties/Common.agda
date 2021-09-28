@@ -183,7 +183,7 @@ module ReachableSystemStateProps where
   mws∈pool⇒epoch≡
     : ∀ {pid v s' outs pk}{st : SystemState}
       → ReachableSystemState st
-      → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (just (s' , outs)))
+      → (sps : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
       → PeerCanSignForPK st v pid pk
       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
       → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))

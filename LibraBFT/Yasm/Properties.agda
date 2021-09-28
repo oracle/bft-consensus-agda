@@ -119,7 +119,7 @@ module LibraBFT.Yasm.Properties
  StepPeerState-AllValidParts = ∀{s m part pk outs}{α}{st : SystemState}
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
-   → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (just (s , outs)))
+   → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
    → LYT.send m ∈ outs → part ⊂MsgG m → (ver : WithVerSig pk part)
    → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature ver))
      -- Note that we require that α can send for the PK according to the *post* state.  This allows
@@ -307,7 +307,7 @@ module LibraBFT.Yasm.Properties
 
      newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
-                      → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (just (s' , outs)))
+                      → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                       → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
                       → v ⊂MsgG m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
@@ -350,7 +350,7 @@ module LibraBFT.Yasm.Properties
                                                  (msgPool pre)
                                                  (initialised pre)
                                                  (peerStates pre (msgSender (carrSent pc)))
-                                                 (just (ps' , outs)))
+                                                 (ps' , outs))
                       → P (msgPart (carrSent pc)) ps'
 
   module _ (PSP : PeerStepPreserves) where
