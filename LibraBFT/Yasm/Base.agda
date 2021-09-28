@@ -48,8 +48,12 @@ module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
       -- Represents an uninitialised PeerState, about which we know nothing whatsoever
       initPS    : PeerState
 
-      -- Bootstraps a peer.
-      -- TODO-1 : replace Maybe with Either after adding error type (to mkSysTypeParms ?).
+      -- Bootstraps a peer.  Our current system model is simplistic in that unsuccessful
+      -- initialisation of a peer has no side effects.  In future, we could change the return type
+      -- of bootstrap to Maybe PeerState × List (Action Msg), allowing for it to return nothing, but
+      -- to include actions such as sending messages, logging, etc.  We are not doing so now as it
+      -- is disruptive to existing proofs and modeling and verifying properties about unsuccessful
+      -- initialisation is not a priority.
       bootstrap : PeerId → Bootstrap → Maybe (PeerState × List (Action Msg))
 
       -- Handles a message on a previously initialized peer.

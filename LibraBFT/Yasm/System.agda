@@ -210,10 +210,16 @@ module LibraBFT.Yasm.System
    -- The pre and post states of Honest peers are related iff
    data StepPeerState (pid : PeerId)(pool : SentMessages)
                       (peerInits : PeerId → InitStatus) (ps : PeerState) :
-                      (Maybe (PeerState × List (LYT.Action Msg))) → Set where
-     -- An uninitialized peer can be initialized
-     step-init : peerInits pid ≡ uninitd
-               → StepPeerState pid pool peerInits ps (bootstrap pid bootstrapInfo)
+                      (Maybe (PeerState × List (LYT.Action Msg))) → Set ℓ-PeerState where
+     -- An uninitialized peer can be initialized.  Note that initialiation step requires that the
+     -- bootstrap function returns a just (i.e., initialisation succeeds).  In future, it may make
+     -- sense to also model unsuccessful initialisation steps, which in principle could send
+     -- messages or log output, etc.  In that case, the type of bootstrap would change (see comment
+     -- at its definition)
+     step-init : ∀ {st' acts}
+               → bootstrap pid bootstrapInfo ≡ just (st' , acts)
+               → peerInits pid ≡ uninitd
+               → StepPeerState pid pool peerInits ps (just (st' , acts))
 
      -- The peer processes a message in the pool
      step-msg  : ∀{m}
