@@ -180,7 +180,9 @@ module LibraBFT.Concrete.Obligations.PreferredRound
 
   -- Finally, we can prove the preferred round rule from the global version;
   proof : Type → PreferredRoundRule InSys
-  proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
+  proof glob-inv α hα {q} {q'} {rc} ais₀ c3 va {rc'} ais₁ va' hyp
+    with All-InSys⇒last-InSys ais₀ | All-InSys⇒last-InSys ais₁
+  ...| q∈sys   | q'∈sys
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'
   ...| sent-cv | sent-cv'
