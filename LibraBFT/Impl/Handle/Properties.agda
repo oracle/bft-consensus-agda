@@ -212,7 +212,7 @@ qcVoteSigsSentB4 pid st ini (step-s rss (step-peer {pid'} {pre = pre} (step-hone
   with sps
 
 -- INIT CASE
-...| step-init {rm} handler-pid-bsi≡just-rm×outs uni
+...| step-init {rm} handler-pid-bsi≡just-rm×outs _
   = ret
    where
     ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
@@ -289,8 +289,8 @@ qcVoteSigsSentB4-sps pid pre rss (step-msg {sndr , m} m∈pool ini) {qc} {v} {pk
 ...| C cm = qcVoteSigsSentB4 pid pre ini rss qc∈s sig vs∈qcvs ≈v ¬bootstrap
 
 ------------------------------------------------------------------------------
-postulate
- lastVotedRound-mono
+
+lastVotedRound-mono
   : ∀ pid (pre : SystemState) {ppost} {msgs}
   → ReachableSystemState pre
   → initialised pre pid ≡ initd
@@ -300,76 +300,76 @@ postulate
     ≤
     Meta.getLastVoteRound (ppost                ^∙ pssSafetyData-rm)
 
--- lastVotedRound-mono pid pre preach ini₀ (step-init _ ini₁) epoch≡ =
---   case (trans (sym ini₀) ini₁) of λ ()
+lastVotedRound-mono pid pre preach ini (step-init _ uni) epoch≡ =
+  case (trans (sym ini) uni) of λ ()
 
--- lastVotedRound-mono pid pre {ppost} preach ini₀ (step-msg {_ , m} m∈pool ini₁) epoch≡
---   with m
--- ...| P pm rewrite sym $ StepPeer-post-lemma {pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
---   where
---   hpPool = msgPool pre
---   hpPre  = peerStates pre pid
---   hpPst  = LBFT-post (handleProposal 0 pm) hpPre
---   hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
+lastVotedRound-mono pid pre {ppost} preach ini₀ (step-msg {_ , m} m∈pool ini₁) epoch≡
+  with m
+...| P pm rewrite sym $ StepPeer-post-lemma {pre = pre} (step-honest (step-msg m∈pool ini₁)) = help
+  where
+  hpPool = msgPool pre
+  hpPre  = peerStates pre pid
+  hpPst  = LBFT-post (handleProposal 0 pm) hpPre
+  hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 
---   open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre {- hpReq -} )
---   open RoundManagerInv (invariantsCorrect pid pre ini₁ preach)
+  open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hpPool hpPre {- hpReq -} )
+  open RoundManagerInv (invariantsCorrect pid pre ini₁ preach)
 
---   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
---     help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
---     help = ≡⇒≤ (cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡)
+  module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
+    help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
+    help = ≡⇒≤ (cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡)
 
---   module VoteNew {vote : Vote}
---     (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote)
---     (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
---     (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
---    where
---     help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
---     help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
+  module VoteNew {vote : Vote}
+    (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote)
+    (lvr< : hpPre [ _<_ ]L hpPst at pssSafetyData-rm ∙ sdLastVotedRound)
+    (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
+   where
+    help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
+    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
 
---   open Invariants
---   open Reqs (pm ^∙ pmProposal) (hpPre ^∙ lBlockTree)
---   open BlockTreeInv
---   open BlockStoreInv
---   open RoundManagerInv
+  open Invariants
+  open Reqs (pm ^∙ pmProposal) (hpPre ^∙ lBlockTree)
+  open BlockTreeInv
+  open BlockStoreInv
+  open RoundManagerInv
 
---   rmi : _
---   rmi = invariantsCorrect pid pre ini₁ preach
+  rmi : _
+  rmi = invariantsCorrect pid pre ini₁ preach
 
---   help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
---   help
---     with BlockId-correct? (pm ^∙ pmProposal)
---   ...| no ¬validProposal
---     = VoteOld.help (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (proj₁ $ invalidProposal ¬validProposal))
---   ...| yes pmIdCorr
---     with voteAttemptCorrect pmIdCorr (nohc {!!} {-preach-} m∈pool pid ini₀ rmi refl pmIdCorr)
---   ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
---     with nvg⊎vgusc
---   ...| inj₁  (mkVoteNotGenerated lv≡  lvr≤) = VoteOld.help lv≡
---   ...| inj₂  (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered))
---     with voteSrc
---   ...| inj₁  (mkVoteOldGenerated lvr≡ lv≡)  = VoteOld.help lv≡
---   ...| inj₂  (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
---   help
---      | yes refl
---      | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
---     with voteSrc
---   ...| Left  (mkVoteOldGenerated lvr≡ lv≡)  = VoteOld.help lv≡
---   ...| Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+  help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
+  help
+    with BlockId-correct? (pm ^∙ pmProposal)
+  ...| no ¬validProposal
+    = VoteOld.help (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (proj₁ $ invalidProposal ¬validProposal))
+  ...| yes pmIdCorr
+    with voteAttemptCorrect pmIdCorr (nohc preach m∈pool pid ini₀ rmi refl pmIdCorr)
+  ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
+    with nvg⊎vgusc
+  ...| inj₁  (mkVoteNotGenerated lv≡  lvr≤) = VoteOld.help lv≡
+  ...| inj₂  (Voting.mkVoteGeneratedUnsavedCorrect vote (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered))
+    with voteSrc
+  ...| inj₁  (mkVoteOldGenerated lvr≡ lv≡)  = VoteOld.help lv≡
+  ...| inj₂  (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
+  help
+     | yes refl
+     | Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm _ _ (Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) _))) sdEpoch≡?
+    with voteSrc
+  ...| Left  (mkVoteOldGenerated lvr≡ lv≡)  = VoteOld.help lv≡
+  ...| Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
--- -- Receiving a vote or commit message does not update the last vote
--- ...| V vm = ≡⇒≤ $ cong (maybe (_^∙ vRound) 0 ∘ (_^∙ sdLastVote)) noSDChange
---    where
---    hvPre = peerStates pre pid
---    hvPst = LBFT-post (handle pid (V vm) 0) hvPre
+-- Receiving a vote or commit message does not update the last vote
+...| V vm = ≡⇒≤ $ cong (maybe (_^∙ vRound) 0 ∘ (_^∙ sdLastVote)) noSDChange
+   where
+   hvPre = peerStates pre pid
+   hvPst = LBFT-post (handle pid (V vm) 0) hvPre
 
---    open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
+   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
--- ...| C cm = ≤-refl
+...| C cm = ≤-refl
 
 ------------------------------------------------------------------------------
-postulate
- qcVoteSigsSentB4-handle
+
+qcVoteSigsSentB4-handle
   : ∀ pid {pre m s acts}
   → ReachableSystemState pre
   → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
@@ -382,37 +382,33 @@ postulate
   → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo sig
   → MsgWithSig∈ pk sig (msgPool pre)
 
--- qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
---                         (step-init handler-pid-bsi≡just-rm×outs _)
---                         send∈acts
---                         {qc}
---                         qc∈m sig vs∈qc v≈rbld ¬bootstrap
---   with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×outs
--- ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
---   = ⊥-elim $
---       ¬bootstrap
---       {!!}
---       -- (IP.realHandlerSpec.ContractOk.sigs∈bs
---       --   IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc {!!} {-qc∈m-})
+qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
+                        (step-init handler-pid-bsi≡just-rm×outs _)
+                        send∈acts
+                        {qc}
+                        qc∈m sig vs∈qc v≈rbld ¬bootstrap
+  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×outs
+...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+  = obm-dangerous-magic' "⊥-elim $ ¬bootstrap (IP.realHandlerSpec.ContractOk.sigs∈bs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc {!!} {-qc∈m-})"
 
--- qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
---                         sps@(step-msg {_ , nm} m∈pool ini)
---                         m∈acts
---                         {qc} qc∈m sig vs∈qc v≈rbld ¬bootstrap =
---   qcVoteSigsSentB4-sps pid pre preach sps qc∈rm sig vs∈qc v≈rbld ¬bootstrap
---  where
---   hdPool = msgPool pre
---   hdPre  = peerStates pre pid
---   hdPst  = LBFT-post (handle pid nm 0) hdPre
---   hdOut  = LBFT-outs (handle pid nm 0) hdPre
+qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
+                        sps@(step-msg {_ , nm} m∈pool ini)
+                        m∈acts
+                        {qc} qc∈m sig vs∈qc v≈rbld ¬bootstrap =
+  qcVoteSigsSentB4-sps pid pre preach sps qc∈rm sig vs∈qc v≈rbld ¬bootstrap
+ where
+  hdPool = msgPool pre
+  hdPre  = peerStates pre pid
+  hdPst  = LBFT-post (handle pid nm 0) hdPre
+  hdOut  = LBFT-outs (handle pid nm 0) hdPre
 
---   qc∈rm : qc QCProps.∈RoundManager hdPst
---   qc∈rm
---     with sendMsg∈actions {hdOut} {st = hdPre} m∈acts
---   ...| out , out∈hdOut , m∈out = All-lookup (outQcs∈RM1 nm refl) out∈hdOut qc m qc∈m m∈out
---    where
---     outQcs∈RM1 : (nm' : NetworkMsg) → nm ≡ nm' → QCProps.OutputQc∈RoundManager hdOut hdPst
---     outQcs∈RM1 (P pm) refl = outQcs∈RM
---      where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hdPool hdPre)
---     outQcs∈RM1 (V vm) refl = outQcs∈RM
---      where open handleVoteSpec.Contract     (handleVoteSpec.contract!     0 vm hdPool hdPre)
+  qc∈rm : qc QCProps.∈RoundManager hdPst
+  qc∈rm
+    with sendMsg∈actions {hdOut} {st = hdPre} m∈acts
+  ...| out , out∈hdOut , m∈out = All-lookup (outQcs∈RM1 nm refl) out∈hdOut qc m qc∈m m∈out
+   where
+    outQcs∈RM1 : (nm' : NetworkMsg) → nm ≡ nm' → QCProps.OutputQc∈RoundManager hdOut hdPst
+    outQcs∈RM1 (P pm) refl = outQcs∈RM
+     where open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm hdPool hdPre)
+    outQcs∈RM1 (V vm) refl = outQcs∈RM
+     where open handleVoteSpec.Contract     (handleVoteSpec.contract!     0 vm hdPool hdPre)
