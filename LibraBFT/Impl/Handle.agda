@@ -54,67 +54,6 @@ peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.
 peerStep nid msg st = runHandler st (handle nid msg 0)
 
 ------------------------------------------------------------------------------
--- BEGIN fake initialization - TODO : DELETE
-
-postulate -- TODO-1: reasonable assumption that some RoundManager exists, though we could prove
-          -- it by construction; eventually we will construct an entire RoundManager, so
-          -- this won't be needed
-
-  -- This represents an uninitialised RoundManager, about which we know nothing, which we use as
-  -- the initial RoundManager for every peer until it is initialised.
-  fakeRM : RoundManager
-
-postulate -- TODO-2: define BootstrapInfo to match implementation and write these functions
-  fakeInitVV  : BootstrapInfo → ValidatorVerifier
-
-fakeInitSR : SafetyRules
-fakeInitSR =
-  let sr = fakeRM ^∙ lSafetyRules
-      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVotedRound ∙~ 0
-      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch          ∙~ 1
-      sr = sr & srPersistentStorage ∙ pssSafetyData ∙ sdLastVote       ∙~ nothing
-  in sr
-
-fakeInitPG : ProposalGenerator
-fakeInitPG = ProposalGenerator∙new 0
-
-postulate -- TODO-1: fakeInitPE, fakeInitBS, fakeInitRS
-  fakeInitPE : ProposerElection
-  fakeInitBS : BlockStore
-  fakeInitRS : RoundState
-
--- TODO-1 : postulate
-fakeInitRM : RoundManager
-fakeInitRM = RoundManager∙new
-           ObmNeedFetch∙new
-           (EpochState∙new 1 (fakeInitVV fakeBootstrapInfo))
-           fakeInitBS fakeInitRS fakeInitPE fakeInitPG fakeInitSR false
-
--- Eventually, the initialization should establish properties we care about.
--- For now we just initialise to fakeRM.
--- That means we cannot prove the base case for various properties,
--- e.g., in Impl.Properties.VotesOnce
--- TODO: create real RoundManager using LibraBFT.Impl.IO.OBM.Start
-fakeInitialRoundManagerAndMessages
-  : (a : Author) → BootstrapInfo
-  → RoundManager × List NetworkMsg
-fakeInitialRoundManagerAndMessages a _ = fakeInitRM , []
-
--- TODO-2: These "wrappers" can probably be shared with FakeImpl, and therefore more of this could
--- be factored into LibraBFT.ImplShared.Interface.* (maybe Output, in which case maybe that should
--- be renamed?)
-
-fakeInitWrapper : NodeId → BootstrapInfo → RoundManager × List (LYT.Action NetworkMsg)
-fakeInitWrapper nid g = ×-map₂ (List-map LYT.send) (fakeInitialRoundManagerAndMessages nid g)
-
-fakeInitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
-fakeInitAndHandlers = mkSysInitAndHandlers
-                    fakeBootstrapInfo
-                    fakeInitRM
-                    (λ pid bootstrapInfo → just (fakeInitWrapper pid bootstrapInfo))
-                    peerStep
--- END fake initialization - TODO : DELETE
-------------------------------------------------------------------------------
 
 module RealHandler
   --(bsi0 : BootstrapInfo) -- TODO-1 : properties about BootstrapInfo
@@ -243,4 +182,5 @@ module RealHandler
       fakeInitRM
       realHandler
       peerStep
-
+   where
+    postulate fakeInitRM : RoundManager

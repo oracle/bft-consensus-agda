@@ -33,10 +33,10 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
+open        ParamsWithInitAndHandlers Handle.RealHandler.InitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.RealHandler.InitAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.RealHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
@@ -72,7 +72,7 @@ newVote⇒lv≡{pre}{pid}{v = v} preach (step-msg{sndr , P pm} m∈pool ini) vot
   handleOuts = LBFT-outs (handle pid (P pm) 0) (peerStates pre pid)
 
 ...| yes refl
-   with vac refl (nohc preach m∈pool pid ini (invariantsCorrect pid pre preach) refl refl)
+   with vac refl (nohc preach m∈pool pid ini (invariantsCorrect pid pre ini preach) refl refl)
 ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , voteUnsent)) sdEpoch≡? =
   ⊥-elim (¬voteUnsent voteUnsent)
   where
@@ -306,7 +306,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
 
       open handleProposalSpec.Contract (handleProposalSpec.contract! 0 pm (msgPool pre) hpPre)
         renaming (rmInv to rmInvP)
-      open Invariants.RoundManagerInv (invariantsCorrect pid“ pre rss)
+      open Invariants.RoundManagerInv (invariantsCorrect pid“ pre ini rss)
 
       -- when the last vote is the same in pre and post states
       module OldVote (lv≡ : hpPre ≡L hpPos at pssSafetyData-rm ∙ sdLastVote) where
@@ -370,7 +370,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
          with BlockId-correct? (pm ^∙ pmProposal)
       ...| no ¬validProposal rewrite sym (proj₁ (invalidProposal ¬validProposal)) = ≡pidLV
       ...| yes refl
-         with voteAttemptCorrect refl (nohc rss m∈pool pid ini (invariantsCorrect pid pre rss) refl refl)
+         with voteAttemptCorrect refl (nohc rss m∈pool pid ini (invariantsCorrect pid pre ini rss) refl refl)
       ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡?
          with nvg⊎vgusc
       ...| Left (mkVoteNotGenerated lv≡ lvr≤) = OldVote.≡pidLVPre₁ lv≡
@@ -424,7 +424,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
      ...| no ¬validProposal = ⊥-elim (sendVote∉actions {outs = handleOuts (P pm)} {st = handlePre}
                                       (sym (proj₂ $ invalidProposal ¬validProposal)) m'∈acts)
      ...| yes refl
-        with voteAttemptCorrect refl (nohc rss m∈pool pid ini (invariantsCorrect pid pre rss) refl refl)
+        with voteAttemptCorrect refl (nohc rss m∈pool pid ini (invariantsCorrect pid pre ini rss) refl refl)
      ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , vuc)) sdEpoch≡? =
         ⊥-elim (sendVote∉actions {outs = handleOuts (P pm)} {st = handlePre} (sym $ Voting.VoteUnsentCorrect.noVoteMsgOuts vuc) m'∈acts)
      ...| Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) sdEpoch≡?
@@ -451,7 +451,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
      open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) handlePre)
    sameId (C x) _ ()
 
-votesOnce₁ : Common.IncreasingRoundObligation Handle.fakeInitAndHandlers 𝓔
+votesOnce₁ : Common.IncreasingRoundObligation Handle.RealHandler.InitAndHandlers 𝓔
 votesOnce₁ _ (step-init initSucc ini) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "The Contract for the init handler should say that it sends no messages")
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
    with cong _vSignature v≈rbld
@@ -466,7 +466,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
    hpPre  = peerStates pre pid
    hpOut  = LBFT-outs (handleProposal 0 pm) hpPre
 ...| yes refl
-   with vac refl (nohc preach m∈pool pid ini (invariantsCorrect pid pre preach) refl refl)
+   with vac refl (nohc preach m∈pool pid ini (invariantsCorrect pid pre ini preach) refl refl)
 ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₁ (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts nvg⊎vgusc)) sdEpoch≡? =
      ⊥-elim (sendVote∉actions{outs = LBFT-outs (handleProposal 0 pm) (peerStates pre pid)}{st = peerStates pre pid} (sym noVoteMsgOuts) m∈acts)
 ...| Voting.mkVoteAttemptCorrectWithEpochReq (inj₂ (Voting.mkVoteSentCorrect vm pid₁ voteMsgOuts vgCorrect)) sdEpoch≡?
@@ -479,7 +479,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   rmPost = peerStates (StepPeer-post{pre = pre} (step-honest sps)) pid
 
   -- State invariants
-  rmInvs      = invariantsCorrect pid pre preach
+  rmInvs      = invariantsCorrect pid pre ini preach
   open RoundManagerInv rmInvs
 
   -- Properties of `handleProposal`
@@ -534,7 +534,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
 
-  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ Handle.fakeInitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
+  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ Handle.RealHandler.InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
   ret
     with <-cmp (v' ^∙ vRound) (v ^∙ vRound)
   ...| tri< rv'<rv _ _ = Left rv'<rv
@@ -553,7 +553,7 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
-votesOnce₂ : VO.ImplObligation₂ Handle.fakeInitAndHandlers 𝓔
+votesOnce₂ : VO.ImplObligation₂ Handle.RealHandler.InitAndHandlers 𝓔
 votesOnce₂ _ (step-init initSucc ini) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "The Contract for init handler should say it sends no messages, contradiction m∈acts")
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
    with v⊂m
@@ -577,7 +577,7 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
     with BlockId-correct? (pm ^∙ pmProposal)
   ...| no ¬validProposal = ⊥-elim (sendVote∉actions {outs = hpOut} {st = hpPre} (sym (proj₂ $ invalidProposal ¬validProposal)) m∈acts)
   ...| yes refl
-    with voteAttemptCorrect refl (nohc rss m“∈pool pid ini (invariantsCorrect pid pre rss) refl refl   )
+    with voteAttemptCorrect refl (nohc rss m“∈pool pid ini (invariantsCorrect pid pre ini rss) refl refl   )
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (Left (_ , Voting.mkVoteUnsentCorrect noVoteMsgOuts _)) _ =
     ⊥-elim (sendVote∉actions{outs = hpOut}{st = hpPre} (sym noVoteMsgOuts) m∈acts)
   ...| Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts _)) _ = begin
