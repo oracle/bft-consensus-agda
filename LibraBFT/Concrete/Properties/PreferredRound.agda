@@ -68,7 +68,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → (c2 : Cand-3-chain-vote vabs)
    -- then the round of the block that v' votes for is at least the round of
    -- the grandparent of the block that v votes for (i.e., the preferred round rule)
-   → Σ (VoteParentData (PerState.intSystemState pre) v'abs)  -- TODO: require that vpBlock is InSys, may require reordering imports  Similar below
+   → Σ (VoteParentData (PerState.intSystemState pre) v'abs)
            (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
      ⊎ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
 
