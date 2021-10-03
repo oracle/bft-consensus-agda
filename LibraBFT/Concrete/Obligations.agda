@@ -9,7 +9,6 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Concrete.System
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.Prelude
