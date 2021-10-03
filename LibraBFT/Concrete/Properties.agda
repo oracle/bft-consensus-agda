@@ -41,9 +41,9 @@ module LibraBFT.Concrete.Properties
   open import LibraBFT.ImplShared.Util.HashCollisions iiah
 
   open        ImplObligations impl-correct
+  open        PerEpoch 𝓔
   open        PerState st
   open        PerReachableState r
-  open        PerEpoch 𝓔
   open        IntermediateSystemState intSystemState
 
   -- This module parameter asserts that there are no hash collisions between Blocks *in the system*,
@@ -62,8 +62,8 @@ module LibraBFT.Concrete.Properties
 
     validState : ValidSysState intSystemState
     validState = record
-      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor bsvc bsvr v≢0 ∈BI? iro vo₂ st r
-      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor bsvr v≢0 ∈BI? iro pr₁ pr₂ st r
+      { vss-votes-once      = VO.Proof.voo iiah 𝓔 sps-cor bsvc bsvr v≢0 ∈BI? iro vo₂     r
+      ; vss-preferred-round = PR.Proof.prr iiah 𝓔 sps-cor bsvr      v≢0 ∈BI? iro pr₁ pr₂ r
       }
 
     open All-InSys-props InSys

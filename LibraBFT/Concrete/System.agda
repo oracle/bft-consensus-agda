@@ -26,18 +26,18 @@ open EpochConfig
 -- best place to start understanding this.  Longer term, we will also need
 -- higher-level, cross-epoch properties.
 
+open import LibraBFT.Yasm.Base
+open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
+
 module LibraBFT.Concrete.System where
 
- open import LibraBFT.Yasm.Base
- open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
+ module PerEpoch (𝓔 : EpochConfig) where
+   open WithEC
+   open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
+   open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
+   open import LibraBFT.Concrete.Records                        𝓔
 
- module PerState (st : SystemState) where
-    module PerEpoch (𝓔 : EpochConfig) where
-
-     open WithEC
-     open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
-     open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
-     open import LibraBFT.Concrete.Records                        𝓔
+   module PerState (st : SystemState) where
 
      -- * Auxiliary definitions;
      -- Here we capture the idea that there exists a vote message that
@@ -92,3 +92,11 @@ module LibraBFT.Concrete.System where
        ; HasBeenSent     = λ { v → ∃VoteMsgSentFor (msgPool st) v }
        ; ∈QC⇒HasBeenSent = ∈QC⇒sent {st = st}
        }
+
+   module InSys (siah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) where
+     open WithInitAndHandlers siah
+
+     stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {r : Abs.Record}
+                    → IntermediateSystemState.InSys (PerState.intSystemState st0) r
+                    → IntermediateSystemState.InSys (PerState.intSystemState st1) r
+     stable theStep (_α-Sent_.ws refl x₁ x₂) = _α-Sent_.ws refl (msgs-stable theStep x₁) x₂

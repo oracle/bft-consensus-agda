@@ -99,13 +99,13 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
    where
 
   -- Any reachable state satisfies the VO rule for any epoch in the system.
-  module _ (st : SystemState)(r : ReachableSystemState st) where
+  module _ {st : SystemState}(r : ReachableSystemState st) where
 
    open Structural sps-corr
    -- Bring in intSystemState
+   open PerEpoch 𝓔
    open PerState st
    open PerReachableState r
-   open PerEpoch 𝓔
    open ConcreteCommonProperties st r sps-corr Impl-bsvr Impl-nvr≢0
    open WithEC
 
