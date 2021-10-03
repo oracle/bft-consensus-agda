@@ -44,6 +44,26 @@ module LibraBFT.Concrete.Properties
   open        PerEpoch 𝓔
   open        PerState st
   open        PerReachableState r
+
+  {- Although the `Concrete` modules are currently specified in terms of the implementation types used by
+     the implementation we are proving correct, the important aspect of the `Concrete` modules is to
+     reduce implementation obligations specified in the `Abstract` modules to being about `Vote`s sent.
+     These properties are stated in terms of an `IntermediateSystemState`, which is derived from a
+     `ReachableSystemState` for an implementation-specific system configuration.
+
+     The `Concrete` modules could be refactored to enable verifying a broader range of implementations,
+     including those that use entirely different implementation types.  In more detail, the `Concrete`
+     modules would be parameterized by:
+
+       - `SystemTypeParameters`;
+       - a function from a `ReachableSystemState` of a system instantiated with
+         the provided `SystemTypeParameters` to an `IntermediateSystemState`;
+       - proof that the `InSys` predicate is stable for the given types.
+
+     TODO-3: Refactor Concrete so that it is independent of implementation types, thus making it more
+     general for a wider range of implementations.
+  -}
+
   open        IntermediateSystemState intSystemState
 
   -- This module parameter asserts that there are no hash collisions between Blocks *in the system*,
