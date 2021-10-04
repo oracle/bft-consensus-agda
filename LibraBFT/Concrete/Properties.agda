@@ -53,15 +53,25 @@ module LibraBFT.Concrete.Properties
 
      The `Concrete` modules could be refactored to enable verifying a broader range of implementations,
      including those that use entirely different implementation types.  In more detail, the `Concrete`
-     modules would be parameterized by:
+     modules would be parameterized by (at least):
 
        - `SystemTypeParameters`;
+       - `SystemInitAndHandlers`;
+       - a predicate to satisy the requirements of PeerCanSignForPK, and a proof that it is stable
        - a function from a `ReachableSystemState` of a system instantiated with
          the provided `SystemTypeParameters` to an `IntermediateSystemState`;
        - proof that the `InSys` predicate is stable for the given types.
+       - an implementation Vote type
+       - machinery for accessing signatures of Votes
+       - proof that two Votes with the same signature represent the same abstract vote
+       - ...
 
-     TODO-3: Refactor Concrete so that it is independent of implementation types, thus making it more
-     general for a wider range of implementations.
+     This will also break existing proofs and require them to be reworked in terms of these module
+     parameters.
+
+     TODO-NOT-DO: Refactor Concrete so that it is independent of implementation types, thus making
+     it more general for a wider range of implementations.  Given the motivation of the project and
+     resources for it, this is not worthwhile at this time.
   -}
 
   open        IntermediateSystemState intSystemState
