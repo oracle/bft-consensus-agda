@@ -103,13 +103,16 @@ module LibraBFT.Abstract.RecordChain.Assumptions
    -- checks have been performed and we can infer this information solely
    -- by seeing α has knowledge of the 2-chain in Fig2 above.
    --
+
+   open All-InSys-props InSys
+
    PreferredRoundRule : Set ℓ
    PreferredRoundRule
      = ∀(α : Member) → Meta-Honest-Member α
-     → ∀{q q'}(q∈𝓢 : InSys (Q q))(q'∈𝓢 : InSys (Q q'))
-     → {rc : RecordChain (Q q)}{n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
+     → ∀{q q'}
+     → {rc : RecordChain (Q q)} → All-InSys rc → {n : ℕ}(c3 : 𝕂-chain Contig (3 + n) rc)
      → (v : α ∈QC q) -- α knows of the 2-chain because it voted on the tail of the 3-chain!
-     → (rc' : RecordChain (Q q'))
+     → {rc' : RecordChain (Q q')} → All-InSys rc'
      → (v' : α ∈QC q')
      → abs-vRound (∈QC-Vote q v) < abs-vRound (∈QC-Vote q' v')
      → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (getRound (kchainBlock (suc (suc zero)) c3) ≤ prevRound rc')

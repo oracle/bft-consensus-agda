@@ -78,29 +78,31 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  Cand-3-chain-head-round c3cand =
     getRound (kchainBlock (suc zero) (is-2chain c3cand))
 
-  -- The preferred round rule states a fact about the /previous round/
-  -- of a vote; that is, the round of the parent of the block
-  -- being voted for; the implementation will have to
-  -- show it can construct this parent.
- data VoteParentData-BlockExt : Record → Set where
-    vpParent≡I : VoteParentData-BlockExt I
-    vpParent≡Q : ∀{b q} → B b ← Q q → VoteParentData-BlockExt (Q q)
-
-  -- TODO-2: it may be cleaner to specify this as a RC 2 vpParent vpQC,
-  -- and we should consider it once we address the issue in
-  -- Abstract.RecordChain (below the definition of transp-𝕂-chain)
-
-
- record VoteParentData (v : Vote) : Set where
-    field
-      vpExt        : voteExtends v
-      vpParent     : Record
-      vpExt'       : vpParent ← B (veBlock vpExt)
-      vpMaybeBlock : VoteParentData-BlockExt vpParent
- open VoteParentData public
-
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
+  open All-InSys-props InSys
+
+   -- The preferred round rule states a fact about the /previous round/
+   -- of a vote; that is, the round of the parent of the block
+   -- being voted for; the implementation will have to
+   -- show it can construct this parent.
+  data VoteParentData-BlockExt : Record → Set ℓ where
+     vpParent≡I : VoteParentData-BlockExt I
+     vpParent≡Q : ∀{b q} → B b ← Q q → InSys (B b) → VoteParentData-BlockExt (Q q)
+
+   -- TODO-2: it may be cleaner to specify this as a RC 2 vpParent vpQC,
+   -- and we should consider it once we address the issue in
+   -- Abstract.RecordChain (below the definition of transp-𝕂-chain)
+
+  record VoteParentData (v : Vote) : Set ℓ where
+    field
+      vpExt        : voteExtends v
+      vpBlock∈sys  : InSys (B (veBlock vpExt))
+      vpParent     : Record
+      vpParent∈sys : InSys vpParent
+      vpExt'       : vpParent ← B (veBlock vpExt)
+      vpMaybeBlock : VoteParentData-BlockExt vpParent
+  open VoteParentData public
 
   -- The setup for PreferredRoundRule is like thta for VotesOnce.
   -- Given two votes by an honest author α:
@@ -126,9 +128,9 @@ module LibraBFT.Concrete.Obligations.PreferredRound
                      → Cand-3-chain-vote (∈QC-Vote q v)
    make-cand-3-chain {q = q} (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
-   ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c))
+   ...| (s-chain {q = q₀} _ _ _ _)
        = record { votesForB = mkVE b (All-lookup (qVotes-C2 q) (Any-lookup-correct v))
-                                      (trans (All-lookup (qVotes-C3 q) (Any-lookup-correct v)) h1)
+                                     (trans (All-lookup (qVotes-C3 q) (Any-lookup-correct v)) h1)
                 ; qc = q₀
                 ; qc←b = ext₀
                 ; rc = rc
@@ -139,29 +141,27 @@ module LibraBFT.Concrete.Obligations.PreferredRound
    -- It is important that the make-cand-3-chain lemma doesn't change the head of
    -- the 3-chain/cand-2-chain.
    make-cand-3-chain-lemma
-     : ∀{n α q}{rc : RecordChain (Q q)}
+     : ∀{n α q}{rc : RecordChain (Q q)} → All-InSys rc
      → (c3 : 𝕂-chain Contig (3 + n) rc)
      → (v  : α ∈QC q)
-     → NonInjective-≡ bId ⊎ kchainBlock (suc zero) (is-2chain (make-cand-3-chain c3 v)) ≡ kchainBlock (suc (suc zero)) c3
-   make-cand-3-chain-lemma {q = q} c3@(s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
-     with (veBlock (Cand-3-chain-vote.votesForB (make-cand-3-chain c3 v))) ≟Block b
-   ...| no neq = inj₁ ((veBlock (Cand-3-chain-vote.votesForB (make-cand-3-chain c3 v)) , b)
-                      , neq
-                      , trans (sym (veId (votesForB (make-cand-3-chain c3 v))))
-                              (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q v)))
-   ...| yes b≡
+     → kchainBlock (suc zero) (is-2chain (make-cand-3-chain c3 v)) ≡ kchainBlock (suc (suc zero)) c3
+   make-cand-3-chain-lemma {q = q} ais₀ c3@(s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
-   ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c)) rewrite b≡ = inj₂ refl
+   ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c)) = refl
 
    vdParent-prevRound-lemma
-      : ∀{α q}(rc : RecordChain (Q q))(va : α ∈QC q)
+      : ∀{α q}(rc : RecordChain (Q q)) → (All-InSys rc) → (va : α ∈QC q)
       → (vp : VoteParentData (∈QC-Vote q va))
-      → NonInjective-≡ bId ⊎ (round (vpParent vp) ≡ prevRound rc)
-   vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) va vp
+        -- These properties are still about abstract records, so we could still cook up a trivial
+        -- proof.  Therefore, if we need these properties, we need to connect the collision to
+        -- Records that are InSys
+      → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (round (vpParent vp) ≡ prevRound rc)
+   vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) ais va vp
      with b ≟Block (veBlock (vpExt vp))
-   ...| no imp = inj₁ ( (b , veBlock (vpExt vp))
-                      , (imp , id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
-                                                               (veId (vpExt vp))))))
+   ...| no imp = inj₁ (((b , veBlock (vpExt vp))
+                      , (imp , (id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
+                                                               (veId (vpExt vp)))))))
+                      , (ais (there x here) , (vpBlock∈sys vp)))
    ...| yes refl
      with ←-inj y (vpExt' vp)
    ...| bSameId'
@@ -169,18 +169,23 @@ module LibraBFT.Concrete.Obligations.PreferredRound
    ...| I←B y0 y1   | I←B e0 e1   = inj₂ refl
    ...| Q←B y0 refl | Q←B e0 refl
      with vpMaybeBlock vp
-   ...| vpParent≡Q {b = bP} bP←qP
+   ...| vpParent≡Q {b = bP} bP←qP bp∈Sys
      with rc
    ...| step {r = B b'} rc' b←q
      with b' ≟Block bP
-   ...| no  imp = inj₁ ((b' , bP) , imp , id-B∨Q-inj (lemmaS1-2 (eq-Q refl) b←q bP←qP))
+   ...| no  imp = inj₁ (((b' , bP)
+                       , (imp , (id-B∨Q-inj (lemmaS1-2 (eq-Q refl) b←q bP←qP))))
+                       , (ais (there x (there (Q←B y0 refl) (there b←q here)))
+                         , bp∈Sys))
    ...| yes refl
      with bP←qP | b←q
    ...| B←Q refl refl | B←Q refl refl = inj₂ refl
 
   -- Finally, we can prove the preferred round rule from the global version;
   proof : Type → PreferredRoundRule InSys
-  proof glob-inv α hα {q} {q'} q∈sys q'∈sys c3 va rc' va' hyp
+  proof glob-inv α hα {q} {q'} {rc} ais₀ c3 va {rc'} ais₁ va' hyp
+    with All-InSys⇒last-InSys ais₀ | All-InSys⇒last-InSys ais₁
+  ...| q∈sys   | q'∈sys
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'
   ...| sent-cv | sent-cv'
@@ -192,13 +197,12 @@ module LibraBFT.Concrete.Obligations.PreferredRound
            (sym (∈QC-Member q' va')) sent-cv'
            cand hyp
   ...| va'Par , res
-    with vdParent-prevRound-lemma rc' va' va'Par
-  ...| inj₁ hb    = inj₁ (hb , obm-dangerous-magic' "TODO-3: connect to InSys")
+    with vdParent-prevRound-lemma rc' ais₁ va' va'Par
+  ...| inj₁ hb    = inj₁ hb
   ...| inj₂ final
-    with make-cand-3-chain-lemma c3 va
-  ...| inj₁ hb = inj₁ (hb , obm-dangerous-magic' "TODO-3: connect to InSys")
-  ...| inj₂ xx = inj₂ (subst₂ _≤_
-          (cong bRound (trans (cong (kchainBlock (suc zero) ∘ is-2chain) (sym R)) xx))
-          final
-          res)
+    with make-cand-3-chain-lemma ais₀ c3 va
+  ...| xx = inj₂ (subst₂ _≤_
+                   (cong bRound (trans (cong (kchainBlock (suc zero) ∘ is-2chain) (sym R)) xx))
+                   final
+                   res)
 
