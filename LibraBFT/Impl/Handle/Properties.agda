@@ -390,15 +390,9 @@ qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         qc∈m sig vs∈qc v≈rbld ¬bootstrap
   with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
 ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-  = obm-dangerous-magic!
-{-  = ⊥-elim $
-      ¬bootstrap
-        (IP.realHandlerSpec.ContractOk.sigs∈bs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-          vs∈qc
-          --qc∈m
-          {!!}
-        )
--}
+  with IP.realHandlerSpec.ContractOk.genSigs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+...| gsigs = ⊥-elim (¬bootstrap (gsigs send∈acts qc∈m vs∈qc))
+
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         sps@(step-msg {_ , nm} m∈pool ini)
                         m∈acts
