@@ -99,13 +99,13 @@ invariantsCorrect pid pre ini (step-s {pre = pre'} preach (step-peer step@(step-
 --------------------------------------------------
 -- INITIALIZATION STEP
 -- pre' is pre state of this init step
-invariantsCorrect pid _   _   (step-s {pre = pre'} preach (step-peer (step-honest {outs = outs} (step-init {rm} handler-pid-bsi-≡-just-rm×outs _))))
+invariantsCorrect pid _   _   (step-s {pre = pre'} preach (step-peer (step-honest {outs = outs} (step-init {rm} handler-pid-bsi-≡-just-rm×acts _))))
    | yes refl -- YES is from the 'with' above
               -- because this is the SAME clause except pattern matching deeper to get 'step-init'.
   -- Goal: RoundManagerInv ... where peerStates pre' pid "contains" the 'rm' from init
   rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre'}
   -- Goal: RoundManagerInv rm
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi-≡-just-rm×outs
+  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi-≡-just-rm×acts
 ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
   = IP.realHandlerSpec.ContractOk.rmInv IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
 
@@ -212,12 +212,12 @@ qcVoteSigsSentB4 pid st ini (step-s rss (step-peer {pid'} {pre = pre} (step-hone
   with sps
 
 -- INIT CASE
-...| step-init {rm} handler-pid-bsi≡just-rm×outs _
+...| step-init {rm} handler-pid-bsi≡just-rm×acts _
   = ret
    where
     ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
     ret
-      with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×outs
+      with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
     ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
       rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre}
       = λ qc∈rm sig vs∈qc rbld≈ ¬bootstrap
@@ -239,15 +239,16 @@ qcVoteSigsSentB4-sps
   : ∀ pid (pre : SystemState) {s acts}
   → ReachableSystemState pre
   → (StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s , acts))
-  → ∀ {qc v pk} → qc QCProps.∈RoundManager s
+  → ∀ {qc v pk}
+  → qc QCProps.∈RoundManager s
   → WithVerSig pk v
   → ∀ {vs : Author × Signature} → let (pid , sig) = vs in
     vs ∈ qcVotes qc → rebuildVote qc vs ≈Vote v
   → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo sig
   → MsgWithSig∈ pk sig (msgPool pre)
 
-qcVoteSigsSentB4-sps pid pre rss (step-init {rm} handler-pid-bsi≡just-rm×outs _) qc∈s sig vs∈qcvs ≈v ¬bootstrap
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×outs
+qcVoteSigsSentB4-sps pid pre rss (step-init {rm} handler-pid-bsi≡just-rm×acts _) qc∈s sig vs∈qcvs ≈v ¬bootstrap
+  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
 ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
   rewrite sym $ ++-identityʳ (msgPool pre)
   = QCProps.++-SigsForVote∈Rm-SentB4 {rm = rm} (msgPool pre)
@@ -383,14 +384,21 @@ qcVoteSigsSentB4-handle
   → MsgWithSig∈ pk sig (msgPool pre)
 
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
-                        (step-init handler-pid-bsi≡just-rm×outs _)
+                        (step-init {rm} handler-pid-bsi≡just-rm×acts _)
                         send∈acts
                         {qc}
                         qc∈m sig vs∈qc v≈rbld ¬bootstrap
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×outs
+  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
 ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-  = obm-dangerous-magic' "⊥-elim $ ¬bootstrap (IP.realHandlerSpec.ContractOk.sigs∈bs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc {!!} {-qc∈m-})"
-
+  = obm-dangerous-magic!
+{-  = ⊥-elim $
+      ¬bootstrap
+        (IP.realHandlerSpec.ContractOk.sigs∈bs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+          vs∈qc
+          --qc∈m
+          {!!}
+        )
+-}
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         sps@(step-msg {_ , nm} m∈pool ini)
                         m∈acts
