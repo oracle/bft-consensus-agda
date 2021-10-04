@@ -23,11 +23,11 @@ module realHandlerSpec
   open   Handle.RealHandler --bsi
   import LibraBFT.Yasm.Types as LYT
 
+  -- This contract is written in terms of the ACTIONS produced by an initialisation handler.
+  -- Contracts for other handlers are written in terms of the OUTPUTS they produce.
+  -- This makes sense because initialisation does not happen within the LBFT monad,
+  -- therefore there are no Outputs to translate to Actions.
   record ContractOk (rm : RoundManager) (acts : List (LYT.Action NetworkMsg)) : Set where
-  -- Note that this contract is written in terms of the ACTIONS produced by the initialisation
-  -- handler, whereas for other handlers, Contracts are in terms of the OUTPUTS they produce.  This
-  -- makes sense because initialisation does not happen within the LBFT monad, and therefore there
-  -- are no Outputs to translate to Actions.
     constructor mkContractOk
     field
       rmInv   : Util.Invariants.RoundManagerInv rm
@@ -35,10 +35,13 @@ module realHandlerSpec
               → vs              ∈     qcVotes qc
               → qc Util.QCProps.∈RoundManager rm
               → ∈BootstrapInfo-impl bsi (proj₂ vs)
-      -- This will be easy to prove for now, because initialisation does not send any messages, but
-      -- this generality enables it to do so in future.
-      genSigs : ∀ {m vs qc} → LYT.send m ∈ acts → qc QC∈NM m → (vs ∈ qcVotes qc)
-                → ∈BootstrapInfo-impl fakeBootstrapInfo (proj₂ vs)
+      -- Peer initialisation does NOT SEND messages,
+      -- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
+      genSigs : ∀ {vs qc m}
+              → (vs        ∈ qcVotes qc)
+              → qc       QC∈NM       m
+              → LYT.send m ∈         acts
+              → ∈BootstrapInfo-impl bsi (proj₂ vs)
 
   Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤

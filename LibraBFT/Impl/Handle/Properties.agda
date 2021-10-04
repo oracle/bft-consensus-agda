@@ -391,7 +391,7 @@ qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
   with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
 ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
   with IP.realHandlerSpec.ContractOk.genSigs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-...| gsigs = ⊥-elim (¬bootstrap (gsigs send∈acts qc∈m vs∈qc))
+...| gsigs = ⊥-elim (¬bootstrap (gsigs vs∈qc qc∈m send∈acts ))
 
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         sps@(step-msg {_ , nm} m∈pool ini)
