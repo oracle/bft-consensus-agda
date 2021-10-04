@@ -88,7 +88,7 @@ import LibraBFT.Abstract.BFT
                               -- for the *first* epoch (soon to be renamed to BootStrapInfo avoid
                               -- this confusion).  This is temporary until we do epoch change; then
                               -- it will need to be provided by the caller.
-      where bsId            = BootstrapInfo.bootstrapQC fakeBootstrapInfo ^∙ (qcVoteData ∙ vdProposed ∙ biId)
+      where bsId            = fakeBootstrapInfo ^∙ bsiLIWS ∙ liwsLedgerInfo ∙ liConsensusDataHash
             authorsMap      = vv ^∙ vvAddressToValidatorInfo
             authors         = kvm-toList authorsMap
             authorsIDs≢     = kvm-keys-All≢ authorsMap

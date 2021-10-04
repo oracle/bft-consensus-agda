@@ -191,11 +191,7 @@ module LibraBFT.ImplShared.Consensus.Types where
                                            -- passed as argument to initialization.
       _bsiVV        : ValidatorVerifier
       _bsiPE        : ProposerElection
-      -- TODO-1: Remove this and change usages to use bsiLIWS.
-      -- NOTE : purposely left out of lens.
-      bootstrapQC   : QuorumCert -- the same QC is also the value of
-                                 -- highestQC and highestCommitCert
-                                 -- immediately after initialization
+
   open BootstrapInfo public
   unquoteDecl bsiNumFaults   bsiLIWS   bsiVSS   bsiVV   bsiPE = mkLens (quote BootstrapInfo)
              (bsiNumFaults ∷ bsiLIWS ∷ bsiVSS ∷ bsiVV ∷ bsiPE ∷ [])
