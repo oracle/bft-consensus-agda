@@ -75,11 +75,12 @@ module InitHandler where
   `(EpochManager.obmStartLoop epochManager output ...)' to handle the initialization output
   and then to handle new messages from the network.
 
-  In Agda functions below, assuming no initialization errors,
-  - the 'GenKeyFile.create' function
-    - creates everything that would have been written to disk and then later read
-      to create ValidatorSigner(s), ValidatorVerifier, LIWS, etc.
-  - there is no network transport in Agda
+  In Agda below,
+  - we assume 'BootstrapInfo' known to all peers
+    - i.e., the same info that Haskell creates via 'GenKeyFile.create'
+    - the assumed info is given to 'mkSysInitAndHandlers' in 'InitAndHandlers'
+  - System initialization calls 'initHandler'
+  - 'initHandler' eventually calls 'initialize'
   - 'initialize' calls 'State.startViaConsensusProvider'
     when then calls 'ConsensusProvider.startConsensus' which returns
     '(EpochManager, List Output)', just like Haskell.
@@ -91,13 +92,17 @@ module InitHandler where
 
   postulate
     now : Instant
-    pg  : ProposalGenerator
+
+  proposalGenerator : ProposalGenerator
+  proposalGenerator = ProposalGenerator∙new 0
 
   initialize' : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
   initialize' now nfLiwsVsVvPe =
     Start.startViaConsensusProvider
       now nfLiwsVsVvPe
-      (TxTypeDependentStuffForNetwork∙new pg (StateComputer∙new BlockInfo.gENESIS_VERSION))
+      (TxTypeDependentStuffForNetwork∙new
+        proposalGenerator
+        (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
   abstract
     initialize  : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
@@ -179,4 +184,16 @@ module InitHandler where
       initHandler
       peerStep
    where
-    postulate fakeInitRM : RoundManager
+    postulate
+      bs : BlockStore
+      pe : ProposerElection
+      rs : RoundState
+      sr : SafetyRules
+      vv : BootstrapInfo → ValidatorVerifier
+    -- For uninitialised peers, so we know nothing about their state.
+    -- Construct a value of type `RoundManager` to ensure it is inhabitable.
+    fakeInitRM : RoundManager
+    fakeInitRM = RoundManager∙new
+      ObmNeedFetch∙new
+      (EpochState∙new 1 (vv fakeBootstrapInfo))
+      bs rs pe proposalGenerator sr false

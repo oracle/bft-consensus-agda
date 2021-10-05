@@ -157,7 +157,7 @@ module ReachableSystemStateProps where
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
      ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
-  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: bootstrap does not send messages"
+  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: Use the contract for the init handler."
   ...| Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)

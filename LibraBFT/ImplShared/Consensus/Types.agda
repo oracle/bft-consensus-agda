@@ -187,8 +187,7 @@ module LibraBFT.ImplShared.Consensus.Types where
     field
       _bsiNumFaults : ℕ
       _bsiLIWS      : LedgerInfoWithSignatures
-      _bsiVSS       : List ValidatorSigner -- TODO-1 : remove this after ValidatorSigner
-                                           -- passed as argument to initialization.
+      _bsiVSS       : List ValidatorSigner
       _bsiVV        : ValidatorVerifier
       _bsiPE        : ProposerElection
 
