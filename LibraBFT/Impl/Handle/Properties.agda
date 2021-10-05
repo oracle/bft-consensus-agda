@@ -34,17 +34,16 @@ module LibraBFT.Impl.Handle.Properties
   --(bsi : BootstrapInfo)
   where
 
-import      LibraBFT.Impl.Handle as Handle
-open        Handle.RealHandler --bsi
-open        ParamsWithInitAndHandlers InitAndHandlers
-open        PeerCanSignForPK
 open        EpochConfig
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms InitAndHandlers
+import      LibraBFT.Impl.Handle                as Handle
+import      LibraBFT.Impl.Handle.InitProperties as IP
+open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open        PeerCanSignForPK
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                               Handle.InitHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
-
 open        Invariants
 open        RoundManagerTransProps
-import      LibraBFT.Impl.Handle.InitProperties as IP
 
 -- TODO-1: Should 'invariantsCorrect' and direct corollaries be in a `Properties.Invariants` module?
 ------------------------------------------------------------------------------
@@ -105,9 +104,9 @@ invariantsCorrect pid _   _   (step-s {pre = pre'} preach (step-peer (step-hones
   -- Goal: RoundManagerInv ... where peerStates pre' pid "contains" the 'rm' from init
   rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre'}
   -- Goal: RoundManagerInv rm
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi-≡-just-rm×acts
-...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-  = IP.realHandlerSpec.ContractOk.rmInv IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi-≡-just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+  = IP.initHandlerSpec.ContractOk.rmInv IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
 
 --------------------------------------------------
 -- PROPOSAL MSG
@@ -217,14 +216,14 @@ qcVoteSigsSentB4 pid st ini (step-s rss (step-peer {pid'} {pre = pre} (step-hone
    where
     ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
     ret
-      with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-    ...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+      with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+    ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
       rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre}
       = λ qc∈rm sig vs∈qc rbld≈ ¬bootstrap
         → ⊥-elim $
           ¬bootstrap
-          (IP.realHandlerSpec.ContractOk.sigs∈bs
-            IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm)
+          (IP.initHandlerSpec.ContractOk.sigs∈bs
+            IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm)
 
 -- MSG CASE
 ...| step-msg {sndr , nm} m∈pool init
@@ -248,15 +247,15 @@ qcVoteSigsSentB4-sps
   → MsgWithSig∈ pk sig (msgPool pre)
 
 qcVoteSigsSentB4-sps pid pre rss (step-init {rm} handler-pid-bsi≡just-rm×acts _) qc∈s sig vs∈qcvs ≈v ¬bootstrap
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
   rewrite sym $ ++-identityʳ (msgPool pre)
   = QCProps.++-SigsForVote∈Rm-SentB4 {rm = rm} (msgPool pre)
       (λ qc∈rm sig vs∈qc rbld≈ ¬bootstrap
        → ⊥-elim $
            ¬bootstrap
-           (IP.realHandlerSpec.ContractOk.sigs∈bs
-             IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm))
+           (IP.initHandlerSpec.ContractOk.sigs∈bs
+             IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm))
       qc∈s sig vs∈qcvs ≈v ¬bootstrap
 
 qcVoteSigsSentB4-sps pid pre rss (step-msg {sndr , m} m∈pool ini) {qc} {v} {pk} qc∈s sig {vs} vs∈qcvs ≈v ¬bootstrap
@@ -388,9 +387,9 @@ qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         send∈acts
                         {qc}
                         qc∈m sig vs∈qc v≈rbld ¬bootstrap
-  with IP.realHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
-  with IP.realHandlerSpec.ContractOk.genSigs IP-realHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with IP.initHandlerSpec.ContractOk.genSigs IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
 ...| gsigs = ⊥-elim (¬bootstrap (gsigs vs∈qc qc∈m send∈acts ))
 
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach

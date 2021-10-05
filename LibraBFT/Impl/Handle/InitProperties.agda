@@ -14,19 +14,13 @@ open import Optics.All
 
 module LibraBFT.Impl.Handle.InitProperties where
 
-module realHandlerSpec
+module initHandlerSpec
   (pid : Author)
   (bsi : BootstrapInfo)
   where
 
-  import LibraBFT.Impl.Handle as Handle
-  open   Handle.RealHandler --bsi
-  import LibraBFT.Yasm.Types as LYT
+  import      LibraBFT.Yasm.Types as LYT
 
-  -- This contract is written in terms of the ACTIONS produced by an initialisation handler.
-  -- Contracts for other handlers are written in terms of the OUTPUTS they produce.
-  -- This makes sense because initialisation does not happen within the LBFT monad,
-  -- therefore there are no Outputs to translate to Actions.
   record ContractOk (rm : RoundManager) (acts : List (LYT.Action NetworkMsg)) : Set where
     constructor mkContractOk
     field
@@ -47,9 +41,10 @@ module realHandlerSpec
   Contract nothing            = ⊤
   Contract (just (rm , acts)) = ContractOk rm acts
 
-  open import LibraBFT.Impl.Handle
+  import      LibraBFT.Impl.Handle as Handle
+  open        Handle.InitHandler
 
   postulate
-    contract : ∀ {x} → realHandler pid bsi ≡ x → Contract x
+    contract : ∀ {x} → initHandler pid bsi ≡ x → Contract x
     -- contract = EitherD-contract {!!} Contract contract'
 

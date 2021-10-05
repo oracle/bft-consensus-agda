@@ -35,33 +35,29 @@ open import LibraBFT.Yasm.Base
 import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
 
--- This module provides scaffolding to define handlers for the implementation model and
--- to connect those handlers to the interface of the SystemModel.
+-- This module connects implementation handlers to the interface of the SystemModel.
 
 module LibraBFT.Impl.Handle where
 
 open EpochConfig
 
 ------------------------------------------------------------------------------
-
--- This invokes the real implementation handler.
-runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
-runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
+-- This function works with any implementation of a RoundManager.
 
 -- NOTE: The system layer only cares about this step function.
 -- 0 is given as a timestamp.
 peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
 peerStep nid msg st = runHandler st (handle nid msg 0)
+ where
+  -- This invokes an implementation handler.
+  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
+  runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
 ------------------------------------------------------------------------------
 
-module RealHandler
-  --(bsi0 : BootstrapInfo) -- TODO-1 : properties about BootstrapInfo
-  where
+-- This connects the implementation handler to the system model so it can be initialized.
 
-  ------------------------------------------------------------------------------
-  -- real initialization
-
+module InitHandler where
   {-
   IMPL-DIFF: In Haskell, nodes are started with a filepath of a file containing
   - number of faults allowed
@@ -94,8 +90,8 @@ module RealHandler
   -}
 
   postulate
-    now           : Instant
-    pg            : ProposalGenerator
+    now : Instant
+    pg  : ProposalGenerator
 
   initialize' : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
   initialize' now nfLiwsVsVvPe =
@@ -166,8 +162,8 @@ module RealHandler
   ... | Right _ = refl
 
   abstract
-   realHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
-   realHandler pid bsi =
+   initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
+   initHandler pid bsi =
     case ValidatorSigner.obmGetValidatorSigner pid (bsi ^∙ bsiVSS) of λ where
       (Left _)   → nothing
       (Right vs) →
@@ -178,9 +174,9 @@ module RealHandler
   InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
   InitAndHandlers =
     mkSysInitAndHandlers
-      fakeBootstrapInfo -- bsi0
+      fakeBootstrapInfo
       fakeInitRM
-      realHandler
+      initHandler
       peerStep
    where
     postulate fakeInitRM : RoundManager

@@ -30,8 +30,10 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
-open        ParamsWithInitAndHandlers Handle.RealHandler.InitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.RealHandler.InitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                               Handle.InitHandler.InitAndHandlers
+                               PeerCanSignForPK PeerCanSignForPK-stable
 open Invariants
 open RoundManagerTransProps
 
