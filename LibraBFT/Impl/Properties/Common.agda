@@ -31,12 +31,13 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
 open        PeerCanSignForPK
 
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                               Handle.InitHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 
 -- This module contains definitions and lemmas used by proofs of the
@@ -152,12 +153,12 @@ module ReachableSystemStateProps where
 
     mws∈poolPre : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬bootstrap'
-  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init _ _)))) pcsfpk hpk sig ¬bootstrap mws∈pool
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
      ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
-  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: bootstrap does not send messages"     
-  ... | Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
+  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: Use the contract for the init handler."
+  ...| Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre

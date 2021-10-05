@@ -8,6 +8,7 @@ open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.ConsensusProvider as ConsensusProvider
 import      LibraBFT.Impl.IO.OBM.GenKeyFile           as GenKeyFile
 import      LibraBFT.Impl.IO.OBM.ObmNeedFetch         as ObmNeedFetch
+import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.Prelude
@@ -41,14 +42,13 @@ TODO-3: Figure out how to handle the initial BroadcastProposal.
 -}
 startViaConsensusProvider
   : Instant
-  → AuthorName
-  → GenKeyFile.NfLiwsVssVvPe
+  → GenKeyFile.NfLiwsVsVvPe
   → TxTypeDependentStuffForNetwork
   → Either ErrLog (EpochManager × List Output)
-startViaConsensusProvider now me nfLiwsVssVvPe txTDS = do
-  let onf                       = ObmNeedFetch.newNetwork {-stps'-}
-  (nc , occp , liws , sk , _pe) ← ConsensusProvider.obmInitialData me nfLiwsVssVvPe
+startViaConsensusProvider now (nf , liws , vs , vv , pe) txTDS = do
+  (nc , occp , _liws , sk , _pe) ← ConsensusProvider.obmInitialData (nf , liws , vs , vv , pe)
   ConsensusProvider.startConsensus
-    nc now occp liws sk onf
+    nc now occp liws sk
+    (ObmNeedFetch∙new {- newNetwork -stps'-})
     (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 
