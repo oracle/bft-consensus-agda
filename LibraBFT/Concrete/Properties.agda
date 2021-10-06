@@ -60,9 +60,11 @@ module LibraBFT.Concrete.Properties
        - a predicate to satisy the requirements of PeerCanSignForPK, and a proof that it is stable
        - a function from a `ReachableSystemState` of a system instantiated with
          the provided `SystemTypeParameters` to an `IntermediateSystemState`;
-       - proof that the `InSys` predicate is stable for the given types.
+       - proof that the `InSys` predicate is stable for the given types (i.e., if a Record is InSys
+         according to the IntermediateSystemState for the prestate of a transition, then it is also
+         InSys according to the IntermediateSystemState for the poststate of that transition.
        - an implementation Vote type
-       - machinery for accessing signatures of Votes
+       - machinery for accessing signatures of Votes, and for deriving abstract Votes from them
        - proof that two Votes with the same signature represent the same abstract vote
        - ...
 
@@ -70,8 +72,9 @@ module LibraBFT.Concrete.Properties
      parameters.
 
      TODO-NOT-DO: Refactor Concrete so that it is independent of implementation types, thus making
-     it more general for a wider range of implementations.  Given the motivation of the project and
-     resources for it, this is not worthwhile at this time.
+     it more general for a wider range of implementations.  As our main motivation is verifying an
+     implementation (and perhaps variations on it) that use the same types, we do not consider it
+     worthwhile at this time.
   -}
 
   open        IntermediateSystemState intSystemState

@@ -1020,7 +1020,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
       _pgLastRoundGenerated : Round
   open ProposalGenerator
   unquoteDecl pgLastRoundGenerated = mkLens (quote ProposalGenerator)
-              (pgLastRoundGenerated ∷ [])
+             (pgLastRoundGenerated ∷ [])
 
 -- ------------------------------------------------------------------------------
 

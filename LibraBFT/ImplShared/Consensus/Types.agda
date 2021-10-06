@@ -185,10 +185,15 @@ module LibraBFT.ImplShared.Consensus.Types where
   record BootstrapInfo : Set where
     constructor mkBootstrapInfo
     field
-      -- TODO-1 : Nodes, PKs for initial epoch
-      -- TODO-1 : Faults to tolerate (or quorum size?)
-      bootstrapQC : QuorumCert -- use the same bootstrap QC for highestQC and highestCommitCert
-  open BootstrapInfo
+      _bsiNumFaults : ℕ
+      _bsiLIWS      : LedgerInfoWithSignatures
+      _bsiVSS       : List ValidatorSigner
+      _bsiVV        : ValidatorVerifier
+      _bsiPE        : ProposerElection
+
+  open BootstrapInfo public
+  unquoteDecl bsiNumFaults   bsiLIWS   bsiVSS   bsiVV   bsiPE = mkLens (quote BootstrapInfo)
+             (bsiNumFaults ∷ bsiLIWS ∷ bsiVSS ∷ bsiVV ∷ bsiPE ∷ [])
 
   postulate -- valid assumption
     -- We postulate the existence of BootstrapInfo known to all
@@ -196,7 +201,8 @@ module LibraBFT.ImplShared.Consensus.Types where
     fakeBootstrapInfo : BootstrapInfo
 
   data ∈BootstrapInfo-impl (bi : BootstrapInfo) : Signature → Set where
-   inBootstrapQC : ∀ {vs} → vs ∈ qcVotes (bootstrapQC bi) → ∈BootstrapInfo-impl bi (proj₂ vs)
+   inBootstrapQC : ∀ {sig} → sig ∈ (KVMap.elems (bi ^∙ bsiLIWS ∙ liwsSignatures))
+                 → ∈BootstrapInfo-impl bi sig
 
   postulate -- TODO-1 : prove
     ∈BootstrapInfo?-impl : (bi : BootstrapInfo) (sig : Signature)

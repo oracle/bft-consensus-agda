@@ -22,7 +22,9 @@ obmGetValidatorSigner : AuthorName → List ValidatorSigner → Either ErrLog Va
 obmGetValidatorSigner name vss =
   case List-filter go vss of λ where
     (vs ∷ []) → pure vs
-    _         → Left fakeErr -- ["ValidatorSigner", "obmGetSigner", "TODO better err msg"]
+    _         → Left fakeErr -- [ "ValidatorSigner", "obmGetValidatorSigner"
+                             -- , name , "not found in"
+                             -- , show (fmap (^.vsAuthor.aAuthorName) vss) ]
  where
   go : (vs : ValidatorSigner) → Dec (vs ^∙ vsAuthor ≡ name)
   go (ValidatorSigner∙new _vsAuthor _) = _vsAuthor ≟ name

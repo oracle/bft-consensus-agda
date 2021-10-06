@@ -338,6 +338,21 @@ module LibraBFT.Yasm.System
    ... | step-honest {pidS} {st} {outs} stp = refl
    ... | step-cheat _ = isInitd
 
+   peersRemainInitialized' : ∀ {pid} {pre : SystemState} {post : SystemState}
+                           → Step pre post
+                           → initialised post pid ≡ uninitd
+                           → initialised pre  pid ≡ uninitd
+   peersRemainInitialized' {pid} {pre} theStep@(step-peer {pid'} step) isUninitd
+     with pid' ≟PeerId pid
+   ...| no neq = isUninitd
+   ...| yes refl
+     with step
+   ... | step-cheat _ = isUninitd
+   ... | step-honest {pidS} {st} {outs} stp
+     with (initialised pre pid)
+   ... | uninitd = refl
+   ... |   initd = absurd initd ≡ uninitd case  isUninitd of λ ()
+
    -- not used yet, but some proofs could probably be cleaned up using this,
    -- e.g., prevVoteRnd≤-pred-step in Impl.VotesOnce
    sendMessages-target : ∀ {m : SenderMsgPair} {sm : SentMessages} {ml : List SenderMsgPair}

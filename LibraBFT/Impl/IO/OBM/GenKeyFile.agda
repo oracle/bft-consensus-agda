@@ -37,6 +37,9 @@ mkValidatorSignersAndVerifierAndProposerElection
 NfLiwsVssVvPe =
   (U64 × LedgerInfoWithSignatures × List ValidatorSigner × ValidatorVerifier × ProposerElection)
 
+NfLiwsVsVvPe =
+  (U64 × LedgerInfoWithSignatures × ValidatorSigner × ValidatorVerifier × ProposerElection)
+
 create'
   : U64 → List EndpointAddress {-→ SystemDRG-}
   → Either ErrLog

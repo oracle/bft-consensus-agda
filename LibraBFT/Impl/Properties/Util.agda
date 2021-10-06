@@ -24,10 +24,12 @@ open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.fakeInitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open        ParamsWithInitAndHandlers Handle.fakeInitAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms Handle.fakeInitAndHandlers PeerCanSignForPK PeerCanSignForPK-stable
+open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                               Handle.InitHandler.InitAndHandlers
+                               PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 
