@@ -16,12 +16,11 @@ module LibraBFT.Hash where
  -------------------------------------------------
  -- Hash function postulates
  --
- -- We are now assuming that our 'auth' function is collision
- -- resistant. We might be able to carry the full proof in agda,
- -- but that can take place on another module.
+ postulate -- valid assumption: hashes are some (unspecified) number of bytes
+   hashNumBytes : ℕ
 
  Hash : Set
- Hash = Σ ByteString (λ bs → length bs ≡ 4)
+ Hash = Σ ByteString (λ bs → length bs ≡ hashNumBytes)
 
  hashLen-pi : ∀ {bs : ByteString} {n : ℕ } → (p1 p2 : length bs ≡ n) → p1 ≡ p2
  hashLen-pi {[]}    {.0} refl refl = refl
@@ -47,7 +46,7 @@ module LibraBFT.Hash where
  encodeH-inj : ∀ i j → encodeH i ≡ encodeH j → i ≡ j
  encodeH-inj (i , pi) (j , pj) refl = cong (_,_ i) (≡-pi pi pj)
 
- encodeH-len : ∀{h} → length (encodeH h) ≡ 4
+ encodeH-len : ∀{h} → length (encodeH h) ≡ hashNumBytes
  encodeH-len { bs , p } = p
 
  encodeH-len-lemma : ∀ i j → length (encodeH i) ≡ length (encodeH j)

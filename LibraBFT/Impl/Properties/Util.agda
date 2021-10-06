@@ -399,11 +399,11 @@ module Invariants where
        with (blockData-bsl (b ^∙ bBlockData)) ≟-BSL (blockData-bsl (eb ^∙ ebBlock ∙ bBlockData))
     ...| yes bsls≡ = hash≡⇒≈Block {eb ^∙ ebBlock} {b} bidCorr refl bid
     ...| no  neq rewrite sym bid
-       = ⊥-elim (meta-specific-cr (msgRmHC (inP nm∈pool (inPM inB))
-                                            ini
-                                            (inRM (inBS jeb inB))
-                                            (sym bid)
-                                            neq))
+       = ⊥-elim (meta-no-collision-in-sys (msgRmHC (inP nm∈pool (inPM inB))
+                                                   ini
+                                                   (inRM (inBS jeb inB))
+                                                   (sym bid)
+                                                   neq))
 
   -- Valid blocks have IDs computed by the hash of their BlockData
   -- These are passed as module parameters through the proofs

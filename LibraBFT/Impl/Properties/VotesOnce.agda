@@ -170,7 +170,7 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
 ...| Left (m∈outs , pcsfpkPost , ¬msb4)
 -- ... and it really is the same vote, because there has not been a hash collision
    with sameSig⇒sameVoteData (msgSigned mws∈pool) sig (msgSameSig mws∈pool)
-...| Left nonInjSHA256 = ⊥-elim (PerReachableState.meta-sha256-cr step* nonInjSHA256)
+...| Left nonInjSHA256 = ⊥-elim (PerReachableState.meta-no-collision step* nonInjSHA256)
 ...| Right refl
    with PeerCanSignForPKProps.pidInjective pcsfpk pcsfpkPost refl
 ...| refl = ≡⇒≤ vr≡lvrPost
@@ -208,7 +208,7 @@ sameERasLV⇒sameId-lem₁{pid}{pid'}{pk}{pre = pre} rss sp {v}{v'} hpk pcsfpk s
   -- That message has the same signature as `v'`, so it has the same vote data
   -- (unless there was a collision, which we currently assume does not occur).
   ≡voteData : msgPart mws ≡L v' at vVoteData
-  ≡voteData = ⊎-elimˡ (PerReachableState.meta-sha256-cr rss) (sameSig⇒sameVoteData sig' (msgSigned mws) (sym ∘ msgSameSig $ mws))
+  ≡voteData = ⊎-elimˡ (PerReachableState.meta-no-collision rss) (sameSig⇒sameVoteData sig' (msgSigned mws) (sym ∘ msgSameSig $ mws))
 
   ¬bootstrap' : ¬ ∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature ∘ msgSigned $ mws)
   ¬bootstrap' rewrite msgSameSig mws = ¬bootstrap

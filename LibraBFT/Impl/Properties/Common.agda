@@ -169,7 +169,7 @@ module ReachableSystemStateProps where
      with pid≡
      where
      vd₁≡vd₂ : v ≡L msgPart mws∈pool at vVoteData
-     vd₁≡vd₂ = either (⊥-elim ∘ PerReachableState.meta-sha256-cr rss) id (sameSig⇒sameVoteData (msgSigned mws∈pool) sig (msgSameSig mws∈pool))
+     vd₁≡vd₂ = either (⊥-elim ∘ PerReachableState.meta-no-collision rss) id (sameSig⇒sameVoteData (msgSigned mws∈pool) sig (msgSameSig mws∈pool))
 
      pid≡ : pid₁ ≡ pid₂
      pid≡ = PeerCanSignForPKProps.pidInjective pcsfpk pcsfpk' (cong (_^∙ vdProposed ∙ biEpoch) vd₁≡vd₂)

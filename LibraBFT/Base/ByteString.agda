@@ -57,6 +57,9 @@ module LibraBFT.Base.ByteString where
   BitString : Set
   BitString = List Bool
 
+  _≟BitString_ : (bs1 bs2 : BitString) → Dec (bs1 ≡ bs2)
+  _≟BitString_ = List-≡-dec _≟Bool_
+
   -- A ByteString is a list of bytes
   ByteString : Set
   ByteString = List (Vec Bool 8)
