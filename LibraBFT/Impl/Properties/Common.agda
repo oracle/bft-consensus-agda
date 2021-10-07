@@ -141,13 +141,13 @@ module PeerCanSignForPKProps where
 module ReachableSystemStateProps where
   mws∈pool⇒initd
     : ∀ {pid pk v}{st : SystemState}
-      → ReachableSystemState st
-      → PeerCanSignForPK st v pid pk
-      → Meta-Honest-PK pk
-      → (sig : WithVerSig pk v)
-      → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
-      → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-      → initialised st pid ≡ initd
+    → ReachableSystemState st
+    → PeerCanSignForPK st v pid pk
+    → Meta-Honest-PK pk
+    → (sig : WithVerSig pk v)
+    → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
+    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+    → initialised st pid ≡ initd
 
   mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬bootstrap mws∈pool =
     peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre) hpk sig ¬bootstrap mws∈poolPre)
@@ -165,17 +165,19 @@ module ReachableSystemStateProps where
      where
      ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
   ...| Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
-    where
-    mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
+     where
+     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+     mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
   ...| Left (send∈acts , pks4pk₂ , ¬sentb4)
      with IP.initHandlerSpec.contract pid₂ fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
   ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
      with msg⊆ mws∈pool
-  ...| vote∈vm = ⊥-elim (P≢V (sym (proj₁ (proj₂ (IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts)))))
-  ...| vote∈qc x x₁ x₂
+  ...| vote∈vm
+     = ⊥-elim (P≢V (sym (proj₁ (proj₂ (IP.initHandlerSpec.ContractOk.isInitPM
+                                        IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts)))))
+  ...| vote∈qc vs∈qc _ qc∈pm
      with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
-  ...| (pm , refl , noSigs) = ⊥-elim (noSigs x₂ x)
+  ...| (pm , refl , noSigs) = ⊥-elim (noSigs qc∈pm vs∈qc)
 
   mws∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
