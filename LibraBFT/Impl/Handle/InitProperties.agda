@@ -29,13 +29,18 @@ module initHandlerSpec
               → vs              ∈     qcVotes qc
               → qc Util.QCProps.∈RoundManager rm
               → ∈BootstrapInfo-impl bsi (proj₂ vs)
-      -- Peer initialisation does NOT SEND messages,
+      -- Peer initialisation, in general, does NOT SEND messages,
       -- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
+      -- Rust/Haskell impls do not include signatures in the genesis QC's LIWS.
+      -- Therefore, this property holds vacuously.
       genSigs : ∀ {vs qc m}
               → (vs        ∈ qcVotes qc)
               → qc       QC∈NM       m
               → LYT.send m ∈         acts
               → ∈BootstrapInfo-impl bsi (proj₂ vs)
+      genSigs' : ∀ {s m}
+              → LYT.send m ∈         acts
+              → ∈BootstrapInfo-impl bsi s
 
   Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤
