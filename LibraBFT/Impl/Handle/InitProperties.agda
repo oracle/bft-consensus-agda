@@ -33,14 +33,17 @@ module initHandlerSpec
       -- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
       -- Rust/Haskell impls do not include signatures in the genesis QC's LIWS.
       -- Therefore, this property holds vacuously.
+      -- TODO-1 : remove this and replace it's usage with isInitPM.
       genSigs : ∀ {vs qc m}
               → (vs        ∈ qcVotes qc)
               → qc       QC∈NM       m
               → LYT.send m ∈         acts
               → ∈BootstrapInfo-impl bsi (proj₂ vs)
-      genSigs' : ∀ {s m}
-              → LYT.send m ∈         acts
-              → ∈BootstrapInfo-impl bsi s
+
+      -- The initial proposal for (Epoch N) (Round 1) is built on a QC with empty signatures.
+      isInitPM : ∀ {m}
+               → LYT.send m ∈ acts
+               → ∃[ pm ] (m ≡ P pm × ∀ {vs qc} → qc QC∈NM m → vs ∈ qcVotes qc → ⊥)
 
   Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤

@@ -305,13 +305,15 @@ module LibraBFT.Yasm.Properties
         with msgWithSigSentByAuthor preach hpk mws' (transp-¬∈BootstrapInfo₂ mws ¬init (MsgWithSig∈-++ʳ mws') (msgSameSig mws))
      ...| (mws'' , vpb'') rewrite sym (msgSameSig mws) = MsgWithSig∈-++ʳ mws'' , ValidSenderForPK-stable preach theStep vpb''
 
-     newMsg⊎msgSentB4 :  ∀ {pk v m pid sndr s' outs} {st : SystemState}
+     newMsg⊎msgSentB4 : ∀ {pk v m pid sndr s' outs} {st : SystemState}
                       → (r : ReachableSystemState st)
                       → (stP : StepPeerState pid (msgPool st) (initialised st) (peerStates st pid) (s' , outs))
                       → Meta-Honest-PK pk → (sig : WithVerSig pk v)
                       → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
-                      → v ⊂MsgG m → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                      → ( LYT.send m ∈ outs × ValidSenderForPK (StepPeer-post {pre = st} (step-honest stP)) v pid pk
+                      → v ⊂MsgG m
+                      → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
+                      → ( LYT.send m ∈ outs
+                        × ValidSenderForPK (StepPeer-post {pre = st} (step-honest stP)) v pid pk
                         × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                         ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)
      newMsg⊎msgSentB4 {pk} {v} {m} {pid} {sndr} {s'} {outs} {st} r stP pkH sig ¬init v⊂m m∈post
