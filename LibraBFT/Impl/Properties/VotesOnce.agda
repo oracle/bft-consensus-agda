@@ -40,6 +40,7 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
                                Handle.InitHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
+import      LibraBFT.Impl.Handle.InitProperties as IP
 
 -- This module proves the two "VotesOnce" proof obligations for our handler.
 
@@ -47,14 +48,23 @@ module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
 
 newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' acts v m pk}
-    → ReachableSystemState pre
-    → StepPeerState pid (msgPool pre) (initialised pre)
-        (peerStates pre pid) (s' , acts)
-    → v ⊂Msg m → send m ∈ acts → (sig : WithVerSig pk v)
-    → Meta-Honest-PK pk → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
-    → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    → LastVoteIs s' v
-newVote⇒lv≡ _ (step-init initSucc uni) _ send∈acts = ⊥-elim (obm-dangerous-magic' "Use the Contract for the init handler.")
+  → ReachableSystemState pre
+  → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , acts)
+  → v ⊂Msg m
+  → send m ∈ acts
+  → (sig : WithVerSig pk v)
+  → Meta-Honest-PK pk
+  → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
+  → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+  → LastVoteIs s' v
+newVote⇒lv≡ {pre}{pid}{s'}{v = v}{m}{pk} preach (step-init handler-pid-bsi≡just-rm×acts uni) v⊂m send∈acts sig hpk ¬bootstrap ¬mws∈pool
+  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+   with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
+...| (_ , refl , noSigs)
+  with v⊂m
+...| vote∈qc vs∈qc v≈rbld qc∈pm = ⊥-elim (noSigs vs∈qc qc∈pm)
+
 newVote⇒lv≡{pre}{pid}{s'}{v = v}{m}{pk} preach sps@(step-msg{sndr , nm} m∈pool ini) (vote∈qc{vs}{qc} vs∈qc v≈rbld qc∈m) m∈acts sig hpk ¬bootstrap ¬msb4
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb4 $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
