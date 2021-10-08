@@ -168,7 +168,7 @@ module ReachableSystemStateProps where
      where
      mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
      mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
-  ...| Left (send∈acts , pks4pk₂ , ¬sentb4)
+  ...| Left (send∈acts , _ , _)
      with IP.initHandlerSpec.contract pid₂ fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
   ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
      with msg⊆ mws∈pool
@@ -177,7 +177,7 @@ module ReachableSystemStateProps where
                                         IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts)))))
   ...| vote∈qc vs∈qc _ qc∈pm
      with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
-  ...| (pm , refl , noSigs) = ⊥-elim (noSigs qc∈pm vs∈qc)
+  ...| (_ , refl , noSigs) = ⊥-elim (noSigs vs∈qc qc∈pm)
 
   mws∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
