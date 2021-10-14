@@ -20,12 +20,19 @@ open import Optics.All
 -- about it, and how Votes and Blocks are signed.
 
 module LibraBFT.ImplShared.Util.Crypto where
-  -- Note that this is an abstraction of a collision-resistant hash function.  It could be any such
-  -- hash function, not necessarily sha256.  We just call it sha256 for "concreteness", to remind
-  -- ourselves it's modeling such a function.
-  postulate -- valid assumption (collision-resistant hash function)
+  -- Note that this is an abstraction of a hash function.  It could be any such hash function, not
+  -- necessarily sha256.  We just call it sha256 for "concreteness", to remind ourselves it's
+  -- modeling such a function.
+  postulate -- valid assumption (hash function)
     sha256    : BitString → Hash
-    sha256-cr : ∀{x y} → sha256 x ≡ sha256 y → Collision sha256 x y ⊎ x ≡ y
+
+  -- For two values x and y, if their hashes are equal, then either there is a hash collision, or x
+  -- and y are equal.
+  sha256-cr : ∀{x y} → sha256 x ≡ sha256 y → Collision sha256 x y ⊎ x ≡ y
+  sha256-cr {x} {y} hyp
+     with x ≟BitString y
+  ...| no  col  = inj₁ (col , hyp)
+  ...| yes refl = inj₂ refl
 
   open WithCryptoHash sha256 sha256-cr
 

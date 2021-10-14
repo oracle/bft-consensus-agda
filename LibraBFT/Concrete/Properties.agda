@@ -71,10 +71,10 @@ module LibraBFT.Concrete.Properties
      This will also break existing proofs and require them to be reworked in terms of these module
      parameters.
 
-     TODO-3: Refactor Concrete so that it is independent of implementation types, thus making it
-     more general for a wider range of implementations. (As our main motivation is verifying an
+     TODO-NOT-DO: Refactor Concrete so that it is independent of implementation types, thus making
+     it more general for a wider range of implementations.  As our main motivation is verifying an
      implementation (and perhaps variations on it) that use the same types, we do not consider it
-     worthwhile at this time.)
+     worthwhile at this time.
   -}
 
   open        IntermediateSystemState intSystemState
