@@ -45,16 +45,18 @@ open import Optics.All
 -- In contrast, it is far from trivial to construct a specific collision for the *postulated*
 -- sha256-cr function.  It would be possible to prove that *some* collision *exists* by using a
 -- pigeonhole principle counting argument.  In principle, one could then construct a specific
--- collision by generating 2 ^ 256 + 1 pairs of distinct Records (in case the postulated hash
--- function is assumed to produce 256-bit hashes), and asking for each pair whether they hash to the
+-- collision by generating 2 ^ 256 + 1 distinct Records (in case the postulated hash function is
+-- assumed to produce 256-bit hashes), and asking for each pair of them whether they hash to the
 -- same value.  We could eliminate the possibility that none of these pairs provides a collision
--- using the counting argument.  One could not do this "accidentally" (as could potentially occur
--- with abstract records), and furthermore, by examining all proofs that use meta-no-collision, it
--- is not difficult to see that the specific collisions are all produced from Records introduced by
--- the proof obligations (i.e., Records that are in the ReachableSystemState under consideration).
--- Therefore, we do not consider it necessary to explicitly associate any collisions for the
--- postulated hash function with the ReachableSystemState.
-
+-- using the counting argument.
+--
+-- One could not do this "accidentally" (as could potentially occur with Abstract records), and
+-- furthermore, by examining all proofs that use meta-no-collision, it is not difficult to see that
+-- the specific collisions are all produced from Records introduced by the proof obligations (i.e.,
+-- Records that are in the ReachableSystemState under consideration).  Therefore, we do not consider
+-- it necessary to explicitly associate any collisions for the postulated hash function with the
+-- ReachableSystemState.
+--
 -- Having received feedback from some people who were uncomfortable with this argument, we have put
 -- some effort into explicitly tying each collision to data "in the system" in the
 -- ReachableSystemState in question.  Our exploration convinces us that it's possible, but
