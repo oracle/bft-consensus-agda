@@ -39,6 +39,7 @@ open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHa
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
                                Handle.InitHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
+import      LibraBFT.Impl.Handle.InitProperties as IP
 
 -- This module contains definitions and lemmas used by proofs of the
 -- implementation obligations for VotesOnce and PreferredRoundRule.
@@ -140,12 +141,14 @@ module PeerCanSignForPKProps where
 module ReachableSystemStateProps where
   mws∈pool⇒initd
     : ∀ {pid pk v}{st : SystemState}
-      → ReachableSystemState st
-      → PeerCanSignForPK st v pid pk
-      → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-      → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
-      → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
-      → initialised st pid ≡ initd
+    → ReachableSystemState st
+    → PeerCanSignForPK st v pid pk
+    → Meta-Honest-PK pk
+    → (sig : WithVerSig pk v)
+    → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
+    → MsgWithSig∈ pk (ver-signature sig) (msgPool st)
+    → initialised st pid ≡ initd
+
   mws∈pool⇒initd{pk = pk}{v} (step-s{pre = pre} rss step@(step-peer sp@(step-cheat cmc))) pcsfpk hpk sig ¬bootstrap mws∈pool =
     peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre) hpk sig ¬bootstrap mws∈poolPre)
     where
@@ -153,15 +156,29 @@ module ReachableSystemStateProps where
 
     mws∈poolPre : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
     mws∈poolPre = ¬cheatForgeNew sp refl unit hpk mws∈pool ¬bootstrap'
-  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init _ _)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+
+  mws∈pool⇒initd{pid₁}{pk = pk} (step-s{pre = pre} rss step@(step-peer sp@(step-honest{pid₂} sps@(step-init {rm} handler-pid-bsi≡just-rm×acts uni)))) pcsfpk hpk sig ¬bootstrap mws∈pool
+     with pid₁ ≟ pid₂
+  ...| yes refl = StepPeer-post-lemma2 {pre = pre} sps
+  ...| no neq
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
      ¬bootstrap' = ∈BootstrapInfoProps.sameSig∉ sig (msgSigned mws∈pool) ¬bootstrap (msgSameSig mws∈pool)
-  ...| Left (send∈acts , _) = obm-dangerous-magic' "TODO: Use the contract for the init handler."
   ...| Right mws∈poolPre = peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
-    where
-    mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
+     where
+     mws∈poolPre' : MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+     mws∈poolPre' rewrite msgSameSig mws∈pool = mws∈poolPre
+  ...| Left (send∈acts , _ , _)
+     with IP.initHandlerSpec.contract pid₂ fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+  ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+     with msg⊆ mws∈pool
+  ...| vote∈vm
+     = ⊥-elim (P≢V (sym (proj₁ (proj₂ (IP.initHandlerSpec.ContractOk.isInitPM
+                                        IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts)))))
+  ...| vote∈qc vs∈qc _ qc∈pm
+     with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
+  ...| (_ , refl , noSigs) = ⊥-elim (noSigs vs∈qc qc∈pm)
+
   mws∈pool⇒initd{pid₁}{pk}{v} (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool
      with newMsg⊎msgSentB4 rss sps hpk (msgSigned mws∈pool) ¬bootstrap' (msg⊆ mws∈pool) (msg∈pool mws∈pool)
      where
@@ -175,6 +192,7 @@ module ReachableSystemStateProps where
      pid≡ : pid₁ ≡ pid₂
      pid≡ = PeerCanSignForPKProps.pidInjective pcsfpk pcsfpk' (cong (_^∙ vdProposed ∙ biEpoch) vd₁≡vd₂)
   ... | refl rewrite StepPeer-post-lemma2{pid₂}{pre = pre} sps = refl
+
   mws∈pool⇒initd{pid₁}{pk}  (step-s{pre = pre} rss step@(step-peer{pid₂} sp@(step-honest sps@(step-msg _ ini)))) pcsfpk hpk sig ¬bootstrap mws∈pool | Right mws∈poolPre =
     peersRemainInitialized step (mws∈pool⇒initd rss (PeerCanSignForPKProps.msb4 rss step pcsfpk hpk sig mws∈poolPre') hpk sig ¬bootstrap mws∈poolPre')
     where
