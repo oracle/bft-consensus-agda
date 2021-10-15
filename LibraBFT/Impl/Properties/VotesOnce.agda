@@ -255,7 +255,9 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} rss (step-peer sp@(step-ch
    ≡pidLVPre = trans ≡pidLV (cong (_^∙ pssSafetyData-rm ∙ sdLastVote) (cheatStepDNMPeerStates₁ sp unit))
 
 -- Initialization steps cannot be where an honestly signed message originated
-sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init _ uni)))) {v}{v'}{m'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
+sameERasLV⇒sameId {pid} {pid'} {pk}
+                  (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init {rm} handler-pid-bsi≡just-rm×acts uni))))
+                  {v} {v'} {m'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
    with pid ≟ pid“
    -- If this isn't `pid`, the step does not affect `pid`'s state
 ...| no  pid≢
@@ -274,7 +276,11 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss step@(step-peer{pre = pre} sp@(st
    -- If this is `pid`, the last vote cannot be a `just`!
 ...| yes refl
    rewrite sym (StepPeer-post-lemma sp)
-   = absurd just v ≡ nothing case trans ≡pidLV (obm-dangerous-magic' "The Contract for the init handler should say that sdLastVote is nothing, I think!  Confirm with Harold") of λ ()
+   with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+   with IP.initHandlerSpec.ContractOk.sdLVNothing IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+...| lv≡nothing
+   = absurd just v ≡ nothing case trans ≡pidLV lv≡nothing of λ ()
 
 sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-msg{sndr , m} m∈pool ini)))) {v}{v'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
    with newMsg⊎msgSentB4 rss sps hpk sig' ¬bootstrap v'⊂m' m'∈pool

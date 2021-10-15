@@ -40,11 +40,8 @@ module initHandlerSpec
                            → vs   ∈ qcVotes qc
                            → qc QC∈NM       m
                            → ⊥)
-      sdLVNothing : ∀ {m}
-                  → LYT.send m ∈ acts
-                  → ∃[ pm ] ( m ≡ P pm
-                            × rm ^∙ rmSafetyRules ∙ srPersistentStorage
-                                  ∙ pssSafetyData ∙ sdLastVote ≡ nothing)
+      sdLVNothing : rm ^∙ rmSafetyRules ∙ srPersistentStorage
+                        ∙ pssSafetyData ∙ sdLastVote ≡ nothing
 
   Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤
