@@ -469,7 +469,17 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
    sameId (C x) _ ()
 
 votesOnce₁ : Common.IncreasingRoundObligation Handle.InitHandler.InitAndHandlers 𝓔
-votesOnce₁ _ (step-init initSucc uni) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "Use the Contract for the init handler.")
+votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach
+           (step-init {rm} handler-pid-bsi≡just-rm×acts uni)
+           {v} {m} {v'} {m'} hpk v⊂MsgPpm m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
+  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts m∈acts
+...| (_ , _ , noSigs)
+  with v⊂MsgPpm
+... | vote∈qc vs∈qc v≈rbld qc∈nm
+  = ⊥-elim (noSigs vs∈qc qc∈nm)
+
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
    with cong _vSignature v≈rbld
 ...| refl = ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
