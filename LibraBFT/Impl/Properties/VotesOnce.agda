@@ -571,7 +571,15 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
 votesOnce₂ : VO.ImplObligation₂ Handle.InitHandler.InitAndHandlers 𝓔
-votesOnce₂ _ (step-init initSucc uni) _ _ m∈acts = ⊥-elim (obm-dangerous-magic' "Use the Contract for init handler.")
+votesOnce₂ {pid} {pk = pk} {pre} rss
+           (step-init {rm} handler-pid-bsi≡just-rm×acts uni)
+           hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
+   with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+   with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts m∈acts
+...| (_ , refl , noSigs)
+  with v⊂m
+...| vote∈qc vs∈qc v≈rbld qc∈pm = ⊥-elim (noSigs vs∈qc qc∈pm)
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
    with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =
