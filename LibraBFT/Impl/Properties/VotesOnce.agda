@@ -262,14 +262,24 @@ sameERasLV⇒sameId {pid} {pid'} {pk}
    -- If this isn't `pid`, the step does not affect `pid`'s state
 ...| no  pid≢
    rewrite sym $ pids≢StepDNMPeerStates{pre = pre} sps pid≢
-   = sameERasLV⇒sameId rss hpk ≡pidLV pcsfpkPre v'⊂m' m'∈poolb4 sig' ¬bootstrap ≡epoch ≡round
+   = sameERasLV⇒sameId rss hpk ≡pidLV pcsfpkPre v'⊂m' (m'∈poolb4 v'⊂m') sig' ¬bootstrap ≡epoch ≡round
    where
 
-   m'∈poolb4 : (pid' , m') ∈ (msgPool pre)
-   m'∈poolb4 = obm-dangerous-magic' "Use the Contract for initialisation, and from that we can deduce that m' was in the pool before the step (do we have a util for this?)"
+   m'∈poolb4 : v' ⊂Msg m' → (pid' , m') ∈ (msgPool pre)
+   m'∈poolb4 v'⊂m'
+     with Any-++⁻ _ m'∈pool
+   ...| inj₂ x = x
+   ...| inj₁ x
+      with IP.initHandlerSpec.contract pid“ fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
+   ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+      with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts (proj₁ (senderMsgPair∈⇒send∈ _ x))
+   ...| (pm , refl , noSigs)
+      with v'⊂m'
+   ... | vote∈qc vs∈qc v≈rbld qc∈nm
+      = ⊥-elim (noSigs vs∈qc qc∈nm)
 
    mws : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
-   mws = mkMsgWithSig∈ _ _ v'⊂m' _ m'∈poolb4 sig' refl
+   mws = mkMsgWithSig∈ _ _ v'⊂m' _ (m'∈poolb4 v'⊂m') sig' refl
 
    pcsfpkPre : PeerCanSignForPK pre v pid pk
    pcsfpkPre = PeerCanSignForPKProps.msb4-eid≡ rss step hpk pcsfpk ≡epoch sig' mws
