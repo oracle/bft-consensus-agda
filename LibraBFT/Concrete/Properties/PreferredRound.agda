@@ -38,7 +38,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
  open import LibraBFT.Concrete.Properties.Common iiah 𝓔
 
- open PerEpoch 𝓔
+ open PerEpoch    𝓔
+ open WithAbsVote 𝓔
  -- As with VotesOnce, we will have two implementation obligations, one for when v is sent by the
  -- step and v' has been sent before, and one for when both are sent by the step.
 
@@ -48,7 +49,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → (r : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
-   → ∀{mbr v vabs m v' v'abs m'}
+   → let post = StepPeer-post {pre = pre} (step-honest sps) in
+     ∀{mbr v vabs m v' v'abs m'}
    → Meta-Honest-PK pk
    -- For signed every vote v of every outputted message
    → v'  ⊂Msg m'  → send m' ∈ outs
@@ -65,11 +67,11 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    -- and vabs* are the abstract Votes for v and v'
    → α-ValidVote 𝓔 v  mbr ≡ vabs
    → α-ValidVote 𝓔 v' mbr ≡ v'abs
-   → (c2 : Cand-3-chain-vote vabs)
+   → (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
    -- then the round of the block that v' votes for is at least the round of
    -- the grandparent of the block that v votes for (i.e., the preferred round rule)
-   → Σ (VoteParentData (PerState.intSystemState pre) v'abs)
-           (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
+   → Σ (VoteParentData (PerState.intSystemState post) v'abs)
+           (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c2 ≤ Abs.round (vpParent vp))
      ⊎ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
 
  -- Similarly in case the same step sends both v and v'
@@ -79,14 +81,15 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → (r  : ReachableSystemState pre)
    -- For any honest call to /handle/ or /init/,
    → (sps : StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (s' , outs))
-   → ∀{mbr v vabs m v' v'abs m'}
+   → let post = StepPeer-post {pre = pre} (step-honest sps) in
+     ∀{mbr v vabs m v' v'abs m'}
    → Meta-Honest-PK pk
    -- For every vote v represented in a message output by the call
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    -- If v is really new and valid
    → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
-   → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v pid pk
+   → PeerCanSignForPK post v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
@@ -97,9 +100,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → v ^∙ vRound < v' ^∙ vRound
    → α-ValidVote 𝓔 v  mbr ≡ vabs
    → α-ValidVote 𝓔 v' mbr ≡ v'abs
-   → (c2 : Cand-3-chain-vote vabs)
-   → Σ (VoteParentData (PerState.intSystemState pre) v'abs)
-           (λ vp → Cand-3-chain-head-round c2 ≤ Abs.round (vpParent vp))
+   → (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
+   → Σ (VoteParentData (PerState.intSystemState post) v'abs)
+           (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c2 ≤ Abs.round (vpParent vp))
 
  module _ where
    open InSys iiah
@@ -155,19 +158,29 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
      with msgRound≡ vfr | msgEpoch≡ vfr | msgBId≡ vfr
    ...| refl | refl | refl = refl
 
+   postulate
+    Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
+                          → ReachableSystemState pre
+                          → let post = StepPeer-post {pid}{st'}{outs}{pre} sp in
+                            (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
+                            → VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool pre)
+                            → Σ (Cand-3-chain-vote (PerState.intSystemState pre) vabs)
+                                 λ c2' → Cand-3-chain-head-round (PerState.intSystemState post) c2
+                                       ≡ Cand-3-chain-head-round (PerState.intSystemState pre ) c2'
+
    PreferredRoundProof :
-      ∀ {pk round₁ round₂ epoch bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
+      ∀ {pk round₁ round₂ bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
       → ReachableSystemState st
       → Meta-Honest-PK pk
-      → (v₁ : VoteForRound∈ pk round₁ epoch bId₁ (msgPool st))
-      → (v₂ : VoteForRound∈ pk round₂ epoch bId₂ (msgPool st))
+      → (v₁ : VoteForRound∈ pk round₁ (epoch 𝓔) bId₁ (msgPool st))
+      → (v₂ : VoteForRound∈ pk round₂ (epoch 𝓔) bId₂ (msgPool st))
       → round₁ < round₂
       → α-ValidVote 𝓔 (msgVote v₁) mbr ≡ v₁abs
       → α-ValidVote 𝓔 (msgVote v₂) mbr ≡ v₂abs
-      → (c3 : Cand-3-chain-vote v₁abs)
+      → (c3 : Cand-3-chain-vote (PerState.intSystemState st) v₁abs)  -- Need InSys?
       → Σ (VoteParentData (PerState.intSystemState st) v₂abs)
-            (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
-   PreferredRoundProof {pk}{round₁}{round₂}{epoch}{bId₁}{bId₂}{v₁abs}{v₂abs}{mbr}{st = post}
+            (λ vp → Cand-3-chain-head-round (PerState.intSystemState st) c3 ≤ Abs.round (vpParent vp))
+   PreferredRoundProof {pk}{round₁}{round₂}{bId₁}{bId₂}{v₁abs}{v₂abs}{mbr}{st = post}
                        step@(step-s {pre = pre} r theStep) pkH v₁ v₂ r₁<r₂ refl refl c3
       with msgRound≡ v₁ | msgEpoch≡ v₁ | msgBId≡ v₁
          | msgRound≡ v₂ | msgEpoch≡ v₂ | msgBId≡ v₂
@@ -177,14 +190,14 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                                       r₂≡0 = Impl-bsvr (msgSigned v₂) init₂
                                   in ⊥-elim (<⇒≢ r₁<r₂ (trans r₁≡0 (sym r₂≡0)))
    ...| yes init₁  | no  ¬init₂ = let 0≡rv = sym (Impl-bsvr (msgSigned v₁) init₁)
-                                      0<rv = v-cand-3-chain⇒0<roundv c3
+                                      0<rv = v-cand-3-chain⇒0<roundv (PerState.intSystemState post) c3
                                   in ⊥-elim (<⇒≢ 0<rv 0≡rv)
    ...| no  ¬init₁ | yes init₂  = let 0≡r₂ = sym (Impl-bsvr (msgSigned v₂) init₂)
                                       r₁   = msgVote v₁ ^∙ vRound
                                   in ⊥-elim (<⇒≱ r₁<r₂ (subst (r₁ ≥_) 0≡r₂ z≤n))
    ...| no  ¬init₁ | no ¬init₂
       with theStep
-   ...| step-peer cheat@(step-cheat c) = vpdPres
+   ...| step-peer {pid} {st'} {outs} cheat@(step-cheat c) = vpdPres
       where
               m₁sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned v₁) (msg⊆ v₁) (msg∈pool v₁) ¬init₁
               m₂sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned v₂) (msg⊆ v₂) (msg∈pool v₂) ¬init₂
@@ -194,12 +207,14 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
               v₂abs' = α-ValidVote-trans {pk} {mbr} {pool = msgPool pre} (msgVote v₂) refl v₂sb4
 
               vpdPres : Σ (VoteParentData (PerState.intSystemState post) v₂abs)
-                          (λ vp → Cand-3-chain-head-round c3 ≤ Abs.round (vpParent vp))
+                          (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c3 ≤ Abs.round (vpParent vp))
               vpdPres
-                 with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c3
+                 with Cand-3-chain-vote-b4 {sp = step-cheat c} r c3 v₁sb4
+              ...| c2' , c2'rnd≡
+                 with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c2'
               ...| vpd , rnd≤
                  with stepPreservesVoteParentData theStep vpd
-              ...| res , rnds≡ rewrite sym rnds≡ = res , rnd≤
+              ...| res , rnds≡ rewrite sym rnds≡ = res , ≤-trans (≤-reflexive c2'rnd≡) rnd≤
    ...| step-peer (step-honest stP)
       with ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned v₁))
                   (newMsg⊎msgSentB4 r stP pkH (msgSigned v₁) ¬init₁  (msg⊆ v₁) (msg∈pool v₁))
@@ -212,19 +227,17 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
             v₂abs' = α-ValidVote-trans (msgVote v₂) refl v₂sb4
 
             vpdPres : _
-            vpdPres with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c3
-            ...| vpd , rnd≤
-               with stepPreservesVoteParentData theStep vpd
-            ...| res , pars≡ rewrite sym pars≡ =  res , rnd≤
-   ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂) = vpdPres
-          where
-            vpdPres : _
             vpdPres
-              with Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
-                                                m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
+               with Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+            ...| c2' , c2'rnd≡
+               with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c2'
             ...| vpd , rnd≤
                with stepPreservesVoteParentData theStep vpd
-            ...| res , pars≡ rewrite sym pars≡ = res , rnd≤
+            ...| res , pars≡ rewrite sym pars≡ =  res , ≤-trans (≤-reflexive c2'rnd≡) rnd≤
+   ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂) =
+              Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
+                                                m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
+
    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4 = help
         where
           round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ v₂)
@@ -239,9 +252,10 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
           help = either (λ r₂<r₁ → ⊥-elim (<⇒≯ r₁<r₂ (<-transʳ (≡⇒≤ (sym round≡)) r₂<r₁)))
                         (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
                                        v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
-                                       prp   = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs c3
+                                       c2'p  = Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+                                       prp   = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs (proj₁ c2'p)
                                        vpd'   = stepPreservesVoteParentData theStep (proj₁ prp)
-                                   in (proj₁ vpd') , (proj₂ prp))
+                                   in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
                         implir0
    ...| inj₂ v₁sb4                    | inj₁ (m₂∈outs , v₂pk , _) = help
         where
@@ -250,18 +264,19 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
           ¬bootstrapV₁ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
           v₁abs' = α-ValidVote-trans (msgVote v₁) refl v₁sb4
 
+          c2'p    = Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+
           implir1 : _
           implir1 = Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
                                    (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬bootstrapV₁
                                    (msgEpoch≡ v₁sb4) rv₁<r₂ v₁abs' refl c3
 
           help : _
-          help = either (λ x → let vpd' = stepPreservesVoteParentData theStep (proj₁ x)
-                               in proj₁ vpd' , proj₂ x)
+          help = either id
                         (λ v₂sb4 → let v₂abs' = α-ValidVote-trans (msgVote v₂) refl v₂sb4
-                                       prp    = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c3
+                                       prp    = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' (proj₁ c2'p)
                                        vpd'   = stepPreservesVoteParentData theStep (proj₁ prp)
-                                   in (proj₁ vpd') , (proj₂ prp))
+                                   in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
                         implir1
 
    prr : Type intSystemState
