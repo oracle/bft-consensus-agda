@@ -165,6 +165,19 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
      with msgRound≡ vfr | msgEpoch≡ vfr | msgBId≡ vfr
    ...| refl | refl | refl = refl
 
+   -- To prove this, we observe that cheaters can't introduce a VoteForRound∈ for an honest PK.  We
+   -- will also require an additional implementation obligation.  It may simply be that Votes sent
+   -- satisy IsValidVote, but the question is where do we maintain evidence that such a RecordChain
+   -- exists for any Block we may vote for?
+   postulate
+     voteForRound-RC : ∀ {pk vabs}{st : SystemState}
+                     → Meta-Honest-PK pk
+                     → ReachableSystemState st
+                     → VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool st)
+                     → ∃[ b ] ( Abs.bId b ≡ abs-vBlockUID vabs
+                              × Σ (RecordChain (Abs.B b)) (All-InSys InSys))
+
+   open _α-Sent_
    postulate
     Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
                           → Meta-Honest-PK pk
@@ -175,6 +188,34 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                             → Σ (Cand-3-chain-vote (PerState.intSystemState pre) vabs)
                                  λ c2' → Cand-3-chain-head-round (PerState.intSystemState post) c2
                                        ≡ Cand-3-chain-head-round (PerState.intSystemState pre ) c2'
+{-
+   Cand-3-chain-vote-b4 {pk} {vabs} {pre} {pid} {st'} {outs} {sp} pkH r
+                        (mkCand3chainvote (mkVE veBlock refl refl) c3Blk∈sys₁ qc₁ qc←b₁ rc₁ rc∈sys₁ n₁ is-2chain₁) v4r
+      with voteForRound-RC {vabs = vabs} pkH r v4r
+   ...| b , refl , rcb , ais
+      with veBlock Abs.≟Block b
+   ...| no   neq = ⊥-elim (meta-no-collision-in-sys hcf)
+        where
+
+          b∈sys : ∀ {b} → InSys (Abs.B b) → _
+          b∈sys c3b∈sys
+             with c3b∈sys
+          ... | ws x x₁ (b∈NM x₂ x₃ bidcorr) = {!bidcorr!}
+
+          hcf = msgmsgHC {!   !} {!!} {!!} {!!}
+   ...| yes refl = {!   RecordChain-irrelevant rcb   !}
+
+=
+                        (mkCand3chainvote votesForB₁ {! c3Blk∈sys₁ !} qc₁ qc←b₁ rc₁ {! rc∈sys₁!} n₁ is-2chain₁) , refl
+-}
+
+                        {- How do we know that this step (sp) doesn't establish the block being
+                           InSys, or any of the Records in rc being InSys?  There is already a
+                           VoteForRound∈ for pk and all the other values in the preState.  Doesn't
+                           that establish that there must be a Block and a RecordChain it extends,
+                           with all being InSys?  If so, then we can establish that they are the
+                           same unless there is an injectivity failure among Records that are InSys.
+                        -}
 
    PreferredRoundProof :
       ∀ {pk round₁ round₂ bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
