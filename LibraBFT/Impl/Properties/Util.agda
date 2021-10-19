@@ -12,7 +12,7 @@ open import LibraBFT.Base.KVMap as Map
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
+open import LibraBFT.Concrete.Records
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
@@ -248,28 +248,11 @@ module QCProps where
 
 module Invariants where
 
-  ------------ properties relating the ids of (Executed)Blocks to hashes of their BlockData
-
-  BlockHash≡ : Block → HashValue → Set
-  BlockHash≡ b hv =  hashBlock b ≡ hv
-
-  BlockId-correct : Block → Set
-  BlockId-correct b = BlockHash≡ b (b ^∙ bId)
-
-  BlockId-correct? : (b : Block) → Dec (BlockId-correct b)
-  BlockId-correct? b = hashBlock b ≟Hash (b ^∙ bId)
-
-  ExecutedBlockId-correct : ExecutedBlock → Set
-  ExecutedBlockId-correct = BlockId-correct ∘ (_^∙ ebBlock)
-
   ------------ properties for BlockTree validity
 
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
-
-  -- TODO: define a record?
-  ValidEValidBlock         = Σ Block         BlockId-correct
 
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}

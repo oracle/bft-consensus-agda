@@ -35,7 +35,8 @@ module LibraBFT.Concrete.System where
    open WithEC
    open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Concrete.Records                        𝓔
+   open import LibraBFT.Concrete.Records as LCR
+   open LCR.WithEC 𝓔
 
    module PerState (st : SystemState) where
 

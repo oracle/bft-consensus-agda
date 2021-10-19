@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Concrete.Properties.Common         as Common

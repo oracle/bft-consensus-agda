@@ -6,6 +6,7 @@
 
 open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash

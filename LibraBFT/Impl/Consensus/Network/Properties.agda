@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Records
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.NetworkMsg

@@ -14,6 +14,7 @@ open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Encode
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash

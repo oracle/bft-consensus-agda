@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Consensus.Network            as Network

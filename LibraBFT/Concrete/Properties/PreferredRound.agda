@@ -9,6 +9,7 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import LibraBFT.Base.KVMap
 open import LibraBFT.Base.PKCS
+open import LibraBFT.Concrete.Records as LCR
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplShared.Consensus.Types
@@ -28,9 +29,9 @@ open        EpochConfig
 -- simpler VotesOnce property to settle down the structural aspects
 -- before tackling the harder semantic issues.
 module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
- open        WithEC
  import      LibraBFT.Abstract.Records UID _≟UID_ NodeId  𝓔 (ConcreteVoteEvidence 𝓔) as Abs
  open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔)
+ open        LibraBFT.ImplShared.Consensus.Types.EpochDep.WithEC
  open        SystemTypeParameters ConcSysParms
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
@@ -40,6 +41,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
 
  open PerEpoch    𝓔
  open WithAbsVote 𝓔
+ open LCR.WithEC  𝓔
  -- As with VotesOnce, we will have two implementation obligations, one for when v is sent by the
  -- step and v' has been sent before, and one for when both are sent by the step.
 
