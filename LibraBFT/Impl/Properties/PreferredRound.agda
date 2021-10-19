@@ -8,6 +8,7 @@ open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
+open import LibraBFT.Concrete.Obligations.PreferredRound
 import      LibraBFT.Concrete.Properties.Common         as Common
 import      LibraBFT.Concrete.Properties.PreferredRound as PR
 open import LibraBFT.ImplShared.Consensus.Types

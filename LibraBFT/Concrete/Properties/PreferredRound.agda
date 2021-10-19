@@ -29,9 +29,12 @@ open        EpochConfig
 -- simpler VotesOnce property to settle down the structural aspects
 -- before tackling the harder semantic issues.
 module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
- import      LibraBFT.Abstract.Records UID _≟UID_ NodeId  𝓔 (ConcreteVoteEvidence 𝓔) as Abs
- open import LibraBFT.Concrete.Obligations.PreferredRound 𝓔 (ConcreteVoteEvidence 𝓔)
  open        LibraBFT.ImplShared.Consensus.Types.EpochDep.WithEC
+ import      LibraBFT.Abstract.Records     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
+ open import LibraBFT.Abstract.RecordChain UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Abstract.System      UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Concrete.Intermediate                  𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Concrete.Obligations.PreferredRound    𝓔 (ConcreteVoteEvidence 𝓔)
  open        SystemTypeParameters ConcSysParms
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
@@ -150,6 +153,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    open        PerState st
    open        Structural sps-corr
    open        ConcreteCommonProperties st r sps-corr Impl-bsvr Impl-nvr≢0
+   open        IntermediateSystemState intSystemState
+   open        All-InSys-props
 
    α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)
                      → α-ValidVote 𝓔 v mbr ≡ vabs
