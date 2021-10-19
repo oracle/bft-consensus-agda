@@ -96,8 +96,8 @@ module InitHandler where
   proposalGenerator : ProposalGenerator
   proposalGenerator = ProposalGenerator∙new 0
 
-  initialize' : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
-  initialize' now nfLiwsVsVvPe =
+  initialize-e : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
+  initialize-e now nfLiwsVsVvPe =
     Start.startViaConsensusProvider
       now nfLiwsVsVvPe
       (TxTypeDependentStuffForNetwork∙new
@@ -105,22 +105,25 @@ module InitHandler where
         (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
   abstract
-    initialize  : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
-    initialize  = initialize'
-    initialize≡ : initialize ≡ initialize'
-    initialize≡ = refl
+    initialize-abs  : Instant → GenKeyFile.NfLiwsVsVvPe
+                    → Either ErrLog (EpochManager × List Output)
+    initialize-abs  = initialize-e
+    initialize-abs≡ : initialize-abs ≡ initialize-e
+    initialize-abs≡ = refl
 
   mkNfLiwsVsVvPe : BootstrapInfo → ValidatorSigner → GenKeyFile.NfLiwsVsVvPe
   mkNfLiwsVsVvPe bsi vs = (bsi ^∙ bsiNumFaults , bsi ^∙ bsiLIWS , vs , bsi ^∙ bsiVV , bsi ^∙ bsiPE)
 
-  initEMWithOutput' : BootstrapInfo → ValidatorSigner → Either  ErrLog (EpochManager × List Output)
-  initEMWithOutput' bsi vs =
-    initialize now (mkNfLiwsVsVvPe bsi vs)
+  initEMWithOutput-e  : BootstrapInfo → ValidatorSigner
+                      → Either  ErrLog (EpochManager × List Output)
+  initEMWithOutput-e bsi vs =
+    initialize-abs now (mkNfLiwsVsVvPe bsi vs)
 
-  initEMWithOutput  : BootstrapInfo → ValidatorSigner → EitherD ErrLog (EpochManager × List Output)
-  initEMWithOutput  bsi vs =
+  initEMWithOutput-ed : BootstrapInfo → ValidatorSigner
+                      → EitherD ErrLog (EpochManager × List Output)
+  initEMWithOutput-ed  bsi vs =
     fromEither $
-    initialize now (mkNfLiwsVsVvPe bsi vs)
+    initialize-abs now (mkNfLiwsVsVvPe bsi vs)
 
   getEmRm : EpochManager → Either ErrLog RoundManager
   getEmRm em =
@@ -130,15 +133,22 @@ module InitHandler where
                    (RoundProcessorRecovery _) → Left fakeErr
                    (RoundProcessorNormal rm)  → Right rm
 
-  initRMWithOutput' : BootstrapInfo → ValidatorSigner → Either  ErrLog (RoundManager × List Output)
-  initRMWithOutput' bsi vs = do
-    (em , lo) ← initEMWithOutput' bsi vs
-    rm        ← getEmRm em
-    Right (rm , lo)
+  module initRMWithOutput-e (bsi : BootstrapInfo) (vs : ValidatorSigner) where
+    step₀ : Either ErrLog (RoundManager × List Output)
+    step₀ = do
+      (em , lo) ← initEMWithOutput-e bsi vs
+      rm        ← getEmRm em
+      Right (rm , lo)
 
-  initRMWithOutput  : BootstrapInfo → ValidatorSigner → EitherD ErrLog (RoundManager × List Output)
-  initRMWithOutput  bsi vs = do
-    (em , lo) ← initEMWithOutput bsi vs
+  abstract
+    initRMWithOutput-abs  = initRMWithOutput-e.step₀
+    initRMWithOutput-abs≡ : initRMWithOutput-abs ≡ initRMWithOutput-e.step₀
+    initRMWithOutput-abs≡ = refl
+
+  initRMWithOutput-ed : BootstrapInfo → ValidatorSigner
+                      → EitherD ErrLog (RoundManager × List Output)
+  initRMWithOutput-ed  bsi vs = do
+    (em , lo) ← initEMWithOutput-ed bsi vs
     rm        ← fromEither
               $ getEmRm em
     fromEither $ Right (rm , lo)
@@ -149,32 +159,31 @@ module InitHandler where
   -- and the EitherD variant, broken into explicit steps, etc. for proving.
   initEMWithOutput≡
     : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
-    → initEMWithOutput' bsi vs ≡ EitherD-run (initEMWithOutput bsi vs)
+    → initEMWithOutput-e bsi vs ≡ EitherD-run (initEMWithOutput-ed bsi vs)
   initEMWithOutput≡ {bsi} {vs}
-    with initialize now (mkNfLiwsVsVvPe bsi vs)
+    with initialize-abs now (mkNfLiwsVsVvPe bsi vs)
   ... | Left  _ = refl
   ... | Right _ = refl
 
   initRMWithOutput≡
     : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
-    → initRMWithOutput' bsi vs ≡ EitherD-run (initRMWithOutput bsi vs)
+    → initRMWithOutput-e.step₀ bsi vs ≡ EitherD-run (initRMWithOutput-ed bsi vs)
   initRMWithOutput≡ {bsi} {vs}
-    with initialize now (mkNfLiwsVsVvPe bsi vs)
+    with initialize-abs now (mkNfLiwsVsVvPe bsi vs)
   ... | Left  _ = refl
   ... | Right (em , _)
     with getEmRm em
   ... | Left  _ = refl
   ... | Right _ = refl
 
-  abstract
-   initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
-   initHandler pid bsi =
-    case ValidatorSigner.obmGetValidatorSigner pid (bsi ^∙ bsiVSS) of λ where
-      (Left _)   → nothing
-      (Right vs) →
-        case initRMWithOutput' bsi vs of λ where
-          (Left _)          → nothing
-          (Right (rm , lo)) → just (rm , outputsToActions {State = rm} lo)
+  initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
+  initHandler pid bsi =
+   case ValidatorSigner.obmGetValidatorSigner pid (bsi ^∙ bsiVSS) of λ where
+     (Left _)   → nothing
+     (Right vs) →
+       case initRMWithOutput-abs bsi vs of λ where
+         (Left _)          → nothing
+         (Right (rm , lo)) → just (rm , outputsToActions {State = rm} lo)
 
   InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
   InitAndHandlers =
