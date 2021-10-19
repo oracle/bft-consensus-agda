@@ -45,6 +45,26 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  open PerEpoch    𝓔
  open WithAbsVote 𝓔
  open LCR.WithEC  𝓔
+
+{- ImplObl-RC : Set (ℓ+1 ℓ-RoundManager)
+ ImplObl-RC =
+   ∀{pid s' outs pk}{pre : SystemState}
+   → ReachableSystemState pre
+   -- For any honest call to /handle/ or /init/,
+   → let s = peerStates pre pid in
+     (sps : StepPeerState pid (msgPool pre) (initialised pre) s (s' , outs))
+   → ∀{v m} → Meta-Honest-PK pk
+   -- For signed every vote v of every outputted message
+   → v ⊂Msg m → send m ∈ outs
+   → (wvs : WithVerSig pk v)
+   → (¬ ∈BootstrapInfo bootstrapInfo (ver-signature wvs))
+   → v ^∙ vEpoch ≡ epoch 𝓔
+   → ∃[ mbr ] ( getPubKey 𝓔 mbr ≡ pk
+              × Σ (VoteExtends (α-ValidVote 𝓔 v mbr))
+                  λ vExt → let b = VoteExtends.veBlock vExt in
+                            Σ (RecordChain (Abs.B b)) {! All-InSys !} )
+-}
+
  -- As with VotesOnce, we will have two implementation obligations, one for when v is sent by the
  -- step and v' has been sent before, and one for when both are sent by the step.
 
@@ -178,8 +198,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                               × Σ (RecordChain (Abs.B b)) (All-InSys InSys))
 
    open _α-Sent_
-   postulate
-    Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
+   -- postulate
+   Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
                           → Meta-Honest-PK pk
                           → ReachableSystemState pre
                           → let post = StepPeer-post {pid}{st'}{outs}{pre} sp in
@@ -188,7 +208,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                             → Σ (Cand-3-chain-vote (PerState.intSystemState pre) vabs)
                                  λ c2' → Cand-3-chain-head-round (PerState.intSystemState post) c2
                                        ≡ Cand-3-chain-head-round (PerState.intSystemState pre ) c2'
-{-
    Cand-3-chain-vote-b4 {pk} {vabs} {pre} {pid} {st'} {outs} {sp} pkH r
                         (mkCand3chainvote (mkVE veBlock refl refl) c3Blk∈sys₁ qc₁ qc←b₁ rc₁ rc∈sys₁ n₁ is-2chain₁) v4r
       with voteForRound-RC {vabs = vabs} pkH r v4r
@@ -197,14 +216,22 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    ...| no   neq = ⊥-elim (meta-no-collision-in-sys hcf)
         where
 
+          lemma : ∀ {ab1 ab2 : Abs.Block}
+                  → InSys (Abs.B ab1)
+                  → InSys (Abs.B ab2)
+                  → ab1 ≢ ab2
+                  → Abs.bId ab1 ≡ Abs.bId ab2
+                  → HashCollisionFound
+            -- msgmsgHC {!   !} {!!} {!!} {!neq!}
           b∈sys : ∀ {b} → InSys (Abs.B b) → _
           b∈sys c3b∈sys
              with c3b∈sys
           ... | ws x x₁ (b∈NM x₂ x₃ bidcorr) = {!bidcorr!}
 
-          hcf = msgmsgHC {!   !} {!!} {!!} {!!}
+          hcf = lemma {!!} {!!} {!!} {!!}
    ...| yes refl = {!   RecordChain-irrelevant rcb   !}
 
+{-
 =
                         (mkCand3chainvote votesForB₁ {! c3Blk∈sys₁ !} qc₁ qc←b₁ rc₁ {! rc∈sys₁!} n₁ is-2chain₁) , refl
 -}

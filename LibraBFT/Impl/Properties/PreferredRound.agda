@@ -47,8 +47,21 @@ open        Structural impl-sps-avp
 
 module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
 
-postulate -- TODO-2: prove
+postulate
   preferredRound₁ : PR.ImplObligation₁ Handle.InitHandler.InitAndHandlers 𝓔
+{-
+preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-msg {sndr , V vm} vm'∈pool ini) {v = v} {m = m} {v' = v'} {m' = m'}
+                hpk v'⊂m' m'∈acts sig' ¬bootstrap' pcs4' v⊂m m∈pool sig ¬bootstrap eid≡ rnd< v≈vabs v'≈vabs'
+                c3
+   with v⊂m
+...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =
+       {!!} -- ⊥-elim ∘′ ¬msb $ qcVoteSigsSentB4-handle pid preach sps m∈acts qc∈m sig vs∈qc v≈rbld ¬bootstrap
+...| vote∈vm = {!!} -- ⊥-elim (sendVote∉actions{outs = hvOut}{st = hvPre} (sym noVotes) m'∈acts)
+  where
+  hvPre = peerStates pre pid
+  hvOut = LBFT-outs (handleVote 0 vm) hvPre
+  open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
+-}
 
 -- This proof is essentially the same as the votesOnce₂: no handler sends two different Votes
 -- TODO-2: refactor for DRY?
