@@ -162,6 +162,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
 
    postulate
     Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
+                          → Meta-Honest-PK pk
                           → ReachableSystemState pre
                           → let post = StepPeer-post {pid}{st'}{outs}{pre} sp in
                             (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
@@ -179,7 +180,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
       → round₁ < round₂
       → α-ValidVote 𝓔 (msgVote v₁) mbr ≡ v₁abs
       → α-ValidVote 𝓔 (msgVote v₂) mbr ≡ v₂abs
-      → (c3 : Cand-3-chain-vote (PerState.intSystemState st) v₁abs)  -- Need InSys?
+      → (c3 : Cand-3-chain-vote (PerState.intSystemState st) v₁abs)
       → Σ (VoteParentData (PerState.intSystemState st) v₂abs)
             (λ vp → Cand-3-chain-head-round (PerState.intSystemState st) c3 ≤ Abs.round (vpParent vp))
    PreferredRoundProof {pk}{round₁}{round₂}{bId₁}{bId₂}{v₁abs}{v₂abs}{mbr}{st = post}
@@ -211,7 +212,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
               vpdPres : Σ (VoteParentData (PerState.intSystemState post) v₂abs)
                           (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c3 ≤ Abs.round (vpParent vp))
               vpdPres
-                 with Cand-3-chain-vote-b4 {sp = step-cheat c} r c3 v₁sb4
+                 with Cand-3-chain-vote-b4 {sp = step-cheat c} pkH r c3 v₁sb4
               ...| c2' , c2'rnd≡
                  with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c2'
               ...| vpd , rnd≤
@@ -230,7 +231,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
 
             vpdPres : _
             vpdPres
-               with Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+               with Cand-3-chain-vote-b4 {sp = step-honest stP} pkH r c3 v₁sb4
             ...| c2' , c2'rnd≡
                with PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs' v₂abs' c2'
             ...| vpd , rnd≤
@@ -238,7 +239,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
             ...| res , pars≡ rewrite sym pars≡ =  res , ≤-trans (≤-reflexive c2'rnd≡) rnd≤
    ...| inj₁ (m₁∈outs , v₁pk , newV₁) | inj₁ (m₂∈outs , v₂pk , newV₂) =
               Impl-PR2 r stP pkH (msg⊆ v₁) m₁∈outs (msgSigned v₁) ¬init₁ newV₁ v₁pk (msg⊆ v₂)
-                                                m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
+                                           m₂∈outs (msgSigned v₂) ¬init₂ newV₂ v₂pk refl r₁<r₂ refl refl c3
 
    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4 = help
         where
@@ -254,7 +255,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
           help = either (λ r₂<r₁ → ⊥-elim (<⇒≯ r₁<r₂ (<-transʳ (≡⇒≤ (sym round≡)) r₂<r₁)))
                         (λ v₁sb4 → let v₁abs = α-ValidVote-trans (msgVote v₁) refl v₁sb4
                                        v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
-                                       c2'p  = Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+                                       c2'p  = Cand-3-chain-vote-b4 {sp = step-honest stP} pkH r c3 v₁sb4
                                        prp   = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs (proj₁ c2'p)
                                        vpd'   = stepPreservesVoteParentData theStep (proj₁ prp)
                                    in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
@@ -266,7 +267,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
           ¬bootstrapV₁ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH v₁ ¬init₁ (msgSigned v₁sb4) round≡
           v₁abs' = α-ValidVote-trans (msgVote v₁) refl v₁sb4
 
-          c2'p    = Cand-3-chain-vote-b4 {sp = step-honest stP} r c3 v₁sb4
+          c2'p   = Cand-3-chain-vote-b4 {sp = step-honest stP} pkH r c3 v₁sb4
 
           implir1 : _
           implir1 = Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
