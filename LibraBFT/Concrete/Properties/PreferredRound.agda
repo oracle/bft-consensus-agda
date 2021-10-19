@@ -145,7 +145,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    (Impl-PR1 : ImplObligation₁)
    (Impl-PR2 : ImplObligation₂)
     where
-  module _ {st : SystemState}(r : ReachableSystemState st) where
+  module _ {st : SystemState}(r : ReachableSystemState st) (𝓔-∈sys : EpochConfig∈Sys st 𝓔) where
    open        PerReachableState r
    open        PerState st
    open        Structural sps-corr
