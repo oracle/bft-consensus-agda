@@ -111,6 +111,7 @@ module LibraBFT.Concrete.Records where
      b∈NM  : ∀ {cb pm nm}
            → nm ≡ P pm
            → pm ^∙ pmProposal ≡ cb
+           → BlockId-correct cb     -- We should not consider just any message to be "InSys": an honest peer will reject a Block whose hash is incorrect.
            → Abs.B (α-Block cb) α-∈NM nm
 
    -- Our system model contains a message pool, which is a list of NodeId-NetworkMsg pairs.  The
