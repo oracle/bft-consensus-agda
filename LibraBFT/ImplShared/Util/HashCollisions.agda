@@ -176,7 +176,7 @@ module LibraBFT.ImplShared.Util.HashCollisions
     -- As can be seen, connecting a potential hash collision to a specific ReachableSystemState is a
     -- fair amount of work, which complicates proofs.  As explained above, we do not think it is
     -- worthwhile to continue this effort, just to show that we can.  One issue we would want to
-    -- address if were taking this work further would be to *ensure* that the ReachableSystemState
+    -- address if taking this work further would be to *ensure* that the ReachableSystemState
     -- for which a potential collision is considered is the same one about which we're proving the
     -- given property.  This already is the case in our proofs, but our conditions don't *ensure*
     -- that it is because, in principle, when calling nohc to use meta-no-collision-in-sys to

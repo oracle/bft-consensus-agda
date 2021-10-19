@@ -19,13 +19,13 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
- record voteExtends (v : Vote) : Set where
+ record VoteExtends (v : Vote) : Set where
     constructor mkVE
     field
       veBlock   : Block
       veId      : vBlockUID v ≡ bId    veBlock
       veRounds≡ : vRound    v ≡ bRound veBlock
- open voteExtends
+ open VoteExtends
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
@@ -57,7 +57,7 @@ module LibraBFT.Concrete.Obligations.PreferredRound
   record Cand-3-chain-vote (v : Vote) : Set ℓ where
      constructor mkCand3chainvote
      field
-       votesForB : voteExtends v
+       votesForB : VoteExtends v
        c3Blk∈sys : InSys (B (veBlock votesForB))
        qc        : QC
        qc←b      : Q qc ← B (veBlock votesForB)
@@ -102,7 +102,7 @@ module LibraBFT.Concrete.Obligations.PreferredRound
 
   record VoteParentData (v : Vote) : Set ℓ where
     field
-      vpExt        : voteExtends v
+      vpExt        : VoteExtends v
       vpBlock∈sys  : InSys (B (veBlock vpExt))
       vpParent     : Record
       vpParent∈sys : InSys vpParent
