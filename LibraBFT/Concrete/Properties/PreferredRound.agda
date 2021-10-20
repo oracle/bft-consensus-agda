@@ -213,22 +213,58 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
       with voteForRound-RC {vabs = vabs} pkH r v4r
    ...| b , refl , rcb , ais
       with veBlock Abs.≟Block b
-   ...| no   neq = ⊥-elim (meta-no-collision-in-sys hcf)
+   ...| no   neq = ⊥-elim (meta-no-collision-in-sys postR hcf)
         where
+          post    = StepPeer-post sp
+          theStep = step-peer sp
+          postR   = step-s r theStep
 
-          lemma : ∀ {ab1 ab2 : Abs.Block}
-                  → InSys (Abs.B ab1)
-                  → InSys (Abs.B ab2)
-                  → ab1 ≢ ab2
-                  → Abs.bId ab1 ≡ Abs.bId ab2
-                  → HashCollisionFound
-            -- msgmsgHC {!   !} {!!} {!!} {!neq!}
-          b∈sys : ∀ {b} → InSys (Abs.B b) → _
-          b∈sys c3b∈sys
-             with c3b∈sys
-          ... | ws x x₁ (b∈NM x₂ x₃ bidcorr) = {!bidcorr!}
+          open _BlockDataInjectivityProps_
 
-          hcf = lemma {!!} {!!} {!!} {!!}
+          help : ∀ {ab1 ab2 : Abs.Block}
+                 → InSys (intSystemState post) (Abs.B ab1)
+                 → InSys (intSystemState post) (Abs.B ab2)
+                 → ab1 ≢ ab2
+                 → Abs.bId ab1 ≡ Abs.bId ab2
+                 → _
+          help (ws ep≡1 m1∈pool (b∈NM {cb1} {pm1} refl refl bidcorr1))
+               (ws ep≡2 m2∈pool (b∈NM {cb2} {pm2} refl refl bidcorr2)) neq absIds≡ =
+               msgmsgHC {r = postR} (inP m1∈pool (inPM (inB {b = cb1}))) (inP m2∈pool (inPM (inB {b = cb2}))) hashes≡ bsls≢
+               where
+                 -- TODO-2: Some of the properties should be factored out for reuse, maybe into Common?
+                 bIds≡ : _
+                 bIds≡ = trans (trans (α-Block-bid≡ cb1) absIds≡) (sym (α-Block-bid≡ cb2))
+
+                 hashes≡ : _
+                 hashes≡ = trans (trans bidcorr1 bIds≡) (sym bidcorr2)
+
+                 rnds≡ : ∀ {cb1 cb2} → (cb1 ^∙ bBlockData) BlockDataInjectivityProps (cb2 ^∙ bBlockData)
+                         → Abs.bRound (α-Block cb1) ≡ Abs.bRound (α-Block cb2)
+                 rnds≡ {cb1} {cb2} injprops = trans (sym (α-Block-rnd≡ cb1)) (trans (bdInjRound injprops) (α-Block-rnd≡ cb2))
+
+                 propBlock : ∀ {cb pm} → pm ^∙ pmProposal ≡ cb
+                             → cb ^∙ bId ≡ pm ^∙ pmProposal ∙ bId
+                 propBlock refl = refl
+
+                 prevQCs≡ : ∀ {cb1 cb2}
+                            → (cb1 ^∙ bBlockData) BlockDataInjectivityProps (cb2 ^∙ bBlockData)
+                            → Abs.bPrevQC (α-Block cb1) ≡ Abs.bPrevQC (α-Block cb2)
+                 prevQCs≡ {cb1} {cb2} injprops
+                    with cb1 ^∙ bBlockData ∙ bdBlockType | inspect
+                         (cb1 ^∙_) (bBlockData ∙ bdBlockType)
+                 ...| Genesis      | [ R ] rewrite R                    = sym (α-Block-prevqc≡-Gen  {cb2} (bdInjBTGen injprops R))
+                 ...| Proposal _ _ | [ R ] rewrite R | bdInjVD injprops = sym (α-Block-prevqc≡-Prop {cb2} (trans (sym $ bdInjBTProp injprops R) R))
+                 ...| NilBlock     | [ R ] rewrite R | bdInjBTNil injprops R | bdInjVD injprops = refl
+
+                 bsls≢ : _
+                 bsls≢ _
+                    with hashBD-inj hashes≡
+                 ...| injprops = neq (Abs.Block-η
+                                        (rnds≡ {cb1} {cb2} injprops)
+                                        absIds≡
+                                        (prevQCs≡ {cb1} {cb2} injprops))
+
+          hcf = help c3Blk∈sys₁ (InSys.stable iiah theStep (ais here)) neq refl
    ...| yes refl = {!   RecordChain-irrelevant rcb   !}
 
 {-
