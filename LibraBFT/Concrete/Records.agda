@@ -69,6 +69,31 @@ module LibraBFT.Concrete.Records where
         ; bRound  = b ^∙ bBlockData ∙ bdRound
         }
 
+   α-Block-bid≡ : (b : Block) → b ^∙ bId ≡ Abs.bId (α-Block b)
+   α-Block-bid≡ b
+      with _bdBlockType (_bBlockData b)
+   ... | Proposal _ _ = refl
+   ... | NilBlock     = refl
+   ... | Genesis      = refl
+
+   α-Block-rnd≡ : (b : Block) → b ^∙ bBlockData ∙ bdRound ≡ Abs.bRound (α-Block b)
+   α-Block-rnd≡ b
+      with _bdBlockType (_bBlockData b)
+   ... | Proposal _ _ = refl
+   ... | NilBlock     = refl
+   ... | Genesis      = refl
+
+   α-Block-prevqc≡-Prop : ∀ {b tx auth} → b ^∙ bBlockData ∙ bdBlockType ≡ Proposal tx auth
+                           → Abs.bPrevQC (α-Block b) ≡ just (b ^∙ bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙ vdParent ∙ biId)
+   α-Block-prevqc≡-Prop {b} refl = refl
+
+   α-Block-prevqc≡-Gen  : ∀ {b} → b ^∙ bBlockData ∙ bdBlockType ≡ Genesis → Abs.bPrevQC (α-Block b) ≡ nothing
+   α-Block-prevqc≡-Gen refl = refl
+
+   α-Block-prevqc≡-Nil  : ∀ {b} → b ^∙ bBlockData ∙ bdBlockType ≡ NilBlock
+                           → Abs.bPrevQC (α-Block b) ≡ just (b ^∙ bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙ vdParent ∙ biId)
+   α-Block-prevqc≡-Nil {b} refl = refl
+
    α-VoteData-Block : VoteData → Abs.Block
    α-VoteData-Block vd = record
         { bId     = vd ^∙ vdProposed ∙ biId
