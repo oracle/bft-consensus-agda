@@ -30,13 +30,12 @@ open import LibraBFT.Prelude
 open import Optics.All
 
 
-module LibraBFT.Impl.Handle.Properties
-  --(bsi : BootstrapInfo)
-  where
+module LibraBFT.Impl.Handle.Properties where
 
 open        EpochConfig
 import      LibraBFT.Impl.Handle                as Handle
-import      LibraBFT.Impl.Handle.InitProperties as IP
+open import LibraBFT.Impl.Handle.InitProperties
+open        initHandlerSpec
 open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
 open        PeerCanSignForPK
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
@@ -98,15 +97,15 @@ invariantsCorrect pid pre ini (step-s {pre = pre'} preach (step-peer step@(step-
 --------------------------------------------------
 -- INITIALIZATION STEP
 -- pre' is pre state of this init step
-invariantsCorrect pid _   _   (step-s {pre = pre'} preach (step-peer (step-honest {outs = outs} (step-init {rm} handler-pid-bsi-≡-just-rm×acts _))))
+invariantsCorrect pid _   _   (step-s {pre = pre'} preach (step-peer (step-honest {outs = outs} (step-init {rm} rm×acts _))))
    | yes refl -- YES is from the 'with' above
               -- because this is the SAME clause except pattern matching deeper to get 'step-init'.
   -- Goal: RoundManagerInv ... where peerStates pre' pid "contains" the 'rm' from init
   rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre'}
   -- Goal: RoundManagerInv rm
-  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi-≡-just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-  = IP.initHandlerSpec.ContractOk.rmInv IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+  = initHandlerSpec.ContractOk.rmInv init-contract
 
 --------------------------------------------------
 -- PROPOSAL MSG
@@ -211,19 +210,19 @@ qcVoteSigsSentB4 pid st ini (step-s rss (step-peer {pid'} {pre = pre} (step-hone
   with sps
 
 -- INIT CASE
-...| step-init {rm} handler-pid-bsi≡just-rm×acts _
+...| step-init {rm} rm×acts _
   = ret
    where
     ret : QCProps.SigsForVotes∈Rm-SentB4 (msgPool st) (peerStates st pid)
     ret
-      with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-    ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+      with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+    ...| init-contract
       rewrite override-target-≡ {a = pid} {b = rm} {f = peerStates pre}
       = λ qc∈rm sig vs∈qc rbld≈ ¬bootstrap
         → ⊥-elim $
           ¬bootstrap
-          (IP.initHandlerSpec.ContractOk.sigs∈bs
-            IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm)
+          (initHandlerSpec.ContractOk.sigs∈bs
+            init-contract vs∈qc qc∈rm)
 
 -- MSG CASE
 ...| step-msg {sndr , nm} m∈pool init
@@ -246,16 +245,16 @@ qcVoteSigsSentB4-sps
   → ¬ ∈BootstrapInfo-impl fakeBootstrapInfo sig
   → MsgWithSig∈ pk sig (msgPool pre)
 
-qcVoteSigsSentB4-sps pid pre rss (step-init {rm} handler-pid-bsi≡just-rm×acts _) qc∈s sig vs∈qcvs ≈v ¬bootstrap
-  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+qcVoteSigsSentB4-sps pid pre rss (step-init {rm} rm×acts _) qc∈s sig vs∈qcvs ≈v ¬bootstrap
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
   rewrite sym $ ++-identityʳ (msgPool pre)
   = QCProps.++-SigsForVote∈Rm-SentB4 {rm = rm} (msgPool pre)
       (λ qc∈rm sig vs∈qc rbld≈ ¬bootstrap
        → ⊥-elim $
            ¬bootstrap
-           (IP.initHandlerSpec.ContractOk.sigs∈bs
-             IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts vs∈qc qc∈rm))
+           (initHandlerSpec.ContractOk.sigs∈bs
+             init-contract vs∈qc qc∈rm))
       qc∈s sig vs∈qcvs ≈v ¬bootstrap
 
 qcVoteSigsSentB4-sps pid pre rss (step-msg {sndr , m} m∈pool ini) {qc} {v} {pk} qc∈s sig {vs} vs∈qcvs ≈v ¬bootstrap
@@ -383,14 +382,14 @@ qcVoteSigsSentB4-handle
   → MsgWithSig∈ pk sig (msgPool pre)
 
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
-                        (step-init {rm} handler-pid-bsi≡just-rm×acts _)
+                        (step-init {rm} rm×acts _)
                         send∈acts
                         {qc}
                         qc∈m sig vs∈qc v≈rbld ¬bootstrap
-  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-  with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
-... | _ , refl , noSigs = ⊥-elim (noSigs vs∈qc qc∈m)
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+  with initHandlerSpec.ContractOk.isInitPM init-contract send∈acts
+...| _ , refl , noSigs = ⊥-elim (noSigs vs∈qc qc∈m)
 
 qcVoteSigsSentB4-handle pid {pre} {m} {s} {acts} preach
                         sps@(step-msg {_ , nm} m∈pool ini)
