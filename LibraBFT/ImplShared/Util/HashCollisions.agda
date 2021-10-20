@@ -97,12 +97,15 @@ module LibraBFT.ImplShared.Util.HashCollisions
 
     data _∈Block_ : BSL → Block → Set where
       inB : ∀ {b} → blockData-bsl (b ^∙ bBlockData) ∈Block b
+    open _∈Block_
 
     data _∈ProposalMsg_ (bsl : BSL) (pm : ProposalMsg) : Set where
       inPM : bsl ∈Block (pm ^∙ pmProposal) → bsl ∈ProposalMsg pm
+    open _∈ProposalMsg_
 
     data _∈nm (bsl : BSL) : Set where
       inP : ∀ {sndr pm} → (sndr , P pm) ∈ msgPool st → bsl ∈ProposalMsg pm → bsl ∈nm
+    open _∈nm
 
     -- We could refine this further (∈BlockTree, ∈btIdToBlock), but I don't think we need to.
     data _∈BS_ (bsl : BSL) (bs : BlockStore) : Set where

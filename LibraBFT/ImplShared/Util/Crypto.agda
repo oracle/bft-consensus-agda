@@ -66,6 +66,7 @@ module LibraBFT.ImplShared.Util.Crypto where
       bdInjBTGen  : bd1 ^∙ bdBlockType ≡ Genesis  → bd2 ^∙ bdBlockType ≡ Genesis
       bdInjBTProp : ∀ {tx}{auth} → bd1 ^∙ bdBlockType ≡ Proposal tx auth
                                  → bd1 ^∙ bdBlockType ≡ bd2 ^∙ bdBlockType
+  open _BlockDataInjectivityProps_
 
   sameBlockData⇒≈ : ∀ {b1 b2}
                     → b1 ^∙ bId ≡ b2 ^∙ bId
@@ -77,7 +78,6 @@ module LibraBFT.ImplShared.Util.Crypto where
   ...| Genesis          rewrite gen  refl = refl
   ...| Proposal tx auth rewrite prop refl = refl
 
-
   BSL : Set
   BSL = List ByteString
 
@@ -85,9 +85,6 @@ module LibraBFT.ImplShared.Util.Crypto where
   _≟-BSL_ = List-≡-dec _≟ByteString_
 
   hashBSL = sha256 ∘ bs-concat
-
-  postulate
-    hashBSL-inj : Injective-≡ hashBSL
 
   postulate
     blockData-bsl     : BlockData → List ByteString

@@ -55,7 +55,7 @@ module LibraBFT.Concrete.Records where
    α-Block b with _bdBlockType (_bBlockData b)
    ...| NilBlock = record
         { bId     = _bId b
-        ; bPrevQC = just (b ^∙ (bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙  vdParent ∙ biId))
+        ; bPrevQC = just (b ^∙ bBlockData ∙ bdQuorumCert ∙ qcVoteData ∙ vdParent ∙ biId)
         ; bRound  = b ^∙ bBlockData ∙ bdRound
         }
    ...| Genesis = record

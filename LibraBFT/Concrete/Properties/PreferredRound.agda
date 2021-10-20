@@ -45,6 +45,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  open PerEpoch    𝓔
  open WithAbsVote 𝓔
  open LCR.WithEC  𝓔
+ open PerState
+ open PerReachableState
 
 {- ImplObl-RC : Set (ℓ+1 ℓ-RoundManager)
  ImplObl-RC =
@@ -92,11 +94,11 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    -- and vabs* are the abstract Votes for v and v'
    → α-ValidVote 𝓔 v  mbr ≡ vabs
    → α-ValidVote 𝓔 v' mbr ≡ v'abs
-   → (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
+   → (c2 : Cand-3-chain-vote (intSystemState post) vabs)
    -- then the round of the block that v' votes for is at least the round of
    -- the grandparent of the block that v votes for (i.e., the preferred round rule)
-   → Σ (VoteParentData (PerState.intSystemState post) v'abs)
-           (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c2 ≤ Abs.round (vpParent vp))
+   → Σ (VoteParentData (intSystemState post) v'abs)
+           (λ vp → Cand-3-chain-head-round (intSystemState post) c2 ≤ Abs.round (vpParent vp))
      ⊎ (VoteForRound∈ pk (v' ^∙ vRound) (v' ^∙ vEpoch) (v' ^∙ vProposedId) (msgPool pre))
 
  -- Similarly in case the same step sends both v and v'
@@ -125,17 +127,17 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → v ^∙ vRound < v' ^∙ vRound
    → α-ValidVote 𝓔 v  mbr ≡ vabs
    → α-ValidVote 𝓔 v' mbr ≡ v'abs
-   → (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
-   → Σ (VoteParentData (PerState.intSystemState post) v'abs)
-           (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c2 ≤ Abs.round (vpParent vp))
+   → (c2 : Cand-3-chain-vote (intSystemState post) vabs)
+   → Σ (VoteParentData (intSystemState post) v'abs)
+           (λ vp → Cand-3-chain-head-round (intSystemState post) c2 ≤ Abs.round (vpParent vp))
 
  module _ where
    open InSys iiah
 
    stepPreservesVoteParentData : ∀ {st0 st1 v}
      → Step st0 st1
-     → (vpd : VoteParentData (PerState.intSystemState st0) v)
-     → Σ (VoteParentData (PerState.intSystemState st1) v)
+     → (vpd : VoteParentData (intSystemState st0) v)
+     → Σ (VoteParentData (intSystemState st1) v)
          λ vpd' → vpParent vpd' ≡ vpParent vpd
    stepPreservesVoteParentData {st0} {st1} theStep vpd
       with vpd
@@ -154,8 +156,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                      ; vpMaybeBlock = transp-vpmb vpMaybeBlock
                      }) , refl
      where transp-vpmb : ∀ {r}
-                         → VoteParentData-BlockExt (PerState.intSystemState st0) r
-                         → VoteParentData-BlockExt (PerState.intSystemState st1) r
+                         → VoteParentData-BlockExt (intSystemState st0) r
+                         → VoteParentData-BlockExt (intSystemState st1) r
            transp-vpmb vpParent≡I = vpParent≡I
            transp-vpmb (vpParent≡Q x x₁) = vpParent≡Q x (stable theStep x₁)
 
@@ -169,11 +171,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    (Impl-PR2 : ImplObligation₂)
     where
   module _ {st : SystemState}(r : ReachableSystemState st) (𝓔-∈sys : EpochConfig∈Sys st 𝓔) where
-   open        PerReachableState r
-   open        PerState st
    open        Structural sps-corr
    open        ConcreteCommonProperties st r sps-corr Impl-bsvr Impl-nvr≢0
-   open        IntermediateSystemState intSystemState
+   open        IntermediateSystemState
    open        All-InSys-props
 
    α-ValidVote-trans : ∀ {pk mbr vabs pool} (v : Vote)
@@ -195,7 +195,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                      → ReachableSystemState st
                      → VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool st)
                      → ∃[ b ] ( Abs.bId b ≡ abs-vBlockUID vabs
-                              × Σ (RecordChain (Abs.B b)) (All-InSys InSys))
+                              × Σ (RecordChain (Abs.B b)) (All-InSys (InSys (intSystemState st))))
 
    open _α-Sent_
    -- postulate
@@ -203,11 +203,11 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                           → Meta-Honest-PK pk
                           → ReachableSystemState pre
                           → let post = StepPeer-post {pid}{st'}{outs}{pre} sp in
-                            (c2 : Cand-3-chain-vote (PerState.intSystemState post) vabs)
+                            (c2 : Cand-3-chain-vote (intSystemState post) vabs)
                             → VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool pre)
-                            → Σ (Cand-3-chain-vote (PerState.intSystemState pre) vabs)
-                                 λ c2' → Cand-3-chain-head-round (PerState.intSystemState post) c2
-                                       ≡ Cand-3-chain-head-round (PerState.intSystemState pre ) c2'
+                            → Σ (Cand-3-chain-vote (intSystemState pre) vabs)
+                                 λ c2' → Cand-3-chain-head-round (intSystemState post) c2
+                                       ≡ Cand-3-chain-head-round (intSystemState pre ) c2'
    Cand-3-chain-vote-b4 {pk} {vabs} {pre} {pid} {st'} {outs} {sp} pkH r
                         (mkCand3chainvote (mkVE veBlock refl refl) c3Blk∈sys₁ qc₁ qc←b₁ rc₁ rc∈sys₁ n₁ is-2chain₁) v4r
       with voteForRound-RC {vabs = vabs} pkH r v4r
@@ -253,9 +253,9 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
       → round₁ < round₂
       → α-ValidVote 𝓔 (msgVote v₁) mbr ≡ v₁abs
       → α-ValidVote 𝓔 (msgVote v₂) mbr ≡ v₂abs
-      → (c3 : Cand-3-chain-vote (PerState.intSystemState st) v₁abs)
-      → Σ (VoteParentData (PerState.intSystemState st) v₂abs)
-            (λ vp → Cand-3-chain-head-round (PerState.intSystemState st) c3 ≤ Abs.round (vpParent vp))
+      → (c3 : Cand-3-chain-vote (intSystemState st) v₁abs)
+      → Σ (VoteParentData (intSystemState st) v₂abs)
+            (λ vp → Cand-3-chain-head-round (intSystemState st) c3 ≤ Abs.round (vpParent vp))
    PreferredRoundProof {pk}{round₁}{round₂}{bId₁}{bId₂}{v₁abs}{v₂abs}{mbr}{st = post}
                        step@(step-s {pre = pre} r theStep) pkH v₁ v₂ r₁<r₂ refl refl c3
       with msgRound≡ v₁ | msgEpoch≡ v₁ | msgBId≡ v₁
@@ -266,7 +266,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                                       r₂≡0 = Impl-bsvr (msgSigned v₂) init₂
                                   in ⊥-elim (<⇒≢ r₁<r₂ (trans r₁≡0 (sym r₂≡0)))
    ...| yes init₁  | no  ¬init₂ = let 0≡rv = sym (Impl-bsvr (msgSigned v₁) init₁)
-                                      0<rv = v-cand-3-chain⇒0<roundv (PerState.intSystemState post) c3
+                                      0<rv = v-cand-3-chain⇒0<roundv (intSystemState post) c3
                                   in ⊥-elim (<⇒≢ 0<rv 0≡rv)
    ...| no  ¬init₁ | yes init₂  = let 0≡r₂ = sym (Impl-bsvr (msgSigned v₂) init₂)
                                       r₁   = msgVote v₁ ^∙ vRound
@@ -282,8 +282,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
               v₁abs' = α-ValidVote-trans {pk} {mbr} {pool = msgPool pre} (msgVote v₁) refl v₁sb4
               v₂abs' = α-ValidVote-trans {pk} {mbr} {pool = msgPool pre} (msgVote v₂) refl v₂sb4
 
-              vpdPres : Σ (VoteParentData (PerState.intSystemState post) v₂abs)
-                          (λ vp → Cand-3-chain-head-round (PerState.intSystemState post) c3 ≤ Abs.round (vpParent vp))
+              vpdPres : Σ (VoteParentData (intSystemState post) v₂abs)
+                          (λ vp → Cand-3-chain-head-round (intSystemState post) c3 ≤ Abs.round (vpParent vp))
               vpdPres
                  with Cand-3-chain-vote-b4 {sp = step-cheat c} pkH r c3 v₁sb4
               ...| c2' , c2'rnd≡
@@ -355,7 +355,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                                    in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
                         implir1
 
-   prr : Type intSystemState
+   prr : Type (intSystemState st)
    prr honα refl sv refl sv' c2 round<
      with vmsg≈v (vmFor sv) | vmsg≈v (vmFor sv')
    ...| refl | refl
