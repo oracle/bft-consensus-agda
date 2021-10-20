@@ -40,11 +40,14 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
                                Handle.InitHandler.InitAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
-import      LibraBFT.Impl.Handle.InitProperties as IP
+open import LibraBFT.Impl.Handle.InitProperties
+open        initHandlerSpec
 
 -- This module proves the two "VotesOnce" proof obligations for our handler.
 
 module LibraBFT.Impl.Properties.VotesOnce (𝓔 : EpochConfig) where
+
+------------------------------------------------------------------------------
 
 newVote⇒lv≡
   : ∀ {pre : SystemState}{pid s' acts v m pk}
@@ -57,10 +60,11 @@ newVote⇒lv≡
   → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
   → ¬ MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
   → LastVoteIs s' v
-newVote⇒lv≡ {pre}{pid}{s'}{v = v}{m}{pk} preach (step-init handler-pid-bsi≡just-rm×acts uni) v⊂m send∈acts sig hpk ¬bootstrap ¬mws∈pool
-  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-   with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts send∈acts
+
+newVote⇒lv≡ {pid = pid} preach (step-init rm×acts uni) v⊂m send∈acts sig hpk ¬bootstrap ¬mws∈pool
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+  with initHandlerSpec.ContractOk.isInitPM init-contract send∈acts
 ...| (_ , refl , noSigs)
   with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈pm = ⊥-elim (noSigs vs∈qc qc∈pm)
@@ -113,15 +117,19 @@ newVote⇒lv≡{pre}{pid}{s' = s'}{v = v} preach (step-msg{sndr , V vm} m∈pool
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
+------------------------------------------------------------------------------
+
 oldVoteRound≤lvr
   : ∀ {pid pk v}{pre : SystemState}
-    → (r : ReachableSystemState pre)
-    → Meta-Honest-PK pk → (sig : WithVerSig pk v)
-    → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
-    → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
-    → PeerCanSignForPK pre v pid pk
-    → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
-    → v ^∙ vRound ≤ Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm)
+  → (r : ReachableSystemState pre)
+  → Meta-Honest-PK pk
+  → (sig : WithVerSig pk v)
+  → ¬ (∈BootstrapInfo-impl fakeBootstrapInfo (ver-signature sig))
+  → MsgWithSig∈ pk (ver-signature sig) (msgPool pre)
+  → PeerCanSignForPK pre v pid pk
+  → (peerStates pre pid) ^∙ rmEpoch ≡ (v ^∙ vEpoch)
+  → v ^∙ vRound ≤ Meta.getLastVoteRound ((peerStates pre pid) ^∙ pssSafetyData-rm)
+
 oldVoteRound≤lvr{pid} (step-s preach step@(step-peer{pid'} sp@(step-cheat  cmc))) hpk sig ¬bootstrap mws∈pool pcsfpk epoch≡
   -- `pid`'s state is untouched by this step
   rewrite cheatStepDNMPeerStates₁{pid = pid'}{pid' = pid} sp unit
@@ -132,6 +140,7 @@ oldVoteRound≤lvr{pid} (step-s preach step@(step-peer{pid'} sp@(step-cheat  cmc
   mws∈prePool = ¬cheatForgeNew sp refl unit hpk mws∈pool (¬subst ¬bootstrap (msgSameSig mws∈pool))
   -- `pid` can sign for the message in the previous system state
   pcsfpkPre   = PeerCanSignForPKProps.msb4 preach step pcsfpk hpk sig mws∈prePool
+
 oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach step@(step-peer{pid'} sp@(step-honest{st = ppost}{outs} sps))) hpk sig ¬bootstrap mws∈pool pcsfpk epoch≡
    with msgSameSig mws∈pool
 ...| refl
@@ -195,6 +204,8 @@ oldVoteRound≤lvr{pid}{v = v} step*@(step-s{pre = pre}{post = post@._} preach s
     ...| nothing = absurd (just _ ≡ nothing) case lastVoteIsJust of λ ()
     ...| just _ rewrite just-injective (sym lastVoteIsJust) = refl
 
+------------------------------------------------------------------------------
+
 sameERasLV⇒sameId-lem₁ :
   ∀ {pid pid' pk s acts}{pre : SystemState}
   → ReachableSystemState pre
@@ -210,6 +221,7 @@ sameERasLV⇒sameId-lem₁ :
        × v  ≡L msgPart mws at vEpoch
        × v  ≡L msgPart mws at vRound
        × msgPart mws ≡L v' at vProposedId)
+
 sameERasLV⇒sameId-lem₁{pid}{pid'}{pk}{pre = pre} rss sp {v}{v'} hpk pcsfpk sig' ¬bootstrap mws ≡epoch ≡round =
   mws , ¬bootstrap' , pcsfpkPre
   , trans ≡epoch (cong (_^∙ vdProposed ∙ biEpoch) (sym ≡voteData))
@@ -256,7 +268,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s{pre = pre} rss (step-peer sp@(step-ch
 
 -- Initialization steps cannot be where an honestly signed message originated
 sameERasLV⇒sameId {pid} {pid'} {pk}
-                  (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init {rm} handler-pid-bsi≡just-rm×acts uni))))
+                  (step-s rss step@(step-peer{pre = pre} sp@(step-honest{pid“} sps@(step-init {rm} rm×acts uni))))
                   {v} {v'} {m'} hpk ≡pidLV pcsfpk v'⊂m' m'∈pool sig' ¬bootstrap ≡epoch ≡round
    with pid ≟ pid“
    -- If this isn't `pid`, the step does not affect `pid`'s state
@@ -270,12 +282,12 @@ sameERasLV⇒sameId {pid} {pid'} {pk}
      with Any-++⁻ _ m'∈pool
    ...| inj₂ x = x
    ...| inj₁ x
-      with IP.initHandlerSpec.contract pid“ fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-   ...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-      with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts (proj₁ (senderMsgPair∈⇒send∈ _ x))
+      with initHandlerSpec.contract pid“ fakeBootstrapInfo rm×acts
+   ...| init-contract
+      with initHandlerSpec.ContractOk.isInitPM init-contract (proj₁ (senderMsgPair∈⇒send∈ _ x))
    ...| (pm , refl , noSigs)
       with v'⊂m'
-   ... | vote∈qc vs∈qc v≈rbld qc∈nm
+   ...| vote∈qc vs∈qc v≈rbld qc∈nm
       = ⊥-elim (noSigs vs∈qc qc∈nm)
 
    mws : MsgWithSig∈ pk (ver-signature sig') (msgPool pre)
@@ -286,9 +298,9 @@ sameERasLV⇒sameId {pid} {pid'} {pk}
    -- If this is `pid`, the last vote cannot be a `just`!
 ...| yes refl
    rewrite sym (StepPeer-post-lemma sp)
-   with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-   with IP.initHandlerSpec.ContractOk.sdLVNothing IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
+   with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+   with initHandlerSpec.ContractOk.sdLVNothing init-contract
 ...| lv≡nothing
    = absurd just v ≡ nothing case trans ≡pidLV lv≡nothing of λ ()
 
@@ -456,7 +468,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
         ⊥-elim (sendVote∉actions {outs = handleOuts (P pm)} {st = handlePre} (sym $ Voting.VoteUnsentCorrect.noVoteMsgOuts vuc) m'∈acts)
      ...| Voting.mkVoteAttemptCorrectWithEpochReq (Right (Voting.mkVoteSentCorrect vm pid voteMsgOuts vgCorrect)) sdEpoch≡?
         with vgCorrect
-     ... | Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered = cong (_^∙ vProposedId) v≡v'
+     ...| Voting.mkVoteGeneratedCorrect (mkVoteGenerated lv≡v voteSrc) blockTriggered = cong (_^∙ vProposedId) v≡v'
         where
         open ≡-Reasoning
 
@@ -478,16 +490,19 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
      open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) handlePre)
    sameId (C x) _ ()
 
+------------------------------------------------------------------------------
+
 votesOnce₁ : Common.IncreasingRoundObligation Handle.InitHandler.InitAndHandlers 𝓔
+
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach
-           (step-init {rm} handler-pid-bsi≡just-rm×acts uni)
+           (step-init {rm} rm×acts uni)
            {v} {m} {v'} {m'} hpk v⊂MsgPpm m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
-  with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-  with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts m∈acts
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+  with initHandlerSpec.ContractOk.isInitPM init-contract m∈acts
 ...| (_ , _ , noSigs)
   with v⊂MsgPpm
-... | vote∈qc vs∈qc v≈rbld qc∈nm
+...| vote∈qc vs∈qc v≈rbld qc∈nm
   = ⊥-elim (noSigs vs∈qc qc∈nm)
 
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr , P pm} m∈pool ini) {v} {m} {v'} {m'} hpk (vote∈qc {vs} {qc} vs∈qc v≈rbld qc∈m) m∈acts sig ¬bootstrap ¬msb pcspkv v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
@@ -578,7 +593,8 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
   ...| tri≈ _ rv'≡rv _
     = Right (Common.mkVoteForRound∈ _ v' v'⊂m' pid' m'∈pool sig' (sym eid≡) rv'≡rv
         (sym (sameERasLV⇒sameId (step-s preach step) hpk postLV≡ pcspkv v'⊂m' (Any-++ʳ _ m'∈pool) sig' ¬bootstrap' eid≡ (sym rv'≡rv) )))
-  ... | tri> _ _ rv'>rv = ⊥-elim (≤⇒≯ rv'≤rv rv'>rv)
+  ...| tri> _ _ rv'>rv = ⊥-elim (≤⇒≯ rv'≤rv rv'>rv)
+
 votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V vm} m∈pool ini){v}{m}{v'}{m'} hpk v⊂m m∈acts sig ¬bootstrap ¬msb vspk v'⊂m' m'∈pool sig' ¬bootstrap' eid≡
   with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =
@@ -590,16 +606,20 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
   hvOut = LBFT-outs (handleVote 0 vm) hvPre
   open handleVoteSpec.Contract (handleVoteSpec.contract! 0 vm (msgPool pre) hvPre)
 
+------------------------------------------------------------------------------
+
 votesOnce₂ : VO.ImplObligation₂ Handle.InitHandler.InitAndHandlers 𝓔
+
 votesOnce₂ {pid} {pk = pk} {pre} rss
-           (step-init {rm} handler-pid-bsi≡just-rm×acts uni)
+           (step-init {rm} rm×acts uni)
            hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
-   with IP.initHandlerSpec.contract pid fakeBootstrapInfo handler-pid-bsi≡just-rm×acts
-...| IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts
-   with IP.initHandlerSpec.ContractOk.isInitPM IP-initHandlerSpec-ContractOk-pid-bsi-rm-acts m∈acts
+   with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+   with initHandlerSpec.ContractOk.isInitPM init-contract m∈acts
 ...| (_ , refl , noSigs)
   with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈pm = ⊥-elim (noSigs vs∈qc qc∈pm)
+
 votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v' = v'} hpk v⊂m m∈acts sig ¬bootstrap ¬msb4 pcsfpk v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb4' pcsfpk' ≡epoch ≡round
    with v⊂m
 ...| vote∈qc vs∈qc v≈rbld qc∈m rewrite cong _vSignature v≈rbld =
@@ -631,7 +651,7 @@ votesOnce₂{pid}{pk = pk}{pre} rss (step-msg{sndr , m“} m“∈pool ini){v}{v
     v'           ∎
     where
     open ≡-Reasoning
-... | V vm = ⊥-elim (sendVote∉actions{outs = hvOut}{st = hvPre} (sym noVotes) m∈acts)
+...| V vm = ⊥-elim (sendVote∉actions{outs = hvOut}{st = hvPre} (sym noVotes) m∈acts)
   where
   hvPre = peerStates pre pid
   hvOut = LBFT-outs (handle pid (V vm) 0) hvPre
