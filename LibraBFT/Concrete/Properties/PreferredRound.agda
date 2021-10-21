@@ -30,11 +30,12 @@ open        EpochConfig
 -- before tackling the harder semantic issues.
 module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) (𝓔 : EpochConfig) where
  open        LibraBFT.ImplShared.Consensus.Types.EpochDep.WithEC
- import      LibraBFT.Abstract.Records     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
- open import LibraBFT.Abstract.RecordChain UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
- open import LibraBFT.Abstract.System      UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
- open import LibraBFT.Concrete.Intermediate                  𝓔 (ConcreteVoteEvidence 𝓔)
- open import LibraBFT.Concrete.Obligations.PreferredRound    𝓔 (ConcreteVoteEvidence 𝓔)
+ import      LibraBFT.Abstract.Records         UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs
+ import      LibraBFT.Abstract.Records.Extends UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Ext
+ open import LibraBFT.Abstract.RecordChain     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Abstract.System          UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Concrete.Intermediate                      𝓔 (ConcreteVoteEvidence 𝓔)
+ open import LibraBFT.Concrete.Obligations.PreferredRound        𝓔 (ConcreteVoteEvidence 𝓔)
  open        SystemTypeParameters ConcSysParms
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
@@ -244,7 +245,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                               absIds≡
                               (prevQCs≡ {cb1} {cb2} injprops))
 
-   -- postulate
    Cand-3-chain-vote-b4 : ∀ {pk vabs}{pre : SystemState}{pid st' outs sp}
                           → Meta-Honest-PK pk
                           → ReachableSystemState pre
@@ -280,7 +280,24 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
 
          hcf : _ → _
          hcf b2∈rc1ext = Abs2ImplCollision postR inSys1 (inSys2 b2∈rc1ext) neq absIds≡
-   ...| inj₂ xx = {!!}
+   ...| inj₂ (eq-step {r₀ = .(Abs.B b)} {r₁ = .(Abs.B b)} rc0 rc1 b≈b
+                      ext0@(Ext.I←B _ prevNothing)
+                      ext1@(Ext.Q←B _ prevJust)
+                      rcrest≈) = absurd just _ ≡ nothing case trans prevJust prevNothing of λ ()
+   ...| inj₂ (eq-step {r₀ = .(Abs.B b)} {r₁ = .(Abs.B b)} rc0 rc1 b≈b
+                      ext0@(Ext.Q←B {qc0} {.b} _ _)
+                      ext1@(Ext.Q←B {qc1} {.b} _ _) rcrest≈) = newc3 , rnds≡
+          where
+
+            newc3 = mkCand3chainvote (mkVE b refl refl)
+                                     (ais here)
+                                     qc0
+                                     ext0
+                                     rc0
+                                     (ais ∘ (_∈RC-simple_.there ext0))
+                                     n₁
+                                     (transp-𝕂-chain (≈RC-sym rcrest≈) is-2chain₁)
+            rnds≡ = cong Abs.bRound $ kchainBlock-≈RC is-2chain₁ (suc zero) (≈RC-sym rcrest≈)
 
    PreferredRoundProof :
       ∀ {pk round₁ round₂ bId₁ bId₂ v₁abs v₂abs mbr} {st : SystemState}
@@ -368,7 +385,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                                        v₂abs = α-ValidVote-trans (msgVote v₂) refl v₂sb4
                                        c2'p  = Cand-3-chain-vote-b4 {sp = step-honest stP} pkH r c3 v₁sb4
                                        prp   = PreferredRoundProof r pkH v₁sb4 v₂sb4 r₁<r₂ v₁abs v₂abs (proj₁ c2'p)
-                                       vpd'   = stepPreservesVoteParentData theStep (proj₁ prp)
+                                       vpd'  = stepPreservesVoteParentData theStep (proj₁ prp)
                                    in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
                         implir0
    ...| inj₂ v₁sb4                    | inj₁ (m₂∈outs , v₂pk , _) = help
