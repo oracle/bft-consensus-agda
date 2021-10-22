@@ -96,8 +96,14 @@ module LibraBFT.Concrete.System where
 
    module InSys (siah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) where
      open WithInitAndHandlers siah
+     open All-InSys-props
 
      stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {r : Abs.Record}
               → IntermediateSystemState.InSys (PerState.intSystemState st0) r
               → IntermediateSystemState.InSys (PerState.intSystemState st1) r
      stable theStep (_α-Sent_.ws refl x₁ x₂) = _α-Sent_.ws refl (msgs-stable theStep x₁) x₂
+
+     ais-stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {o r : Abs.Record} → (rc : RecordChainFrom o r)
+                  → All-InSys (IntermediateSystemState.InSys (PerState.intSystemState st0)) rc
+                  → All-InSys (IntermediateSystemState.InSys (PerState.intSystemState st1)) rc
+     ais-stable theStep rc ais = λ x → stable theStep (ais x)
