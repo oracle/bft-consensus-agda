@@ -98,6 +98,6 @@ module LibraBFT.Concrete.System where
      open WithInitAndHandlers siah
 
      stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {r : Abs.Record}
-                    → IntermediateSystemState.InSys (PerState.intSystemState st0) r
-                    → IntermediateSystemState.InSys (PerState.intSystemState st1) r
+              → IntermediateSystemState.InSys (PerState.intSystemState st0) r
+              → IntermediateSystemState.InSys (PerState.intSystemState st1) r
      stable theStep (_α-Sent_.ws refl x₁ x₂) = _α-Sent_.ws refl (msgs-stable theStep x₁) x₂
