@@ -170,18 +170,18 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
                m₂sb4 = ¬cheatForgeNewSig r cheat unit pkH (msgSigned m₂) (msg⊆ m₂) (msg∈pool m₂) ¬init₂
                v₁sb4 = msgSentB4⇒VoteRound∈ (msgSigned m₁) m₁sb4
                v₂sb4 = msgSentB4⇒VoteRound∈ (msgSigned m₂) m₂sb4
-           in VotesOnceProof r pkH v₁sb4 v₂sb4
+           in VotesOnceProof r pkH (proj₁ v₁sb4) (proj₁ v₂sb4)
     ...| step-peer (step-honest stP)
        with ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned m₁))
                    (newMsg⊎msgSentB4 r stP pkH (msgSigned m₁) ¬init₁  (msg⊆ m₁) (msg∈pool m₁))
           | ⊎-map₂ (msgSentB4⇒VoteRound∈ (msgSigned m₂))
                    (newMsg⊎msgSentB4 r stP pkH (msgSigned m₂) ¬init₂ (msg⊆ m₂) (msg∈pool m₂))
-    ...| inj₂ v₁sb4                | inj₂ v₂sb4
+    ...| inj₂ (v₁sb4 , refl)           | inj₂ (v₂sb4 , refl)
          = VotesOnceProof r pkH v₁sb4 v₂sb4
     ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₁ (m₂∈outs , v₂pk , v₂New)
          = Impl-VO2 r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁New v₁pk
                     (msg⊆ m₂) m₂∈outs (msgSigned m₂) ¬init₂ v₂New v₂pk refl refl
-    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ v₂sb4
+    ...| inj₁ (m₁∈outs , v₁pk , v₁New) | inj₂ (v₂sb4 , refl)
          = let round≡ = trans (msgRound≡ v₂sb4) (msgRound≡ m₂)
                ¬bootstrapV₂ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH m₂ ¬init₂ (msgSigned v₂sb4) round≡
                epoch≡ = sym (msgEpoch≡ v₂sb4)
@@ -189,7 +189,7 @@ module LibraBFT.Concrete.Properties.VotesOnce (iiah : SystemInitAndHandlers ℓ-
                      (λ v₁sb4 → VotesOnceProof r pkH v₁sb4 v₂sb4)
                      (Impl-IRO r stP pkH (msg⊆ m₁) m₁∈outs (msgSigned m₁) ¬init₁ v₁New v₁pk
                                (msg⊆ v₂sb4) (msg∈pool v₂sb4) (msgSigned v₂sb4) ¬bootstrapV₂ epoch≡)
-    ...| inj₂ v₁sb4                | inj₁ (m₂∈outs , v₂pk , v₂New)
+    ...| inj₂ (v₁sb4 , refl)           | inj₁ (m₂∈outs , v₂pk , v₂New)
          = let round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ m₁)
                ¬bootstrapV₁ = ¬Bootstrap∧Round≡⇒¬Bootstrap step pkH m₁ ¬init₁ (msgSigned v₁sb4) round≡
            in either (λ v₁<v₂ → ⊥-elim (<⇒≢ v₁<v₂ (msgRound≡ v₁sb4)))
