@@ -102,11 +102,20 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
    msgSentB4⇒VoteRound∈ : ∀ {v pk pool}
                          → (vv : WithVerSig pk v)
                          → (m : MsgWithSig∈ pk (ver-signature vv) pool)
-                         → VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) pool
+                         → Σ (VoteForRound∈ pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) pool)
+                             (λ v4r → ver-signature (msgSigned v4r) ≡ ver-signature vv)
    msgSentB4⇒VoteRound∈ {v} vv m
        with sameSig⇒sameVoteDataNoCol (msgSigned m) vv (msgSameSig m)
    ...| refl = mkVoteForRound∈ (msgWhole m) (msgPart m) (msg⊆ m) (msgSender m)
-                                (msg∈pool m) (msgSigned m) refl refl refl
+                                (msg∈pool m) (msgSigned m) refl refl refl , msgSameSig m
+
+   VoteRound∈⇒msgSent : ∀ {round eid bid pk pool}
+                      → (v4r : VoteForRound∈ pk round eid bid pool)
+                      → Σ (MsgWithSig∈ pk (ver-signature $ msgSigned v4r) pool)
+                          (λ mws → ( ver-signature (msgSigned mws) ≡ ver-signature (msgSigned v4r)
+                                   × (msgPart mws) ^∙ vRound ≡ round))
+   VoteRound∈⇒msgSent (mkVoteForRound∈ msgWhole₁ msgVote₁ msg⊆₁ msgSender₁ msg∈pool₁ msgSigned₁ msgEpoch≡₁ msgRound≡₁ msgBId≡₁)
+           = mkMsgWithSig∈ msgWhole₁ msgVote₁ msg⊆₁ msgSender₁ msg∈pool₁ msgSigned₁ refl , refl , msgRound≡₁
 
     -- If a Vote signed for an honest PK has been sent, and it is not in bootstrapInfo, then
     -- it is for a round > 0
