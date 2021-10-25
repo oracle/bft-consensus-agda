@@ -87,6 +87,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → v'  ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
    -- If v is really new and valid
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- And if there exists another v' that has been sent before
    → v ⊂Msg m → (pid' , m) ∈ (msgPool pre)
@@ -119,12 +120,12 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    → v  ⊂Msg m  → send m ∈ outs
    → (sig : WithVerSig pk v) → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
    -- If v is really new and valid
-   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
+   → ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool pre))
    → PeerCanSignForPK post v pid pk
    -- And if there exists another v' that is also new and valid
    → v' ⊂Msg m'  → send m' ∈ outs
    → (sig' : WithVerSig pk v') → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig'))
-   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre)) -- ∄[ v'' ] VoteForRound∈ ... ?
+   → ¬ (MsgWithSig∈ pk (ver-signature sig') (msgPool pre))
    → PeerCanSignForPK (StepPeer-post {pre = pre} (step-honest sps)) v' pid pk
    -- If v and v' share the same epoch and round
    → v ^∙ vEpoch ≡ v' ^∙ vEpoch
@@ -442,7 +443,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                                        vpd'  = stepPreservesVoteParentData theStep (proj₁ prp)
                                    in (proj₁ vpd') , (≤-trans (≤-reflexive (proj₂ c2'p)) (proj₂ prp)))
                         implir0
-   ...| inj₂ (v₁sb4 , refl)           | inj₁ (m₂∈outs , v₂pk , _) = help
+   ...| inj₂ (v₁sb4 , refl)           | inj₁ (m₂∈outs , v₂pk , v₂New) = help
         where
           rv₁<r₂ = <-transʳ (≡⇒≤ (msgRound≡ v₁sb4)) r₁<r₂
           round≡ = trans (msgRound≡ v₁sb4) (msgRound≡ v₁)
@@ -452,7 +453,7 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
           c2'p   = Cand-3-chain-vote-b4 {sp = step-honest stP} pkH r c3 v₁sb4
 
           implir1 : _
-          implir1 = Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂pk
+          implir1 = Impl-PR1 r stP pkH (msg⊆ v₂) m₂∈outs (msgSigned v₂) ¬init₂ v₂New v₂pk
                                    (msg⊆ v₁sb4) (msg∈pool v₁sb4) (msgSigned v₁sb4) ¬bootstrapV₁
                                    (msgEpoch≡ v₁sb4) rv₁<r₂ v₁abs' refl c3
 
