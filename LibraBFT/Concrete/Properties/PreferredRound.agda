@@ -198,20 +198,17 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
                      → 0 < abs-vRound vabs
                      → ∃[ b ] ( Abs.bId b ≡ abs-vBlockUID vabs
                               × Σ (RecordChain (Abs.B b)) (All-InSys (InSys (intSystemState st))))
-   voteForRound-RC {pk} {abs} {st} hpk (step-s preReach (step-peer (step-honest sps))) v4r 0<r
-      rewrite sym $ msgRound≡ v4r
-      with newMsg⊎msgSentB4 {sndr = msgSender v4r} preReach sps hpk (msgSigned v4r)
-                            -- TODO-1: refactor for DRY, see below
-                            (λ ∈bsi → ⊥-elim (<⇒≢ 0<r $ sym $ Impl-bsvr (msgSigned v4r) ∈bsi)) (msg⊆ v4r)
-                            (msg∈pool v4r)
-   ... | inj₁ x = obm-dangerous-magic' "TODO"
-   ... | inj₂ y = obm-dangerous-magic' "TODO"
-   voteForRound-RC {pk} {vabs} hpk (step-s {pre = pre} preReach sps@(step-peer (step-cheat {pid} x))) v4r 0<r
-      with VoteRound∈⇒msgSent v4r
-   ...| msgb4 , refl , refl
-      with ¬cheatForgeNew {st = pre} (step-cheat x) refl unit hpk msgb4
-                          λ ∈bsi → ⊥-elim (<⇒≢ 0<r $ sym $ Impl-bsvr (msgSigned msgb4) ∈bsi)
-   ...| mwsb4
+
+   voteForRound-RC-mws : ∀ {pk vabs pre pid st' outs}
+                       → Meta-Honest-PK pk
+                       → ReachableSystemState pre
+                       → (sp : StepPeer pre pid st' outs)
+                       → (v4r : VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool $ StepPeer-post sp))
+                       → MsgWithSig∈ pk (ver-signature $ msgSigned v4r) (msgPool pre)
+                       → 0 < abs-vRound vabs
+                       → ∃[ b ] ( Abs.bId b ≡ abs-vBlockUID vabs
+                                × Σ (RecordChain (Abs.B b)) (All-InSys (InSys (intSystemState $ StepPeer-post sp))))
+   voteForRound-RC-mws {pk} {vabs} {pre} hpk preReach sps v4r mwsb4 0<r
       with sameSig⇒sameVoteData (msgSigned mwsb4) (msgSigned v4r) (msgSameSig mwsb4)
    ...| inj₁ hb = ⊥-elim $ meta-no-collision preReach hb -- TODO-2: refine sameSig⇒samevotedata to
                                                          -- enable tying collision to specific state
@@ -229,7 +226,20 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
          where
            v4r'' : VoteForRound∈ pk (abs-vRound vabs) (epoch 𝓔) (abs-vBlockUID vabs) (msgPool pre)
            v4r'' rewrite sym (msgEpoch≡ v4r) | sym (msgRound≡ v4r) | sym (msgBId≡ v4r) = v4r'
-   ...| b , refl , rc , ais = b , refl , rc , InSys.ais-stable iiah sps rc ais
+   ...| b , refl , rc , ais = b , refl , rc , InSys.ais-stable iiah (step-peer sps) rc ais
+
+   voteForRound-RC {pk} {vabs} {st} hpk (step-s preReach (step-peer (step-honest sps))) v4r 0<r
+      with newMsg⊎msgSentB4 {sndr = msgSender v4r} preReach sps hpk (msgSigned v4r)
+                            (λ ∈bsi → ⊥-elim (<⇒≢ 0<r $ trans (sym $ Impl-bsvr (msgSigned v4r) ∈bsi ) (msgRound≡ v4r))) (msg⊆ v4r)
+                            (msg∈pool v4r)
+   ... | inj₁ x = obm-dangerous-magic' "TODO"
+   ... | inj₂ mwsb4 = voteForRound-RC-mws {vabs = vabs} hpk preReach (step-honest sps) v4r mwsb4 0<r
+   voteForRound-RC {pk} {vabs} {st} hpk (step-s {pre = pre} preReach (step-peer (step-cheat {pid} x))) v4r 0<r
+      with VoteRound∈⇒msgSent v4r
+   ...| msgb4 , refl , refl
+      with ¬cheatForgeNew {st = pre} (step-cheat x) refl unit hpk msgb4
+                          λ ∈bsi → ⊥-elim (<⇒≢ 0<r $ sym $ Impl-bsvr (msgSigned msgb4) ∈bsi)
+   ...| mwsb4 = voteForRound-RC-mws {vabs = vabs} hpk preReach (step-cheat x) v4r mwsb4 0<r
 
    open _α-Sent_
    open _BlockDataInjectivityProps_
