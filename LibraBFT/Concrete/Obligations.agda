@@ -39,13 +39,14 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
       -- Semantic obligations:
       --
       -- VotesOnce:
-      bsvc  : Common.ImplObl-bootstrapVotesConsistent 𝓔
-      bsvr  : Common.ImplObl-bootstrapVotesRound≡0 𝓔
+      bsvc : Common.ImplObl-bootstrapVotesConsistent 𝓔
+      bsvr : Common.ImplObl-bootstrapVotesRound≡0 𝓔
       v≢0  : Common.ImplObl-NewVoteRound≢0 𝓔
       ∈BI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig)
-      iro : Common.IncreasingRoundObligation 𝓔
-      vo₂ : VO.ImplObligation₂ 𝓔
+      v4rc : PR.ImplObligation-RC 𝓔
+      iro  : Common.IncreasingRoundObligation 𝓔
+      vo₂  : VO.ImplObligation₂ 𝓔
 
       -- PreferredRound:
-      pr₁ : PR.ImplObligation₁ 𝓔
-      pr₂ : PR.ImplObligation₂ 𝓔
+      pr₁  : PR.ImplObligation₁ 𝓔
+      pr₂  : PR.ImplObligation₂ 𝓔

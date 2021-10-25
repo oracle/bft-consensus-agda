@@ -55,8 +55,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  Block-RC-AllInSys vabs st = ∃[ b ] ( Abs.bId b ≡ abs-vBlockUID vabs
                                     × Σ (RecordChain (Abs.B b)) (All-InSys (InSys (intSystemState st))))
 
- ImplObl-RC : Set (ℓ+1 ℓ-RoundManager)
- ImplObl-RC =
+ ImplObligation-RC : Set (ℓ+1 ℓ-RoundManager)
+ ImplObligation-RC =
    ∀{pid s' outs pk}{pre : SystemState}
    → ReachableSystemState pre
    -- For any honest call to /handle/ or /init/,
@@ -166,14 +166,14 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
            transp-vpmb (vpParent≡Q x x₁) = vpParent≡Q x (stable theStep x₁)
 
  module Proof
-   (sps-corr : StepPeerState-AllValidParts)   -- Bring in newMsg⊎msgSentB4
-   (Impl-bsvr : ImplObl-bootstrapVotesRound≡0)
+   (sps-corr   : StepPeerState-AllValidParts)   -- Bring in newMsg⊎msgSentB4
+   (Impl-bsvr  : ImplObl-bootstrapVotesRound≡0)
    (Impl-nvr≢0 : ImplObl-NewVoteRound≢0)
-   (Impl-∈BI? : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
-   (Impl-RC  : ImplObl-RC)
-   (Impl-IRO : IncreasingRoundObligation)
-   (Impl-PR1 : ImplObligation₁)
-   (Impl-PR2 : ImplObligation₂)
+   (Impl-∈BI?  : (sig : Signature) → Dec (∈BootstrapInfo bootstrapInfo sig))
+   (Impl-RC    : ImplObligation-RC)
+   (Impl-IRO   : IncreasingRoundObligation)
+   (Impl-PR1   : ImplObligation₁)
+   (Impl-PR2   : ImplObligation₂)
     where
   module _ {st : SystemState}(r : ReachableSystemState st) (𝓔-∈sys : EpochConfig∈Sys st 𝓔) where
    open        Structural sps-corr
