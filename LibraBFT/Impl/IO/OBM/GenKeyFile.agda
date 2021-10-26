@@ -66,7 +66,7 @@ mkAuthors {-drg-} numFailures0 addresses0 = do
   checkAddresses : Either ErrLog (List EndpointAddress)
   checkAddresses = pure addresses0
 
-postulate
+postulate -- Valid assumption: secret and public keys for each NodeId
   mkSK : NodeId → SK
   mkPK : NodeId → PK
 

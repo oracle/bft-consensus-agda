@@ -90,7 +90,7 @@ module InitHandler where
   above initialization process assumes one-vote per peer.
   -}
 
-  postulate
+  postulate -- TODO-2: Eliminate when/if timestamps are modeled
     now : Instant
 
   proposalGenerator : ProposalGenerator
@@ -184,7 +184,7 @@ module InitHandler where
       initHandler
       peerStep
    where
-    postulate
+    postulate -- TODO-1: eliminate by constructing inhabitants
       bs : BlockStore
       pe : ProposerElection
       rs : RoundState

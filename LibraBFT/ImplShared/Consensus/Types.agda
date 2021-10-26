@@ -222,7 +222,7 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   -- To enable modeling of logging info that has not been added yet,
   -- InfoLog and an inhabitant is postulated.
-  postulate
+  postulate -- Valid assumption: InfoLog type
     InfoLog  : Set
     fakeInfo : InfoLog
 
@@ -238,7 +238,7 @@ module LibraBFT.ImplShared.Consensus.Types where
 
   -- To enable modeling of logging errors that have not been added yet,
   -- an inhabitant of ErrLog is postulated.
-  postulate
+  postulate -- Valid assumption: ErrLog type
     fakeErr : ErrLog
 
   record TxTypeDependentStuffForNetwork : Set where

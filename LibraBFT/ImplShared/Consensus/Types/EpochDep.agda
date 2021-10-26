@@ -225,7 +225,7 @@ module WithEC (𝓔 : EpochConfig) where
   -- A valid TimeoutCertificate has a quorum of signatures that are valid for the current
   -- EpochConfig.  There will be a lot of overlap with MetaIsValidQc and IsValidVote.
   -- TODO-2: flesh out the details.
-  postulate
+  postulate -- TODO-1: defined if needed (see draft below)
     MetaIsValidTimeoutCert : TimeoutCertificate → Set
 
   {-

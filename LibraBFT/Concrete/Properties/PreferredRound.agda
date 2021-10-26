@@ -199,7 +199,6 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
    -- will also require an additional implementation obligation.  It may simply be that Votes sent
    -- satisy IsValidVote, but the question is where do we maintain evidence that such a RecordChain
    -- exists for any Block we may vote for?
-   -- postulate
    voteForRound-RC : ∀ {pk vabs}{st : SystemState}
                      → Meta-Honest-PK pk
                      → ReachableSystemState st

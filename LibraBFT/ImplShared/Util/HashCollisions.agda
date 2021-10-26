@@ -140,7 +140,7 @@ module LibraBFT.ImplShared.Util.HashCollisions
     -- the specific ReachableSystemState, according to the specific notions thereof captured by the
     -- constructors for this type.
 
-    postulate
+    postulate -- Valid assumption: there are no hash collisions among values found in the system
       meta-no-collision-in-sys : ¬ HashCollisionFound
 
     -- Discussion

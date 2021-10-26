@@ -86,7 +86,7 @@ module LibraBFT.ImplShared.Util.Crypto where
 
   hashBSL = sha256 ∘ bs-concat
 
-  postulate
+  postulate  -- TODO-2: implement after adding support for "HashTag" (see below)
     blockData-bsl     : BlockData → List ByteString
 
   hashBD : BlockData → HashValue
@@ -95,8 +95,7 @@ module LibraBFT.ImplShared.Util.Crypto where
   Injective-BlockData : Set
   Injective-BlockData = Injective-int _BlockDataInjectivityProps_ hashBSL blockData-bsl blockData-bsl
 
-  -- TODO-1: prove it using bs-concat-inj
-  postulate
+  postulate  -- TODO-1: prove it using bs-concat-inj
     hashBD-inj : Injective-BlockData
 
   hashBlock : Block → HashValue
@@ -212,7 +211,7 @@ module LibraBFT.ImplShared.Util.Crypto where
       --timestamp
       l2wcInjNextEpochState : ?
     -}
-  postulate
+  postulate -- TODO-2: prove after defining Ledger2WaypointConverterInjectivityProps
     hashL2WC     : Ledger2WaypointConverter → HashValue
     hashL2WC-inj : ∀ {l1 l2}
                  → hashL2WC l1 ≡ hashL2WC l2
