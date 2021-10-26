@@ -57,6 +57,14 @@ module handleProposalSpec (now : Instant) (pm : ProposalMsg) where
         -- Voting
         voteAttemptCorrect : BlockId-correct (pm ^∙ pmProposal)
                            → NoHC1 → Voting.VoteAttemptCorrectWithEpochReq pre post outs (pm ^∙ pmProposal)
+        -- voteBuildsOnRC : TODO-2: We will need to know that, if we're sending a Vote, then there
+        --                          is a Block b such that the Vote's proposed id is bId B and there
+        --                          is a RecordChain (B b) and all the Records in that RecordChain
+        --                          are InSys.  This is needed to prove ImplObligation-RC.  However,
+        --                          before doing so, it may be worth considering strengthening the
+        --                          Concrete PreferredRound proof, so that only IsValidVote is
+        --                          required of the implementation, and that is used to construct
+        --                          the required RecordChain, independently of the implementation.
         -- QCs
         outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
         qcPost    : QCProps.∈Post⇒∈PreOr (_QC∈NM (P pm)) pre post
