@@ -532,7 +532,7 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
     Genesis  : BlockType
   postulate instance enc-BlockType : Encoder BlockType
 
-  postulate
+  postulate -- Valid assumption, payloadIsEmpty
     -- TODO-1 : Need to decide what empty means.
     --          Only important on epoch change.
     payloadIsEmpty : TX → Bool

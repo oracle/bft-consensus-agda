@@ -65,8 +65,8 @@ module LibraBFT.Yasm.Properties
                   → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature (msgSigned mws2)))
  transp-¬∈BootstrapInfo₂ mws1 ¬init mws2 refl = ¬subst {P = ∈BootstrapInfo bootstrapInfo} ¬init (trans (msgSameSig mws2) (sym (msgSameSig mws1)))
 
- ¬cheatForgeNew : ∀ {pid pk vsig mst outs m}{st : SystemState}
-                → (sp : StepPeer st pid mst outs)
+ ¬cheatForgeNew : ∀ {pid pk vsig st' outs m}{st : SystemState}
+                → (sp : StepPeer st pid st' outs)
                 → outs ≡ LYT.send m ∷ []
                 → (ic : isCheat sp)
                 → Meta-Honest-PK pk
@@ -84,9 +84,9 @@ module LibraBFT.Yasm.Properties
  ...| inj₂ mws' rewrite msgSameSig mws = mws'
 
 
- ¬cheatForgeNewSig : ∀ {p m sndr pid pk mst outs}{st : SystemState}
+ ¬cheatForgeNewSig : ∀ {p m sndr pid pk st' outs}{st : SystemState}
                     → (r : ReachableSystemState st)
-                    → (sp : StepPeer st pid mst outs)
+                    → (sp : StepPeer st pid st' outs)
                     → (ic : isCheat sp)
                     → Meta-Honest-PK pk
                     → (sig : WithVerSig pk p)

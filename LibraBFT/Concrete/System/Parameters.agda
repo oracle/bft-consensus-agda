@@ -54,6 +54,14 @@ module LibraBFT.Concrete.System.Parameters where
      inBootstrapInfo : init-EC bootstrapInfo ≡ 𝓔 → EpochConfig∈Sys st 𝓔
      -- inECP  : ∀ {ecp} → ecp ECP∈Sys st → verify-ECP ecp 𝓔 → EpochConfig∈Sys
 
+   -- This is trivial for now, but will be nontrivial when we support epoch change
+   𝓔-∈sys-injective : ∀ {st 𝓔₁ 𝓔₂}
+                      → EpochConfig∈Sys st 𝓔₁
+                      → EpochConfig∈Sys st 𝓔₂
+                      → epoch 𝓔₁ ≡ epoch 𝓔₂
+                      → 𝓔₁ ≡ 𝓔₂
+   𝓔-∈sys-injective (inBootstrapInfo refl) (inBootstrapInfo refl) refl = refl
+
    -- A peer pid can sign a new message for a given PK if pid is the owner of a PK in a known
    -- EpochConfig.
    record PeerCanSignForPKinEpoch (st : SystemState) (v : Vote) (pid : NodeId) (pk : PK)

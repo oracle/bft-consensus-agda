@@ -35,7 +35,8 @@ module LibraBFT.Concrete.System where
    open WithEC
    open import LibraBFT.Abstract.Abstract     UID _≟UID_ NodeId 𝓔 (ConcreteVoteEvidence 𝓔) as Abs hiding (qcVotes; Vote)
    open import LibraBFT.Concrete.Intermediate                   𝓔 (ConcreteVoteEvidence 𝓔)
-   open import LibraBFT.Concrete.Records                        𝓔
+   open import LibraBFT.Concrete.Records as LCR
+   open LCR.WithEC 𝓔
 
    module PerState (st : SystemState) where
 
@@ -69,7 +70,7 @@ module LibraBFT.Concrete.System where
               → Meta-Honest-Member α
               → (vα : α Abs.∈QC q)
               → ∃VoteMsgSentFor (msgPool st) (Abs.∈QC-Vote q vα)
-     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} {q} .{nm} valid cqc∈nm)) ha va
+     ∈QC⇒sent vsent@(ws {sender} {nm} e≡ nm∈st (qc∈NM {cqc} .{nm} valid cqc∈nm)) ha va
        with All-reduce⁻ {vdq = Any-lookup va} (α-Vote cqc valid) All-self
                         (Any-lookup-correctP va)
      ...| as , as∈cqc , α≡
@@ -95,8 +96,14 @@ module LibraBFT.Concrete.System where
 
    module InSys (siah : SystemInitAndHandlers ℓ-RoundManager ConcSysParms) where
      open WithInitAndHandlers siah
+     open All-InSys-props
 
      stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {r : Abs.Record}
-                    → IntermediateSystemState.InSys (PerState.intSystemState st0) r
-                    → IntermediateSystemState.InSys (PerState.intSystemState st1) r
+              → IntermediateSystemState.InSys (PerState.intSystemState st0) r
+              → IntermediateSystemState.InSys (PerState.intSystemState st1) r
      stable theStep (_α-Sent_.ws refl x₁ x₂) = _α-Sent_.ws refl (msgs-stable theStep x₁) x₂
+
+     ais-stable : ∀ {st0 st1 : SystemState} → Step st0 st1 → {o r : Abs.Record} → (rc : RecordChainFrom o r)
+                  → All-InSys (IntermediateSystemState.InSys (PerState.intSystemState st0)) rc
+                  → All-InSys (IntermediateSystemState.InSys (PerState.intSystemState st1)) rc
+     ais-stable theStep rc ais = λ x → stable theStep (ais x)

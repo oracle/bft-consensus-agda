@@ -39,3 +39,4 @@ module LibraBFT.Concrete.Intermediate
        -- QC that exists in the system must have been sent
        ∈QC⇒HasBeenSent : ∀{q α} → InSys (Q q) → Meta-Honest-Member α
                        → (va : α ∈QC q) → HasBeenSent (∈QC-Vote q va)
+   open IntermediateSystemState

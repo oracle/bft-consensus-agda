@@ -19,64 +19,70 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
- ---------------------
- -- * PreferredRound * --
- ---------------------
-
- -- The PreferredRound rule is a little more involved to be expressed in terms
- -- of /HasBeenSent/: it needs two additional pieces which are introduced
- -- next.
-
- -- Cand-3-chain v carries the information for estabilishing
- -- that v.proposed will be part of a 3-chain if a QC containing v is formed.
- -- The difficulty is that we can't easily access the "grandparent" of a vote.
- -- Instead, we must explicitly state that it exists.
- --
- --                                candidate 3-chain
- --       +------------------------------------------------------+
- --       |                                                      |
- --       |       2-chain                                        |
- --       +----------------------------------+
- --  ⋯ <- v.grandparent <- q₁ <- v.parent <- q <- v.proposed  <- v
- --                                          ̭
- --                                          |
- --                                     The 'qc' defined below is an
- --                                     abstract view of q, above.
- record voteExtends (v : Vote) : Set where
+ record VotesForBlock (v : Vote) : Set where
     constructor mkVE
     field
       veBlock   : Block
       veId      : vBlockUID v ≡ bId    veBlock
       veRounds≡ : vRound    v ≡ bRound veBlock
- open voteExtends
+ open VotesForBlock
 
- record Cand-3-chain-vote (v : Vote) : Set where
-    constructor mkCand3chainvote
-    field
-      votesForB : voteExtends v
-      qc        : QC
-      qc←b      : Q qc ← B (veBlock votesForB)
-      rc        : RecordChain (Q qc)
-      n         : ℕ
-      is-2chain : 𝕂-chain Contig (2 + n) rc
- open Cand-3-chain-vote public
+ module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
+  open IntermediateSystemState 𝓢
+  open All-InSys-props InSys
 
- v-cand-3-chain⇒0<roundv : ∀ {v} → Cand-3-chain-vote v → 0 < vRound v
- v-cand-3-chain⇒0<roundv
-   record { votesForB = (mkVE veBlock₁ veId₁ refl)
-          ; qc = qc
-          ; qc←b = qc←b
-          ; rc = rc
-          ; n = n
-          ; is-2chain = is-2chain }
-   with qc←b
- ... | Q←B (s≤s x) x₁ = s≤s z≤n
+  ---------------------
+  -- * PreferredRound * --
+  ---------------------
 
-  -- Returns the round of the head of the candidate 3-chain. In the diagram
-  -- explaining Cand-3-chain-vote, this would be v.grandparent.round.
- Cand-3-chain-head-round : ∀{v} → Cand-3-chain-vote v → Round
- Cand-3-chain-head-round c3cand =
-    getRound (kchainBlock (suc zero) (is-2chain c3cand))
+  -- The PreferredRound rule is a little more involved to be expressed in terms
+  -- of /HasBeenSent/: it needs two additional pieces which are introduced
+  -- next.
+
+  -- Cand-3-chain v carries the information for estabilishing
+  -- that v.proposed will be part of a 3-chain if a QC containing v is formed.
+  -- The difficulty is that we can't easily access the "grandparent" of a vote.
+  -- Instead, we must explicitly state that it exists.
+  --
+  --                                candidate 3-chain
+  --       +------------------------------------------------------+
+  --       |                                                      |
+  --       |       2-chain                                        |
+  --       +----------------------------------+
+  --  ⋯ <- v.grandparent <- q₁ <- v.parent <- q <- v.proposed  <- v
+  --                                          ̭
+  --                                          |
+  --                                     The 'qc' defined below is an
+  --                                     abstract view of q, above.
+  record Cand-3-chain-vote (v : Vote) : Set ℓ where
+     constructor mkCand3chainvote
+     field
+       votesForB : VotesForBlock v
+       c3Blk∈sys : InSys (B (veBlock votesForB))
+       qc        : QC
+       qc←b      : Q qc ← B (veBlock votesForB)
+       rc        : RecordChain (Q qc)
+       rc∈sys    : All-InSys rc
+       n         : ℕ
+       is-2chain : 𝕂-chain Contig (2 + n) rc
+  open Cand-3-chain-vote public
+
+  v-cand-3-chain⇒0<roundv : ∀ {v} → Cand-3-chain-vote v → 0 < vRound v
+  v-cand-3-chain⇒0<roundv
+    record { votesForB = (mkVE veBlock₁ veId₁ refl)
+           ; qc = qc
+           ; qc←b = qc←b
+           ; rc = rc
+           ; n = n
+           ; is-2chain = is-2chain }
+    with qc←b
+  ... | Q←B (s≤s x) x₁ = s≤s z≤n
+
+   -- Returns the round of the head of the candidate 3-chain. In the diagram
+   -- explaining Cand-3-chain-vote, this would be v.grandparent.round.
+  Cand-3-chain-head-round : ∀{v} → Cand-3-chain-vote v → Round
+  Cand-3-chain-head-round c3cand =
+     getRound (kchainBlock (suc zero) (is-2chain c3cand))
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
@@ -96,15 +102,15 @@ module LibraBFT.Concrete.Obligations.PreferredRound
 
   record VoteParentData (v : Vote) : Set ℓ where
     field
-      vpExt        : voteExtends v
-      vpBlock∈sys  : InSys (B (veBlock vpExt))
+      vpV4B        : VotesForBlock v
+      vpBlock∈sys  : InSys (B (veBlock vpV4B))
       vpParent     : Record
       vpParent∈sys : InSys vpParent
-      vpExt'       : vpParent ← B (veBlock vpExt)
+      vpExt        : vpParent ← B (veBlock vpV4B)
       vpMaybeBlock : VoteParentData-BlockExt vpParent
   open VoteParentData public
 
-  -- The setup for PreferredRoundRule is like thta for VotesOnce.
+  -- The setup for PreferredRoundRule is like that for VotesOnce.
   -- Given two votes by an honest author α:
   Type : Set ℓ
   Type = ∀{α v v'}
@@ -113,27 +119,30 @@ module LibraBFT.Concrete.Obligations.PreferredRound
        → vMember v' ≡ α → HasBeenSent v'
        -- If v is a vote on a candidate 3-chain, that is, is a vote on a block
        -- that extends a 2-chain,
-       → (c2 : Cand-3-chain-vote v)
+       → (c2 : Cand-3-chain-vote 𝓢 v)
        -- and the round of v is lower than that of v',
        → vRound v < vRound v'
        ------------------------------
        -- then α obeyed the preferred round rule:
        → Σ (VoteParentData v')
-           (λ vp → Cand-3-chain-head-round c2 ≤ round (vpParent vp))
+           (λ vp → Cand-3-chain-head-round 𝓢 c2 ≤ round (vpParent vp))
 
   private
    make-cand-3-chain : ∀{n α q}{rc : RecordChain (Q q)}
+                     → All-InSys rc
                      → (c3 : 𝕂-chain Contig (3 + n) rc)
                      → (v  : α ∈QC q)
-                     → Cand-3-chain-vote (∈QC-Vote q v)
-   make-cand-3-chain {q = q} (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
+                     → Cand-3-chain-vote 𝓢 (∈QC-Vote q v)
+   make-cand-3-chain {q = q} ais (s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
    ...| (s-chain {q = q₀} _ _ _ _)
        = record { votesForB = mkVE b (All-lookup (qVotes-C2 q) (Any-lookup-correct v))
                                      (trans (All-lookup (qVotes-C3 q) (Any-lookup-correct v)) h1)
+                ; c3Blk∈sys = All-InSys⇒last-InSys (All-InSys-unstep ais)
                 ; qc = q₀
                 ; qc←b = ext₀
                 ; rc = rc
+                ; rc∈sys =  All-InSys-unstep (All-InSys-unstep ais)
                 ; n  = n
                 ; is-2chain = c2
                 }
@@ -141,10 +150,10 @@ module LibraBFT.Concrete.Obligations.PreferredRound
    -- It is important that the make-cand-3-chain lemma doesn't change the head of
    -- the 3-chain/cand-2-chain.
    make-cand-3-chain-lemma
-     : ∀{n α q}{rc : RecordChain (Q q)} → All-InSys rc
+     : ∀{n α q}{rc : RecordChain (Q q)} → (ais : All-InSys rc)
      → (c3 : 𝕂-chain Contig (3 + n) rc)
      → (v  : α ∈QC q)
-     → kchainBlock (suc zero) (is-2chain (make-cand-3-chain c3 v)) ≡ kchainBlock (suc (suc zero)) c3
+     → kchainBlock (suc zero) (is-2chain (make-cand-3-chain ais c3 v)) ≡ kchainBlock (suc (suc zero)) c3
    make-cand-3-chain-lemma {q = q} ais₀ c3@(s-chain {suc (suc n)} {rc = rc} {b = b} ext₀@(Q←B h0 refl) _ ext₁@(B←Q h1 refl) c2) v
      with c2
    ...| (s-chain {q = q₀} _ _ _ (s-chain _ _ _ c)) = refl
@@ -157,15 +166,15 @@ module LibraBFT.Concrete.Obligations.PreferredRound
         -- Records that are InSys
       → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (round (vpParent vp) ≡ prevRound rc)
    vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) ais va vp
-     with b ≟Block (veBlock (vpExt vp))
-   ...| no imp = inj₁ (((b , veBlock (vpExt vp))
+     with b ≟Block (veBlock (vpV4B vp))
+   ...| no imp = inj₁ (((b , veBlock (vpV4B vp))
                       , (imp , (id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
-                                                               (veId (vpExt vp)))))))
+                                                               (veId (vpV4B vp)))))))
                       , (ais (there x here) , (vpBlock∈sys vp)))
    ...| yes refl
-     with ←-inj y (vpExt' vp)
+     with ←-inj y (vpExt vp)
    ...| bSameId'
-     with y | vpExt' vp
+     with y | vpExt vp
    ...| I←B y0 y1   | I←B e0 e1   = inj₂ refl
    ...| Q←B y0 refl | Q←B e0 refl
      with vpMaybeBlock vp
@@ -189,8 +198,8 @@ module LibraBFT.Concrete.Obligations.PreferredRound
     with ∈QC⇒HasBeenSent q∈sys  hα va
        | ∈QC⇒HasBeenSent q'∈sys hα va'
   ...| sent-cv | sent-cv'
-    with make-cand-3-chain c3  va | inspect
-        (make-cand-3-chain c3) va
+    with make-cand-3-chain ais₀ c3  va | inspect
+        (make-cand-3-chain ais₀ c3) va
   ...| cand | [ R ]
     with glob-inv hα
            (sym (∈QC-Member q  va )) sent-cv

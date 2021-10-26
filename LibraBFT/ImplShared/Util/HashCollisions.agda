@@ -97,12 +97,15 @@ module LibraBFT.ImplShared.Util.HashCollisions
 
     data _∈Block_ : BSL → Block → Set where
       inB : ∀ {b} → blockData-bsl (b ^∙ bBlockData) ∈Block b
+    open _∈Block_
 
     data _∈ProposalMsg_ (bsl : BSL) (pm : ProposalMsg) : Set where
       inPM : bsl ∈Block (pm ^∙ pmProposal) → bsl ∈ProposalMsg pm
+    open _∈ProposalMsg_
 
     data _∈nm (bsl : BSL) : Set where
       inP : ∀ {sndr pm} → (sndr , P pm) ∈ msgPool st → bsl ∈ProposalMsg pm → bsl ∈nm
+    open _∈nm
 
     -- We could refine this further (∈BlockTree, ∈btIdToBlock), but I don't think we need to.
     data _∈BS_ (bsl : BSL) (bs : BlockStore) : Set where
@@ -137,7 +140,7 @@ module LibraBFT.ImplShared.Util.HashCollisions
     -- the specific ReachableSystemState, according to the specific notions thereof captured by the
     -- constructors for this type.
 
-    postulate
+    postulate -- Valid assumption: there are no hash collisions among values found in the system
       meta-no-collision-in-sys : ¬ HashCollisionFound
 
     -- Discussion
@@ -176,7 +179,7 @@ module LibraBFT.ImplShared.Util.HashCollisions
     -- As can be seen, connecting a potential hash collision to a specific ReachableSystemState is a
     -- fair amount of work, which complicates proofs.  As explained above, we do not think it is
     -- worthwhile to continue this effort, just to show that we can.  One issue we would want to
-    -- address if were taking this work further would be to *ensure* that the ReachableSystemState
+    -- address if taking this work further would be to *ensure* that the ReachableSystemState
     -- for which a potential collision is considered is the same one about which we're proving the
     -- given property.  This already is the case in our proofs, but our conditions don't *ensure*
     -- that it is because, in principle, when calling nohc to use meta-no-collision-in-sys to
