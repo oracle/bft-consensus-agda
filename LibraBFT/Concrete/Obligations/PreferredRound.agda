@@ -19,13 +19,13 @@ module LibraBFT.Concrete.Obligations.PreferredRound
  open import LibraBFT.Abstract.Abstract UID _≟UID_ NodeId 𝓔 𝓥
  open import LibraBFT.Concrete.Intermediate               𝓔 𝓥
 
- record VoteExtends (v : Vote) : Set where
+ record VotesForBlock (v : Vote) : Set where
     constructor mkVE
     field
       veBlock   : Block
       veId      : vBlockUID v ≡ bId    veBlock
       veRounds≡ : vRound    v ≡ bRound veBlock
- open VoteExtends
+ open VotesForBlock
 
  module _ {ℓ}(𝓢 : IntermediateSystemState ℓ) where
   open IntermediateSystemState 𝓢
@@ -57,7 +57,7 @@ module LibraBFT.Concrete.Obligations.PreferredRound
   record Cand-3-chain-vote (v : Vote) : Set ℓ where
      constructor mkCand3chainvote
      field
-       votesForB : VoteExtends v
+       votesForB : VotesForBlock v
        c3Blk∈sys : InSys (B (veBlock votesForB))
        qc        : QC
        qc←b      : Q qc ← B (veBlock votesForB)
@@ -102,11 +102,11 @@ module LibraBFT.Concrete.Obligations.PreferredRound
 
   record VoteParentData (v : Vote) : Set ℓ where
     field
-      vpExt        : VoteExtends v
-      vpBlock∈sys  : InSys (B (veBlock vpExt))
+      vpV4B        : VotesForBlock v
+      vpBlock∈sys  : InSys (B (veBlock vpV4B))
       vpParent     : Record
       vpParent∈sys : InSys vpParent
-      vpExt'       : vpParent ← B (veBlock vpExt)
+      vpExt        : vpParent ← B (veBlock vpV4B)
       vpMaybeBlock : VoteParentData-BlockExt vpParent
   open VoteParentData public
 
@@ -166,15 +166,15 @@ module LibraBFT.Concrete.Obligations.PreferredRound
         -- Records that are InSys
       → NonInjective-≡-pred (InSys ∘ B) bId ⊎ (round (vpParent vp) ≡ prevRound rc)
    vdParent-prevRound-lemma {q = q} (step {r = B b} (step rc y) x@(B←Q refl refl)) ais va vp
-     with b ≟Block (veBlock (vpExt vp))
-   ...| no imp = inj₁ (((b , veBlock (vpExt vp))
+     with b ≟Block (veBlock (vpV4B vp))
+   ...| no imp = inj₁ (((b , veBlock (vpV4B vp))
                       , (imp , (id-B∨Q-inj (cong id-B∨Q (trans (sym (All-lookup (qVotes-C2 q) (∈QC-Vote-correct q va)))
-                                                               (veId (vpExt vp)))))))
+                                                               (veId (vpV4B vp)))))))
                       , (ais (there x here) , (vpBlock∈sys vp)))
    ...| yes refl
-     with ←-inj y (vpExt' vp)
+     with ←-inj y (vpExt vp)
    ...| bSameId'
-     with y | vpExt' vp
+     with y | vpExt vp
    ...| I←B y0 y1   | I←B e0 e1   = inj₂ refl
    ...| Q←B y0 refl | Q←B e0 refl
      with vpMaybeBlock vp

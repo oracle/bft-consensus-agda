@@ -146,18 +146,18 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
          λ vpd' → vpParent vpd' ≡ vpParent vpd
    stepPreservesVoteParentData {st0} {st1} theStep vpd
       with vpd
-   ...| (record { vpExt        = vpExt
+   ...| (record { vpV4B        = vpV4B
                 ; vpBlock∈sys  = vpBlock∈sys
                 ; vpParent     = vpParent
                 ; vpParent∈sys = vpParent∈sys
-                ; vpExt'       = vpExt'
+                ; vpExt        = vpExt
                 ; vpMaybeBlock = vpMaybeBlock
                 }) = (record
-                     { vpExt        = vpExt
+                     { vpV4B        = vpV4B
                      ; vpBlock∈sys  = stable theStep vpBlock∈sys
                      ; vpParent     = vpParent
                      ; vpParent∈sys = stable theStep vpParent∈sys
-                     ; vpExt'       = vpExt'
+                     ; vpExt        = vpExt
                      ; vpMaybeBlock = transp-vpmb vpMaybeBlock
                      }) , refl
      where transp-vpmb : ∀ {r}
