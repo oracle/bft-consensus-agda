@@ -21,6 +21,8 @@ open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
 import      LibraBFT.Impl.Handle                       as Handle
 open import LibraBFT.Impl.Handle.Properties
+open import LibraBFT.Impl.Handle.InitProperties
+open        initHandlerSpec
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
@@ -43,14 +45,22 @@ open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
+
 -- This module proves the two "PreferredRound" proof obligations for our handler.
 
 module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
 
 preferredRound₁ : PR.ImplObligation₁ Handle.InitHandler.InitAndHandlers 𝓔
-preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-init _ uni) {v = v} {m = m} {v' = v'} {m' = m'}
+preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-init rm×acts uni) {v = v} {m = m} {v' = v'} {m' = m'}
                 hpk v'⊂m' m'∈acts sig' ¬bootstrap' pcs4' v⊂m m∈pool sig ¬bootstrap eid≡ rnd< v≈vabs v'≈vabs'
-                c3 = obm-dangerous-magic' "Use initHandlerSpec: isInitPM"
+                c3
+  with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
+...| init-contract
+  with initHandlerSpec.ContractOk.isInitPM init-contract m'∈acts
+...| (_ , refl , noSigs)
+  with v'⊂m'
+...| vote∈qc vs∈qc _ qc∈pm = ⊥-elim (noSigs vs∈qc qc∈pm)
+
 preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-msg {sndr , P vm} vm'∈pool ini) {v = v} {m = m} {v' = v'} {m' = m'}
                 hpk v'⊂m' m'∈acts sig' ¬bootstrap' pcs4' v⊂m m∈pool sig ¬bootstrap eid≡ rnd< v≈vabs v'≈vabs'
                 c3 = obm-dangerous-magic' "Extend and use handleProposalSpec.contract"
