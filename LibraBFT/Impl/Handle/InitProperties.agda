@@ -107,57 +107,18 @@ module initHandlerSpec
 
   contract : ∀ {x} → initHandler pid bsi ≡ x → Contract x
   contract {nothing} hndl≡nothing rewrite sym hndl≡nothing = tt
-  contract {just (rm , acts)} hndl≡just =
-    let (rmInvOK , lvInvOK , sigsInvOk) = allOK {rm} {acts} pid bsi hndl≡just
-     in mkContractOk
-          rmInvOK
-          lvInvOK
-          sigsInvOk
-          {!!} -- (isInitPMOK {rm} {acts} pid bsi hndl≡just)
-
-   where
-
-    allOK
-      : ∀ {rm acts}
-      → (pid : Author) → (bsi : BootstrapInfo) → initHandler pid bsi ≡ just (rm , acts)
-      → ( Util.Invariants.RoundManagerInv rm
-        × InitSdLVNothing rm
-        × InitSigs∈bs rm )
-    allOK {rm} {acts} pid bsi hndl≡just
-      with ValidatorSigner.obmGetValidatorSigner pid  (bsi ^∙ bsiVSS)
-    ...| Left _ = absurd nothing ≡ just _ case hndl≡just  of λ ()
-    ...| Right vs
-      with initRMWithOutputSpec.contract bsi vs
-    ...| initRMWithOutputContractOk
-      with initRMWithOutput-abs bsi  vs
-    ...| Left _ = absurd nothing ≡ just (rm , acts) case hndl≡just of λ ()
-    ...| Right rm×outs rewrite cong proj₁ (just-injective hndl≡just) =
-         ( initRMWithOutputSpec.ContractOk.rmInv       initRMWithOutputContractOk
-         , initRMWithOutputSpec.ContractOk.sdLVNothing initRMWithOutputContractOk
-         , initRMWithOutputSpec.ContractOk.sigs∈bs     initRMWithOutputContractOk )
-
-    isInitPMOK
-      : ∀ {rm outs}
-      → (pid : Author) → (bsi : BootstrapInfo) → initHandler pid bsi ≡ just (rm , outputsToActions {State = rm} outs)
-      → InitIsInitPM (outputsToActions {State = rm} outs)
-    isInitPMOK {rm} {outs} pid bsi hndl≡just
-       = obm-dangerous-magic' "TODO-2"
---       with ValidatorSigner.obmGetValidatorSigner pid  (bsi ^∙ bsiVSS)
---     ...| Left _ = absurd nothing ≡ just _ case hndl≡just  of λ ()
---     ...| Right vs
---       with initRMWithOutputSpec.contract bsi vs
---     ...| initRMWithOutputContractOk
---       with initRMWithOutput-abs bsi  vs
---     ...| Left _ = absurd nothing ≡ just (rm , outs) case hndl≡just of λ ()
---     ...| Right (rm' , outs) rewrite cong proj₁ (just-injective hndl≡just)
---       = λ x → foo {!!}
---        where
---         foo : ∀ {m} (x : Any (_≡_ (send m)) (outputsToActions {State = rm'} outs)) → InitIsInitPM' m
---         foo {m} x
---           with sendMsg∈actions {-{outs} {m} {rm}-} x
---         ... | SendVote x₁ x₂ , out∈outs , m∈out = {!!}
---         ... | BroadcastProposal pm _ , out∈outs , m∈out
---           with initRMWithOutputSpec.ContractOk.isInitPM  initRMWithOutputContractOk {!!}
---         ... | xxx
---           = {!!}
-
+  contract {just (rm , acts)} hndl≡just
+    with ValidatorSigner.obmGetValidatorSigner pid  (bsi ^∙ bsiVSS)
+  ...| Left _ = absurd nothing ≡ just _ case hndl≡just  of λ ()
+  ...| Right vs
+    with initRMWithOutputSpec.contract bsi vs
+  ...| initRMWithOutputContractOk
+    with initRMWithOutput-abs bsi  vs
+  ...| Left _ = absurd nothing ≡ just (rm , acts) case hndl≡just of λ ()
+  ...| Right rm×outs rewrite sym (cong proj₂ (just-injective hndl≡just)) |
+                                 (cong proj₁ (just-injective hndl≡just)) =
+       mkContractOk
+         (initRMWithOutputSpec.ContractOk.rmInv       initRMWithOutputContractOk)
+         (initRMWithOutputSpec.ContractOk.sdLVNothing initRMWithOutputContractOk)
+         (initRMWithOutputSpec.ContractOk.sigs∈bs     initRMWithOutputContractOk)
+         (initRMWithOutputSpec.ContractOk.isInitPM    initRMWithOutputContractOk)
