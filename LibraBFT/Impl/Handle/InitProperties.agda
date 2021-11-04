@@ -72,8 +72,8 @@ module initRMWithOutputSpec
   Contract (Right (rm , outs)) = ContractOk rm outs
 
 --  postulate
-  contract' : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
-  contract' = {!initRMWithOutput-ed bsi vs!}
+  contract' : EitherD-weakestPre (initRMWithOutput-ed-abs bsi vs) Contract
+  contract' rewrite initRMWithOutput-ed-abs≡ = {!initRMWithOutput-ed bsi vs!}
 {-
 xxx
     where
@@ -98,7 +98,8 @@ xxx
   -}
 
   contract : Contract (initRMWithOutput-e-abs bsi vs)
-  contract rewrite initRMWithOutput≡ {bsi} {vs} = EitherD-contract (initRMWithOutput-ed bsi vs) Contract contract'
+  contract rewrite initRMWithOutput≡ {bsi} {vs} =
+    EitherD-contract (initRMWithOutput-ed-abs bsi vs) Contract contract'
 
 ------------------------------------------------------------------------------
 

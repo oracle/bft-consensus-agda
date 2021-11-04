@@ -175,27 +175,30 @@ module InitHandler where
     rm        ← getEmRm-e-abs em
     Right (rm , lo)
 
-  -- TODO: break into steps
-  initRMWithOutput-ed : BootstrapInfo → ValidatorSigner
-                      → EitherD ErrLog (RoundManager × List Output)
-  initRMWithOutput-ed  bsi vs = do
-    (em , lo) ← initEMWithOutput-ed-abs bsi vs
-    rm        ← getEmRm-ed-abs em
-    RightD (rm , lo)
+  module initRMWithOutput-ed (bsi : BootstrapInfo) (vs : ValidatorSigner) where
+    step₀ : EitherD ErrLog (RoundManager × List Output)
+    step₁ : _ → EitherD ErrLog (RoundManager × List Output)
+    step₀ = do
+      (em , lo) ← initEMWithOutput-ed-abs bsi vs
+      step₁ (em , lo)
+
+    step₁ (em , lo) = do
+      rm        ← getEmRm-ed-abs em
+      RightD (rm , lo)
 
   abstract
     initRMWithOutput-e-abs : BootstrapInfo → ValidatorSigner
                            → Either ErrLog (RoundManager × List Output)
     -- Avoids duplication, but eliminates version that looks exactly like the Haskell
-    initRMWithOutput-e-abs bsi vs = toEither $ initRMWithOutput-ed bsi vs
+    initRMWithOutput-e-abs bsi vs = toEither $ initRMWithOutput-ed.step₀ bsi vs
 
-    initRMWithOutput-ed-abs  = initRMWithOutput-ed
-    initRMWithOutput-ed-abs≡ : initRMWithOutput-ed-abs ≡ initRMWithOutput-ed
+    initRMWithOutput-ed-abs  = initRMWithOutput-ed.step₀
+    initRMWithOutput-ed-abs≡ : initRMWithOutput-ed-abs ≡ initRMWithOutput-ed.step₀
     initRMWithOutput-ed-abs≡ = refl
 
     initRMWithOutput≡
       : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
-      → initRMWithOutput-e-abs bsi vs ≡ EitherD-run (initRMWithOutput-ed bsi vs)
+      → initRMWithOutput-e-abs bsi vs ≡ EitherD-run (initRMWithOutput-ed-abs bsi vs)
     initRMWithOutput≡ {bsi} {vs} = refl
 
   initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
