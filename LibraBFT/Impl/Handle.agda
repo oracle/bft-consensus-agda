@@ -164,15 +164,16 @@ module InitHandler where
    getEMRM≡
     : ∀ {em : EpochManager}
     → getEmRm-e-abs em ≡ EitherD-run (getEmRm-ed-abs em)
-    
 
-  -- unbreak?
-  module initRMWithOutput-e (bsi : BootstrapInfo) (vs : ValidatorSigner) where
-    step₀ : Either ErrLog (RoundManager × List Output)
-    step₀ = do
-      (em , lo) ← initEMWithOutput-e-abs bsi vs
-      rm        ← getEmRm-e-abs em
-      Right (rm , lo)
+  -- This version is currently unused, as we define the Either version below in terms of the EitherD
+  -- version by using EitherD-run.  It's question of judgement whether we're OK with considering
+  -- that the Either version defined this way is sufficiently obviously equivalent to the Haskell
+  -- code we're modeling.
+  initRMWithOutput-e-unused : BootstrapInfo → ValidatorSigner → Either ErrLog (RoundManager × List Output)
+  initRMWithOutput-e-unused bsi vs = do
+    (em , lo) ← initEMWithOutput-e-abs bsi vs
+    rm        ← getEmRm-e-abs em
+    Right (rm , lo)
 
   -- TODO: break into steps
   initRMWithOutput-ed : BootstrapInfo → ValidatorSigner
@@ -182,27 +183,20 @@ module InitHandler where
     rm        ← getEmRm-ed-abs em
     RightD (rm , lo)
 
-  -- EitherD-run to get Either version?
-
   abstract
-    initRMWithOutput-e-abs   = initRMWithOutput-e.step₀
-    initRMWithOutput-e-abs≡ : initRMWithOutput-e-abs ≡ initRMWithOutput-e.step₀
-    initRMWithOutput-e-abs≡ = refl
+    initRMWithOutput-e-abs : BootstrapInfo → ValidatorSigner
+                           → Either ErrLog (RoundManager × List Output)
+    -- Avoids duplication, but eliminates version that looks exactly like the Haskell
+    initRMWithOutput-e-abs bsi vs = toEither $ initRMWithOutput-ed bsi vs
 
     initRMWithOutput-ed-abs  = initRMWithOutput-ed
     initRMWithOutput-ed-abs≡ : initRMWithOutput-ed-abs ≡ initRMWithOutput-ed
     initRMWithOutput-ed-abs≡ = refl
 
-  initRMWithOutput≡
-    : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
-    → initRMWithOutput-e-abs bsi vs ≡ EitherD-run (initRMWithOutput-ed bsi vs)
-  initRMWithOutput≡ {bsi} {vs} rewrite initRMWithOutput-e-abs≡ | initEMWithOutput≡ {bsi} {vs}
-     with EitherD-run (initEMWithOutput-ed-abs bsi vs)
-  ...| Left x = refl
-  ...| Right (em , _) rewrite getEMRM≡ {em}
-     with EitherD-run (getEmRm-ed-abs em)
-  ...| Left _   = refl
-  ...| Right rm = refl
+    initRMWithOutput≡
+      : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
+      → initRMWithOutput-e-abs bsi vs ≡ EitherD-run (initRMWithOutput-ed bsi vs)
+    initRMWithOutput≡ {bsi} {vs} = refl
 
   initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
   initHandler pid bsi =
