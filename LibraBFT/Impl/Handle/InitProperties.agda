@@ -73,16 +73,19 @@ module initRMWithOutputSpec
 
 --  postulate
   contract' : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
-  contract' = xxx
+  contract' = {!initRMWithOutput-ed bsi vs!}
+{-
+xxx
     where
       xxx : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) (EitherD-weakestPre-bindPost _ Contract)
-      xxx
-         with EitherD-run (initEMWithOutput-ed-abs bsi vs)
+      xxx 
+         with EitherD-run (initEMWithOutput-ed-abs bsi vs)  -- NOPE, need to establish initEMWithOutputSpec, use contract
       ... | Left x  = {!!}
       ... | Right y = {!!}
 
       yyy : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
       yyy = xxx
+-}
 
 
 
@@ -116,6 +119,7 @@ module initHandlerSpec
   Contract nothing            = ⊤
   Contract (just (rm , acts)) = ContractOk rm acts
 
+  -- TODO: make more normal
   contract : ∀ {x} → initHandler pid bsi ≡ x → Contract x
   contract {nothing} hndl≡nothing rewrite sym hndl≡nothing = tt
   contract {just (rm , acts)} hndl≡just

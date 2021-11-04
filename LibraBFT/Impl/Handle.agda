@@ -166,6 +166,7 @@ module InitHandler where
     → getEmRm-e-abs em ≡ EitherD-run (getEmRm-ed-abs em)
     
 
+  -- unbreak?
   module initRMWithOutput-e (bsi : BootstrapInfo) (vs : ValidatorSigner) where
     step₀ : Either ErrLog (RoundManager × List Output)
     step₀ = do
@@ -173,12 +174,15 @@ module InitHandler where
       rm        ← getEmRm-e-abs em
       Right (rm , lo)
 
+  -- TODO: break into steps
   initRMWithOutput-ed : BootstrapInfo → ValidatorSigner
                       → EitherD ErrLog (RoundManager × List Output)
   initRMWithOutput-ed  bsi vs = do
     (em , lo) ← initEMWithOutput-ed-abs bsi vs
     rm        ← getEmRm-ed-abs em
     RightD (rm , lo)
+
+  -- EitherD-run to get Either version?
 
   abstract
     initRMWithOutput-e-abs   = initRMWithOutput-e.step₀
