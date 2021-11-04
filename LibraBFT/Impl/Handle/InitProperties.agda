@@ -71,8 +71,9 @@ module initRMWithOutputSpec
   Contract (Left x)            = ⊤
   Contract (Right (rm , outs)) = ContractOk rm outs
 
-  postulate
-    contract' : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
+--  postulate
+  contract' : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
+  contract' = {! initRMWithOutput-ed bsi vs!}
   {-  Apply EitherD-weakestpre (EitherD-bind m f) P rule
       m = initEMWithOutput bsi vs
       So need to prove something about initEMWithOutput
@@ -81,10 +82,8 @@ module initRMWithOutputSpec
       equivalent abstract version and a Contract for it?
   -}
 
-  -- TODO: Maybe we can streamline so we don't need these two rewrites?
-  contract : Contract (initRMWithOutput-abs bsi vs)
-  contract rewrite initRMWithOutput-abs≡ | (initRMWithOutput≡ {bsi} {vs}) =
-    EitherD-contract (initRMWithOutput-ed bsi vs) Contract contract'
+  contract : Contract (initRMWithOutput-e-abs bsi vs)
+  contract rewrite initRMWithOutput≡ {bsi} {vs} = EitherD-contract (initRMWithOutput-ed bsi vs) Contract contract'
 
 ------------------------------------------------------------------------------
 
@@ -113,7 +112,7 @@ module initHandlerSpec
   ...| Right vs
     with initRMWithOutputSpec.contract bsi vs
   ...| initRMWithOutputContractOk
-    with initRMWithOutput-abs bsi  vs
+    with initRMWithOutput-e-abs bsi vs
   ...| Left _ = absurd nothing ≡ just (rm , acts) case hndl≡just of λ ()
   ...| Right rm×outs rewrite sym (cong proj₂ (just-injective hndl≡just)) |
                                  (cong proj₁ (just-injective hndl≡just)) =
