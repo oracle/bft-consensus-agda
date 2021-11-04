@@ -73,9 +73,21 @@ module initRMWithOutputSpec
 
 --  postulate
   contract' : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
-  contract' = {! initRMWithOutput-ed bsi vs!}
+  contract' = xxx
+    where
+      xxx : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) (EitherD-weakestPre-bindPost _ Contract)
+      xxx
+         with EitherD-run (initEMWithOutput-ed-abs bsi vs)
+      ... | Left x  = {!!}
+      ... | Right y = {!!}
+
+      yyy : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
+      yyy = xxx
+
+
+
   {-  Apply EitherD-weakestpre (EitherD-bind m f) P rule
-      m = initEMWithOutput bsi vs
+      m = initEMWithOutput-ed-abs bsi vs
       So need to prove something about initEMWithOutput
       Currently not abstract, so Agda looks into initEMWithOutput.
       Should we soldier on, looking into initEMWithOutput and making a fragile proof, or make an
