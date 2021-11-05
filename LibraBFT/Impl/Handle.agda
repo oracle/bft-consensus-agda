@@ -104,61 +104,67 @@ module InitHandler where
         proposalGenerator
         (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
+  postulate
+    initialize-ed : Instant → GenKeyFile.NfLiwsVsVvPe → EitherD ErrLog (EpochManager × List Output)
+
   abstract
-    initialize-abs  : Instant → GenKeyFile.NfLiwsVsVvPe
+    initialize-e-abs  : Instant → GenKeyFile.NfLiwsVsVvPe
                     → Either ErrLog (EpochManager × List Output)
-    initialize-abs  = initialize-e
-    initialize-abs≡ : initialize-abs ≡ initialize-e
+    initialize-e-abs  = initialize-e
+    initialize-abs≡ : initialize-e-abs ≡ initialize-e
     initialize-abs≡ = refl
+
+    initialize-ed-abs  = initialize-ed
 
   mkNfLiwsVsVvPe : BootstrapInfo → ValidatorSigner → GenKeyFile.NfLiwsVsVvPe
   mkNfLiwsVsVvPe bsi vs = (bsi ^∙ bsiNumFaults , bsi ^∙ bsiLIWS , vs , bsi ^∙ bsiVV , bsi ^∙ bsiPE)
 
-  initEMWithOutput-e  : BootstrapInfo → ValidatorSigner
-                      → Either  ErrLog (EpochManager × List Output)
-  initEMWithOutput-e bsi vs =
-    initialize-abs now (mkNfLiwsVsVvPe bsi vs)
+  initEMWithOutput-e-unused  : BootstrapInfo → ValidatorSigner
+                      → Either ErrLog (EpochManager × List Output)
+  initEMWithOutput-e-unused bsi vs =
+    initialize-e-abs now (mkNfLiwsVsVvPe bsi vs)
 
+  -- No need to break this one into steps, no decision points
   initEMWithOutput-ed : BootstrapInfo → ValidatorSigner
                       → EitherD ErrLog (EpochManager × List Output)
   initEMWithOutput-ed  bsi vs =
-    fromEither $
-    initialize-abs now (mkNfLiwsVsVvPe bsi vs)
+    initialize-ed-abs now (mkNfLiwsVsVvPe bsi vs)
 
   abstract
-    initEMWithOutput-e-abs = initEMWithOutput-e
-    initEMWithOutput-e-abs≡ : initEMWithOutput-e-abs ≡ initEMWithOutput-e
-    initEMWithOutput-e-abs≡ = refl
+    initEMWithOutput-e-abs : BootstrapInfo → ValidatorSigner
+                           → Either ErrLog (EpochManager × List Output)
+    initEMWithOutput-e-abs bsi vs = toEither $ initEMWithOutput-ed bsi vs
 
     initEMWithOutput-ed-abs = initEMWithOutput-ed
     initEMWithOutput-ed-abs≡ : initEMWithOutput-ed-abs ≡ initEMWithOutput-ed
     initEMWithOutput-ed-abs≡ = refl
 
-  -- This shows that the Either and EitherD versions are equivalent.
-  -- This is a first step towards eliminating the painful VariantOf stuff,
-  -- so we can have the version that looks (almost) exactly like the Haskell,
-  -- and the EitherD variant, broken into explicit steps, etc. for proving.
-  initEMWithOutput≡
-    : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
-    → initEMWithOutput-e-abs bsi vs ≡ EitherD-run (initEMWithOutput-ed-abs bsi vs)
-  initEMWithOutput≡ {bsi} {vs} rewrite initEMWithOutput-e-abs≡ | initEMWithOutput-ed-abs≡
-    with initialize-abs now (mkNfLiwsVsVvPe bsi vs)
-  ... | Left  _ = refl
-  ... | Right _ = refl
+    -- This shows that the Either and EitherD versions are equivalent.
+    -- This is a first step towards eliminating the painful VariantOf stuff,
+    -- so we can have the version that looks (almost) exactly like the Haskell,
+    -- and the EitherD variant, broken into explicit steps, etc. for proving.
+    initEMWithOutput≡
+      : ∀ {bsi : BootstrapInfo} {vs : ValidatorSigner}
+      → initEMWithOutput-e-abs bsi vs ≡ EitherD-run (initEMWithOutput-ed-abs bsi vs)
+    initEMWithOutput≡ {bsi} {vs} = refl
 
-  getEmRm-e : EpochManager → Either ErrLog RoundManager
-  getEmRm-e em =
+  getEmRm-ed : EpochManager → EitherD ErrLog RoundManager
+  getEmRm-ed em =
     case em ^∙ emProcessor of λ where
-      nothing  → Left fakeErr
+      nothing  → LeftD fakeErr
       (just p) → case p of λ where
-                   (RoundProcessorRecovery _) → Left fakeErr
-                   (RoundProcessorNormal rm)  → Right rm
+                   (RoundProcessorRecovery _) → LeftD fakeErr
+                   (RoundProcessorNormal rm)  → RightD rm
   abstract
-    getEmRm-e-abs : EpochManager → Either ErrLog RoundManager
-    getEmRm-e-abs = getEmRm-e
-
     getEmRm-ed-abs : EpochManager → EitherD ErrLog RoundManager
-    getEmRm-ed-abs = fromEither ∘ getEmRm-e-abs
+    getEmRm-ed-abs = getEmRm-ed
+
+    getEmRm-ed-abs≡ : getEmRm-ed-abs ≡ getEmRm-ed
+    getEmRm-ed-abs≡ = refl
+
+    getEmRm-e-abs : EpochManager → Either ErrLog RoundManager
+    getEmRm-e-abs = toEither ∘ getEmRm-ed-abs
+
 
   postulate -- TODO
    getEMRM≡
@@ -178,6 +184,7 @@ module InitHandler where
   module initRMWithOutput-ed (bsi : BootstrapInfo) (vs : ValidatorSigner) where
     step₀ : EitherD ErrLog (RoundManager × List Output)
     step₁ : _ → EitherD ErrLog (RoundManager × List Output)
+
     step₀ = do
       (em , lo) ← initEMWithOutput-ed-abs bsi vs
       step₁ (em , lo)

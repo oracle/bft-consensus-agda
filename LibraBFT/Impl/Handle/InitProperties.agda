@@ -53,6 +53,49 @@ InitIsInitPM acts = ∀ {m}
 
 ------------------------------------------------------------------------------
 
+open Util.Invariants
+
+module getEmRmSpec
+  (em : EpochManager)
+  where
+
+  record ContractOk (rm : RoundManager) : Set where
+    constructor mkContractOk
+    field
+      rmInv       : RoundManagerInv rm
+      sdLVNothing : InitSdLVNothing rm
+      sigs∈bs     : InitSigs∈bs rm
+  open ContractOk
+
+  Contract : EitherD-Post ErrLog RoundManager
+  Contract (Left x)   = ⊤
+  Contract (Right rm) = em ^∙ emProcessor ≡ just (RoundProcessorNormal rm) × ContractOk rm
+
+  postulate
+    contract' : EitherD-weakestPre (getEmRm-ed-abs em) Contract
+
+module initEMWithOutputSpec
+  (bsi : BootstrapInfo)
+  (vs  : ValidatorSigner)
+  where
+
+  record ContractOk (rm : RoundManager) (outs : List Output) : Set where
+    constructor mkContractOk
+    field           -- TODO: refactor so this condition applies to all fields
+      rmInv       : RoundManagerInv rm
+      sdLVNothing : InitSdLVNothing rm
+      sigs∈bs     : InitSigs∈bs rm
+      isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
+
+  open ContractOk
+
+  Contract : EitherD-Post ErrLog (EpochManager × List Output)
+  Contract (Left x)            = ⊤
+  Contract (Right (em , outs)) = ∃[ rm ] (em ^∙ emProcessor ≡ just (RoundProcessorNormal rm) × ContractOk rm outs)
+
+  postulate
+    contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) Contract
+
 module initRMWithOutputSpec
   (bsi : BootstrapInfo)
   (vs  : ValidatorSigner)
@@ -71,31 +114,38 @@ module initRMWithOutputSpec
   Contract (Left x)            = ⊤
   Contract (Right (rm , outs)) = ContractOk rm outs
 
---  postulate
+  open initRMWithOutput-ed bsi vs
+
+  contract-step₁ : ∀ {em lo st} → InitIsInitPM (outputsToActions {st} lo) → EitherD-weakestPre (step₁ (em , lo)) Contract
+  contract-step₁ {em} {lo} iip = xxx
+     where
+       P⇒Q : EitherD-Post-⇒ (getEmRmSpec.Contract em)
+                            (EitherD-weakestPre-bindPost _ Contract)
+       P⇒Q (Left x) _ = tt
+       P⇒Q (Right rm) pf .rm refl = mkContractOk (getEmRmSpec.ContractOk.rmInv       pf')
+                                                 (getEmRmSpec.ContractOk.sdLVNothing pf')
+                                                 (getEmRmSpec.ContractOk.sigs∈bs     pf')
+                                                 iip
+                                      where pf' = proj₂ pf
+
+       xxx : EitherD-weakestPre (getEmRm-ed-abs em) (EitherD-weakestPre-bindPost (λ rm → RightD (rm , lo)) Contract)
+       xxx = EitherD-⇒ (getEmRmSpec.Contract em) _
+                       P⇒Q
+                       (getEmRm-ed-abs em)
+                       (getEmRmSpec.contract' em)
+
   contract' : EitherD-weakestPre (initRMWithOutput-ed-abs bsi vs) Contract
-  contract' rewrite initRMWithOutput-ed-abs≡ = {!initRMWithOutput-ed bsi vs!}
-{-
-xxx
-    where
-      xxx : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) (EitherD-weakestPre-bindPost _ Contract)
-      xxx 
-         with EitherD-run (initEMWithOutput-ed-abs bsi vs)  -- NOPE, need to establish initEMWithOutputSpec, use contract
-      ... | Left x  = {!!}
-      ... | Right y = {!!}
-
-      yyy : EitherD-weakestPre (initRMWithOutput-ed bsi vs) Contract
-      yyy = xxx
--}
-
-
-
-  {-  Apply EitherD-weakestpre (EitherD-bind m f) P rule
-      m = initEMWithOutput-ed-abs bsi vs
-      So need to prove something about initEMWithOutput
-      Currently not abstract, so Agda looks into initEMWithOutput.
-      Should we soldier on, looking into initEMWithOutput and making a fragile proof, or make an
-      equivalent abstract version and a Contract for it?
-  -}
+  contract' rewrite initRMWithOutput-ed-abs≡ =
+    EitherD-⇒ (initEMWithOutputSpec.Contract bsi vs) _
+              P⇒Q
+              (initEMWithOutput-ed-abs bsi vs)
+              (initEMWithOutputSpec.contract' bsi vs)
+      where
+      P⇒Q : EitherD-Post-⇒ (initEMWithOutputSpec.Contract bsi vs)
+                           (EitherD-weakestPre-bindPost step₁ Contract)
+      P⇒Q (Left x) _ = tt
+      P⇒Q (Right (em , lo)) pf .(em , lo) refl = contract-step₁ {st = proj₁ pf}
+                                                                (initEMWithOutputSpec.ContractOk.isInitPM (proj₂ (proj₂ pf)))
 
   contract : Contract (initRMWithOutput-e-abs bsi vs)
   contract rewrite initRMWithOutput≡ {bsi} {vs} =

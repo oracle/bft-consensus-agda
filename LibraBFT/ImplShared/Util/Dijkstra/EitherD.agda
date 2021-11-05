@@ -49,6 +49,9 @@ EitherD-Pre E A = Set
 EitherD-Post : (E A : Set) → Set₁
 EitherD-Post E A = Either E A → Set
 
+EitherD-Post-⇒ : ∀ {E} {A} → (P Q : EitherD-Post E A) → Set
+EitherD-Post-⇒ P Q = ∀ r → P r → Q r
+
 EitherD-PredTrans : (E A : Set) → Set₁
 EitherD-PredTrans E A = EitherD-Post E A → EitherD-Pre E A
 
@@ -107,3 +110,19 @@ EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
   EitherD-contract f₁ P (proj₁ wp refl)
 EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
+
+-- TODO: add useful utilities analogous to RWS-⇒, RWS-⇒-bind, etc?
+
+postulate -- TODO-1 : prove
+ EitherD-⇒
+  : ∀ {E A} (P Q : EitherD-Post E A) → (EitherD-Post-⇒ P Q)
+  → ∀ m → EitherD-weakestPre m P → EitherD-weakestPre m Q
+{-
+EitherD-⇒ Post₁ Post₂ f (LeftD x) pf                = f (Left x) pf
+EitherD-⇒ Post₁ Post₂ f (RightD x) pf               = f (Right x) pf
+EitherD-⇒ Post₁ Post₂ f (EitherD-bind m x) pf       = {!!}
+--  EitherD-⇒ _ _ (λ r x₁ → EitherD-⇒ _ _ f (x {!x₁!}) {!!}) {!m!} {!!}
+EitherD-⇒ Post₁ Post₂ f (EitherD-if x) pf           = {!!}
+EitherD-⇒ Post₁ Post₂ f (EitherD-either x x₁ x₂) pf = {!!}
+EitherD-⇒ Post₁ Post₂ f (EitherD-maybe x m x₁) pf   = {!!}
+-}
