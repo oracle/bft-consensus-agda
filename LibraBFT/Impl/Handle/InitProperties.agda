@@ -170,12 +170,9 @@ module initHandlerSpec
   Contract nothing            = ⊤
   Contract (just (rm , acts)) = ContractOk rm acts
 
-  contract : Contract (initHandler pid bsi)
-  contract
-     with  initHandler pid  bsi | inspect
-          (initHandler pid) bsi
-  ...| nothing | _ = tt
-  ...| just (rm , acts) | [ hndl≡just ]
+  contract : ∀ {x} → initHandler pid bsi ≡ x → Contract x
+  contract {nothing} hndl≡nothing rewrite sym hndl≡nothing = tt
+  contract {just (rm , acts)} hndl≡just
     with ValidatorSigner.obmGetValidatorSigner pid  (bsi ^∙ bsiVSS)
   ...| Left _ = absurd nothing ≡ just _ case hndl≡just  of λ ()
   ...| Right vs
