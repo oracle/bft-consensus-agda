@@ -221,6 +221,21 @@ module InitHandler where
   -- Default to writing the proof-friendly EitherD version and defining the Either version in terms
   -- of it.  For cases in which the correspondence is judged not to be obvious enough, we can add an
   -- explicit Either version and prove that is is equivalent.
+  --
+  -- Calling convention
+  --
+  -- When calling a function within and EitherD function, we should call an abstract version of that
+  -- function, which ensures modularity of proofs and readability of proof states by avoiding Agda
+  -- "unrolling" defintions prematurely.  Similarly, for cases in which we do write an explicit
+  -- Either version and prove it equivalent, we should also call an abstract version of Either
+  -- functions.
+
+  -- Relationship to "VariantFor"
+  --
+  -- We have previously defined variants for functions in EitherLike monads using EL-func (search
+  -- for VariantFor).  In light of the above exploration, perhaps that machinery adds less value
+  -- than it is worth?  It seems we can get everything we need from following simple conventions as
+  -- outlined above.
 
   initRMWithOutput-e : BootstrapInfo → ValidatorSigner → Either ErrLog (RoundManager × List Output)
   initRMWithOutput-e bsi vs = do
