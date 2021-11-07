@@ -178,9 +178,19 @@ module initHandlerSpec
   Contract nothing            = ⊤
   Contract (just (rm , acts)) = ContractOk rm acts
 
-  contract : ∀ {x} → initHandler pid bsi ≡ x → Contract x
-  contract {nothing} hndl≡nothing rewrite sym hndl≡nothing = tt
-  contract {just (rm , acts)} hndl≡just
+  -- TODO-2: this property is more succinctly/elegantly stated as Contract (initHandler pid bsi),
+  -- and can be proved by starting the proof as follows:
+  --
+  -- contract : Contract (initHandler pid bsi)
+  -- contract with initHandler pid bsi | inspect (initHandler pid) bsi
+  -- ...| nothing | _ = tt
+  -- ...| just (rm , acts) | [ hndl≡just ]
+  --
+  -- However, this breaks a bunch of proofs that use this, so not doing it for now.
+  contract : Contract (initHandler pid bsi)
+  contract with initHandler pid bsi | inspect (initHandler pid) bsi
+  ...| nothing | _ = tt
+  ...| just (rm , acts) | [ hndl≡just ]
     with ValidatorSigner.obmGetValidatorSigner pid  (bsi ^∙ bsiVSS)
   ...| Left _ = absurd nothing ≡ just _ case hndl≡just  of λ ()
   ...| Right vs
