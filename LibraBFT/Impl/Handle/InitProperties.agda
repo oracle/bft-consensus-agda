@@ -22,6 +22,10 @@ module LibraBFT.Impl.Handle.InitProperties where
 
 -- RoundManager properties
 
+_IsNormalRoundManagerOf_ : RoundManager → EpochManager → Set
+_IsNormalRoundManagerOf_ rm em =
+  em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
+
 InitSdLVNothing : RoundManager → Set
 InitSdLVNothing rm = rm ^∙ rmSafetyRules ∙ srPersistentStorage
                          ∙ pssSafetyData ∙ sdLastVote ≡ nothing
@@ -69,7 +73,7 @@ module getEmRmSpec
 
   Contract : EitherD-Post ErrLog RoundManager
   Contract (Left x)   = ⊤
-  Contract (Right rm) = em ^∙ emProcessor ≡ just (RoundProcessorNormal rm) × ContractOk rm
+  Contract (Right rm) = rm IsNormalRoundManagerOf em × ContractOk rm
 
   postulate
     contract' : EitherD-weakestPre (getEmRm-ed-abs em) Contract
@@ -91,7 +95,9 @@ module initEMWithOutputSpec
 
   Contract : EitherD-Post ErrLog (EpochManager × List Output)
   Contract (Left x)            = ⊤
-  Contract (Right (em , outs)) = ∃[ rm ] (em ^∙ emProcessor ≡ just (RoundProcessorNormal rm) × ContractOk rm outs)
+  Contract (Right (em , outs)) = ∃[ rm ]
+                                   ( rm IsNormalRoundManagerOf em
+                                   × ContractOk rm outs )
 
   postulate
     contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) Contract
@@ -116,23 +122,24 @@ module initRMWithOutputSpec
 
   open initRMWithOutput-ed bsi vs
 
-  contract-step₁ : ∀ {em lo st} → InitIsInitPM (outputsToActions {st} lo) → EitherD-weakestPre (step₁ (em , lo)) Contract
-  contract-step₁ {em} {lo} iip = xxx
+  contract-step₁ : ∀ {em lo st}
+                   → InitIsInitPM (outputsToActions {st} lo)
+                   → EitherD-weakestPre (step₁ (em , lo)) Contract
+  contract-step₁ {em} {lo} iip =
+    EitherD-⇒ (getEmRmSpec.Contract em) _
+              P⇒Q
+              (getEmRm-ed-abs em)
+              (getEmRmSpec.contract' em)
      where
        P⇒Q : EitherD-Post-⇒ (getEmRmSpec.Contract em)
                             (EitherD-weakestPre-bindPost _ Contract)
        P⇒Q (Left x) _ = tt
-       P⇒Q (Right rm) pf .rm refl = mkContractOk (getEmRmSpec.ContractOk.rmInv       pf')
-                                                 (getEmRmSpec.ContractOk.sdLVNothing pf')
-                                                 (getEmRmSpec.ContractOk.sigs∈bs     pf')
-                                                 iip
-                                      where pf' = proj₂ pf
-
-       xxx : EitherD-weakestPre (getEmRm-ed-abs em) (EitherD-weakestPre-bindPost (λ rm → RightD (rm , lo)) Contract)
-       xxx = EitherD-⇒ (getEmRmSpec.Contract em) _
-                       P⇒Q
-                       (getEmRm-ed-abs em)
-                       (getEmRmSpec.contract' em)
+       P⇒Q (Right rm) pf .rm refl =
+         mkContractOk (getEmRmSpec.ContractOk.rmInv       pf')
+                      (getEmRmSpec.ContractOk.sdLVNothing pf')
+                      (getEmRmSpec.ContractOk.sigs∈bs     pf')
+                      iip
+           where pf' = proj₂ pf
 
   contract' : EitherD-weakestPre (initRMWithOutput-ed-abs bsi vs) Contract
   contract' rewrite initRMWithOutput-ed-abs≡ =
@@ -144,8 +151,9 @@ module initRMWithOutputSpec
       P⇒Q : EitherD-Post-⇒ (initEMWithOutputSpec.Contract bsi vs)
                            (EitherD-weakestPre-bindPost step₁ Contract)
       P⇒Q (Left x) _ = tt
-      P⇒Q (Right (em , lo)) pf .(em , lo) refl = contract-step₁ {st = proj₁ pf}
-                                                                (initEMWithOutputSpec.ContractOk.isInitPM (proj₂ (proj₂ pf)))
+      P⇒Q (Right (em , lo)) pf .(em , lo) refl =
+        contract-step₁ {st = proj₁ pf}
+          (initEMWithOutputSpec.ContractOk.isInitPM (proj₂ (proj₂ pf)))
 
   contract : Contract (initRMWithOutput-e-abs bsi vs)
   contract rewrite initRMWithOutput≡ {bsi} {vs} =

@@ -173,7 +173,7 @@ module InitHandler where
   -- Below is a small exploration in how we define, use, and prove properties about functions in the
   -- Either monad.  We would like to:
   --
-  -- * use the EitherD-weakestPre machinery to help structure proofs,
+  -- * use the EitherD-weakestPre machinery to help structure proofs
   -- * avoid functions being "unrolled" in proof states to make them more readable and proofs more
   --   robust to change
   -- * break functions in to smaller pieces with names and explicit type signatures, making it
@@ -230,7 +230,7 @@ module InitHandler where
 
   module initRMWithOutput-ed (bsi : BootstrapInfo) (vs : ValidatorSigner) where
     step₀ : EitherD ErrLog (RoundManager × List Output)
-    step₁ : _ → EitherD ErrLog (RoundManager × List Output)
+    step₁ : EpochManager × List Output → EitherD ErrLog (RoundManager × List Output)
 
     step₀ = do
       (em , lo) ← initEMWithOutput-ed-abs bsi vs
