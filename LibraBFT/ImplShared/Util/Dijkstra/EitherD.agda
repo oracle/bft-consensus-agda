@@ -111,14 +111,12 @@ EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
 EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
 
--- TODO: add useful utilities analogous to RWS-⇒-bind, etc?
-
 EitherD-⇒
   : ∀ {E A} (P Q : EitherD-Post E A) → (EitherD-Post-⇒ P Q)
   → ∀ m → EitherD-weakestPre m P → EitherD-weakestPre m Q
 EitherD-⇒ Post₁ Post₂ pf (LeftD x ) pre             = pf (Left x ) pre
 EitherD-⇒ Post₁ Post₂ pf (RightD x) pre             = pf (Right x) pre
-EitherD-⇒ {E} {A} Post₁ Post₂ pf (EitherD-bind {A'} {.A} m x) pre =
+EitherD-⇒ {E} {A} Post₁ Post₂ pf (EitherD-bind m x) pre =
   EitherD-⇒ _ _ P⇒Q m pre
   where
     P⇒Q : EitherD-Post-⇒ (EitherD-weakestPre-bindPost x Post₁)
@@ -137,3 +135,13 @@ proj₁ (EitherD-⇒ Post₁ Post₂ pf (EitherD-maybe .nothing m x₁) (pre₁ 
        EitherD-⇒ _ _ pf m      (pre₁   refl)
 proj₂ (EitherD-⇒ Post₁ Post₂ pf (EitherD-maybe (just x) m x₁) (pre₁ , pre₂)) j refl =
        EitherD-⇒ _ _ pf (x₁ j) (pre₂ j refl)
+
+EitherD-⇒-bind :
+    ∀ {E} {A} {P : EitherD-Post E A}
+    → {Q : EitherD-Post E B}
+    → {f : A → EitherD E B}
+    → EitherD-Post-⇒ P (EitherD-weakestPre-bindPost f Q)
+    → ∀ m → EitherD-weakestPre m P
+    → EitherD-weakestPre (EitherD-bind m f) Q
+EitherD-⇒-bind {P = Post₁} {Post₂} {f} pf m con =
+  EitherD-⇒ Post₁ (EitherD-weakestPre-bindPost f Post₂) pf m con
