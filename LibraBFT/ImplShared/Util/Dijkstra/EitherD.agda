@@ -111,18 +111,29 @@ EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
 EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
 
--- TODO: add useful utilities analogous to RWS-⇒, RWS-⇒-bind, etc?
+-- TODO: add useful utilities analogous to RWS-⇒-bind, etc?
 
-postulate -- TODO-1 : prove
- EitherD-⇒
+EitherD-⇒
   : ∀ {E A} (P Q : EitherD-Post E A) → (EitherD-Post-⇒ P Q)
   → ∀ m → EitherD-weakestPre m P → EitherD-weakestPre m Q
-{-
-EitherD-⇒ Post₁ Post₂ f (LeftD x) pf                = f (Left x) pf
-EitherD-⇒ Post₁ Post₂ f (RightD x) pf               = f (Right x) pf
-EitherD-⇒ Post₁ Post₂ f (EitherD-bind m x) pf       = {!!}
---  EitherD-⇒ _ _ (λ r x₁ → EitherD-⇒ _ _ f (x {!x₁!}) {!!}) {!m!} {!!}
-EitherD-⇒ Post₁ Post₂ f (EitherD-if x) pf           = {!!}
-EitherD-⇒ Post₁ Post₂ f (EitherD-either x x₁ x₂) pf = {!!}
-EitherD-⇒ Post₁ Post₂ f (EitherD-maybe x m x₁) pf   = {!!}
--}
+EitherD-⇒ Post₁ Post₂ pf (LeftD x ) pre             = pf (Left x ) pre
+EitherD-⇒ Post₁ Post₂ pf (RightD x) pre             = pf (Right x) pre
+EitherD-⇒ {E} {A} Post₁ Post₂ pf (EitherD-bind {A'} {.A} m x) pre =
+  EitherD-⇒ _ _ P⇒Q m pre
+  where
+    P⇒Q : EitherD-Post-⇒ (EitherD-weakestPre-bindPost x Post₁)
+                         (EitherD-weakestPre-bindPost x Post₂)
+    P⇒Q (Left  rL) Pr = pf (Left rL) Pr
+    P⇒Q (Right rR) Pr .rR refl = EitherD-⇒ _ _ pf (x rR) (Pr rR refl)
+EitherD-⇒ Post₁ Post₂ pf (EitherD-if (otherwise≔ x)) pre = EitherD-⇒ _ _ pf x pre
+EitherD-⇒ Post₁ Post₂ pf (EitherD-if (clause (x ≔ x₂) x₁)) (pre₁ , pre₂) =
+    (λ x≡true  → EitherD-⇒ _ _  pf x₂ (pre₁ x≡true))
+  , (λ x≡false → EitherD-⇒ _ _  pf (EitherD-if x₁) (pre₂ x≡false))
+proj₁ (EitherD-⇒ Post₁ Post₂ pf (EitherD-either (Left  x) x₁ x₂) (pre₁ , pre₂)) .x refl =
+       EitherD-⇒ _ _ pf (x₁ x) (pre₁ x refl)
+proj₂ (EitherD-⇒ Post₁ Post₂ pf (EitherD-either (Right x) x₁ x₂) (pre₁ , pre₂)) .x refl =
+       EitherD-⇒ _ _ pf (x₂ x) (pre₂ x refl)
+proj₁ (EitherD-⇒ Post₁ Post₂ pf (EitherD-maybe .nothing m x₁) (pre₁ , pre₂)) refl   =
+       EitherD-⇒ _ _ pf m      (pre₁   refl)
+proj₂ (EitherD-⇒ Post₁ Post₂ pf (EitherD-maybe (just x) m x₁) (pre₁ , pre₂)) j refl =
+       EitherD-⇒ _ _ pf (x₁ j) (pre₂ j refl)
