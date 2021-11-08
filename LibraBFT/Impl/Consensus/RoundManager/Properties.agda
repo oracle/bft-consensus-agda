@@ -217,7 +217,7 @@ module executeAndVoteMSpec (vb : ValidBlock) where
         → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (executeAndVoteM b) Post pre
     contract Post pf =
-      RWS-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
+      RWS-⇒ (executeAndVoteM b) unit pre contract' pf
 
 module processProposalMSpec (vproposal : ValidBlock) where
   proposal = vbBlock vproposal
@@ -398,7 +398,7 @@ module processProposalMSpec (vproposal : ValidBlock) where
                            (mkPreservesRoundManagerInv id id bsP srP)
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
-    contract Post pf = LBFT-⇒ Contract Post pf (processProposalM proposal) pre contract'
+    contract Post pf = LBFT-⇒ (processProposalM proposal) pre contract' pf
 
 module syncUpMSpec
   (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
@@ -509,8 +509,8 @@ module syncUpMSpec
       : ∀ Post → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (syncUpM now syncInfo author _helpRemote) pre
-        contract'
+      LBFT-⇒ (syncUpM now syncInfo author _helpRemote) pre
+        contract' pf
 
 module ensureRoundAndSyncUpMSpec
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo)
@@ -581,7 +581,7 @@ module ensureRoundAndSyncUpMSpec
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract'
+      LBFT-⇒ (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract' pf
 
 module processProposalMsgMSpec
   (now : Instant) (pm : ProposalMsg) (vproposal : BlockId-correct (pm ^∙ pmProposal)) where
@@ -703,4 +703,4 @@ module processProposalMsgMSpec
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (processProposalMsgM now pm) pre contract'
+      LBFT-⇒ (processProposalMsgM now pm) pre contract' pf

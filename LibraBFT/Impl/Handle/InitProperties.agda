@@ -126,8 +126,9 @@ module initRMWithOutputSpec
                    → InitIsInitPM (outputsToActions {st} lo)
                    → EitherD-weakestPre (step₁ (em , lo)) Contract
   contract-step₁ {em} {lo} iip =
-    EitherD-⇒-bind P⇒Q (getEmRm-ed-abs em)
+    EitherD-⇒-bind (getEmRm-ed-abs em)
                    (getEmRmSpec.contract' em)
+                   P⇒Q
      where
        P⇒Q : _
        P⇒Q (Left x) _ = tt
@@ -140,8 +141,9 @@ module initRMWithOutputSpec
 
   contract' : EitherD-weakestPre (initRMWithOutput-ed-abs bsi vs) Contract
   contract' rewrite initRMWithOutput-ed-abs≡ =
-    EitherD-⇒-bind P⇒Q (initEMWithOutput-ed-abs bsi vs)
+    EitherD-⇒-bind (initEMWithOutput-ed-abs bsi vs)
                    (initEMWithOutputSpec.contract' bsi vs)
+                   P⇒Q
       where
       P⇒Q : _
       P⇒Q (Left x) _ = tt

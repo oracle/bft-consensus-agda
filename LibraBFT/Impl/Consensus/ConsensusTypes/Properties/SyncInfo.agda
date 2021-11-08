@@ -133,4 +133,4 @@ module verifyMSpec (self : SyncInfo) (validator : ValidatorVerifier) where
      }
 
    contract : ∀ Q → (RWS-Post-⇒ Contract Q) → LBFT-weakestPre (SI.verifyM self validator) Q pre
-   contract Q pf = LBFT-⇒ Contract Q pf (SI.verifyM self validator) pre (mkContract id refl refl verifyCorrect)
+   contract Q pf = LBFT-⇒ (SI.verifyM self validator) pre (mkContract id refl refl verifyCorrect) pf

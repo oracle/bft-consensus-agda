@@ -196,7 +196,7 @@ module insertSingleQuorumCertMSpec
       contract' : LBFT-weakestPre (insertSingleQuorumCertM qc) Contract pre
 
     contract : ∀ Q → RWS-Post-⇒ Contract Q → LBFT-weakestPre (insertSingleQuorumCertM qc) Q pre
-    contract Q pf = LBFT-⇒ Contract Q pf (insertSingleQuorumCertM qc) pre contract'
+    contract Q pf = LBFT-⇒ (insertSingleQuorumCertM qc) pre contract' pf
 
 module syncInfoMSpec where
   syncInfo : RoundManager → SyncInfo
