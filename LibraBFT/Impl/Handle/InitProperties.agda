@@ -74,8 +74,12 @@ module getEmRmSpec
   Contract (Left x)   = ⊤
   Contract (Right rm) = rm IsNormalRoundManagerOf em
 
-  postulate
-    contract' : EitherD-weakestPre (getEmRm-ed-abs em) Contract
+  contract' : EitherD-weakestPre (getEmRm-ed-abs em) Contract
+  contract' rewrite getEmRm-ed-abs≡
+     with em ^∙ emProcessor | inspect (_^∙ emProcessor) em
+  ...| nothing | _ = tt
+  ...| just (RoundProcessorRecovery x) | _     = tt
+  ...| just (RoundProcessorNormal   x) | [ refl ] = refl
 
 record InitContractOk (rm : RoundManager) (outs : List Output) : Set where
   constructor mkInitContractOk
