@@ -145,5 +145,4 @@ EitherD-⇒-bind :
     → ∀ m → EitherD-weakestPre m P
     → EitherD-Post-⇒ P (EitherD-weakestPre-bindPost f Q)
     → EitherD-weakestPre (EitherD-bind m f) Q
-EitherD-⇒-bind {P = Post₁} {Post₂} {f} m con pf =
-  EitherD-⇒ m con pf
+EitherD-⇒-bind = EitherD-⇒

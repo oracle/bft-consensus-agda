@@ -221,7 +221,7 @@ RWS-⇒
   : ∀ {P Q : RWS-Post Wr St A}
     → ∀ m (ev : Ev) st
     → RWS-weakestPre m P ev st
-    → (RWS-Post-⇒ P Q)
+    → RWS-Post-⇒ P Q
     → RWS-weakestPre m Q ev st
 RWS-⇒ (RWS-return x) ev st pre pf = pf x st [] pre
 RWS-⇒ (RWS-bind m f) ev st pre pf =
@@ -254,19 +254,23 @@ proj₁ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) ≡nothing = RWS-
 proj₂ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) b b≡     = RWS-⇒ (f b) ev st (pre₂ b b≡) pf
 
 RWS-⇒-bind
-  : ∀ {P : RWS-Post Wr St A} {Q : RWS-Post Wr St B}
-    → {f : A → RWS Ev Wr St B} (ev : Ev)
-    → ∀ m st → RWS-weakestPre m P ev st
+  : ∀ {P : RWS-Post Wr St A}
+      {Q : RWS-Post Wr St B}
+    → {f : A → RWS Ev Wr St B}
+    → ∀ m ev st
+    → RWS-weakestPre m P ev st
     → RWS-Post-⇒ P (RWS-weakestPre-bindPost ev f Q)
     → RWS-weakestPre (RWS-bind m f) Q ev st
-RWS-⇒-bind ev m st con pf =
-  RWS-⇒ m ev st con pf
+RWS-⇒-bind m ev st con pf =
+     RWS-⇒ m ev st con pf
 
 RWS-⇒-ebind
-  : ∀ {P : RWS-Post Wr St (Either C A)} {Q : RWS-Post Wr St (Either C B)}
-    → {f : A → RWS Ev Wr St (Either C B)} (ev : Ev)
-    → ∀ m st → RWS-weakestPre m P ev st
+  : ∀ {P : RWS-Post Wr St (Either C A)}
+      {Q : RWS-Post Wr St (Either C B)}
+    → {f : A → RWS Ev Wr St (Either C B)}
+    → ∀ m ev st
+    → RWS-weakestPre m P ev st
     → RWS-Post-⇒ P (RWS-weakestPre-ebindPost ev f Q)
     → RWS-weakestPre (RWS-ebind m f) Q ev st
-RWS-⇒-ebind ev m st con pf =
+RWS-⇒-ebind m ev st con pf =
   RWS-⇒ m ev st con pf
