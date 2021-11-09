@@ -26,6 +26,13 @@ _IsNormalRoundManagerOf_ : RoundManager → EpochManager → Set
 _IsNormalRoundManagerOf_ rm em =
   em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
 
+IsNormalRoundManagerOf-inj :
+  ∀ {em} {rm1} {rm2}
+  → rm1 IsNormalRoundManagerOf em
+  → rm2 IsNormalRoundManagerOf em
+  → rm1 ≡ rm2
+IsNormalRoundManagerOf-inj refl refl = refl
+
 InitSdLVNothing : RoundManager → Set
 InitSdLVNothing rm = rm ^∙ rmSafetyRules ∙ srPersistentStorage
                          ∙ pssSafetyData ∙ sdLastVote ≡ nothing
@@ -63,41 +70,33 @@ module getEmRmSpec
   (em : EpochManager)
   where
 
-  record ContractOk (rm : RoundManager) : Set where
-    constructor mkContractOk
-    field
-      rmInv       : RoundManagerInv rm
-      sdLVNothing : InitSdLVNothing rm
-      sigs∈bs     : InitSigs∈bs rm
-  open ContractOk
-
   Contract : EitherD-Post ErrLog RoundManager
   Contract (Left x)   = ⊤
-  Contract (Right rm) = rm IsNormalRoundManagerOf em × ContractOk rm
+  Contract (Right rm) = rm IsNormalRoundManagerOf em
 
   postulate
     contract' : EitherD-weakestPre (getEmRm-ed-abs em) Contract
+
+record InitContractOk (rm : RoundManager) (outs : List Output) : Set where
+  constructor mkInitContractOk
+  field
+    rmInv       : RoundManagerInv rm
+    sdLVNothing : InitSdLVNothing rm
+    sigs∈bs     : InitSigs∈bs rm
+    isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
+open InitContractOk
+
+EMInitCond : EpochManager × List Output → Set
+EMInitCond (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk rm outs )
 
 module initEMWithOutputSpec
   (bsi : BootstrapInfo)
   (vs  : ValidatorSigner)
   where
 
-  record ContractOk (rm : RoundManager) (outs : List Output) : Set where
-    constructor mkContractOk
-    field           -- TODO: refactor so this condition applies to all fields
-      rmInv       : RoundManagerInv rm
-      sdLVNothing : InitSdLVNothing rm
-      sigs∈bs     : InitSigs∈bs rm
-      isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
-
-  open ContractOk
-
   Contract : EitherD-Post ErrLog (EpochManager × List Output)
-  Contract (Left x)            = ⊤
-  Contract (Right (em , outs)) = ∃[ rm ]
-                                   ( rm IsNormalRoundManagerOf em
-                                   × ContractOk rm outs )
+  Contract (Left x)        = ⊤
+  Contract (Right em×outs) = EMInitCond em×outs
 
   postulate
     contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) Contract
@@ -107,37 +106,24 @@ module initRMWithOutputSpec
   (vs  : ValidatorSigner)
   where
 
-  record ContractOk (rm : RoundManager) (outs : List Output) : Set where
-    constructor mkContractOk
-    field
-      rmInv       : Util.Invariants.RoundManagerInv rm
-      sdLVNothing : InitSdLVNothing rm
-      sigs∈bs     : InitSigs∈bs rm
-      isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
-  open ContractOk
-
   Contract : EitherD-Post ErrLog (RoundManager × List Output)
   Contract (Left x)            = ⊤
-  Contract (Right (rm , outs)) = ContractOk rm outs
+  Contract (Right (rm , outs)) = InitContractOk rm outs
 
   open initRMWithOutput-ed bsi vs
 
-  contract-step₁ : ∀ {em lo st}
-                   → InitIsInitPM (outputsToActions {st} lo)
+  contract-step₁ : ∀ {em lo}
+                   → EMInitCond (em , lo)
                    → EitherD-weakestPre (step₁ (em , lo)) Contract
-  contract-step₁ {em} {lo} iip =
+  contract-step₁ {em} {lo} (rm , inrm , cntrctOk) =
     EitherD-⇒-bind (getEmRm-ed-abs em)
                    (getEmRmSpec.contract' em)
                    P⇒Q
      where
-       P⇒Q : _
+       P⇒Q : EitherD-Post-⇒ (getEmRmSpec.Contract em)
+                            (EitherD-weakestPre-bindPost (λ rm → RightD (rm , lo)) Contract)
        P⇒Q (Left x) _ = tt
-       P⇒Q (Right rm) pf .rm refl =
-         mkContractOk (getEmRmSpec.ContractOk.rmInv       pf')
-                      (getEmRmSpec.ContractOk.sdLVNothing pf')
-                      (getEmRmSpec.ContractOk.sigs∈bs     pf')
-                      iip
-           where pf' = proj₂ pf
+       P⇒Q (Right rm') pf .rm' refl rewrite IsNormalRoundManagerOf-inj {em} inrm pf = cntrctOk
 
   contract' : EitherD-weakestPre (initRMWithOutput-ed-abs bsi vs) Contract
   contract' rewrite initRMWithOutput-ed-abs≡ =
@@ -145,11 +131,9 @@ module initRMWithOutputSpec
                    (initEMWithOutputSpec.contract' bsi vs)
                    P⇒Q
       where
-      P⇒Q : _
+      P⇒Q : EitherD-Post-⇒ (initEMWithOutputSpec.Contract bsi vs) _
       P⇒Q (Left x) _ = tt
-      P⇒Q (Right (em , lo)) pf .(em , lo) refl =
-        contract-step₁ {st = proj₁ pf}
-          (initEMWithOutputSpec.ContractOk.isInitPM (proj₂ (proj₂ pf)))
+      P⇒Q (Right (em , lo)) pf .(em , lo) refl = contract-step₁ pf
 
   contract : Contract (initRMWithOutput-e-abs bsi vs)
   contract rewrite initRMWithOutput≡ {bsi} {vs} =
@@ -169,6 +153,8 @@ module initHandlerSpec
       sdLVNothing : InitSdLVNothing rm
       sigs∈bs     : InitSigs∈bs rm
       isInitPM    : InitIsInitPM acts
+      -- TODO-3: We will eventually need to know that our ValidatorSigner is for the correct peer,
+      -- because it will be needed to prove impl-sps-avp : StepPeerState-AllValidParts
 
   Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤
@@ -196,7 +182,7 @@ module initHandlerSpec
   ...| Right rm×outs rewrite sym (cong proj₂ (just-injective hndl≡just)) |
                                  (cong proj₁ (just-injective hndl≡just)) =
        mkContractOk
-         (initRMWithOutputSpec.ContractOk.rmInv       initRMWithOutputContractOk)
-         (initRMWithOutputSpec.ContractOk.sdLVNothing initRMWithOutputContractOk)
-         (initRMWithOutputSpec.ContractOk.sigs∈bs     initRMWithOutputContractOk)
-         (initRMWithOutputSpec.ContractOk.isInitPM    initRMWithOutputContractOk)
+         (InitContractOk.rmInv       initRMWithOutputContractOk)
+         (InitContractOk.sdLVNothing initRMWithOutputContractOk)
+         (InitContractOk.sigs∈bs     initRMWithOutputContractOk)
+         (InitContractOk.isInitPM    initRMWithOutputContractOk)
