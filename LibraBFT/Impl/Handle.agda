@@ -96,33 +96,21 @@ module InitHandler where
   proposalGenerator : ProposalGenerator
   proposalGenerator = ProposalGenerator∙new 0
 
-  initialize-e : Instant → GenKeyFile.NfLiwsVsVvPe → Either ErrLog (EpochManager × List Output)
-  initialize-e now nfLiwsVsVvPe =
-    Start.startViaConsensusProvider
+  initialize-ed : Instant → GenKeyFile.NfLiwsVsVvPe → EitherD ErrLog (EpochManager × List Output)
+  initialize-ed now nfLiwsVsVvPe =
+    Start.startViaConsensusProvider-ed-abs
       now nfLiwsVsVvPe
       (TxTypeDependentStuffForNetwork∙new
         proposalGenerator
         (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
-  postulate
-    initialize-ed : Instant → GenKeyFile.NfLiwsVsVvPe → EitherD ErrLog (EpochManager × List Output)
-
   abstract
-    initialize-e-abs  : Instant → GenKeyFile.NfLiwsVsVvPe
-                    → Either ErrLog (EpochManager × List Output)
-    initialize-e-abs  = initialize-e
-    initialize-abs≡ : initialize-e-abs ≡ initialize-e
-    initialize-abs≡ = refl
-
     initialize-ed-abs  = initialize-ed
+    initialize-ed-abs≡ : initialize-ed-abs ≡ initialize-ed
+    initialize-ed-abs≡ = refl
 
   mkNfLiwsVsVvPe : BootstrapInfo → ValidatorSigner → GenKeyFile.NfLiwsVsVvPe
   mkNfLiwsVsVvPe bsi vs = (bsi ^∙ bsiNumFaults , bsi ^∙ bsiLIWS , vs , bsi ^∙ bsiVV , bsi ^∙ bsiPE)
-
-  initEMWithOutput-e-unused  : BootstrapInfo → ValidatorSigner
-                      → Either ErrLog (EpochManager × List Output)
-  initEMWithOutput-e-unused bsi vs =
-    initialize-e-abs now (mkNfLiwsVsVvPe bsi vs)
 
   -- No need to break this one into steps, no decision points
   initEMWithOutput-ed : BootstrapInfo → ValidatorSigner

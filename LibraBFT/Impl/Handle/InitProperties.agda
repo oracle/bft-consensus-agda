@@ -7,6 +7,7 @@
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.Handle
 open        InitHandler
+import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
 import      LibraBFT.Impl.Properties.Util             as Util
 import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
@@ -93,17 +94,25 @@ open InitContractOk
 EMInitCond : EpochManager × List Output → Set
 EMInitCond (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk rm outs )
 
+InitContract : EitherD-Post ErrLog (EpochManager × List Output)
+InitContract (Left x)        = ⊤
+InitContract (Right em×outs) = EMInitCond em×outs
+
+module initializeSpec
+  (now : Instant)
+  (nfl : GenKeyFile.NfLiwsVsVvPe)
+  where
+
+  postulate
+    contract' : EitherD-weakestPre (initialize-ed-abs now nfl) InitContract
+
 module initEMWithOutputSpec
   (bsi : BootstrapInfo)
   (vs  : ValidatorSigner)
   where
 
-  Contract : EitherD-Post ErrLog (EpochManager × List Output)
-  Contract (Left x)        = ⊤
-  Contract (Right em×outs) = EMInitCond em×outs
-
-  postulate
-    contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) Contract
+  contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) InitContract
+  contract' rewrite initEMWithOutput-ed-abs≡ = initializeSpec.contract' now (mkNfLiwsVsVvPe bsi vs)
 
 module initRMWithOutputSpec
   (bsi : BootstrapInfo)
@@ -135,7 +144,7 @@ module initRMWithOutputSpec
                    (initEMWithOutputSpec.contract' bsi vs)
                    P⇒Q
       where
-      P⇒Q : EitherD-Post-⇒ (initEMWithOutputSpec.Contract bsi vs) _
+      P⇒Q : EitherD-Post-⇒ InitContract _
       P⇒Q (Left x) _ = tt
       P⇒Q (Right (em , lo)) pf .(em , lo) refl = contract-step₁ pf
 
