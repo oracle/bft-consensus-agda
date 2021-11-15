@@ -19,6 +19,7 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Handle as Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
@@ -451,6 +452,67 @@ module Invariants where
       → Preserves RoundManagerInv            pre                         post
   mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch bsInv srInv) =
     mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP bsInv) (srP srInv)
+
+module InitProofDefs where
+  open Invariants
+
+-- RoundManager properties
+
+  _IsNormalRoundManagerOf_ : RoundManager → EpochManager → Set
+  _IsNormalRoundManagerOf_ rm em =
+    em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
+
+  IsNormalRoundManagerOf-inj :
+    ∀ {em} {rm1} {rm2}
+    → rm1 IsNormalRoundManagerOf em
+    → rm2 IsNormalRoundManagerOf em
+    → rm1 ≡ rm2
+  IsNormalRoundManagerOf-inj refl refl = refl
+
+  InitSdLVNothing : RoundManager → Set
+  InitSdLVNothing rm = rm ^∙ rmSafetyRules ∙ srPersistentStorage
+                           ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+
+  InitSigs∈bs : RoundManager → Set
+  InitSigs∈bs rm = ∀ {bsi vs qc}
+                   → vs              ∈     qcVotes qc
+                   → qc QCProps.∈RoundManager rm
+                   → ∈BootstrapInfo-impl bsi (proj₂ vs)
+
+  -- Message properties
+
+  -- During epoch initialisation, no messages are sent
+  -- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
+  -- Rust/Haskell impls do not include signatures in the genesis QC's LIWS.
+  -- The initial proposal for (Epoch N) (Round 1) is built on a QC with empty signatures.
+
+  InitIsInitPM' : NetworkMsg → Set
+  InitIsInitPM' m = ∃[ pm ] ( m ≡ P pm
+                            × ∀ {vs qc}
+                            → vs   ∈ qcVotes qc
+                            → qc QC∈NM       m
+                            → ⊥)
+
+  InitIsInitPM : List (Action NetworkMsg) → Set
+  InitIsInitPM acts = ∀ {m}
+                      → send m ∈ acts
+                      → InitIsInitPM' m
+
+  record InitContractOk (rm : RoundManager) (outs : List Output) : Set where
+    constructor mkInitContractOk
+    field
+      rmInv       : RoundManagerInv rm
+      sdLVNothing : InitSdLVNothing rm
+      sigs∈bs     : InitSigs∈bs rm
+      isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
+  open InitContractOk
+
+  EMInitCond : EpochManager × List Output → Set
+  EMInitCond (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk rm outs )
+
+  InitContract : EitherD-Post ErrLog (EpochManager × List Output)
+  InitContract (Left x)        = ⊤
+  InitContract (Right em×outs) = EMInitCond em×outs
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on

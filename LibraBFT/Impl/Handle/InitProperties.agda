@@ -21,51 +21,10 @@ module LibraBFT.Impl.Handle.InitProperties where
 
 ------------------------------------------------------------------------------
 
--- RoundManager properties
-
-_IsNormalRoundManagerOf_ : RoundManager → EpochManager → Set
-_IsNormalRoundManagerOf_ rm em =
-  em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
-
-IsNormalRoundManagerOf-inj :
-  ∀ {em} {rm1} {rm2}
-  → rm1 IsNormalRoundManagerOf em
-  → rm2 IsNormalRoundManagerOf em
-  → rm1 ≡ rm2
-IsNormalRoundManagerOf-inj refl refl = refl
-
-InitSdLVNothing : RoundManager → Set
-InitSdLVNothing rm = rm ^∙ rmSafetyRules ∙ srPersistentStorage
-                         ∙ pssSafetyData ∙ sdLastVote ≡ nothing
-
-InitSigs∈bs : RoundManager → Set
-InitSigs∈bs rm = ∀ {bsi vs qc}
-                 → vs              ∈     qcVotes qc
-                 → qc Util.QCProps.∈RoundManager rm
-                 → ∈BootstrapInfo-impl bsi (proj₂ vs)
-
--- Message properties
-
--- During epoch initialisation, no messages are sent
--- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
--- Rust/Haskell impls do not include signatures in the genesis QC's LIWS.
--- The initial proposal for (Epoch N) (Round 1) is built on a QC with empty signatures.
-
-InitIsInitPM' : NetworkMsg → Set
-InitIsInitPM' m = ∃[ pm ] ( m ≡ P pm
-                          × ∀ {vs qc}
-                          → vs   ∈ qcVotes qc
-                          → qc QC∈NM       m
-                          → ⊥)
-
-InitIsInitPM : List (LYT.Action NetworkMsg) → Set
-InitIsInitPM acts = ∀ {m}
-                    → LYT.send m ∈ acts
-                    → InitIsInitPM' m
-
 ------------------------------------------------------------------------------
 
 open Util.Invariants
+open Util.InitProofDefs
 
 module getEmRmSpec
   (em : EpochManager)
@@ -81,22 +40,6 @@ module getEmRmSpec
   ...| nothing | _ = tt
   ...| just (RoundProcessorRecovery x) | _     = tt
   ...| just (RoundProcessorNormal   x) | [ refl ] = refl
-
-record InitContractOk (rm : RoundManager) (outs : List Output) : Set where
-  constructor mkInitContractOk
-  field
-    rmInv       : RoundManagerInv rm
-    sdLVNothing : InitSdLVNothing rm
-    sigs∈bs     : InitSigs∈bs rm
-    isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
-open InitContractOk
-
-EMInitCond : EpochManager × List Output → Set
-EMInitCond (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk rm outs )
-
-InitContract : EitherD-Post ErrLog (EpochManager × List Output)
-InitContract (Left x)        = ⊤
-InitContract (Right em×outs) = EMInitCond em×outs
 
 module initializeSpec
   (now : Instant)
