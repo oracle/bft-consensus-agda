@@ -7,10 +7,13 @@
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.Handle
 open        InitHandler
-import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
+import      LibraBFT.Impl.IO.OBM.GenKeyFile           as GenKeyFile
+import      LibraBFT.Impl.IO.OBM.Properties.Start     as Start
 import      LibraBFT.Impl.Properties.Util             as Util
+import      LibraBFT.Impl.Types.BlockInfo             as BlockInfo
 import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 open import LibraBFT.Prelude
@@ -46,8 +49,12 @@ module initializeSpec
   (nfl : GenKeyFile.NfLiwsVsVvPe)
   where
 
-  postulate
-    contract' : EitherD-weakestPre (initialize-ed-abs now nfl) InitContract
+  contract' : EitherD-weakestPre (initialize-ed-abs now nfl) InitContract
+  contract' rewrite initialize-ed-abs≡ =
+    Start.startViaConsensusProviderSpec.contract'
+      now
+      nfl
+      (TxTypeDependentStuffForNetwork∙new proposalGenerator (StateComputer∙new BlockInfo.gENESIS_VERSION))
 
 module initEMWithOutputSpec
   (bsi : BootstrapInfo)

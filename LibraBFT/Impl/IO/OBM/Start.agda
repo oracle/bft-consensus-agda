@@ -11,6 +11,7 @@ import      LibraBFT.Impl.IO.OBM.ObmNeedFetch         as ObmNeedFetch
 import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -52,3 +53,10 @@ startViaConsensusProvider now (nf , liws , vs , vv , pe) txTDS = do
     (ObmNeedFetch∙new {- newNetwork -stps'-})
     (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 
+abstract
+  startViaConsensusProvider-ed-abs
+    : Instant
+    → GenKeyFile.NfLiwsVsVvPe
+    → TxTypeDependentStuffForNetwork
+    → EitherD ErrLog (EpochManager × List Output)
+  startViaConsensusProvider-ed-abs now nfl x = fromEither $ startViaConsensusProvider now nfl x
