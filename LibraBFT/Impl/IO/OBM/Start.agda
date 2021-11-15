@@ -41,22 +41,19 @@ TODO-3: Replace 'Handle.initRM' with the initialized RoundManager obtained
 through the following 'startViaConsensusProvider'.
 TODO-3: Figure out how to handle the initial BroadcastProposal.
 -}
-startViaConsensusProvider
+startViaConsensusProvider-ed
   : Instant
   → GenKeyFile.NfLiwsVsVvPe
   → TxTypeDependentStuffForNetwork
-  → Either ErrLog (EpochManager × List Output)
-startViaConsensusProvider now (nf , liws , vs , vv , pe) txTDS = do
-  (nc , occp , _liws , sk , _pe) ← ConsensusProvider.obmInitialData (nf , liws , vs , vv , pe)
-  ConsensusProvider.startConsensus
+  → EitherD ErrLog (EpochManager × List Output)
+startViaConsensusProvider-ed now (nf , liws , vs , vv , pe) txTDS = do
+  (nc , occp , _liws , sk , _pe) ← ConsensusProvider.obmInitialData-ed-abs (nf , liws , vs , vv , pe) 
+  ConsensusProvider.startConsensus-ed-abs
     nc now occp liws sk
     (ObmNeedFetch∙new {- newNetwork -stps'-})
     (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 
 abstract
-  startViaConsensusProvider-ed-abs
-    : Instant
-    → GenKeyFile.NfLiwsVsVvPe
-    → TxTypeDependentStuffForNetwork
-    → EitherD ErrLog (EpochManager × List Output)
-  startViaConsensusProvider-ed-abs now nfl x = fromEither $ startViaConsensusProvider now nfl x
+  startViaConsensusProvider-ed-abs = startViaConsensusProvider-ed
+  startViaConsensusProvider-ed-abs-≡ : startViaConsensusProvider-ed-abs ≡ startViaConsensusProvider-ed
+  startViaConsensusProvider-ed-abs-≡ = refl

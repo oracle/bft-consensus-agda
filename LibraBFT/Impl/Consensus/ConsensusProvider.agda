@@ -18,6 +18,7 @@ open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude                               hiding (_++_)
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -56,6 +57,13 @@ obmInitialData ( _numFaults , genesisLIWS , validatorSigner
       }
     }
 
+abstract
+  obmInitialData-ed-abs
+    : GenKeyFile.NfLiwsVsVvPe
+    → EitherD ErrLog
+              (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
+  obmInitialData-ed-abs = fromEither ∘ obmInitialData
+
 ------------------------------------------------------------------------------
 
 -- LBFT-OBM-DIFF
@@ -86,3 +94,24 @@ startConsensus nodeConfig
                        epochMgr obmNow
                        obmPayload obmNeedFetch obmProposalGenerator
                        obmGenesisLIWS
+
+abstract
+  startConsensus-ed-abs
+    : NodeConfig
+    -- BEGIN OBM
+    → Instant
+    → OnChainConfigPayload → LedgerInfoWithSignatures → SK
+    → ObmNeedFetch → ProposalGenerator → StateComputer
+    -- END OBM
+    → EitherD ErrLog (EpochManager × List Output)
+  startConsensus-ed-abs
+    nodeConfig
+    obmNow
+    obmPayload obmGenesisLIWS obmSK
+    obmNeedFetch obmProposalGenerator obmStateComputer =
+    fromEither $ startConsensus
+      nodeConfig
+      obmNow
+      obmPayload obmGenesisLIWS obmSK
+      obmNeedFetch obmProposalGenerator obmStateComputer
+
