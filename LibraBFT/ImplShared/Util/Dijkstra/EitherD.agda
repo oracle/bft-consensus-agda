@@ -146,3 +146,14 @@ EitherD-⇒-bind :
     → EitherD-Post-⇒ P (EitherD-weakestPre-bindPost f Q)
     → EitherD-weakestPre (EitherD-bind m f) Q
 EitherD-⇒-bind = EitherD-⇒
+
+EitherD-vacuous : ∀ (m : EitherD E A) → EitherD-weakestPre m (const Unit)
+EitherD-vacuous (LeftD x) = unit
+EitherD-vacuous (RightD x) = unit
+EitherD-vacuous (EitherD-if (otherwise≔ x)) = EitherD-vacuous x
+EitherD-vacuous (EitherD-if (clause (b ≔ x) x₁)) = (const (EitherD-vacuous x)) , (const (EitherD-vacuous (EitherD-if x₁)))
+EitherD-vacuous (EitherD-either x x₁ x₂) = (λ x₃ _ → EitherD-vacuous (x₁ x₃)) , (λ y _ → EitherD-vacuous (x₂ y))
+EitherD-vacuous (EitherD-maybe x m x₁) = (const (EitherD-vacuous m)) , λ j _ → EitherD-vacuous (x₁ j)
+EitherD-vacuous (EitherD-bind m x) = EitherD-⇒-bind m (EitherD-vacuous m) λ { (Left  _) _ → unit
+                                                                            ; (Right _) _ → λ c _ → EitherD-vacuous (x c) }
+

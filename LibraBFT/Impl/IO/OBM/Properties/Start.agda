@@ -4,15 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Impl.Consensus.Network            as Network
-open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
-open import LibraBFT.Impl.Consensus.RoundManager       as RoundManager
-open import LibraBFT.Impl.Consensus.RoundManager.Properties
-import      LibraBFT.Impl.IO.OBM.GenKeyFile            as GenKeyFile
+open import LibraBFT.Impl.Consensus.ConsensusProvider            as ConsensusProvider
+open import LibraBFT.Impl.Consensus.Properties.ConsensusProvider as ConsensusProviderProps
+import      LibraBFT.Impl.IO.OBM.GenKeyFile                      as GenKeyFile
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Start
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -33,10 +32,26 @@ open InitProofDefs
 module LibraBFT.Impl.IO.OBM.Properties.Start where
 
 module startViaConsensusProviderSpec
-  (now : Instant)
-  (nfl : GenKeyFile.NfLiwsVsVvPe)
-  (txt : TxTypeDependentStuffForNetwork)
+  (now   : Instant)
+  (nfl   : GenKeyFile.NfLiwsVsVvPe)
+  (txTDS : TxTypeDependentStuffForNetwork)
   where
+  -- It is somewhat of an overkill to write a separate contract for the last step,
+  -- but keeping it explicit for pedagogical reasons
+  contract-step₁ : ∀ (tup : (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection))
+                 → EitherD-weakestPre (startViaConsensusProvider-ed.step₁ now nfl txTDS tup) InitContract
+  contract-step₁ (nodeConfig , payload , liws , sk , pe) =
+    startConsensusSpec.contract' nodeConfig now payload liws sk ObmNeedFetch∙new
+                                 (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 
-  postulate
-   contract' : EitherD-weakestPre (startViaConsensusProvider-ed-abs now nfl txt) InitContract
+  contract' : EitherD-weakestPre (startViaConsensusProvider-ed-abs now nfl txTDS) InitContract
+  contract' rewrite startViaConsensusProvider-ed-abs-≡ =
+    -- TODO-2: this is silly; perhaps we should have an EitherD-⇒-bind-const or something for when
+    -- we don't need to know anything about the values returned by part before the bind?
+    EitherD-⇒-bind (ConsensusProvider.obmInitialData-ed-abs nfl)
+                   (EitherD-vacuous (ConsensusProvider.obmInitialData-ed-abs nfl))
+                   P⇒Q
+       where
+       P⇒Q : EitherD-Post-⇒ (const Unit) (EitherD-weakestPre-bindPost _ InitContract)
+       P⇒Q (Left _)     _        = tt
+       P⇒Q (Right tup') _ c refl = contract-step₁ tup'

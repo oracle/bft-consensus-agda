@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.PKCS
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.ConsensusProvider as ConsensusProvider
 import      LibraBFT.Impl.IO.OBM.GenKeyFile           as GenKeyFile
@@ -41,19 +42,26 @@ TODO-3: Replace 'Handle.initRM' with the initialized RoundManager obtained
 through the following 'startViaConsensusProvider'.
 TODO-3: Figure out how to handle the initial BroadcastProposal.
 -}
-startViaConsensusProvider-ed
-  : Instant
-  → GenKeyFile.NfLiwsVsVvPe
-  → TxTypeDependentStuffForNetwork
-  → EitherD ErrLog (EpochManager × List Output)
-startViaConsensusProvider-ed now (nf , liws , vs , vv , pe) txTDS = do
-  (nc , occp , _liws , sk , _pe) ← ConsensusProvider.obmInitialData-ed-abs (nf , liws , vs , vv , pe) 
-  ConsensusProvider.startConsensus-ed-abs
-    nc now occp liws sk
-    (ObmNeedFetch∙new {- newNetwork -stps'-})
-    (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
+module startViaConsensusProvider-ed
+  (now   : Instant)
+  (nfl   : GenKeyFile.NfLiwsVsVvPe)
+  (txTDS : TxTypeDependentStuffForNetwork)
+  where
+    step₁ : (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
+          → EitherD ErrLog (EpochManager × List Output)
+
+    step₀ : EitherD ErrLog (EpochManager × List Output)
+    step₀ = do
+      let (nf , liws , vs , vv , pe) = nfl
+      (nc , occp , liws , sk , pe) ← ConsensusProvider.obmInitialData-ed-abs (nf , liws , vs , vv , pe)
+      step₁ (nc , occp , liws , sk , pe)
+    step₁ (nc , occp , liws' , sk , _) =
+      ConsensusProvider.startConsensus-ed-abs
+        nc now occp liws' sk
+        (ObmNeedFetch∙new {- newNetwork -stps'-})
+        (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
 
 abstract
-  startViaConsensusProvider-ed-abs = startViaConsensusProvider-ed
-  startViaConsensusProvider-ed-abs-≡ : startViaConsensusProvider-ed-abs ≡ startViaConsensusProvider-ed
+  startViaConsensusProvider-ed-abs = startViaConsensusProvider-ed.step₀
+  startViaConsensusProvider-ed-abs-≡ : startViaConsensusProvider-ed-abs ≡ startViaConsensusProvider-ed.step₀
   startViaConsensusProvider-ed-abs-≡ = refl
