@@ -407,9 +407,9 @@ expectNewEpoch self now (ReconfigEventEpochChange∙new payload) obmLedgerInfoWi
 start
   : EpochManager → Instant
   → OnChainConfigPayload → ObmNeedFetch → ProposalGenerator → LedgerInfoWithSignatures
-  → Either ErrLog (EpochManager × List Output)
+  → EitherD ErrLog (EpochManager × List Output)
 start self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures =
-  startProcessor self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures
+  fromEither $ startProcessor self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures
 
 ------------------------------------------------------------------------------
 -- IMPL-DIFF

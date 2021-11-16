@@ -70,48 +70,42 @@ abstract
 -- 'start_consensus' in Rust inits and loops
 -- that is split so 'startConsensus' returns init data
 -- then loop is called with that data.
-startConsensus
-  : NodeConfig
+module startConsensus-ed
+  (nodeConfig : NodeConfig)
   -- BEGIN OBM
-  → Instant
-  → OnChainConfigPayload → LedgerInfoWithSignatures → SK
-  → ObmNeedFetch → ProposalGenerator → StateComputer
+  (obmNow               : Instant)
+  (obmPayload           : OnChainConfigPayload)
+  (obmGenesisLIWS       : LedgerInfoWithSignatures)
+  (obmSK                : SK)
+  (obmNeedFetch         : ObmNeedFetch)
+  (obmProposalGenerator : ProposalGenerator)
+  (obmStateComputer     : StateComputer)
+  where
   -- END OBM
-  → Either ErrLog (EpochManager × List Output)
-startConsensus nodeConfig
-               obmNow
-               obmPayload obmGenesisLIWS obmSK
-               obmNeedFetch obmProposalGenerator obmStateComputer = do
-  let obmValidatorSet = obmPayload ^∙ occpObmValidatorSet
-  eitherS (MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS)) Left $
-    λ (_obmRecoveryData , persistentLivenessStorage) → do
-      let stateComputer = obmStateComputer
-      eitherS (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) Left $
-        λ vi → eitherS (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
-                          (vi ^∙ viAccountAddress) obmSK) Left $
-                 λ epochMgr →
-                     EpochManager.start
-                       epochMgr obmNow
-                       obmPayload obmNeedFetch obmProposalGenerator
-                       obmGenesisLIWS
+
+  step₁ : ValidatorSet → (RecoveryData × PersistentLivenessStorage) → EitherD ErrLog (EpochManager × List Output)
+  step₂ : PersistentLivenessStorage → ValidatorInfo → EitherD ErrLog (EpochManager × List Output)
+
+  step₀ : EitherD ErrLog (EpochManager × List Output)
+  step₀ = do
+    let obmValidatorSet = obmPayload ^∙ occpObmValidatorSet
+    eitherS (MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS)) LeftD (step₁ obmValidatorSet)
+
+  step₁ obmValidatorSet (_obmRecoveryData , persistentLivenessStorage) = do
+        let stateComputer = obmStateComputer
+        eitherS (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) LeftD (step₂ persistentLivenessStorage)
+
+  step₂ persistentLivenessStorage vi = do
+          eitherS (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
+                            (vi ^∙ viAccountAddress) obmSK) LeftD $
+                   λ epochMgr →
+                       EpochManager.start
+                         epochMgr obmNow
+                         obmPayload obmNeedFetch obmProposalGenerator
+                         obmGenesisLIWS
 
 abstract
-  startConsensus-ed-abs
-    : NodeConfig
-    -- BEGIN OBM
-    → Instant
-    → OnChainConfigPayload → LedgerInfoWithSignatures → SK
-    → ObmNeedFetch → ProposalGenerator → StateComputer
-    -- END OBM
-    → EitherD ErrLog (EpochManager × List Output)
-  startConsensus-ed-abs
-    nodeConfig
-    obmNow
-    obmPayload obmGenesisLIWS obmSK
-    obmNeedFetch obmProposalGenerator obmStateComputer =
-    fromEither $ startConsensus
-      nodeConfig
-      obmNow
-      obmPayload obmGenesisLIWS obmSK
-      obmNeedFetch obmProposalGenerator obmStateComputer
+  startConsensus-ed-abs = startConsensus-ed.step₀
+  startConsensus-ed-abs-≡ : startConsensus-ed-abs ≡ startConsensus-ed.step₀
+  startConsensus-ed-abs-≡ = refl
 
