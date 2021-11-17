@@ -15,7 +15,8 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
-import      LibraBFT.Impl.Consensus.EpochManager                          as EpochManager
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
+open import LibraBFT.Impl.Consensus.EpochManager                       as EpochManager
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Properties.Util
@@ -38,7 +39,22 @@ module startRoundManager'Spec
   (obmVersion           : Version)
   where
 
+  open startRoundManager'-ed
+
+  postulate
+   contract-continue1 : ∀ bs
+                     → EitherD-weakestPre (startRoundManager'-ed.continue1-abs self0 now
+                                           recoveryData epochState0 obmNeedFetch obmProposalGenerator
+                                           obmVersion (recoveryData ^∙ rdLastVote) bs) InitContract
+
+
+
+
   contract' : EitherD-weakestPre
                 (EpochManager.startRoundManager'-ed-abs self0 now recoveryData epochState0
                                                         obmNeedFetch obmProposalGenerator obmVersion)
               InitContract
+  contract' rewrite startRoundManager'-ed-abs-≡
+     with BlockStore.new-e-abs (self0 ^∙ emStorage) recoveryData stateComputer (self0 ^∙ emConfig ∙ ccMaxPrunedBlocksInMem)
+  ...| Left  _  = tt
+  ...| Right bs = contract-continue1 bs

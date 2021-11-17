@@ -75,12 +75,17 @@ new storage initialData stateComputer maxPrunedBlocksInMem =
         maxPrunedBlocksInMem
 
 abstract
-   -- TODO: convert new to EitherD
-   new-ed-abs : PersistentLivenessStorage → RecoveryData → StateComputer → Usize
-              → EitherD ErrLog BlockStore
-   new-ed-abs storage initialData stateComputer maxPrunedBlocksInMem = fromEither $
-          new storage initialData stateComputer maxPrunedBlocksInMem
-   new-e-abs = new
+  -- TODO: convert new to EitherD
+  new-ed-abs : PersistentLivenessStorage → RecoveryData → StateComputer → Usize
+             → EitherD ErrLog BlockStore
+  new-ed-abs storage initialData stateComputer maxPrunedBlocksInMem = fromEither $
+         new storage initialData stateComputer maxPrunedBlocksInMem
+
+  new-e-abs : PersistentLivenessStorage → RecoveryData → StateComputer → Usize
+            → Either ErrLog BlockStore
+  new-e-abs = new
+  new-e-abs-≡ : new-e-abs ≡ new
+  new-e-abs-≡ = refl
 
 build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
            stateComputer storage maxPrunedBlocksInMem = do
