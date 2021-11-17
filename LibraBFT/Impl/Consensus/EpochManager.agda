@@ -297,6 +297,23 @@ startProcessor self now payload obmNeedFetch obmProposalGenerator obmLedgerInfoW
   startRoundManager self now initialData epochState0 obmNeedFetch obmProposalGenerator
                     (obmLedgerInfoWithSignatures ^∙ liwsLedgerInfo ∙ liVersion)
 
+{-
+Currently, the implementation is hooked up to the system model in
+   'LibraBFT.Impl.Handle.InitAndHandlers'
+It does so such that
+- 'RoundManager' is the top-level state, and
+- 'LibraBFT.Impl.IO.OBM.InputOutputHandlers.handle' is the top-level entry into the implementation.
+
+In the future, when epoch changes are taken into account (and proved),
+- 'EpochManager' will become the top-level state
+- 'EpochManager.processMessage' will become the top-level entry into the implementation.
+
+That said, when that change is made, there will be a new obligation.
+Currently, when 'InputOutputHandlers.handle' cases have been covered, a proof is done.
+But, in the future, when proving properties of 'EpochManager.processMessage'
+(besides covering the epoch change properties) when the output is 'PMInput' it will be necessary
+to "pass" that input to the 'RoundManager' level and continue proving from there.
+-}
 processMessage
   : EpochManager → Instant → Input
   → EM ProcessMessageAction
@@ -423,6 +440,14 @@ start self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSi
   - in other cases it sends messages (via 'stps') to other nodes
 
 The following "implementation" compiles, but has lots of TEMPORARY things to get it to compile.
+In the proofs, the System Model "handles" input and output.
+Therefore 'obmStartLoop' will not be implemented nor "proved".
+It is here to show what is done in the Haskell code.
+If the Agda code were ever to be extracted to executable Haskell code,
+then this code would be completed.
+
+The system model will need to prove things about 'EpochManager.processMessage'.
+See the comments before that function.
 -}
 
 IO : Set → Set₁
