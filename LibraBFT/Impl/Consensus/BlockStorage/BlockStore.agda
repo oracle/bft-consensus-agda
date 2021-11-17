@@ -74,6 +74,14 @@ new storage initialData stateComputer maxPrunedBlocksInMem =
         storage
         maxPrunedBlocksInMem
 
+abstract
+   -- TODO: convert new to EitherD
+   new-ed-abs : PersistentLivenessStorage → RecoveryData → StateComputer → Usize
+              → EitherD ErrLog BlockStore
+   new-ed-abs storage initialData stateComputer maxPrunedBlocksInMem = fromEither $
+          new storage initialData stateComputer maxPrunedBlocksInMem
+   new-e-abs = new
+
 build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
            stateComputer storage maxPrunedBlocksInMem = do
   let (RootInfo∙new rootBlock rootQc rootLi) = root

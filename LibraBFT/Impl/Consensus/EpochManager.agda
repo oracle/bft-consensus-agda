@@ -231,30 +231,30 @@ startRoundManager-ed self0 now recoveryData epochState0 obmNeedFetch obmProposal
 
 startRoundManager'-ed self now recoveryData epochState0 obmNeedFetch obmProposalGenerator obv = do
   let lastVote = recoveryData ^∙ rdLastVote
-  case BlockStore.new
+  case BlockStore.new-e-abs
          (self ^∙ emStorage)
          recoveryData
          -- TODO-2 : use real StateComputer when it exists
          stateComputer -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
          (self ^∙ emConfig ∙ ccMaxPrunedBlocksInMem) of λ where
     (Left  e) → err ("BlockStore.new" ∷ []) e
-    (Right r) → continue1 lastVote r
+    (Right r) → continue1-abs lastVote r
  where
   err : ∀ {B} → List String → ErrLog → EitherD ErrLog B
   err  t = withErrCtxD' t ∘ Left
   here' : List String → List String
   here' t = "EpochManager" ∷ "startRoundManager" ∷ t
 
-  continue2 : Maybe Vote → BlockStore → SafetyRules → EitherD ErrLog (EpochManager × List Output)
+  continue2 continue2-abs : Maybe Vote → BlockStore → SafetyRules → EitherD ErrLog (EpochManager × List Output)
 
-  continue1 : Maybe Vote → BlockStore → EitherD ErrLog (EpochManager × List Output)
+  continue1 continue1-abs : Maybe Vote → BlockStore → EitherD ErrLog (EpochManager × List Output)
   continue1 lastVote blockStore = do
     --------------------------------------------------
     let safetyRules = {-MetricsSafetyRules::new-}
           SafetyRulesManager.client (self ^∙ emSafetyRulesManager) -- self.storage.clone());
     case MetricsSafetyRules.performInitialize safetyRules (self ^∙ emStorage) of λ where
       (Left e)             → err (here' ("MetricsSafetyRules.performInitialize" ∷ [])) e
-      (Right safetyRules') → continue2 lastVote blockStore safetyRules'
+      (Right safetyRules') → continue2-abs lastVote blockStore safetyRules'
 
   continue2 lastVote blockStore safetyRules = do
     --------------------------------------------------
@@ -285,6 +285,15 @@ startRoundManager'-ed self now recoveryData epochState0 obmNeedFetch obmProposal
       []              → nothing
       (LogErr e ∷  _) → just e
       (_        ∷ xs) → findFirstErr xs
+
+  abstract
+    continue1-abs = continue1
+    continue1-abs-≡ : continue1-abs ≡ continue1
+    continue1-abs-≡ = refl
+
+    continue2-abs = continue2
+    continue2-abs-≡ : continue2-abs ≡ continue2
+    continue2-abs-≡ = refl
 
 abstract
   startRoundManager'-ed-abs = startRoundManager'-ed
