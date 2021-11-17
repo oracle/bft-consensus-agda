@@ -10,6 +10,7 @@ import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -24,9 +25,9 @@ checkNumOfSignatures       : ValidatorVerifier → Map.KVMap AccountAddress Sign
 checkVotingPower           : ValidatorVerifier → List AccountAddress → Either ErrLog Unit
 getPublicKey               : ValidatorVerifier → AccountAddress → Maybe PK
 getVotingPower             : ValidatorVerifier → AccountAddress → Maybe U64
-sumVotingPower             : (List String → List String)
+sumVotingPower-ed-abs      : (List String → List String)
                            → Map.KVMap AccountAddress ValidatorConsensusInfo
-                           → Either ErrLog U64
+                           → EitherD ErrLog U64
 ------------------------------------------------------------------------------
 
 -- LBFT-OBM-DIFF : this is specific to OBM.
@@ -48,9 +49,9 @@ initValidatorVerifier numFailures0 authors0 =
     ; _vvQuorumVotingPower      = numNodesNeededForNFailures numFailures ∸ numFailures
     ; _vvTotalVotingPower       = length authors }
 
-new : Map.KVMap AccountAddress ValidatorConsensusInfo → Either ErrLog ValidatorVerifier
+new : Map.KVMap AccountAddress ValidatorConsensusInfo → EitherD ErrLog ValidatorVerifier
 new addressToValidatorInfo = do
-  totalVotingPower      ← sumVotingPower here' addressToValidatorInfo
+  totalVotingPower      ← sumVotingPower-ed-abs here' addressToValidatorInfo
   let quorumVotingPower = if Map.kvm-size addressToValidatorInfo == 0 then 0
                           else calculateQuorumVotingPower totalVotingPower
   pure (mkValidatorVerifier addressToValidatorInfo quorumVotingPower totalVotingPower)
@@ -121,6 +122,9 @@ getPublicKey self author =
 getVotingPower self author =
   (_^∙ vciVotingPower) <$> Map.lookup author (self ^∙ vvAddressToValidatorInfo)
 
+sumVotingPower : (List String → List String)
+               → Map.KVMap AccountAddress ValidatorConsensusInfo
+               → Either ErrLog U64
 sumVotingPower here' addressToValidatorInfo =
   foldr go (Right 0) (Map.elems addressToValidatorInfo)
  where
@@ -133,13 +137,16 @@ sumVotingPower here' addressToValidatorInfo =
     else Left fakeErr -- (ErrL (here' ("sum too big" ∷ [])))
   go _ (Left err) = Left err
 
+abstract
+  sumVotingPower-ed-abs f = fromEither ∘ sumVotingPower f
+
 getOrderedAccountAddressesObmTODO : ValidatorVerifier → List AccountAddress
 getOrderedAccountAddressesObmTODO self =
   -- TODO ORDER
   Map.kvm-keys (self ^∙ vvAddressToValidatorInfo)
 
-from : ValidatorSet → Either ErrLog ValidatorVerifier
-from validatorSet =
+from-ed : ValidatorSet → EitherD ErrLog ValidatorVerifier
+from-ed validatorSet =
   new (foldl' go Map.empty (validatorSet ^∙ vsPayload))
  where
   go : Map.KVMap AccountAddress ValidatorConsensusInfo → ValidatorInfo
@@ -150,3 +157,7 @@ from validatorSet =
                  (validator ^∙ viConsensusPublicKey)
                  (validator ^∙ viConsensusVotingPower))
                 map0
+
+abstract
+  from-e-abs = toEither ∘ from-ed
+  from-ed-abs = from-ed

@@ -77,6 +77,11 @@ startForTesting validatorSet obmMLIWS = do
   here' : List String → List String
   here' t = "MockStorage" ∷ "startForTesting" ∷ t
 
+abstract
+  startForTesting-ed-abs : ValidatorSet → Maybe LedgerInfoWithSignatures
+                         → EitherD ErrLog (RecoveryData × PersistentLivenessStorage)
+  startForTesting-ed-abs vs mliws = fromEither $ startForTesting vs mliws
+
 ------------------------------------------------------------------------------
 
 saveTreeE

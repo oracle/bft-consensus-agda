@@ -35,7 +35,7 @@ empty = BlockInfo∙new
 
 genesis : HashValue → ValidatorSet → Either ErrLog BlockInfo
 genesis genesisStateRootHash validatorSet = do
-  vv ← ValidatorVerifier.from validatorSet
+  vv ← ValidatorVerifier.from-e-abs validatorSet
   pure $ BlockInfo∙new
     gENESIS_EPOCH
     gENESIS_ROUND

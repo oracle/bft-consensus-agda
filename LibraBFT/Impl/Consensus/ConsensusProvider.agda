@@ -99,7 +99,7 @@ module startConsensus-ed
           eitherS (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
                             (vi ^∙ viAccountAddress) obmSK) LeftD $
                    λ epochMgr →
-                       EpochManager.start
+                       EpochManager.start-ed
                          epochMgr obmNow
                          obmPayload obmNeedFetch obmProposalGenerator
                          obmGenesisLIWS

@@ -33,7 +33,7 @@ obmMkGenesisLedgerInfoWithSignatures vss0 vs0 = do
 
 obmMkLedgerInfoWithEpochState vs = do
   li ← LedgerInfo.mockGenesis (just vs)
-  vv ← ValidatorVerifier.from vs
+  vv ← ValidatorVerifier.from-e-abs vs
   pure (li
          & liCommitInfo ∙ biNextEpochState
         ?~ EpochState∙new (li ^∙ liEpoch) vv)
