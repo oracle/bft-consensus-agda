@@ -455,3 +455,8 @@ start now lastVoteSent = do
  where
   here' : List String → List String
   here' t = "RoundManager" ∷ "start" ∷ t
+
+abstract
+  start-abs = start
+  start-abs-≡ : start-abs ≡ start
+  start-abs-≡ = refl

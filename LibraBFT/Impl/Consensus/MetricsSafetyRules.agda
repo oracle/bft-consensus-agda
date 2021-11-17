@@ -20,3 +20,8 @@ performInitialize self obmPersistentLivenessStorage = do
   proofs            <- MockStorage.retrieveEpochChangeProofE
                          (srWaypoint ^∙ wVersion) obmPersistentLivenessStorage
   SafetyRules.initialize self proofs
+
+abstract
+  performInitialize-abs = performInitialize
+  performInitialize-abs-≡ : performInitialize-abs ≡ performInitialize
+  performInitialize-abs-≡ = refl

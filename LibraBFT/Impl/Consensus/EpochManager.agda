@@ -115,6 +115,11 @@ createRoundState self now =
         6
    in RoundState.new timeInterval now
 
+abstract
+  createRoundState-abs = createRoundState
+  createRoundState-abs-≡ : createRoundState-abs ≡ createRoundState
+  createRoundState-abs-≡ = refl
+
 createProposerElection : EpochState → ProposerElection
 createProposerElection epochState0 =
   ProposerElection∙new
@@ -261,16 +266,22 @@ module startRoundManager'-ed
   continue1 lastVote blockStore = do
     --------------------------------------------------
     let safetyRules = {-MetricsSafetyRules::new-}
-          SafetyRulesManager.client (self ^∙ emSafetyRulesManager) -- self.storage.clone());
-    case MetricsSafetyRules.performInitialize safetyRules (self ^∙ emStorage) of λ where
+          SafetyRulesManager.client-abs (self ^∙ emSafetyRulesManager) -- self.storage.clone());
+    case MetricsSafetyRules.performInitialize-abs safetyRules (self ^∙ emStorage) of λ where
       (Left e)             → err (here' ("MetricsSafetyRules.performInitialize" ∷ [])) e
       (Right safetyRules') → continue2-abs lastVote blockStore safetyRules'
+
+  findFirstErr : List Output → Maybe ErrLog
+  findFirstErr = λ where
+    []              → nothing
+    (LogErr e ∷  _) → just e
+    (_        ∷ xs) → findFirstErr xs
 
   continue2 lastVote blockStore safetyRules = do
     --------------------------------------------------
     let proposalGenerator = obmProposalGenerator
     --------------------------------------------------
-    let roundState = createRoundState self now
+    let roundState = createRoundState-abs self now
     --------------------------------------------------
     let proposerElection = createProposerElection epochState0
     --------------------------------------------------
@@ -284,17 +295,11 @@ module startRoundManager'-ed
           (safetyRules & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch)
           (self ^∙ emConfig ∙ ccSyncOnly)
     --------------------------------------------------
-    let (_ , processor' , output) = LBFT-run (RoundManager.start now lastVote) processor
+    let (_ , processor' , output) = LBFT-run (RoundManager.start-abs now lastVote) processor
     case findFirstErr output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
       nothing  → pure ( (self & emProcessor ?~ RoundProcessorNormal processor')
                       , output )
-   where
-    findFirstErr : List Output → Maybe ErrLog
-    findFirstErr = λ where
-      []              → nothing
-      (LogErr e ∷  _) → just e
-      (_        ∷ xs) → findFirstErr xs
 
   abstract
     continue1-abs = continue1

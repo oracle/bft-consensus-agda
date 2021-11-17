@@ -43,3 +43,7 @@ client : SafetyRulesManager → SafetyRules
 client self = case self ^∙ srmInternalSafetyRules of λ where
   (SRWLocal safetyRules) → safetyRules
 
+abstract
+  client-abs = client
+  client-abs-≡ : client-abs ≡ client
+  client-abs-≡ = refl
