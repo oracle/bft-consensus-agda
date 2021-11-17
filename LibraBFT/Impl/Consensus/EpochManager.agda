@@ -48,7 +48,7 @@ data RlecState : Set where
 data ProcessMessageAction : Set where
   PMContinue        : ProcessMessageAction
   PMInput           : Input            → ProcessMessageAction
-  PMNewEpochManager : EpochManager     → List Output    → ProcessMessageAction
+  PMNewEpoch        : EpochManager     → List Output    → ProcessMessageAction
   PMSendECP         : EpochChangeProof → AccountAddress → Author {-Text-} → Epoch → Round → ProcessMessageAction
   PMSendEpochRRq    : EpRRqWire        → AccountAddress → ProcessMessageAction
 
@@ -402,7 +402,7 @@ expectNewEpoch self now (ReconfigEventEpochChange∙new payload) obmLedgerInfoWi
                (rm ^∙ rmObmNeedFetch)
                (rm ^∙ rmProposalGenerator)
                obmLedgerInfoWithSignatures
-  pure (PMNewEpochManager em o)
+  pure (PMNewEpoch em o)
 
 start
   : EpochManager → Instant
@@ -485,11 +485,11 @@ obmStartLoop self initializationOutput
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
         rm'' ← pure rm -- TEMPORARY for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
-      (PMNewEpochManager em' newEpochInitializationOutput) → do
+      (PMNewEpoch em' newEpochInitializationOutput) → do
        eitherSD (em' ^∙ emObmRoundManager) ee $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TEMPORARY for previous line
-        loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set
+        loop (setProcessor em' rm') {-to'-} RSNothing -- IMPORTANT*** : reset RLEC state
       (PMSendECP ecp peerAddress me {-why-} e r) → do
         -- stps [peerAddress ^∙ aAuthorName] (Messages.mkIEpochChangeProof me why e r ecp)
         loop em {-to-} rlec
