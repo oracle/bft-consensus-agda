@@ -271,12 +271,6 @@ module startRoundManager'-ed
       (Left e)             → err (here' ("MetricsSafetyRules.performInitialize" ∷ [])) e
       (Right safetyRules') → continue2-abs lastVote blockStore safetyRules'
 
-  findFirstErr : List Output → Maybe ErrLog
-  findFirstErr = λ where
-    []              → nothing
-    (LogErr e ∷  _) → just e
-    (_        ∷ xs) → findFirstErr xs
-
   continue2 lastVote blockStore safetyRules = do
     --------------------------------------------------
     let proposalGenerator = obmProposalGenerator
@@ -296,7 +290,7 @@ module startRoundManager'-ed
           (self ^∙ emConfig ∙ ccSyncOnly)
     --------------------------------------------------
     let (_ , processor' , output) = LBFT-run (RoundManager.start-abs now lastVote) processor
-    case findFirstErr output of λ where
+    case find' LogErrMB output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
       nothing  → pure ( (self & emProcessor ?~ RoundProcessorNormal processor')
                       , output )

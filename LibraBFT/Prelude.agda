@@ -655,3 +655,7 @@ module LibraBFT.Prelude where
   _ : fromToList 2 1 ≡ []
   _ = refl
 
+  find' : ∀ {A B : Set} → (A → Maybe B) → List A → Maybe B
+  find' f []       = nothing
+  find' f (a ∷ xs) = maybe′ f (find' f xs) (just a)
+
