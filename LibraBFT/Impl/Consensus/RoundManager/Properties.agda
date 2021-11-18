@@ -15,6 +15,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Impl.Consensus.EpochManager
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BlockStoreProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock       as ExecutedBlock
@@ -704,3 +705,22 @@ module processProposalMsgMSpec
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =
       LBFT-⇒ (processProposalMsgM now pm) pre contract' pf
+
+
+module startSpec
+  (now          : Instant)
+  (lastVoteSent : Maybe Vote)
+  where
+
+  module _ (pre  : RoundManager)
+           (cond : Unit) -- Placeholder for preconditions that will be needed to prove contract
+    where
+
+    open InitProofDefs
+
+    Contract : LBFT-Post Unit
+    Contract _ post outs = ∃[ e ] (find' LogErrMB outs ≡ just e)
+                         ⊎ find' LogErrMB outs ≡ nothing × InitContractOk post outs
+
+    postulate -- TODO-2: prove
+      contract' : LBFT-weakestPre (start-abs now lastVoteSent) Contract pre

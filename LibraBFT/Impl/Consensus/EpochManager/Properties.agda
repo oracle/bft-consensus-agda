@@ -4,9 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
 open import LibraBFT.Base.Types
-open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
@@ -20,6 +18,7 @@ open import LibraBFT.Impl.Consensus.EpochManager                       as EpochM
 import      LibraBFT.Impl.Consensus.MetricsSafetyRules                 as MetricsSafetyRules
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager     as SafetyRulesManager
 import      LibraBFT.Impl.Consensus.RoundManager                       as RoundManager
+open import LibraBFT.Impl.Consensus.RoundManager.Properties
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Properties.Util
@@ -42,47 +41,59 @@ module startRoundManager'Spec
   (obmVersion           : Version)
   where
 
-  open startRoundManager'-ed self0 now recoveryData epochState0 obmNeedFetch obmProposalGenerator
-                             obmVersion
+  open startRoundManager'-ed self0 now recoveryData epochState0
+                             obmNeedFetch obmProposalGenerator obmVersion
 
   lastVote = recoveryData ^∙ rdLastVote
   proposalGenerator = obmProposalGenerator
   roundState = createRoundState-abs self0 now
   proposerElection = createProposerElection epochState0
+  initProcessor : SafetyRules → BlockStore → RoundManager
+  initProcessor sr bs =
+    RoundManager∙new
+      obmNeedFetch
+      epochState0
+      bs
+      roundState
+      proposerElection
+      proposalGenerator
+      (sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch)
+      (self0 ^∙ emConfig ∙ ccSyncOnly)
 
-  contract-continue2 : ∀ sr bs
-                     → EitherD-weakestPre (continue2-abs lastVote bs sr) InitContract
+  module SS
+    where open startSpec now lastVote public
+
+  contract-continue2
+    : ∀ sr bs
+    → EitherD-weakestPre (continue2-abs lastVote bs sr) InitContract
   contract-continue2 sr bs rewrite continue2-abs-≡
-     with  LBFT-run-abs (RoundManager.start-abs now lastVote ) processor | inspect
-          (LBFT-run-abs (RoundManager.start-abs now lastVote)) processor
-          where
-             processor = RoundManager∙new
-                           obmNeedFetch
-                           epochState0
-                           bs
-                           roundState
-                           proposerElection
-                           proposalGenerator
-                           (sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch)
-                           (self0 ^∙ emConfig ∙ ccSyncOnly)
-  ...| (_ , processor' , output) | [ R ]
-     with findFirstErr output
-  ...| just x  = tt
-  ...| nothing =
-         processor' , cong just (cong (RoundProcessorNormal ∘ proj₁ ∘ proj₂) R) , {!!}   
+    with LBFT-contract (RoundManager.start-abs now lastVote)
+                       (SS.Contract (initProcessor sr bs) unit)
+                       (initProcessor sr bs)
+                       (SS.contract' (initProcessor sr bs) unit)
+  ...| inj₁ (_    , er≡j ) rewrite er≡j = tt
+  ...| inj₂ (er≡n , ico) rewrite er≡n =
+         LBFT-post (RoundManager.start-abs now lastVote)
+                   (initProcessor sr bs)
+         , refl , ico
 
-  contract-continue1 : ∀ bs
-                     → EitherD-weakestPre (continue1-abs (recoveryData ^∙ rdLastVote) bs) InitContract
+  contract-continue1
+    : ∀ bs
+    → EitherD-weakestPre (continue1-abs (recoveryData ^∙ rdLastVote) bs) InitContract
   contract-continue1 bs rewrite continue1-abs-≡
-     with MetricsSafetyRules.performInitialize-abs (SafetyRulesManager.client-abs (self0 ^∙ emSafetyRulesManager)) (self0 ^∙ emStorage)
+     with MetricsSafetyRules.performInitialize-abs
+            (SafetyRulesManager.client-abs (self0 ^∙ emSafetyRulesManager))
+            (self0 ^∙ emStorage)
   ...| Left _ = tt
   ...| Right sr = contract-continue2 sr bs
 
   contract' : EitherD-weakestPre
-                (EpochManager.startRoundManager'-ed-abs self0 now recoveryData epochState0
-                                                        obmNeedFetch obmProposalGenerator obmVersion)
+                (EpochManager.startRoundManager'-ed-abs
+                   self0 now recoveryData epochState0
+                   obmNeedFetch obmProposalGenerator obmVersion)
               InitContract
   contract' rewrite startRoundManager'-ed-abs-≡
-     with BlockStore.new-e-abs (self0 ^∙ emStorage) recoveryData stateComputer (self0 ^∙ emConfig ∙ ccMaxPrunedBlocksInMem)
+     with BlockStore.new-e-abs (self0 ^∙ emStorage) recoveryData stateComputer
+                               (self0 ^∙ emConfig ∙ ccMaxPrunedBlocksInMem)
   ...| Left  _  = tt
   ...| Right bs = contract-continue1 bs
