@@ -337,3 +337,8 @@ syncInfoM =
   SyncInfo∙new <$> use (lBlockStore ∙ bsHighestQuorumCert)
                <*> use (lBlockStore ∙ bsHighestCommitCert)
                <*> use (lBlockStore ∙ bsHighestTimeoutCert)
+
+abstract
+  syncInfoM-abs = syncInfoM
+  syncInfoM-abs-≡ : syncInfoM-abs ≡ syncInfoM
+  syncInfoM-abs-≡ = refl

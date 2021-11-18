@@ -72,6 +72,11 @@ processCertificatesM now syncInfo = do
     timeout                       ← setupTimeoutM now
     pure (just (NewRoundEvent∙new pcr' reason timeout))
 
+abstract
+  processCertificatesM-abs = processCertificatesM
+  processCertificatesM-abs-≡ : processCertificatesM-abs ≡ processCertificatesM
+  processCertificatesM-abs-≡ = refl
+
 maybeAdvanceRound currentRound syncInfo =
   let newRound = SyncInfo.highestRound syncInfo + 1
    in if-dec newRound >? currentRound
@@ -91,6 +96,11 @@ insertVoteM vote verifier = do
 
 recordVoteM : Vote → LBFT Unit
 recordVoteM v = rsVoteSent-rm ∙= just v
+
+abstract
+  recordVoteM-abs = recordVoteM
+  recordVoteM-abs-≡ : recordVoteM-abs ≡ recordVoteM
+  recordVoteM-abs-≡ = refl
 
 ------------------------------------------------------------------------------
 

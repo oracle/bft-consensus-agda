@@ -67,6 +67,11 @@ processNewRoundEventM now nre@(NewRoundEvent∙new r _ _) = do
   here' : List String → List String
   here' t = "RoundManager" ∷ "processNewRoundEventM" ∷ t
 
+abstract
+  processNewRoundEventM-abs = processNewRoundEventM
+  processNewRoundEventM-abs-≡ : processNewRoundEventM-abs ≡ processNewRoundEventM
+  processNewRoundEventM-abs-≡ = refl
+
 generateProposalM now newRoundEvent =
   ProposalGenerator.generateProposalM now (newRoundEvent ^∙ nreRound) ∙?∙ λ proposal →
   SafetyRules.signProposalM proposal ∙?∙ λ signedProposal →
@@ -443,20 +448,55 @@ mkRsp request meer bs blocks id =
 
 ------------------------------------------------------------------------------
 
-start : Instant → Maybe Vote → LBFT Unit
-start now lastVoteSent = do
-  syncInfo <- BlockStore.syncInfoM
-  RoundState.processCertificatesM now syncInfo >>= λ where
-    nothing    →
-      logErr fakeErr -- (here ["Cannot jump start a round_state from existing certificates."]))
-    (just nre) → do
-      maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM
-      processNewRoundEventM now nre -- error!("[RoundManager] Error during start: {:?}", e);
- where
+module start
+  (now : Instant)
+  (lastVoteSent : Maybe Vote)
+  where
+
+  step₁ step₁-abs : SyncInfo → LBFT Unit
+  step₂ step₂-abs : Maybe NewRoundEvent → LBFT Unit
+  step₃ step₄ step₃-abs step₄-abs : NewRoundEvent → LBFT Unit
+
+  step₀ : LBFT Unit
+  step₀ = do
+    syncInfo ← BlockStore.syncInfoM
+    step₁-abs syncInfo
+
+  step₁ syncInfo = do
+    RoundState.processCertificatesM-abs now syncInfo >>= step₂-abs
+
   here' : List String → List String
   here' t = "RoundManager" ∷ "start" ∷ t
 
+  step₂ = λ where
+      nothing    →
+        logErr fakeErr -- (here' ["Cannot jump start a round_state from existing certificates."]))
+      (just nre) → step₃-abs nre
+
+  step₃ nre = do
+        maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM-abs
+        step₄-abs nre
+
+  step₄ nre = processNewRoundEventM-abs now nre -- error!("[RoundManager] Error during start: {:?}", e);
+
+  abstract
+    step₁-abs = step₁
+    step₁-abs-≡ : step₁-abs ≡ step₁
+    step₁-abs-≡ = refl
+
+    step₂-abs = step₂
+    step₂-abs-≡ : step₂-abs ≡ step₂
+    step₂-abs-≡ = refl
+
+    step₃-abs = step₃
+    step₃-abs-≡ : step₃-abs ≡ step₃
+    step₃-abs-≡ = refl
+
+    step₄-abs = step₄
+    step₄-abs-≡ : step₄-abs ≡ step₄
+    step₄-abs-≡ = refl
+
 abstract
-  start-abs = start
-  start-abs-≡ : start-abs ≡ start
+  start-abs = start.step₀
+  start-abs-≡ : start-abs ≡ start.step₀
   start-abs-≡ = refl
