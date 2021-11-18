@@ -718,9 +718,20 @@ module startSpec
 
     open InitProofDefs
 
+    open start now lastVoteSent
+
     Contract : LBFT-Post Unit
     Contract _ post outs = ∃[ e ] (find' LogErrMB outs ≡ just e)
                          ⊎ find' LogErrMB outs ≡ nothing × InitContractOk post outs
 
-    postulate -- TODO-2: prove
-      contract' : LBFT-weakestPre (start-abs now lastVoteSent) Contract pre
+    syncInfo = SyncInfo∙new (pre ^∙ (lBlockStore ∙ bsHighestQuorumCert))
+                            (pre ^∙ (lBlockStore ∙ bsHighestCommitCert))
+                            (pre ^∙ (lBlockStore ∙ bsHighestTimeoutCert))
+
+    postulate
+      contract-step₁ : LBFT-weakestPre (step₁-abs syncInfo) Contract pre
+
+    contract' : LBFT-weakestPre (start.step₀ now lastVoteSent) Contract pre
+              -- These are due to the various binds arising from syncInfoM, which is not abstract
+              -- because it's more trouble than it's worth
+    contract' ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl si refl = contract-step₁
