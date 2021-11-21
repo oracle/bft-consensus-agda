@@ -48,7 +48,7 @@ data RlecState : Set where
 data ProcessMessageAction : Set where
   PMContinue        : ProcessMessageAction
   PMInput           : Input            → ProcessMessageAction
-  PMNewEpochManager : EpochManager     → List Output    → ProcessMessageAction
+  PMNewEpoch        : EpochManager     → List Output    → ProcessMessageAction
   PMSendECP         : EpochChangeProof → AccountAddress → Author {-Text-} → Epoch → Round → ProcessMessageAction
   PMSendEpochRRq    : EpRRqWire        → AccountAddress → ProcessMessageAction
 
@@ -297,6 +297,23 @@ startProcessor self now payload obmNeedFetch obmProposalGenerator obmLedgerInfoW
   startRoundManager self now initialData epochState0 obmNeedFetch obmProposalGenerator
                     (obmLedgerInfoWithSignatures ^∙ liwsLedgerInfo ∙ liVersion)
 
+{-
+Currently, the implementation is hooked up to the system model in
+   'LibraBFT.Impl.Handle.InitAndHandlers'
+It does so such that
+- 'RoundManager' is the top-level state, and
+- 'LibraBFT.Impl.IO.OBM.InputOutputHandlers.handle' is the top-level entry into the implementation.
+
+In the future, when epoch changes are taken into account (and proved),
+- 'EpochManager' will become the top-level state
+- 'EpochManager.processMessage' will become the top-level entry into the implementation.
+
+That said, when that change is made, there will be a new obligation.
+Currently, when 'InputOutputHandlers.handle' cases have been covered, a proof is done.
+But, in the future, when proving properties of 'EpochManager.processMessage'
+(besides covering the epoch change properties) when the output is 'PMInput' it will be necessary
+to "pass" that input to the 'RoundManager' level and continue proving from there.
+-}
 processMessage
   : EpochManager → Instant → Input
   → EM ProcessMessageAction
@@ -402,7 +419,7 @@ expectNewEpoch self now (ReconfigEventEpochChange∙new payload) obmLedgerInfoWi
                (rm ^∙ rmObmNeedFetch)
                (rm ^∙ rmProposalGenerator)
                obmLedgerInfoWithSignatures
-  pure (PMNewEpochManager em o)
+  pure (PMNewEpoch em o)
 
 start
   : EpochManager → Instant
@@ -423,6 +440,15 @@ start self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSi
   - in other cases it sends messages (via 'stps') to other nodes
 
 The following "implementation" compiles, but has lots of TEMPORARY things to get it to compile.
+In the proofs, the System Model "handles" input and output.
+Therefore 'obmStartLoop' will not be implemented nor "proved".
+It is here to show what is done in the Haskell code.
+If the Agda code were ever to be extracted to executable Haskell code,
+then this code would be completed.
+
+The system model will be instantiated with 'EpochManager.processMessage'
+and that will be the system about which properties are proved.
+See the comments before that function.
 -}
 
 IO : Set → Set₁
@@ -485,11 +511,11 @@ obmStartLoop self initializationOutput
         --(rm'' , to'') ← DAR.runOutputHandler rm' to pe o  oh
         rm'' ← pure rm -- TEMPORARY for previous two lines
         loop (setProcessor em rm'') {-to''-} rlec
-      (PMNewEpochManager em' newEpochInitializationOutput) → do
+      (PMNewEpoch em' newEpochInitializationOutput) → do
        eitherSD (em' ^∙ emObmRoundManager) ee $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TEMPORARY for previous line
-        loop (setProcessor em' rm') {-to'-} rlec -- TODO Set₁ != Set
+        loop (setProcessor em' rm') {-to'-} RSNothing -- reset RLEC state
       (PMSendECP ecp peerAddress me {-why-} e r) → do
         -- stps [peerAddress ^∙ aAuthorName] (Messages.mkIEpochChangeProof me why e r ecp)
         loop em {-to-} rlec
