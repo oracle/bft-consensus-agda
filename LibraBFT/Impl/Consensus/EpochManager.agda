@@ -446,7 +446,8 @@ It is here to show what is done in the Haskell code.
 If the Agda code were ever to be extracted to executable Haskell code,
 then this code would be completed.
 
-The system model will need to prove things about 'EpochManager.processMessage'.
+The system model will be instantiated with 'EpochManager.processMessage'
+and that will be the system about which properties are proved.
 See the comments before that function.
 -}
 
@@ -514,7 +515,7 @@ obmStartLoop self initializationOutput
        eitherSD (em' ^∙ emObmRoundManager) ee $ λ rm → do
         -- (rm', to') ← DAR.runOutputHandler   rm  to pe newEpochInitializationOutput oh
         rm' ← pure rm -- TEMPORARY for previous line
-        loop (setProcessor em' rm') {-to'-} RSNothing -- IMPORTANT*** : reset RLEC state
+        loop (setProcessor em' rm') {-to'-} RSNothing -- reset RLEC state
       (PMSendECP ecp peerAddress me {-why-} e r) → do
         -- stps [peerAddress ^∙ aAuthorName] (Messages.mkIEpochChangeProof me why e r ecp)
         loop em {-to-} rlec
