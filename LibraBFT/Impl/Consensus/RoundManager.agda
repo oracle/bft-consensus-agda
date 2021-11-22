@@ -474,7 +474,7 @@ module start
       (just nre) → step₃-abs nre
 
   step₃ nre = do
-        maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM-abs
+        maybeSMP (pure lastVoteSent) unit RoundState.recordVoteM
         step₄-abs nre
 
   step₄ nre = processNewRoundEventM-abs now nre -- error!("[RoundManager] Error during start: {:?}", e);

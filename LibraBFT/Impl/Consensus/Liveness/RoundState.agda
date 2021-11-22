@@ -97,11 +97,6 @@ insertVoteM vote verifier = do
 recordVoteM : Vote → LBFT Unit
 recordVoteM v = rsVoteSent-rm ∙= just v
 
-abstract
-  recordVoteM-abs = recordVoteM
-  recordVoteM-abs-≡ : recordVoteM-abs ≡ recordVoteM
-  recordVoteM-abs-≡ = refl
-
 ------------------------------------------------------------------------------
 
 setupDeadlineM                : Instant → LBFT Duration
