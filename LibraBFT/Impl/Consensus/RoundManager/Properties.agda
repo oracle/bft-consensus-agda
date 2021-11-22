@@ -731,7 +731,8 @@ module startSpec
     postulate
       contract-step₁ : LBFT-weakestPre (step₁-abs syncInfo) Contract pre
 
-    contract' : LBFT-weakestPre (start.step₀ now lastVoteSent) Contract pre
+    contract' : LBFT-weakestPre (start-abs now lastVoteSent) Contract pre
               -- These are due to the various binds arising from syncInfoM, which is not abstract
               -- because it's more trouble than it's worth
-    contract' ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl si refl = contract-step₁
+    contract' rewrite start-abs-≡ =
+      λ where ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl si refl → contract-step₁
