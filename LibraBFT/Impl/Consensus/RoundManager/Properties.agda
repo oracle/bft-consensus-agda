@@ -712,8 +712,8 @@ module startSpec
   (lastVoteSent : Maybe Vote)
   where
 
-  module _ (pre  : RoundManager)
-           (cond : Unit) -- Placeholder for preconditions that will be needed to prove contract
+  module _ (pre : RoundManager)
+           (rmi : RoundManagerInv pre) -- preconditions needed to prove contract
     where
 
     open InitProofDefs
