@@ -37,10 +37,10 @@ open        EpochConfig
 import      LibraBFT.Impl.Handle                as Handle
 open import LibraBFT.Impl.Handle.InitProperties
 open        initHandlerSpec
-open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open        PeerCanSignForPK
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.InitAndHandlers
+                               Handle.InitHandler.initAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Invariants
 open        RoundManagerTransProps

@@ -37,11 +37,11 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.InitAndHandlers
+                               Handle.InitHandler.initAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 
@@ -52,7 +52,7 @@ module LibraBFT.Impl.Properties.PreferredRound (𝓔 : EpochConfig) where
 
 ------------------------------------------------------------------------------
 
-preferredRound₁ : PR.ImplObligation₁ Handle.InitHandler.InitAndHandlers 𝓔
+preferredRound₁ : PR.ImplObligation₁ Handle.InitHandler.initAndHandlers 𝓔
 preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-init rm×acts uni) {v = v} {m = m} {v' = v'} {m' = m'}
                 hpk v'⊂m' m'∈acts sig' ¬bootstrap' pcs4' v⊂m m∈pool sig ¬bootstrap eid≡ rnd< v≈vabs v'≈vabs'
                 c3
@@ -82,7 +82,7 @@ preferredRound₁ {pid} {pre = pre} preach sps@(step-msg {_ , V vm} _ _)
 
 -- This proof is essentially the same as the votesOnce₂: no handler sends two different Votes
 -- TODO-2: refactor for DRY?
-preferredRound₂ : PR.ImplObligation₂ Handle.InitHandler.InitAndHandlers 𝓔
+preferredRound₂ : PR.ImplObligation₂ Handle.InitHandler.initAndHandlers 𝓔
 
 preferredRound₂ {pid} _ (step-init rm×acts uni) _ v⊂m m∈acts _ _ _ _ _ _ _ _ _ _ _ _
   with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts

@@ -293,8 +293,8 @@ module InitHandler where
          (Left _)          → nothing
          (Right (rm , lo)) → just (rm , outputsToActions {State = rm} lo)
 
-  InitAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
-  InitAndHandlers =
+  initAndHandlers : SystemInitAndHandlers ℓ-RoundManager ConcSysParms
+  initAndHandlers =
     mkSysInitAndHandlers
       fakeBootstrapInfo
       fakeInitRM
