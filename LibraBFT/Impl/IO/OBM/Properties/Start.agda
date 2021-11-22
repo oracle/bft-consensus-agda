@@ -43,6 +43,7 @@ module startViaConsensusProviderSpec
   contract-step₁ (nodeConfig , payload , liws , sk , pe) =
     startConsensusSpec.contract' nodeConfig now payload liws sk ObmNeedFetch∙new
                                  (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
+                                 (startConsensusSpec.mkRequirements (obm-dangerous-magic' "TODO") (obm-dangerous-magic' "TODO"))
 
   contract' : EitherD-weakestPre (startViaConsensusProvider-ed-abs now nfl txTDS) InitContract
   contract' rewrite startViaConsensusProvider-ed-abs-≡ =
