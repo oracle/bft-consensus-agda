@@ -28,6 +28,7 @@ open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
 
 open InitProofDefs
+open Invariants
 
 module LibraBFT.Impl.Consensus.EpochManager.Properties where
 
@@ -48,6 +49,8 @@ module startRoundManager'Spec
   proposalGenerator = obmProposalGenerator
   roundState = createRoundState-abs self0 now
   proposerElection = createProposerElection epochState0
+  srUpdate : SafetyRules → SafetyRules
+  srUpdate  = _& srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch
   initProcessor : SafetyRules → BlockStore → RoundManager
   initProcessor sr bs =
     RoundManager∙new
@@ -57,8 +60,24 @@ module startRoundManager'Spec
       roundState
       proposerElection
       proposalGenerator
-      (sr & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch)
+      (srUpdate sr)
       (self0 ^∙ emConfig ∙ ccSyncOnly)
+
+  initRMInv : ∀ {sr bs}
+            → ValidatorVerifier-correct (epochState0 ^∙ esVerifier)
+            → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+            → BlockStoreInv (bs , mkECinfo (epochState0 ^∙ esVerifier) (epochState0 ^∙ esEpoch))
+            → RoundManagerInv (initProcessor sr bs)
+  initRMInv {sr} rmCorr refl bsInv = mkRoundManagerInv rmCorr refl bsInv (srInvPres {sr} refl)
+    where
+      getLVR≤n : ∀ {sr n} → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+               → Meta.getLastVoteRound (sr ^∙ srPersistentStorage ∙ pssSafetyData) ≤ n
+      getLVR≤n refl = z≤n
+
+      srInvPres : ∀ {sr}
+                → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+                → SafetyRulesInv (srUpdate sr)
+      srInvPres {sr} refl = mkSafetyRulesInv (mkSafetyDataInv refl z≤n)
 
   module SS
     where open startSpec now lastVote public
