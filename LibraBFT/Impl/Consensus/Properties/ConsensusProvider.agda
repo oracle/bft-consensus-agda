@@ -27,15 +27,8 @@ module startConsensusSpec
   (stateComp  : StateComputer)
   where
 
-  record Requirements : Set where
-    constructor mkRequirements
-    field
-      vv     : ValidatorVerifier
-      vvCorr : ValidatorVerifier.from-e-abs (payload ^∙ occpObmValidatorSet) ≡ Right vv
-
-  module _ (reqs : Requirements) where
-    -- TODO-2: Requires refinement.  Needs additional Requirements.
-    postulate
-     contract' : EitherD-weakestPre (ConsensusProvider.startConsensus-ed-abs
-                                      nodeConfig now payload liws sk needFetch propGen stateComp)
-                                    (InitContract nothing)
+  -- TODO-2: Requires refinement
+  postulate
+   contract' : EitherD-weakestPre (ConsensusProvider.startConsensus-ed-abs
+                                    nodeConfig now payload liws sk needFetch propGen stateComp)
+                                  (InitContract nothing)
