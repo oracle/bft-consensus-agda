@@ -49,7 +49,7 @@ module initializeSpec
   (nfl : GenKeyFile.NfLiwsVsVvPe)
   where
 
-  contract' : EitherD-weakestPre (initialize-ed-abs now nfl) InitContract
+  contract' : EitherD-weakestPre (initialize-ed-abs now nfl) (InitContract nothing)
   contract' rewrite initialize-ed-abs≡ =
     Start.startViaConsensusProviderSpec.contract'
       now
@@ -61,7 +61,7 @@ module initEMWithOutputSpec
   (vs  : ValidatorSigner)
   where
 
-  contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) InitContract
+  contract' : EitherD-weakestPre (initEMWithOutput-ed-abs bsi vs) (InitContract nothing)
   contract' rewrite initEMWithOutput-ed-abs≡ = initializeSpec.contract' now (mkNfLiwsVsVvPe bsi vs)
 
 module initRMWithOutputSpec
@@ -71,12 +71,12 @@ module initRMWithOutputSpec
 
   Contract : EitherD-Post ErrLog (RoundManager × List Output)
   Contract (Left x)            = ⊤
-  Contract (Right (rm , outs)) = InitContractOk rm outs
+  Contract (Right (rm , outs)) = InitContractOk nothing rm outs
 
   open initRMWithOutput-ed bsi vs
 
   contract-step₁ : ∀ {em lo}
-                   → EMInitCond (em , lo)
+                   → EMInitCond nothing (em , lo)
                    → EitherD-weakestPre (step₁ (em , lo)) Contract
   contract-step₁ {em} {lo} (rm , inrm , cntrctOk) =
     EitherD-⇒-bind (getEmRm-ed-abs em)
@@ -94,7 +94,7 @@ module initRMWithOutputSpec
                    (initEMWithOutputSpec.contract' bsi vs)
                    P⇒Q
       where
-      P⇒Q : EitherD-Post-⇒ InitContract _
+      P⇒Q : EitherD-Post-⇒ (InitContract nothing) _
       P⇒Q (Left x) _ = tt
       P⇒Q (Right (em , lo)) pf .(em , lo) refl = contract-step₁ pf
 
@@ -113,7 +113,7 @@ module initHandlerSpec
     constructor mkContractOk
     field
       rmInv       : Util.Invariants.RoundManagerInv rm
-      sdLVNothing : InitSdLVNothing rm
+      sdLVnothing : InitSdLV≡ rm nothing
       sigs∈bs     : InitSigs∈bs rm
       isInitPM    : InitIsInitPM acts
       -- TODO-3: We will eventually need to know that our ValidatorSigner is for the correct peer,
@@ -146,6 +146,6 @@ module initHandlerSpec
                                  (cong proj₁ (just-injective hndl≡just)) =
        mkContractOk
          (InitContractOk.rmInv       initRMWithOutputContractOk)
-         (InitContractOk.sdLVNothing initRMWithOutputContractOk)
+         (InitContractOk.sdLV≡       initRMWithOutputContractOk)
          (InitContractOk.sigs∈bs     initRMWithOutputContractOk)
          (InitContractOk.isInitPM    initRMWithOutputContractOk)

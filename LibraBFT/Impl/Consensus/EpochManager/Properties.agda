@@ -84,7 +84,7 @@ module startRoundManager'Spec
       ∀ {sr bs}
     → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
     → BlockStoreInv (bs , mkECinfo (epochState0 ^∙ esVerifier) (epochState0 ^∙ esEpoch))
-    → EitherD-weakestPre (continue2-abs lastVote bs sr) InitContract
+    → EitherD-weakestPre (continue2-abs lastVote bs sr) (InitContract lastVote)
   contract-continue2 {sr} {bs} refl bsInv rewrite continue2-abs-≡
     with LBFT-contract (RoundManager.start-abs now lastVote)
                        (Contract initRM initRMCorr)
@@ -103,7 +103,7 @@ module startRoundManager'Spec
 
   contract-continue1
     : ∀ bs
-    → EitherD-weakestPre (continue1-abs (recoveryData ^∙ rdLastVote) bs) InitContract
+    → EitherD-weakestPre (continue1-abs (recoveryData ^∙ rdLastVote) bs) (InitContract lastVote)
   contract-continue1 bs rewrite continue1-abs-≡
      with MetricsSafetyRules.performInitialize-abs
             (SafetyRulesManager.client-abs (self0 ^∙ emSafetyRulesManager))
@@ -115,7 +115,7 @@ module startRoundManager'Spec
                 (EpochManager.startRoundManager'-ed-abs
                    self0 now recoveryData epochState0
                    obmNeedFetch obmProposalGenerator obmVersion)
-              InitContract
+              (InitContract lastVote)
   contract' rewrite startRoundManager'-ed-abs-≡
      with BlockStore.new-e-abs (self0 ^∙ emStorage) recoveryData stateComputer
                                (self0 ^∙ emConfig ∙ ccMaxPrunedBlocksInMem)

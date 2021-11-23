@@ -301,7 +301,7 @@ sameERasLV⇒sameId {pid} {pid'} {pk}
    rewrite sym (StepPeer-post-lemma sp)
    with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
 ...| init-contract
-   with initHandlerSpec.ContractOk.sdLVNothing init-contract
+   with initHandlerSpec.ContractOk.sdLVnothing init-contract
 ...| lv≡nothing
    = absurd just v ≡ nothing case trans ≡pidLV lv≡nothing of λ ()
 

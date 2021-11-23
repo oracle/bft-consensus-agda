@@ -39,13 +39,13 @@ module startViaConsensusProviderSpec
   -- It is somewhat of an overkill to write a separate contract for the last step,
   -- but keeping it explicit for pedagogical reasons
   contract-step₁ : ∀ (tup : (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection))
-                 → EitherD-weakestPre (startViaConsensusProvider-ed.step₁ now nfl txTDS tup) InitContract
+                 → EitherD-weakestPre (startViaConsensusProvider-ed.step₁ now nfl txTDS tup) (InitContract nothing)
   contract-step₁ (nodeConfig , payload , liws , sk , pe) =
     startConsensusSpec.contract' nodeConfig now payload liws sk ObmNeedFetch∙new
                                  (txTDS ^∙ ttdsnProposalGenerator) (txTDS ^∙ ttdsnStateComputer)
                                  (startConsensusSpec.mkRequirements (obm-dangerous-magic' "TODO") (obm-dangerous-magic' "TODO"))
 
-  contract' : EitherD-weakestPre (startViaConsensusProvider-ed-abs now nfl txTDS) InitContract
+  contract' : EitherD-weakestPre (startViaConsensusProvider-ed-abs now nfl txTDS) (InitContract nothing)
   contract' rewrite startViaConsensusProvider-ed-abs-≡ =
     -- TODO-2: this is silly; perhaps we should have an EitherD-⇒-bind-const or something for when
     -- we don't need to know anything about the values returned by part before the bind?
@@ -53,6 +53,6 @@ module startViaConsensusProviderSpec
                    (EitherD-vacuous (ConsensusProvider.obmInitialData-ed-abs nfl))
                    P⇒Q
        where
-       P⇒Q : EitherD-Post-⇒ (const Unit) (EitherD-weakestPre-bindPost _ InitContract)
+       P⇒Q : EitherD-Post-⇒ (const Unit) (EitherD-weakestPre-bindPost _ (InitContract nothing))
        P⇒Q (Left _)     _        = tt
        P⇒Q (Right tup') _ c refl = contract-step₁ tup'

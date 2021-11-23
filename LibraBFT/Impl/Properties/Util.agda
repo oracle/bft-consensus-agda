@@ -469,9 +469,9 @@ module InitProofDefs where
     → rm1 ≡ rm2
   IsNormalRoundManagerOf-inj refl refl = refl
 
-  InitSdLVNothing : RoundManager → Set
-  InitSdLVNothing rm = rm ^∙ rmSafetyRules ∙ srPersistentStorage
-                           ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+  InitSdLV≡ : RoundManager → Maybe Vote → Set
+  InitSdLV≡ rm mv = rm ^∙ rmSafetyRules ∙ srPersistentStorage
+                        ∙ pssSafetyData ∙ sdLastVote ≡ mv
 
   InitSigs∈bs : RoundManager → Set
   InitSigs∈bs rm = ∀ {bsi vs qc}
@@ -498,21 +498,21 @@ module InitProofDefs where
                       → send m ∈ acts
                       → InitIsInitPM' m
 
-  record InitContractOk (rm : RoundManager) (outs : List Output) : Set where
+  record InitContractOk (mv : Maybe Vote) (rm : RoundManager) (outs : List Output) : Set where
     constructor mkInitContractOk
     field
       rmInv       : RoundManagerInv rm
-      sdLVNothing : InitSdLVNothing rm
+      sdLV≡       : InitSdLV≡ rm mv
       sigs∈bs     : InitSigs∈bs rm
       isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
   open InitContractOk
 
-  EMInitCond : EpochManager × List Output → Set
-  EMInitCond (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk rm outs )
+  EMInitCond : Maybe Vote → EpochManager × List Output → Set
+  EMInitCond mv (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk mv rm outs )
 
-  InitContract : EitherD-Post ErrLog (EpochManager × List Output)
-  InitContract (Left x)        = ⊤
-  InitContract (Right em×outs) = EMInitCond em×outs
+  InitContract : Maybe Vote → EitherD-Post ErrLog (EpochManager × List Output)
+  InitContract _ (Left x)        = ⊤
+  InitContract mv (Right em×outs) = EMInitCond mv em×outs
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on

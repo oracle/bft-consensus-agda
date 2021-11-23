@@ -38,4 +38,4 @@ module startConsensusSpec
     postulate
      contract' : EitherD-weakestPre (ConsensusProvider.startConsensus-ed-abs
                                       nodeConfig now payload liws sk needFetch propGen stateComp)
-                                    InitContract
+                                    (InitContract nothing)
