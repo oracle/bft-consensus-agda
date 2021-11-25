@@ -160,6 +160,7 @@ consensusState self =
 -- ** NOTE: PAY PARTICULAR ATTENTION TO THIS FUNCTION **
 -- ** Because : it is long with lots of branches, so easy to transcribe wrong. **
 -- ** And if initialization is wrong, everything is wrong. **
+-- TODO: convert to EitherD (and perhaps break into more steps?)
 initialize : SafetyRules → EpochChangeProof → Either ErrLog SafetyRules
 initialize self proof = do
   let waypoint   = self ^∙ srPersistentStorage ∙ pssWaypoint
@@ -207,6 +208,19 @@ initialize self proof = do
            ‖ otherwise≔
              Left fakeErr -- ["srExportConsensusKey", "False", "NOT IMPLEMENTED"]
   here' t = "SafetyRules" ∷ "initialize" ∷ t
+
+abstract
+  initialize-e-abs = initialize
+
+  -- TODO: temporary until initialize is converted to EitherD
+  initialize-ed-abs : SafetyRules → EpochChangeProof → EitherD ErrLog SafetyRules
+  initialize-ed-abs sr ecp = fromEither $ initialize sr ecp
+
+  initialize-ed-abs-≡ : ∀ {sr ecp} → EitherD-run (initialize-ed-abs sr ecp) ≡ initialize sr ecp
+  initialize-ed-abs-≡ {sr} {ecp}
+     with initialize sr ecp
+  ... | Left x  = refl
+  ... | Right y = refl
 
 ------------------------------------------------------------------------------
 

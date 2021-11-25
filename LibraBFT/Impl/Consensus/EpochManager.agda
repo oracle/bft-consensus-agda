@@ -258,7 +258,7 @@ module startRoundManager'-ed
            stateComputer -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
            (self ^∙ emConfig ∙ ccMaxPrunedBlocksInMem) of λ where
       (Left  e) → err ("BlockStore.new" ∷ []) e
-      (Right r) → continue1-abs lastVote r
+      (Right bs) → continue1-abs lastVote bs
 
   err  t = withErrCtxD' t ∘ Left
   here' t = "EpochManager" ∷ "startRoundManager" ∷ t
@@ -266,7 +266,7 @@ module startRoundManager'-ed
   continue1 lastVote blockStore = do
     --------------------------------------------------
     let safetyRules = {-MetricsSafetyRules::new-}
-          SafetyRulesManager.client-abs (self ^∙ emSafetyRulesManager) -- self.storage.clone());
+          SafetyRulesManager.client (self ^∙ emSafetyRulesManager) -- self.storage.clone());
     case MetricsSafetyRules.performInitialize-abs safetyRules (self ^∙ emStorage) of λ where
       (Left e)             → err (here' ("MetricsSafetyRules.performInitialize" ∷ [])) e
       (Right safetyRules') → continue2-abs lastVote blockStore safetyRules'
