@@ -11,16 +11,17 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
+open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
+open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
-open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Prelude
 open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
@@ -31,6 +32,21 @@ open QCProps
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore where
 
+module new
+  (storage              : PersistentLivenessStorage)
+  (initialData          : RecoveryData)
+  (stateComp            : StateComputer)
+  (maxPrunedBlocksInMem : Usize)
+  where
+
+  -- TODO-2: May require refinement (additional requirements and/or properties, particularly regarding ECinfo)
+  Contract : ECinfo → EitherD-Post ErrLog BlockStore
+  Contract _ (Left _)   = ⊤
+  Contract eci (Right bs) = BlockStoreInv (bs , eci)
+
+  postulate
+    contract : ∀ {eci}
+             → Contract eci (new-e-abs storage initialData stateComp maxPrunedBlocksInMem)
 module executeBlockESpec (bs : BlockStore) (block : Block) where
 
   Ok : Set
