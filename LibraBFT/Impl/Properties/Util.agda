@@ -307,6 +307,15 @@ module Invariants where
       field
         lvEpoch≡ : Meta.getLastVoteEpoch sd ≡ sd ^∙ sdEpoch
         lvRound≤ : Meta.getLastVoteRound sd ≤ sd ^∙ sdLastVotedRound
+  open SafetyDataInv
+
+  subst-SafetyDataInv : ∀ {sd1 sd2}
+                      → sd1 ^∙ sdLastVote       ≡ sd2 ^∙ sdLastVote
+                      → sd1 ^∙ sdEpoch          ≡ sd2 ^∙ sdEpoch
+                      → sd1 ^∙ sdLastVotedRound ≡ sd2 ^∙ sdLastVotedRound
+                      → SafetyDataInv sd1 → SafetyDataInv sd2
+  subst-SafetyDataInv refl refl refl (mkSafetyDataInv lvEpoch≡₁ lvRound≤₁) =
+    mkSafetyDataInv lvEpoch≡₁ lvRound≤₁
 
   module _ (sr : SafetyRules) where
     -- SafetyRules invariants
@@ -344,6 +353,16 @@ module Invariants where
       rmBlockStoreInv  : BlockStoreInv  (rm→BlockStore-EC rm)
       rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
   open RoundManagerInv
+
+  -- This is just the beginning of the invariant for EpochManager, collecting properties we already
+  -- expect to be required even though the top-level peer state is RoundManager for now (in future,
+  -- when we prove properties related to epoch change, the peers state will become EpochManager).
+  record EpochManagerInv (em : EpochManager) : Set where
+    constructor mkEpochManagerInv
+    field
+      -- SafetyRule properties
+      emiSRI : ∀ {sr} → em ^∙ emSafetyRulesManager ∙ srmInternalSafetyRules ≡ SRWLocal sr → SafetyRulesInv sr 
+  open EpochManagerInv
 
   hash≡⇒≈Block : ∀ {b1 b2 : Block}
                → BlockId-correct b1
