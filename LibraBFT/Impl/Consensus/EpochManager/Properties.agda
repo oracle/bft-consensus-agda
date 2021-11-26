@@ -235,7 +235,9 @@ module startRoundManager'Spec
      with  self0 ^∙    emSafetyRulesManager ∙ srmInternalSafetyRules | inspect
           (self0 ^∙_) (emSafetyRulesManager ∙ srmInternalSafetyRules) 
   ...| SRWLocal safetyRules | [ R ]
-     with performInitializeSpec.contract safetyRules (self0 ^∙ emStorage) (emiSRI emi R)
+     with emiSRI emi R
+  ...| (sri , lvNothing)
+     with performInitializeSpec.contract safetyRules (self0 ^∙ emStorage) sri
   ...| piProp
      with MetricsSafetyRules.performInitialize-abs safetyRules (self0 ^∙ emStorage)
   ...| Left _ = tt

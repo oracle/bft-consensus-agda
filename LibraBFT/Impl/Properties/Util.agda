@@ -361,7 +361,8 @@ module Invariants where
     constructor mkEpochManagerInv
     field
       -- SafetyRule properties
-      emiSRI : ∀ {sr} → em ^∙ emSafetyRulesManager ∙ srmInternalSafetyRules ≡ SRWLocal sr → SafetyRulesInv sr 
+      emiSRI : ∀ {sr} → em ^∙ emSafetyRulesManager ∙ srmInternalSafetyRules ≡ SRWLocal sr
+                      → SafetyRulesInv sr × sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
   open EpochManagerInv
 
   hash≡⇒≈Block : ∀ {b1 b2 : Block}
