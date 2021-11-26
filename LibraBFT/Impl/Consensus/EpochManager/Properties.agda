@@ -99,18 +99,10 @@ module startRoundManager'Spec
   initRMInv : ∀ {sr bs}
             → ValidatorVerifier-correct (epochState0 ^∙ esVerifier)
             → SafetyDataInv (sr ^∙ srPersistentStorage ∙ pssSafetyData)
+            → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
             → BlockStoreInv (bs , ecInfo)
             → RoundManagerInv (initProcessor sr bs)
-  initRMInv {sr} vvCorr sdInv bsInv
-     with sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote | inspect
-          (sr ^∙_) (srPersistentStorage ∙ pssSafetyData ∙ sdLastVote)
-  ...| nothing | _ = mkRoundManagerInv vvCorr refl bsInv (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
-  ...| just v  | [ refl ] = mkRoundManagerInv vvCorr refl bsInv
-                  (mkSafetyRulesInv (subst-SafetyDataInv {sr ^∙ srPersistentStorage ∙ pssSafetyData}
-                                                         {srUpdate sr ^∙ srPersistentStorage ∙ pssSafetyData}
-                                                         refl
-                                                         (obm-dangerous-magic' "DANGER - READ COMMENT BELOW")
-                                                         refl sdInv))
+  initRMInv {sr} vvCorr sdInv refl bsInv = mkRoundManagerInv vvCorr refl bsInv (mkSafetyRulesInv (mkSafetyDataInv refl z≤n))
 
 {- Here we run into an issue that may reflect an implementation bug.  Alternatively, it may be that
   one of our invariants (specifically SafetyDataInv) is too strong.  The following "essay" captures
@@ -198,8 +190,10 @@ module startRoundManager'Spec
   particular, it seems that when we start a new epoch we ensure that it IS `nothing` (startNewEpoch
   -> expectNewEpoch -> startProcessor -> startForTesting -> MockSharedStorage.new*; see
   MockSharedStorage, line 19); note that the EpochManager returned by startProcessor is the one
-  provided to the PMNewEpochManager constructed by expectNewEpoch).  Therefore, I plan to strengthen
-  the initial EpochManager invariant accordingly.
+  provided to the PMNewEpochManager constructed by expectNewEpoch).  Therefore, I have strengthened
+  the initial EpochManager invariant accordingly, also strengthened performInitializeSpec, and used
+  these to complete the proofs in startRoundManagerSpec.  After review I will remove this comment,
+  assuming I got this right.
 
 -}
 
@@ -207,9 +201,10 @@ module startRoundManager'Spec
       ∀ {sr bs}
     → ValidatorVerifier-correct (epochState0 ^∙ esVerifier)
     → SafetyRulesInv sr
+    → sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
     → BlockStoreInv (bs , ecInfo)
     → EitherD-weakestPre (continue2-abs lastVote bs sr) (InitContract lastVote)
-  contract-continue2 {sr} {bs} vvCorr srInv bsInv rewrite continue2-abs-≡
+  contract-continue2 {sr} {bs} vvCorr srInv lvNothing bsInv rewrite continue2-abs-≡
     with LBFT-contract (RoundManager.start-abs now lastVote)
                        (Contract initRM initRMCorr)
                        (initProcessor sr bs)
@@ -217,7 +212,7 @@ module startRoundManager'Spec
       where
         open startSpec now lastVote
         initRM     = initProcessor sr bs
-        initRMCorr = initRMInv {sr} {bs} vvCorr (sdInv srInv) bsInv
+        initRMCorr = initRMInv {sr} {bs} vvCorr (sdInv srInv) lvNothing bsInv
 
   ...| inj₁ (_    , er≡j ) rewrite er≡j = tt
   ...| inj₂ (er≡n , ico) rewrite er≡n =
@@ -237,11 +232,12 @@ module startRoundManager'Spec
   ...| SRWLocal safetyRules | [ R ]
      with emiSRI emi R
   ...| (sri , lvNothing)
-     with performInitializeSpec.contract safetyRules (self0 ^∙ emStorage) sri
+     with performInitializeSpec.contract safetyRules (self0 ^∙ emStorage) sri lvNothing
   ...| piProp
      with MetricsSafetyRules.performInitialize-abs safetyRules (self0 ^∙ emStorage)
   ...| Left _ = tt
-  ...| Right sr = contract-continue2 vvCorr piProp bsInv
+  ...| Right sr = contract-continue2 vvCorr (performInitializeSpec.ContractOk.srPres    piProp sri)
+                                            (performInitializeSpec.ContractOk.lvNothing piProp) bsInv
 
   contract' :
       ValidatorVerifier-correct (epochState0 ^∙ esVerifier)

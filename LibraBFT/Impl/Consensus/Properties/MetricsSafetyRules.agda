@@ -16,11 +16,20 @@ module performInitializeSpec
   (storage     : PersistentLivenessStorage)
   where
 
+  record ContractOk (sr : SafetyRules) : Set where
+    constructor mkContractOk
+    field
+      srPres    : Preserves SafetyRulesInv safetyRules sr
+      lvNothing : sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+  open ContractOk
+
   Contract : EitherD-Post ErrLog SafetyRules
   Contract (Left _)   = ⊤
-  Contract (Right sr) = SafetyRulesInv sr
+  Contract (Right sr) = ContractOk sr
 
-  module _ (sri : SafetyRulesInv safetyRules) where
+  module _ (sri : SafetyRulesInv safetyRules)
+           (lvNothing : safetyRules ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing)
+    where
     -- TODO-2: Requires refinement
     postulate
      contract' : EitherD-weakestPre (performInitialize-ed-abs safetyRules storage) Contract
