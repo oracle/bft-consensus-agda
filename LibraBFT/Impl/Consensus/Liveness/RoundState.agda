@@ -72,6 +72,11 @@ processCertificatesM now syncInfo = do
     timeout                       ← setupTimeoutM now
     pure (just (NewRoundEvent∙new pcr' reason timeout))
 
+abstract
+  processCertificatesM-abs = processCertificatesM
+  processCertificatesM-abs-≡ : processCertificatesM-abs ≡ processCertificatesM
+  processCertificatesM-abs-≡ = refl
+
 maybeAdvanceRound currentRound syncInfo =
   let newRound = SyncInfo.highestRound syncInfo + 1
    in if-dec newRound >? currentRound

@@ -19,16 +19,17 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Handle as Handle
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
 
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.InitAndHandlers
+                               Handle.InitHandler.initAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
@@ -306,6 +307,15 @@ module Invariants where
       field
         lvEpoch≡ : Meta.getLastVoteEpoch sd ≡ sd ^∙ sdEpoch
         lvRound≤ : Meta.getLastVoteRound sd ≤ sd ^∙ sdLastVotedRound
+  open SafetyDataInv
+
+  subst-SafetyDataInv : ∀ {sd1 sd2}
+                      → sd1 ^∙ sdLastVote       ≡ sd2 ^∙ sdLastVote
+                      → sd1 ^∙ sdEpoch          ≡ sd2 ^∙ sdEpoch
+                      → sd1 ^∙ sdLastVotedRound ≡ sd2 ^∙ sdLastVotedRound
+                      → SafetyDataInv sd1 → SafetyDataInv sd2
+  subst-SafetyDataInv refl refl refl (mkSafetyDataInv lvEpoch≡₁ lvRound≤₁) =
+    mkSafetyDataInv lvEpoch≡₁ lvRound≤₁
 
   module _ (sr : SafetyRules) where
     -- SafetyRules invariants
@@ -343,6 +353,17 @@ module Invariants where
       rmBlockStoreInv  : BlockStoreInv  (rm→BlockStore-EC rm)
       rmSafetyRulesInv : SafetyRulesInv (rm ^∙ lSafetyRules)
   open RoundManagerInv
+
+  -- This is just the beginning of the invariant for EpochManager, collecting properties we already
+  -- expect to be required even though the top-level peer state is RoundManager for now (in future,
+  -- when we prove properties related to epoch change, the peers state will become EpochManager).
+  record EpochManagerInv (em : EpochManager) : Set where
+    constructor mkEpochManagerInv
+    field
+      -- SafetyRule properties
+      emiSRI : ∀ {sr} → em ^∙ emSafetyRulesManager ∙ srmInternalSafetyRules ≡ SRWLocal sr
+                      → SafetyRulesInv sr × sr ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdLastVote ≡ nothing
+  open EpochManagerInv
 
   hash≡⇒≈Block : ∀ {b1 b2 : Block}
                → BlockId-correct b1
@@ -451,6 +472,67 @@ module Invariants where
       → Preserves RoundManagerInv            pre                         post
   mkPreservesRoundManagerInv rmP emP bsP srP (mkRoundManagerInv rmCorrect epochsMatch bsInv srInv) =
     mkRoundManagerInv (rmP rmCorrect) (emP epochsMatch) (bsP bsInv) (srP srInv)
+
+module InitProofDefs where
+  open Invariants
+
+-- RoundManager properties
+
+  _IsNormalRoundManagerOf_ : RoundManager → EpochManager → Set
+  _IsNormalRoundManagerOf_ rm em =
+    em ^∙ emProcessor ≡ just (RoundProcessorNormal rm)
+
+  IsNormalRoundManagerOf-inj :
+    ∀ {em} {rm1} {rm2}
+    → rm1 IsNormalRoundManagerOf em
+    → rm2 IsNormalRoundManagerOf em
+    → rm1 ≡ rm2
+  IsNormalRoundManagerOf-inj refl refl = refl
+
+  InitSdLV≡ : RoundManager → Maybe Vote → Set
+  InitSdLV≡ rm mv = rm ^∙ rmSafetyRules ∙ srPersistentStorage
+                        ∙ pssSafetyData ∙ sdLastVote ≡ mv
+
+  InitSigs∈bs : RoundManager → Set
+  InitSigs∈bs rm = ∀ {bsi vs qc}
+                   → vs              ∈     qcVotes qc
+                   → qc QCProps.∈RoundManager rm
+                   → ∈BootstrapInfo-impl bsi (proj₂ vs)
+
+  -- Message properties
+
+  -- During epoch initialisation, no messages are sent
+  -- EXCEPT the leader of Round 1 SENDS a ProposalMsg during initialization.
+  -- Rust/Haskell impls do not include signatures in the genesis QC's LIWS.
+  -- The initial proposal for (Epoch N) (Round 1) is built on a QC with empty signatures.
+
+  InitIsInitPM' : NetworkMsg → Set
+  InitIsInitPM' m = ∃[ pm ] ( m ≡ P pm
+                            × ∀ {vs qc}
+                            → vs   ∈ qcVotes qc
+                            → qc QC∈NM       m
+                            → ⊥)
+
+  InitIsInitPM : List (Action NetworkMsg) → Set
+  InitIsInitPM acts = ∀ {m}
+                      → send m ∈ acts
+                      → InitIsInitPM' m
+
+  record InitContractOk (mv : Maybe Vote) (rm : RoundManager) (outs : List Output) : Set where
+    constructor mkInitContractOk
+    field
+      rmInv       : RoundManagerInv rm
+      sdLV≡       : InitSdLV≡ rm mv
+      sigs∈bs     : InitSigs∈bs rm
+      isInitPM    : InitIsInitPM (outputsToActions {State = rm} outs)
+  open InitContractOk
+
+  EMInitCond : Maybe Vote → EpochManager × List Output → Set
+  EMInitCond mv (em , outs) = ∃[ rm ] ( rm IsNormalRoundManagerOf em × InitContractOk mv rm outs )
+
+  InitContract : Maybe Vote → EitherD-Post ErrLog (EpochManager × List Output)
+  InitContract _ (Left x)        = ⊤
+  InitContract mv (Right em×outs) = EMInitCond mv em×outs
 
 module RoundManagerTransProps where
   -- Relations between the pre/poststate which may or may not hold, depending on

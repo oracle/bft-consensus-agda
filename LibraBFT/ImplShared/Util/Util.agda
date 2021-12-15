@@ -60,21 +60,23 @@ module LibraBFT.ImplShared.Util.Util where
   LBFT-contract m Post pre pf = RWS-contract m Post unit pre pf
 
   LBFT-⇒
-    : ∀ {A} (P Q : LBFT-Post A) → (RWS-Post-⇒ P Q)
-    → ∀ m pre → LBFT-weakestPre m P pre → LBFT-weakestPre m Q pre
-  LBFT-⇒ Post₁ Post₂ f m pre pf = RWS-⇒ Post₁ Post₂ f m unit pre pf
+    : ∀ {A} {P Q : LBFT-Post A}
+    → ∀ m pre → LBFT-weakestPre m P pre
+    → RWS-Post-⇒ P Q
+    → LBFT-weakestPre m Q pre
+  LBFT-⇒ m pre pf f = RWS-⇒ m unit pre pf f
 
   LBFT-⇒-bind
     : ∀ {A B} (P : LBFT-Post A) (Q : LBFT-Post B) (f : A → LBFT B)
       → (RWS-Post-⇒ P (RWS-weakestPre-bindPost unit f Q))
       → ∀ m st → LBFT-weakestPre m P st → LBFT-weakestPre (m >>= f) Q st
-  LBFT-⇒-bind Post Q f pf m st con = RWS-⇒-bind Post Q f unit pf m st con
+  LBFT-⇒-bind Post Q f pf m st con = RWS-⇒-bind {P = Post} {Q} {f} m unit st con pf
 
   LBFT-⇒-ebind
-    : ∀ {A B C} (P : LBFT-Post (Either C A)) (Q : LBFT-Post (Either C B))
-      → (f : A → LBFT (Either C B))
-      → RWS-Post-⇒ P (RWS-weakestPre-ebindPost unit f Q)
+    : ∀ {A B C} {P : LBFT-Post (Either C A)} {Q : LBFT-Post (Either C B)}
+      → {f : A → LBFT (Either C B)}
       → ∀ m st → LBFT-weakestPre m P st
+      → RWS-Post-⇒ P (RWS-weakestPre-ebindPost unit f Q)
       → LBFT-weakestPre (m ∙?∙ f) Q st
-  LBFT-⇒-ebind Post Q f pf m st con =
-    RWS-⇒-ebind Post Q f unit pf m st con
+  LBFT-⇒-ebind {P = Post} {Q} {f} m st con pf =
+    RWS-⇒-ebind m unit st con pf

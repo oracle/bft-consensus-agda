@@ -77,6 +77,11 @@ startForTesting validatorSet obmMLIWS = do
   here' : List String → List String
   here' t = "MockStorage" ∷ "startForTesting" ∷ t
 
+abstract
+  startForTesting-ed-abs : ValidatorSet → Maybe LedgerInfoWithSignatures
+                         → EitherD ErrLog (RecoveryData × PersistentLivenessStorage)
+  startForTesting-ed-abs vs mliws = fromEither $ startForTesting vs mliws
+
 ------------------------------------------------------------------------------
 
 saveTreeE
@@ -131,9 +136,15 @@ saveHighestTimeoutCertificateM tc db = do
   logInfo fakeInfo -- ["MockStorage", "saveHighestTimeoutCertificateM", lsTC tc]
   ok (db & msSharedStorage ∙ mssHighestTimeoutCertificate ?~ tc)
 
-retrieveEpochChangeProofE
+retrieveEpochChangeProofED
   : Version → MockStorage
-  → Either ErrLog EpochChangeProof
-retrieveEpochChangeProofE v db = case Map.lookup v (db ^∙ msSharedStorage ∙ mssLis) of λ where
-  nothing    → Left fakeErr -- ["MockStorage", "retrieveEpochChangeProofE", "not found", show v])
+  → EitherD ErrLog EpochChangeProof
+retrieveEpochChangeProofED v db = case Map.lookup v (db ^∙ msSharedStorage ∙ mssLis) of λ where
+  nothing    → LeftD fakeErr -- ["MockStorage", "retrieveEpochChangeProofE", "not found", show v])
   (just lis) → pure (EpochChangeProof∙new (lis ∷ []) false)
+
+abstract
+  retrieveEpochChangeProofED-abs = retrieveEpochChangeProofED
+  retrieveEpochChangeProofED-abs-≡ : retrieveEpochChangeProofED-abs ≡ retrieveEpochChangeProofED
+  retrieveEpochChangeProofED-abs-≡ = refl
+

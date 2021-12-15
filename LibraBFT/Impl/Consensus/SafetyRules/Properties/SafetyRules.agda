@@ -30,9 +30,9 @@ open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 
-open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.InitAndHandlers
+                               Handle.InitHandler.initAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open Invariants
 open RoundManagerTransProps
@@ -214,13 +214,10 @@ module verifyQcMSpec (self : QuorumCert) where
     → (∀ {e} → P (Left e) pre [])  -- verifyQcM does not emit any outputs, it just propagates a Left ErrLog, hence [] 
     → (QuorumCertProps.Contract self (getVv pre) → P (Right unit) pre [])
     → RWS-weakestPre (verifyQcM self) P unit pre
-  contract Post pre lPrf rPrf = LBFT-⇒ (Contract pre) Post
+  contract Post pre lPrf rPrf = LBFT-⇒ (verifyQcM self) pre
+                                       (contract' pre)
                                        (λ { (Left x₁) st outs (refl , refl)          → lPrf
                                           ; (Right unit) st outs (refl , refl , prf) → rPrf prf })
-                                       (verifyQcM self)
-                                       pre
-                                       (contract' pre)
-
 
 module constructAndSignVoteMSpec where
 
@@ -386,8 +383,8 @@ module constructAndSignVoteMSpec where
             (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData)
             Post pre
     contract pre Post reqs pf =
-      LBFT-⇒ (Contract pre proposedBlock) Post pf (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData) pre
-        (contract' pre reqs)
+      LBFT-⇒ (constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData)
+             pre (contract' pre reqs) pf
 
   module continue1
     (voteProposal  : VoteProposal) (validatorSigner : ValidatorSigner)
@@ -420,8 +417,8 @@ module constructAndSignVoteMSpec where
         where
         contract-step₃ : RWS-weakestPre step₃ (Contract pre proposedBlock) unit pre
         contract-step₃ =
-          LBFT-⇒ (VAUPContract pre) Pred pf-step₃ (verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0) pre
-            (verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0 pre) 
+          LBFT-⇒ (verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0) pre
+            (verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0 pre) pf-step₃
           -- verifyAndUpdatePreferredRoundMSpec.contract (proposedBlock ^∙ bQuorumCert) safetyData0
           --   Pred pre (λ r≤pr → contractBail _ refl) cases
             where
@@ -511,8 +508,7 @@ module constructAndSignVoteMSpec where
       : ∀ pre Post → RWS-Post-⇒ (Contract pre proposedBlock) Post
         → LBFT-weakestPre (constructAndSignVoteM maybeSignedVoteProposal) Post pre
     contract pre Post pf =
-      RWS-⇒ (Contract pre proposedBlock) Post pf (constructAndSignVoteM maybeSignedVoteProposal) unit pre
-        (contract' pre)
+      RWS-⇒ (constructAndSignVoteM maybeSignedVoteProposal) unit pre (contract' pre) pf
 
 private
   module Tutorial

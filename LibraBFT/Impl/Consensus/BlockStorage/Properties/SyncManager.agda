@@ -57,7 +57,7 @@ module insertQuorumCertMSpec
         contract' : LBFT-weakestPre (step₁ bs) (Contract pre) pre
 
       contract : ∀ Q → RWS-Post-⇒ (Contract pre) Q → LBFT-weakestPre (step₁ bs) Q pre
-      contract Q pf = LBFT-⇒ (Contract pre) Q pf (step₁ bs) pre contract'
+      contract Q pf = LBFT-⇒ (step₁ bs) pre contract' pf
 
 
   module _ (pool : SentMessages) (pre : RoundManager) where
@@ -136,4 +136,4 @@ module addCertsMSpec
       contract' : LBFT-weakestPre (addCertsM syncInfo retriever) Contract pre
 
     contract : ∀ Q → RWS-Post-⇒ Contract Q → LBFT-weakestPre (addCertsM syncInfo retriever) Q pre
-    contract Q pf = LBFT-⇒ Contract Q pf (addCertsM syncInfo retriever) pre contract'
+    contract Q pf = LBFT-⇒ (addCertsM syncInfo retriever) pre contract' pf

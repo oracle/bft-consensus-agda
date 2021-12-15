@@ -34,11 +34,11 @@ open RoundManagerTransProps
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 
-open        ParamsWithInitAndHandlers Handle.InitHandler.InitAndHandlers
-open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.InitAndHandlers
+open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
+open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 
 open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.InitAndHandlers
+                               Handle.InitHandler.initAndHandlers
                                PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 open import LibraBFT.Impl.Handle.InitProperties
@@ -301,7 +301,7 @@ sameERasLV⇒sameId {pid} {pid'} {pk}
    rewrite sym (StepPeer-post-lemma sp)
    with initHandlerSpec.contract pid fakeBootstrapInfo rm×acts
 ...| init-contract
-   with initHandlerSpec.ContractOk.sdLVNothing init-contract
+   with initHandlerSpec.ContractOk.sdLVnothing init-contract
 ...| lv≡nothing
    = absurd just v ≡ nothing case trans ≡pidLV lv≡nothing of λ ()
 
@@ -493,7 +493,7 @@ sameERasLV⇒sameId{pid}{pid'}{pk} (step-s rss (step-peer{pre = pre} sp@(step-ho
 
 ------------------------------------------------------------------------------
 
-votesOnce₁ : Common.IncreasingRoundObligation Handle.InitHandler.InitAndHandlers 𝓔
+votesOnce₁ : Common.IncreasingRoundObligation Handle.InitHandler.initAndHandlers 𝓔
 
 votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach
            (step-init {rm} rm×acts uni)
@@ -587,7 +587,7 @@ votesOnce₁ {pid = pid} {pid'} {pk = pk} {pre = pre} preach sps@(step-msg {sndr
     ...| nothing | _ = z≤n
     ...| just lv | round≤ = ≤-trans (≤-trans round≤ (<⇒≤ lvr<)) (≡⇒≤ (sym lvr≡))
 
-  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ Handle.InitHandler.InitAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
+  ret : v' [ _<_ ]L v at vRound ⊎ Common.VoteForRound∈ Handle.InitHandler.initAndHandlers 𝓔 pk (v ^∙ vRound) (v ^∙ vEpoch) (v ^∙ vProposedId) (msgPool pre)
   ret
     with <-cmp (v' ^∙ vRound) (v ^∙ vRound)
   ...| tri< rv'<rv _ _ = Left rv'<rv
@@ -609,7 +609,7 @@ votesOnce₁{pid = pid}{pid'}{pk = pk}{pre = pre} preach sps@(step-msg{sndr , V 
 
 ------------------------------------------------------------------------------
 
-votesOnce₂ : VO.ImplObligation₂ Handle.InitHandler.InitAndHandlers 𝓔
+votesOnce₂ : VO.ImplObligation₂ Handle.InitHandler.initAndHandlers 𝓔
 
 votesOnce₂ {pid} {pk = pk} {pre} rss
            (step-init {rm} rm×acts uni)

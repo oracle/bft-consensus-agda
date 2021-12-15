@@ -71,15 +71,15 @@ expectNewEpoch
   : EpochManager → Instant → ReconfigEventEpochChange → LedgerInfoWithSignatures
   → Either ErrLog ProcessMessageAction
 
-startProcessor
+startProcessor-ed
   : EpochManager → Instant → OnChainConfigPayload
   → ObmNeedFetch → ProposalGenerator → LedgerInfoWithSignatures
-  → Either ErrLog  (EpochManager × List Output)
+  → EitherD ErrLog  (EpochManager × List Output)
 
-startRoundManager'
+startRoundManager'-ed-abs
   : EpochManager → Instant → RecoveryData → EpochState
   → ObmNeedFetch → ProposalGenerator → Version
-  → Either ErrLog (EpochManager × List Output)
+  → EitherD ErrLog (EpochManager × List Output)
 
 ------------------------------------------------------------------------------
 
@@ -114,6 +114,11 @@ createRoundState self now =
         1.2
         6
    in RoundState.new timeInterval now
+
+abstract
+  createRoundState-abs = createRoundState
+  createRoundState-abs-≡ : createRoundState-abs ≡ createRoundState
+  createRoundState-abs-≡ = refl
 
 createProposerElection : EpochState → ProposerElection
 createProposerElection epochState0 =
@@ -211,11 +216,11 @@ startNewEpoch self now mrlec proof = do
   here' : List String → List String
   here' t = "EpochManager" ∷ "startNewEpoch" ∷ t
 
-startRoundManager
+startRoundManager-ed
   : EpochManager → Instant → RecoveryData → EpochState
   → ObmNeedFetch → ProposalGenerator → Version
-  → Either ErrLog (EpochManager × List Output)
-startRoundManager self0 now recoveryData epochState0 obmNeedFetch obmProposalGenerator obmVersion =
+  → EitherD ErrLog (EpochManager × List Output)
+startRoundManager-ed self0 now recoveryData epochState0 obmNeedFetch obmProposalGenerator obmVersion =
   let self = case self0 ^∙ emProcessor of λ where
                (just (RoundProcessorNormal rm)) →
                  self0 & emStorage               ∙~ rm ^∙ rmBlockStore ∙ bsStorage
@@ -225,42 +230,52 @@ startRoundManager self0 now recoveryData epochState0 obmNeedFetch obmProposalGen
       -- OBM-DIFF : use the version in the ledger info of the EpochChangeProof
       obv  = eitherS (self ^∙ emObmRoundManager) (const BlockInfo.gENESIS_VERSION) (const obmVersion)
 
-   in startRoundManager' self now recoveryData epochState0 obmNeedFetch
-                         (obmProposalGenerator & pgLastRoundGenerated ∙~ {-Round-} 0)
-                         obv
+   in startRoundManager'-ed-abs self now recoveryData epochState0 obmNeedFetch
+                                (obmProposalGenerator & pgLastRoundGenerated ∙~ {-Round-} 0)
+                                obv
 
-startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGenerator obv = do
-  let lastVote = recoveryData ^∙ rdLastVote
-  case BlockStore.new
-         (self ^∙ emStorage)
-         recoveryData
-         -- TODO-2 : use real StateComputer when it exists
-         stateComputer -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
-         (self ^∙ emConfig ∙ ccMaxPrunedBlocksInMem) of λ where
-    (Left  e) -> err ("BlockStore.new" ∷ []) e
-    (Right r) -> continue1 lastVote r
- where
-  err : ∀ {B} → List String → ErrLog → Either ErrLog B
-  err  t = withErrCtx' t ∘ Left
+module startRoundManager'-ed
+  (self : EpochManager)
+  (now  : Instant)
+  (recoveryData : RecoveryData)
+  (epochState0 : EpochState)
+  (obmNeedFetch : ObmNeedFetch)
+  (obmProposalGenerator : ProposalGenerator)
+  (obmVersion           : Version)
+  where
+
+  continue2 continue2-abs : Maybe Vote → BlockStore → SafetyRules → EitherD ErrLog (EpochManager × List Output)
+  continue1 continue1-abs : Maybe Vote → BlockStore → EitherD ErrLog (EpochManager × List Output)
+  err : ∀ {B} → List String → ErrLog → EitherD ErrLog B
   here' : List String → List String
+
+  step₀ = do
+    let lastVote = recoveryData ^∙ rdLastVote
+    case BlockStore.new-e-abs  -- Either version so we only get Left and Right cases
+           (self ^∙ emStorage)
+           recoveryData
+           -- TODO-2 : use real StateComputer when it exists
+           stateComputer -- (self ^∙ emStateComputer & scObmVersion .~ obv) TODO-2
+           (self ^∙ emConfig ∙ ccMaxPrunedBlocksInMem) of λ where
+      (Left  e) → err ("BlockStore.new" ∷ []) e
+      (Right bs) → continue1-abs lastVote bs
+
+  err  t = withErrCtxD' t ∘ Left
   here' t = "EpochManager" ∷ "startRoundManager" ∷ t
 
-  continue2 : Maybe Vote → BlockStore → SafetyRules → Either ErrLog (EpochManager × List Output)
-
-  continue1 : Maybe Vote → BlockStore → Either ErrLog (EpochManager × List Output)
   continue1 lastVote blockStore = do
     --------------------------------------------------
     let safetyRules = {-MetricsSafetyRules::new-}
           SafetyRulesManager.client (self ^∙ emSafetyRulesManager) -- self.storage.clone());
-    case MetricsSafetyRules.performInitialize safetyRules (self ^∙ emStorage) of λ where
+    case MetricsSafetyRules.performInitialize-abs safetyRules (self ^∙ emStorage) of λ where
       (Left e)             → err (here' ("MetricsSafetyRules.performInitialize" ∷ [])) e
-      (Right safetyRules') → continue2 lastVote blockStore safetyRules'
+      (Right safetyRules') → continue2-abs lastVote blockStore safetyRules'
 
   continue2 lastVote blockStore safetyRules = do
     --------------------------------------------------
     let proposalGenerator = obmProposalGenerator
     --------------------------------------------------
-    let roundState = createRoundState self now
+    let roundState = createRoundState-abs self now
     --------------------------------------------------
     let proposerElection = createProposerElection epochState0
     --------------------------------------------------
@@ -274,28 +289,47 @@ startRoundManager' self now recoveryData epochState0 obmNeedFetch obmProposalGen
           (safetyRules & srPersistentStorage ∙ pssSafetyData ∙ sdEpoch ∙~ epochState0 ^∙ esEpoch)
           (self ^∙ emConfig ∙ ccSyncOnly)
     --------------------------------------------------
-    let (_ , processor' , output) = LBFT-run (RoundManager.start now lastVote) processor
-    case findFirstErr output of λ where
+    let (_ , processor' , output) = LBFT-run (RoundManager.start-abs now lastVote) processor
+    case find' logErrMB output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
       nothing  → pure ( (self & emProcessor ?~ RoundProcessorNormal processor')
                       , output )
-   where
-    findFirstErr : List Output → Maybe ErrLog
-    findFirstErr = λ where
-      []              → nothing
-      (LogErr e ∷  _) → just e
-      (_        ∷ xs) → findFirstErr xs
 
-startProcessor self now payload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures = do
+  abstract
+    continue1-abs = continue1
+    continue1-abs-≡ : continue1-abs ≡ continue1
+    continue1-abs-≡ = refl
+
+    continue2-abs = continue2
+    continue2-abs-≡ : continue2-abs ≡ continue2
+    continue2-abs-≡ = refl
+
+abstract
+  startRoundManager'-ed-abs = startRoundManager'-ed.step₀
+  startRoundManager'-ed-abs-≡ : startRoundManager'-ed-abs ≡ startRoundManager'-ed.step₀
+  startRoundManager'-ed-abs-≡ = refl
+
+startProcessor-ed self now payload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures = do
   let validatorSet = payload ^∙ occpObmValidatorSet
-  vv               ← ValidatorVerifier.from validatorSet
+  vv               ← ValidatorVerifier.from-ed-abs validatorSet
   let epochState0  = EpochState∙new (payload ^∙ occpEpoch) vv
       -- OBM TODO case storage.start of RecoveryData | LedgerRecoveryData
   (initialData , _pls)
-                   ← MockStorage.startForTesting validatorSet
-                                                 (just obmLedgerInfoWithSignatures)
-  startRoundManager self now initialData epochState0 obmNeedFetch obmProposalGenerator
-                    (obmLedgerInfoWithSignatures ^∙ liwsLedgerInfo ∙ liVersion)
+                   ← MockStorage.startForTesting-ed-abs validatorSet
+                                                        (just obmLedgerInfoWithSignatures)
+  startRoundManager-ed self now initialData epochState0 obmNeedFetch obmProposalGenerator
+                       (obmLedgerInfoWithSignatures ^∙ liwsLedgerInfo ∙ liVersion)
+
+abstract
+  startProcessor-e-abs
+    : EpochManager → Instant → OnChainConfigPayload
+    → ObmNeedFetch → ProposalGenerator → LedgerInfoWithSignatures
+    → Either ErrLog  (EpochManager × List Output)
+  startProcessor-e-abs em now payload nf pg liws = toEither $
+     startProcessor-ed em now payload nf pg liws
+  startProcessor-ed-abs = startProcessor-ed
+  startProcessor-ed-abs-≡ : startProcessor-ed-abs ≡ startProcessor-ed
+  startProcessor-ed-abs-≡ = refl
 
 {-
 Currently, the implementation is hooked up to the system model in
@@ -415,18 +449,18 @@ processMessage self now = λ where
 
 expectNewEpoch self now (ReconfigEventEpochChange∙new payload) obmLedgerInfoWithSignatures = do
   rm       ← self ^∙ emObmRoundManager
-  (em , o) ← startProcessor self now payload
+  (em , o) ← startProcessor-e-abs self now payload
                (rm ^∙ rmObmNeedFetch)
                (rm ^∙ rmProposalGenerator)
                obmLedgerInfoWithSignatures
   pure (PMNewEpoch em o)
 
-start
+start-ed
   : EpochManager → Instant
   → OnChainConfigPayload → ObmNeedFetch → ProposalGenerator → LedgerInfoWithSignatures
-  → Either ErrLog (EpochManager × List Output)
-start self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures =
-  startProcessor self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures
+  → EitherD ErrLog (EpochManager × List Output)
+start-ed self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures =
+  startProcessor-ed self0 now obmPayload obmNeedFetch obmProposalGenerator obmLedgerInfoWithSignatures
 
 ------------------------------------------------------------------------------
 -- IMPL-DIFF

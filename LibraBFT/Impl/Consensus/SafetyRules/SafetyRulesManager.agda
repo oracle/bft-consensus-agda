@@ -42,4 +42,3 @@ newLocal storage0 exportConsensusKey = do
 client : SafetyRulesManager → SafetyRules
 client self = case self ^∙ srmInternalSafetyRules of λ where
   (SRWLocal safetyRules) → safetyRules
-

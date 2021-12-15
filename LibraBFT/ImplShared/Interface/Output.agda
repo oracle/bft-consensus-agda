@@ -64,6 +64,14 @@ module LibraBFT.ImplShared.Interface.Output where
   IsLogErr (SendBRP _ _)         = ⊥
   IsLogErr (SendVote _ _)        = ⊥
 
+  logErrMB : Output → Maybe ErrLog
+  logErrMB (BroadcastProposal _ _) = nothing
+  logErrMB (BroadcastSyncInfo _ _) = nothing
+  logErrMB (LogErr e)              = just e
+  logErrMB (LogInfo _)             = nothing
+  logErrMB (SendBRP _ _)           = nothing
+  logErrMB (SendVote _ _)          = nothing
+
   isSendVote? : (out : Output) → Dec (IsSendVote out)
   isSendVote? (BroadcastProposal _ _) = no λ ()
   isSendVote? (BroadcastSyncInfo _ _) = no λ ()

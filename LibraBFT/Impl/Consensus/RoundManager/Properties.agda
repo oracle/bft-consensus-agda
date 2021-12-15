@@ -15,6 +15,7 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.Impl.Consensus.EpochManager
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BlockStoreProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock       as ExecutedBlock
@@ -217,7 +218,7 @@ module executeAndVoteMSpec (vb : ValidBlock) where
         → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (executeAndVoteM b) Post pre
     contract Post pf =
-      RWS-⇒ Contract Post pf (executeAndVoteM b) unit pre contract'
+      RWS-⇒ (executeAndVoteM b) unit pre contract' pf
 
 module processProposalMSpec (vproposal : ValidBlock) where
   proposal = vbBlock vproposal
@@ -398,7 +399,7 @@ module processProposalMSpec (vproposal : ValidBlock) where
                            (mkPreservesRoundManagerInv id id bsP srP)
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalM proposal) Post pre
-    contract Post pf = LBFT-⇒ Contract Post pf (processProposalM proposal) pre contract'
+    contract Post pf = LBFT-⇒ (processProposalM proposal) pre contract' pf
 
 module syncUpMSpec
   (now : Instant) (syncInfo : SyncInfo) (author : Author) (_helpRemote : Bool) where
@@ -509,8 +510,8 @@ module syncUpMSpec
       : ∀ Post → RWS-Post-⇒ Contract Post
         → LBFT-weakestPre (syncUpM now syncInfo author _helpRemote) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (syncUpM now syncInfo author _helpRemote) pre
-        contract'
+      LBFT-⇒ (syncUpM now syncInfo author _helpRemote) pre
+        contract' pf
 
 module ensureRoundAndSyncUpMSpec
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo)
@@ -581,7 +582,7 @@ module ensureRoundAndSyncUpMSpec
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract'
+      LBFT-⇒ (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) pre contract' pf
 
 module processProposalMsgMSpec
   (now : Instant) (pm : ProposalMsg) (vproposal : BlockId-correct (pm ^∙ pmProposal)) where
@@ -703,4 +704,35 @@ module processProposalMsgMSpec
 
     contract : ∀ Post → RWS-Post-⇒ Contract Post → LBFT-weakestPre (processProposalMsgM now pm) Post pre
     contract Post pf =
-      LBFT-⇒ Contract Post pf (processProposalMsgM now pm) pre contract'
+      LBFT-⇒ (processProposalMsgM now pm) pre contract' pf
+
+
+module startSpec
+  (now          : Instant)
+  (lastVoteSent : Maybe Vote)
+  where
+
+  module _ (pre : RoundManager)
+           (rmi : RoundManagerInv pre) -- preconditions needed to prove contract
+    where
+
+    open InitProofDefs
+
+    open start now lastVoteSent
+
+    Contract : LBFT-Post Unit
+    Contract _ post outs = ∃[ e ] (find' logErrMB outs ≡ just e)
+                         ⊎ find' logErrMB outs ≡ nothing × InitContractOk lastVoteSent post outs
+
+    syncInfo = SyncInfo∙new (pre ^∙ (lBlockStore ∙ bsHighestQuorumCert))
+                            (pre ^∙ (lBlockStore ∙ bsHighestCommitCert))
+                            (pre ^∙ (lBlockStore ∙ bsHighestTimeoutCert))
+
+    postulate
+      contract-step₁ : LBFT-weakestPre (step₁-abs syncInfo) Contract pre
+
+    contract' : LBFT-weakestPre (start-abs now lastVoteSent) Contract pre
+              -- These are due to the various binds arising from syncInfoM, which is not abstract
+              -- because it's more trouble than it's worth
+    contract' rewrite start-abs-≡ =
+      λ where ._ refl ._ refl ._ refl ._ refl ._ refl ._ refl si refl → contract-step₁

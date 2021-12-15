@@ -218,53 +218,59 @@ RWS-contract (RWS-maybe (just x) f₁ f₂) P ev pre (wp₁ , wp₂) =
 -- computation `m` and show that that proof implies a property concerning a
 -- larger computation which contains `m`.
 RWS-⇒
-  : (P Q : RWS-Post Wr St A) → (RWS-Post-⇒ P Q)
-    → ∀ m (ev : Ev) st → RWS-weakestPre m P ev st → RWS-weakestPre m Q ev st
-RWS-⇒ P Q pf (RWS-return x) ev st pre = pf x st [] pre
-RWS-⇒ P Q pf (RWS-bind m f) ev st pre =
-  RWS-⇒ _ _
+  : ∀ {P Q : RWS-Post Wr St A}
+    → ∀ m (ev : Ev) st
+    → RWS-weakestPre m P ev st
+    → RWS-Post-⇒ P Q
+    → RWS-weakestPre m Q ev st
+RWS-⇒ (RWS-return x) ev st pre pf = pf x st [] pre
+RWS-⇒ (RWS-bind m f) ev st pre pf =
+  RWS-⇒
+    m ev st pre
     (λ r₁ st₁ outs₁ pf₁ x x≡ →
-      RWS-⇒ _ _
-        (λ r₂ st₂ outs₂ pf₂ → pf r₂ st₂ (outs₁ ++ outs₂) pf₂)
-        (f x) ev st₁ (pf₁ x x≡))
-    m ev st pre
-RWS-⇒ P Q pf (RWS-gets f) ev st pre = pf _ _ _ pre
-RWS-⇒ P Q pf (RWS-put x) ev st pre = pf _ _ _ pre
-RWS-⇒ P Q pf RWS-ask ev st pre = pf _ _ _ pre
-RWS-⇒ P Q pf (RWS-tell x) ev st pre = pf _ _ _ pre
-RWS-⇒ P Q pf (RWS-if (otherwise≔ x)) ev st pre = RWS-⇒ _ _ pf x ev st pre
-RWS-⇒ P Q pf (RWS-if (clause (b ≔ c) cs)) ev st (pre₁ , pre₂) =
-  (λ pf' → RWS-⇒ _ _ pf c ev st (pre₁ pf'))
-  , λ pf' → RWS-⇒ _ _ pf (RWS-if cs) ev st (pre₂ pf')
-proj₁ (RWS-⇒ P Q pf (RWS-either (Left x) f₁ f₂) ev st (pre₁ , pre₂)) x₁ x₁≡ =
-  RWS-⇒ _ _ pf (f₁ x₁) ev st (pre₁ x₁ x₁≡)
-proj₂ (RWS-⇒ P Q pf (RWS-either (Left x) f₁ f₂) ev st (pre₁ , pre₂)) y ()
-proj₁ (RWS-⇒ P Q pf (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ ()
-proj₂ (RWS-⇒ P Q pf (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂)) y₁ y₁≡ =
-  RWS-⇒ _ _ pf (f₂ y₁) ev st (pre₂ y₁ y₁≡)
-RWS-⇒ P Q pf (RWS-ebind m f) ev st pre =
-  RWS-⇒ _ _
-    (λ { (Left x₁) st₁ outs x → pf _ _ _ x
-       ; (Right y) st₁ outs x → λ c x₁ →
-           RWS-⇒ _ _ (λ r st₂ outs₁ x₂ → pf r st₂ (outs ++ outs₁) x₂) (f c) ev st₁ (x c x₁)})
-    m ev st pre
-proj₁ (RWS-⇒ P Q pf (RWS-maybe x m f) ev st (pre₁ , pre₂)) ≡nothing = RWS-⇒ _ _ pf m ev st (pre₁ ≡nothing)
-proj₂ (RWS-⇒ P Q pf (RWS-maybe x m f) ev st (pre₁ , pre₂)) b b≡ = RWS-⇒ _ _ pf (f b) ev st (pre₂ b b≡)
+      RWS-⇒
+        (f x) ev st₁ (pf₁ x x≡)
+        (λ r₂ st₂ outs₂ pf₂ → pf r₂ st₂ (outs₁ ++ outs₂) pf₂))
+RWS-⇒ (RWS-gets f) ev st pre pf = pf _ _ _ pre
+RWS-⇒ (RWS-put x)  ev st pre pf = pf _ _ _ pre
+RWS-⇒ RWS-ask      ev st pre pf = pf _ _ _ pre
+RWS-⇒ (RWS-tell x) ev st pre pf = pf _ _ _ pre
+RWS-⇒ (RWS-if (otherwise≔ x)) ev st pre pf = RWS-⇒ x ev st pre pf
+RWS-⇒ (RWS-if (clause (b ≔ c) cs)) ev st (pre₁ , pre₂) pf =
+  (λ pf' → RWS-⇒ c ev st (pre₁ pf') pf)
+  , λ pf' → RWS-⇒ (RWS-if cs) ev st (pre₂ pf') pf
+proj₁ (RWS-⇒ (RWS-either (Left x) f₁ f₂) ev st (pre₁ , pre₂) pf) x₁ x₁≡ =
+  RWS-⇒ (f₁ x₁) ev st (pre₁ x₁ x₁≡) pf
+proj₂ (RWS-⇒ (RWS-either (Left x)  f₁ f₂) ev st (pre₁ , pre₂) pf) y ()
+proj₁ (RWS-⇒ (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂) pf) y₁ ()
+proj₂ (RWS-⇒ (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂) pf) y₁ y₁≡ =
+  RWS-⇒ (f₂ y₁) ev st (pre₂ y₁ y₁≡) pf
+RWS-⇒ (RWS-ebind m f) ev st pre pf =
+  RWS-⇒ m ev st pre
+        (λ { (Left x₁) st₁ outs x → pf _ _ _ x
+             ; (Right y) st₁ outs x → λ c x₁ →
+                 RWS-⇒ (f c) ev st₁ (x c x₁) (λ r st₂ outs₁ x₂ → pf r st₂ (outs ++ outs₁) x₂) })
+proj₁ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) ≡nothing = RWS-⇒ m ev st (pre₁ ≡nothing) pf
+proj₂ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) b b≡     = RWS-⇒ (f b) ev st (pre₂ b b≡) pf
 
 RWS-⇒-bind
-  : (P : RWS-Post Wr St A) (Q : RWS-Post Wr St B)
-    → (f : A → RWS Ev Wr St B) (ev : Ev)
+  : ∀ {P : RWS-Post Wr St A}
+      {Q : RWS-Post Wr St B}
+    → {f : A → RWS Ev Wr St B}
+    → ∀ m ev st
+    → RWS-weakestPre m P ev st
     → RWS-Post-⇒ P (RWS-weakestPre-bindPost ev f Q)
-    → ∀ m st → RWS-weakestPre m P ev st
     → RWS-weakestPre (RWS-bind m f) Q ev st
-RWS-⇒-bind P Q f ev pf m st con =
-  RWS-⇒ P ((RWS-weakestPre-bindPost ev f Q)) pf m ev st con
+RWS-⇒-bind m ev st con pf =
+     RWS-⇒ m ev st con pf
 
 RWS-⇒-ebind
-  : (P : RWS-Post Wr St (Either C A)) (Q : RWS-Post Wr St (Either C B))
-    → (f : A → RWS Ev Wr St (Either C B)) (ev : Ev)
+  : ∀ {P : RWS-Post Wr St (Either C A)}
+      {Q : RWS-Post Wr St (Either C B)}
+    → {f : A → RWS Ev Wr St (Either C B)}
+    → ∀ m ev st
+    → RWS-weakestPre m P ev st
     → RWS-Post-⇒ P (RWS-weakestPre-ebindPost ev f Q)
-    → ∀ m st → RWS-weakestPre m P ev st
     → RWS-weakestPre (RWS-ebind m f) Q ev st
-RWS-⇒-ebind P Q f ev pf m st con =
-  RWS-⇒ P ((RWS-weakestPre-ebindPost ev f Q)) pf m ev st con
+RWS-⇒-ebind m ev st con pf =
+  RWS-⇒ m ev st con pf

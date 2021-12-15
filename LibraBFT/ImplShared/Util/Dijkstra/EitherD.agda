@@ -49,6 +49,9 @@ EitherD-Pre E A = Set
 EitherD-Post : (E A : Set) → Set₁
 EitherD-Post E A = Either E A → Set
 
+EitherD-Post-⇒ : ∀ {E} {A} → (P Q : EitherD-Post E A) → Set
+EitherD-Post-⇒ P Q = ∀ r → P r → Q r
+
 EitherD-PredTrans : (E A : Set) → Set₁
 EitherD-PredTrans E A = EitherD-Post E A → EitherD-Pre E A
 
@@ -107,3 +110,50 @@ EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
   EitherD-contract f₁ P (proj₁ wp refl)
 EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
+
+EitherD-⇒
+  : ∀ {E A} {P Q : EitherD-Post E A}
+  → ∀ m → EitherD-weakestPre m P
+  → (EitherD-Post-⇒ P Q)
+  → EitherD-weakestPre m Q
+EitherD-⇒ {P = Post₁} {Post₂} (LeftD x )         pre pf = pf (Left x ) pre
+EitherD-⇒ {P = Post₁} {Post₂} (RightD x)         pre pf = pf (Right x) pre
+EitherD-⇒ {P = Post₁} {Post₂} (EitherD-bind m x) pre pf =
+  EitherD-⇒ m pre P⇒Q
+  where
+    P⇒Q : EitherD-Post-⇒ (EitherD-weakestPre-bindPost x Post₁)
+                         (EitherD-weakestPre-bindPost x Post₂)
+    P⇒Q (Left  rL) Pr = pf (Left rL) Pr
+    P⇒Q (Right rR) Pr .rR refl = EitherD-⇒ (x rR) (Pr rR refl) pf
+EitherD-⇒ {Post₁} {Post₂} (EitherD-if (otherwise≔ x)) pre pf = EitherD-⇒ x pre pf
+EitherD-⇒ {Post₁} {Post₂} (EitherD-if (clause (x ≔ x₂) x₁)) (pre₁ , pre₂) pf =
+    (λ x≡true  → EitherD-⇒ x₂ (pre₁ x≡true) pf)
+  , (λ x≡false → EitherD-⇒ (EitherD-if x₁) (pre₂ x≡false) pf)
+proj₁ (EitherD-⇒ {Post₁} {Post₂} (EitherD-either (Left  x) x₁ x₂) (pre₁ , pre₂) pf) .x refl =
+       EitherD-⇒ (x₁ x) (pre₁ x refl) pf
+proj₂ (EitherD-⇒ {Post₁} {Post₂} (EitherD-either (Right x) x₁ x₂) (pre₁ , pre₂) pf) .x refl =
+       EitherD-⇒ (x₂ x) (pre₂ x refl) pf
+proj₁ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe .nothing m x₁) (pre₁ , pre₂) pf) refl   =
+       EitherD-⇒ m      (pre₁   refl) pf
+proj₂ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe (just x) m x₁) (pre₁ , pre₂) pf) j refl =
+       EitherD-⇒ (x₁ j) (pre₂ j refl) pf
+
+EitherD-⇒-bind :
+    ∀ {E} {A} {P : EitherD-Post E A}
+    → {Q : EitherD-Post E B}
+    → {f : A → EitherD E B}
+    → ∀ m → EitherD-weakestPre m P
+    → EitherD-Post-⇒ P (EitherD-weakestPre-bindPost f Q)
+    → EitherD-weakestPre (EitherD-bind m f) Q
+EitherD-⇒-bind = EitherD-⇒
+
+EitherD-vacuous : ∀ (m : EitherD E A) → EitherD-weakestPre m (const Unit)
+EitherD-vacuous (LeftD x) = unit
+EitherD-vacuous (RightD x) = unit
+EitherD-vacuous (EitherD-if (otherwise≔ x)) = EitherD-vacuous x
+EitherD-vacuous (EitherD-if (clause (b ≔ x) x₁)) = (const (EitherD-vacuous x)) , (const (EitherD-vacuous (EitherD-if x₁)))
+EitherD-vacuous (EitherD-either x x₁ x₂) = (λ x₃ _ → EitherD-vacuous (x₁ x₃)) , (λ y _ → EitherD-vacuous (x₂ y))
+EitherD-vacuous (EitherD-maybe x m x₁) = (const (EitherD-vacuous m)) , λ j _ → EitherD-vacuous (x₁ j)
+EitherD-vacuous (EitherD-bind m x) = EitherD-⇒-bind m (EitherD-vacuous m) λ { (Left  _) _ → unit
+                                                                            ; (Right _) _ → λ c _ → EitherD-vacuous (x c) }
+
