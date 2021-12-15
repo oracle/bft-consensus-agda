@@ -290,7 +290,7 @@ module startRoundManager'-ed
           (self ^∙ emConfig ∙ ccSyncOnly)
     --------------------------------------------------
     let (_ , processor' , output) = LBFT-run (RoundManager.start-abs now lastVote) processor
-    case find' LogErrMB output of λ where
+    case find' logErrMB output of λ where
       (just e) → err (here' ("RoundManager.start" ∷ [])) e
       nothing  → pure ( (self & emProcessor ?~ RoundProcessorNormal processor')
                       , output )

@@ -721,8 +721,8 @@ module startSpec
     open start now lastVoteSent
 
     Contract : LBFT-Post Unit
-    Contract _ post outs = ∃[ e ] (find' LogErrMB outs ≡ just e)
-                         ⊎ find' LogErrMB outs ≡ nothing × InitContractOk lastVoteSent post outs
+    Contract _ post outs = ∃[ e ] (find' logErrMB outs ≡ just e)
+                         ⊎ find' logErrMB outs ≡ nothing × InitContractOk lastVoteSent post outs
 
     syncInfo = SyncInfo∙new (pre ^∙ (lBlockStore ∙ bsHighestQuorumCert))
                             (pre ^∙ (lBlockStore ∙ bsHighestCommitCert))
