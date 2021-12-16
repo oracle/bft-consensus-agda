@@ -39,6 +39,37 @@ private
     Ev Wr St : Set
     A B C    : Set
 
+-- From this instance declaration, we get _<$>_, pure, and _<*>_ also.
+instance
+  RWS-Monad : Monad (RWS Ev Wr St)
+  Monad.return RWS-Monad = RWS-return
+  Monad._>>=_  RWS-Monad = RWS-bind
+
+gets : (St → A) → RWS Ev Wr St A
+gets = RWS-gets
+
+get : RWS Ev Wr St St
+get = gets id
+
+put : St → RWS Ev Wr St Unit
+put = RWS-put
+
+modify : (St → St) → RWS Ev Wr St Unit
+modify f = do
+  st ← get
+  put (f st)
+
+ask : RWS Ev Wr St Ev
+ask = RWS-ask
+
+tell : List Wr → RWS Ev Wr St Unit
+tell = RWS-tell
+
+void : RWS Ev Wr St A → RWS Ev Wr St Unit
+void m = do
+  _ ← m
+  pure unit
+
 -- To execute an RWS program, you provide an environment and prestate.
 -- This produces a result value, poststate, and list of outputs.
 runRWS : RWS Ev Wr St A → Ev → St → A × St × List Wr
@@ -47,7 +78,7 @@ runRWS (RWS-bind m f)               ev st
    with runRWS m ev st
 ...| x₁ , st₁ , outs₁
    with runRWS (f x₁) ev st₁
-...| x₂ , st₂ , outs₂                      = x₂ , st₂ , outs₁ ++ outs₂
+...| x₂ , st₂ , outs₂                     = x₂ , st₂ , outs₁ ++ outs₂
 runRWS (RWS-gets f)                 ev st = f st , st , []
 runRWS (RWS-put st)                 ev _  = unit , st , []
 runRWS RWS-ask                      ev st = ev , st , []
@@ -62,7 +93,7 @@ runRWS (RWS-ebind m f)              ev st
 ...| Left c , st₁ , outs₁ = Left c , st₁ , outs₁
 ...| Right a , st₁ , outs₁
    with runRWS (f a) ev st₁
-...| r , st₂ , outs₂                       = r , st₂ , outs₁ ++ outs₂
+...| r , st₂ , outs₂                      = r , st₂ , outs₁ ++ outs₂
 runRWS (RWS-maybe nothing f₁ f₂)    ev st = runRWS f₁ ev st
 runRWS (RWS-maybe (just x) f₁ f₂)   ev st = runRWS (f₂ x) ev st
 

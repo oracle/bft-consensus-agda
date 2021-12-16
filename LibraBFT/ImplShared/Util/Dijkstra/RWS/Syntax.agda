@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Haskell.RWS
 open import LibraBFT.ImplShared.Util.Dijkstra.RWS
 open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
 open import LibraBFT.Prelude
@@ -15,16 +14,12 @@ open import Optics.All
 -- (including lens operations).
 module LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax where
 
+open import Haskell.RWS public
+
 private
   variable
     Ev Wr St : Set
     A B C    : Set
-
--- From this instance declaration, we get _<$>_, pure, and _<*>_ also.
-instance
-  RWS-Monad : Monad (RWS Ev Wr St)
-  Monad.return RWS-Monad = RWS-return
-  Monad._>>=_  RWS-Monad = RWS-bind
 
 -- These instance declarations give us variant conditional operations that we
 -- can define to play nice with `RWS-weakestPre`
@@ -42,35 +37,8 @@ instance
   MonadEitherD.monad    RWS-MonadEitherD = RWS-Monad
   MonadEitherD.eitherSD RWS-MonadEitherD = RWS-either
 
-gets : (St → A) → RWS Ev Wr St A
-gets = RWS-gets
-
-get : RWS Ev Wr St St
-get = gets id
-
-put : St → RWS Ev Wr St Unit
-put = RWS-put
-
-modify : (St → St) → RWS Ev Wr St Unit
-modify f = do
-  st ← get
-  put (f st)
-
-ask : RWS Ev Wr St Ev
-ask = RWS-ask
-
-tell : List Wr → RWS Ev Wr St Unit
-tell = RWS-tell
-
-tell1 : Wr → RWS Ev Wr St Unit
-tell1 x = tell (x ∷ [])
-
-act = tell1
-
-void : RWS Ev Wr St A → RWS Ev Wr St Unit
-void m = do
-  _ ← m
-  pure unit
+act : Wr → RWS Ev Wr St Unit
+act x = tell (x ∷ [])
 
 -- -- Composition with error monad
 ok : A → RWS Ev Wr St (B ⊎ A)

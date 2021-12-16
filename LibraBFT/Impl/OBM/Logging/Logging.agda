@@ -22,11 +22,11 @@ postulate -- TODO-1 : errText : Note, the existing Agda ErrLog constructors do n
   errText  : ErrLog → List String
   errText' : ErrLog →      String
 
-logErr : ErrLog → LBFT Unit
-logErr x = tell1 (LogErr x)
+logErr  : ErrLog → LBFT Unit
+logErr  x = tell (LogErr  x ∷ [])
 
 logInfo : InfoLog → LBFT Unit
-logInfo x = tell1 (LogInfo x)
+logInfo x = tell (LogInfo x ∷ [])
 
 logEE : ∀ {A} → List String → LBFT A → LBFT A
 logEE _ f = logInfo fakeInfo >> f >>= λ r → logInfo fakeInfo >> pure r
