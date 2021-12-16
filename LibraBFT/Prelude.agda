@@ -3,9 +3,13 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 -- This is a selection of useful functions and definitions
 -- from the standard library that we tend to use a lot.
+
 module LibraBFT.Prelude where
+
+  open import Haskell.Prelude public
 
   open import Level
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
@@ -18,13 +22,9 @@ module LibraBFT.Prelude where
     public
 
   open import Function
-    using (_∘_; _∘′_; id; case_of_; _on_; typeOf; flip; const; _∋_; _$_)
+    using (_∘_; _∘′_; case_of_; _on_; _∋_)
     public
-
-  identity = id
-
-  infixl 1 _&_
-  _&_ = Function._|>_
+  identity = Function.id
 
   open import Data.Unit.NonEta
     public
@@ -47,9 +47,6 @@ module LibraBFT.Prelude where
   max = _⊔_
   min = _⊓_
 
-  open import Data.Nat.DivMod using (_/_)
-  div = _/_
-
   open import Data.Nat.Properties
     hiding (≡-irrelevant ; _≟_)
     public
@@ -60,8 +57,6 @@ module LibraBFT.Prelude where
     hiding (fromMaybe; [_])
     public
 
-  foldl' = List-foldl
-
   open import Data.List.Properties
     renaming (≡-dec to List-≡-dec; length-map to List-length-map; map-compose to List-map-compose; filter-++ to List-filter-++; length-filter to List-length-filter)
     using (∷-injective; length-++; map-++-commute; sum-++-commute; map-tabulate; tabulate-lookup; ++-identityʳ; ++-identityˡ)
@@ -70,7 +65,6 @@ module LibraBFT.Prelude where
   open import Data.List.Relation.Binary.Subset.Propositional
     renaming (_⊆_ to _⊆List_)
     public
-
 
   open import Data.List.Relation.Unary.Any
     using (Any; here; there)
@@ -160,11 +154,6 @@ module LibraBFT.Prelude where
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = maybe {B = const B} t f x
 
-  maybeHsk : ∀ {A B : Set} → B → (A → B) → Maybe A → B
-  maybeHsk b a→b = λ where
-    nothing  → b
-    (just a) → a→b a
-
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
     hiding (map; zip; zipWith; unzip ; unzipWith)
@@ -213,16 +202,6 @@ module LibraBFT.Prelude where
   open import Relation.Binary
     public
 
-  data Ordering : Set where
-    LT EQ GT : Ordering
-
-  compare : ℕ → ℕ → Ordering
-  compare m n
-    with <-cmp m n
-  ... | tri< a ¬b ¬c = LT
-  ... | tri≈ ¬a b ¬c = EQ
-  ... | tri> ¬a ¬b c = GT
-
   ≡-irrelevant : ∀{a}{A : Set a} → Irrelevant {a} {A} _≡_
   ≡-irrelevant refl refl = refl
 
@@ -257,11 +236,8 @@ module LibraBFT.Prelude where
     hiding (zip)
     public
 
-  fst = proj₁
-
   open import Data.Product.Properties
     public
-
 
   module _ {ℓA} {A : Set ℓA} where
     NoneOfKind : ∀ {ℓ} {P : A → Set ℓ} → List A → (p : (a : A) → Dec (P a)) → Set ℓA
@@ -387,19 +363,6 @@ module LibraBFT.Prelude where
   (inj₁ x) ⊎⟫= _ = inj₁ x
   (inj₂ a) ⊎⟫= f = f a
 
-  -- Syntactic support for more faithful model of Haskell code
-  Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
-  Either A B = A ⊎ B
-  pattern Left  x = inj₁ x
-  pattern Right x = inj₂ x
-
-  isLeft : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
-  isLeft (Left _)  = true
-  isLeft (Right _) = false
-
-  isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
-  isRight = Data.Bool.not ∘ isLeft
-
   -- a non-dependent eliminator
   eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
             (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
@@ -426,79 +389,17 @@ module LibraBFT.Prelude where
     EitherLike.fromEither EitherLike-Either = id
     EitherLike.toEither   EitherLike-Either = id
 
-  -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
-  -- spaces between f and backticks
-  flip' : _     -- Avoids warning about definition and syntax declaration being in different scopes
-  flip' = flip
-  syntax flip' f = ` f `
-
   open import Data.String as String
     hiding (_==_ ; _≟_ ; concat)
 
   check : Bool → List String → Either String Unit
   check b t = if b then inj₂ unit else inj₁ (String.intersperse "; " t)
 
-  -- TODO-1: Maybe this belongs somewhere else?  It's in a similar
-  -- category as Optics, so maybe should similarly be in a module that
-  -- is separate from the main project?
-  ------------------
-  -- Guard Syntax --
-  --
-  -- Example Usage:
-  --
-  -- > f : ℕ → ℕ
-  -- > f x = grd‖ x ≟ℕ 10  ≔ 12
-  -- >          ‖ otherwise≔ 40 + 2
-  --
-  --
-  -- > g : ℕ ⊎ ℕ → ℕ
-  -- > g x = case x of λ
-  -- >     { (inj₁ x) → grd‖ x ≤? 10  ≔ 2 * x
-  -- >                     ‖ otherwise≔ 42
-  -- >     ; (inj₂ y) → y
-  -- >     }
-  --
-  -- To type: ‖  -->  \Vert
-  --          ≔  -->  \:=
-
-  record ToBool {a}(A : Set a) : Set a where
-    field
-      toBool : A → Bool
-  open ToBool {{ ... }} public
-
-  not : ∀ {b} {B : Set b} ⦃ _ : ToBool B ⦄ → B → Bool
-  not b = Data.Bool.not (toBool b)
-
-  instance
-    ToBool-Bool : ToBool Bool
-    ToBool-Bool = record { toBool = id }
-
-    ToBool-Dec : ∀{a}{A : Set a} → ToBool (Dec A)
-    ToBool-Dec = record { toBool = ⌊_⌋ }
-
   toWitnessT : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ true → P
   toWitnessT {d = yes proof} _ = proof
 
   toWitnessF : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ false → ¬ P
   toWitnessF{d = no proof} _ = proof
-
-  infix 3 _≔_
-  data GuardClause {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
-    _≔_ : {B : Set b}{{ bb : ToBool B }} → B → A → GuardClause A
-
-  infix 3 otherwise≔_
-  data Guards {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
-   otherwise≔_ : A → Guards A
-   clause     : GuardClause{a}{b} A → Guards{a}{b} A → Guards A
-
-  infixr 2 _‖_
-  _‖_ : ∀{a}{b}{A : Set a} → GuardClause{a}{b} A → Guards A → Guards A
-  _‖_ = clause
-
-  infix 1 grd‖_
-  grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
-  grd‖_ (otherwise≔ a) = a
-  grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
 
   Any-satisfied-∈ : ∀{a ℓ}{A : Set a}{P : A → Set ℓ}{xs : List A}
                   → Any P xs → Σ A (λ x → P x × x ∈ xs)
@@ -509,57 +410,6 @@ module LibraBFT.Prelude where
   f-sum : ∀{a}{A : Set a} → (A → ℕ) → List A → ℕ
   f-sum f = sum ∘ List-map f
 
-  record Functor  {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
-    infixl 4 _<$>_
-    field
-      _<$>_ : ∀ {A B : Set ℓ₁} → (A → B) → F A → F B
-    fmap = _<$>_
-
-  open Functor ⦃ ... ⦄ public
-
-  record Applicative {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
-    infixl 4 _<*>_
-    field
-      pure  : ∀ {A : Set ℓ₁} → A → F A
-      _<*>_ : ∀ {A B : Set ℓ₁} → F (A → B) → F A → F B
-
-  open Applicative ⦃ ... ⦄ public
-  instance
-    ApplicativeFunctor : ∀ {ℓ₁ ℓ₂} {F : Set ℓ₁ → Set ℓ₂} ⦃ _ : Applicative F ⦄ → Functor F
-    Functor._<$>_ ApplicativeFunctor f xs = pure f <*> xs
-
-  record Monad {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
-    infixl 1 _>>=_ _>>_
-    field
-      return : ∀ {A : Set ℓ₁} → A → M A
-      _>>=_  : ∀ {A B : Set ℓ₁} → M A → (A → M B) → M B
-
-    _>>_ : ∀ {A B : Set ℓ₁} → M A → M B → M B
-    m₁ >> m₂ = m₁ >>= λ _ → m₂
-
-  open Monad ⦃ ... ⦄ public
-
-  instance
-    MonadApplicative : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → Applicative M
-    Applicative.pure MonadApplicative = return
-    Applicative._<*>_ MonadApplicative fs xs = do
-      f ← fs
-      x ← xs
-      return (f x)
-
-  instance
-    Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-    Monad.return (Monad-Either{ℓ}{C}) = inj₂
-    Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ inj₁) _&_
-
-    Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
-    Monad.return (Monad-Maybe{ℓ}) = just
-    Monad._>>=_  (Monad-Maybe{ℓ}) = _Maybe->>=_
-
-    Monad-List : ∀ {ℓ} → Monad {ℓ}{ℓ} List
-    Monad.return Monad-List x = x ∷ []
-    Monad._>>=_  Monad-List x f = concat (List-map f x)
-
   maybeSMP : ∀ {ℓ} {A B : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m (Maybe A) → B → (A → m B) → m B
   maybeSMP ma b f = do
     x ← ma
@@ -567,76 +417,7 @@ module LibraBFT.Prelude where
       nothing  → pure b
       (just j) → f j
 
-  fromMaybeM : ∀ {ℓ} {A : Set} {m : Set → Set ℓ} ⦃ _ : Monad m ⦄ → m A → m (Maybe A) → m A
-  fromMaybeM ma mma = do
-    mma >>= λ where
-      nothing  → ma
-      (just a) → pure a
-
-  forM_ : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M Unit
-  forM_      []  _ = return unit
-  forM_ (x ∷ xs) f = f x >> forM_ xs f
-
-  -- NOTE: because 'forM_' is defined above, it is necessary to
-  -- call 'forM' with parenthesis (e.g., recursive call in definition)
-  -- to disambiguate it for the Agda parser.
-  forM : ∀ {ℓ} {A B : Set} {M : Set → Set ℓ} ⦃ _ : Monad M ⦄ → List A → (A → M B) → M (List B)
-  forM      []  _ = return []
-  forM (x ∷ xs) f = do
-    fx  ← f x
-    fxs ← (forM) xs f
-    return (fx ∷ fxs)
-
-  foldrM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (A → B → M B) → B → List A → M B
-  foldrM _ b      []  = return b
-  foldrM f b (a ∷ as) = foldrM f b as >>= f a
-
-  foldlM : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M B
-  foldlM _ z      []  = pure z
-  foldlM f z (x ∷ xs) = do
-    z' ← f z x
-    foldlM f z' xs
-
-  foldM = foldlM
-
-  foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
-  foldM_ f a xs = foldlM f a xs >> pure unit
-
   open import LibraBFT.Base.Util public
-
-  record Eq {a} (A : Set a) : Set a where
-    infix 4 _≟_ _==_ _/=_
-    field
-      _≟_ : (a b : A) → Dec (a ≡ b)
-
-    _==_   : A → A → Bool
-    a == b = toBool $ a ≟ b
-
-    _/=_ : A → A → Bool
-    a /= b = not (a == b)
-  open Eq ⦃ ... ⦄ public
-
-  elem : ∀ {ℓ} {A : Set ℓ} ⦃ _ : Eq A ⦄ → A → List A → Bool
-  elem x = toBool ∘ Any-any (x ≟_)
-
-  instance
-    Eq-Nat : Eq ℕ
-    Eq._≟_ Eq-Nat = _≟ℕ_
-
-    Eq-Maybe : ∀ {a} {A : Set a} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
-    Eq._≟_ Eq-Maybe nothing nothing = yes refl
-    Eq._≟_ Eq-Maybe (just _) nothing = no λ ()
-    Eq._≟_ Eq-Maybe nothing (just _) = no λ ()
-    Eq._≟_ Eq-Maybe (just a) (just b)
-       with a ≟ b
-    ... | no  proof = no λ where refl → proof refl
-    ... | yes refl = yes refl
-
-  infixl 9 _!?_
-  _!?_ : {A : Set} → List A → ℕ → Maybe A
-  []       !?      _   = nothing
-  (x ∷ _ ) !?      0   = just x
-  (_ ∷ xs) !? (suc n)  = xs !? n
 
   -- Like a Haskell list-comprehension for ℕ : [ n | n <- [from .. to] ]
   fromToList : ℕ → ℕ → List ℕ
@@ -654,8 +435,3 @@ module LibraBFT.Prelude where
   _ = refl
   _ : fromToList 2 1 ≡ []
   _ = refl
-
-  find' : ∀ {A B : Set} → (A → Maybe B) → List A → Maybe B
-  find' f []       = nothing
-  find' f (a ∷ xs) = maybe′ f (find' f xs) (just a)
-
