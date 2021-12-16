@@ -18,18 +18,17 @@ open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
+open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
+open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
+open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
-open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
-open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import Optics.All
-
 
 module LibraBFT.Impl.Handle.Properties where
 

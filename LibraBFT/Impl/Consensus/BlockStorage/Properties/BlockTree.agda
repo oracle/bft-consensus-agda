@@ -11,14 +11,14 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
-open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 

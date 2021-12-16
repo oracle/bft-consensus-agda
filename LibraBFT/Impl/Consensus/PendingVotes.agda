@@ -13,7 +13,7 @@ import      LibraBFT.Impl.Types.LedgerInfoWithSignatures              as LedgerI
 import      LibraBFT.Impl.Types.ValidatorVerifier                     as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 

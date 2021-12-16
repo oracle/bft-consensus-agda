@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Haskell.RWS.RustAnyHow
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever     as BlockRetriever
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
@@ -13,7 +14,7 @@ import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage       as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------

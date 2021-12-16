@@ -5,6 +5,7 @@
 -}
 
 ------------------------------------------------------------------------------
+open import Haskell.RWS.RustAnyHow
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
@@ -23,7 +24,7 @@ import      LibraBFT.Impl.Types.Waypoint                                as Waypo
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.ImplShared.Util.Crypto                             as Crypto
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------

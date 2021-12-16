@@ -14,7 +14,7 @@ open import Haskell.Prelude
 ------------------------------------------------------------------------------
 open import Data.Product using (_×_; _,_)
 
--- RWS, the AST of computations with state `St` reading from an environment
+-- (free) RWS, the AST of computations with state `St` reading from an environment
 -- `Ev` and producing a list of outputs of type `Wr`
 data RWS (Ev Wr St : Set) : Set → Set₁ where
   -- Primitive combinators
@@ -27,12 +27,12 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   -- Branching combinators (used for creating more convenient contracts)
   RWS-if     : ∀ {A} → Guards (RWS Ev Wr St A)                   → RWS Ev Wr St A
   RWS-either : ∀ {A B C} → Either B C
-                → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)    → RWS Ev Wr St A
+             → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)       → RWS Ev Wr St A
   RWS-ebind  : ∀ {A B C}
-                → RWS Ev Wr St (Either C A)
-                → (A → RWS Ev Wr St (Either C B))                → RWS Ev Wr St (Either C B)
+             → RWS Ev Wr St (Either C A)
+             → (A → RWS Ev Wr St (Either C B))                   → RWS Ev Wr St (Either C B)
   RWS-maybe  : ∀ {A B} → Maybe B
-                → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)        → RWS Ev Wr St A
+             → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)           → RWS Ev Wr St A
 
 private
   variable

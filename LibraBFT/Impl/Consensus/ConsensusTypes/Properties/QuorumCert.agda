@@ -14,7 +14,6 @@ import      LibraBFT.Impl.Types.Properties.LedgerInfoWithSignatures    as Ledger
 open import LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert          as QuorumCert
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 

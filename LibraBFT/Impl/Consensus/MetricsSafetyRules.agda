@@ -8,7 +8,7 @@ open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules as SafetyRules
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage   as MockStorage
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 

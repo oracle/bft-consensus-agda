@@ -10,11 +10,6 @@ open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Hash
-open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
-open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.EpochManager
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BlockStoreProps
@@ -28,6 +23,11 @@ import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules            as Safety
 import      LibraBFT.Impl.Consensus.SafetyRules.Properties.SafetyRules as SafetyRulesProps
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
+open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms

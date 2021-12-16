@@ -6,10 +6,10 @@
 
 open import Optics.All
 open import LibraBFT.Base.Types
+open import LibraBFT.Impl.Consensus.Liveness.ProposerElection
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Impl.Consensus.Liveness.ProposerElection
+open import LibraBFT.ImplShared.LBFT
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 

@@ -28,16 +28,13 @@ import      LibraBFT.Impl.Types.ValidatorVerifier                    as Validato
 open import LibraBFT.Impl.Types.Verifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
 open import Data.String                                              using (String)
 
 module LibraBFT.Impl.Consensus.EpochManager where
-
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS        public
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax public
 
 ------------------------------------------------------------------------------
 

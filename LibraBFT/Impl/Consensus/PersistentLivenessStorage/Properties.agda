@@ -7,11 +7,11 @@
 open import Optics.All
 open import LibraBFT.Prelude
 open import LibraBFT.Base.Types
-open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.PersistentLivenessStorage
 open import LibraBFT.Impl.Properties.Util
+open import LibraBFT.ImplShared.Base.Types
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 
 module LibraBFT.Impl.Consensus.PersistentLivenessStorage.Properties where
 

@@ -9,23 +9,23 @@ open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.Obligations.PreferredRound
-import      LibraBFT.Concrete.Properties.Common         as Common
-import      LibraBFT.Concrete.Properties.PreferredRound as PR
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
-open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Util
-open import LibraBFT.Impl.Consensus.Network            as Network
-open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
+import      LibraBFT.Concrete.Properties.Common          as Common
+import      LibraBFT.Concrete.Properties.PreferredRound  as PR
+open import LibraBFT.Impl.Consensus.Network              as Network
+open import LibraBFT.Impl.Consensus.Network.Properties   as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
-import      LibraBFT.Impl.Handle                       as Handle
+import      LibraBFT.Impl.Handle                         as Handle
 open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.Handle.InitProperties
 open        initHandlerSpec
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
+open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open        ReachableSystemStateProps
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas

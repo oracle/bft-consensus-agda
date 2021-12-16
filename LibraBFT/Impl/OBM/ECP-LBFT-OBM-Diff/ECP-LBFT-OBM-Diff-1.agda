@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Haskell.RWS.RustAnyHow
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0
@@ -12,8 +13,7 @@ import      LibraBFT.Impl.Storage.DiemDB.DiemDB                     as DiemDB
 import      LibraBFT.Impl.Types.EpochChangeProof                    as EpochChangeProof
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------

@@ -26,7 +26,7 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Lemmas
 open import LibraBFT.Prelude
 

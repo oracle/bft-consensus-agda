@@ -10,11 +10,6 @@ open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Concrete.Properties.Common    as Common
 import      LibraBFT.Concrete.Properties.VotesOnce as VO
-open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
-open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Impl.Consensus.Network            as Network
 open import LibraBFT.Impl.Consensus.Network.Properties as NetworkProps
 open import LibraBFT.Impl.Consensus.RoundManager
@@ -23,6 +18,11 @@ open import LibraBFT.Impl.Handle.Properties
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Common
+open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
+open import LibraBFT.ImplShared.Interface.Output
+open import LibraBFT.ImplShared.Util.Crypto
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open        ReachableSystemStateProps
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.Lemmas

@@ -12,7 +12,7 @@ open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore as LedgerStore
 import      LibraBFT.Impl.Types.LedgerInfo                       as LedgerInfo
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Util
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------

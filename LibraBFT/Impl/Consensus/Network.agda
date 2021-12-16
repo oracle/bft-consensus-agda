@@ -5,12 +5,11 @@
 -}
 
 open import LibraBFT.Base.Types
+import      LibraBFT.Impl.Consensus.ConsensusTypes.ProposalMsg as ProposalMsg
+import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg     as VoteMsg
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.NetworkMsg
-open import LibraBFT.ImplShared.Util.Util
-import      LibraBFT.Impl.Consensus.ConsensusTypes.ProposalMsg as ProposalMsg
-import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg     as VoteMsg
 open import LibraBFT.Prelude
 open import Optics.All
 
