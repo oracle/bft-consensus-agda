@@ -38,9 +38,6 @@ instance
   MonadEitherD.monad    RWS-MonadEitherD = RWS-Monad
   MonadEitherD.eitherSD RWS-MonadEitherD = RWS-either
 
-act : Wr → RWS Ev Wr St Unit
-act x = tell (x ∷ [])
-
 maybeSM : RWS Ev Wr St (Maybe A) → RWS Ev Wr St B → (A → RWS Ev Wr St B) → RWS Ev Wr St B
 maybeSM mma mb f = do
   x ← mma

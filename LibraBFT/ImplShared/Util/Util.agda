@@ -20,6 +20,7 @@ module LibraBFT.ImplShared.Util.Util where
   open import LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax public
   open import LibraBFT.ImplShared.Util.Dijkstra.EitherD public
   open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax public
+
   ----------------
   -- LBFT Monad --
   ----------------
@@ -27,6 +28,9 @@ module LibraBFT.ImplShared.Util.Util where
   -- Global 'LBFT'; works over the whole state.
   LBFT : Set → Set₁
   LBFT = RWS Unit Output RoundManager
+
+  act : Output → LBFT Unit
+  act x = tell (x ∷ [])
 
   LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
   LBFT-run m = runRWS m unit
