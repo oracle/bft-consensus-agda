@@ -15,6 +15,7 @@ open import Optics.All
 module LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax where
 
 open import Haskell.RWS public
+open import Haskell.RWS.RustAnyHow public
 
 private
   variable
@@ -40,17 +41,6 @@ instance
 act : Wr → RWS Ev Wr St Unit
 act x = tell (x ∷ [])
 
--- -- Composition with error monad
-ok : A → RWS Ev Wr St (B ⊎ A)
-ok = pure ∘ Right
-
-bail : B → RWS Ev Wr St (B ⊎ A)
-bail = pure ∘ Left
-
-infixl 4 _∙?∙_
-_∙?∙_ : RWS Ev Wr St (Either C A) → (A → RWS Ev Wr St (Either C B)) → RWS Ev Wr St (Either C B)
-_∙?∙_ = RWS-ebind
-
 maybeSM : RWS Ev Wr St (Maybe A) → RWS Ev Wr St B → (A → RWS Ev Wr St B) → RWS Ev Wr St B
 maybeSM mma mb f = do
   x ← mma
@@ -65,12 +55,6 @@ maybeSMP-RWS ma b f = do
   caseMD x of λ where
     nothing  → pure b
     (just j) → f j
-
-infixl 4 _∙^∙_
-_∙^∙_ : RWS Ev Wr St (Either B A) → (B → B) → RWS Ev Wr St (Either B A)
-m ∙^∙ f = do
-  x ← m
-  either (bail ∘ f) ok x
 
 RWS-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWS-Post Wr St (C ⊎ A) → RWS-Post Wr St (C ⊎ A)
 RWS-weakestPre-∙^∙Post ev e Post =
