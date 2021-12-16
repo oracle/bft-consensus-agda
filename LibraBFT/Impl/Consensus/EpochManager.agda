@@ -64,7 +64,7 @@ runEM : ∀ {r}
       → EM r
       → RlecState
       → (r × RlecState × List PMOutput)
-runEM f = RWS-run f unit
+runEM f = runRWS f unit
 
 ------------------------------------------------------------------------------
 

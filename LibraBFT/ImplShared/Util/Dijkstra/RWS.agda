@@ -4,22 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
--- This module defines functionality modeling an RWS monad, which we use to
--- define an implementation, and functionality for proving properties about
+-- This module provides functionality for proving properties about
 -- programs written using this RWS monad. The main definitions are:
--- 1. RWS, a datatype for the ASTs of stateful programs that read from an
---    environment and produce output.
---    This datatype includes constructors for branching code, to aid in the
---    verification effort (see below).
--- 2. RWS-weakestPre, a large elimination that, given an RWS program and a
+-- -  RWS-weakestPre, a large elimination that, given an RWS program and a
 --    post condition for the program, produces the weakest precondition needed
 --    to satisfy that post condition. Branches in code using the constructors
 --    `RWS-if` and friends are translated into products, with each component of
 --    the product corresponding to a possible branch taken.
--- 3. RWS-Contract is the type of proofs that, given a stateful computation and
+-- -  RWS-Contract is the type of proofs that, given a stateful computation and
 --    a post condition, the weakest precondition suffices to prove that post
 --    condition.
--- 4. RWS-contract proves RWS-Contract, i.e., for every stateful computation
+-- -  RWS-contract proves RWS-Contract, i.e., for every stateful computation
 --    `m` and post condition `P`, given a proof over a pre-state `pre` the
 --    weakest precondition for `P` holds, then postcondition `P` holds for the
 --    post-state obtained from running `m` in state `pre`.
@@ -104,7 +99,7 @@ RWS-weakestPre-bindPost ev f Post x post outs =
 -- The post condition `P` holds for `m` with environment `ev` and prestate `pre`
 RWS-Post-True : (P : RWS-Post Wr St A) (m : RWS Ev Wr St A) (ev : Ev) (pre : St) → Set
 RWS-Post-True P m ev pre =
-  let (x , post , outs) = RWS-run m ev pre in
+  let (x , post , outs) = runRWS m ev pre in
   P x post outs
 
 -- For every RWS computation `m`, `RWS-Contract m` is the type of proofs that,
@@ -127,7 +122,7 @@ RWS-contract (RWS-return x₁) P ev pre wp = wp
 RWS-contract (RWS-bind m f) P ev pre wp
    with RWS-contract m _ ev pre wp
 ...| con
-   with RWS-run m ev pre
+   with runRWS m ev pre
 ...| x₁ , st₁ , outs₁ =
   RWS-contract (f x₁) _ ev st₁ (con x₁ refl)
 RWS-contract (RWS-gets f) P ev pre wp = wp
@@ -150,7 +145,7 @@ RWS-contract (RWS-either (Right y) f₁ f₂) P ev pre (wp₁ , wp₂) =
 RWS-contract (RWS-ebind m f) P ev pre wp
    with RWS-contract m _ ev pre wp
 ...| con
-   with RWS-run m ev pre
+   with runRWS m ev pre
 ... | Left x , st₁ , outs₁ = con
 ... | Right y , st₁ , outs₁ = RWS-contract (f y) _ ev st₁ (con y refl)
 RWS-contract (RWS-maybe nothing f₁ f₂) P ev pre (wp₁ , wp₂)
