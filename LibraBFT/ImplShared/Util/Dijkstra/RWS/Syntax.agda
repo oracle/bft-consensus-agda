@@ -7,7 +7,6 @@
 open import LibraBFT.ImplShared.Util.Dijkstra.RWS
 open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
 open import LibraBFT.Prelude
-open import Optics.All
 
 -- This module contains definitions allowing RWS programs to be written using
 -- Agda's do-notation, as well as convenient short names for operations
@@ -15,6 +14,7 @@ open import Optics.All
 module LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax where
 
 open import Haskell.RWS public
+open import Haskell.RWS.Lens public
 open import Haskell.RWS.RustAnyHow public
 
 private
@@ -60,26 +60,3 @@ RWS-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWS-Post Wr St (C ⊎ A
 RWS-weakestPre-∙^∙Post ev e Post =
   RWS-weakestPre-bindPost ev (either (bail ∘ e) ok) Post
 
--- Lens functionality
---
--- If we make RWS work for different level State types, we will break use and
--- modify because Lens does not support different levels, we define use and
--- modify' here for RoundManager. We are ok as long as we can keep
--- RoundManager in Set. If we ever need to make RoundManager at some higher
--- Level, we will have to consider making Lens level-agnostic. Preliminary
--- exploration by @cwjnkins showed this to be somewhat painful in particular
--- around composition, so we are not pursuing it for now.
-use : Lens St A → RWS Ev Wr St A
-use f = gets (_^∙ f)
-
-modifyL : Lens St A → (A → A) → RWS Ev Wr St Unit
-modifyL l f = modify (over l f)
-syntax modifyL l f = l %= f
-
-setL : Lens St A → A → RWS Ev Wr St Unit
-setL l x = l %= const x
-syntax setL l x = l ∙= x
-
-setL? : Lens St (Maybe A) → A → RWS Ev Wr St Unit
-setL? l x = l ∙= just x
-syntax setL? l x = l ?= x
