@@ -54,6 +54,8 @@ Either A B = A DS.⊎ B
 pattern Left  x = DS.inj₁ x
 pattern Right x = DS.inj₂ x
 
+either = DS.either
+
 isLeft : ∀ {a b} {A : Set a} {B : Set b} → Either A B → DB.Bool
 isLeft (Left _)  = DB.true
 isLeft (Right _) = DB.false

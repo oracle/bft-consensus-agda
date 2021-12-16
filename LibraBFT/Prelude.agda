@@ -218,7 +218,7 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Sum
-    renaming ([_,_] to either; map to ⊎-map; map₁ to ⊎-map₁; map₂ to ⊎-map₂)
+    renaming (map to ⊎-map; map₁ to ⊎-map₁; map₂ to ⊎-map₂)
     public
 
   open import Data.Sum.Properties
