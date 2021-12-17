@@ -35,7 +35,7 @@ verifyWellFormed self = do
   let previousRound = self ^∙ pmProposal ∙ bRound ∸ 1 -- NOTE: monus usage
   let highestCertifiedRound =
         max (self ^∙ pmProposal ∙ bQuorumCert ∙ qcCertifiedBlock ∙ biRound)
-            (maybeHsk 0 (_^∙ tcRound) (self ^∙ pmSyncInfo ∙ siHighestTimeoutCert))
+            (maybe 0 (_^∙ tcRound) (self ^∙ pmSyncInfo ∙ siHighestTimeoutCert))
   lcheck (previousRound == highestCertifiedRound)
          (here' ("Proposal does not have a certified round" ∷ []))
                -- lsMTC (self ^∙ pmSyncInfo ∙ siHighestTimeoutCert)

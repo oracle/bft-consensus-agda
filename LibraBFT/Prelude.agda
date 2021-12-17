@@ -145,14 +145,14 @@ module LibraBFT.Prelude where
     public
 
   open import Data.Maybe
-    renaming (map to Maybe-map; zip to Maybe-zip ; _>>=_ to _Maybe->>=_)
+    renaming (map to Maybe-map; maybe to Maybe-maybe; zip to Maybe-zip ; _>>=_ to _Maybe->>=_)
     hiding (align; alignWith; zipWith)
     public
 
   -- a non-dependent eliminator
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
-  maybeS {B = B} x f t = maybe {B = const B} t f x
+  maybeS {B = B} x f t = Maybe-maybe {B = const B} t f x
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
@@ -346,7 +346,7 @@ module LibraBFT.Prelude where
              → {mx : Maybe A}{x : A}
              → (P : A → Set)
              → P x → mx ≡ just x
-             → maybe {B = const Set} P ⊥ mx
+             → Maybe-maybe {B = const Set} P ⊥ mx
   maybe-lift {mx = just .x} {x} P px refl = px
 
   <M$>-nothing : ∀ {a b}{A : Set a}{B : Set b}(f : A → B)

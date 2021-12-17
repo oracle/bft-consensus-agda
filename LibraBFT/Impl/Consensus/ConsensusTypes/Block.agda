@@ -69,7 +69,7 @@ verifyWellFormed self = do
   lcheck (parent ^∙ biEpoch == self ^∙ bEpoch)
          (here' ("block's parent should be in the same epoch" ∷ []))
   lcheck (not (BlockInfo.hasReconfiguration parent)
-          ∨ maybeHsk true payloadIsEmpty (self ^∙ bPayload))
+          ∨ maybe true payloadIsEmpty (self ^∙ bPayload))
          (here' ("Reconfiguration suffix should not carry payload" ∷ []))
   -- timestamps go here -- Haskell removed them
   lcheck (not (self ^∙ bQuorumCert ∙ qcEndsEpoch))

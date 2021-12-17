@@ -316,7 +316,7 @@ lastVotedRound-mono pid pre {ppost} preach ini₀ (step-msg {_ , m} m∈pool ini
 
   module VoteOld (lv≡ : hpPre ≡L hpPst at pssSafetyData-rm ∙ sdLastVote) where
     help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
-    help = ≡⇒≤ (cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡)
+    help = ≡⇒≤ (cong (Maybe-maybe {B = const ℕ} (_^∙ vRound) 0) lv≡)
 
   module VoteNew {vote : Vote}
     (lv≡v : just vote ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVote)
@@ -324,7 +324,7 @@ lastVotedRound-mono pid pre {ppost} preach ini₀ (step-msg {_ , m} m∈pool ini
     (lvr≡ : vote ^∙ vRound ≡ hpPst ^∙ pssSafetyData-rm ∙ sdLastVotedRound )
    where
     help : Meta.getLastVoteRound (hpPre ^∙ pssSafetyData-rm) ≤ Meta.getLastVoteRound (hpPst ^∙ pssSafetyData-rm)
-    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
+    help = ≤-trans (SafetyDataInv.lvRound≤ ∘ SafetyRulesInv.sdInv $ rmSafetyRulesInv ) (≤-trans (<⇒≤ lvr<) (≡⇒≤ (trans (sym lvr≡) $ cong (Maybe-maybe {B = const ℕ} (_^∙ vRound) 0) lv≡v)))
 
   open Invariants
   open Reqs (pm ^∙ pmProposal) (hpPre ^∙ lBlockTree)
@@ -357,7 +357,7 @@ lastVotedRound-mono pid pre {ppost} preach ini₀ (step-msg {_ , m} m∈pool ini
   ...| Right (mkVoteNewGenerated lvr< lvr≡) = VoteNew.help lv≡v lvr< lvr≡
 
 -- Receiving a vote or commit message does not update the last vote
-...| V vm = ≡⇒≤ $ cong (maybe (_^∙ vRound) 0 ∘ (_^∙ sdLastVote)) noSDChange
+...| V vm = ≡⇒≤ $ cong (Maybe-maybe (_^∙ vRound) 0 ∘ (_^∙ sdLastVote)) noSDChange
    where
    hvPre = peerStates pre pid
    hvPst = LBFT-post (handle pid (V vm) 0) hvPre

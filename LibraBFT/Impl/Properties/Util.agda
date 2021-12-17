@@ -36,11 +36,11 @@ module LibraBFT.Impl.Properties.Util where
 
 module Meta where
   getLastVoteEpoch : SafetyData → Epoch
-  getLastVoteEpoch sd = (maybe{B = const Epoch} (_^∙ vEpoch) (sd ^∙ sdEpoch)) ∘ (_^∙ sdLastVote) $ sd
+  getLastVoteEpoch sd = (Maybe-maybe{B = const Epoch} (_^∙ vEpoch) (sd ^∙ sdEpoch)) ∘ (_^∙ sdLastVote) $ sd
   -- getLastVoteEpoch rm = (maybe{B = const Epoch} (_^∙ vEpoch) (rm ^∙ pssSafetyData-rm ∙ sdEpoch)) ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote) $ rm
 
   getLastVoteRound : SafetyData → Round
-  getLastVoteRound = (maybe{B = const Round} (_^∙ vRound) 0) ∘ (_^∙ sdLastVote)
+  getLastVoteRound = (Maybe-maybe{B = const Round} (_^∙ vRound) 0) ∘ (_^∙ sdLastVote)
   -- getLastVoteRound = maybe{B = const Round} (_^∙ vRound) 0 ∘ (_^∙ pssSafetyData-rm ∙ sdLastVote)
 
   subst-getLastVoteRound : ∀ {sd1 sd2} → sd1 ≡ sd2 → getLastVoteRound sd1 ≡ getLastVoteRound sd2
@@ -253,7 +253,7 @@ module Invariants where
 
   -- The property that a block tree `bt` has only valid QCs with respect to epoch config `𝓔`
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
-  AllValidQCs 𝓔 bt = (hash : HashValue) → maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
+  AllValidQCs 𝓔 bt = (hash : HashValue) → Maybe-maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}

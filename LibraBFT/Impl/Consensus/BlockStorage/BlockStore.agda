@@ -308,7 +308,7 @@ insertSingleQuorumCertE bs qc =
 
 insertTimeoutCertificateM : TimeoutCertificate → LBFT (Either ErrLog Unit)
 insertTimeoutCertificateM tc = do
-  curTcRound ← maybeHsk {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
+  curTcRound ← maybe {-(Round-} 0 {-)-} (_^∙ tcRound) <$> use (lBlockStore ∙ bsHighestTimeoutCert)
   ifD tc ^∙ tcRound ≤?ℕ curTcRound
     then ok unit
     else

@@ -30,10 +30,8 @@ open import Data.Maybe
    using (Maybe; just; nothing)
    renaming (_>>=_ to _Maybe->>=_)
    public
-maybeHsk : ∀ {A B : Set} → B → (A → B) → Maybe A → B
-maybeHsk b a→b = λ where
-  nothing  → b
-  (just a) → a→b a
+maybe : ∀ {A B : Set} → B → (A → B) → Maybe A → B
+maybe b a→b = Data.Maybe.maybe′ a→b b
 
 data Ordering : Set where
   LT EQ GT : Ordering
