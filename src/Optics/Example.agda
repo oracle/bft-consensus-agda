@@ -9,10 +9,22 @@ open import Data.Char
 open import Data.String
 open import Data.List hiding (product)
 open import Relation.Binary.PropositionalEquality
+import      Relation.Binary.PropositionalEquality as PE
+  using (_≡_; refl)
+import      Relation.Binary.Definitions as BD
+import      Relation.Binary             as RB
+
+------------------------------------------------------------------------------
+
+open import Function
 
 open import Optics.All
 
 module Optics.Example where
+
+ infixl 1 _&_
+ _&_ = Function._|>_
+
 
  -- First we declare a record; which must be EXACTLY
  -- like the record 'Person' below.
@@ -71,10 +83,10 @@ module Optics.Example where
  -- Now say mary turns 42 years old;
 
  ghc-from-older-mary : Product
- ghc-from-older-mary = ghc [ pStore ∙ sManager ∙ pAge := 42 ]
+ ghc-from-older-mary = ghc & pStore ∙ sManager ∙ pAge ∙~ 42
 
  same-ghc-from-mary : Product
- same-ghc-from-mary = ghc [ pStore ∙ sManager ∙ pAge %~ suc ]
+ same-ghc-from-mary = ghc & pStore ∙ sManager ∙ pAge %~ suc
 
  all-is-fine : ghc-from-older-mary ≡ same-ghc-from-mary
  all-is-fine = refl

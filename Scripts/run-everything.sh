@@ -13,10 +13,10 @@ then
     ${dir}/gen-everything.sh
 fi
 
-if [ ! -f Everything.agda ]
+if [ ! -f src/Everything.agda ]
 then
     echo "Everything.agda does not exist.  Rerun with any argument to generate it."
     exit 1
 fi
 
-agda --no-main Everything.agda
+agda --no-main src/Everything.agda
