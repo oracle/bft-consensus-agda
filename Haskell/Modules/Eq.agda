@@ -6,12 +6,13 @@
 
 module Haskell.Modules.Eq where
 
+open import Haskell.Modules.ToBool
+------------------------------------------------------------------------------
 open import Data.Bool hiding (_≟_; not)
 open import Data.List                               as DL
 open import Data.Maybe using (Maybe; just; nothing)
 import      Data.Nat                                as DN
 open import Function using (_$_; _∘_)
-open import Haskell.Modules.ToBool
 import      Relation.Binary.PropositionalEquality   as PE using (_≡_; refl)
 import      Relation.Nullary                        as RN
 

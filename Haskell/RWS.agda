@@ -14,7 +14,7 @@ open import Haskell.Prelude
 ------------------------------------------------------------------------------
 open import Data.Product using (_×_; _,_)
 
--- (free) RWS, the AST of computations with state `St` reading from an environment
+-- (free) RWS : the AST of computations with state `St` reading from an environment
 -- `Ev` and producing a list of outputs of type `Wr`
 data RWS (Ev Wr St : Set) : Set → Set₁ where
   -- Primitive combinators
@@ -86,23 +86,23 @@ runRWS (RWS-tell outs)              ev st = unit , st , outs
 runRWS (RWS-if (clause (b ≔ c) gs)) ev st =
   if toBool b then runRWS c ev st else runRWS (RWS-if gs) ev st
 runRWS (RWS-if (otherwise≔ c))      ev st = runRWS c ev st
-runRWS (RWS-either (Left x) f₁ f₂)  ev st = runRWS (f₁ x) ev st
+runRWS (RWS-either (Left x)  f₁ f₂) ev st = runRWS (f₁ x) ev st
 runRWS (RWS-either (Right y) f₁ f₂) ev st = runRWS (f₂ y) ev st
 runRWS (RWS-ebind m f)              ev st
    with runRWS m ev st
-...| Left c , st₁ , outs₁ = Left c , st₁ , outs₁
+...| Left  c , st₁ , outs₁ = Left c , st₁ , outs₁
 ...| Right a , st₁ , outs₁
    with runRWS (f a) ev st₁
-...| r , st₂ , outs₂                      = r , st₂ , outs₁ ++ outs₂
-runRWS (RWS-maybe nothing f₁ f₂)    ev st = runRWS f₁ ev st
+...|       r , st₂ , outs₂                = r , st₂ , outs₁ ++ outs₂
+runRWS (RWS-maybe nothing  f₁ f₂)   ev st = runRWS f₁ ev st
 runRWS (RWS-maybe (just x) f₁ f₂)   ev st = runRWS (f₂ x) ev st
 
 -- Accessors for the result, poststate, and outputs.
 RWS-result : RWS Ev Wr St A → Ev → St → A
-RWS-result m ev st = fst (runRWS m ev st)
+RWS-result m ev st =      fst (runRWS m ev st)
 
-RWS-post : RWS Ev Wr St A → Ev → St → St
-RWS-post m ev st = fst (snd (runRWS m ev st))
+RWS-post   : RWS Ev Wr St A → Ev → St → St
+RWS-post   m ev st = fst (snd (runRWS m ev st))
 
-RWS-outs : RWS Ev Wr St A → Ev → St → List Wr
-RWS-outs m ev st = snd (snd (runRWS m ev st))
+RWS-outs   : RWS Ev Wr St A → Ev → St → List Wr
+RWS-outs   m ev st = snd (snd (runRWS m ev st))
