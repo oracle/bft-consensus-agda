@@ -19,10 +19,7 @@
 --    weakest precondition for `P` holds, then postcondition `P` holds for the
 --    post-state obtained from running `m` in state `pre`.
 
--- TODO-2: this module is independent of any particular implementation
--- and arguably belongs somewhere more general, such as next to Optics.
-
-module LibraBFT.ImplShared.Util.Dijkstra.RWS where
+module Dijkstra.RWS where
 
 open import Agda.Builtin.Equality using (_≡_; refl)
 open import Data.Product using (_×_; _,_; proj₁; proj₂)

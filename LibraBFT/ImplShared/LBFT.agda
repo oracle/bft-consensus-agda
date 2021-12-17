@@ -9,13 +9,13 @@
 
 module LibraBFT.ImplShared.LBFT where
 
+open import Dijkstra.RWS
 open import Haskell.RWS public
 open import Haskell.RWS.Lens public
 open import Haskell.RWS.RustAnyHow
 open import LibraBFT.Prelude
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS
 
 ----------------
 -- LBFT Monad --

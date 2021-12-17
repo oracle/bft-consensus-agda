@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-module LibraBFT.ImplShared.Util.Dijkstra.EitherLike where
+module Dijkstra.EitherLike where
 
 open import Haskell.Prelude
 

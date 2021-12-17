@@ -4,12 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-module LibraBFT.ImplShared.Util.Dijkstra.Syntax where
+module Dijkstra.Syntax where
 
+open import Dijkstra.EitherD
+open import Dijkstra.EitherLike
+open import Dijkstra.RWS
 open import Haskell.Prelude
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherLike
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS
 open import Optics.All
 
 {-

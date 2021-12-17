@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Dijkstra.EitherD
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 open import LibraBFT.Impl.Handle
 open        InitHandler
@@ -15,7 +16,6 @@ import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
 open import LibraBFT.Prelude
 open import LibraBFT.Yasm.Types as LYT
 open import Optics.All
