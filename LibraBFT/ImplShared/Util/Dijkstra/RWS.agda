@@ -24,7 +24,9 @@
 
 module LibraBFT.ImplShared.Util.Dijkstra.RWS where
 
-open import LibraBFT.Prelude
+open import Agda.Builtin.Equality using (_≡_; refl)
+open import Data.Product using (_×_; _,_; proj₁; proj₂)
+open import Haskell.Prelude
 open import Haskell.RWS
 
 private
@@ -62,7 +64,7 @@ RWS-Post++ P outs x post outs₁ = P x post (outs ++ outs₁)
 -- precondition for `RWS-Post++ P outs` holds, where `outs` are the outputs of
 -- `m`.
 RWS-weakestPre-bindPost  : (ev : Ev) (f : A → RWS Ev Wr St B) → RWS-Post Wr St B → RWS-Post Wr St A
-RWS-weakestPre-ebindPost : (ev : Ev) (f : A → RWS Ev Wr St (C ⊎ B)) → RWS-Post Wr St (C ⊎ B) → RWS-Post Wr St (C ⊎ A)
+RWS-weakestPre-ebindPost : (ev : Ev) (f : A → RWS Ev Wr St (Either C B)) → RWS-Post Wr St (Either C B) → RWS-Post Wr St (Either C A)
 
 RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
 RWS-weakestPre (RWS-return x) P ev pre = P x pre []

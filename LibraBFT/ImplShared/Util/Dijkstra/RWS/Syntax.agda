@@ -4,18 +4,21 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS
-open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
-open import LibraBFT.Prelude
-
 -- This module contains definitions allowing RWS programs to be written using
 -- Agda's do-notation, as well as convenient short names for operations
 -- (including lens operations).
 module LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax where
 
+open import Haskell.Prelude
 open import Haskell.RWS public
 open import Haskell.RWS.Lens public
 open import Haskell.RWS.RustAnyHow public
+open import LibraBFT.ImplShared.Util.Dijkstra.RWS
+open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
+
+open import Level
+  renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
+  public
 
 private
   variable
@@ -53,7 +56,7 @@ maybeSMP-RWS ma b f = do
     nothing  → pure b
     (just j) → f j
 
-RWS-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWS-Post Wr St (C ⊎ A) → RWS-Post Wr St (C ⊎ A)
+RWS-weakestPre-∙^∙Post : (ev : Ev) (e : C → C) → RWS-Post Wr St (Either C A) → RWS-Post Wr St (Either C A)
 RWS-weakestPre-∙^∙Post ev e Post =
   RWS-weakestPre-bindPost ev (either (bail ∘ e) ok) Post
 

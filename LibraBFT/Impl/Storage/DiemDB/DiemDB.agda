@@ -7,9 +7,7 @@ open import LibraBFT.Base.Types
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-2 as ECP-LBFT-OBM-Diff-2
 import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore    as LedgerStore
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax
-open import LibraBFT.ImplShared.Util.Dijkstra.Syntax
+open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import LibraBFT.Prelude
 open import Optics.All
 

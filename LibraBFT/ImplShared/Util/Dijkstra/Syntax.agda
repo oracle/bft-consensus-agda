@@ -4,12 +4,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.ImplShared.Util.Dijkstra.RWS
-open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
-open import LibraBFT.Prelude
-open import Optics.All
-
 module LibraBFT.ImplShared.Util.Dijkstra.Syntax where
+
+open import Haskell.Prelude
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherD
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherLike
+open import LibraBFT.ImplShared.Util.Dijkstra.RWS
+open import Optics.All
 
 {-
 Within a "Dijkstra-fied" monad `M`, `if` and `ifD` are semantically interchangeable.

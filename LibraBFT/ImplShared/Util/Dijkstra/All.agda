@@ -12,4 +12,5 @@ open import LibraBFT.ImplShared.Util.Dijkstra.RWS public
 open import LibraBFT.ImplShared.Util.Dijkstra.RWS.Syntax public
 open import LibraBFT.ImplShared.Util.Dijkstra.EitherD public
 open import LibraBFT.ImplShared.Util.Dijkstra.EitherD.Syntax public
+open import LibraBFT.ImplShared.Util.Dijkstra.EitherLike public
 
