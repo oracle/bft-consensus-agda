@@ -6,12 +6,13 @@
 
 module Haskell.Prelude where
 
+open import Haskell.Modules.Either public
+open import Haskell.Modules.Eq public
+open import Haskell.Modules.ToBool public
+
 open import Level renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
-
 open import Data.Bool hiding (not; _≟_; _<_; _<?_; _≤_; _≤?_) public
-
 open import Data.Unit.NonEta using (Unit; unit) public
-
 import Relation.Binary.PropositionalEquality as PE using (_≡_; refl)
 
 open import Function using (_∘_; id; typeOf; flip; const; _$_) public
@@ -51,21 +52,6 @@ import Data.Product as DP
 fst = DP.proj₁
 snd = DP.proj₂
 
-import Data.Sum as DS renaming ([_,_] to either)
-Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
-Either A B = A DS.⊎ B
-pattern Left  x = DS.inj₁ x
-pattern Right x = DS.inj₂ x
-
-either = DS.either
-
-isLeft : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
-isLeft (Left _)  = true
-isLeft (Right _) = false
-
-isRight : ∀ {a b} {A : Set a} {B : Set b} → Either A B → Bool
-isRight = Data.Bool.not ∘ isLeft
-
 -- an approximation of Haskell's backtick notation for making infix operators; in Agda, must have
 -- spaces between f and backticks
 flip' : _     -- Avoids warning about definition and syntax declaration being in different scopes
@@ -91,23 +77,6 @@ syntax flip' f = ` f `
 --
 -- To type: ‖  -->  \Vert
 --          ≔  -->  \:=
-
-record ToBool {a}(A : Set a) : Set a where
-  field
-    toBool : A → Bool
-open ToBool {{ ... }} public
-
-not : ∀ {b} {B : Set b} ⦃ _ : ToBool B ⦄ → B → Bool
-not b = Data.Bool.not (toBool b)
-
-import Relation.Nullary                as RN
-import Relation.Nullary.Decidable.Core as RNDC
-instance
-  ToBool-Bool : ToBool Bool
-  ToBool-Bool = record { toBool = id }
-
-  ToBool-Dec : ∀{a}{A : Set a} → ToBool (RN.Dec A)
-  ToBool-Dec = record { toBool = RNDC.⌊_⌋ }
 
 infix 3 _≔_
 data GuardClause {a}{b}(A : Set a) : Set (a ℓ⊔ ℓ+1 b) where
@@ -163,8 +132,8 @@ instance
 
 instance
   Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-  Monad.return (Monad-Either{ℓ}{C}) = DS.inj₂
-  Monad._>>=_ (Monad-Either{ℓ}{C}) = DS.either (const ∘ DS.inj₁) _&_
+  Monad.return (Monad-Either{ℓ}{C}) = Right
+  Monad._>>=_ (Monad-Either{ℓ}{C}) = either (const ∘ Left) _&_
 
   Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
   Monad.return (Monad-Maybe{ℓ}) = just
@@ -210,36 +179,6 @@ foldM = foldlM
 
 foldM_ : {A B : Set} {M : Set → Set} ⦃ _ : Monad M ⦄ → (B → A → M B) → B → List A → M Unit
 foldM_ f a xs = foldlM f a xs >> pure unit
-
-record Eq {a} (A : Set a) : Set a where
-  infix 4 _≟_ _==_ _/=_
-  field
-    _≟_ : (a b : A) → RN.Dec (a PE.≡ b)
-
-  _==_   : A → A → Bool
-  a == b = toBool $ a ≟ b
-
-  _/=_ : A → A → Bool
-  a /= b = not (a == b)
-open Eq ⦃ ... ⦄ public
-
-import Data.List.Relation.Unary.Any as Any using (any)
-
-elem : ∀ {ℓ} {A : Set ℓ} ⦃ _ : Eq A ⦄ → A → List A → Bool
-elem x = toBool ∘ Any.any (x ≟_)
-
-instance
-  Eq-Nat : Eq DN.ℕ
-  Eq._≟_ Eq-Nat = DN._≟_
-
-  Eq-Maybe : ∀ {a} {A : Set a} ⦃ _ : Eq A ⦄ → Eq (Maybe A)
-  Eq._≟_ Eq-Maybe  nothing  nothing = RN.yes PE.refl
-  Eq._≟_ Eq-Maybe (just _)  nothing = RN.no λ ()
-  Eq._≟_ Eq-Maybe  nothing (just _) = RN.no λ ()
-  Eq._≟_ Eq-Maybe (just a) (just b)
-     with a ≟ b
-  ... | RN.no  proof   = RN.no λ where PE.refl → proof PE.refl
-  ... | RN.yes PE.refl = RN.yes PE.refl
 
 infixl 9 _!?_
 _!?_ : {A : Set} → List A → DN.ℕ → Maybe A
