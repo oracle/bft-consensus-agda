@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Haskell.RWS.RustAnyHow
+open import Haskell.Modules.RWS.RustAnyHow
 import      LibraBFT.Base.KVMap                                   as Map
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval as BlockRetrieval
 import      LibraBFT.Impl.IO.OBM.ObmNeedFetch                     as ObmNeedFetch

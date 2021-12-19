@@ -4,9 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Haskell.RWS
-open import Haskell.RWS.Lens
-open import Haskell.RWS.RustAnyHow
+open import Haskell.Modules.RWS
+open import Haskell.Modules.RWS.Lens
+open import Haskell.Modules.RWS.RustAnyHow
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage as MockStorage
 open import LibraBFT.Impl.OBM.Logging.Logging

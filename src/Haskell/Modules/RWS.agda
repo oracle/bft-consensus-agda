@@ -8,7 +8,7 @@
 -- programs written using this RWS monad.
 -- It includes constructors for branching code, to aid in the verification.
 
-module Haskell.RWS where
+module Haskell.Modules.RWS where
 
 open import Haskell.Prelude
 ------------------------------------------------------------------------------

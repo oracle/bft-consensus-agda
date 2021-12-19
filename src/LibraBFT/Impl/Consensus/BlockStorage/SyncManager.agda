@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Haskell.RWS.RustAnyHow
+open import Haskell.Modules.RWS.RustAnyHow
 open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever     as BlockRetriever
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore

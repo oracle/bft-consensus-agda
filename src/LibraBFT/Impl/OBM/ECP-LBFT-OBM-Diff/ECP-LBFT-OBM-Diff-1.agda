@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Haskell.RWS.RustAnyHow
+open import Haskell.Modules.RWS.RustAnyHow
 open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0

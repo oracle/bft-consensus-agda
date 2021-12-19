@@ -5,7 +5,7 @@
 -}
 
 ------------------------------------------------------------------------------
-open import Haskell.RWS.RustAnyHow
+open import Haskell.Modules.RWS.RustAnyHow
 open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block

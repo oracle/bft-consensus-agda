@@ -4,10 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-module Haskell.RWS.RustAnyHow where
+module Haskell.Modules.RWS.RustAnyHow where
 
+open import Haskell.Modules.RWS
 open import Haskell.Prelude
-open import Haskell.RWS
 
 private
   variable

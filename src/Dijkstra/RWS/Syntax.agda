@@ -11,10 +11,10 @@ module Dijkstra.RWS.Syntax where
 
 open import Dijkstra.RWS
 open import Dijkstra.Syntax
+open import Haskell.Modules.RWS public
+open import Haskell.Modules.RWS.Lens public
+open import Haskell.Modules.RWS.RustAnyHow public
 open import Haskell.Prelude
-open import Haskell.RWS public
-open import Haskell.RWS.Lens public
-open import Haskell.RWS.RustAnyHow public
 
 open import Level
   renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)

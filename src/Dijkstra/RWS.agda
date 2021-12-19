@@ -23,8 +23,8 @@ module Dijkstra.RWS where
 
 open import Agda.Builtin.Equality using (_≡_; refl)
 open import Data.Product using (_×_; _,_; proj₁; proj₂)
+open import Haskell.Modules.RWS
 open import Haskell.Prelude
-open import Haskell.RWS
 
 private
   variable
