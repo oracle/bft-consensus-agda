@@ -1,3 +1,3 @@
 name: LibraBFT
 depend: standard-library
-include: .
+include: ./src
