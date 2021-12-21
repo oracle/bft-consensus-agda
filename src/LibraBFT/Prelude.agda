@@ -150,10 +150,24 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
-  -- a non-dependent eliminator
+  -- a non-dependent eliminator; note the traditional argument order
+  -- is "switched", hence the 'S'
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = Maybe-maybe {B = const B} t f x
+
+  -- A Dijkstra version of maybeS, implemented using the version in
+  -- Dijkstra.Syntax which has traditional argument order
+  maybeSD : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ mmd : MonadMaybeD M ⦄
+           → ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
+  maybeSD ⦃ mmd ⦄ x y z = maybeD y z x
+
+  module _ {Ev Wr St A B : Set} where
+    maybeSMP-RWS : RWS Ev Wr St (Maybe A)
+                 → B
+                 → (A → RWS Ev Wr St B)
+                 → RWS Ev Wr St B
+    maybeSMP-RWS x y z = maybeMP-RWS y z x
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
@@ -373,11 +387,11 @@ module LibraBFT.Prelude where
     (Right b) → fb b
 
   -- A Dijkstra version of eitherS, implemented using the version in
-  -- Dijkstra.EitherD which has traditional argument order
+  -- Dijkstra.Syntax which has traditional argument order
   eitherSD : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄
            → ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄
            → ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
-  eitherSD ⦃ med ⦄ ⦃ el ⦄ x y z = eitherD ⦃ med ⦄ ⦃ el ⦄ y z x
+  eitherSD ⦃ med ⦄ ⦃ el ⦄ x y z = eitherD y z x
 
   open import Data.String as String
     hiding (_==_ ; _≟_ ; concat)

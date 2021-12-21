@@ -19,7 +19,7 @@ data EitherD (E : Set) : Set → Set₁ where
   EitherD-if     : ∀ {A} → Guards (EitherD E A) → EitherD E A
   EitherD-either : ∀ {A B C}
                    → (B → EitherD E A) → (C → EitherD E A) → Either B C → EitherD E A
-  EitherD-maybe  : ∀ {A B} → Maybe A → EitherD E B → (A → EitherD E B) → EitherD E B
+  EitherD-maybe  : ∀ {A B} → EitherD E B → (A → EitherD E B) → Maybe A → EitherD E B
 
 pattern LeftD  x = EitherD-bail   x
 pattern RightD x = EitherD-return x
@@ -42,8 +42,8 @@ EitherD-run (EitherD-if (otherwise≔ c)) =
   EitherD-run c
 EitherD-run (EitherD-either f₁ f₂ (Left x))  = EitherD-run (f₁ x)
 EitherD-run (EitherD-either f₁ f₂ (Right y)) = EitherD-run (f₂ y)
-EitherD-run (EitherD-maybe nothing n s) = EitherD-run n
-EitherD-run (EitherD-maybe (just x) n s) = EitherD-run (s x)
+EitherD-run (EitherD-maybe n s nothing ) = EitherD-run n
+EitherD-run (EitherD-maybe n s (just x)) = EitherD-run (s x)
 
 EitherD-Pre : (E A : Set) → Set₁
 EitherD-Pre E A = Set
@@ -72,7 +72,7 @@ EitherD-weakestPre (EitherD-if (otherwise≔ x)) P =
 EitherD-weakestPre (EitherD-either f₁ f₂ e) P =
   (∀ x → e ≡ Left x → EitherD-weakestPre (f₁ x) P)
   × (∀ y → e ≡ Right y → EitherD-weakestPre (f₂ y) P)
-EitherD-weakestPre (EitherD-maybe m n s) P =
+EitherD-weakestPre (EitherD-maybe n s m) P =
   (m ≡ nothing → EitherD-weakestPre n P)
   × (∀ j → m ≡ just j → EitherD-weakestPre (s j) P)
 
@@ -108,9 +108,9 @@ EitherD-contract (EitherD-either f₁ f₂ (Left x)) P wp =
   EitherD-contract (f₁ x) P (proj₁ wp x refl)
 EitherD-contract (EitherD-either f₁ f₂ (Right y)) P wp =
   EitherD-contract (f₂ y) P (proj₂ wp y refl)
-EitherD-contract (EitherD-maybe nothing f₁ f₂) P wp =
+EitherD-contract (EitherD-maybe f₁ f₂ nothing) P wp =
   EitherD-contract f₁ P (proj₁ wp refl)
-EitherD-contract (EitherD-maybe (just x) f₁ f₂) P wp =
+EitherD-contract (EitherD-maybe f₁ f₂ (just x)) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
 
 EitherD-⇒
@@ -135,9 +135,9 @@ proj₁ (EitherD-⇒ {Post₁} {Post₂} (EitherD-either x₁ x₂ (Left  x)) (p
        EitherD-⇒ (x₁ x) (pre₁ x refl) pf
 proj₂ (EitherD-⇒ {Post₁} {Post₂} (EitherD-either x₁ x₂ (Right x)) (pre₁ , pre₂) pf) .x refl =
        EitherD-⇒ (x₂ x) (pre₂ x refl) pf
-proj₁ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe .nothing m x₁) (pre₁ , pre₂) pf) refl   =
+proj₁ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe m x₁ .nothing) (pre₁ , pre₂) pf) refl   =
        EitherD-⇒ m      (pre₁   refl) pf
-proj₂ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe (just x) m x₁) (pre₁ , pre₂) pf) j refl =
+proj₂ (EitherD-⇒ {Post₁} {Post₂} (EitherD-maybe m x₁ (just x)) (pre₁ , pre₂) pf) j refl =
        EitherD-⇒ (x₁ j) (pre₂ j refl) pf
 
 EitherD-⇒-bind :
@@ -150,12 +150,12 @@ EitherD-⇒-bind :
 EitherD-⇒-bind = EitherD-⇒
 
 EitherD-vacuous : ∀ (m : EitherD E A) → EitherD-weakestPre m (const Unit)
-EitherD-vacuous (LeftD x) = unit
-EitherD-vacuous (RightD x) = unit
-EitherD-vacuous (EitherD-if (otherwise≔ x)) = EitherD-vacuous x
+EitherD-vacuous (LeftD x)                        = unit
+EitherD-vacuous (RightD x)                       = unit
+EitherD-vacuous (EitherD-if (otherwise≔ x))      = EitherD-vacuous x
 EitherD-vacuous (EitherD-if (clause (b ≔ x) x₁)) = (const (EitherD-vacuous x)) , (const (EitherD-vacuous (EitherD-if x₁)))
-EitherD-vacuous (EitherD-either x₁ x₂ x) = (λ x₃ _ → EitherD-vacuous (x₁ x₃)) , (λ y _ → EitherD-vacuous (x₂ y))
-EitherD-vacuous (EitherD-maybe x m x₁) = (const (EitherD-vacuous m)) , λ j _ → EitherD-vacuous (x₁ j)
-EitherD-vacuous (EitherD-bind m x) = EitherD-⇒-bind m (EitherD-vacuous m) λ { (Left  _) _ → unit
+EitherD-vacuous (EitherD-either x₁ x₂ x)         = (λ x₃ _ → EitherD-vacuous (x₁ x₃)) , (λ y _ → EitherD-vacuous (x₂ y))
+EitherD-vacuous (EitherD-maybe m x₁ x)           = (const (EitherD-vacuous m)) , λ j _ → EitherD-vacuous (x₁ j)
+EitherD-vacuous (EitherD-bind m x)               = EitherD-⇒-bind m (EitherD-vacuous m) λ { (Left  _) _ → unit
                                                                             ; (Right _) _ → λ c _ → EitherD-vacuous (x c) }
 

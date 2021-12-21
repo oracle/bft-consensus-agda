@@ -32,8 +32,8 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   RWS-ebind  : ∀ {A B C}
              → RWS Ev Wr St (Either C A)
              → (A → RWS Ev Wr St (Either C B))                   → RWS Ev Wr St (Either C B)
-  RWS-maybe  : ∀ {A B} → Maybe B
-             → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)           → RWS Ev Wr St A
+  RWS-maybe  : ∀ {A B}
+             → (RWS Ev Wr St A) → (B → RWS Ev Wr St A) → Maybe B → RWS Ev Wr St A
 
 private
   variable
@@ -95,8 +95,8 @@ runRWS (RWS-ebind m f)              ev st
 ...| Right a , st₁ , outs₁
    with runRWS (f a) ev st₁
 ...|       r , st₂ , outs₂                = r , st₂ , outs₁ ++ outs₂
-runRWS (RWS-maybe nothing  f₁ f₂)   ev st = runRWS f₁ ev st
-runRWS (RWS-maybe (just x) f₁ f₂)   ev st = runRWS (f₂ x) ev st
+runRWS (RWS-maybe f₁ f₂ nothing )   ev st = runRWS f₁ ev st
+runRWS (RWS-maybe f₁ f₂ (just x))   ev st = runRWS (f₂ x) ev st
 
 -- Accessors for the result, poststate, and outputs.
 RWS-result : RWS Ev Wr St A → Ev → St → A

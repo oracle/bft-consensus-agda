@@ -63,13 +63,13 @@ module _ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} where
 record MonadMaybeD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
-    maybeSD : ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
+    maybeD : ∀ {A B : Set ℓ₁} → M B → (A → M B) → Maybe A → M B
 
 open MonadMaybeD ⦃ ... ⦄ public
 
 infix 0 caseMD_of_
 caseMD_of_ : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadMaybeD M ⦄ {A B : Set ℓ₁} → Maybe A → (Maybe A → M B) → M B
-caseMD m of f = maybeSD m (f nothing) (f ∘ just)
+caseMD m of f = maybeD (f nothing) (f ∘ just) m
 
 record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
