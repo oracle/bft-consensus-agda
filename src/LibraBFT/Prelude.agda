@@ -10,6 +10,7 @@
 module LibraBFT.Prelude where
 
   open import Haskell.Prelude public
+  open import Dijkstra.All public
 
   open import Level
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
@@ -363,12 +364,20 @@ module LibraBFT.Prelude where
   (inj₁ x) ⊎⟫= _ = inj₁ x
   (inj₂ a) ⊎⟫= f = f a
 
-  -- a non-dependent eliminator
+  -- a non-dependent eliminator; note the traditional argument order
+  -- is "switched", hence the 'S'
   eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
             (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+  -- A Dijkstra version of eitherS, implemented using the version in
+  -- Dijkstra.EitherD which has traditional argument order
+  eitherSD : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄
+           → ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄
+           → ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
+  eitherSD ⦃ med ⦄ ⦃ el ⦄ x y z = eitherD ⦃ med ⦄ ⦃ el ⦄ y z x
 
   open import Data.String as String
     hiding (_==_ ; _≟_ ; concat)

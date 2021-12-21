@@ -26,8 +26,9 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   RWS-tell   : List Wr                                           → RWS Ev Wr St Unit
   -- Branching combinators (used for creating more convenient contracts)
   RWS-if     : ∀ {A} → Guards (RWS Ev Wr St A)                   → RWS Ev Wr St A
-  RWS-either : ∀ {A B C} → Either B C
-             → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)       → RWS Ev Wr St A
+  RWS-either : ∀ {A B C}
+             → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)
+             → Either B C                                        → RWS Ev Wr St A
   RWS-ebind  : ∀ {A B C}
              → RWS Ev Wr St (Either C A)
              → (A → RWS Ev Wr St (Either C B))                   → RWS Ev Wr St (Either C B)
@@ -86,8 +87,8 @@ runRWS (RWS-tell outs)              ev st = unit , st , outs
 runRWS (RWS-if (clause (b ≔ c) gs)) ev st =
   if toBool b then runRWS c ev st else runRWS (RWS-if gs) ev st
 runRWS (RWS-if (otherwise≔ c))      ev st = runRWS c ev st
-runRWS (RWS-either (Left x)  f₁ f₂) ev st = runRWS (f₁ x) ev st
-runRWS (RWS-either (Right y) f₁ f₂) ev st = runRWS (f₂ y) ev st
+runRWS (RWS-either f₁ f₂ (Left x) ) ev st = runRWS (f₁ x) ev st
+runRWS (RWS-either f₁ f₂ (Right y)) ev st = runRWS (f₂ y) ev st
 runRWS (RWS-ebind m f)              ev st
    with runRWS m ev st
 ...| Left  c , st₁ , outs₁ = Left c , st₁ , outs₁

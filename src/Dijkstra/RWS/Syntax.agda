@@ -38,8 +38,8 @@ instance
   MonadMaybeD.maybeSD RWS-MonadMaybeD = RWS-maybe
 
   RWS-MonadEitherD : MonadEitherD (RWS Ev Wr St)
-  MonadEitherD.monad    RWS-MonadEitherD = RWS-Monad
-  MonadEitherD.eitherSD RWS-MonadEitherD = RWS-either
+  MonadEitherD.monad   RWS-MonadEitherD = RWS-Monad
+  MonadEitherD.eitherD RWS-MonadEitherD = RWS-either
 
 maybeSM : RWS Ev Wr St (Maybe A) → RWS Ev Wr St B → (A → RWS Ev Wr St B) → RWS Ev Wr St B
 maybeSM mma mb f = do

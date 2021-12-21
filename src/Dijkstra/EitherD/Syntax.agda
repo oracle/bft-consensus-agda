@@ -36,7 +36,7 @@ instance
 
   EitherD-MonadEitherD : MonadEitherD (EitherD E)
   MonadEitherD.monad    EitherD-MonadEitherD = Monad-EitherD
-  MonadEitherD.eitherSD EitherD-MonadEitherD = EitherD-either
+  MonadEitherD.eitherD  EitherD-MonadEitherD = EitherD-either
 
 -- `EitherD` is Either-like
 instance
