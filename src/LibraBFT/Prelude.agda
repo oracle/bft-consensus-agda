@@ -150,8 +150,8 @@ module LibraBFT.Prelude where
     hiding (align; alignWith; zipWith)
     public
 
-  -- a non-dependent eliminator; note the traditional argument order
-  -- is "switched", hence the 'S'
+  -- a non-dependent eliminator
+  -- note the traditional argument order is "switched", hence the 'S'
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = Maybe-maybe {B = const B} t f x
@@ -378,8 +378,8 @@ module LibraBFT.Prelude where
   (inj₁ x) ⊎⟫= _ = inj₁ x
   (inj₂ a) ⊎⟫= f = f a
 
-  -- a non-dependent eliminator; note the traditional argument order
-  -- is "switched", hence the 'S'
+  -- a non-dependent eliminator
+  -- note the traditional argument order is "switched", hence the 'S'
   eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
             (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where

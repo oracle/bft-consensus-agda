@@ -157,5 +157,5 @@ EitherD-vacuous (EitherD-if (clause (b ≔ x) x₁)) = (const (EitherD-vacuous x
 EitherD-vacuous (EitherD-either x₁ x₂ x)         = (λ x₃ _ → EitherD-vacuous (x₁ x₃)) , (λ y _ → EitherD-vacuous (x₂ y))
 EitherD-vacuous (EitherD-maybe m x₁ x)           = (const (EitherD-vacuous m)) , λ j _ → EitherD-vacuous (x₁ j)
 EitherD-vacuous (EitherD-bind m x)               = EitherD-⇒-bind m (EitherD-vacuous m) λ { (Left  _) _ → unit
-                                                                            ; (Right _) _ → λ c _ → EitherD-vacuous (x c) }
+                                                                                          ; (Right _) _ → λ c _ → EitherD-vacuous (x c) }
 
