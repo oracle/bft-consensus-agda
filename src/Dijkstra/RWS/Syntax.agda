@@ -34,23 +34,24 @@ instance
   MonadIfD.ifD‖  RWS-MonadIfD = RWS-if
 
   RWS-MonadMaybeD : MonadMaybeD (RWS Ev Wr St)
-  MonadMaybeD.monad   RWS-MonadMaybeD = RWS-Monad
-  MonadMaybeD.maybeSD RWS-MonadMaybeD = RWS-maybe
+  MonadMaybeD.monad  RWS-MonadMaybeD = RWS-Monad
+  MonadMaybeD.maybeD RWS-MonadMaybeD = RWS-maybe
 
   RWS-MonadEitherD : MonadEitherD (RWS Ev Wr St)
-  MonadEitherD.monad    RWS-MonadEitherD = RWS-Monad
-  MonadEitherD.eitherSD RWS-MonadEitherD = RWS-either
+  MonadEitherD.monad   RWS-MonadEitherD = RWS-Monad
+  MonadEitherD.eitherD RWS-MonadEitherD = RWS-either
 
-maybeSM : RWS Ev Wr St (Maybe A) → RWS Ev Wr St B → (A → RWS Ev Wr St B) → RWS Ev Wr St B
-maybeSM mma mb f = do
+maybeM : RWS Ev Wr St B → (A → RWS Ev Wr St B) → RWS Ev Wr St (Maybe A) → RWS Ev Wr St B
+maybeM mb f mma = do
   x ← mma
   caseMD x of λ where
     nothing  → mb
     (just j) → f j
 
-maybeSMP-RWS : RWS Ev Wr St (Maybe A) → B → (A → RWS Ev Wr St B)
+maybeMP-RWS : B → (A → RWS Ev Wr St B)
+              → RWS Ev Wr St (Maybe A)
               → RWS Ev Wr St B
-maybeSMP-RWS ma b f = do
+maybeMP-RWS b f ma = do
   x ← ma
   caseMD x of λ where
     nothing  → pure b

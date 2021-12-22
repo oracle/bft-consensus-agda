@@ -76,14 +76,14 @@ RWS-weakestPre (RWS-if (clause (b ≔ c) gs)) P ev pre =
   × (toBool b ≡ false → RWS-weakestPre (RWS-if gs) P ev pre)
 RWS-weakestPre (RWS-if (otherwise≔ c)) P ev pre =
   RWS-weakestPre c P ev pre
-RWS-weakestPre (RWS-either e f₁ f₂) P ev pre =
+RWS-weakestPre (RWS-either f₁ f₂ e) P ev pre =
     (∀ x → (e ≡ Left x) →
       RWS-weakestPre (f₁ x) P ev pre)
   × (∀ y → (e ≡ Right y) →
        RWS-weakestPre (f₂ y) P ev pre)
 RWS-weakestPre (RWS-ebind m f) P ev pre =
   RWS-weakestPre m (RWS-weakestPre-ebindPost ev f P) ev pre
-RWS-weakestPre (RWS-maybe m f₁ f₂) P ev pre =
+RWS-weakestPre (RWS-maybe f₁ f₂ m) P ev pre =
   (m ≡ nothing → RWS-weakestPre f₁ P ev pre)
   × (∀ j → m ≡ just j → RWS-weakestPre (f₂ j) P ev pre)
 
@@ -137,9 +137,9 @@ RWS-contract{Ev}{Wr}{St}{A} (RWS-if gs) P ev pre wp = RWS-contract-if gs P ev pr
   ...| false = RWS-contract-if gs _ ev pre (wp₂ refl)
   RWS-contract-if (otherwise≔ x) P ev pre wp =
     RWS-contract x P ev pre wp
-RWS-contract (RWS-either (Left x) f₁ f₂) P ev pre (wp₁ , wp₂) =
+RWS-contract (RWS-either f₁ f₂ (Left x)) P ev pre (wp₁ , wp₂) =
   RWS-contract (f₁ x) _ ev pre (wp₁ x refl)
-RWS-contract (RWS-either (Right y) f₁ f₂) P ev pre (wp₁ , wp₂) =
+RWS-contract (RWS-either f₁ f₂ (Right y)) P ev pre (wp₁ , wp₂) =
   RWS-contract (f₂ y) _ ev pre (wp₂ y refl)
 RWS-contract (RWS-ebind m f) P ev pre wp
    with RWS-contract m _ ev pre wp
@@ -147,9 +147,9 @@ RWS-contract (RWS-ebind m f) P ev pre wp
    with runRWS m ev pre
 ... | Left x , st₁ , outs₁ = con
 ... | Right y , st₁ , outs₁ = RWS-contract (f y) _ ev st₁ (con y refl)
-RWS-contract (RWS-maybe nothing f₁ f₂) P ev pre (wp₁ , wp₂)
+RWS-contract (RWS-maybe f₁ f₂ nothing) P ev pre (wp₁ , wp₂)
   = RWS-contract f₁ _ ev pre (wp₁ refl)
-RWS-contract (RWS-maybe (just x) f₁ f₂) P ev pre (wp₁ , wp₂) =
+RWS-contract (RWS-maybe f₁ f₂ (just x)) P ev pre (wp₁ , wp₂) =
   RWS-contract (f₂ x) _ ev pre (wp₂ x refl)
 
 -- This helper function is primarily used to take a proof concerning one
@@ -177,19 +177,19 @@ RWS-⇒ (RWS-if (otherwise≔ x)) ev st pre pf = RWS-⇒ x ev st pre pf
 RWS-⇒ (RWS-if (clause (b ≔ c) cs)) ev st (pre₁ , pre₂) pf =
   (λ pf' → RWS-⇒ c ev st (pre₁ pf') pf)
   , λ pf' → RWS-⇒ (RWS-if cs) ev st (pre₂ pf') pf
-proj₁ (RWS-⇒ (RWS-either (Left x) f₁ f₂) ev st (pre₁ , pre₂) pf) x₁ x₁≡ =
+proj₁ (RWS-⇒ (RWS-either f₁ f₂ (Left x)) ev st (pre₁ , pre₂) pf) x₁ x₁≡ =
   RWS-⇒ (f₁ x₁) ev st (pre₁ x₁ x₁≡) pf
-proj₂ (RWS-⇒ (RWS-either (Left x)  f₁ f₂) ev st (pre₁ , pre₂) pf) y ()
-proj₁ (RWS-⇒ (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂) pf) y₁ ()
-proj₂ (RWS-⇒ (RWS-either (Right y) f₁ f₂) ev st (pre₁ , pre₂) pf) y₁ y₁≡ =
+proj₂ (RWS-⇒ (RWS-either f₁ f₂ (Left x) ) ev st (pre₁ , pre₂) pf) y ()
+proj₁ (RWS-⇒ (RWS-either f₁ f₂ (Right y)) ev st (pre₁ , pre₂) pf) y₁ ()
+proj₂ (RWS-⇒ (RWS-either f₁ f₂ (Right y)) ev st (pre₁ , pre₂) pf) y₁ y₁≡ =
   RWS-⇒ (f₂ y₁) ev st (pre₂ y₁ y₁≡) pf
 RWS-⇒ (RWS-ebind m f) ev st pre pf =
   RWS-⇒ m ev st pre
         (λ { (Left x₁) st₁ outs x → pf _ _ _ x
              ; (Right y) st₁ outs x → λ c x₁ →
                  RWS-⇒ (f c) ev st₁ (x c x₁) (λ r st₂ outs₁ x₂ → pf r st₂ (outs ++ outs₁) x₂) })
-proj₁ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) ≡nothing = RWS-⇒ m ev st (pre₁ ≡nothing) pf
-proj₂ (RWS-⇒ (RWS-maybe x m f) ev st (pre₁ , pre₂) pf) b b≡     = RWS-⇒ (f b) ev st (pre₂ b b≡) pf
+proj₁ (RWS-⇒ (RWS-maybe m f x) ev st (pre₁ , pre₂) pf) ≡nothing = RWS-⇒ m ev st (pre₁ ≡nothing) pf
+proj₂ (RWS-⇒ (RWS-maybe m f x) ev st (pre₁ , pre₂) pf) b b≡     = RWS-⇒ (f b) ev st (pre₂ b b≡) pf
 
 RWS-⇒-bind
   : ∀ {P : RWS-Post Wr St A}

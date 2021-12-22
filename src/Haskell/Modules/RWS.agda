@@ -26,13 +26,14 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   RWS-tell   : List Wr                                           → RWS Ev Wr St Unit
   -- Branching combinators (used for creating more convenient contracts)
   RWS-if     : ∀ {A} → Guards (RWS Ev Wr St A)                   → RWS Ev Wr St A
-  RWS-either : ∀ {A B C} → Either B C
-             → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)       → RWS Ev Wr St A
+  RWS-either : ∀ {A B C}
+             → (B → RWS Ev Wr St A) → (C → RWS Ev Wr St A)
+             → Either B C                                        → RWS Ev Wr St A
   RWS-ebind  : ∀ {A B C}
              → RWS Ev Wr St (Either C A)
              → (A → RWS Ev Wr St (Either C B))                   → RWS Ev Wr St (Either C B)
-  RWS-maybe  : ∀ {A B} → Maybe B
-             → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)           → RWS Ev Wr St A
+  RWS-maybe  : ∀ {A B}
+             → (RWS Ev Wr St A) → (B → RWS Ev Wr St A) → Maybe B → RWS Ev Wr St A
 
 private
   variable
@@ -86,16 +87,16 @@ runRWS (RWS-tell outs)              ev st = unit , st , outs
 runRWS (RWS-if (clause (b ≔ c) gs)) ev st =
   if toBool b then runRWS c ev st else runRWS (RWS-if gs) ev st
 runRWS (RWS-if (otherwise≔ c))      ev st = runRWS c ev st
-runRWS (RWS-either (Left x)  f₁ f₂) ev st = runRWS (f₁ x) ev st
-runRWS (RWS-either (Right y) f₁ f₂) ev st = runRWS (f₂ y) ev st
+runRWS (RWS-either f₁ f₂ (Left x) ) ev st = runRWS (f₁ x) ev st
+runRWS (RWS-either f₁ f₂ (Right y)) ev st = runRWS (f₂ y) ev st
 runRWS (RWS-ebind m f)              ev st
    with runRWS m ev st
 ...| Left  c , st₁ , outs₁ = Left c , st₁ , outs₁
 ...| Right a , st₁ , outs₁
    with runRWS (f a) ev st₁
 ...|       r , st₂ , outs₂                = r , st₂ , outs₁ ++ outs₂
-runRWS (RWS-maybe nothing  f₁ f₂)   ev st = runRWS f₁ ev st
-runRWS (RWS-maybe (just x) f₁ f₂)   ev st = runRWS (f₂ x) ev st
+runRWS (RWS-maybe f₁ f₂ nothing )   ev st = runRWS f₁ ev st
+runRWS (RWS-maybe f₁ f₂ (just x))   ev st = runRWS (f₂ x) ev st
 
 -- Accessors for the result, poststate, and outputs.
 RWS-result : RWS Ev Wr St A → Ev → St → A

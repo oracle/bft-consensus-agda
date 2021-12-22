@@ -31,12 +31,12 @@ instance
   MonadIfD.ifD‖  EitherD-MonadIfD = EitherD-if
 
   EitherD-MonadMaybeD : MonadMaybeD (EitherD E)
-  MonadMaybeD.monad   EitherD-MonadMaybeD = Monad-EitherD
-  MonadMaybeD.maybeSD EitherD-MonadMaybeD = EitherD-maybe
+  MonadMaybeD.monad  EitherD-MonadMaybeD = Monad-EitherD
+  MonadMaybeD.maybeD EitherD-MonadMaybeD = EitherD-maybe
 
   EitherD-MonadEitherD : MonadEitherD (EitherD E)
   MonadEitherD.monad    EitherD-MonadEitherD = Monad-EitherD
-  MonadEitherD.eitherSD EitherD-MonadEitherD = EitherD-either
+  MonadEitherD.eitherD  EitherD-MonadEitherD = EitherD-either
 
 -- `EitherD` is Either-like
 instance

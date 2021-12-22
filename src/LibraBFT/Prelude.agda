@@ -10,6 +10,7 @@
 module LibraBFT.Prelude where
 
   open import Haskell.Prelude public
+  open import Dijkstra.All public
 
   open import Level
     renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
@@ -150,9 +151,23 @@ module LibraBFT.Prelude where
     public
 
   -- a non-dependent eliminator
+  -- note the traditional argument order is "switched", hence the 'S'
   maybeS : ∀ {a b} {A : Set a} {B : Set b} →
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = Maybe-maybe {B = const B} t f x
+
+  -- A Dijkstra version of maybeS, implemented using the version in
+  -- Dijkstra.Syntax which has traditional argument order
+  maybeSD : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ mmd : MonadMaybeD M ⦄
+           → ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
+  maybeSD ⦃ mmd ⦄ x y z = maybeD y z x
+
+  module _ {Ev Wr St A B : Set} where
+    maybeSMP-RWS : RWS Ev Wr St (Maybe A)
+                 → B
+                 → (A → RWS Ev Wr St B)
+                 → RWS Ev Wr St B
+    maybeSMP-RWS x y z = maybeMP-RWS y z x
 
   open import Data.Maybe.Relation.Unary.Any
     renaming (Any to Maybe-Any; dec to Maybe-Any-dec)
@@ -364,11 +379,19 @@ module LibraBFT.Prelude where
   (inj₂ a) ⊎⟫= f = f a
 
   -- a non-dependent eliminator
+  -- note the traditional argument order is "switched", hence the 'S'
   eitherS : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
             (x : Either A B) → ((x : A) → C) → ((x : B) → C) → C
   eitherS eab fa fb = case eab of λ where
     (Left  a) → fa a
     (Right b) → fb b
+
+  -- A Dijkstra version of eitherS, implemented using the version in
+  -- Dijkstra.Syntax which has traditional argument order
+  eitherSD : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄
+           → ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄
+           → ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
+  eitherSD ⦃ med ⦄ ⦃ el ⦄ x y z = eitherD y z x
 
   open import Data.String as String
     hiding (_==_ ; _≟_ ; concat)

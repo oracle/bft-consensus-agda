@@ -63,31 +63,31 @@ module _ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} where
 record MonadMaybeD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
-    maybeSD : ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
+    maybeD : ∀ {A B : Set ℓ₁} → M B → (A → M B) → Maybe A → M B
 
 open MonadMaybeD ⦃ ... ⦄ public
 
 infix 0 caseMD_of_
 caseMD_of_ : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadMaybeD M ⦄ {A B : Set ℓ₁} → Maybe A → (Maybe A → M B) → M B
-caseMD m of f = maybeSD m (f nothing) (f ∘ just)
+caseMD m of f = maybeD (f nothing) (f ∘ just) m
 
 record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
-    eitherSD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
+    eitherD : ∀ {E A B : Set ℓ₁} → (E → M B) → (A → M B) → Either E A → M B
 
-open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
+open MonadEitherD ⦃ ... ⦄ public hiding (eitherD)
 
-eitherSD
+eitherD
   : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄ →
     ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
-    ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
-eitherSD ⦃ med = med ⦄ e f₁ f₂ =
-  MonadEitherD.eitherSD med (toEither e) f₁ f₂
+    ∀ {E A B : Set ℓ₁} → (E → M B) → (A → M B) → EL E A → M B
+eitherD ⦃ med = med ⦄ f₁ f₂ e =
+  MonadEitherD.eitherD med f₁ f₂ (toEither e)
 
 infix 0 case⊎D_of_
 case⊎D_of_
   : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadEitherD M ⦄ →
     ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
     ∀ {E A B : Set ℓ₁} → EL E A → (EL E A → M B) → M B
-case⊎D e of f = eitherSD e (f ∘ fromEither ∘ Left) (f ∘ fromEither ∘ Right)
+case⊎D e of f = eitherD (f ∘ fromEither ∘ Left) (f ∘ fromEither ∘ Right) e
