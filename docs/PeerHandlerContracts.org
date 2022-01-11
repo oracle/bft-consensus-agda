@@ -5,23 +5,22 @@
 
 * Metadata
 
-  This file was written with respect to the following commit hash of the
+  This file is current with respect to the following commit hash of the
   repository:
-  - bf83f206aec53b2f7abd3a92293ca1ac722bf6eb
+  - a1dfc584a278cf4ca024a0a5e0b150bd0669d2d7
 
 * Structure of peer handler proofs
 
-  In both the Haskell prototype and Agda model, peer handler code is written in
-  the =RWS= --- /reader, writer, state/ --- and =Either= monads. Unlike the
-  Haskell code, in Agda, these monads are [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda::data RWS (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]]
-  (in
-  [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda]]
-  and
-  [[file:../LibraBFT/ImplShared/Util/Dijkstra/EitherD.agda]]
-  respectively).
-  This enables proofs to inspect the AST of peer handler code directly.
+  In the Haskell prototype, peer handler code is written in
+  the =RWS= --- /reader, writer, state/ --- and =Either= monads.
 
-  For =RWS=, this is primarily used to compute, for any
+** RWS monad
+
+  In Agda, the ~RWS~ monad is defined as a special-purpose datatype
+  (in [[file:../src/Haskell/Modules/RWS.agda]]).
+  This enables proofs to inspect the AST of peer handler code written in the ~RWS~ monad directly.
+
+  This is primarily used to compute, for any
   postcondition =Q : (Wr St A : Set) -> Set= and peer handler =h : RWS Wr St
   A=, the weakest precondition =RWS-weakestPre m Q= which can be used to prove
   =Q=. This is based on Dijsktra's weakest precondition calculus and the work by
@@ -31,7 +30,7 @@
 
 ** Dijkstra's weakest precondition calculus
 
-   [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda]]
+   [[file:../src/Dijkstra/RWS.agda]]
 
    There are two kinds of constructors of the Agda =RWS= monad: primitives
    needed to support the desired functionality, and conveniences that enable us
@@ -167,10 +166,10 @@ RWS-contract : (m : RWS Ev Wr St A) → RWS-Contract m
     3. =RWS-contract= is the proof of the above statement
 
 
-    There is an example of using =RWS-contract= in
-    [[file:../LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]].
+    There is an example of using =RWS-contract= (via ~LBFT-contract~, see below) in
+    [[file:../src/LibraBFT/Impl/IO/OBM/Properties/InputOutputHandlers.agda]].
     (Note that `LBFT`, defined in
-    [[file: ../LibraBFT/ImplShared/Util/Util.agda]]
+    [[file: ../src/LibraBFT/ImplShared/LBFT.agda]]
     is `RWS` instantiated with the types used to express our Agda
     implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWS`
     definitions and proofs.)
@@ -229,7 +228,7 @@ RWS-⇒
        short names like =step3 <args>=.
 
 
-    Let's look at =ensureRoundAndSyncUpM= as an example.
+    Let's look at =ensureRoundAndSyncUpM= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/Impl/Consensus/RoundManager.agda][file:../src/LibraBFT/Impl/Consensus/RoundManager.agda]]) as an example.
 
     #+begin_src agda
 module ensureRoundAndSyncUpM
@@ -261,7 +260,7 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     (such as =syncUpM=) so you can use the contract for that function to "move"
     to the next step. This is shown below for a part of the proof of the
     contract for =ensureRoundAndSyncUpM= (found in
-    [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
+    [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
 
 **** Standard setup for contracts
 
@@ -309,8 +308,8 @@ module ensureRoundAndSyncUpMSpec
         vng : VoteNotGenerated pre pre true
         vng = mkVoteNotGenerated refl refl
 
-        outqcs : QCProps.OutputQc∈RoundManager [] pre
-        outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl
+        outqcs : QCProps.¬OutputQc []
+        outqcs = []
 
         qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
@@ -327,11 +326,11 @@ module ensureRoundAndSyncUpMSpec
        preceding computation that generated it (here, =use (lRoundState ∙
        rsCurrentRound)=). This is fine in this case; however, for alias
        variables generated from complex computations it is usually desirable to
-       hold off on using case analysis on the equality proof, since this results
+       hold off on using case analysis on the equality proof, because this results
        in substituting the entire expression into the goal.
 
        You can see the private module =Tutorial= in
-       [[file:../LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
+       [[file:../src/LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
        for more details about reading and managing the proof state when using
        the weakest precondition infrastructure.
 
@@ -342,15 +341,11 @@ module ensureRoundAndSyncUpMSpec
      non-error early exit. The second underscore is an anonymous proof that the
      conditional evaluated to true (for safety, we do not need this evidence).
 
-     In the local proof =outqcs=, we use one of the many utility lemmas defined
-     in [[file:../LibraBFT/Impl/Properties/Util.agda]] designed to help glue
-     contracts of different peer handlers together and deal with many common
-     cases. For =outqcs=, we are in a situation where we have generated *no*
-     messages. One of the properties in the contract is that any quorum
-     certificate found in the output came from the round manager, and the lemma
-     =QCProps.NoMsgs⇒OutputQc∈RoundManager= proves that if there are no output
-     messages (but maybe some logging messages), then this universal statement
-     holds vacuously.
+     The ~noOutQCs~ field requires us to prove that no output produced by =ensureRoundAndSyncUpM=
+     contains a =NetworkMsg= that includes a =QC= (=QCProps.¬OutputQc=).  It is straightforward for
+     the =then= branch because =ensureRoundAndSyncM= does not produce /any/ outputs in this case.
+
+     Next, consider the =else= branch.
 
      #+begin_src agda
     proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
@@ -418,25 +413,28 @@ module ensureRoundAndSyncUpMSpec
       individual fields of =con= more convenient, we make a local module
       definition =SU=.
 
-    - =SU.noVoteOuts= tells us there are not vote messages in =outs=, but our
-      obligation is to show there are no vote messages in =outs ++ []=.
+    - =SU.noVoteOuts= tells us there are no vote messages in =outs=, but our obligation is to show there
+      are no vote messages in =outs ++ []=.  The proof that the empty list contains no =Output= that
+      contains a =QC= is vacuous: =[]=.
 
-      Here we could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
-      general, if we have two lists which have been proven to not contain a
+      We could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
+      general, however, if we have two lists which have been proven to not contain a
       certain type of message (e.g., a vote), then you can use the lemma
-      =++-NoneOfKind= in [[file:../LibraBFT/Impl/Properties/Util.agda]]. For
+      =++-NoneOfKind= in [[file:../src/LibraBFT/Impl/Properties/Util.agda]]. For
       readability, several instances of this lemma (such as =++-NoVotes=) are
-      also defined.
+      also defined.  Many other utility lemmas are also defined
+      in [[file:../src/LibraBFT/Impl/Properties/Util.agda]] to help glue
+      contracts of different peer handlers together and deal with many common
+      cases.
 
-    - Similarly, =SU.outQcs∈RM= tells us that all quorum certificates appearing
-      in =outs= come from the round manager =st=, but our obligation is to show
-      that this property holds for =outs ++ []=. The lemma
-      =QCProps.++-OutputQc∈RoundManager= lets us conclude that if this property
+    - Similarly, =SU.noOutQcs= tells us that no =Output=​s from =syncUpM= contain quorum certificates,
+      but our obligation is to show
+      that this property holds for =outs ++++ []=. The lemma
+      =QCProps.++-¬OutputQc= lets us conclude that if this property
       holds for two lists, then it holds for their concatenation.
 
-
     Finally, in =contract-step₂=, the first =._ refl= pair corresponds to the
-    =Unit= returned =syncUpM=, and the second pair corresponds to the variable
+    =Unit= returned by =syncUpM=, and the second pair corresponds to the variable
     ~currentRound'​~ in the peer handler code. When we reach the conditional, we
     prove the two obligations the weakest precondition infrastructure generates
     for us --- which finishes the proof.
