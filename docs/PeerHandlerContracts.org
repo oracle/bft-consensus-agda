@@ -13,28 +13,14 @@
 
   In the Haskell prototype, peer handler code is written in
   the =RWS= --- /reader, writer, state/ --- and =Either= monads.
+  Below we explain how we model and reason about this code in
+  Agda.  We begin with the =RWS= monad.
 
-** RWS monad
+** =RWS= monad
 
-  In Agda, the ~RWS~ monad is defined as a special-purpose datatype
-  (in [[file:../src/Haskell/Modules/RWS.agda]]).
+  In Agda, the ~RWS~ monad is defined via the special-purpose datatype shown below
+  (see [[file:../src/Haskell/Modules/RWS.agda]]).
   This enables proofs to inspect the AST of peer handler code written in the ~RWS~ monad directly.
-
-  This is primarily used to compute, for any
-  postcondition =Q : (Wr St A : Set) -> Set= and peer handler =h : RWS Wr St
-  A=, the weakest precondition =RWS-weakestPre m Q= which can be used to prove
-  =Q=. This is based on Dijsktra's weakest precondition calculus and the work by
-  Swamy et al. on the [[https://www.microsoft.com/en-us/research/publication/verifying-higher-order-programs-with-the-dijkstra-monad/][Dijkstra monad]]. Phrasing properties about peer handlers as
-  preconditions has a number of benefits, described below.
-
-
-** Dijkstra's weakest precondition calculus
-
-   [[file:../src/Dijkstra/RWS.agda]]
-
-   There are two kinds of constructors of the Agda =RWS= monad: primitives
-   needed to support the desired functionality, and conveniences that enable us
-   to define custom proof obligations for branching code.
 
    #+begin_src agda
 -- RWS, the AST of computations with state `St` reading from an environment
@@ -59,7 +45,44 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
                → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)       → RWS Ev Wr St A
    #+end_src
 
-   There are two steps in the development for the weakest precondition calculus.
+  There are two kinds of constructors of the Agda =RWS= monad: primitives
+  needed to support the desired functionality, and conveniences that enable us
+  to define custom proof obligations for branching code.
+
+  We define a =Monad= instance =RWS-Monad= for =RWS Ev Wr St=, which defines the =_>>_= operator,
+  thus enabling the use of =do= notation within the =RWS= monad.  Standard =RWS= operations
+  including =get=, =put=, =modify=, =ask= and =tell= are defined in terms of the constructors of =RWS=.
+  Together, these enable the Agda implementation to closely mirror the corresponding Haskell code.
+
+  We assign semantics to an =RWS Ev Wr St= program returning =A= by defining a function =RWS-run= that takes such
+  a program, an environment (=Ev)= and a state (=St=)​, and returns a triple comprising a return value of type =A=​, a new state, and a
+  list of =Wr= values written by the program using =RWS-tell=​:
+
+        #+begin_src agda
+RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
+        #+end_src
+
+  See [[file:../src/Haskell/Modules/RWS.agda]].
+
+** Dijkstra's weakest precondition calculus
+
+  Our reasoning about peer handler code in the =RWS= monad is based on Dijsktra's weakest precondition calculus and the work by
+  Swamy et al. on the [[https://www.microsoft.com/en-us/research/publication/verifying-higher-order-programs-with-the-dijkstra-monad/][Dijkstra monad]].  In particular, we define ([[file:../src/Dijkstra/RWS.agda]]):
+
+        #+begin_src agda
+RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
+        #+end_src
+
+  =RWS-PredTrans Ev Wr St A= is a predicate transformer that, given a post condition (a predicate over values returned
+  by =RWS-run=) computes a precondition (predicate over values passed to =RWS-run=).  We define =RWS-weakestPre= so that it
+  computes the weakest precondition required to ensure that the post condition holds.  Thus, for a monadic program =m : RWS Ev Wr St A=,
+  and a post condition =Q : (Wr St A : Set) -> Set=, proving =RWS-weakestPre m Q= holds for given =Ev= and =St= suffices to
+  show that =Q= holds for the values returned by running =m= with that =Ev= and =St=.
+
+  Phrasing properties about peer handlers as
+  preconditions in this way has a number of benefits, described below.
+
+  Below we overview how we compute weakest preconditions, and then how we use them to reason about handlers.
 
 *** Computing the weakest precondition
 
@@ -344,6 +367,7 @@ module ensureRoundAndSyncUpMSpec
      The ~noOutQCs~ field requires us to prove that no output produced by =ensureRoundAndSyncUpM=
      contains a =NetworkMsg= that includes a =QC= (=QCProps.¬OutputQc=).  It is straightforward for
      the =then= branch because =ensureRoundAndSyncM= does not produce /any/ outputs in this case.
+     The proof that the empty list contains no =Output= that contains a =QC= is vacuous: =[]=.
 
      Next, consider the =else= branch.
 
@@ -414,8 +438,7 @@ module ensureRoundAndSyncUpMSpec
       definition =SU=.
 
     - =SU.noVoteOuts= tells us there are no vote messages in =outs=, but our obligation is to show there
-      are no vote messages in =outs ++ []=.  The proof that the empty list contains no =Output= that
-      contains a =QC= is vacuous: =[]=.
+      are no vote messages in =outs ++ []=.
 
       We could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
       general, however, if we have two lists which have been proven to not contain a
@@ -461,7 +484,7 @@ abstract
     The defintion of =processProposalMsgM.step₀= /is/ visible in other contexts,
     so =processProposalMsgM≡= is used by the proof of the contract for
     =processProposalMsgM= (see
-    [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]) to transfer a
+    [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]) to transfer a
     property about =processProposalMsgM.step₀= to =processProposalMsgM=.
 
     #+begin_src agda
@@ -487,8 +510,9 @@ abstract
     implementation of a function doesn't change the shape of proofs of
     functions that call it.  The overhead of this is that we must state and prove
     explicit contracts for each function, but it is worth it for the sake of
-    sustainability.  For an example, see ~executeBlockESpec~ in 
+    sustainability.
 
+** Reasoning about programs in the =Either= monad
 
 * Peer handler code
 ** Type classes for branching operations
@@ -500,7 +524,7 @@ abstract
    readability it is desirable to use the same name for the operation that
    performs e.g. case analysis on a boolean value.
 
-   To that end, [[file:../LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]] defines
+   To that end, [[file:../src/LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]] defines
    three Agda "typeclasses" --- =MonadIfD=, =MonadMaybeD=, and =MonadEitherD=.
    Of these, =MonadEitherD= deserves some elaboration.
 
