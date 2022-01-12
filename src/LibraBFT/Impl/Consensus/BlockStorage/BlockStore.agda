@@ -4,11 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap                                  as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree       as BlockTree
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
@@ -20,8 +15,13 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Hash
+open import Util.KVMap                                           as Map
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                          as String using (String)
 

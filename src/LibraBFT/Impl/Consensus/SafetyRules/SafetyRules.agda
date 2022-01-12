@@ -6,8 +6,6 @@
 
 ------------------------------------------------------------------------------
 open import Haskell.Modules.RWS.RustAnyHow
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block                as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert           as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote                 as Vote
@@ -25,8 +23,10 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.ImplShared.Util.Crypto                             as Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                                 using (String)
 ------------------------------------------------------------------------------

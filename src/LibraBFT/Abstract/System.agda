@@ -5,7 +5,7 @@
 -}
 
 open import LibraBFT.Abstract.Types.EpochConfig
-open import LibraBFT.Prelude
+open import Util.Prelude
 open WithAbsVote
 
 -- This module defines and abstract view if a system, encompassing only a predicate for Records,

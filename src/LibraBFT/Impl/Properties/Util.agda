@@ -7,10 +7,6 @@
 -- This module contains definitions of properties of only the behavior of the
 -- handlers, nothing concerning the system state.
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.KVMap as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
@@ -21,16 +17,20 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.KVMap                                   as Map
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 
 open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.initAndHandlers
-                               PeerCanSignForPK PeerCanSignForPK-stable
+open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                      Handle.InitHandler.initAndHandlers
+                      PeerCanSignForPK PeerCanSignForPK-stable
 
 module LibraBFT.Impl.Properties.Util where
 

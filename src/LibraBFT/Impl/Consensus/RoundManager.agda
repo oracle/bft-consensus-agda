@@ -5,11 +5,6 @@
 -}
 
 ------------------------------------------------------------------------------
-open import LibraBFT.Base.ByteString
-import      LibraBFT.Base.KVMap                                  as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.SyncManager     as SyncManager
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
@@ -26,8 +21,13 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Hash
+import      Util.KVMap                                           as Map
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -----------------------------------------------------------------------------
 open import Data.String                                          using (String)

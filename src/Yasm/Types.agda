@@ -4,10 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 -- This module defines types used in the specification of a SystemModel.
-module LibraBFT.Yasm.Types where
+module Yasm.Types where
 
 -- Actions that can be performed by peers.
 --
@@ -19,7 +19,7 @@ module LibraBFT.Yasm.Types where
 -- messages are logged under certain circumstances, etc.
 --
 -- Alternatively, certain actions can be kept outside the system model by
--- defining an application-specific PeerState type (see `LibraBFT.Yasm.Base`).
+-- defining an application-specific PeerState type (see `Yasm.Base`).
 -- For example:
 --
 -- > libraHandle : Msg → Status × Log × LState → Status × LState × List Action

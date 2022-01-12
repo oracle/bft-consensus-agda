@@ -3,12 +3,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
-import      LibraBFT.Base.KVMap                 as Map
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types hiding (getEpoch)
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                          as Map
+open import Util.Prelude
+open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                         using (String)
 

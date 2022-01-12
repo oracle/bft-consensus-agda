@@ -5,7 +5,6 @@
 -}
 
 open import Haskell.Modules.RWS.RustAnyHow
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockRetriever     as BlockRetriever
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree          as BlockTree
@@ -15,8 +14,9 @@ import      LibraBFT.Impl.Consensus.PersistentLivenessStorage       as Persisten
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                             using (String)
 

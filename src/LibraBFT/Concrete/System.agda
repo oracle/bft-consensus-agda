@@ -5,17 +5,17 @@
 -}
 
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Base.KVMap
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
 open import Optics.All
+open import Util.Hash
+open import Util.KVMap
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open EpochConfig
@@ -26,8 +26,8 @@ open EpochConfig
 -- best place to start understanding this.  Longer term, we will also need
 -- higher-level, cross-epoch properties.
 
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
+open import Yasm.Base
+open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 module LibraBFT.Concrete.System where
 

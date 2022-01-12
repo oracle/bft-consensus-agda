@@ -4,13 +4,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap                 as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Crypto.Crypto.Hash    as Hash
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.KVMap                          as Map
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.BlockData where
 

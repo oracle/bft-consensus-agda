@@ -4,9 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.Prelude
+open import Util.Prelude
+open import Util.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open WithAbsVote

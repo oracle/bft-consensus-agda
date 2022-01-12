@@ -3,13 +3,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-2 as ECP-LBFT-OBM-Diff-2
 import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore    as LedgerStore
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
+open import Util.Types
 
 module LibraBFT.Impl.Storage.DiemDB.DiemDB where
 

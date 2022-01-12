@@ -6,8 +6,8 @@
 import      LibraBFT.Impl.Consensus.LedgerRecoveryData as LedgerRecoveryData
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                using (String)
 

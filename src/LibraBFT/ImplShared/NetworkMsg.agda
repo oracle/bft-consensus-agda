@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Encode
+open import Util.Hash
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 
 -- This module defines the types of messages that the implementation
 -- can send, along with properties defining ways in which votes can be

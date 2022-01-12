@@ -4,12 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
+open import Util.Types
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.VoteData where
 

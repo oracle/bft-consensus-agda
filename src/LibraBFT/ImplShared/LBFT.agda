@@ -13,9 +13,9 @@ open import Dijkstra.RWS
 open import Haskell.Modules.RWS public
 open import Haskell.Modules.RWS.Lens public
 open import Haskell.Modules.RWS.RustAnyHow
-open import LibraBFT.Prelude
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
+open import Util.Prelude
 
 ----------------
 -- LBFT Monad --

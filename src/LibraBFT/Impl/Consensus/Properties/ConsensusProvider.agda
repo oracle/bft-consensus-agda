@@ -1,5 +1,3 @@
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusProvider      as ConsensusProvider
 open import LibraBFT.Impl.Properties.Util
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
@@ -9,8 +7,10 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude                               hiding (_++_)
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude                                   hiding (_++_)
+open import Util.Types
 
 module LibraBFT.Impl.Consensus.Properties.ConsensusProvider where
 

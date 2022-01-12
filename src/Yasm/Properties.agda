@@ -4,23 +4,23 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
-import      LibraBFT.Yasm.Base   as LYB
-import      LibraBFT.Yasm.System as LYS
-import      LibraBFT.Yasm.Types  as LYT
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
+import      Yasm.Base   as YB
+import      Yasm.System as YS
+import      Yasm.Types  as YT
 
 -- This module provides some definitions and properties that facilitate
 -- proofs of properties about a distributed system modeled by Yasm.System
 -- paramaterized by some SystemParameters.
 
-module LibraBFT.Yasm.Properties
+module Yasm.Properties
    (ℓ-PeerState : Level)
    (ℓ-VSFP : Level)
-   (parms : LYB.SystemTypeParameters ℓ-PeerState)
-   (iiah  : LYB.SystemInitAndHandlers ℓ-PeerState parms)
+   (parms : YB.SystemTypeParameters ℓ-PeerState)
+   (iiah  : YB.SystemInitAndHandlers ℓ-PeerState parms)
    -- In addition to the parameters used by the rest of the system model, this module
    -- needs to relate Members to PKs and PeerIds, so that StepPeerState-AllValidParts
    -- can be defined.  This enables the application to prove that honest peers sign
@@ -30,14 +30,14 @@ module LibraBFT.Yasm.Properties
  -- satisfies: (i) the epoch field is consistent with the existent epochs and (ii) the verifier is
  -- a member of the associated epoch config, and (iii) has the given PK in that epoch.
 
-   (ValidSenderForPK        : LYS.WithInitAndHandlers.ValidSenderForPK-type ℓ-PeerState ℓ-VSFP parms iiah)
+   (ValidSenderForPK        : YS.WithInitAndHandlers.ValidSenderForPK-type ℓ-PeerState ℓ-VSFP parms iiah)
  -- A valid part remains valid across state transitions (including cheat steps)
-   (ValidSenderForPK-stable : LYS.WithInitAndHandlers.ValidSenderForPK-stable-type ℓ-PeerState ℓ-VSFP parms iiah ValidSenderForPK)
+   (ValidSenderForPK-stable : YS.WithInitAndHandlers.ValidSenderForPK-stable-type ℓ-PeerState ℓ-VSFP parms iiah ValidSenderForPK)
   where
- open LYB.SystemTypeParameters parms
- open LYB.SystemInitAndHandlers iiah
- open import LibraBFT.Yasm.Base
- open import LibraBFT.Yasm.System ℓ-PeerState ℓ-VSFP parms
+ open YB.SystemTypeParameters parms
+ open YB.SystemInitAndHandlers iiah
+ open import Yasm.Base
+ open import Yasm.System ℓ-PeerState ℓ-VSFP parms
  open WithInitAndHandlers iiah
  open import Util.FunctionOverride PeerId _≟PeerId_
 
@@ -67,7 +67,7 @@ module LibraBFT.Yasm.Properties
 
  ¬cheatForgeNew : ∀ {pid pk vsig st' outs m}{st : SystemState}
                 → (sp : StepPeer st pid st' outs)
-                → outs ≡ LYT.send m ∷ []
+                → outs ≡ YT.send m ∷ []
                 → (ic : isCheat sp)
                 → Meta-Honest-PK pk
                 → (mws : MsgWithSig∈ pk vsig ((pid , m) ∷ msgPool st))
@@ -120,7 +120,7 @@ module LibraBFT.Yasm.Properties
    → (r : ReachableSystemState st)
    → Meta-Honest-PK pk
    → (sps : StepPeerState α (msgPool st) (initialised st) (peerStates st α) (s , outs))
-   → LYT.send m ∈ outs → part ⊂MsgG m → (ver : WithVerSig pk part)
+   → YT.send m ∈ outs → part ⊂MsgG m → (ver : WithVerSig pk part)
    → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature ver))
      -- Note that we require that α can send for the PK according to the *post* state.  This allows
      -- sufficient generality to ensure that a peer can sign and send a message for an epoch even if
@@ -161,7 +161,7 @@ module LibraBFT.Yasm.Properties
  -- top of this module satisfies 'StepPeerState-AllValidParts', we can
  -- prove a number of useful structural properties:
 
- -- TODO-2: Refactor into a file (LibraBFT.Yasm.Properties.Structural) later on
+ -- TODO-2: Refactor into a file (Yasm.Properties.Structural) later on
  -- if this grows too large.
  module Structural (sps-avp      : StepPeerState-AllValidParts) where
      -- We can unwind the state and highlight the step where a part was
@@ -312,7 +312,7 @@ module LibraBFT.Yasm.Properties
                       → ¬ (∈BootstrapInfo bootstrapInfo (ver-signature sig))
                       → v ⊂MsgG m
                       → (sndr , m) ∈ msgPool (StepPeer-post {pre = st} (step-honest stP))
-                      → ( LYT.send m ∈ outs
+                      → ( YT.send m ∈ outs
                         × ValidSenderForPK (StepPeer-post {pre = st} (step-honest stP)) v pid pk
                         × ¬ (MsgWithSig∈ pk (ver-signature sig) (msgPool st)))
                         ⊎ MsgWithSig∈ pk (ver-signature sig) (msgPool st)

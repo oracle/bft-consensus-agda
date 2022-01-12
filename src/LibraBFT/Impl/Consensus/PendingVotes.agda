@@ -3,8 +3,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-import      LibraBFT.Base.KVMap                                       as Map
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote               as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.OBM.Rust.RustTypes
@@ -14,8 +12,10 @@ import      LibraBFT.Impl.Types.ValidatorVerifier                     as Validat
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+import      Util.KVMap                                                as Map
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.PendingVotes where
 

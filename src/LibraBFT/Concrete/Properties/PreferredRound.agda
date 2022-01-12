@@ -7,18 +7,18 @@
 open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Base.KVMap
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.Records as LCR
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Base
 open import Optics.All
+open import Util.KVMap
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Base
 
 open        EpochConfig
 
@@ -40,8 +40,8 @@ module LibraBFT.Concrete.Properties.PreferredRound (iiah : SystemInitAndHandlers
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
  open import LibraBFT.ImplShared.Util.HashCollisions iiah
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
  open import LibraBFT.Concrete.Properties.Common iiah 𝓔
+ open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
 
  open PerEpoch    𝓔
  open WithAbsVote 𝓔

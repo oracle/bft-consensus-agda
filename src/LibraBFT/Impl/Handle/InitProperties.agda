@@ -16,9 +16,9 @@ import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Types as LYT
 open import Optics.All
+open import Util.Prelude
+open import Yasm.Types as YT
 
 module LibraBFT.Impl.Handle.InitProperties where
 
@@ -109,7 +109,7 @@ module initHandlerSpec
   (bsi : BootstrapInfo)
   where
 
-  record ContractOk (rm : RoundManager) (acts : List (LYT.Action NetworkMsg)) : Set where
+  record ContractOk (rm : RoundManager) (acts : List (YT.Action NetworkMsg)) : Set where
     constructor mkContractOk
     field
       rmInv       : Util.Invariants.RoundManagerInv rm
@@ -119,7 +119,7 @@ module initHandlerSpec
       -- TODO-3: We will eventually need to know that our ValidatorSigner is for the correct peer,
       -- because it will be needed to prove impl-sps-avp : StepPeerState-AllValidParts
 
-  Contract : Maybe (RoundManager × List (LYT.Action NetworkMsg)) → Set
+  Contract : Maybe (RoundManager × List (YT.Action NetworkMsg)) → Set
   Contract nothing            = ⊤
   Contract (just (rm , acts)) = ContractOk rm acts
 

@@ -5,7 +5,6 @@
 -}
 
 open import Haskell.Modules.RWS.RustAnyHow
-open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -14,8 +13,9 @@ import      LibraBFT.Impl.Types.EpochChangeProof                    as EpochChan
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
+open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                            using (String)
 

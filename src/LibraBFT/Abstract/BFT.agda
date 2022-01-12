@@ -4,9 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
   -- This module provides a utility function to make it easy to
   -- provide the bft-lemma for implementations in which the

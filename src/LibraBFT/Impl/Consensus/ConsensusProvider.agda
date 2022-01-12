@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.EpochManager           as EpochManager
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage  as MockStorage
@@ -19,8 +17,10 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude                               hiding (_++_)
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude                                   hiding (_++_)
+open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                    using (String; _++_)
 

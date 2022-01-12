@@ -4,12 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.EpochManager
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BlockStoreProps
@@ -28,10 +25,13 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
+open import Util.ByteString
+open import Util.Hash
+open import Util.Lemmas
+open import Util.Prelude
+open import Util.Types
+open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 open OutputProps
 open Invariants

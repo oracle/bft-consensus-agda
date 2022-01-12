@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
-open import LibraBFT.Prelude
+open import Util.Encode
+open import Util.Hash
+open import Util.PKCS
+open import Util.Prelude
 
 -- The ground types that are common across Abstract, Concrete and Impl
 -- and some utility types
-module LibraBFT.Base.Types where
+module Util.Types where
 
   Epoch : Set
   Epoch = ℕ

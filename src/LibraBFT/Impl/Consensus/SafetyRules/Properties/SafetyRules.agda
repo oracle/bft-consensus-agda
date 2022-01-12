@@ -3,12 +3,7 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-open import Optics.All
-open import LibraBFT.Base.KVMap                               as Map
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert as QuorumCertProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
@@ -27,13 +22,18 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 import      LibraBFT.ImplShared.Util.Crypto                   as Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Optics.All
+open import Util.Hash
+open import Util.KVMap                                        as Map
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Util.Types
 
 open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.initAndHandlers
-                               PeerCanSignForPK PeerCanSignForPK-stable
+open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                      Handle.InitHandler.initAndHandlers
+                      PeerCanSignForPK PeerCanSignForPK-stable
 open Invariants
 open RoundManagerTransProps
 
@@ -170,7 +170,7 @@ module verifyEpochMSpec (epoch : Epoch) (safetyData : SafetyData) where
 module verifyAndUpdateLastVoteRoundMSpec (round : Round) (safetyData : SafetyData) where
   safetyData' = safetyData & sdLastVotedRound ∙~ round
   -- This example shows that we could have further simplified the proof of the
-  -- contract for `verifyEpochM`. In `LibraBFT.Prelude`, we define lemmas
+  -- contract for `verifyEpochM`. In `Util.Prelude`, we define lemmas
   -- > toWitnessT : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ true → P
   -- > toWitnessF : ∀{ℓ}{P : Set ℓ}{d : Dec P} → ⌊ d ⌋ ≡ false → ¬ P
   -- which extract the underlying proof used to construct `d` given evidence

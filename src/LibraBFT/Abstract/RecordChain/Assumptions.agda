@@ -5,8 +5,8 @@
 -}
 
 open import LibraBFT.Abstract.Types.EpochConfig
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Util.Lemmas
+open import Util.Prelude
 open        WithAbsVote
 
 -- Here we establish the properties necessary to achieve consensus

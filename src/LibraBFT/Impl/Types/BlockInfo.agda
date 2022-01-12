@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Crypto.Crypto.Hash               as Hash
 import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
+open import Util.Types
 
 module LibraBFT.Impl.Types.BlockInfo where
 

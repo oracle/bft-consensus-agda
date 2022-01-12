@@ -4,13 +4,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                  hiding (verify)
 import      LibraBFT.Impl.Types.EpochState      as EpochState
 import      LibraBFT.Impl.Types.Waypoint        as Waypoint
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
+open import Util.Encode
+open import Util.PKCS                           hiding (verify)
+open import Util.Prelude
+open import Util.Types
 
 module LibraBFT.Impl.Types.Verifier where
 

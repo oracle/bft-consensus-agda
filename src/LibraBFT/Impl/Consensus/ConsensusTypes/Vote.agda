@@ -4,15 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS                              hiding (verify)
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData as VoteData
 open import LibraBFT.Impl.OBM.Crypto                        hiding (verify)
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.ValidatorVerifier           as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.PKCS                                       hiding (verify)
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                     using (String)
 

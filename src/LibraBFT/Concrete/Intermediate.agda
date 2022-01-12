@@ -10,7 +10,7 @@
 -- closer to notions more directly provable for an implementation.
 
 open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open WithAbsVote
