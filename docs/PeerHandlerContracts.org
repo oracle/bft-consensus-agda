@@ -12,7 +12,7 @@
 * Structure of peer handler proofs
 
   In the Haskell prototype, peer handler code is written in
-  the =RWS= --- /reader, writer, state/ --- and =Either= monads.
+  the [[https://hackage.haskell.org/package/mtl-2.0.1.1/docs/Control-Monad-RWS-Lazy.html][RWS]] (/reader, writer, state/) and =Either= monads.
   Below we explain how we model and reason about this code in
   Agda.  We begin with the =RWS= monad.
 
@@ -74,20 +74,20 @@ RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
         #+end_src
 
   =RWS-PredTrans Ev Wr St A= is a predicate transformer that, given a post condition (a predicate over values returned
-  by =RWS-run=) computes a precondition (predicate over values passed to =RWS-run=).  We define =RWS-weakestPre= so that it
+  by =RWS-run=), computes a precondition (predicate over values passed to =RWS-run=).  We define =RWS-weakestPre= so that it
   computes the weakest precondition required to ensure that the post condition holds.  Thus, for a monadic program =m : RWS Ev Wr St A=,
   and a post condition =Q : (Wr St A : Set) -> Set=, proving =RWS-weakestPre m Q= holds for given =Ev= and =St= suffices to
   show that =Q= holds for the values returned by running =m= with that =Ev= and =St=.
 
   Phrasing properties about peer handlers as
-  preconditions in this way has a number of benefits, described below.
+  preconditions in this way has a number of benefits,  as described below.
 
-  Below we overview how we compute weakest preconditions, and then how we use them to reason about handlers.
+  Next, we overview how we compute weakest preconditions, and then how we use them to reason about handlers.
 
 *** Computing the weakest precondition
 
     From a peer handler =m= and postcondition =P= we compute (using a large
-    elimination) a precondition =RWS-weakestPre m P=.
+    elimination) a precondition =RWS-weakestPre m P=; a few examples are presented below.
 
     - This is easy to see for =RWS-pure=
 
@@ -160,7 +160,7 @@ RWS-weakestPre (RWS-maybe m f₁ f₂) P ev pre =
 
 *** Proving a contract from its weakest precondition
 
-    For the top-level peer handlers (process proposal, process vote), once we
+    For the top-level peer handlers (=processProposal=, =processVote=), once we
     have proven the weakest precondition for the desired postcondition, the next
     step is to use this to extract that post condition. This is done with
     =RWS-contract= below:
@@ -192,7 +192,7 @@ RWS-contract : (m : RWS Ev Wr St A) → RWS-Contract m
     There is an example of using =RWS-contract= (via ~LBFT-contract~, see below) in
     [[file:../src/LibraBFT/Impl/IO/OBM/Properties/InputOutputHandlers.agda]].
     (Note that `LBFT`, defined in
-    [[file: ../src/LibraBFT/ImplShared/LBFT.agda]]
+    [[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/ImplShared/LBFT.agda][file:../src/LibraBFT/ImplShared/LBFT.agda]]
     is `RWS` instantiated with the types used to express our Agda
     implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWS`
     definitions and proofs.)
