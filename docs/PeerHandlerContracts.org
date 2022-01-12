@@ -281,12 +281,25 @@ module ensureRoundAndSyncUpM
 ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     #+end_src
 
+    To facilitate proofs about branching code, we use special variants in place of =if=, =maybe= and
+    =either=.  For example, where the original Haskell code includes =if messageRound <
+    currentRound then ... else ...=, here we use =ifD messageRound <? currentRound then ... else ...=
+    This requires an instance of =MonadIfD=
+    ([[file:../src/LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]]) which provides a monad and a method (called =ifD‖_)= to
+    combine guarded conditionals for that monad; the usage in the =LBFT= monad above is enabled by the instance
+    =RWS-MonadIfD= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/ImplShared/Util/Dijkstra/RWS/Syntax.agda][file:../src/LibraBFT/ImplShared/Util/Dijkstra/RWS/Syntax.agda]]; recall that =LBFT= is just a
+    wrapper for =RWS= that does not use the =Ev= parameter).  This instance provides =RWS-if= for =ifD‖_=.  The syntax
+    for =ifD_the_else_= requires that the first argument can be converted to a =Bool=. =<?= is a decidable comparison
+    provided by the Agda Standard Library, and instance =ToBool-Dec= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Haskell/Modules/ToBool.agda][file:../src/Haskell/Modules/ToBool.agda]])
+    ensures that =messageRound <? currentRound= can be converted to a =Bool=.  All of this ensures that the =ifD= statement
+    is translated to =RWS-if=; we will see below how this aids proofs about this code.
+
     Generally speaking, it's good to choose the boundaries of these steps around
     any point that branches, and at any point where another function is called
     (such as =syncUpM=) so you can use the contract for that function to "move"
     to the next step. This is shown below for a part of the proof of the
     contract for =ensureRoundAndSyncUpM= (found in
-    [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
+    [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]).
 
 **** Standard setup for contracts
 
@@ -318,13 +331,27 @@ module ensureRoundAndSyncUpMSpec
         qcPost        : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
      #+end_src
 
-     From within this module, open the =ensureRoundAndSyncUpM= module and call
-     the property that we want to prove =Contract= --- from outside the module,
+     We first open the =ensureRoundAndSyncUpM= module so that we can access the individual steps.
+     We define the property we want to prove and call it =Contract= --- from outside the module,
      this is called =ensureRoundAndSyncUpMSpec.Contract=.
 
      The main proof effort is in showing the weakest precondition of =Contract=
      for =ensureRoundAndSyncUpM=. This is ~contract'​~ below, which we break up
-     into smaller pieces to discuss.
+     into smaller pieces to discuss.  Note that the proof is for an arbitrary =RoundManager= (=pre=),
+     provided by an inner module.  This means we are proving that, from /any/ pre-state,
+     =ensureRoundAndSyncUpM= ensures that =Contract= holds for the value returned, post-state computed,
+     and =Output=​s generated.
+
+     As =ensureRoundAndSyncUpM= is defined as =ensureRoundAndSyncUpM.step₀=, the proof is
+     for code that first extracts a =Round= from the pre-state (via =use=), binds the result
+     to =currentRound=, and then compares
+     =messageRound= to =currentRound= and executes the appropriate branch depending on the outcome.
+     As explained above, =ifD messageRound <? currentRound then ... else ..." is translated to
+     =RWS-if=.  The definition of =RWS-weakestPre= for =RWS-if= requires a pair of proofs, one for the
+     =then= case and one for the =else= case.  Below is the proof for the ~then~ branch (hence =proj₁=), which is a
+     non-error early exit.  The proof obligation is that, if the conditional evaluates to =true=, then
+     =pre= satisfies the weakest precondition of |Contract| for the =then= branch.  The second underscore is an anonymous proof that the
+     conditional evaluated to true (which is not needed for this proof).
 
     #+begin_src agda
     contract'
@@ -361,13 +388,8 @@ module ensureRoundAndSyncUpMSpec
        for more details about reading and managing the proof state when using
        the weakest precondition infrastructure.
 
-
-     After the bind, we have a conditional operation, so the goal becomes
-     showing a product of proofs --- one each for the ~then~ and ~else~
-     branches. The code listing above is for the ~then~ branch, which is a
-     non-error early exit. The second underscore is an anonymous proof that the
-     conditional evaluated to true (for safety, we do not need this evidence).
-
+     The first four fields of |Contract| are trivially satisfied because =step₀= (and therefore =ensureRoundAndSyncUpM=)
+     does not modify the state.
      The ~noOutQCs~ field requires us to prove that no output produced by =ensureRoundAndSyncUpM=
      contains a =NetworkMsg= that includes a =QC= (=QCProps.¬OutputQc=).  It is straightforward for
      the =then= branch because =ensureRoundAndSyncM= does not produce /any/ outputs in this case.
