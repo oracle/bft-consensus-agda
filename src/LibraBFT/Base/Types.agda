@@ -11,7 +11,7 @@ open import Util.Prelude
 
 -- The ground types that are common across Abstract, Concrete and Impl
 -- and some utility types
-module Util.Types where
+module LibraBFT.Base.Types where
 
   Epoch : Set
   Epoch = ℕ

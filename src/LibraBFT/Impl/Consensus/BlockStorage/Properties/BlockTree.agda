@@ -4,10 +4,11 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Impl.Consensus.BlockStorage.BlockTree
-open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
+open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
+open import LibraBFT.Impl.Consensus.BlockStorage.BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
+open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.Impl.OBM.Prelude
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
@@ -20,7 +21,6 @@ open import Util.Hash
 open import Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open QCProps
 open Invariants

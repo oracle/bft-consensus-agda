@@ -6,6 +6,7 @@
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
@@ -15,7 +16,6 @@ open import Util.KVMap                            as Map
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 

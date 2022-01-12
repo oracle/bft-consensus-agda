@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block              as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -12,7 +13,6 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import Optics.All
 open import Util.Hash
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                               using (String)
 

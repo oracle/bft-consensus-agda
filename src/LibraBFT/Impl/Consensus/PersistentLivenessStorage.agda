@@ -7,6 +7,7 @@
 open import Haskell.Modules.RWS
 open import Haskell.Modules.RWS.Lens
 open import Haskell.Modules.RWS.RustAnyHow
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage as MockStorage
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
@@ -14,7 +15,6 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.LBFT
 open import Optics.All
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                   using (String)
 

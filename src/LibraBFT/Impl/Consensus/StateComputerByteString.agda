@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.OBM.ConfigHardCoded                 as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.DiemDB               as DiemDB
@@ -14,7 +15,6 @@ open import Util.ByteString                                   as BS
 import      Util.Encode                                       as S
 open import Util.Hash
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                       using (String)
 

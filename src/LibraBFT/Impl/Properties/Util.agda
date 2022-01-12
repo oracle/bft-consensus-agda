@@ -7,6 +7,7 @@
 -- This module contains definitions of properties of only the behavior of the
 -- handlers, nothing concerning the system state.
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Block as Block
@@ -23,7 +24,6 @@ open import Util.KVMap                                   as Map
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId

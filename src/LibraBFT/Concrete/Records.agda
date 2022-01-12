@@ -6,9 +6,10 @@
 
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import LibraBFT.ImplShared.NetworkMsg
+open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Util.Crypto
 open import Optics.All
 open import Util.Hash
@@ -16,7 +17,6 @@ open import Util.KVMap
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        WithAbsVote

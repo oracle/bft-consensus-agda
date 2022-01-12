@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockData  as BlockData
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Types.BlockInfo                     as BlockInfo
@@ -16,7 +17,6 @@ open import Optics.All
 open import Util.Hash
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                       using (String)
 

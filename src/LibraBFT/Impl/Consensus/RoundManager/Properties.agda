@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -30,7 +31,6 @@ open import Util.ByteString
 open import Util.Hash
 open import Util.Lemmas
 open import Util.Prelude
-open import Util.Types
 open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 open OutputProps

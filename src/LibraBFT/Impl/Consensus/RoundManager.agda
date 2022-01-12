@@ -5,11 +5,12 @@
 -}
 
 ------------------------------------------------------------------------------
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore      as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.SyncManager     as SyncManager
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 import      LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo      as SyncInfo
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
 import      LibraBFT.Impl.Consensus.Liveness.ProposerElection    as ProposerElection
 import      LibraBFT.Impl.Consensus.Liveness.ProposalGenerator   as ProposalGenerator
 import      LibraBFT.Impl.Consensus.Liveness.RoundState          as RoundState
@@ -21,14 +22,13 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import Optics.All
 open import Util.ByteString
 open import Util.Hash
 import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 -----------------------------------------------------------------------------
 open import Data.String                                          using (String)
 ------------------------------------------------------------------------------

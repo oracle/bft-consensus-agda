@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree       as BlockTree
 import      LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote          as Vote
@@ -21,7 +22,6 @@ open import Util.Hash
 open import Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                          as String using (String)
 

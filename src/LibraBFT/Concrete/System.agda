@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -15,7 +16,6 @@ open import Util.KVMap
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open EpochConfig

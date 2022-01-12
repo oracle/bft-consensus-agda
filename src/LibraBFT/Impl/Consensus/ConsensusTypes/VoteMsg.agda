@@ -3,13 +3,14 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote as Vote
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import Optics.All
 open import Util.Prelude
-open import Util.Types
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg where
 

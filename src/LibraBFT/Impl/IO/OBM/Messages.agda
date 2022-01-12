@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                         using (String)
 

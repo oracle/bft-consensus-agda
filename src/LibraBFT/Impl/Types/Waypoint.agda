@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.Ledger2WaypointConverter as Ledger2WaypointConverter
 open import LibraBFT.ImplShared.Consensus.Types
@@ -11,7 +12,6 @@ import      LibraBFT.ImplShared.Util.Crypto              as Crypto
 open import Optics.All
 open import Util.Hash
 open import Util.Prelude
-open import Util.Types
 
 module LibraBFT.Impl.Types.Waypoint where
 

@@ -4,17 +4,18 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore            as BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockStore as BSprops
 open import LibraBFT.Impl.Consensus.EpochManager                       as EpochManager
+open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.MetricsSafetyRules                 as MetricsSafetyRules
 open import LibraBFT.Impl.Consensus.Properties.MetricsSafetyRules
-import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager     as SafetyRulesManager
 import      LibraBFT.Impl.Consensus.RoundManager                       as RoundManager
 open import LibraBFT.Impl.Consensus.RoundManager.Properties
-open import LibraBFT.Impl.Consensus.EpochManagerTypes
+import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager     as SafetyRulesManager
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
@@ -27,7 +28,6 @@ open import Util.Hash
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 open InitProofDefs

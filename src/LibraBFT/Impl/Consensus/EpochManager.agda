@@ -6,6 +6,7 @@
 -}
 
 open import Haskell.Modules.RWS
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore          as BlockStore
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.Liveness.ExponentialTimeInterval as ExponentialTimeInterval
@@ -30,7 +31,6 @@ open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import Optics.All
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 ------------------------------------------------------------------------------
 open import Data.String                                              using (String)
 

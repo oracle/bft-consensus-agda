@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Util.Types
 open import Util.Prelude
 import      Yasm.Base  as YB
 import      Yasm.Types as YT

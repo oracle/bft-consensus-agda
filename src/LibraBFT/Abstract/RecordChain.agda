@@ -5,9 +5,9 @@
 -}
 
 open import LibraBFT.Abstract.Types.EpochConfig
+open import LibraBFT.Base.Types
 open import Util.Lemmas
 open import Util.Prelude
-open import Util.Types
 open        WithAbsVote
 
 -- This module defines RecordChains and related types and utility definitions

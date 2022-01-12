@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.Network      as Network
 import      LibraBFT.Impl.Consensus.RoundManager as RoundManager
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -11,7 +12,6 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import Optics.All
 open import Util.Prelude
-open import Util.Types
 
 -- This module defines the handler for our implementation.  For most message types, it does some
 -- initial validation before passing the message on to the proper handlers.

@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Impl.Consensus.Liveness.ProposerElection
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
@@ -11,7 +12,6 @@ open import LibraBFT.ImplShared.LBFT
 open import Optics.All
 open import Util.Lemmas
 open import Util.Prelude
-open import Util.Types
 
 module LibraBFT.Impl.Consensus.Liveness.Properties.ProposerElection where
 

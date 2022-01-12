@@ -3,13 +3,15 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert as QuorumCertProps
+import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData   as VoteData
-import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
 open import LibraBFT.Impl.Consensus.SafetyRules.SafetyRules
 import      LibraBFT.Impl.Handle                              as Handle
 open import LibraBFT.Impl.Properties.Util
@@ -28,7 +30,6 @@ open import Util.KVMap                                        as Map
 open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 
 open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms

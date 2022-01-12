@@ -17,7 +17,7 @@ module LibraBFT.Abstract.Types.EpochConfig
   (NodeId : Set)
   where
 
-  open import Util.Types
+  open import LibraBFT.Base.Types
 
   ℓ-EC : Level
   ℓ-EC = ℓ+1 0ℓ

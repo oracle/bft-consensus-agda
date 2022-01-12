@@ -5,9 +5,9 @@
 -}
 
 open import LibraBFT.Abstract.Types.EpochConfig
+open import LibraBFT.Base.Types
 open import Util.Lemmas
 open import Util.Prelude
-open import Util.Types
 open        WithAbsVote
 
 -- This module defines abstract records (the initial or "genesis" record, blocks, and quorum

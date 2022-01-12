@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore         as BlockStore
 import      LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo         as SyncInfo
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Vote             as Vote
@@ -17,13 +18,12 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
+open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open import Optics.All
 open import Util.Hash
 open import Util.ByteString
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
-open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 ------------------------------------------------------------------------------
 open import Agda.Builtin.Float
 

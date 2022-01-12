@@ -6,7 +6,6 @@
 
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 import      Yasm.Base   as YB
 import      Yasm.System as YS
 

@@ -4,13 +4,13 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules as SafetyRules
 import      LibraBFT.Impl.Consensus.TestUtils.MockStorage   as MockStorage
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
 open import Optics.All
 open import Util.Prelude
-open import Util.Types
 
 module LibraBFT.Impl.Consensus.MetricsSafetyRules where
 

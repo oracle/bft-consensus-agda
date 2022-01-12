@@ -4,16 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.System.Parameters
-import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
+import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.Properties.Util
-open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
@@ -23,7 +24,6 @@ open import Util.Hash
 open import Util.KVMap                                        as Map
 open import Util.PKCS
 open import Util.Prelude
-open import Util.Types
 open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 open Invariants
