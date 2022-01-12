@@ -308,13 +308,14 @@ module ensureRoundAndSyncUpMSpec
       field
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
+        dnmBtIdToBlk  : post ≡L pre at (lBlockTree ∙ btIdToBlock)
         noEpochChange : NoEpochChange pre post
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost   : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
+        noOutQcs      : QCProps.¬OutputQc outs
+        qcPost        : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
      #+end_src
 
      From within this module, open the =ensureRoundAndSyncUpM= module and call
@@ -329,7 +330,7 @@ module ensureRoundAndSyncUpMSpec
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
     proj₁ (contract' ._ refl) _ =
-      mkContract id refl refl vng outqcs qcPost
+      mkContract id refl refl refl vng outqcs qcPost
       where
         vng : VoteNotGenerated pre pre true
         vng = mkVoteNotGenerated refl refl
