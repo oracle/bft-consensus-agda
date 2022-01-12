@@ -250,8 +250,11 @@ RWS-⇒
        that remains to execute, so save yourself some typing by using
        short names like =step3 <args>=.
 
-
-    Let's look at =ensureRoundAndSyncUpM= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/Impl/Consensus/RoundManager.agda][file:../src/LibraBFT/Impl/Consensus/RoundManager.agda]]) as an example.
+    Let's look at =ensureRoundAndSyncUpM= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/Impl/Consensus/RoundManager.agda][file:../src/LibraBFT/Impl/Consensus/RoundManager.agda]]) as
+    an example.  For demonstration purposes, we also include a version of this function called
+    =ensureRoundAndSyncUpM-orig=, which is not broken into steps, and closely mirrors the original
+    Haskell code.  The two versions are equivalent, as shown by the trivial proof
+    =ensureRoundAndSyncUp-≡= in [[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda][file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]].
 
     #+begin_src agda
 module ensureRoundAndSyncUpM
