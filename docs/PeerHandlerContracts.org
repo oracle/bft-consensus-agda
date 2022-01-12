@@ -191,10 +191,10 @@ RWS-contract : (m : RWS Ev Wr St A) → RWS-Contract m
 
     There is an example of using =RWS-contract= (via ~LBFT-contract~, see below) in
     [[file:../src/LibraBFT/Impl/IO/OBM/Properties/InputOutputHandlers.agda]].
-    (Note that `LBFT`, defined in
+    (Note that =LBFT=, defined in
     [[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/ImplShared/LBFT.agda][file:../src/LibraBFT/ImplShared/LBFT.agda]]
     is `RWS` instantiated with the types used to express our Agda
-    implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWS`
+    implementation of =LibraBFT=; for convenience, we often have =LBFT= variants of =RWS=
     definitions and proofs.)
 
 *** Postcondition implication
