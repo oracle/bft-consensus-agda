@@ -29,7 +29,7 @@ act : Output → LBFT Unit
 act x = tell (x ∷ [])
 
 LBFT-run : ∀ {A} → LBFT A → RoundManager → (A × RoundManager × List Output)
-LBFT-run m = runRWS m unit
+LBFT-run m = RWS-run m unit
 
 LBFT-result : ∀ {A} → LBFT A → RoundManager → A
 LBFT-result m rm = proj₁ (LBFT-run m rm)
