@@ -5,13 +5,13 @@
 -}
 
 open import LibraBFT.Base.Types
-import      LibraBFT.Impl.Execution.ExecutorTypes.StateComputeResult as StateComputeResult
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block             as Block
+import      LibraBFT.Impl.Execution.ExecutorTypes.StateComputeResult as StateComputeResult
 import      LibraBFT.Impl.OBM.Crypto                                 as Crypto
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock where
 

@@ -4,12 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Prelude
+open import Util.ByteString
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String using (String)
 
-module LibraBFT.Base.Encode where
+module Util.Encode where
 
  -- An encoder for values of type A is
  -- an injective mapping of 'A's into 'ByteString's

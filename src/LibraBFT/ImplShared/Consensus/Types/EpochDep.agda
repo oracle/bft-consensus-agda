@@ -3,17 +3,19 @@
    Copyright (c) 2020, 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
+
 {-# OPTIONS --allow-unsolved-metas #-}
+
 open import LibraBFT.Base.Types
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap                            as Map
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Encode
+open import Util.KVMap                            as Map
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 

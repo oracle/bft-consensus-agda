@@ -5,12 +5,12 @@
 -}
 
 open import LibraBFT.Abstract.Types.EpochConfig
+open import LibraBFT.Base.Types
 -- TODO-2: The following import should be eliminated and replaced
 -- with the necessary module parameters (PK and MetaHonestPK)
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Base.Types
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
 -- This module brings in the base types used through libra
 -- and those necessary for the abstract model.

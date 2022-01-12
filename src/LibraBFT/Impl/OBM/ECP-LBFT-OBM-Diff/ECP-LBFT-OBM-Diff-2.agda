@@ -6,7 +6,7 @@
 
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-0 as ECP-LBFT-OBM-Diff-0
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 module LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-2 where
 

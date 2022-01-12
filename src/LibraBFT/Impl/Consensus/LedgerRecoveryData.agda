@@ -5,13 +5,13 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block      as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert as QuorumCert
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.LedgerRecoveryData where
 

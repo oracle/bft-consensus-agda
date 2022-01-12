@@ -5,7 +5,6 @@
 -}
 
 open import Haskell.Modules.RWS.RustAnyHow
-import      LibraBFT.Base.KVMap                                   as Map
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval as BlockRetrieval
 import      LibraBFT.Impl.IO.OBM.ObmNeedFetch                     as ObmNeedFetch
 open import LibraBFT.Impl.OBM.Logging.Logging
@@ -13,8 +12,9 @@ open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                                            as Map
+open import Util.Prelude
 ------------------------------------------------------------------------------
 import      Data.String                                           as String
 

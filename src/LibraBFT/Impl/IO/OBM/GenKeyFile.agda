@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.OBM.Genesis                      as Genesis
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
@@ -16,7 +15,8 @@ import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
+open import Util.PKCS
+open import Util.Prelude
 
 module LibraBFT.Impl.IO.OBM.GenKeyFile where
 

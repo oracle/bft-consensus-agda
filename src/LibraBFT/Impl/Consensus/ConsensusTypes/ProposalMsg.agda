@@ -5,14 +5,14 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block              as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate as TimeoutCertificate
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                               using (String)
 

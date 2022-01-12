@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-import      LibraBFT.Base.KVMap                            as Map
-open import LibraBFT.Base.PKCS                             hiding (verify)
-import      LibraBFT.Impl.OBM.Crypto                       as Crypto
+import      LibraBFT.Impl.OBM.Crypto              as Crypto
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                            as Map
+open import Util.PKCS                             hiding (verify)
+open import Util.Prelude
 ------------------------------------------------------------------------------
-open import Data.String                                    using (String)
+open import Data.String                           using (String)
 
 module LibraBFT.Impl.Types.ValidatorVerifier where
 

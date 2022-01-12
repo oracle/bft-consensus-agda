@@ -4,10 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Types
-open import LibraBFT.Prelude
-import      LibraBFT.Yasm.Base  as LYB
-import      LibraBFT.Yasm.Types as LYT
+open import Util.Prelude
+import      Yasm.Base  as YB
+import      Yasm.Types as YT
 
 -- This module defines a model of a distributed system, parameterized by
 -- SystemParameters, which establishes various application-dependent types,
@@ -19,10 +18,10 @@ import      LibraBFT.Yasm.Types as LYT
 -- an "honest" public key.  The module also contains some structures for
 -- proving properties of executions of the modeled system.
 
-module LibraBFT.Yasm.System
+module Yasm.System
    (ℓ-PeerState : Level)
    (ℓ-VSFP      : Level)
-   (parms      : LYB.SystemTypeParameters ℓ-PeerState)
+   (parms      : YB.SystemTypeParameters ℓ-PeerState)
  where
 
  data InitStatus : Set where
@@ -33,34 +32,34 @@ module LibraBFT.Yasm.System
  uninitd≢initd : uninitd ≢ initd
  uninitd≢initd = λ ()
 
- open import LibraBFT.Yasm.Base
+ open import Yasm.Base
  open SystemTypeParameters parms
  open import Util.FunctionOverride PeerId _≟PeerId_
 
- open import LibraBFT.Base.PKCS
+ open import Util.PKCS
 
  SenderMsgPair : Set
  SenderMsgPair = PeerId × Msg
 
- actionToSMP : PeerId → LYT.Action Msg → Maybe SenderMsgPair
- actionToSMP pid (LYT.send m) = just (pid , m)
+ actionToSMP : PeerId → YT.Action Msg → Maybe SenderMsgPair
+ actionToSMP pid (YT.send m) = just (pid , m)
 
  SentMessages : Set
  SentMessages = List SenderMsgPair
 
  -- Convert the actions a peer `pid` took to a list of sent messages.
  -- Non-message actions are discarded.
- actionsToSentMessages : PeerId → List (LYT.Action Msg) → SentMessages
+ actionsToSentMessages : PeerId → List (YT.Action Msg) → SentMessages
  actionsToSentMessages pid = mapMaybe (actionToSMP pid)
 
  -- If the sender-message pair `(pid₁ , m)` is associated with the messages that
  -- were sent as a consequence of the actions `outs` of `pid₂`, then these two
  -- PIDs are equal and this peer performed a `send` action for that message.
- senderMsgPair∈⇒send∈ : ∀ {pid₁ pid₂ m} → (outs : List (LYT.Action Msg)) →
+ senderMsgPair∈⇒send∈ : ∀ {pid₁ pid₂ m} → (outs : List (YT.Action Msg)) →
        (pid₁ , m) ∈ (actionsToSentMessages pid₂ outs) →
-       (LYT.send m ∈ outs) × pid₁ ≡ pid₂
- senderMsgPair∈⇒send∈ (LYT.send m ∷ outs) (here refl) = (here refl , refl)
- senderMsgPair∈⇒send∈ (LYT.send m ∷ outs) (there pm∈)
+       (YT.send m ∈ outs) × pid₁ ≡ pid₂
+ senderMsgPair∈⇒send∈ (YT.send m ∷ outs) (here refl) = (here refl , refl)
+ senderMsgPair∈⇒send∈ (YT.send m ∷ outs) (there pm∈)
     with senderMsgPair∈⇒send∈ outs pm∈
  ...| m∈outs , refl = (there m∈outs) , refl
 
@@ -210,7 +209,7 @@ module LibraBFT.Yasm.System
    -- The pre and post states of Honest peers are related iff
    data StepPeerState (pid : PeerId)(pool : SentMessages)
                       (peerInits : PeerId → InitStatus) (ps : PeerState) :
-                      (PeerState × List (LYT.Action Msg)) → Set ℓ-PeerState where
+                      (PeerState × List (YT.Action Msg)) → Set ℓ-PeerState where
      -- An uninitialized peer can be initialized.  Note that initialiation step requires that the
      -- bootstrap function returns a just (i.e., initialisation succeeds).  In future, it may make
      -- sense to also model unsuccessful initialisation steps, which in principle could send
@@ -228,7 +227,7 @@ module LibraBFT.Yasm.System
                → StepPeerState pid pool peerInits ps (handle pid (proj₂ m) ps)
 
    -- The pre-state of the suplied PeerId is related to the post-state and list of output messages iff:
-   data StepPeer (pre : SystemState) : PeerId → PeerState → List (LYT.Action Msg) → Set ℓ-PeerState where
+   data StepPeer (pre : SystemState) : PeerId → PeerState → List (YT.Action Msg) → Set ℓ-PeerState where
      -- it can be obtained by a handle or init call.
      step-honest : ∀{pid st outs}
                  → StepPeerState pid (msgPool pre) (initialised pre) (peerStates pre pid) (st , outs)
@@ -240,7 +239,7 @@ module LibraBFT.Yasm.System
      -- handlers.
      step-cheat  : ∀{pid m}
                  → CheatMsgConstraint (msgPool pre) m
-                 → StepPeer pre pid (peerStates pre pid) (LYT.send m ∷ [])
+                 → StepPeer pre pid (peerStates pre pid) (YT.send m ∷ [])
 
    isCheat : ∀ {pre pid ms outs} → StepPeer pre pid ms outs → Set
    isCheat (step-honest _) = ⊥

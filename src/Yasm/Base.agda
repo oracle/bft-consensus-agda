@@ -4,12 +4,12 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Types
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Types
 
 -- This module defines the types used to define a SystemModel.
-module LibraBFT.Yasm.Base (ℓ-PeerState : Level) where
+module Yasm.Base (ℓ-PeerState : Level) where
  -- Our system is configured through a value of type
  -- SystemParameters where we specify:
  record SystemTypeParameters : Set (ℓ+1 ℓ-PeerState) where

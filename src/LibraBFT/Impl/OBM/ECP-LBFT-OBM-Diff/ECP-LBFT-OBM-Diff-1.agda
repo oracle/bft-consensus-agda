@@ -14,8 +14,8 @@ import      LibraBFT.Impl.Types.EpochChangeProof                    as EpochChan
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                            using (String)
 

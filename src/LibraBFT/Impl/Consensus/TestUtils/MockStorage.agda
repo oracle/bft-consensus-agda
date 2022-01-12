@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-import      LibraBFT.Base.KVMap                                  as Map
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.RecoveryData                 as RecoveryData
 import      LibraBFT.Impl.Consensus.TestUtils.MockSharedStorage  as MockSharedStorage
@@ -13,8 +12,9 @@ import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore as LedgerStore
 import      LibraBFT.Impl.Types.LedgerInfo                       as LedgerInfo
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                                           as Map
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                          using (String)
 

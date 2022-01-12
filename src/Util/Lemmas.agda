@@ -5,11 +5,11 @@
 -}
 
 open import Level using (0ℓ)
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 -- This module incldes various Agda lemmas that are independent of the project's domain
 
-module LibraBFT.Lemmas where
+module Util.Lemmas where
 
  cong₃ : ∀{a b c d}{A : Set a}{B : Set b}{C : Set c}{D : Set d}
        → (f : A → B → C → D) → ∀{x y u v m n} → x ≡ y → u ≡ v → m ≡ n

@@ -6,8 +6,8 @@
 
 open import LibraBFT.Abstract.Types
 open import LibraBFT.Abstract.Types.EpochConfig
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Util.Lemmas
+open import Util.Prelude
 open        WithAbsVote
 
 -- This module contains properties about RecordChains, culminating in

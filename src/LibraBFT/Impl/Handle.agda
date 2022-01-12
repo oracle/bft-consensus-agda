@@ -7,13 +7,8 @@
 open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap as KVMap
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
 import      LibraBFT.Impl.Consensus.Liveness.RoundState as RoundState
 import      LibraBFT.Impl.IO.OBM.GenKeyFile             as GenKeyFile
@@ -29,11 +24,16 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Base
-import      LibraBFT.Yasm.Types as LYT
 open import Optics.All
+open import Util.ByteString
+open import Util.Encode
+open import Util.Hash
+open import Util.KVMap as KVMap
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Base
+import      Yasm.Types as YT
 
 -- This module connects implementation handlers to the interface of the SystemModel.
 
@@ -46,11 +46,11 @@ open EpochConfig
 
 -- NOTE: The system layer only cares about this step function.
 -- 0 is given as a timestamp.
-peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (LYT.Action NetworkMsg)
+peerStep : NodeId → NetworkMsg → RoundManager → RoundManager × List (YT.Action NetworkMsg)
 peerStep nid msg st = runHandler st (handle nid msg 0)
  where
   -- This invokes an implementation handler.
-  runHandler : RoundManager → LBFT Unit → RoundManager × List (LYT.Action NetworkMsg)
+  runHandler : RoundManager → LBFT Unit → RoundManager × List (YT.Action NetworkMsg)
   runHandler st handler = ×-map₂ (outputsToActions {st}) (proj₂ (LBFT-run handler st))
 
 ------------------------------------------------------------------------------
@@ -284,7 +284,7 @@ module InitHandler where
           | initRMWithOutput≡  {bsi} {vs}
           | initRMWithOutput-ed-abs≡ = refl
 
-  initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (LYT.Action NetworkMsg))
+  initHandler : Author → BootstrapInfo → Maybe (RoundManager × List (YT.Action NetworkMsg))
   initHandler pid bsi =
    case ValidatorSigner.obmGetValidatorSigner pid (bsi ^∙ bsiVSS) of λ where
      (Left _)   → nothing

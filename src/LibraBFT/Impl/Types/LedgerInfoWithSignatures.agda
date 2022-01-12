@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-import      LibraBFT.Base.KVMap                   as Map
-open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.OBM.Crypto              as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Types.ValidatorVerifier as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                   as Map
+open import Util.PKCS
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.LedgerInfoWithSignatures where
 

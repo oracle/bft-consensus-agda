@@ -9,8 +9,8 @@ open import LibraBFT.Impl.OBM.Rust.Duration     as Duration
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.Liveness.ExponentialTimeInterval where
 

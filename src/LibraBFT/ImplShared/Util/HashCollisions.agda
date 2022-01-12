@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 open import Optics.All
+open import Util.ByteString
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Base
+open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 -- This module contains the machinery we use for tracking hash collisions for the hash function
 -- postulated in LibraBFT.ImplShared.Util.Crypto.  (Note that, although we call it sha256 to remind

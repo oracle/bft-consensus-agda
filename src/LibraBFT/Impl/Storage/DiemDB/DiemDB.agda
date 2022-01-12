@@ -8,8 +8,8 @@ import      LibraBFT.Impl.OBM.ECP-LBFT-OBM-Diff.ECP-LBFT-OBM-Diff-2 as ECP-LBFT-
 import      LibraBFT.Impl.Storage.DiemDB.LedgerStore.LedgerStore    as LedgerStore
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Storage.DiemDB.DiemDB where
 

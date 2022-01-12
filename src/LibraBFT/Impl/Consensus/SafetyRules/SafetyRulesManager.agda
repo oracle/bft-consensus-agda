@@ -5,12 +5,12 @@
 -}
 
 ------------------------------------------------------------------------------
-open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.Consensus.SafetyRules.PersistentSafetyStorage as PersistentSafetyStorage
 import      LibraBFT.Impl.Consensus.SafetyRules.SafetyRules             as SafetyRules
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude
 ------------------------------------------------------------------------------
 
 module LibraBFT.Impl.Consensus.SafetyRules.SafetyRulesManager where

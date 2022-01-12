@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+open import Util.ByteString
+open import Util.Encode
+open import Util.Prelude
+open import Util.Lemmas
 
 -- This module defines Hash functions, and related properties
 
-module LibraBFT.Hash where
+module Util.Hash where
 
  -------------------------------------------------
  -- Hash function postulates

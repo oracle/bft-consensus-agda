@@ -5,12 +5,12 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                  hiding (verify)
 import      LibraBFT.Impl.Types.EpochState      as EpochState
 import      LibraBFT.Impl.Types.Waypoint        as Waypoint
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
+open import Util.Encode
+open import Util.PKCS                           hiding (verify)
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.Verifier where
 

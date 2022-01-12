@@ -7,7 +7,7 @@
 import      LibraBFT.Impl.Types.BlockInfo             as BlockInfo
 import      LibraBFT.Impl.Crypto.Crypto.Hash          as Hash
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.LedgerInfo where
 

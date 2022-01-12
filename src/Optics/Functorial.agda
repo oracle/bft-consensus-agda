@@ -53,7 +53,7 @@ module Optics.Functorial where
   infixr 4 _∙~_
   _∙~_ = set
 
-  -- _|>_ is renamed to _&_ by LibraBFT.Prelude
+  -- _|>_ is renamed to _&_ by Util.Prelude
   set? : ∀{S A} → Lens S (Maybe A) → A → S → S
   set? l a s = s |> l ∙~ just a
 

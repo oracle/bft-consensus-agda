@@ -3,19 +3,19 @@
    Copyright (c) 2021, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
- 
+
 open import LibraBFT.Base.Types
-open import LibraBFT.Base.KVMap as Map
-open import LibraBFT.Hash
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Properties.VoteData as VoteDataProps
 import      LibraBFT.Impl.Consensus.ConsensusTypes.VoteData            as VoteData
+open import LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert          as QuorumCert
 import      LibraBFT.Impl.Types.LedgerInfoWithSignatures               as LedgerInfoWithSignatures
 import      LibraBFT.Impl.Types.Properties.LedgerInfoWithSignatures    as LedgerInfoWithSignaturesProps
-open import LibraBFT.Impl.Consensus.ConsensusTypes.QuorumCert          as QuorumCert
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.KVMap                                                 as Map
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.Properties.QuorumCert (self : QuorumCert) (vv : ValidatorVerifier) where
   voteHash = hashVD (self ^∙ qcVoteData)

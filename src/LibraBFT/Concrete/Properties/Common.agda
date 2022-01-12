@@ -8,17 +8,16 @@ open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        EpochConfig
-open import LibraBFT.Base.KVMap
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Base
 open import Optics.All
+open import Util.Hash
+open import Util.KVMap
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Base
 
 -- This module contains definitions and proofs used by both the VotesOnce and PreferredRoundRule
 -- proofs.
@@ -28,7 +27,7 @@ module LibraBFT.Concrete.Properties.Common (iiah : SystemInitAndHandlers ℓ-Rou
  open        SystemInitAndHandlers iiah
  open        ParamsWithInitAndHandlers iiah
  open import LibraBFT.ImplShared.Util.HashCollisions iiah
- open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
+ open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah PeerCanSignForPK PeerCanSignForPK-stable
 
  record VoteForRound∈ (pk : PK)(round : ℕ)(epoch : ℕ)(bId : HashValue)(pool : SentMessages) : Set where
    constructor mkVoteForRound∈

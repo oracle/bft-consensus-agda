@@ -6,8 +6,8 @@
 
 open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
+open import Util.Lemmas
+open import Util.Prelude
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        WithAbsVote

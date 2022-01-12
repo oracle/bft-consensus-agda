@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
@@ -25,9 +24,10 @@ open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
 open        ReachableSystemStateProps
 open import LibraBFT.Impl.Properties.Util
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
 open Invariants
 open RoundManagerTransProps
@@ -37,9 +37,9 @@ open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
 open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open import LibraBFT.ImplShared.Util.HashCollisions Handle.InitHandler.initAndHandlers
 
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.initAndHandlers
-                               PeerCanSignForPK PeerCanSignForPK-stable
+open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                      Handle.InitHandler.initAndHandlers
+                      PeerCanSignForPK PeerCanSignForPK-stable
 open        Structural impl-sps-avp
 open import LibraBFT.Impl.Handle.InitProperties
 open        initHandlerSpec

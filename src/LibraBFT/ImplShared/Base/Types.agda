@@ -5,8 +5,8 @@
 -}
 
 module LibraBFT.ImplShared.Base.Types where
-  open import LibraBFT.Prelude
-  open import LibraBFT.Hash
+  open import Util.Hash
+  open import Util.Prelude
 
   NodeId : Set
   NodeId = ℕ

@@ -4,11 +4,11 @@
 -}
 
 open import LibraBFT.Base.Types
-import      LibraBFT.Base.KVMap                 as Map
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types hiding (getEpoch)
-open import LibraBFT.Prelude
 open import Optics.All
+import      Util.KVMap                          as Map
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                         using (String)
 
