@@ -153,6 +153,26 @@ syncUpM = syncUpM.step₀
 
 ------------------------------------------------------------------------------
 
+-- This is the original ensureRoundAndSyncUpM function, closely mirroring the corresponding Haskell
+-- code (modulo some minor logging differences).  For proofs about it, we actually use the version
+-- in the module below, which is broken into steps for convenience (see
+-- docs/PeerHandlerContracts.org).  The two are equivalent, as shown by the trivial proof in
+-- ensureRoundAndSyncUpMSpec.ensureRoundAndSyncUp-≡.  This is for demonstration purposes; we
+-- generally consider it unnecessary to write the original code and prove it equivalent to the
+-- version that is broken down into steps because (with appropriate formatting and indenting), it is
+-- usually clear by inspection.
+ensureRoundAndSyncUpM' : Instant → Round → SyncInfo → Author → Bool → LBFT (Either ErrLog Bool)
+ensureRoundAndSyncUpM' now messageRound syncInfo author helpRemote = do
+    currentRound ← use (lRoundState ∙ rsCurrentRound)
+    ifD messageRound <? currentRound
+      then ok false
+      else do
+        syncUpM now syncInfo author helpRemote ∙?∙ λ _ → do
+          currentRound' ← use (lRoundState ∙ rsCurrentRound)
+          ifD messageRound /= currentRound'
+            then bail fakeErr -- error: after sync, round does not match local
+            else ok true
+
 module ensureRoundAndSyncUpM
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo) (author : Author) (helpRemote : Bool) where
   step₀ : LBFT (Either ErrLog Bool)

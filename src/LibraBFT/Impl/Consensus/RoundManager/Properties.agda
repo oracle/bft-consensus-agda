@@ -513,9 +513,15 @@ module syncUpMSpec
       LBFT-⇒ (syncUpM now syncInfo author _helpRemote) pre
         contract' pf
 
+
 module ensureRoundAndSyncUpMSpec
   (now : Instant) (messageRound : Round) (syncInfo : SyncInfo)
   (author : Author) (helpRemote : Bool) where
+
+  -- Trivial proof confirming that we did not change the function when
+  -- we broke it into steps.
+  ensureRoundAndSyncUp-≡ : ensureRoundAndSyncUpM' ≡ ensureRoundAndSyncUpM
+  ensureRoundAndSyncUp-≡ = refl
 
   open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
 
