@@ -303,10 +303,10 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     as close as possible to the original Haskell code we are modeling.
 
     We therefore use special variants in place of =if=, =maybe= and
-    =either=.  For example, where the original Haskell code includes =if messageRound <
+    =either=, which have a =D= suffix.  For example, where the original Haskell code includes =if messageRound <
     currentRound then ... else ...=, here we use =ifD messageRound <? currentRound then ... else ...=
     This requires an instance of =MonadIfD=
-    ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Dijkstra/Syntax.agda][file:../src/Dijkstra/Syntax.agda]]), which provides a monad and a method (called =ifD‖_)= to
+    ([[file:~/src/Dijkstra/Syntax.agda][file:../src/Dijkstra/Syntax.agda]]), which provides a monad and a method (called =ifD‖_)= to
     combine guarded conditionals for that monad.  This approach enables such usage in more general contexts,
     including =EitherD=, as explained later.  The usage in the =LBFT= monad above is enabled by the instance
     =RWS-MonadIfD= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Dijkstra/RWS/Syntax.agda][file:../src/Dijkstra/RWS/Syntax.agda]]; recall that =LBFT= is just a
