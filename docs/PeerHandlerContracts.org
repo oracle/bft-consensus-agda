@@ -513,8 +513,34 @@ module ensureRoundAndSyncUpMSpec
 
 ** Reasoning about programs in the =Either= monad
 
-  TODO: explain different approaches for syntax/semantics between =RWS= and =EitherD=.
-   
+  Our approach to reasoning about monadic code in the =Either= monad is similar to the
+  approach for =RWS=.  In particular, we define a special datatype =EitherD=
+  ([[file:../src/Dijkstra/EitherD.agda]]) with basic constructors as well as additional "convenience"
+  constructors to facilitate structuring proofs for conditional code, and we use the same instances
+  described above to enable use of =ifD=, =maybeD= and =eitherD=.
+
+  However, the way we express code in the =Either= monad and relate it to the weakest precondition
+  machinery is slightly differently.  In particular, because Agda
+  supports sum types that are isomorphic to =Either= (which is not the case for =RWS=), initially we simply
+  defined a monad instance for =Either A= for any type =A=, thus enabling the use of =do= notation within the =Either=
+  monad.  Subsequently, we realized that it would be beneficial to retain more structure for such code,
+  and to define weakest precondition machinery for it,
+  so that we could conveniently structure proofs for conditional code, similar to =RWS= above.
+  We therefore defined the special =EitherD= datatype ([[file:../src/Dijkstra/EitherD.agda]]), along with semantics
+  (=EitherD-run=), a definition of weakest precondition for code in =EitherD=, etc., similar to =RWS=.
+
+*** Connecting monadic code to =EitherD=
+
+    TODO: the rest of this section is historical and has all the =VariantFor= stuff, which seems to
+    entail too much overhead for the benefit it provides.  I suspect that this can be streamlined by
+    writing all code that is in the =Either= monad in Haskell in =EitherD=, and when we need to pattern
+    match on the result of such code, use =EitherD-run= to ensure that only =Left= and =Right= cases are
+    considered.  I am not sure about this, and I would like to get some feedback and discussion.  I
+    also think there are some useful lessons to be learned here, so it could be worth writing up the
+    various approaches and their pros and cons, even if we decide to streamline all of this into one
+    approach.  In any case, we have proofs that use various approaches, so we should keep documenting
+    all of the approaches unless and until we do so.
+
 *** =EitherLike=
 
    Peer handler code written in the =Either ErrLog= monad in Haskell is generally
@@ -534,14 +560,14 @@ module ensureRoundAndSyncUpMSpec
    With this and =MonadEitherD=, we can define operations for branching over
    anything that is =EitherLike=.
 
-**** =MonadEitherD= and =eitherSD=
+**** =MonadEitherD= and =eitherD=
 #+begin_src agda
 record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
-    eitherSD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
+    eitherD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
 
-open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
+open MonadEitherD ⦃ ... ⦄ public hiding (eitherD)
 #+end_src
 
      The Agda typeclass =MonadEitherD= enables us to give a single name for an
@@ -551,11 +577,12 @@ open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
      =EitherLike=.
 
 #+begin_src agda
-eitherSD
+eitherD
   : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄ →
     ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
-    ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
-eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) f₁ f₂
+    ∀ {E A B : Set ℓ₁} → (E → M B) → (A → M B) → EL E A → M B
+eitherD ⦃ med = med ⦄ f₁ f₂ e =
+  MonadEitherD.eitherD med f₁ f₂ (toEither e)
 #+end_src
 
 **** =EitherD= and monadic bind
@@ -576,7 +603,8 @@ eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) 
       and specifying one of them as the default, we can avoid repeating type
       signatures, and minimize explicit usage of variants (e.g., by adding ~.E~ or ~.D)~.
 
-      Here is an example for =insertQuorumCertE=.
+      Here is an example for =insertQuorumCertE= (note that =maybeSD= is a variant of
+      =maybeD= that has its arguments swapped; it is defined trivially in terms of =maybeD=).
 
         #+begin_src agda
 module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
