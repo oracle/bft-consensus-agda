@@ -4,7 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Encode                             as Encode
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.ConsensusTypes.Block     as Block
 import      LibraBFT.Impl.Consensus.ConsensusTypes.BlockData as BlockData
@@ -12,8 +11,9 @@ import      LibraBFT.Impl.Types.BlockInfo                    as BlockInfo
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Encode                                      as Encode
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.Liveness.ProposalGenerator where
 

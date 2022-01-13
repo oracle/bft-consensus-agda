@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS
-open import LibraBFT.Hash
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Encode
+open import Util.Hash
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
 -- This module postulates a collision-resistant cryptographic hash
 -- function (we call it sha256 for concreteness, but it could be any

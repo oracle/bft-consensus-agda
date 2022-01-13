@@ -8,8 +8,8 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.LedgerInfoWithSignatures as LIWS
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.EpochState where
 

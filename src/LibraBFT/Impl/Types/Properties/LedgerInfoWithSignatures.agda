@@ -5,13 +5,13 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Base.KVMap as Map
-open import LibraBFT.Hash
-import      LibraBFT.Impl.Types.LedgerInfoWithSignatures    as LedgerInfoWithSignatures
+import      LibraBFT.Impl.Types.LedgerInfoWithSignatures as LedgerInfoWithSignatures
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.KVMap as Map
+open import Util.Hash
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.Properties.LedgerInfoWithSignatures (self : LedgerInfoWithSignatures) (vv : ValidatorVerifier) where
 

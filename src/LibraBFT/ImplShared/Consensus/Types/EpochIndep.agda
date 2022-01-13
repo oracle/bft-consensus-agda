@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap              as Map
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 open import LibraBFT.Impl.OBM.Rust.Duration
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Base.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Encode
+open import Util.Hash
+open import Util.KVMap                        as Map
+open import Util.PKCS
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String using (String)
 

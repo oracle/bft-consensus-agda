@@ -13,8 +13,8 @@ open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.LBFT
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                   using (String)
 

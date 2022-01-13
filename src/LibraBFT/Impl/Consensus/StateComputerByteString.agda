@@ -4,17 +4,17 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString                          as BS
-import      LibraBFT.Base.Encode                              as S
 open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 import      LibraBFT.Impl.OBM.ConfigHardCoded                 as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Storage.DiemDB.DiemDB               as DiemDB
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet    as ValidatorSet
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString                                   as BS
+import      Util.Encode                                       as S
+open import Util.Hash
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                       using (String)
 

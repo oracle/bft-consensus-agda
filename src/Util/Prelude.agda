@@ -7,7 +7,7 @@
 -- This is a selection of useful functions and definitions
 -- from the standard library that we tend to use a lot.
 
-module LibraBFT.Prelude where
+module Util.Prelude where
 
   open import Haskell.Prelude public
   open import Dijkstra.All public

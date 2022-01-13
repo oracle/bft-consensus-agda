@@ -7,12 +7,12 @@
 -- This module defines Outputs produced by handlers, as well as functions and properties relating
 -- these to Yasm Actions.
 
-open import LibraBFT.Base.KVMap
 open import LibraBFT.ImplShared.NetworkMsg
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Types
 open import Optics.All
+open import Util.KVMap
+open import Util.Prelude
+open import Yasm.Types
 
 module LibraBFT.ImplShared.Interface.Output where
 

@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+open import Util.Lemmas
+open import Util.Prelude
 
 -- This module contains a model of a key-value store, along with its
 -- functionality and various properties about it.  Most of the properties
@@ -24,7 +24,7 @@ open import LibraBFT.Lemmas
 -- Note that this would require some work, but should be relatively
 -- straightforward and requires only "local" changes.
 
-module LibraBFT.Base.KVMap  where
+module Util.KVMap  where
 
  private
   variable

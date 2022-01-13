@@ -6,7 +6,7 @@
 
 open import LibraBFT.Impl.OBM.Rust.Duration as Duration
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 module LibraBFT.Impl.OBM.Time where
 

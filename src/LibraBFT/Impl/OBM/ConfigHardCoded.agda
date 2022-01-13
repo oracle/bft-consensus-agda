@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
 open import LibraBFT.Impl.OBM.Rust.RustTypes
+open import Util.ByteString
 
 module LibraBFT.Impl.OBM.ConfigHardCoded where
 

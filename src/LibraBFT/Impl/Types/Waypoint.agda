@@ -5,13 +5,13 @@
 -}
 
 open import LibraBFT.Base.Types
-open import LibraBFT.Hash
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.Ledger2WaypointConverter as Ledger2WaypointConverter
 open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.ImplShared.Util.Crypto              as Crypto
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Hash
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.Waypoint where
 

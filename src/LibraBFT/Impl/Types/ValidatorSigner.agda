@@ -4,11 +4,11 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.PKCS                  as PKCS hiding (sign)
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Encode
+open import Util.PKCS                            as PKCS hiding (sign)
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.ValidatorSigner where
 

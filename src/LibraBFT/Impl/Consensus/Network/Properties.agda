@@ -11,8 +11,8 @@ open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.NetworkMsg
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.Network.Properties where
 

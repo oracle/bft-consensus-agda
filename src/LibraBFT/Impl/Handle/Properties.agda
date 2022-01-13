@@ -10,14 +10,9 @@
 open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Base.KVMap
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.Records
 open import LibraBFT.Concrete.System
 open import LibraBFT.Concrete.System.Parameters
-open import LibraBFT.Hash
 open import LibraBFT.Impl.IO.OBM.InputOutputHandlers
 open import LibraBFT.Impl.IO.OBM.Properties.InputOutputHandlers
 open import LibraBFT.Impl.Properties.Util
@@ -26,9 +21,14 @@ open import LibraBFT.ImplShared.Consensus.Types.EpochDep
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Lemmas
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.ByteString
+open import Util.Encode
+open import Util.KVMap
+open import Util.Hash
+open import Util.Lemmas
+open import Util.PKCS
+open import Util.Prelude
 
 module LibraBFT.Impl.Handle.Properties where
 
@@ -38,9 +38,9 @@ open import LibraBFT.Impl.Handle.InitProperties
 open        initHandlerSpec
 open        ParamsWithInitAndHandlers Handle.InitHandler.initAndHandlers
 open        PeerCanSignForPK
-open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
-                               Handle.InitHandler.initAndHandlers
-                               PeerCanSignForPK PeerCanSignForPK-stable
+open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms
+                      Handle.InitHandler.initAndHandlers
+                      PeerCanSignForPK PeerCanSignForPK-stable
 open        Invariants
 open        RoundManagerTransProps
 

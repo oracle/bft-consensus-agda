@@ -7,12 +7,12 @@
 open import LibraBFT.ImplShared.Base.Types
 
 open import LibraBFT.Abstract.Types.EpochConfig UID NodeId
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
-open import LibraBFT.Prelude
-open import LibraBFT.Yasm.Base
+open import Util.PKCS
+open import Util.Prelude
+open import Yasm.Base
 
 -- This module collects in one place the obligations an
 -- implementation must meet in order to enjoy the properties
@@ -28,8 +28,8 @@ module LibraBFT.Concrete.Obligations (iiah : SystemInitAndHandlers ℓ-RoundMana
   open        SystemTypeParameters ConcSysParms
   open        SystemInitAndHandlers iiah
   open        ParamsWithInitAndHandlers iiah
-  open import LibraBFT.Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah
-                                 PeerCanSignForPK PeerCanSignForPK-stable
+  open import Yasm.Yasm ℓ-RoundManager ℓ-VSFP ConcSysParms iiah
+                        PeerCanSignForPK PeerCanSignForPK-stable
 
   record ImplObligations : Set (ℓ+1 ℓ-RoundManager) where
     field

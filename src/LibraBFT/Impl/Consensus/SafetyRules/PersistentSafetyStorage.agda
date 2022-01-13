@@ -5,12 +5,12 @@
 -}
 
 ------------------------------------------------------------------------------
-open import LibraBFT.Base.PKCS
 import      LibraBFT.Impl.OBM.Crypto            as TODO
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                         using (String)
 ------------------------------------------------------------------------------

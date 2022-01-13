@@ -7,8 +7,8 @@
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.ImplShared.Util.Crypto     as Crypto
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.Ledger2WaypointConverter where
 

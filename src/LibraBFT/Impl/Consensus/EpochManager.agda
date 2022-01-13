@@ -6,7 +6,6 @@
 -}
 
 open import Haskell.Modules.RWS
-open import LibraBFT.Base.PKCS
 open import LibraBFT.Base.Types
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockStore          as BlockStore
 open import LibraBFT.Impl.Consensus.EpochManagerTypes
@@ -29,8 +28,9 @@ open import LibraBFT.Impl.Types.Verifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Dijkstra.All
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.PKCS
+open import Util.Prelude
 ------------------------------------------------------------------------------
 open import Data.String                                              using (String)
 

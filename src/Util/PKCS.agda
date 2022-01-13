@@ -4,10 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.ByteString
-open import LibraBFT.Base.Encode
-open import LibraBFT.Prelude
-open import LibraBFT.Lemmas
+open import Util.ByteString
+open import Util.Encode
+open import Util.Lemmas
+open import Util.Prelude
 
 -- This module contains a model of cryptographic signatures on
 -- certain data structures, and creation and verification
@@ -19,7 +19,7 @@ open import LibraBFT.Lemmas
 -- contains some properties we have found useful in other
 -- contexts, though they are not yet used in this repo.
 
-module LibraBFT.Base.PKCS where
+module Util.PKCS where
 
  postulate -- valid assumption
    signature-size : ℕ

@@ -4,7 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 -- To enable reasoning about algorithms that concatenate
 -- ByteStrings and pass the result to a cryptographic hash
@@ -51,7 +51,7 @@ open import LibraBFT.Prelude
 -- > concat = serialize . toJSON
 --
 -- We take the second approach.
-module LibraBFT.Base.ByteString where
+module Util.ByteString where
 
   -- A BitString is a list of bits
   BitString : Set

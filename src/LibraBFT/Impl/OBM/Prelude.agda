@@ -4,8 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import LibraBFT.Base.KVMap as Map
-open import LibraBFT.Prelude
+open import Util.KVMap as Map
+open import Util.Prelude
 
 module LibraBFT.Impl.OBM.Prelude where
 

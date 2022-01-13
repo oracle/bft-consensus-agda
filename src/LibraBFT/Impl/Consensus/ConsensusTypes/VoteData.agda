@@ -8,8 +8,8 @@ open import LibraBFT.Base.Types
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.Impl.OBM.Logging.Logging
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.VoteData where
 

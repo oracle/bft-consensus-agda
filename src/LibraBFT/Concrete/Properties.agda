@@ -12,11 +12,11 @@ open import LibraBFT.Concrete.System.Parameters
 open import LibraBFT.Concrete.Obligations
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochDep
-open import LibraBFT.Prelude
+open import Util.Prelude
 
 open        EpochConfig
-open import LibraBFT.Yasm.Base
-open import LibraBFT.Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
+open import Yasm.Base
+open import Yasm.System ℓ-RoundManager ℓ-VSFP ConcSysParms
 
 -- In this module, we assume that the implementation meets its
 -- obligations, and use this assumption to prove that, in any reachable

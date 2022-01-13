@@ -10,8 +10,8 @@ import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.Types.BlockInfo where
 

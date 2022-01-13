@@ -11,8 +11,8 @@ import      LibraBFT.Impl.Types.ValidatorSigner            as ValidatorSigner
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
-open import LibraBFT.Prelude
 open import Optics.All
+open import Util.Prelude
 
 module LibraBFT.Impl.OBM.Genesis where
 
