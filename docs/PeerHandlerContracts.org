@@ -306,10 +306,10 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     =either=.  For example, where the original Haskell code includes =if messageRound <
     currentRound then ... else ...=, here we use =ifD messageRound <? currentRound then ... else ...=
     This requires an instance of =MonadIfD=
-    ([[file:../src/LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]]), which provides a monad and a method (called =ifD‖_)= to
+    ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Dijkstra/Syntax.agda][file:../src/Dijkstra/Syntax.agda]]), which provides a monad and a method (called =ifD‖_)= to
     combine guarded conditionals for that monad.  This approach enables such usage in more general contexts,
     including =EitherD=, as explained later.  The usage in the =LBFT= monad above is enabled by the instance
-    =RWS-MonadIfD= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/LibraBFT/ImplShared/Util/Dijkstra/RWS/Syntax.agda][file:../src/LibraBFT/ImplShared/Util/Dijkstra/RWS/Syntax.agda]]; recall that =LBFT= is just a
+    =RWS-MonadIfD= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Dijkstra/RWS/Syntax.agda][file:../src/Dijkstra/RWS/Syntax.agda]]; recall that =LBFT= is just a
     wrapper for =RWS= that does not use the =Ev= parameter).  This instance provides =RWS-if= for =ifD‖_=.  The syntax
     for =ifD_the_else_= requires that the first argument can be converted to a =Bool=. =<?= is a decidable comparison
     provided by the Agda Standard Library, and instance =ToBool-Dec= ([[file:~/Projects/olabs_blockchain/bft-consensus-agda/src/Haskell/Modules/ToBool.agda][file:../src/Haskell/Modules/ToBool.agda]])
