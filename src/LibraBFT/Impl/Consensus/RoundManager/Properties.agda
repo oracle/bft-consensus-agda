@@ -543,7 +543,7 @@ module ensureRoundAndSyncUpMSpec
 
     contract'
       : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
-    proj₁ (contract' ._ refl) _         =
+    proj₁ (contract' ._ refl) _mrnd<crnd  =
       mkContract id refl refl refl vng outqcs qcPost
       where
         vng : VoteNotGenerated pre pre true
@@ -555,7 +555,7 @@ module ensureRoundAndSyncUpMSpec
         qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
 
-    proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
+    proj₂ (contract' ._ refl) _mrnd≥crnd = contract-step₁
       where
       contract-step₁ : LBFT-weakestPre step₁ Contract pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pre Post contract-step₁'
