@@ -93,6 +93,10 @@ module Util.Lemmas where
      → All (¬_ ∘ P) xs
  noneOfKind⇒All¬ xs p none = ¬Any⇒All¬ xs (noneOfKind⇒¬Any xs p none)
 
+ ++-NoneOfKind : ∀ {ℓA} {A : Set ℓA} {ℓ} {P : A → Set ℓ} xs ys (p : (a : A) → Dec (P a))
+                 → NoneOfKind xs p → NoneOfKind ys p → NoneOfKind (xs ++ ys) p
+ ++-NoneOfKind xs ys p nok₁ nok₂ = filter-++-[] xs ys p nok₁ nok₂
+
  data All-vec {ℓ} {A : Set ℓ} (P : A → Set ℓ) : ∀ {n} → Vec {ℓ} A n → Set (Level.suc ℓ) where
    []  : All-vec P []
    _∷_ : ∀ {x n} {xs : Vec A n} (px : P x) (pxs : All-vec P xs) → All-vec P (x ∷ xs)

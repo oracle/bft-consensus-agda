@@ -471,7 +471,7 @@ module ensureRoundAndSyncUpMSpec
       We could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
       general, however, if we have two lists which have been proven to not contain a
       certain type of message (e.g., a vote), then we can use the lemma
-      =++-NoneOfKind= in [[file:../src/LibraBFT/Impl/Properties/Util.agda]]. For
+      =++-NoneOfKind= in [[file:../src/Util/Lemmas.agda]]. For
       readability, several instances of this lemma (such as =++-NoVotes=) are
       also defined.  Many other utility lemmas are also defined
       in [[file:../src/LibraBFT/Impl/Properties/Util.agda]] to help glue
