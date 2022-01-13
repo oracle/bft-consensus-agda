@@ -237,7 +237,7 @@ RWS-⇒
     contract Post pf = LBFT-⇒ ContractBaz Post pf baz pre contract'
     #+end_src
 
-** Peer handler proofs
+** Modeling Haskell code
 *** Breaking the peer handler down into smaller "steps"
 
     When beginning to prove a contract for a peer handler, it is often
@@ -296,10 +296,10 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
 
 *** Type classes for branching operations
 
-    Peer handler code written the =LBFT= monad uses
-    branching operations on variables of type Bool​, Maybe, or Either. To take
+    Peer handler code written the =LBFT= monad can use
+    branching operations on values of type Bool​, Maybe, or Either. To take
     advantage of the weakest precondition machinery in this context, we want to use the
-    constructors for the =RWS= datatype.  However, it is desirable to keep the code
+    "convenience" constructors for the =RWS= datatype.  However, it is desirable to keep the code
     as close as possible to the original Haskell code we are modeling.
 
     We therefore use special variants in place of =if=, =maybe= and
@@ -319,6 +319,7 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     Similarly to how =MonadIfD= enables use of =ifD= in place of =if= within monadic code, =MonadMaybeD= and =MonadEitherD= enable use
     of =maybeD= and =eitherD= in place of =maybe= and =either=, respectively.
 
+** Defining and proving contracts
 *** Standard setup for contracts
 
      For formulating and proving peer handler contracts, the preferred style is
@@ -352,6 +353,8 @@ module ensureRoundAndSyncUpMSpec
      We first open the =ensureRoundAndSyncUpM= module so that we can access the individual steps.
      Then we define the property we want to prove and call it =Contract= --- from outside the module,
      this is called =ensureRoundAndSyncUpMSpec.Contract=.
+
+*** Proving a contract
 
      The main proof effort is in showing the weakest precondition of =Contract=
      for =ensureRoundAndSyncUpM=. This is ~contract'​~ below, which we break up
