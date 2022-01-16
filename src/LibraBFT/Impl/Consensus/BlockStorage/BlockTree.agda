@@ -80,8 +80,8 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
 
-  -- TODO: break into smaller steps to take advantage of the EitherD-weakestpre machinery to prove
-  -- the contract.
+  -- TODO: break into smaller steps to enable explicitly naming and reasoning about smaller parts
+  step₀ : VariantFor EitherD
   step₀ = do
     let blockId = block ^∙ ebId
     caseMD btGetBlock blockId bt of λ where
@@ -105,7 +105,18 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
 -- code being modeled.  However, insertBlockESpec.Contract and the proof of
 -- executeAndInsertBlockESpec.contract' (which was written before EitherD
 -- support was developed) both want an Either variant, so they use
--- insertBlockE.E.  This demonstrates the flexibility of the VariantOf
+-- insertBlockE.E.
+
+-- When proving contracts about a function that is in Either, we would like the code to be in
+-- EitherD, so we can take advantage of the EitherD structure.  However, when we want to say
+-- something about the return value...
+-- what about pattern matching?  Am I correct
+-- EitherD-Post is defined in terms of Either, so we need contracts to be in terms of Either.
+-- The E version provides that so we can reason about it, and relate the D version to it easily
+
+
+
+-- This demonstrates the flexibility of the VariantOf
 -- approach, providing variants for any EitherLike, and means to convert
 -- between them easily.
 insertBlockE = insertBlockE.D
