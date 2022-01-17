@@ -153,21 +153,21 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
         contract₄ : EitherD-weakestPre (step₄ eb) Contract
         contract₄
            with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
-        ...| con
-           with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
-        ...| Left _ = tt
-        ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk IBE.blocks≈ btP bss≡x
+        ...| con = EitherD-⇒-bind (BlockTree.insertBlockE eb (bs0 ^∙ bsInner)) con con⇒bindPost
            where
-           module IBE = insertBlockESpec.ContractOk con
+             con⇒bindPost : ∀ r → insertBlockESpec.Contract eb (bs0 ^∙ bsInner) r → EitherD-weakestPre-bindPost _ Contract r
+             con⇒bindPost (Left _) _                       = tt
+             con⇒bindPost (Right (bt' , eb')) con' ._ refl = mkContractOk IBE.blocks≈ btP bss≡x
+               where
+                 module IBE = insertBlockESpec.ContractOk con'
 
-           open BlockStoreInv
+                 open BlockStoreInv
 
-           btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
-           btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
+                 btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
+                 btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
 
-           bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
-           bss≡x rewrite sym IBE.bt≡x = refl
+                 bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
+                 bss≡x rewrite sym IBE.bt≡x = refl
 
   contract : Contract (executeAndInsertBlockE bs0 block)
   contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'

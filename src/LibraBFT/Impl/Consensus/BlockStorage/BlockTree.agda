@@ -119,7 +119,11 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
 -- This demonstrates the flexibility of the VariantOf
 -- approach, providing variants for any EitherLike, and means to convert
 -- between them easily.
-insertBlockE = insertBlockE.D
+abstract
+  insertBlockE   = insertBlockE.step₀
+
+  insertBlockE-≡ : insertBlockE ≡ insertBlockE.step₀
+  insertBlockE-≡ = refl
 
 ------------------------------------------------------------------------------
 

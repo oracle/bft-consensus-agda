@@ -59,8 +59,12 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
             -- is called only when btGetBlock eb0Id bt ≡ nothing in LibraBFT
     contract' : EitherD-weakestPre (step₀ eb0 bt) Contract
 
-  contract : Contract (insertBlockE.E eb0 bt)
-  contract = EitherD-contract (step₀ eb0 bt) Contract contract'
+  contract : EitherD-weakestPre (insertBlockE eb0 bt) Contract
+  contract rewrite insertBlockE-≡ = contract'
+
+  -- A contract for the Either version (which is not used currently)
+  contract-E : Contract (insertBlockE.E eb0 bt)
+  contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
