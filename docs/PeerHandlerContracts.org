@@ -1,13 +1,21 @@
 #+TITLE: Formal verification of the LibraBFT consensus algorithm
 #+SUBTITLE: An overview of proving contracts for peer handlers
-#+AUTHOR: Chris Jenkins
-#+DATE: 2021 Aug 11
+#+AUTHOR: Chris Jenkins, Harold Carr, Mark Moir
+#+DATE: 2022 Jan 18
 
 * Metadata
 
   This file is current with respect to the following commit hash of the
   repository:
   - a1dfc584a278cf4ca024a0a5e0b150bd0669d2d7
+
+
+  Some defined Agda operations overlap with Org's markdown syntax (in
+  particular, the =++= operator and +strikethrough+).
+  To enable reading this document directly with Emacs, some zero-width spaces
+  have been introduced into code examples.
+  Therefore, if you wish to copy/paste code snippets, do so from the files that
+  are linked in the text.
 
 * Structure of peer handler proofs
 
@@ -49,14 +57,14 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   needed to support the desired functionality, and conveniences that enable us
   to define custom proof obligations for branching code.
 
-  We define a =Monad= instance =RWS-Monad= for =RWS Ev Wr St=, which defines the =_>>_= operator,
+  We define a =Monad= instance =RWS-Monad= for =RWS Ev Wr St= (which defines the =_>>_= operator),
   thus enabling the use of =do= notation within the =RWS= monad.  Standard =RWS= operations
   including =get=, =put=, =modify=, =ask= and =tell= are defined in terms of the constructors of =RWS=.
   Together, these enable the Agda implementation to closely mirror the corresponding Haskell code.
 
-  We assign semantics to an =RWS Ev Wr St= program returning =A= by defining a function =RWS-run= that takes such
-  a program, an environment (=Ev)= and a state (=St=)​, and returns a triple comprising a return value of type =A=​, a new state, and a
-  list of =Wr= values written by the program using =RWS-tell=​:
+  We assign operational semantics to an =RWS Ev Wr St= program returning =A= by defining a function =RWS-run= that takes such
+  a program, an environment (=Ev=) and a state (=St=)​, and returns a triple comprising a return value of type =A=​, a new state, and a
+  list of =Wr= values written by the program using =RWS-tell=​​:
 
         #+begin_src agda
 RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
@@ -73,7 +81,7 @@ RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
 RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
         #+end_src
 
-  =RWS-PredTrans Ev Wr St A= is a predicate transformer that, given a post condition (a predicate over values returned
+  =RWS-PredTrans Ev Wr St A= is the type of predicate transformers that, given a post condition (a predicate over values returned
   by =RWS-run=), computes a precondition (predicate over values passed to =RWS-run=).  We define =RWS-weakestPre= so that it
   computes the weakest precondition required to ensure that the post condition holds.  Thus, for a monadic program =m : RWS Ev Wr St A=,
   and a post condition =Q : (Wr St A : Set) -> Set=, proving =RWS-weakestPre m Q= holds for given =Ev= and =St= suffices to
@@ -404,7 +412,7 @@ module ensureRoundAndSyncUpMSpec
        rsCurrentRound)=). This is fine in this case; however, for alias
        variables generated from complex computations it is usually desirable to
        hold off on using case analysis on the equality proof, because this results
-       in substituting the entire expression into the goal.
+       in substituting the entire expression into the goal and context.
 
        You can see the private module =Tutorial= in
        [[file:../src/LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
@@ -459,10 +467,10 @@ module ensureRoundAndSyncUpMSpec
           where
           module SU = syncUpMSpec.Contract con
 
-          noVoteOuts' : NoVotes (outs ++ [])
+          noVoteOuts' : NoVotes (outs +​+ [])
           noVoteOuts' = ++-NoVotes outs [] SU.noVoteOuts refl
 
-          outqcs : QCProps.OutputQc∈RoundManager (outs ++ []) st
+          outqcs : QCProps.OutputQc∈RoundManager (outs +​+ []) st
           outqcs = QCProps.++-OutputQc∈RoundManager{rm = st} SU.outQcs∈RM
                      (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
 
@@ -501,7 +509,7 @@ module ensureRoundAndSyncUpMSpec
 
     - Similarly, =SU.noOutQcs= tells us that no =Outputs= from =syncUpM= contain quorum certificates,
       but our obligation is to show
-      that this property holds for =outs ++ []=. The lemma
+      that this property holds for =outs +​+ []=. The lemma
       =QCProps.++-¬OutputQc= lets us conclude that if this property
       holds for two lists, then it holds for their concatenation.
 
