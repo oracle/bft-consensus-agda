@@ -44,10 +44,18 @@ module addChild (lb : LinkableBlock) (hv : HashValue) where
   E : VariantFor Either
   E = toEither step₀
 
-  D : VariantFor EitherD
-  D = fromEither E
+abstract
+  addChild   = addChild.step₀
+  addChild-E = addChild.E
 
-addChild = addChild.D
+  addChild-≡ : addChild ≡ addChild.step₀
+  addChild-≡ = refl
+
+  addChild-≡-E : addChild-E ≡ addChild.E
+  addChild-≡-E = refl
+
+  addChild-≡-E1 : ∀ (lb : LinkableBlock) (hv : HashValue) → addChild-E lb hv ≡ EitherD-run (addChild lb hv)
+  addChild-≡-E1 lb hv = refl
 
 new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
     → Either ErrLog BlockTree
@@ -80,25 +88,29 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
 
-  -- TODO: break into smaller steps to enable explicitly naming and reasoning about smaller parts
   step₀ : VariantFor EitherD
+  step₁ : HashValue → VariantFor EitherD
+  step₂ : HashValue → LinkableBlock → VariantFor EitherD
+
   step₀ = do
     let blockId = block ^∙ ebId
     caseMD btGetBlock blockId bt of λ where
       (just existingBlock) → pure (bt , existingBlock)
-      nothing → caseMD btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+      nothing → step₁ blockId
+
+  step₁ blockId = do
+      caseMD btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
         nothing → LeftD fakeErr
-        (just parentBlock) → (do
+        (just parentBlock) → step₂ blockId parentBlock
+
+  step₂ blockId parentBlock = do
           parentBlock' ← addChild parentBlock blockId
           let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
           pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
-               , block))
+               , block)
 
-  E : VariantFor Either
-  E = toEither step₀
-
-  D : VariantFor EitherD
-  D = fromEither E
+--  E : VariantFor Either
+--  E = toEither step₀
 
 -- We make the EitherD variant the default, because the only call in code
 -- modeled is in EitherD, so it's nice to keep it exactly like the Haskell
@@ -124,6 +136,32 @@ abstract
 
   insertBlockE-≡ : insertBlockE ≡ insertBlockE.step₀
   insertBlockE-≡ = refl
+
+insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
+insertBlockE-original block bt = do
+  let blockId = block ^∙ ebId
+  case btGetBlock blockId bt of λ where
+    (just existingBlock) → pure (bt , existingBlock)
+    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+      nothing → Left fakeErr
+      (just parentBlock) → (do
+        parentBlock' ← addChild-E parentBlock blockId
+        let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+        pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+             , block))
+
+insertBlockE-original-≡ : ∀ {block bt}
+                          → insertBlockE-original block bt ≡ EitherD-run (insertBlockE block bt)
+insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
+   with btGetBlock (block ^∙ ebId) bt
+... | just _  = refl
+... | nothing
+   with  btGetLinkableBlock (block ^∙ ebParentId) bt
+... | nothing = refl
+... | just parentBlock rewrite addChild-≡-E1 parentBlock (block ^∙ ebId)
+   with EitherD-run (addChild parentBlock (block ^∙ ebId)) -- addChild.E parentBlock (block ^∙ ebId)
+... | Left  x = refl
+... | Right y = refl
 
 ------------------------------------------------------------------------------
 
