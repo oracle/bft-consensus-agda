@@ -298,7 +298,7 @@ insertSingleQuorumCertE bs qc =
              else (do
                     bs'           ← withErrCtx' (here' [])
                                       (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
-                    (bt , output) ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
+                    (bt , output) ← BlockTree.insertQuorumCertE.E qc (bs' ^∙ bsInner)
                     pure ((bs' & bsInner ∙~ bt) , output)))
  where
   here' : List String.String → List String.String
