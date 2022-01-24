@@ -84,6 +84,27 @@ replaceTimeoutCertM tc = do
 
 ------------------------------------------------------------------------------
 
+{- TUTORIAL: Specifying nontrivial functions in the Either monad
+
+  Our weakest precondition machinery for functions written in the =Either= monad is actually defined
+  for the EitherD monad.  This enables use of conditional branching constructors such as =EitherD-if=,
+  etc., which helps to structure proofs and make proof obligations clearer and more explicit.
+
+  Therefore, we need to write =EitherD= variants of functions for which we want these advantages.  To
+  further facilitate structuring proofs and naming parts of the function, we also break such
+  functions into steps, typiucally at conditional boundaries.  We usually find that the =EitherD= code
+  broken into steps is sufficiently clearly equivalent to the original Haskell code (in =Either=) that
+  we can simply use =toEither= to define an =Either= variant of an =EitherD= function, as seen below.
+
+  However, in some cases, it might require a little more thinking to be confident that the =Either=
+  variant obtained in this way is equivalent to the original Haskell code.  In such cases, we can
+  write an =Either= variant that is usually virtually identical to the original Haskell code, and
+  then prove that the =Either= variant derived from the =EitherD= one is equivalent to it.  The
+  equivalence of =insertBlockE.E= and =insertBlockE-original= below is fairly easily seen.  However,
+  for demonstration purposes, we prove them equivalent below (=insertBlockE-original-≡=).
+
+-}
+
 module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
@@ -109,34 +130,29 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
           pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
                , block)
 
---  E : VariantFor Either
---  E = toEither step₀
+  -- An equivalent Either variant, derived by simply using toEither, can serve several purposes.
+  -- One is for proving that the EitherD variant is equivalent to an Either variant written
+  -- explicitly in case the EitherD variant broken into steps is not obviously enough equivalent to
+  -- the original Haskell code on which it is based (see below).  Another is that, when pattern
+  -- matching on the results of calling a function in Either, we require the constructors of Either,
+  -- not of EitherD, so we can use the .E version; see insertQuorumCertE below.  Finally, for
+  -- proving properties about functions written in Either, we are interested in the results when
+  -- run, not in the structure of the functions (note that EitherD-Post is defined in terms of
+  -- Either), so we need contracts to be in terms of Either; see insertBlockESpec.contract-E.
 
--- We make the EitherD variant the default, because the only call in code
--- modeled is in EitherD, so it's nice to keep it exactly like the Haskell
--- code being modeled.  However, insertBlockESpec.Contract and the proof of
--- executeAndInsertBlockESpec.contract' (which was written before EitherD
--- support was developed) both want an Either variant, so they use
--- insertBlockE.E.
+  E : VariantFor Either
+  E = toEither step₀
 
--- When proving contracts about a function that is in Either, we would like the code to be in
--- EitherD, so we can take advantage of the EitherD structure.  However, when we want to say
--- something about the return value...
--- what about pattern matching?  Am I correct
--- EitherD-Post is defined in terms of Either, so we need contracts to be in terms of Either.
--- The E version provides that so we can reason about it, and relate the D version to it easily
-
-
-
--- This demonstrates the flexibility of the VariantOf
--- approach, providing variants for any EitherLike, and means to convert
--- between them easily.
+-- To avoid proof states being cluttered by premature expansion, we define and abstract variant,
+-- along with a proof that they are equivalent.  This way, insertBlockE is not expanded until we are
+-- ready, at which point we can use insertBlockE-≡ to rewrite; see insertBlockESpec.contract
 abstract
   insertBlockE   = insertBlockE.step₀
 
   insertBlockE-≡ : insertBlockE ≡ insertBlockE.step₀
   insertBlockE-≡ = refl
 
+-- An Either variant that is virtually identical to the original Haskell code
 insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
 insertBlockE-original block bt = do
   let blockId = block ^∙ ebId
@@ -150,6 +166,8 @@ insertBlockE-original block bt = do
         pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
 
+-- A proof that the EitherD variant defined above has the same behaviour as the Either variant that
+-- closely mirrors the original Haskell code
 insertBlockE-original-≡ : ∀ {block bt}
                           → insertBlockE-original block bt ≡ EitherD-run (insertBlockE block bt)
 insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
@@ -159,7 +177,7 @@ insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
    with  btGetLinkableBlock (block ^∙ ebParentId) bt
 ... | nothing = refl
 ... | just parentBlock rewrite addChild-≡-E1 parentBlock (block ^∙ ebId)
-   with EitherD-run (addChild parentBlock (block ^∙ ebId)) -- addChild.E parentBlock (block ^∙ ebId)
+   with EitherD-run (addChild parentBlock (block ^∙ ebId))
 ... | Left  x = refl
 ... | Right y = refl
 

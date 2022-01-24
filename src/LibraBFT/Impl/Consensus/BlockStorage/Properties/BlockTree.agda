@@ -62,7 +62,7 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
   contract : EitherD-weakestPre (insertBlockE eb0 bt) Contract
   contract rewrite insertBlockE-≡ = contract'
 
-  -- A contract for the Either version (which is not used currently)
+  -- A contract (not used yet) for the Either version
   contract-E : Contract (insertBlockE.E eb0 bt)
   contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
