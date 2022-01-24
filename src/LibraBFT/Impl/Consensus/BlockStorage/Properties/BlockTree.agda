@@ -71,7 +71,7 @@ module insertQuorumCertESpec
   open insertQuorumCertE qc bt0
 
   Ok : Set
-  Ok = ∃₂ λ bt1 il → insertQuorumCertE.E qc bt0 ≡ Right (bt1 , il)
+  Ok = ∃₂ λ bt1 il → insertQuorumCertE-Either qc bt0 ≡ Right (bt1 , il)
 
   private
     Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set

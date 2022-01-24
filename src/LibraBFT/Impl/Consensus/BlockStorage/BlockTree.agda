@@ -242,10 +242,15 @@ abstract
   insertQuorumCertE-≡ : insertQuorumCertE ≡ insertQuorumCertE.step₀
   insertQuorumCertE-≡ = refl
 
+  insertQuorumCertE-Either = insertQuorumCertE.E
+
+  insertQuorumCertE-Either-≡ : insertQuorumCertE-Either ≡ insertQuorumCertE.E
+  insertQuorumCertE-Either-≡ = refl
+
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
   bt ← use lBlockTree
-  case insertQuorumCertE.E qc bt of λ where  -- We use the .E variant to enable pattern matching on
+  case insertQuorumCertE-Either qc bt of λ where  -- We use the .E variant to enable pattern matching on
     (Left  e)   → logErr e                   -- results of type Either ErrLog (BlockTree × List InfoLog)
     (Right (bt' , info)) → do
       forM_ info logInfo
