@@ -71,7 +71,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
 
   ------   These are used only outside this module.  
   Ok : Set
-  Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
+  Ok = ∃₂ λ bs' eb → executeAndInsertBlockE-Either bs0 block ≡ Right (bs' , eb)
 
   open Reqs block (bs0 ^∙ bsInner)
 
@@ -169,8 +169,9 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
                  bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
                  bss≡x rewrite sym IBE.bt≡x = refl
 
-  contract : Contract (executeAndInsertBlockE bs0 block)
-  contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
+  contract : Contract (executeAndInsertBlockE-Either bs0 block)
+  contract rewrite executeAndInsertBlockE-Either-≡ =
+    EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
 
 module executeAndInsertBlockMSpec (vb : ValidBlock) where
   b = vbBlock vb

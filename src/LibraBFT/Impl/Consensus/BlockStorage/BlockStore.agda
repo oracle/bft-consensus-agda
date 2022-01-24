@@ -35,7 +35,12 @@ build
   → StateComputer → PersistentLivenessStorage → Usize
   → Either ErrLog BlockStore
 
-executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
+module executeAndInsertBlockE-Types where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
+
+executeAndInsertBlockE         : BlockStore → Block → executeAndInsertBlockE-Types.VariantFor EitherD
+executeAndInsertBlockE-Either  : BlockStore → Block → executeAndInsertBlockE-Types.VariantFor Either
 
 executeBlockE
   : BlockStore → Block
@@ -102,7 +107,7 @@ build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
                             rootBlock
                             (StateComputeResult∙new (stateComputer ^∙ scObmVersion) nothing)
   tree ← BlockTree.new executedRootBlock rootQc rootLi maxPrunedBlocksInMem highestTimeoutCert
-  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE bs b)
+  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE-Either bs b)
                  (BlockStore∙new tree stateComputer storage)
                  blocks
   (foldM) go bs1 quorumCerts
@@ -182,21 +187,18 @@ rebuildM root rootMetadata blocks quorumCerts = do
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
   bs ← use lBlockStore
-  case⊎D executeAndInsertBlockE bs b of λ where
+  case⊎D executeAndInsertBlockE-Either bs b of λ where
     (Left e) → bail e
     (Right (bs' , eb)) → do
       lBlockStore ∙= bs'
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
-  VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
-
-  continue step₁ : VariantFor EitherD
+  continue step₁ : executeAndInsertBlockE-Types.VariantFor EitherD
   continue = step₁
-  step₂ : ExecutedBlock → VariantFor EitherD
-  step₃ : ExecutedBlock → VariantFor EitherD
-  step₄ : ExecutedBlock → VariantFor EitherD
+  step₂ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
+  step₃ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
+  step₄ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
 
   step₀ =
     -- NOTE: if the hash is already in our blockstore, then HASH-COLLISION
@@ -244,13 +246,17 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
-  E : VariantFor Either
+  E : executeAndInsertBlockE-Types.VariantFor Either
   E = toEither step₀
 
-  D : VariantFor EitherD
-  D = fromEither E
+abstract
+  executeAndInsertBlockE = executeAndInsertBlockE.step₀
+  executeAndInsertBlockE-≡ : executeAndInsertBlockE ≡ executeAndInsertBlockE.step₀
+  executeAndInsertBlockE-≡ = refl
 
-executeAndInsertBlockE = executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either = executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either-≡ : executeAndInsertBlockE-Either ≡ executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either-≡ = refl
 
 module executeBlockE (bs : BlockStore) (block : Block) where
 
