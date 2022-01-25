@@ -587,7 +587,7 @@ data EitherD (E : Set) : Set → Set₁ where
 
   As with =RWS=, we define an instance =Monad-EitherD= of =Monad (EitherD E)= for any =E=,
   and instances ~EitherD-MonadIfD​~ , ~EitherD-MonadMaybeD~ and ~EitherD-MonadEitherD~
-  similar to those described above to enable use of =ifD=, =maybeD= and ~eitherD~​ , respectively.
+  similar to those described above to enable use of =ifD=, =maybeD= and =eitherD=​ , respectively.
 
   However, the way we express code in the =Either= monad and relate it to the weakest precondition
   machinery is slightly different.  In particular, because Agda
