@@ -570,8 +570,24 @@ module ensureRoundAndSyncUpMSpec
   Our approach to reasoning about monadic code in the =Either= monad is similar to the
   approach for =RWS=.  In particular, we define a special datatype =EitherD=
   ([[file:../src/Dijkstra/EitherD.agda]]) with basic constructors as well as additional "convenience"
-  constructors to facilitate structuring proofs for conditional code, and we use the same instances
-  described above to enable use of =ifD=, =maybeD= and =eitherD=.
+  constructors to facilitate structuring proofs for conditional code:
+
+    #+begin_src agda
+data EitherD (E : Set) : Set → Set₁ where
+  -- Primitive combinators
+  EitherD-return : ∀ {A} → A → EitherD E A
+  EitherD-bind   : ∀ {A B} → EitherD E A → (A → EitherD E B) → EitherD E B
+  EitherD-bail   : ∀ {A} → E → EitherD E A
+  -- Branching conditionals (used for creating more convenient contracts)
+  EitherD-if     : ∀ {A} → Guards (EitherD E A) → EitherD E A
+  EitherD-either : ∀ {A B C}
+                   → (B → EitherD E A) → (C → EitherD E A) → Either B C → EitherD E A
+  EitherD-maybe  : ∀ {A B} → EitherD E B → (A → EitherD E B) → Maybe A → EitherD E B
+    #+end_src
+
+  As with =RWS=, we define an instance =Monad-EitherD= of =Monad (EitherD E)= for any =E=,
+  and instances =EitherD-MonadIfD=​, =EitherD-MonadMaybeD=​, and ==EitherD-MonadEitherD=
+  similar to those described above to enable use of =ifD=, =maybeD= and =eitherD=​, respectively.
 
   However, the way we express code in the =Either= monad and relate it to the weakest precondition
   machinery is slightly different.  In particular, because Agda
