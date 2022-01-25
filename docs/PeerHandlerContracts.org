@@ -344,7 +344,7 @@ abstract
     The defintion of =ensureRoundAndSyncUpM.step₀= /is/ visible in other contexts, so we use the
     abstract =ensureRoundAndSyncUpM= when we do not yet wish to see its details, and then use
     =ensureRoundAndSyncUpM-≡= to translate properties about the detailed variant to properties about
-    the abstract equivalent.  For example, we prove =ensureRoundAndSyncUpM.contract′′= about
+    the abstract equivalent.  For example, we prove  ~ensureRoundAndSyncUpM.contract''​~ about
     =ensureRoundAndSyncUpM.step₀= (because the proof requires visibilty into the structure of the code)
     and then use =ensureRoundAndSyncUpM-≡= to transfer the property to
     =ensureRoundAndSyncUpM=.
