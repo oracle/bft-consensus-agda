@@ -64,7 +64,7 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
 
   We assign operational semantics to an =RWS Ev Wr St= program returning =A= by defining a function =RWS-run= that takes such
   a program, an environment (=Ev=) and a state (=St=)​, and returns a triple comprising a return value of type =A=, a new state, and a
-  list of =Wr= values written by the program using =RWS-tell=​ ​:
+  list of =Wr= values written by the program using =RWS-tell=:
 
         #+begin_src agda
 RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
