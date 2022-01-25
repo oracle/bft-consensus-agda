@@ -194,7 +194,10 @@ module ensureRoundAndSyncUpM
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
-ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
+abstract
+  ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
+  ensureRoundAndSyncUpM-≡ : ensureRoundAndSyncUpM ≡ ensureRoundAndSyncUpM.step₀
+  ensureRoundAndSyncUpM-≡ = refl
 
 ------------------------------------------------------------------------------
 
