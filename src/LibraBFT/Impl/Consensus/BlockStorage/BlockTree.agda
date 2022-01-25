@@ -86,25 +86,40 @@ replaceTimeoutCertM tc = do
 
 {- TUTORIAL: Specifying nontrivial functions in the Either monad
 
-  Our weakest precondition machinery for functions written in the =Either= monad is actually defined
-  for the EitherD monad.  This enables use of conditional branching constructors such as =EitherD-if=,
+  Our weakest precondition machinery for functions written in the Either monad is actually defined
+  for the EitherD monad.  This enables use of conditional branching constructors such as EitherD-if,
   etc., which helps to structure proofs and make proof obligations clearer and more explicit.
 
-  Therefore, we need to write =EitherD= variants of functions for which we want these advantages.  To
+  Therefore, we need to write EitherD variants of functions for which we want these advantages.  To
   further facilitate structuring proofs and naming parts of the function, we also break such
-  functions into steps, typiucally at conditional boundaries.  We usually find that the =EitherD= code
-  broken into steps is sufficiently clearly equivalent to the original Haskell code (in =Either=) that
-  we can simply use =toEither= to define an =Either= variant of an =EitherD= function, as seen below.
+  functions into steps, typiucally at conditional boundaries.  We usually find that the EitherD code
+  broken into steps is sufficiently clearly equivalent to the original Haskell code (in Either) that
+  we can simply use toEither to define an Either variant of an EitherD function, as seen below.
 
-  However, in some cases, it might require a little more thinking to be confident that the =Either=
+  However, in some cases, it might require a little more thinking to be confident that the Either
   variant obtained in this way is equivalent to the original Haskell code.  In such cases, we can
-  write an =Either= variant that is usually virtually identical to the original Haskell code, and
-  then prove that the =Either= variant derived from the =EitherD= one is equivalent to it.  The
-  equivalence of =insertBlockE.E= and =insertBlockE-original= below is fairly easily seen.  However,
-  for demonstration purposes, we prove them equivalent below (=insertBlockE-original-≡=).
+  write an Either variant that is usually virtually identical to the original Haskell code, and
+  then prove that the Either variant derived from the EitherD one is equivalent to it.  The
+  equivalence of insertBlockE.E and insertBlockE-original below is fairly easily seen.  However,
+  for demonstration purposes, we prove them equivalent (see insertBlockE-original-≡).
 
 -}
 
+-- An Either variant that is virtually identical to the original Haskell code
+insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
+insertBlockE-original block bt = do
+  let blockId = block ^∙ ebId
+  case btGetBlock blockId bt of λ where
+    (just existingBlock) → pure (bt , existingBlock)
+    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+      nothing → Left fakeErr
+      (just parentBlock) → (do
+        parentBlock' ← addChild-E parentBlock blockId
+        let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+        pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+             , block))
+
+-- An EitherD variant, broken into steps
 module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
@@ -151,35 +166,6 @@ abstract
 
   insertBlockE-≡ : insertBlockE ≡ insertBlockE.step₀
   insertBlockE-≡ = refl
-
--- An Either variant that is virtually identical to the original Haskell code
-insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
-insertBlockE-original block bt = do
-  let blockId = block ^∙ ebId
-  case btGetBlock blockId bt of λ where
-    (just existingBlock) → pure (bt , existingBlock)
-    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
-      nothing → Left fakeErr
-      (just parentBlock) → (do
-        parentBlock' ← addChild-E parentBlock blockId
-        let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
-        pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
-             , block))
-
--- A proof that the EitherD variant defined above has the same behaviour as the Either variant that
--- closely mirrors the original Haskell code
-insertBlockE-original-≡ : ∀ {block bt}
-                          → insertBlockE-original block bt ≡ EitherD-run (insertBlockE block bt)
-insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
-   with btGetBlock (block ^∙ ebId) bt
-... | just _  = refl
-... | nothing
-   with  btGetLinkableBlock (block ^∙ ebParentId) bt
-... | nothing = refl
-... | just parentBlock rewrite addChild-≡-E1 parentBlock (block ^∙ ebId)
-   with EitherD-run (addChild parentBlock (block ^∙ ebId))
-... | Left  x = refl
-... | Right y = refl
 
 ------------------------------------------------------------------------------
 

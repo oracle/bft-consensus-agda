@@ -30,6 +30,24 @@ module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
   eb0Id = eb0 ^∙ ebId
 
+  -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
+  -- Either variant that closely mirrors the original Haskell code.  The proof is not trivially
+  -- achieved by `refl`, as is the case for some similar situations (e.g.,
+  -- ensureRoundAndSyncUpM-original-≡) because Agda does not know that we need to perform case
+  -- analysis on the result of runnning addChild.
+  insertBlockE-original-≡ : ∀ {block bt}
+                            → insertBlockE-original block bt ≡ EitherD-run (insertBlockE block bt)
+  insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
+     with btGetBlock (block ^∙ ebId) bt
+  ... | just _  = refl
+  ... | nothing
+     with btGetLinkableBlock (block ^∙ ebParentId) bt
+  ... | nothing = refl
+  ... | just parentBlock rewrite addChild-≡-E1 parentBlock (block ^∙ ebId)
+     with EitherD-run (addChild parentBlock (block ^∙ ebId))
+  ... | Left  x = refl
+  ... | Right y = refl
+
   open Reqs (eb0 ^∙ ebBlock) bt
 
   -- This is not quite right.  It does not yet account for the updating of the parent Block

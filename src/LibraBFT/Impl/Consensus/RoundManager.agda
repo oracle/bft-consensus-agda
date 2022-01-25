@@ -161,8 +161,8 @@ syncUpM = syncUpM.step₀
 -- generally consider it unnecessary to write the original code and prove it equivalent to the
 -- version that is broken down into steps because (with appropriate formatting and indenting), it is
 -- usually clear by inspection.
-ensureRoundAndSyncUpM-orig : Instant → Round → SyncInfo → Author → Bool → LBFT (Either ErrLog Bool)
-ensureRoundAndSyncUpM-orig now messageRound syncInfo author helpRemote = do
+ensureRoundAndSyncUpM-original : Instant → Round → SyncInfo → Author → Bool → LBFT (Either ErrLog Bool)
+ensureRoundAndSyncUpM-original now messageRound syncInfo author helpRemote = do
     currentRound ← use (lRoundState ∙ rsCurrentRound)
     ifD messageRound <? currentRound
       then ok false

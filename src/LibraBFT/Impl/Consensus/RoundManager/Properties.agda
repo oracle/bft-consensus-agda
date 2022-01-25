@@ -520,7 +520,7 @@ module ensureRoundAndSyncUpMSpec
 
   -- Trivial proof confirming that we did not change the function when
   -- we broke it into steps.
-  ensureRoundAndSyncUpM-original-≡ : ensureRoundAndSyncUpM ≡ ensureRoundAndSyncUpM-orig
+  ensureRoundAndSyncUpM-original-≡ : ensureRoundAndSyncUpM ≡ ensureRoundAndSyncUpM-original
   ensureRoundAndSyncUpM-original-≡ rewrite ensureRoundAndSyncUpM-≡ = refl
 
   open ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote
