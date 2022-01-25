@@ -7,7 +7,7 @@
 
   This file is current with respect to the following commit hash of the
   repository:
-  - a1dfc584a278cf4ca024a0a5e0b150bd0669d2d7
+  - *TODO*: update
 
 
   Some defined Agda operations overlap with Org's markdown syntax (in
@@ -97,7 +97,7 @@ RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
     From a peer handler =m= and postcondition =P= we compute (using a large
     elimination) a precondition =RWS-weakestPre m P=; a few examples are presented below.
 
-    - This is easy to see for =RWS-pure=
+    - This is easy to see for =RWS-return=
 
         #+begin_src agda
 RWS-weakestPre (RWS-return x) P ev pre = P x pre []
@@ -262,7 +262,9 @@ RWS-⇒
     an example.  For demonstration purposes, we also include a version of this function called
     =ensureRoundAndSyncUpM-orig=, which is not broken into steps, and closely mirrors the original
     Haskell code.  The two versions are equivalent, as shown by the trivial proof
-    =ensureRoundAndSyncUp-≡-original= in [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]].
+    =ensureRoundAndSyncUp-≡-original= in [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]
+    (while such proofs are usually straightforward, they are not always so trivial; see the
+    =insertBlockE= example discussed below).
 
     #+begin_src agda
 module ensureRoundAndSyncUpM
@@ -305,7 +307,7 @@ abstract
 
 *** Type classes for branching operations
 
-    Peer handler code written the =LBFT= monad can use
+    Peer handler code written in the =LBFT= monad can use
     branching operations on values of type Bool​, Maybe, or Either. To take
     advantage of the weakest precondition machinery in this context, we want to use the
     "convenience" constructors for the =RWS= datatype.  However, it is desirable to keep the code
@@ -327,7 +329,8 @@ abstract
     are defined in terms of this, such as =whenD= and =ifMD=.
 
     Similarly to how =MonadIfD= enables use of =ifD= in place of =if= within monadic code, =MonadMaybeD= and =MonadEitherD= enable use
-    of =maybeD= and =eitherD= in place of =maybe= and =either=, respectively.  We present the definition of =MonadEitherD= and elaborate
+    of =maybeD= and =eitherD= in place of =maybe= and =either=, respectively; these also enable syntax for =case=-like constructs
+    on return values of these types.  We present the definition of =MonadEitherD= and elaborate
     further on the =Either= case below.
 
 *** Using =abstract= blocks
