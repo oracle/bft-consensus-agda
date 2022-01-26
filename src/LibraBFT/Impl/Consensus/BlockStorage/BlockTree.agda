@@ -158,9 +158,9 @@ module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
   E : VariantFor Either
   E = toEither step₀
 
--- To avoid proof states being cluttered by premature expansion, we define and abstract variant,
+-- To avoid proof states being cluttered by premature expansion, we define an abstract variant,
 -- along with a proof that they are equivalent.  This way, insertBlockE is not expanded until we are
--- ready, at which point we can use insertBlockE-≡ to rewrite; see insertBlockESpec.contract
+-- ready, at which point we can use insertBlockE-≡ to rewrite; see insertBlockESpec.contract.
 abstract
   insertBlockE   = insertBlockE.step₀
 
