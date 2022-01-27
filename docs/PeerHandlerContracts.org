@@ -341,11 +341,11 @@ abstract
     to reduce this is by using Agda's =abstract= blocks, which prevent Agda from
     unrolling a definition beyond that block.  The above code for =ensureRoundAndSyncUpM= illustrates this.
 
-    The defintion of =ensureRoundAndSyncUpM.step₀= /is/ visible in other contexts, so we use the
+    The definition of =ensureRoundAndSyncUpM.step₀= /is/ visible in other contexts, so we use the
     abstract =ensureRoundAndSyncUpM= when we do not yet wish to see its details, and then use
     =ensureRoundAndSyncUpM-≡= to translate properties about the detailed variant to properties about
     the abstract equivalent.  For example, we prove  ~ensureRoundAndSyncUpM.contract''​~ about
-    =ensureRoundAndSyncUpM.step₀= (because the proof requires visibilty into the structure of the code)
+    =ensureRoundAndSyncUpM.step₀= (because the proof requires visibility into the structure of the code)
     and then use =ensureRoundAndSyncUpM-≡= to transfer the property to
     =ensureRoundAndSyncUpM=.
 
@@ -430,6 +430,24 @@ module ensureRoundAndSyncUpMSpec
      conditional evaluated to =true= (it is not needed for this proof, and could be replaced by an
      underscore; the name is included only for clarity in this explanation).
 
+    - *ASIDE:* Though the proof of the contract for =ensureRoundAndSyncUpM= does
+      not use =_mrnd<crnd=, many proofs require converting evidence that a
+      boolean conditional is =true= to a proof that some (=Set=-valued)
+      predicate holds.
+      This is achieved with the utility function =toWitnessT= (defined in
+      [[file:../src/Util/Prelude.agda][Util.Prelude]]).
+      For example, =_mrnd<crnd== has type
+      #+begin_src agda
+⌊ (messageRound <? (pre ^∙ (lRoundState ∙ rsCurrentRound))) ⌋ ≡ true
+      #+end_src
+      To recover the /proposition/ that =messageRound= is less than the current
+      round, write =toWitnessT _mrnd<crnd=, which has type
+      #+begin_src agda
+messageRound < (pre ^∙ (lRoundState ∙ rsCurrentRound))
+      #+end_src
+      =toWitnessT= is only usable this way when the boolean condition comes from
+      lowering a =Dec= to a bool.
+      
     #+begin_src agda
     contract''
       : LBFT-weakestPre (ensureRoundAndSyncUpM.step₀ now messageRound syncInfo author helpRemote) Contract pre
@@ -465,8 +483,9 @@ module ensureRoundAndSyncUpMSpec
        for more details about reading and managing the proof state when using
        the weakest precondition infrastructure.
 
-     The first four fields of =Contract= are trivially satisfied in this case because =step₀= (and therefore =ensureRoundAndSyncUpM=)
-     does not modify the state when taking the =then= branch.
+     The first four fields of =Contract= are trivially satisfied in this case
+     because =step₀= (and therefore =ensureRoundAndSyncUpM=) does not modify the
+     state when taking the =then= branch.
      The ~noOutQCs~ field requires us to prove that no =Output= produced by =ensureRoundAndSyncUpM=
      contains a =NetworkMsg= that includes a =QC= (=QCProps.¬OutputQc=).  It is straightforward for
      the =then= branch because =ensureRoundAndSyncM= does not produce /any/ outputs in this case.
