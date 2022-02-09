@@ -81,6 +81,9 @@ EitherD-weakestPre-bindPost f P (Left x) =
 EitherD-weakestPre-bindPost f P (Right y) =
   ∀ c → c ≡ y → EitherD-weakestPre (f c) P
 
+-- For any post contition P and EitherD program m, if
+-- EitherD-weakestPre m P holds, then P holds of the result
+-- of running m.
 EitherD-Contract : (m : EitherD E A) → Set₁
 EitherD-Contract{E}{A} m =
   (P : EitherD-Post E A)
@@ -112,6 +115,43 @@ EitherD-contract (EitherD-maybe f₁ f₂ nothing) P wp =
   EitherD-contract f₁ P (proj₁ wp refl)
 EitherD-contract (EitherD-maybe f₁ f₂ (just x)) P wp =
   EitherD-contract (f₂ x) P (proj₂ wp x refl)
+
+-- If P holds of the result of running m, then EitherD-weakestPre m P
+-- holds.  This shows that EitherD-weakestPre really does compute the
+-- weakest precondition, which is interesting and comforting, but not
+-- important for the correctness of results proved using it.
+-- Chris said: EitherD-weakestPre m P is a terminal object in the
+-- (provability) category of preconditions for P
+-- Mark agreed :-)
+Post⇒wp : (m : EitherD E A) → Set₁
+Post⇒wp {E}{A} m =
+  (P : EitherD-Post E A)
+  → P (EitherD-run m)
+  → EitherD-weakestPre m P
+
+EitherD-wp-is-weakest : (m : EitherD E A) → Post⇒wp m
+EitherD-wp-is-weakest (RightD _) P = id
+EitherD-wp-is-weakest (EitherD-bind m f) P Pr
+  with EitherD-wp-is-weakest m
+...| rec
+  with EitherD-run m
+... | Left  _ = rec _ Pr
+... | Right y =  rec _ λ where c refl → EitherD-wp-is-weakest (f y) _ Pr
+EitherD-wp-is-weakest (LeftD _) _ = id
+EitherD-wp-is-weakest (EitherD-if gs) P Prun =
+  EitherD-contract-if gs P Prun
+  where
+  EitherD-contract-if : (gs : Guards (EitherD E A)) → Post⇒wp (EitherD-if gs)
+  EitherD-contract-if (otherwise≔ m) P Prun = EitherD-wp-is-weakest m P Prun
+  EitherD-contract-if (clause (b ≔ c) gs') P Prun
+    with toBool b
+  ... | false = (λ ()) , (λ _ → EitherD-contract-if gs' _ Prun)
+  ... | true  = (λ _ → EitherD-wp-is-weakest c P Prun) , (λ ())
+
+EitherD-wp-is-weakest (EitherD-either f _ (Left  x)) P Prun = (λ where _ refl → EitherD-wp-is-weakest (f x) P Prun) , (λ _ ())
+EitherD-wp-is-weakest (EitherD-either _ f (Right y)) P Prun = (λ _ ()) , (λ where _ refl → EitherD-wp-is-weakest (f y) P Prun)
+EitherD-wp-is-weakest (EitherD-maybe m f nothing)    P Prun = (const (EitherD-wp-is-weakest m P Prun)) , (λ _ ())
+EitherD-wp-is-weakest (EitherD-maybe m f (just j))   P Prun = (λ ()) , λ where _ refl → EitherD-wp-is-weakest (f j) P Prun
 
 EitherD-⇒
   : ∀ {E A} {P Q : EitherD-Post E A}
