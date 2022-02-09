@@ -76,10 +76,6 @@ module OutputProps where
     OneVote : VoteMsg → List Author → Set
     OneVote vm pids = List-filter isSendVote? outs ≡ (SendVote vm pids ∷ [])
 
-  ++-NoneOfKind : ∀ {ℓ} {P : Output → Set ℓ} xs ys (p : (out : Output) → Dec (P out))
-                  → NoneOfKind xs p → NoneOfKind ys p → NoneOfKind (xs ++ ys) p
-  ++-NoneOfKind xs ys p nok₁ nok₂ = filter-++-[] xs ys p nok₁ nok₂
-
   ++-NoMsgs      = λ xs ys → ++-NoneOfKind xs ys isOutputMsg?
   ++-NoVotes     = λ xs ys → ++-NoneOfKind xs ys isSendVote?
   ++-NoProposals = λ xs ys → ++-NoneOfKind xs ys isBroadcastProposal?

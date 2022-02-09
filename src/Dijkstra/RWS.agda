@@ -98,7 +98,7 @@ RWS-weakestPre-bindPost ev f Post x post outs =
 -- The post condition `P` holds for `m` with environment `ev` and prestate `pre`
 RWS-Post-True : (P : RWS-Post Wr St A) (m : RWS Ev Wr St A) (ev : Ev) (pre : St) → Set
 RWS-Post-True P m ev pre =
-  let (x , post , outs) = runRWS m ev pre in
+  let (x , post , outs) = RWS-run m ev pre in
   P x post outs
 
 -- For every RWS computation `m`, `RWS-Contract m` is the type of proofs that,
@@ -121,7 +121,7 @@ RWS-contract (RWS-return x₁) P ev pre wp = wp
 RWS-contract (RWS-bind m f) P ev pre wp
    with RWS-contract m _ ev pre wp
 ...| con
-   with runRWS m ev pre
+   with RWS-run m ev pre
 ...| x₁ , st₁ , outs₁ =
   RWS-contract (f x₁) _ ev st₁ (con x₁ refl)
 RWS-contract (RWS-gets f) P ev pre wp = wp
@@ -144,7 +144,7 @@ RWS-contract (RWS-either f₁ f₂ (Right y)) P ev pre (wp₁ , wp₂) =
 RWS-contract (RWS-ebind m f) P ev pre wp
    with RWS-contract m _ ev pre wp
 ...| con
-   with runRWS m ev pre
+   with RWS-run m ev pre
 ... | Left x , st₁ , outs₁ = con
 ... | Right y , st₁ , outs₁ = RWS-contract (f y) _ ev st₁ (con y refl)
 RWS-contract (RWS-maybe f₁ f₂ nothing) P ev pre (wp₁ , wp₂)

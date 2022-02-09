@@ -73,37 +73,37 @@ void m = do
 
 -- To execute an RWS program, you provide an environment and prestate.
 -- This produces a result value, poststate, and list of outputs.
-runRWS : RWS Ev Wr St A → Ev → St → A × St × List Wr
-runRWS (RWS-return x)               ev st = x , st , []
-runRWS (RWS-bind m f)               ev st
-   with runRWS m ev st
+RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
+RWS-run (RWS-return x)               ev st = x , st , []
+RWS-run (RWS-bind m f)               ev st
+   with RWS-run m ev st
 ...| x₁ , st₁ , outs₁
-   with runRWS (f x₁) ev st₁
-...| x₂ , st₂ , outs₂                     = x₂ , st₂ , outs₁ ++ outs₂
-runRWS (RWS-gets f)                 ev st = f st , st , []
-runRWS (RWS-put st)                 ev _  = unit , st , []
-runRWS RWS-ask                      ev st = ev , st , []
-runRWS (RWS-tell outs)              ev st = unit , st , outs
-runRWS (RWS-if (clause (b ≔ c) gs)) ev st =
-  if toBool b then runRWS c ev st else runRWS (RWS-if gs) ev st
-runRWS (RWS-if (otherwise≔ c))      ev st = runRWS c ev st
-runRWS (RWS-either f₁ f₂ (Left x) ) ev st = runRWS (f₁ x) ev st
-runRWS (RWS-either f₁ f₂ (Right y)) ev st = runRWS (f₂ y) ev st
-runRWS (RWS-ebind m f)              ev st
-   with runRWS m ev st
+   with RWS-run (f x₁) ev st₁
+...| x₂ , st₂ , outs₂                      = x₂ , st₂ , outs₁ ++ outs₂
+RWS-run (RWS-gets f)                 ev st = f st , st , []
+RWS-run (RWS-put st)                 ev _  = unit , st , []
+RWS-run RWS-ask                      ev st = ev , st , []
+RWS-run (RWS-tell outs)              ev st = unit , st , outs
+RWS-run (RWS-if (clause (b ≔ c) gs)) ev st =
+  if toBool b then RWS-run c ev st else RWS-run (RWS-if gs) ev st
+RWS-run (RWS-if (otherwise≔ c))      ev st = RWS-run c ev st
+RWS-run (RWS-either f₁ f₂ (Left x) ) ev st = RWS-run (f₁ x) ev st
+RWS-run (RWS-either f₁ f₂ (Right y)) ev st = RWS-run (f₂ y) ev st
+RWS-run (RWS-ebind m f)              ev st
+   with RWS-run m ev st
 ...| Left  c , st₁ , outs₁ = Left c , st₁ , outs₁
 ...| Right a , st₁ , outs₁
-   with runRWS (f a) ev st₁
-...|       r , st₂ , outs₂                = r , st₂ , outs₁ ++ outs₂
-runRWS (RWS-maybe f₁ f₂ nothing )   ev st = runRWS f₁ ev st
-runRWS (RWS-maybe f₁ f₂ (just x))   ev st = runRWS (f₂ x) ev st
+   with RWS-run (f a) ev st₁
+...|       r , st₂ , outs₂                 = r , st₂ , outs₁ ++ outs₂
+RWS-run (RWS-maybe f₁ f₂ nothing )   ev st = RWS-run f₁ ev st
+RWS-run (RWS-maybe f₁ f₂ (just x))   ev st = RWS-run (f₂ x) ev st
 
 -- Accessors for the result, poststate, and outputs.
 RWS-result : RWS Ev Wr St A → Ev → St → A
-RWS-result m ev st =      fst (runRWS m ev st)
+RWS-result m ev st =      fst (RWS-run m ev st)
 
 RWS-post   : RWS Ev Wr St A → Ev → St → St
-RWS-post   m ev st = fst (snd (runRWS m ev st))
+RWS-post   m ev st = fst (snd (RWS-run m ev st))
 
 RWS-outs   : RWS Ev Wr St A → Ev → St → List Wr
-RWS-outs   m ev st = snd (snd (runRWS m ev st))
+RWS-outs   m ev st = snd (snd (RWS-run m ev st))
