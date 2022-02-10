@@ -35,15 +35,20 @@ build
   → StateComputer → PersistentLivenessStorage → Usize
   → Either ErrLog BlockStore
 
-executeAndInsertBlockE  : BlockStore → Block → Either  ErrLog (BlockStore × ExecutedBlock)
+module executeAndInsertBlockE-Types where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
+
+executeAndInsertBlockE         : BlockStore → Block → executeAndInsertBlockE-Types.VariantFor EitherD
+executeAndInsertBlockE-Either  : BlockStore → Block → executeAndInsertBlockE-Types.VariantFor Either
 
 executeBlockE
   : BlockStore → Block
-  → Either ErrLog ExecutedBlock
-
-executeBlockE₀
-  : BlockStore → Block
   → EitherD ErrLog ExecutedBlock
+
+executeBlockE-Either
+  : BlockStore → Block
+  → Either ErrLog ExecutedBlock
 
 getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
@@ -102,7 +107,7 @@ build root _rootRootMetadata blocks quorumCerts highestTimeoutCert
                             rootBlock
                             (StateComputeResult∙new (stateComputer ^∙ scObmVersion) nothing)
   tree ← BlockTree.new executedRootBlock rootQc rootLi maxPrunedBlocksInMem highestTimeoutCert
-  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE bs b)
+  bs1  ← (foldM) (λ bs b → fst <$> executeAndInsertBlockE-Either bs b)
                  (BlockStore∙new tree stateComputer storage)
                  blocks
   (foldM) go bs1 quorumCerts
@@ -182,21 +187,21 @@ rebuildM root rootMetadata blocks quorumCerts = do
 executeAndInsertBlockM : Block → LBFT (Either ErrLog ExecutedBlock)
 executeAndInsertBlockM b = do
   bs ← use lBlockStore
-  case⊎D executeAndInsertBlockE bs b of λ where
+  case⊎D executeAndInsertBlockE-Either bs b of λ where
     (Left e) → bail e
     (Right (bs' , eb)) → do
       lBlockStore ∙= bs'
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
-  VariantFor EL = EL ErrLog (BlockStore × ExecutedBlock)
-
-  continue step₁ : VariantFor EitherD
+  module VF where
+    open executeAndInsertBlockE-Types public
+  continue step₁ : VF.VariantFor EitherD
   continue = step₁
-  step₂ : ExecutedBlock → VariantFor EitherD
-  step₃ : ExecutedBlock → VariantFor EitherD
-  step₄ : ExecutedBlock → VariantFor EitherD
+
+  step₂ : ExecutedBlock → VF.VariantFor EitherD
+  step₃ : ExecutedBlock → VF.VariantFor EitherD
+  step₄ : ExecutedBlock → VF.VariantFor EitherD
 
   step₀ =
     -- NOTE: if the hash is already in our blockstore, then HASH-COLLISION
@@ -216,7 +221,7 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
       else step₂ bsr
 
   step₂ _ = do
-        eb ← case⊎D executeBlockE bs0 block of λ where
+        eb ← case⊎D (executeBlockE-Either bs0 block) of λ where
           (Right res) → RightD res
           -- OBM-LBFT-DIFF : This is never thrown in OBM.
           -- It is thrown by StateComputer in Rust (but not in OBM).
@@ -227,9 +232,9 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
               -- need to change to some sort of 'fold' because 'executeBlockE'
               -- would change the state, so the state passed to 'executeBlockE'
               -- would no longer be 'bs0'.
-              case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+              case⊎D (forM) blocksToReexecute (executeBlockE-Either bs0 ∘ (_^∙ ebBlock)) of λ where
                 (Left  e) → LeftD e
-                (Right _) → executeBlockE₀ bs0 block
+                (Right _) → executeBlockE bs0 block
           (Left err) → LeftD err
         step₃ eb
 
@@ -244,30 +249,47 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
-  E : VariantFor Either
+  E : VF.VariantFor Either
   E = toEither step₀
 
-  D : VariantFor EitherD
-  D = fromEither E
+abstract
+  executeAndInsertBlockE = executeAndInsertBlockE.step₀
+  executeAndInsertBlockE-≡ : executeAndInsertBlockE ≡ executeAndInsertBlockE.step₀
+  executeAndInsertBlockE-≡ = refl
 
-executeAndInsertBlockE = executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either = executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either-≡ : executeAndInsertBlockE-Either ≡ executeAndInsertBlockE.E
+  executeAndInsertBlockE-Either-≡ = refl
 
 module executeBlockE (bs : BlockStore) (block : Block) where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog ExecutedBlock
 
+  step₀ : VariantFor EitherD
   step₀ = do
     case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
-      (Left e)                   → Left fakeErr -- (here' e)
+      (Left e)                   → LeftD fakeErr -- (here' e)
       (Right stateComputeResult) →
         pure (ExecutedBlock∙new block stateComputeResult)
    where
     here' : List String → List String
     here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
+  E : VariantFor Either
+  E = toEither step₀
+
 abstract
   executeBlockE = executeBlockE.step₀
-  executeBlockE₀ bs block = fromEither $ executeBlockE bs block
-  executeBlockE≡ : ∀ {bs block r} → executeBlockE bs block ≡ r → executeBlockE₀ bs block ≡ fromEither r
-  executeBlockE≡ refl = refl
+  executeBlockE≡ : executeBlockE ≡ executeBlockE.step₀
+  executeBlockE≡ = refl
+
+  executeBlockE-Either = executeBlockE.E
+  executeBlockE-Either-≡ : executeBlockE-Either ≡ executeBlockE.E
+  executeBlockE-Either-≡ = refl
+
+  executeBlockE-Either-ret : ∀ {bs block r} → executeBlockE-Either bs block ≡ r → EitherD-run (executeBlockE bs block) ≡ r
+  executeBlockE-Either-ret refl = refl
+
 ------------------------------------------------------------------------------
 
 insertSingleQuorumCertM
@@ -298,7 +320,7 @@ insertSingleQuorumCertE bs qc =
              else (do
                     bs'           ← withErrCtx' (here' [])
                                       (PersistentLivenessStorage.saveTreeE bs [] (qc ∷ []))
-                    (bt , output) ← BlockTree.insertQuorumCertE qc (bs' ^∙ bsInner)
+                    (bt , output) ← BlockTree.insertQuorumCertE.E qc (bs' ^∙ bsInner)
                     pure ((bs' & bsInner ∙~ bt) , output)))
  where
   here' : List String.String → List String.String

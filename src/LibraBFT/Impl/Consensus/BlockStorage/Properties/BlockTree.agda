@@ -30,6 +30,24 @@ module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
   eb0Id = eb0 ^∙ ebId
 
+  -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
+  -- Either variant that closely mirrors the original Haskell code.  The proof is not trivially
+  -- achieved by `refl`, as is the case for some similar situations (e.g.,
+  -- ensureRoundAndSyncUpM-original-≡) because Agda does not know that we need to perform case
+  -- analysis on the result of runnning addChild.
+  insertBlockE-original-≡ : ∀ {block bt}
+                            → insertBlockE-original block bt ≡ EitherD-run (insertBlockE block bt)
+  insertBlockE-original-≡ {block} {bt} rewrite insertBlockE-≡
+     with btGetBlock (block ^∙ ebId) bt
+  ... | just _  = refl
+  ... | nothing
+     with btGetLinkableBlock (block ^∙ ebParentId) bt
+  ... | nothing = refl
+  ... | just parentBlock rewrite addChild-≡-E1 parentBlock (block ^∙ ebId)
+     with EitherD-run (addChild parentBlock (block ^∙ ebId))
+  ... | Left  x = refl
+  ... | Right y = refl
+
   open Reqs (eb0 ^∙ ebBlock) bt
 
   -- This is not quite right.  It does not yet account for the updating of the parent Block
@@ -59,15 +77,19 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
             -- is called only when btGetBlock eb0Id bt ≡ nothing in LibraBFT
     contract' : EitherD-weakestPre (step₀ eb0 bt) Contract
 
-  contract : Contract (insertBlockE.E eb0 bt)
-  contract = EitherD-contract (step₀ eb0 bt) Contract contract'
+  contract : EitherD-weakestPre (insertBlockE eb0 bt) Contract
+  contract rewrite insertBlockE-≡ = contract'
+
+  -- A contract (not used yet) for the Either version
+  contract-E : Contract (insertBlockE.E eb0 bt)
+  contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
   open insertQuorumCertE qc bt0
 
   Ok : Set
-  Ok = ∃₂ λ bt1 il → insertQuorumCertE qc bt0 ≡ Right (bt1 , il)
+  Ok = ∃₂ λ bt1 il → insertQuorumCertE-Either qc bt0 ≡ Right (bt1 , il)
 
   private
     Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set
