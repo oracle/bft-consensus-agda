@@ -1,41 +1,34 @@
 #+TITLE: Formal verification of the LibraBFT consensus algorithm
 #+SUBTITLE: An overview of proving contracts for peer handlers
-#+AUTHOR: Chris Jenkins
-#+DATE: 2021 Aug 11
+#+AUTHOR: Chris Jenkins, Harold Carr, Mark Moir
+#+DATE: 2022 Jan 18
 
 * Metadata
 
-  This file was written with respect to the following commit hash of the
+  This file is current with respect to the following commit hash of the
   repository:
-  - bf83f206aec53b2f7abd3a92293ca1ac722bf6eb
+  - *TODO*: update
+
+
+  Some defined Agda operations overlap with Org's markdown syntax (in
+  particular, the =++= operator and +strikethrough+).
+  To enable reading this document directly with Emacs, some zero-width spaces
+  have been introduced into code examples.
+  Therefore, if you wish to copy/paste code snippets, do so from the files that
+  are linked in the text.
 
 * Structure of peer handler proofs
 
-  In both the Haskell prototype and Agda model, peer handler code is written in
-  the =RWS= --- /reader, writer, state/ --- and =Either= monads. Unlike the
-  Haskell code, in Agda, these monads are [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda::data RWS (Ev Wr St : Set) : Set → Set₁ where][defined as a special-purpose datatypes]]
-  (in
-  [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda]]
-  and
-  [[file:../LibraBFT/ImplShared/Util/Dijkstra/EitherD.agda]]
-  respectively).
-  This enables proofs to inspect the AST of peer handler code directly.
+  In the Haskell prototype, peer handler code is written in
+  the [[https://hackage.haskell.org/package/mtl-2.0.1.1/docs/Control-Monad-RWS-Lazy.html][RWS]] (/reader, writer, state/) and =Either= monads.
+  Below we explain how we model and reason about this code in
+  Agda.  We begin with the =RWS= monad.
 
-  For =RWS=, this is primarily used to compute, for any
-  postcondition =Q : (Wr St A : Set) -> Set= and peer handler =h : RWS Wr St
-  A=, the weakest precondition =RWS-weakestPre m Q= which can be used to prove
-  =Q=. This is based on Dijsktra's weakest precondition calculus and the work by
-  Swamy et al. on the [[https://www.microsoft.com/en-us/research/publication/verifying-higher-order-programs-with-the-dijkstra-monad/][Dijkstra monad]]. Phrasing properties about peer handlers as
-  preconditions has a number of benefits, described below.
+** =RWS= monad
 
-
-** Dijkstra's weakest precondition calculus
-
-   [[file:../LibraBFT/ImplShared/Util/Dijkstra/RWS.agda]]
-
-   There are two kinds of constructors of the Agda =RWS= monad: primitives
-   needed to support the desired functionality, and conveniences that enable us
-   to define custom proof obligations for branching code.
+  In Agda, the ~RWS~ monad is defined via the special-purpose datatype shown below
+  (see [[file:../src/Haskell/Modules/RWS.agda]]).
+  This enables proofs to inspect the AST of peer handler code written in the ~RWS~ monad directly.
 
    #+begin_src agda
 -- RWS, the AST of computations with state `St` reading from an environment
@@ -60,14 +53,51 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
                → (RWS Ev Wr St A) → (B → RWS Ev Wr St A)       → RWS Ev Wr St A
    #+end_src
 
-   There are two steps in the development for the weakest precondition calculus.
+  There are two kinds of constructors of the Agda =RWS= monad: primitives
+  needed to support the desired functionality, and conveniences that enable us
+  to define custom proof obligations for branching code.
+
+  We define a =Monad= instance =RWS-Monad= for =RWS Ev Wr St= (which defines the =_>>_= operator),
+  thus enabling the use of =do= notation within the =RWS= monad.  Standard =RWS= operations
+  including =get=, =put=, =modify=, =ask= and =tell= are defined in terms of the constructors of =RWS=.
+  Together, these enable the Agda implementation to closely mirror the corresponding Haskell code.
+
+  We assign operational semantics to an =RWS Ev Wr St= program returning =A= by defining a function =RWS-run= that takes such
+  a program, an environment (=Ev=) and a state (=St=)​, and returns a triple comprising a return value of type =A=, a new state, and a
+  list of =Wr= values written by the program using =RWS-tell= :
+
+        #+begin_src agda
+RWS-run : RWS Ev Wr St A → Ev → St → A × St × List Wr
+        #+end_src
+
+  See [[file:../src/Haskell/Modules/RWS.agda]].
+
+** Dijkstra's weakest precondition calculus
+
+  Our reasoning about peer handler code in the =RWS= monad is based on Dijsktra's weakest precondition calculus and the work by
+  Swamy et al. on the [[https://www.microsoft.com/en-us/research/publication/verifying-higher-order-programs-with-the-dijkstra-monad/][Dijkstra monad]].  In particular, we define ([[file:../src/Dijkstra/RWS.agda]]):
+
+        #+begin_src agda
+RWS-weakestPre : (m : RWS Ev Wr St A) → RWS-PredTrans Ev Wr St A
+        #+end_src
+
+  =RWS-PredTrans Ev Wr St A= is the type of predicate transformers that, given a post condition (a predicate over values returned
+  by =RWS-run=), computes a precondition (predicate over values passed to =RWS-run=).  We define =RWS-weakestPre= so that it
+  computes the weakest precondition required to ensure that the post condition holds.  Thus, for a monadic program =m : RWS Ev Wr St A=,
+  and a post condition =Q : (Wr St A : Set) -> Set=, proving =RWS-weakestPre m Q= holds for given =Ev= and =St= suffices to
+  show that =Q= holds for the values returned by running =m= with that =Ev= and =St=.
+
+  Phrasing properties about peer handlers as
+  preconditions in this way has a number of benefits,  as described below.
+
+  Next, we overview how we compute weakest preconditions, and then how we use them to reason about handlers.
 
 *** Computing the weakest precondition
 
     From a peer handler =m= and postcondition =P= we compute (using a large
-    elimination) a precondition =RWS-weakestPre m P=.
+    elimination) a precondition =RWS-weakestPre m P=; a few examples are presented below.
 
-    - This is easy to see for =RWS-pure=
+    - This is easy to see for =RWS-return=
 
         #+begin_src agda
 RWS-weakestPre (RWS-return x) P ev pre = P x pre []
@@ -138,7 +168,7 @@ RWS-weakestPre (RWS-maybe m f₁ f₂) P ev pre =
 
 *** Proving a contract from its weakest precondition
 
-    For the top-level peer handlers (process proposal, process vote), once we
+    For the top-level peer handlers (=processProposal=, =processVote=), once we
     have proven the weakest precondition for the desired postcondition, the next
     step is to use this to extract that post condition. This is done with
     =RWS-contract= below:
@@ -167,12 +197,12 @@ RWS-contract : (m : RWS Ev Wr St A) → RWS-Contract m
     3. =RWS-contract= is the proof of the above statement
 
 
-    There is an example of using =RWS-contract= in
-    [[file:../LibraBFT/Impl/IO/OBM/InputOutputHandlers.agda]].
-    (Note that `LBFT`, defined in
-    [[file: ../LibraBFT/ImplShared/Util/Util.agda]]
+    There is an example of using =RWS-contract= (via ~LBFT-contract~, see below) in
+    [[file:../src/LibraBFT/Impl/IO/OBM/Properties/InputOutputHandlers.agda]].
+    (Note that =LBFT=, defined in
+    [[file:../src/LibraBFT/ImplShared/LBFT.agda]]
     is `RWS` instantiated with the types used to express our Agda
-    implementation of `LibraBFT`; for convenience, we often have `LBFT` variants of `RWS`
+    implementation of =LibraBFT=; for convenience, we often have =LBFT= variants of =RWS=
     definitions and proofs.)
 
 *** Postcondition implication
@@ -215,7 +245,7 @@ RWS-⇒
     contract Post pf = LBFT-⇒ ContractBaz Post pf baz pre contract'
     #+end_src
 
-** Peer handler proofs
+** Modeling Haskell code
 *** Breaking the peer handler down into smaller "steps"
 
     When beginning to prove a contract for a peer handler, it is often
@@ -228,8 +258,13 @@ RWS-⇒
        that remains to execute, so save yourself some typing by using
        short names like =step3 <args>=.
 
-
-    Let's look at =ensureRoundAndSyncUpM= as an example.
+    Let's look at =ensureRoundAndSyncUpM= ([[file:../src/LibraBFT/Impl/Consensus/RoundManager.agda]]) as
+    an example.  For demonstration purposes, we also include a version of this function called
+    =ensureRoundAndSyncUpM-orig=, which is not broken into steps, and closely mirrors the original
+    Haskell code.  The two versions are equivalent, as shown by the trivial proof
+    =ensureRoundAndSyncUp-≡-original= in [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]
+    (while such proofs are usually straightforward, they are not always so trivial; see the
+    =insertBlockE= example discussed below).
 
     #+begin_src agda
 module ensureRoundAndSyncUpM
@@ -253,7 +288,11 @@ module ensureRoundAndSyncUpM
             then bail fakeErr -- error: after sync, round does not match local
             else ok true
 
-ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
+abstract
+  ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
+  ensureRoundAndSyncUpM-≡ : ensureRoundAndSyncUpM ≡ ensureRoundAndSyncUpM.step₀
+  ensureRoundAndSyncUpM-≡ = refl
+
     #+end_src
 
     Generally speaking, it's good to choose the boundaries of these steps around
@@ -261,9 +300,81 @@ ensureRoundAndSyncUpM = ensureRoundAndSyncUpM.step₀
     (such as =syncUpM=) so you can use the contract for that function to "move"
     to the next step. This is shown below for a part of the proof of the
     contract for =ensureRoundAndSyncUpM= (found in
-    [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]):
+    [[file:../src/LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]).
 
-**** Standard setup for contracts
+    Before describing how we define and prove contracts, we explain two aspects of the
+    above code example.
+
+*** Type classes for branching operations
+
+    Peer handler code written in the =LBFT= monad can use
+    branching operations on values of type Bool​, Maybe, or Either. To take
+    advantage of the weakest precondition machinery in this context, we want to use the
+    "convenience" constructors for the =RWS= datatype.  However, it is desirable to keep the code
+    as close as possible to the original Haskell code we are modeling.
+
+    We therefore use special variants in place of =if=, =maybe= and
+    =either=, which have a =D= suffix.  For example, where the original Haskell code includes =if messageRound <
+    currentRound then ... else ...=, here we use =ifD messageRound <? currentRound then ... else ...=
+    This requires an instance of =MonadIfD=
+    ([[file:../src/Dijkstra/Syntax.agda]]), which provides a monad and a method (called =ifD‖_)= to
+    combine guarded conditionals for that monad.  This approach enables such usage in more general contexts,
+    including =EitherD=, as explained later.  The usage in the =LBFT= monad above is enabled by the instance
+    =RWS-MonadIfD= ([[file:../src/Dijkstra/RWS/Syntax.agda]]; recall that =LBFT= is just a
+    wrapper for =RWS= that does not use the =Ev= parameter).  This instance provides =RWS-if= for =ifD‖_=.  The syntax
+    for =ifD_the_else_= requires that the first argument can be converted to a =Bool=. =<?= is a decidable comparison
+    provided by the Agda Standard Library, and instance =ToBool-Dec= ([[file:../src/Haskell/Modules/ToBool.agda]])
+    ensures that =messageRound <? currentRound= can be converted to a =Bool=.  All of this ensures that the =ifD= statement
+    is translated to =RWS-if=; we will see below how this aids proofs about this code.  Additional constructs
+    are defined in terms of this, such as =whenD= and =ifMD=.
+
+    Similarly to how =MonadIfD= enables use of =ifD= in place of =if= within monadic code, =MonadMaybeD= and =MonadEitherD= enable use
+    of =maybeD= and =eitherD= in place of =maybe= and =either=, respectively; these also enable syntax for =case=-like constructs
+    on return values of these types.  We present the definition of =MonadEitherD= and elaborate
+    further on the =Either= case below.
+
+*** Using =abstract= blocks
+
+    When completely normalized (i.e., evaluated as much as they can be by Agda's
+    typechecker), many peer handler functions are *quite* large. That means
+    there can be quite a lot of clutter to read through while proving. One way
+    to reduce this is by using Agda's =abstract= blocks, which prevent Agda from
+    unrolling a definition beyond that block.  The above code for =ensureRoundAndSyncUpM= illustrates this.
+
+    The defintion of =ensureRoundAndSyncUpM.step₀= /is/ visible in other contexts, so we use the
+    abstract =ensureRoundAndSyncUpM= when we do not yet wish to see its details, and then use
+    =ensureRoundAndSyncUpM-≡= to translate properties about the detailed variant to properties about
+    the abstract equivalent.  For example, we prove  ~ensureRoundAndSyncUpM.contract''​~ about
+    =ensureRoundAndSyncUpM.step₀= (because the proof requires visibilty into the structure of the code)
+    and then use =ensureRoundAndSyncUpM-≡= to transfer the property to
+    =ensureRoundAndSyncUpM=.
+
+    #+begin_src agda
+    contract'
+      : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
+    contract' rewrite ensureRoundAndSyncUpM-≡ = contract''
+    #+end_src
+
+    Note that after the rewrite, the expected type for the right-hand side of
+    ~contract'​~ is not =LBFT-weakestPre step₀ Contract pre= but unrolls the
+    full definition of =step₀=. This is a quirk of how =rewrite= (and =with= in
+    general) behaves in Agda.
+
+    At the time of writing, there is no set discipline for when to use
+    =abstract= blocks. Arguably, they should be used for *every* nontrivial function,
+    for several reasons.  First, it significantly improves the readability of the proof state for any
+    peer handler contract proof. This is especially true in the instances where
+    =with= or =rewrite= are used, which irrevocably normalize the proof state in
+    an attempt to abstract over the given expression in both the goal type and
+    the type of (non-parameter) variables in context.  Second, it enforces
+    abstraction boundaries between functions, ensuring that changing the
+    implementation of a function doesn't change the shape of proofs of
+    functions that call it.  The overhead of this is that we must state and prove
+    explicit contracts for each function, but it is worth it for the sake of
+    sustainability.
+
+** Defining and proving contracts
+*** Standard setup for contracts
 
      For formulating and proving peer handler contracts, the preferred style is
      to create a module specifically for that peer handler (in a separate
@@ -283,41 +394,60 @@ module ensureRoundAndSyncUpMSpec
       field
         -- General invariants / properties
         rmInv         : Preserves RoundManagerInv pre post
+        dnmBtIdToBlk  : post ≡L pre at (lBlockTree ∙ btIdToBlock)
         noEpochChange : NoEpochChange pre post
         noVoteOuts    : OutputProps.NoVotes outs
         -- Voting
         noVote        : VoteNotGenerated pre post true
         -- Signatures
-        outQcs∈RM : QCProps.OutputQc∈RoundManager outs post
-        qcPost   : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
+        noOutQcs      : QCProps.¬OutputQc outs
+        qcPost        : QCProps.∈Post⇒∈PreOr (_QC∈SyncInfo syncInfo) pre post
      #+end_src
 
-     From within this module, open the =ensureRoundAndSyncUpM= module and call
-     the property that we want to prove =Contract= --- from outside the module,
+     We first open the =ensureRoundAndSyncUpM= module so that we can access the individual steps.
+     Then we define the property we want to prove and call it =Contract= --- from outside the module,
      this is called =ensureRoundAndSyncUpMSpec.Contract=.
+
+*** Proving a contract
 
      The main proof effort is in showing the weakest precondition of =Contract=
      for =ensureRoundAndSyncUpM=. This is ~contract'​~ below, which we break up
-     into smaller pieces to discuss.
+     into smaller pieces to discuss.  Note that the proof is for an arbitrary =RoundManager= (=pre=),
+     provided by an inner module.  This means we are proving that, from /any/ pre-state,
+     =ensureRoundAndSyncUpM= ensures that =Contract= holds for the value returned, post-state computed,
+     and =Outputs=​ generated.
+
+     As =ensureRoundAndSyncUpM= is defined as =ensureRoundAndSyncUpM.step₀=, the proof is
+     for code that extracts a =Round= from the pre-state (via =use=), binds the result
+     to =currentRound=, and then compares
+     =messageRound= to =currentRound= and executes the appropriate branch depending on the outcome.
+     As explained above, =ifD messageRound <? currentRound then ... else ...= is translated to
+     =RWS-if=.  The definition of =RWS-weakestPre= for =RWS-if= requires a pair of proofs, one for the
+     =then= case and one for the =else= case.  Below is the proof for the ~then~ branch (hence =proj₁=), which is a
+     non-error early exit.  The proof obligation is that, if the conditional evaluates to =true=, then
+     =pre= satisfies the weakest precondition of =Contract= for the =then= branch.  The second argument
+     =_mrnd<crnd= is evidence that the
+     conditional evaluated to =true= (it is not needed for this proof, and could be replaced by an
+     underscore; the name is included only for clarity in this explanation).
 
     #+begin_src agda
-    contract'
-      : LBFT-weakestPre (ensureRoundAndSyncUpM now messageRound syncInfo author helpRemote) Contract pre
-    proj₁ (contract' ._ refl) _ =
-      mkContract id refl refl vng outqcs qcPost
+    contract''
+      : LBFT-weakestPre (ensureRoundAndSyncUpM.step₀ now messageRound syncInfo author helpRemote) Contract pre
+    proj₁ (contract'' ._ refl) _mrnd<crnd =
+      mkContract id refl refl refl vng outqcs qcPost
       where
         vng : VoteNotGenerated pre pre true
         vng = mkVoteNotGenerated refl refl
 
-        outqcs : QCProps.OutputQc∈RoundManager [] pre
-        outqcs = QCProps.NoMsgs⇒OutputQc∈RoundManager [] pre refl
+        outqcs : QCProps.¬OutputQc []
+        outqcs = []
 
         qcPost : QCProps.∈Post⇒∈PreOr _ pre pre
         qcPost qc = Left
 
      #+end_src
 
-     The first two arguments to ~contract'​~ come from the bind operation
+     The first two arguments to ~contract''​~ come from the bind operation
      (=currentRound ← use (lRoundState ∙ rsCurrentRound)=). The first argument
      (unnamed, given as an underscore) has type =Round= and the second argument
      is a proof that it is equal to =pre ^∙ lRoundState ∙ rsCurrentRound=.
@@ -327,33 +457,25 @@ module ensureRoundAndSyncUpMSpec
        preceding computation that generated it (here, =use (lRoundState ∙
        rsCurrentRound)=). This is fine in this case; however, for alias
        variables generated from complex computations it is usually desirable to
-       hold off on using case analysis on the equality proof, since this results
-       in substituting the entire expression into the goal.
+       hold off on using case analysis on the equality proof, because this results
+       in substituting the entire expression into the goal and context.
 
        You can see the private module =Tutorial= in
-       [[file:../LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
+       [[file:../src/LibraBFT/Impl/Consensus/SafetyRules/Properties/SafetyRules.agda]]
        for more details about reading and managing the proof state when using
        the weakest precondition infrastructure.
 
+     The first four fields of =Contract= are trivially satisfied in this case because =step₀= (and therefore =ensureRoundAndSyncUpM=)
+     does not modify the state when taking the =then= branch.
+     The ~noOutQCs~ field requires us to prove that no =Output= produced by =ensureRoundAndSyncUpM=
+     contains a =NetworkMsg= that includes a =QC= (=QCProps.¬OutputQc=).  It is straightforward for
+     the =then= branch because =ensureRoundAndSyncM= does not produce /any/ outputs in this case.
+     The proof that the empty list contains no =Output= that contains a =QC= is therefore vacuous: =[]=.
 
-     After the bind, we have a conditional operation, so the goal becomes
-     showing a product of proofs --- one each for the ~then~ and ~else~
-     branches. The code listing above is for the ~then~ branch, which is a
-     non-error early exit. The second underscore is an anonymous proof that the
-     conditional evaluated to true (for safety, we do not need this evidence).
-
-     In the local proof =outqcs=, we use one of the many utility lemmas defined
-     in [[file:../LibraBFT/Impl/Properties/Util.agda]] designed to help glue
-     contracts of different peer handlers together and deal with many common
-     cases. For =outqcs=, we are in a situation where we have generated *no*
-     messages. One of the properties in the contract is that any quorum
-     certificate found in the output came from the round manager, and the lemma
-     =QCProps.NoMsgs⇒OutputQc∈RoundManager= proves that if there are no output
-     messages (but maybe some logging messages), then this universal statement
-     holds vacuously.
+     Next, consider the =else= branch.
 
      #+begin_src agda
-    proj₂ (contract' ._ refl) mrnd≥crnd = contract-step₁
+    proj₂ (contract'' ._ refl) _mrnd≥crnd = contract-step₁
       where
       contract-step₁ : LBFT-weakestPre step₁ Contract pre
       contract-step₁ = syncUpMSpec.contract now syncInfo author helpRemote pre Post contract-step₁'
@@ -361,7 +483,7 @@ module ensureRoundAndSyncUpMSpec
         Post = RWS-weakestPre-ebindPost unit (const step₂) Contract
      #+end_src
 
-     For the =else= branch, we are given evidence that the condition evaluated
+     For the =else= branch, we are given evidence =_mrnd≥crnd= that the condition evaluated
      to =false=. The code then proceeds to =step₁=, so the proof now must show
      the weakest precondition of =Contract= for =step₁=.
 
@@ -377,12 +499,12 @@ module ensureRoundAndSyncUpMSpec
      With the local definition of =Post= as =RWS-weakestPre-ebindPost unit
      (const step₂) Contract= (because the call to =syncUpM= is followed by =∙?∙
      λ _ → step₂=, where =∙?∙= is an alias for =RWS-ebind=), we now know what
-     the type of ~contract-step₁'​~ should be --- and so below, we can choose to
-     omit it using an underscore, shown below in the definition of
-     ~contract-step₁'​~.
+     the type of ~contract-step₁'​~ should be; for clarity it is shown explicitly below,
+     but in the real proof, we choose to omit it using an underscore because Agda can
+     deduce it from the type of =syncUpMSpec.contract now syncInfo author helpRemote pre= (shown above).
 
      #+begin_src agda
-        contract-step₁' : _
+        contract-step₁' : RWS-Post-⇒ (syncUpMSpec.Contract now syncInfo author helpRemote pre) Post
         contract-step₁' (Left  _   ) st outs con =
           mkContract SU.rmInv SU.noEpochChange SU.noVoteOuts SU.noVote SU.outQcs∈RM SU.qcPost
           where
@@ -391,10 +513,10 @@ module ensureRoundAndSyncUpMSpec
           where
           module SU = syncUpMSpec.Contract con
 
-          noVoteOuts' : NoVotes (outs ++ [])
+          noVoteOuts' : NoVotes (outs +​+ [])
           noVoteOuts' = ++-NoVotes outs [] SU.noVoteOuts refl
 
-          outqcs : QCProps.OutputQc∈RoundManager (outs ++ []) st
+          outqcs : QCProps.OutputQc∈RoundManager (outs +​+ []) st
           outqcs = QCProps.++-OutputQc∈RoundManager{rm = st} SU.outQcs∈RM
                      (QCProps.NoMsgs⇒OutputQc∈RoundManager [] st refl)
 
@@ -418,100 +540,77 @@ module ensureRoundAndSyncUpMSpec
       individual fields of =con= more convenient, we make a local module
       definition =SU=.
 
-    - =SU.noVoteOuts= tells us there are not vote messages in =outs=, but our
-      obligation is to show there are no vote messages in =outs ++ []=.
+    - =SU.noVoteOuts= tells us there are no vote messages in =outs=, but our obligation is to show there
+      are no vote messages in =outs ++ []=.
 
-      Here we could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
-      general, if we have two lists which have been proven to not contain a
-      certain type of message (e.g., a vote), then you can use the lemma
-      =++-NoneOfKind= in [[file:../LibraBFT/Impl/Properties/Util.agda]]. For
+      We could prove ~noVoteOuts'​~ by rewriting with =++-identityʳ=. In
+      general, however, if we have two lists which have been proven to not contain a
+      certain type of message (e.g., a vote), then we can use the lemma
+      =++-NoneOfKind= in [[file:../src/Util/Lemmas.agda]]. For
       readability, several instances of this lemma (such as =++-NoVotes=) are
-      also defined.
+      also defined.  Many other utility lemmas are also defined
+      in [[file:../src/LibraBFT/Impl/Properties/Util.agda]] to help glue
+      contracts of different peer handlers together and deal with many common
+      cases.
 
-    - Similarly, =SU.outQcs∈RM= tells us that all quorum certificates appearing
-      in =outs= come from the round manager =st=, but our obligation is to show
-      that this property holds for =outs ++ []=. The lemma
-      =QCProps.++-OutputQc∈RoundManager= lets us conclude that if this property
+    - Similarly, =SU.noOutQcs= tells us that no =Outputs= from =syncUpM= contain quorum certificates,
+      but our obligation is to show
+      that this property holds for =outs +​+ []=. The lemma
+      =QCProps.++-¬OutputQc= lets us conclude that if this property
       holds for two lists, then it holds for their concatenation.
 
-
     Finally, in =contract-step₂=, the first =._ refl= pair corresponds to the
-    =Unit= returned =syncUpM=, and the second pair corresponds to the variable
-    ~currentRound'​~ in the peer handler code. When we reach the conditional, we
+    =Unit= returned by =syncUpM=, and the second pair corresponds to the variable
+    ~currentRound'​~ in the peer handler code. When we reach the conditional, we again
     prove the two obligations the weakest precondition infrastructure generates
     for us --- which finishes the proof.
 
-*** Using =abstract= blocks
+** Reasoning about programs in the =Either= monad
 
-    When completely normalized (i.e., evaluated as much as they can be by Agda's
-    typechecker), many peer handler functions are *quite* large. That means
-    there can be quite a lot of clutter to read through while proving. One way
-    to reduce this is by using Agda's =abstract= blocks, which prevent Agda from
-    unrolling a definition beyond that block.
-
-    =processProposalMsgM= (an external entry point to =RoundManager.agda=) is an
-    example of this.
+  Our approach to reasoning about monadic code in the =Either= monad is similar to the
+  approach for =RWS=.  In particular, we define a special datatype =EitherD=
+  ([[file:../src/Dijkstra/EitherD.agda]]) with basic constructors as well as additional "convenience"
+  constructors to facilitate structuring proofs for conditional code:
 
     #+begin_src agda
-abstract
-  processProposalMsgM = processProposalMsgM.step₀
-
-  processProposalMsgM≡ : processProposalMsgM ≡ processProposalMsgM.step₀
-  processProposalMsgM≡ = refl
+data EitherD (E : Set) : Set → Set₁ where
+  -- Primitive combinators
+  EitherD-return : ∀ {A} → A → EitherD E A
+  EitherD-bind   : ∀ {A B} → EitherD E A → (A → EitherD E B) → EitherD E B
+  EitherD-bail   : ∀ {A} → E → EitherD E A
+  -- Branching conditionals (used for creating more convenient contracts)
+  EitherD-if     : ∀ {A} → Guards (EitherD E A) → EitherD E A
+  EitherD-either : ∀ {A B C}
+                   → (B → EitherD E A) → (C → EitherD E A) → Either B C → EitherD E A
+  EitherD-maybe  : ∀ {A B} → EitherD E B → (A → EitherD E B) → Maybe A → EitherD E B
     #+end_src
 
-    The defintion of =processProposalMsgM.step₀= /is/ visible in other contexts,
-    so =processProposalMsgM≡= is used by the proof of the contract for
-    =processProposalMsgM= (see
-    [[file:../LibraBFT/Impl/Consensus/RoundManager/Properties.agda]]) to transfer a
-    property about =processProposalMsgM.step₀= to =processProposalMsgM=.
+  As with =RWS=, we define an instance =Monad-EitherD= of =Monad (EitherD E)= for any =E=,
+  and instances ~EitherD-MonadIfD​~ , ~EitherD-MonadMaybeD~ and ~EitherD-MonadEitherD~
+  similar to those described above to enable use of =ifD=, =maybeD= and =eitherD=​ , respectively.
 
-    #+begin_src agda
-    contract' : LBFT-weakestPre (processProposalMsgM now pm) Contract pre
-    contract' rewrite processProposalMsgM≡ = contract
-      where
-      contract : LBFT-weakestPre step₀ Contract pre
-    #+end_src
+  However, the way we express code in the =Either= monad and relate it to the weakest precondition
+  machinery is slightly different.  In particular, because Agda
+  supports sum types that are isomorphic to =Either= (which is not the case for =RWS=), initially we simply
+  defined a monad instance for =Either A= for any type =A=, thus enabling the use of =do= notation within the =Either=
+  monad.  Subsequently, we realized that it would be beneficial to retain more structure for such code,
+  and to define weakest precondition machinery for it,
+  so that we could conveniently structure proofs for conditional code, similar to =RWS= above.
+  We therefore defined the special =EitherD= datatype shown above, along with semantics
+  (=EitherD-run=), a definition of weakest precondition for code in =EitherD=, etc., similar to =RWS=.  Below we explain
+  various aspects of this approach.
 
-    Note that after the rewrite, the expected type for the right-hand side of
-    ~contract'​~ is not =LBFT-weakestPre step₀ Contract pre= but unrolls the
-    full definition of =step₀=. This is a quirk of how =rewrite= (and =with= in
-    general) behaves in Agda.
+*** Using the =EitherLike= typeclass to connect monadic code to =EitherD= 
 
-    At the time of writing, there is no set discipline for when to use
-    =abstract= blocks. Arguably, they should be used for *every* nontrivial function,
-    for several reasons.  First, it significantly improves the readability of the proof state for any
-    peer handler contract proof. This is especially true in the instances where
-    =with= or =rewrite= are used, which irrevocably normalize the proof state in
-    an attempt to abstract over the given expression in both the goal type and
-    the type of (non-parameter) variables in context.  Second, it enforces
-    abstraction boundaries between functions, ensuring that changing the
-    implementation of a function doesn't change the shape of proofs of
-    functions that call it.  The overhead of this is that we must state and prove
-    explicit contracts for each function, but it is worth it for the sake of
-    sustainability.  For an example, see ~executeBlockESpec~ in 
+  We often require different variants of code that is written in the =Either= monad in the Haskell
+  code we are modeling.  In particular, when pattern matching on the result, we need an =Either=
+  variant, so that we deal only with =Left= and =Right= values, as opposed to the richer =EitherD=
+  representation of the code that enables more convenient proofs.
 
-
-* Peer handler code
-** Type classes for branching operations
-
-   Peer handler code written in both the =LBFT= and =Either ErrLog= monads use
-   branching operations on variables of type Bool​, Maybe, or Either. To take
-   advantage of the weakest precondition machinery, we want to use the
-   constructors for the datatype (=RWS= or =EitherD=). However, for
-   readability it is desirable to use the same name for the operation that
-   performs e.g. case analysis on a boolean value.
-
-   To that end, [[file:../LibraBFT/ImplShared/Util/Dijkstra/Syntax.agda]] defines
-   three Agda "typeclasses" --- =MonadIfD=, =MonadMaybeD=, and =MonadEitherD=.
-   Of these, =MonadEitherD= deserves some elaboration.
-
-*** =EitherLike=
-
-   Peer handler code written in the =Either ErrLog= monad in Haskell is generally
-   written in the =EitherD ErrLog= monad. To facilitate writing code
-   to operate on both =Either= or =EitherD=, ~LibraBFT.Prelude~ defines a
-   typeclass =EitherLike=.
+  Peer handler code written in the =Either ErrLog= monad in Haskell is generally
+  written in the =EitherD ErrLog= monad in the Agda model of that code. To facilitate writing code
+  to operate on both =Either= or =EitherD=, ~Dijkstra.Eitherlike~ defines a
+  typeclass =EitherLike=.
 
    #+begin_src agda
  -- Utility to make passing between `Either` and `EitherD` more convenient
@@ -525,49 +624,53 @@ abstract
    With this and =MonadEitherD=, we can define operations for branching over
    anything that is =EitherLike=.
 
-**** =MonadEitherD= and =eitherSD=
+*** Conditionals in ~EitherD~
+
+   To enable the use of conditionals (=if=, =maybe= and =either=) in any =EitherLike= code, we define types
+   in =Dijkstra.Syntax= that we can use to associate the relevant functions for any monad.  For
+   example, recall that =MonadEitherD= enables the use of =eitherD= within any monad.
+
 #+begin_src agda
 record MonadEitherD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
-    eitherSD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
+    eitherD : ∀ {E A B : Set ℓ₁} → Either E A → (E → M B) → (A → M B) → M B
 
-open MonadEitherD ⦃ ... ⦄ public hiding (eitherSD)
+open MonadEitherD ⦃ ... ⦄ public hiding (eitherD)
 #+end_src
 
      The Agda typeclass =MonadEitherD= enables us to give a single name for an
-     operation that acts the same as =eitherS= in the Haskell prototype.
-     When we open =MonadEitherD=, we hide =eitherSD= so that we can define a
-     version in which the first (non-implicit) argument is anything that is
-     =EitherLike=.
+     operation that acts the same as =either= in the Haskell prototype.
+     When we open =MonadEitherD=, we hide =eitherD= so that we can define a
+     version in which the first (non-implicit) argument can be anything that is
+     =EitherLike=, as shown here:
 
 #+begin_src agda
-eitherSD
+eitherD
   : ∀ {ℓ₁ ℓ₂ ℓ₃} {M : Set ℓ₁ → Set ℓ₂} ⦃ med : MonadEitherD M ⦄ →
     ∀ {EL : Set ℓ₁ → Set ℓ₁ → Set ℓ₃} ⦃ _ : EitherLike EL ⦄ →
-    ∀ {E A B : Set ℓ₁} → EL E A → (E → M B) → (A → M B) → M B
-eitherSD ⦃ med = med ⦄ e f₁ f₂ = MonadEitherD.eitherSD med (toEither e) f₁ f₂
+    ∀ {E A B : Set ℓ₁} → (E → M B) → (A → M B) → EL E A → M B
+eitherD ⦃ med = med ⦄ f₁ f₂ e =
+  MonadEitherD.eitherD med f₁ f₂ (toEither e)
 #+end_src
 
-**** =EitherD= and monadic bind
+*** =EitherD= and monadic bind
 
       A wrinkle in this story is the monadic bind operation. When writing ~m >>= f~
       in the =EitherD ErrLog= monad, =f= must return something of the form
       =EitherD ErrLog B=, and similarly for the =Either ErrLog= monad.
 
-      At the time of writing, the recommended approach is to have different
+      At the time of writing, the recommended approach is to create different
       variants for different contexts in which an error-throwing peer handler
-      might be used. This process is facilitated and streamlined by the
-      ~EitherLike~ type and friends in ~LibraBFT.Prelude~.
+      might be used. As described above, this process is facilitated and streamlined by the
+      ~EitherLike~ type and friends in =Dijkstra.Syntax=.
 
       Briefly, the idea is to write the steps in =EitherD=, and then create
-      additional variants as needed for any type for which there is an ~EitherLike~
-      instance by using ~toEither~ and ~fromEither~.  By using ~EL-func~ and following
-      a convention of creating multiple variants using ~toEither~ and ~fromEither~
-      and specifying one of them as the default, we can avoid repeating type
-      signatures, and minimize explicit usage of variants (e.g., by adding ~.E~ or ~.D)~.
+      an =Either= variant by using ~toEither~.
 
-      Here is an example for =insertQuorumCertE=.
+      Here is an example for =insertQuorumCertE= (note that =maybeSD= is a variant of
+      =maybeD= that has its arguments swapped; it is defined trivially in terms of =maybeD=).
+      By using ~EL-func~, we can reduce repetition in type signatures.
 
         #+begin_src agda
 module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
@@ -583,7 +686,7 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
       (Right unit) → step₁ blockId
 
   step₁ blockId =
-        maybeSD (btGetBlock blockId bt0) (LeftD fakeErr) $ step₂ blockId 
+        maybeSD (btGetBlock blockId bt0) (LeftD fakeErr) $ step₂ blockId
 
   step₂ blockId block =
         maybeSD (bt0 ^∙ btHighestCertifiedBlock) (LeftD fakeErr) $ step₃ blockId block
@@ -593,36 +696,20 @@ module insertQuorumCertE (qc : QuorumCert) (bt0 : BlockTree) where
         then
           ...
 
-  E : VariantFor Either  -- Use toEither to create a variant for Either
+  E : VariantFor Either
   E = toEither step₀
 
-  D : VariantFor EitherD -- Use fromEither to create another variant for EitherD
-  D = fromEither E
+abstract
+  insertQuorumCertE = insertQuorumCertE.step₀
 
-insertQuorumCertE = insertQuorumCertE.E  -- Define which variant is used by default,
-                                         -- based on frequency and context of usage.
-                                         -- In this case, we choose the .E variant because
-                                         -- insertQuorumCertM expects insertQuorumCertE
-                                         -- to be Either ErrLog (BlockTree × List InfoLog).
+  insertQuorumCertE-≡ : insertQuorumCertE ≡ insertQuorumCertE.step₀
+  insertQuorumCertE-≡ = refl
+
+  insertQuorumCertE-Either = insertQuorumCertE.E
+
+  insertQuorumCertE-Either-≡ : insertQuorumCertE-Either ≡ insertQuorumCertE.E
+  insertQuorumCertE-Either-≡ = refl
         #+end_src
+
       The =E= variant runs the =EitherD= defined by =step₀= (for =EitherD=, =toEither= is implemented with
-      =EitherD-run=).  The =D= variant can be used by other =EitherD= functions.
-
-      Note that this third variant (=D=) is not the same as the first (=step₀=), even
-      though it has the same type. While =step₀= may have many uses of binds and
-      branching, the closed normal form of =insertQuorumCertE.D= will only ever be
-      an =EitherD-return= or =EitherD-bail=.
-
-      =insertBlockE= provides another example that is interesting as its variants
-      are used in a more diverse range of contexts; see comment above the definition
-      of ~insertBlockE~ (the function, not the module).
-
-      An alternative to this approach would be to define special syntax for =EitherD ErrLog= peer
-      handlers that can bind variables from both =Either ErrLog= and =EitherD
-      ErrLog= operations. This would look like:
-
-      #+begin_src agda
-syntax EitherD-bindEitherLike m₁ (λ x → m₂) = x ←E m₁ ； m₂
-      #+end_src
-
-      This would replace =do=-notation for =EitherD ErrLog= peer handlers.
+      =EitherD-run=).
