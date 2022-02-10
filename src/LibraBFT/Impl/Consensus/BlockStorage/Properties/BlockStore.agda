@@ -10,6 +10,7 @@ open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.StateComputerByteString   as SCBS
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
@@ -47,18 +48,26 @@ module new
   postulate
     contract : ∀ {eci}
              → Contract eci (new-e-abs storage initialData stateComp maxPrunedBlocksInMem)
-module executeBlockESpec (bs : BlockStore) (block : Block) where
 
-  Ok : Set
-  Ok = ∃[ eb ] (executeBlockE bs block ≡ Right eb)
+module executeBlockESpec (bs : BlockStore) (block : Block) where
 
   record ContractOk (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
       ebBlock≡ : block ≡ eb ^∙ ebBlock
 
-  postulate -- TODO: prove
-    contract : (isOk : Ok) → ContractOk (proj₁ isOk)
+  Contract : EitherD-Post ErrLog _
+  Contract (Left _)  = Unit
+  Contract (Right y) = ContractOk y
+
+  contract : EitherD-weakestPre (executeBlockE bs block) Contract
+  contract rewrite executeBlockE≡
+     with SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId)
+  ...| Left _  = unit
+  ...| Right _ = mkContractOk refl
+
+  contract' : ∀ PP → (EitherD-Post-⇒ Contract PP) → EitherD-weakestPre (executeBlockE bs block) PP
+  contract' PP impl = EitherD-⇒ (executeBlockE bs block) contract impl
 
 module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
   block   = vbBlock vblock
@@ -71,7 +80,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
 
   ------   These are used only outside this module.  
   Ok : Set
-  Ok = ∃₂ λ bs' eb → executeAndInsertBlockE bs0 block ≡ Right (bs' , eb)
+  Ok = ∃₂ λ bs' eb → executeAndInsertBlockE-Either bs0 block ≡ Right (bs' , eb)
 
   open Reqs block (bs0 ^∙ bsInner)
 
@@ -116,10 +125,9 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
       open EB.ContractOk
 
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
-      proj₂ contract₂ eb eb≡ ._             executeBlockE≡Right@refl = let con = (EB.contract (eb , eb≡))
-                                                                       in contract₃ eb
-                                                                                    (EB.ContractOk.ebBlock≡ con)
-
+      proj₂ contract₂ eb eb≡ ._             executeBlockE≡Right@refl
+         with EitherD-contract (executeBlockE bs0 block) EB.Contract EB.contract
+      ...| con rewrite executeBlockE-Either-ret eb≡ = contract₃ eb (ebBlock≡ con)
       proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
       proj₁ contract₂ (ErrVerify _)         executeBlockE≡Left = tt
       proj₁ contract₂ (ErrInfo _)           executeBlockE≡Left = tt
@@ -131,21 +139,16 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
       -- case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
       -- and therefore two more cases; if the case⊎D returns Left, it's easy again
       proj₁ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ = tt
-      -- if the case⊎D returns a Right, we call executeBlockE₀ (the EitherD variant).  We use executeBlockE≡ to handle case
-      -- analysis on the result of calling the abstract executeBlockE variant, ensuring we must use the contract for
-      -- executeBlockE because the proof cannot "look into" the implementation of executeBlockE, which makes the proof
-      -- more resilient in case of changes in its implementation.
-      -- TODO-2: clean this up by writing a general version of the contract for executeBlockE
-      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _
-        with  executeBlockE bs0  block | inspect
-             (executeBlockE bs0) block
-      ... | Left  x | [ R ] rewrite executeBlockE≡ R = tt
-      ... | Right y | [ R ] rewrite executeBlockE≡ R =
-        λ where c refl ._ refl →
-                  let con = EB.contract (c , R) in
-                  contract₃ c
-                            (ebBlock≡ con)
-                            _ refl
+      -- if the case⊎D in step₂ returns a Right, we call executeBlockE; this is an abstract EitherD
+      -- variant, ensuring we must use the contract for executeBlockE because the proof cannot "look
+      -- into" the implementation of executeBlockE, which makes the proof more resilient in case of
+      -- changes in its implementation.
+      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ =
+        EB.contract' _ con⇒bindPost
+        where
+            con⇒bindPost : EitherD-Post-⇒ _ (EitherD-weakestPre-bindPost step₃ Contract)
+            con⇒bindPost (Left _)  _   = tt
+            con⇒bindPost (Right _) con = λ where eb' refl ._ refl → contract₃ eb' (EB.ContractOk.ebBlock≡ con) _ refl
 
       contract₃ eb refl _ _ = contract₄
         where
@@ -153,24 +156,25 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
         contract₄ : EitherD-weakestPre (step₄ eb) Contract
         contract₄
            with insertBlockESpec.contract eb (bs0 ^∙ bsInner)
-        ...| con
-           with BlockTree.insertBlockE.E eb (bs0 ^∙ bsInner)
-        ...| Left _ = tt
-        ...| Right (bt' , eb') =
-           λ where ._ refl → mkContractOk IBE.blocks≈ btP bss≡x
+        ...| con = EitherD-⇒-bind (BlockTree.insertBlockE eb (bs0 ^∙ bsInner)) con con⇒bindPost
            where
-           module IBE = insertBlockESpec.ContractOk con
+             con⇒bindPost : ∀ r → insertBlockESpec.Contract eb (bs0 ^∙ bsInner) r → EitherD-weakestPre-bindPost _ Contract r
+             con⇒bindPost (Left _) _                       = tt
+             con⇒bindPost (Right (bt' , eb')) con' ._ refl = mkContractOk IBE.blocks≈ btP bss≡x
+               where
+                 module IBE = insertBlockESpec.ContractOk con'
 
-           open BlockStoreInv
+                 open BlockStoreInv
 
-           btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
-           btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
+                 btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
+                 btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
 
-           bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
-           bss≡x rewrite sym IBE.bt≡x = refl
+                 bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
+                 bss≡x rewrite sym IBE.bt≡x = refl
 
-  contract : Contract (executeAndInsertBlockE bs0 block)
-  contract = EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
+  contract : Contract (executeAndInsertBlockE-Either bs0 block)
+  contract rewrite executeAndInsertBlockE-Either-≡ =
+    EitherD-contract (executeAndInsertBlockE.step₀ bs0 block) Contract contract'
 
 module executeAndInsertBlockMSpec (vb : ValidBlock) where
   b = vbBlock vb
