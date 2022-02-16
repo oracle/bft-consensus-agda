@@ -87,6 +87,10 @@ grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
 grd‖_ (otherwise≔ a) = a
 grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
 
+lengthGuards : ∀ {a}{b}{A : Set a} → Guards{a}{b} A → DN.ℕ
+lengthGuards (otherwise≔ x) = 1
+lengthGuards (clause x x₁) = 1 DN.+ lengthGuards x₁
+
 ------------------------------------------------------------------------------
 -- List
 
