@@ -47,7 +47,7 @@ record MonadLaws
   field
     idLeft  : ∀ {A B : Set ℓ₁} → (x : A) (f : A → M B)
               → (return x >>= f) ~ f x
-    idRight : ∀ {A B : Set ℓ₁} → (m : M A)
+    idRight : ∀ {A : Set ℓ₁} → (m : M A)
               → (m >>= return) ~ m
     assoc   : ∀ {A B C : Set ℓ₁} → (m : M A) (f : A → M B) (g : B → M C)
               → ((m >>= f) >>= g) ~ (m >>= (λ x → f x >>= g))
