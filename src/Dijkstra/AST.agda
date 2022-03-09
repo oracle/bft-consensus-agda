@@ -8,7 +8,7 @@ module Dijkstra.AST where
 
 open import Data.Empty
 open import Data.Fin
-open import Data.Product using (_×_ ; _,_)
+open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
 open import Haskell.Prelude
@@ -17,94 +17,104 @@ import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
 
 data AST
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁) : Set → Set₁ where
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁) : Set → Set₁ where
   -- monadic operations
-  ASTreturn : ∀ {A} → A → AST Cₘ Rₘ Cₒ Rₒ A
-  ASTbind   : ∀ {A B} → (c : Cₘ) (m : AST Cₘ Rₘ Cₒ Rₒ (Rₘ c A)) (f : A → AST Cₘ Rₘ Cₒ Rₒ B)
-              → AST Cₘ Rₘ Cₒ Rₒ B
+  ASTreturn : ∀ {A} → A → AST C R A
+  ASTbind   : ∀ {A B} → (m : AST C R A) (f : A → AST C R B)
+              → AST C R B
   -- effect operations
-  ASTop : ∀ {A} → (c : Cₒ A) (f : Rₒ A c → AST Cₘ Rₘ Cₒ Rₒ A) → AST Cₘ Rₘ Cₒ Rₒ A
+  ASTop : ∀ {A} → (c : C A) (f : R A c → AST C R A) → AST C R A
 
-record ASTOpSemTypes : Set₁ where
-  constructor mkASTOpSemTypes
+record ASTTypes : Set₁ where
+  constructor mkASTTypes
   field
     Input  : Set
     Output : (A : Set) → Set
 
+  Pre : Set₁
+  Pre = (i : Input) → Set
+
+  Post : Set → Set₁
+  Post A = (o : Output A) → Set
+
+  PredTrans : (A : Set) → Set₁
+  PredTrans A = (P : Post A) → Pre
+
+  _⊆ᵢ_ : (P₁ P₂ : Pre) → Set
+  P₁ ⊆ᵢ P₂ = ∀ i → P₁ i → P₂ i
+
+  _⊆ₒ_ : ∀ {A} → (P₁ P₂ : Post A) → Set
+  P₁ ⊆ₒ P₂ = ∀ o → P₁ o → P₂ o
+
+  _⊑_ : {A : Set} → (pt₁ pt₂ : PredTrans A) → Set₁
+  pt₁ ⊑ pt₂ = ∀ P → pt₁ P ⊆ᵢ pt₂ P
+
+  MonoPredTrans : ∀ {A} → PredTrans A → Set₁
+  MonoPredTrans pt = ∀ P₁ P₂ → P₁ ⊆ₒ P₂ → pt P₁ ⊆ᵢ pt P₂
+
 record ASTImpl
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁) : Set₁ where
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁) : Set₁ where
   constructor mkASTImpl
   field
     M : Set → Set
-    runAST : ∀ {A} → AST Cₘ Rₘ Cₒ Rₒ A → M A
+    runAST : ∀ {A} → AST C R A → M A
 
 record MonadASTImpl
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
   (M : Set → Set): Set₁ where
   field
     ret : ∀ {A} → A → M A
-    bind   : ∀ {A B} → (c : Cₘ) (m : M (Rₘ c A)) (f : A → M B) → M B
-    op     : ∀ {A}  → (c : Cₒ A) (f : Rₒ A c → M A) → M A
+    bind   : ∀ {A B} → (m : M A) (f : A → M B) → M B
+    op     : ∀ {A}  → (c : C A) (f : R A c → M A) → M A
 
-  impl : ASTImpl Cₘ Rₘ Cₒ Rₒ
+  impl : ASTImpl C R
   ASTImpl.M impl = M
   ASTImpl.runAST impl (ASTreturn x) = ret x
-  ASTImpl.runAST impl (ASTbind c x f) = bind c (ASTImpl.runAST impl x) (ASTImpl.runAST impl ∘ f)
+  ASTImpl.runAST impl (ASTbind x f) = bind (ASTImpl.runAST impl x) (ASTImpl.runAST impl ∘ f)
   ASTImpl.runAST impl (ASTop c f) = op c (ASTImpl.runAST impl ∘ f)
 open MonadASTImpl ⦃ ... ⦄ public
   hiding (impl)
 
 record ASTOpSem
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
-  (Types : ASTOpSemTypes) : Set₁ where
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+  (Types : ASTTypes) : Set₁ where
   constructor mkASTOpSem
-  open ASTOpSemTypes Types public
+  open ASTTypes Types
   field
-    impl : ASTImpl Cₘ Rₘ Cₒ Rₒ
+    impl : ASTImpl C R
   open ASTImpl impl public
   field
     runM : ∀ {A} → M A → Input → Output A
 
---   -- -- Coherence
---   --   runMIdLeft  : ∀ {A} (x : A) (f : A → AST C R A) (i : Input)
---   --                 →   runM (runAST (ASTbind (ASTreturn x) f)) i
---   --                   ≡ runM (runAST (f x)) i
---   --   runMIdRight : ∀ {A} (m : AST C R A) (i : Input)
---   --                 →   runM (runAST (ASTbind m ASTreturn)) i
---   --                   ≡ runM (runAST m) i
---   --   runMAssoc   : ∀ {A B₁ B₂} (m : AST C R A) (f : A → AST C R B₁) (g : B₁ → AST C R B₂) (i : Input)
---   --                 →   runM (runAST (ASTbind (ASTbind m f) g)) i
---   --                   ≡ runM (runAST (ASTbind m (λ x → ASTbind (f x) g))) i
+-- -- Coherence
+--   runMIdLeft  : ∀ {A} (x : A) (f : A → AST C R A) (i : Input)
+--                 →   runM (runAST (ASTbind (ASTreturn x) f)) i
+--                   ≡ runM (runAST (f x)) i
+--   runMIdRight : ∀ {A} (m : AST C R A) (i : Input)
+--                 →   runM (runAST (ASTbind m ASTreturn)) i
+--                   ≡ runM (runAST m) i
+--   runMAssoc   : ∀ {A B₁ B₂} (m : AST C R A) (f : A → AST C R B₁) (g : B₁ → AST C R B₂) (i : Input)
+--                 →   runM (runAST (ASTbind (ASTbind m f) g)) i
+--                   ≡ runM (runAST (ASTbind m (λ x → ASTbind (f x) g))) i
 
-record MonadASTBind
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set) (M : Set → Set) : Set₁ where
-  field
-    return : ∀ {A c} → A → Rₘ c A
-    bind   : ∀ {A B c} → M (Rₘ c A) → (A → M B) → M B
-
-record ASTOpSemLaws
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
-  (Types : ASTOpSemTypes)
-  (OS : ASTOpSem Cₘ Rₘ Cₒ Rₒ Types)
-  (mb : MonadASTBind Cₘ Rₘ (ASTOpSem.M OS))
-  : Set₁ where
-  open ASTOpSem OS
-  field
-  -- Coherence
-    runMIdLeft  : ∀ {A} (x : A) (c : Cₘ) (f : A → AST Cₘ Rₘ Cₒ Rₒ A) (i : Input)
-                  →   runM (runAST (ASTbind c (ASTreturn (MonadASTBind.return mb x)) f)) i
-                    ≡ runM (runAST (f x)) i
-    -- runMIdRight : ∀ {A} (c : Cₘ) (m : AST Cₘ Rₘ Cₒ Rₒ (Rₘ c A)) (i : Input)
-    --               →   runM (runAST (ASTbind c m ASTreturn)) i
-    --                 ≡ runM (let x = runAST m in {!!}) i -- runM (runAST m) i
-    runMAssoc   : ∀ {A B₁ B₂} (c₁ c₂ : Cₘ) (m : AST Cₘ Rₘ Cₒ Rₒ (Rₘ c₂ A)) (f : A → AST Cₘ Rₘ Cₒ Rₒ (Rₘ c₁ B₁)) (g : B₁ → AST Cₘ Rₘ Cₒ Rₒ (Rₘ c₂ B₂)) (i : Input)
-                  →   runM (runAST (ASTbind c₁ (ASTbind c₂ m f) g)) i
-                    ≡ runM (runAST (ASTbind c₂ m (λ x → ASTbind c₁ (f x) g))) i
+-- record ASTOpSemLaws
+--   (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+--   (Types : ASTTypes)
+--   (OS : ASTOpSem C R Types)
+--   (mb : MonadASTBind (ASTOpSem.M OS))
+--   : Set₁ where
+--   open ASTOpSem OS
+--   field
+--   -- Coherence
+--     runMIdLeft  : ∀ {A} (x : A) (c : Cₘ) (f : A → AST Cₘ Rₘ C R A) (i : Input)
+--                   →   runM (runAST (ASTbind c (ASTreturn (MonadASTBind.return mb x)) f)) i
+--                     ≡ runM (runAST (f x)) i
+--     -- runMIdRight : ∀ {A} (c : Cₘ) (m : AST Cₘ Rₘ C R (Rₘ c A)) (i : Input)
+--     --               →   runM (runAST (ASTbind c m ASTreturn)) i
+--     --                 ≡ runM (let x = runAST m in {!!}) i -- runM (runAST m) i
+--     runMAssoc   : ∀ {A B₁ B₂} (c₁ c₂ : Cₘ) (m : AST Cₘ Rₘ C R (Rₘ c₂ A)) (f : A → AST Cₘ Rₘ C R (Rₘ c₁ B₁)) (g : B₁ → AST Cₘ Rₘ C R (Rₘ c₂ B₂)) (i : Input)
+--                   →   runM (runAST (ASTbind c₁ (ASTbind c₂ m f) g)) i
+--                     ≡ runM (runAST (ASTbind c₂ m (λ x → ASTbind c₁ (f x) g))) i
 
 module TrivASTBind where
   Cₘ : Set
@@ -114,173 +124,212 @@ module TrivASTBind where
   Rₘ _ = id
 
 module SimpleASTOpSem
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
-  (Types : ASTOpSemTypes)
-  (monadOp : MonadASTImpl Cₘ Rₘ Cₒ Rₒ λ A → ASTOpSemTypes.Input Types → ASTOpSemTypes.Output Types A) where
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+  (Types : ASTTypes)
+  (monadOp : MonadASTImpl C R λ A → ASTTypes.Input Types → ASTTypes.Output Types A) where
 
-  OS : ASTOpSem Cₘ Rₘ Cₒ Rₒ Types
+  OS : ASTOpSem C R Types
   ASTOpSem.impl OS = MonadASTImpl.impl monadOp
   ASTOpSem.runM OS = id
 
 record ASTPredTrans
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
-  (Types : ASTOpSemTypes) : Set₂ where
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+  (Types : ASTTypes) : Set₂ where
   constructor mkASTPredTrans
-  open ASTOpSemTypes Types public
-
-  Pre : Set₁
-  Pre = (i : Input) → Set
-
-  Post : Set → Set₁
-  Post A = Output A → Set
-
-  PredTrans : (A : Set) → Set₁
-  PredTrans A = (P : Post A) → Pre
-
-  _⊆_ : (P₁ P₂ : Pre) → Set
-  P₁ ⊆ P₂ = ∀ i → P₁ i → P₂ i
-
-  _⊑_ : {A : Set} → (pt₁ pt₂ : PredTrans A) → Set₁
-  pt₁ ⊑ pt₂ = ∀ P → pt₁ P ⊆ pt₂ P
-  
+  open ASTTypes Types
   field
-    returnPTS : ∀ {A} → A → PredTrans A
-    bindPTS   : ∀ {A B} → (c : Cₘ) (f : A → PredTrans B) (i : Input) (P : Post B) → Post (Rₘ c A)
-    opPTS     : ∀ {A} → (c : Cₒ A) → (Rₒ A c → PredTrans A) → PredTrans A
+    returnPT : ∀ {A} → A → PredTrans A
+    bindPT   : ∀ {A B} → (f : A → PredTrans B) (i : Input)
+                → (P : Post B) → Post A
+    opPT     : ∀ {A} → (c : C A) → (R A c → PredTrans A) → PredTrans A
 
-  MonoBindPTS : Set₁
-  MonoBindPTS = ∀ {A B} (f₁ f₂ : A → PredTrans B) → (∀ x → f₁ x ⊑ f₂ x)
-                → ∀ c i P o → bindPTS c f₁ i P o → bindPTS c f₂ i P o
+  predTrans : ∀ {A} → AST C R A → PredTrans A
+  predTrans (ASTreturn x) P i =
+    returnPT x P i
+  predTrans (ASTbind x f) P i =
+    predTrans x (bindPT (predTrans ∘ f) i P) i
+  predTrans (ASTop c f) P i =
+    opPT c (predTrans ∘ f) P i
 
-  ptAST : ∀ {A} → AST Cₘ Rₘ Cₒ Rₒ A → PredTrans A
-  ptAST (ASTreturn x) = returnPTS x
-  ptAST (ASTbind c p f) Post input =
-    ptAST p (bindPTS c (λ x → ptAST ((f x))) input Post) input
-  ptAST (ASTop c f) Post = opPTS c (λ r → ptAST (f r)) Post
+record ASTPredTransMono
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+  (Types : ASTTypes) (PT : ASTPredTrans C R Types): Set₂ where
+  open ASTTypes Types
+  open ASTPredTrans PT
+  field
+    returnPTMono : ∀ {A} → (x : A) → MonoPredTrans (returnPT x)
+    bindPTMono₁  : ∀ {A B} → (f : A → PredTrans B)
+                   → (∀ x → MonoPredTrans (f x))
+                   → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f i P₁ ⊆ₒ bindPT f i P₂
+    bindPTMono₂  : ∀ {A B} → (f₁ f₂ : A → PredTrans B)
+                   → (f₁⊑f₂ : ∀ x → f₁ x ⊑ f₂ x)
+                   → ∀ i P → bindPT f₁ i  P ⊆ₒ bindPT f₂ i P
+    opPTMono₁    : ∀ {A} (c : C A) (f : R A c → PredTrans A)
+                   → (∀ r → MonoPredTrans (f r))
+                   → ∀ P₁ P₂ → P₁ ⊆ₒ P₂ → opPT c f P₁ ⊆ᵢ opPT c f P₂
+    opPTMono₂    : ∀ {A} (c : C A) (f₁ f₂ : R A c → PredTrans A)
+                   → (f₁⊑f₂ : ∀ r → f₁ r ⊑ f₂ r)
+                   → opPT c f₁ ⊑ opPT c f₂
 
-record ASTSufficientPre
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
-  (Types : ASTOpSemTypes)
-  (os : ASTOpSem Cₘ Rₘ Cₒ Rₒ Types) (pt : ASTPredTrans Cₘ Rₘ Cₒ Rₒ Types) : Set₁ where
-  constructor mkASTSufficientPre
+  predTransMono : ∀ {A} (m : AST C R A)
+                  → MonoPredTrans (predTrans m)
+  predTransMono (ASTreturn x) =
+    returnPTMono x
+  predTransMono (ASTbind m f) P₁ P₂ P₁⊆P₂ i x₁ =
+    predTransMono  m _ _
+      (bindPTMono₁ (predTrans ∘ f) (predTransMono ∘ f) i _ _ P₁⊆P₂) i x₁
+  predTransMono (ASTop c f) P₁ P₂ P₁⊆P₂ i wp =
+    opPTMono₁ c (predTrans ∘ f) (predTransMono ∘ f) _ _ P₁⊆P₂ i wp
+
+
+
+--   MonoBindPTS : Set₁
+--   MonoBindPTS = ∀ {A B} (f₁ f₂ : A → PredTrans B) → (∀ x → f₁ x ⊑ f₂ x)
+--                 → ∀ c i P o → bindPTS c f₁ i P o → bindPTS c f₂ i P o
+
+--   ptAST : ∀ {A} → AST Cₘ Rₘ C R A → PredTrans A
+--   ptAST (ASTreturn x) = returnPTS x
+--   ptAST (ASTbind c p f) Post input =
+--     ptAST p (bindPTS c (λ x → ptAST ((f x))) input Post) input
+--   ptAST (ASTop c f) Post = opPTS c (λ r → ptAST (f r)) Post
+
+record ASTSufficientPT
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
+  (Types : ASTTypes)
+  (os : ASTOpSem C R Types) (pt : ASTPredTrans C R Types) : Set₁ where
+  constructor mkASTSufficientPT
+  open ASTTypes Types
   open ASTOpSem     os
   open ASTPredTrans pt
-    hiding (Input ; Output)
 
-  Sufficient : (A : Set) (m : AST Cₘ Rₘ Cₒ Rₒ A) (P : Post A) (i : Input) → Set
-  Sufficient A m P i =
-    (wp : ptAST m P i) → P (runM (runAST m) i)
+  Sufficient : (A : Set) (m : AST C R A) → Set₁
+  Sufficient A m =
+    ∀ P i → (wp : predTrans m P i) → P (runM (runAST m) i)
 
   field
-    returnSuf : ∀ {A} (x : A) {P} {i} → Sufficient A (ASTreturn x) P i
-    bindSuf   : ∀ {A B} (c : Cₘ) (m : AST Cₘ Rₘ Cₒ Rₒ (Rₘ c A)) (f : A → AST Cₘ Rₘ Cₒ Rₒ B)
-                → (ih : ∀ x P i → Sufficient B (f x) P i)
-                → ∀ P i
-                → (bp : bindPTS c (λ x' → ptAST (f x')) i P (runM (runAST m) i))
-                → P (runM (runAST (ASTbind c m f)) i)
-    opSuf     : ∀ {A} (c : Cₒ A) (f : Rₒ A c → AST Cₘ Rₘ Cₒ Rₒ A)
-                → (ih : ∀ P i r → Sufficient A (f r) P i)
-                → ∀ P i
-                → (op : opPTS c (λ r → ptAST (f r)) P i)
-                → P (runM (runAST (ASTop c f)) i)
+    returnSuf : ∀ {A} x → Sufficient A (ASTreturn x)
+    bindSuf   : ∀ {A B} (m : AST C R A) (f : A → AST C R B)
+                → (mSuf : Sufficient A m)
+                → (fSuf : ∀ x → Sufficient B (f x))
+                → Sufficient B (ASTbind m f)
+    opSuf     : ∀ {A} → (c : C A) (f : R A c → AST C R A)
+                → (∀ r → Sufficient A (f r))
+                → Sufficient A (ASTop c f)
 
-  sufficient : ∀ {A} → (m : AST Cₘ Rₘ Cₒ Rₒ A) (P : Post A) (i : Input) → Sufficient A m P i
-  sufficient (ASTreturn x) P i wp = returnSuf x wp
-  sufficient (ASTbind c m f) P i wp
-    with sufficient m _ i wp
-  ... | wp' = bindSuf c m f (sufficient ∘ f) P i wp'
-  sufficient{A} (ASTop c f) P i wp =
-    opSuf c f ih P i wp
-    where
-    ih : (P : Post A) (i : Input) (r : Rₒ A c) → Sufficient A (f r) P i
-    ih P i r = sufficient (f r) P i
+  sufficient : ∀ {A} → (m : AST C R A) → Sufficient A m
+  sufficient (ASTreturn x) =
+    returnSuf x
+  sufficient (ASTbind m f) =
+    bindSuf m f (sufficient m) (sufficient ∘ f)
+  sufficient (ASTop c f) =
+    opSuf c f (sufficient ∘ f)
+--   field
+--     returnSuf : ∀ {A} (x : A) {P} {i} → Sufficient A (ASTreturn x) P i
+--     bindSuf   : ∀ {A B} (c : Cₘ) (m : AST Cₘ Rₘ C R (Rₘ c A)) (f : A → AST Cₘ Rₘ C R B)
+--                 → (ih : ∀ x P i → Sufficient B (f x) P i)
+--                 → ∀ P i
+--                 → (bp : bindPTS c (λ x' → ptAST (f x')) i P (runM (runAST m) i))
+--                 → P (runM (runAST (ASTbind c m f)) i)
+--     opSuf     : ∀ {A} (c : C A) (f : R A c → AST Cₘ Rₘ C R A)
+--                 → (ih : ∀ P i r → Sufficient A (f r) P i)
+--                 → ∀ P i
+--                 → (op : opPTS c (λ r → ptAST (f r)) P i)
+--                 → P (runM (runAST (ASTop c f)) i)
 
-module RWS (Ev Wr St : Set) where
+--   sufficient : ∀ {A} → (m : AST Cₘ Rₘ C R A) (P : Post A) (i : Input) → Sufficient A m P i
+--   sufficient (ASTreturn x) P i wp = returnSuf x wp
+--   sufficient (ASTbind c m f) P i wp
+--     with sufficient m _ i wp
+--   ... | wp' = bindSuf c m f (sufficient ∘ f) P i wp'
+--   sufficient{A} (ASTop c f) P i wp =
+--     opSuf c f ih P i wp
+--     where
+--     ih : (P : Post A) (i : Input) (r : R A c) → Sufficient A (f r) P i
+--     ih P i r = sufficient (f r) P i
 
-  data C (A : Set) : Set₁ where
-    RWSgets  : (g : St → A) → C A
-    RWSputs  : (p : St → St) → A ≡ Unit → C A
-    RWSask   : (A ≡ Ev) → C A
-    RWSlocal : (l : Ev → Ev) → C A
-    RWStell  : (outs : List Wr) → (A ≡ Unit) → C A
+-- module RWS (Ev Wr St : Set) where
 
-  R : (A : Set) (c : C A) → Set₁
-  R A (RWSgets x) = Level.Lift _ ⊥
-  R .Unit (RWSputs f refl) = Level.Lift _ ⊥
-  R .Ev (RWSask refl) = Level.Lift _ ⊥
-  R A (RWSlocal x) = Level.Lift _ ⊤
-  R A (RWStell x refl) = Level.Lift _ ⊥
+--   data C (A : Set) : Set₁ where
+--     RWSgets  : (g : St → A) → C A
+--     RWSputs  : (p : St → St) → A ≡ Unit → C A
+--     RWSask   : (A ≡ Ev) → C A
+--     RWSlocal : (l : Ev → Ev) → C A
+--     RWStell  : (outs : List Wr) → (A ≡ Unit) → C A
 
-  RWS : Set → Set₁
-  RWS = AST TrivASTBind.Cₘ TrivASTBind.Rₘ C R
+--   R : (A : Set) (c : C A) → Set₁
+--   R A (RWSgets x) = Level.Lift _ ⊥
+--   R .Unit (RWSputs f refl) = Level.Lift _ ⊥
+--   R .Ev (RWSask refl) = Level.Lift _ ⊥
+--   R A (RWSlocal x) = Level.Lift _ ⊤
+--   R A (RWStell x refl) = Level.Lift _ ⊥
 
-  Types : ASTOpSemTypes
-  ASTOpSemTypes.Input Types = Ev × St
-  ASTOpSemTypes.Output Types A = A × St × List Wr
+--   RWS : Set → Set₁
+--   RWS = AST TrivASTBind.Cₘ TrivASTBind.Rₘ C R
 
-  M : Set → Set
-  M A = ASTOpSemTypes.Input Types → ASTOpSemTypes.Output Types A
+--   Types : ASTTypes
+--   ASTTypes.Input Types = Ev × St
+--   ASTTypes.Output Types A = A × St × List Wr
 
-  monadAST : MonadASTImpl TrivASTBind.Cₘ TrivASTBind.Rₘ C R M
-  MonadASTImpl.ret monadAST x (ev , st) = x , st , []
-  MonadASTImpl.bind monadAST _ m f i@(ev , st₀) =
-    let (x₁ , st₁ , outs₁) = m i
-        (x₂ , st₂ , outs₂) = f x₁ (ev , st₁)
-    in  (x₂ , st₂ , outs₁ ++ outs₂)
-  MonadASTImpl.op monadAST (RWSgets g) _ i@(ev , st) =
-    g st , st , []
-  MonadASTImpl.op monadAST (RWSputs p refl) _ i@(ev , st) =
-    unit , p st , []
-  MonadASTImpl.op monadAST (RWSask refl) _ i@(ev , st) =
-    ev , st , []
-  MonadASTImpl.op monadAST (RWSlocal l) f i@(ev , st) =
-    f (Level.lift tt) (l ev , st)
-  MonadASTImpl.op monadAST (RWStell outs refl) _ i@(ev , st) =
-    unit , st , outs
+--   M : Set → Set
+--   M A = ASTTypes.Input Types → ASTTypes.Output Types A
 
-  OS = SimpleASTOpSem.OS TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types monadAST
+--   monadAST : MonadASTImpl TrivASTBind.Cₘ TrivASTBind.Rₘ C R M
+--   MonadASTImpl.ret monadAST x (ev , st) = x , st , []
+--   MonadASTImpl.bind monadAST _ m f i@(ev , st₀) =
+--     let (x₁ , st₁ , outs₁) = m i
+--         (x₂ , st₂ , outs₂) = f x₁ (ev , st₁)
+--     in  (x₂ , st₂ , outs₁ ++ outs₂)
+--   MonadASTImpl.op monadAST (RWSgets g) _ i@(ev , st) =
+--     g st , st , []
+--   MonadASTImpl.op monadAST (RWSputs p refl) _ i@(ev , st) =
+--     unit , p st , []
+--   MonadASTImpl.op monadAST (RWSask refl) _ i@(ev , st) =
+--     ev , st , []
+--   MonadASTImpl.op monadAST (RWSlocal l) f i@(ev , st) =
+--     f (Level.lift tt) (l ev , st)
+--   MonadASTImpl.op monadAST (RWStell outs refl) _ i@(ev , st) =
+--     unit , st , outs
 
-  RWSPredTrans = ASTPredTrans TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types
+--   OS = SimpleASTOpSem.OS TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types monadAST
 
-  RWSbindPost : List Wr → {A : Set} → (A × St × List Wr → Set) → (A × St × List Wr → Set)
-  RWSbindPost outs P (x , st , outs') = P (x , st , outs ++ outs')
+--   RWSPredTrans = ASTPredTrans TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types
 
-  PT : RWSPredTrans
-  ASTPredTrans.returnPTS PT x P (ev , st) =
-    P (x , st , [])
-  ASTPredTrans.bindPTS PT c f (ev , stₒ) P (x , st₁ , outs₁) =
-    ∀ r → r ≡ x → f r (RWSbindPost outs₁ P) (ev , st₁)
-  ASTPredTrans.opPTS PT (RWSgets g) f P (ev , pre) =
-    P (g pre , pre , [])
-  ASTPredTrans.opPTS PT (RWSputs p refl) f P (ev , pre) =
-    P (unit , p pre , [])
-  ASTPredTrans.opPTS PT (RWSask refl) f P (ev , pre) =
-    P (ev , pre , [])
-  ASTPredTrans.opPTS PT (RWSlocal l) f P (ev , pre) =
-    ∀ ev' → ev' ≡ l ev → f (Level.lift tt) P (ev' , pre)
-  ASTPredTrans.opPTS PT (RWStell outs refl) f P (ev , pre) =
-    P (unit , pre , outs)
+--   RWSbindPost : List Wr → {A : Set} → (A × St × List Wr → Set) → (A × St × List Wr → Set)
+--   RWSbindPost outs P (x , st , outs') = P (x , st , outs ++ outs')
 
-  RWSSufficientPre =
-    ASTSufficientPre TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types OS PT
+--   PT : RWSPredTrans
+--   ASTPredTrans.returnPTS PT x P (ev , st) =
+--     P (x , st , [])
+--   ASTPredTrans.bindPTS PT c f (ev , stₒ) P (x , st₁ , outs₁) =
+--     ∀ r → r ≡ x → f r (RWSbindPost outs₁ P) (ev , st₁)
+--   ASTPredTrans.opPTS PT (RWSgets g) f P (ev , pre) =
+--     P (g pre , pre , [])
+--   ASTPredTrans.opPTS PT (RWSputs p refl) f P (ev , pre) =
+--     P (unit , p pre , [])
+--   ASTPredTrans.opPTS PT (RWSask refl) f P (ev , pre) =
+--     P (ev , pre , [])
+--   ASTPredTrans.opPTS PT (RWSlocal l) f P (ev , pre) =
+--     ∀ ev' → ev' ≡ l ev → f (Level.lift tt) P (ev' , pre)
+--   ASTPredTrans.opPTS PT (RWStell outs refl) f P (ev , pre) =
+--     P (unit , pre , outs)
 
-  SufPre : RWSSufficientPre
-  ASTSufficientPre.returnSuf SufPre x wp = wp
-  ASTSufficientPre.bindSuf SufPre c m f suf P i@(ev , st₀) wp =
-    let (x₁ , st₁ , outs₁) = ASTOpSem.runAST OS m i
-    in suf x₁ (RWSbindPost outs₁ P) ((ev , st₁)) (wp x₁ refl)
-  ASTSufficientPre.opSuf SufPre (RWSgets g) f ih P i@(ev , st₀) op₁ =
-    op₁
-  ASTSufficientPre.opSuf SufPre (RWSputs p refl) f ih P i@(ev , st₀) op₁ =
-    op₁
-  ASTSufficientPre.opSuf SufPre (RWSask refl) f ih P i@(ev , st₀) op₁ = op₁
-  ASTSufficientPre.opSuf SufPre (RWSlocal l) f ih P i@(ev , st₀) op₁ =
-    ih P (l ev , st₀) (Level.lift tt) (op₁ (l ev) refl)
-  ASTSufficientPre.opSuf SufPre (RWStell outs refl) f ih P i@(ev , st₀) op₁ =
-    op₁
+--   RWSSufficientPre =
+--     ASTSufficientPre TrivASTBind.Cₘ TrivASTBind.Rₘ C R Types OS PT
+
+--   SufPre : RWSSufficientPre
+--   ASTSufficientPre.returnSuf SufPre x wp = wp
+--   ASTSufficientPre.bindSuf SufPre c m f suf P i@(ev , st₀) wp =
+--     let (x₁ , st₁ , outs₁) = ASTOpSem.runAST OS m i
+--     in suf x₁ (RWSbindPost outs₁ P) ((ev , st₁)) (wp x₁ refl)
+--   ASTSufficientPre.opSuf SufPre (RWSgets g) f ih P i@(ev , st₀) op₁ =
+--     op₁
+--   ASTSufficientPre.opSuf SufPre (RWSputs p refl) f ih P i@(ev , st₀) op₁ =
+--     op₁
+--   ASTSufficientPre.opSuf SufPre (RWSask refl) f ih P i@(ev , st₀) op₁ = op₁
+--   ASTSufficientPre.opSuf SufPre (RWSlocal l) f ih P i@(ev , st₀) op₁ =
+--     ih P (l ev , st₀) (Level.lift tt) (op₁ (l ev) refl)
+--   ASTSufficientPre.opSuf SufPre (RWStell outs refl) f ih P i@(ev , st₀) op₁ =
+--     op₁
 
 module Branching where
   data C (A : Set) : Set₁ where
@@ -300,28 +349,27 @@ module ErrASTBind (E : Set) where
   Rₘ _ = Either E 
 
 module BranchExtend
-  (Cₘ : Set) (Rₘ : Cₘ → Set → Set)
-  (Cₒ : Set → Set₁) (Rₒ : (A : Set) (c : Cₒ A) → Set₁)
+  (C : Set → Set₁) (R : (A : Set) (c : C A) → Set₁)
   where
 
   CBranch : Set → Set₁
-  CBranch A = Either (Cₒ A) (Branching.C A)
+  CBranch A = Either (C A) (Branching.C A)
 
   RBranch : (A : Set) (c : CBranch A) → Set₁
-  RBranch A (Left x) = Rₒ A x
+  RBranch A (Left x) = R A x
   RBranch A (Right y) = Branching.R A y
 
   unextendGuards
-    : ∀ {A} → (gs : Guards{b = Level.zero} Unit) (f : Level.Lift (Level.# 1) (Fin (lengthGuards gs)) → AST Cₘ Rₘ Cₒ Rₒ A)
-      → AST Cₘ Rₘ Cₒ Rₒ A
+    : ∀ {A} → (gs : Guards{b = Level.zero} Unit) (f : Level.Lift (Level.# 1) (Fin (lengthGuards gs)) → AST C R A)
+      → AST C R A
   unextendGuards (otherwise≔ _) f = f (Level.lift zero)
   unextendGuards (clause (b ≔ c) gs) f =
     if (toBool b) then (f (Level.lift zero)) else
       (unextendGuards gs (λ where (Level.lift i) → f (Level.lift (suc i))))
 
-  unextendBranch : ∀ {A} → AST Cₘ Rₘ CBranch RBranch A → AST Cₘ Rₘ Cₒ Rₒ A
+  unextendBranch : ∀ {A} → AST CBranch RBranch A → AST C R A
   unextendBranch (ASTreturn x) = ASTreturn x
-  unextendBranch (ASTbind c x f) = ASTbind c (unextendBranch x) (unextendBranch ∘ f)
+  unextendBranch (ASTbind x f) = ASTbind (unextendBranch x) (unextendBranch ∘ f)
   unextendBranch (ASTop (Left x) f) = ASTop x (unextendBranch ∘ f)
   unextendBranch (ASTop (Right (Branching.ASTif gs)) f) =
     unextendGuards gs (unextendBranch ∘ f)
@@ -330,116 +378,165 @@ module BranchExtend
   unextendBranch (ASTop (Right (Branching.ASTmaybe A₁ x)) f) =
     unextendBranch (f (Level.lift x))
 
-  module OpSem (Types : ASTOpSemTypes) (OS : ASTOpSem Cₘ Rₘ Cₒ Rₒ Types) where
+  module OpSem (Types : ASTTypes) (OS : ASTOpSem C R Types) where
 
-    OSBranch : ASTOpSem Cₘ Rₘ CBranch RBranch Types
+    OSBranch : ASTOpSem CBranch RBranch Types
     ASTImpl.M (ASTOpSem.impl OSBranch) =
       ASTImpl.M (ASTOpSem.impl OS)
     ASTImpl.runAST (ASTOpSem.impl OSBranch) x =
       ASTImpl.runAST (ASTOpSem.impl OS) (unextendBranch x)
     ASTOpSem.runM OSBranch = ASTOpSem.runM OS
 
-  module PT (Types : ASTOpSemTypes) (PT : ASTPredTrans Cₘ Rₘ Cₒ Rₒ Types) where
+  module PT (Types : ASTTypes) (PT : ASTPredTrans C R Types) where
+    open ASTTypes Types
 
-    PTBranch : ASTPredTrans Cₘ Rₘ CBranch RBranch Types
-    ASTPredTrans.returnPTS PTBranch = ASTPredTrans.returnPTS PT
-    ASTPredTrans.bindPTS PTBranch = ASTPredTrans.bindPTS PT
-    ASTPredTrans.opPTS PTBranch (Left  l) x P i =
-      ASTPredTrans.opPTS PT l x P i
-    ASTPredTrans.opPTS PTBranch (Right (Branching.ASTif gs)) pt P i =
-      PTGuards gs pt
-      where
-      PTGuards :
-        (gs : Guards Unit)
-        (pt : Level.Lift (Level.# 1) (Fin (lengthGuards gs))
-              → ASTPredTrans.PredTrans PT _)
-        → Set
-      PTGuards (otherwise≔ _) pt =
-        pt (Level.lift Fin.zero) P i
-      PTGuards (clause (b ≔ c) gs) pt =
-          (toBool b ≡ true  → pt (Level.lift Fin.zero) P i)
-        × (toBool b ≡ false → PTGuards gs (λ where (Level.lift i) → pt (Level.lift (suc i))))
-    ASTPredTrans.opPTS PTBranch (Right (Branching.ASTeither A₁ A₂ e)) pt P i =
+    PTGuards :
+      ∀ {A} (P : Post A) (i : Input)
+      → (gs : Guards{b = Level.# 0} Unit)
+      → (pt : Level.Lift (Level.# 1) (Fin (lengthGuards gs))
+              → PredTrans A)
+      → Set
+    PTGuards P i (otherwise≔ _) pt =
+      pt (Level.lift Fin.zero) P i
+    PTGuards P i (clause (b ≔ c) gs) pt =
+      (toBool b ≡ true  → pt (Level.lift Fin.zero) P i)
+      × (toBool b ≡ false → PTGuards P i gs (λ where (Level.lift i) → pt (Level.lift (suc i))))
+
+    PTBranch : ASTPredTrans CBranch RBranch Types
+    ASTPredTrans.returnPT PTBranch = ASTPredTrans.returnPT PT
+    ASTPredTrans.bindPT PTBranch = ASTPredTrans.bindPT PT
+    ASTPredTrans.opPT PTBranch (Left  l) x P i =
+      ASTPredTrans.opPT PT l x P i
+    ASTPredTrans.opPT PTBranch (Right (Branching.ASTif gs)) pt P i =
+      PTGuards P i gs pt
+    ASTPredTrans.opPT PTBranch (Right (Branching.ASTeither A₁ A₂ e)) pt P i =
         (∀ l → e ≡ Left  l → pt (Level.lift (Left l))  P i)
       × (∀ r → e ≡ Right r → pt (Level.lift (Right r)) P i)
-    ASTPredTrans.opPTS PTBranch (Right (Branching.ASTmaybe A₁ m)) pt P i =
+    ASTPredTrans.opPT PTBranch (Right (Branching.ASTmaybe A₁ m)) pt P i =
         (m ≡ nothing → pt (Level.lift nothing) P i)
       × (∀ j → m ≡ just j → pt (Level.lift (just j)) P i)
 
-    bindPTSUnextendLemma
-      : ASTPredTrans.MonoBindPTS PT
-        → ∀ {A} (x : AST Cₘ Rₘ CBranch RBranch A)
-        → ASTPredTrans._⊑_ PT
-            (ASTPredTrans.ptAST PTBranch x)
-            (ASTPredTrans.ptAST PT (unextendBranch x))
-    bindPTSUnextendLemma mono {A} (ASTreturn x) P i wp = wp
-    bindPTSUnextendLemma mono {A} (ASTbind c x f) P i wp =
-      let ih = bindPTSUnextendLemma mono x _ i wp
-      in {!!}
-      where
-      foo : ∀ o
-            → ASTPredTrans.bindPTS PT c
-                (λ x' → ASTPredTrans.ptAST PTBranch (f x'))
-                i P o
-            → ASTPredTrans.bindPTS PT c
-                (λ x' → ASTPredTrans.ptAST PT (unextendBranch (f x')))
-                i P o
-      foo o ih =
-        mono
-          (λ x' → ASTPredTrans.ptAST PTBranch (f x'))
-          (λ x' → ASTPredTrans.ptAST PT (unextendBranch (f x')))
-          (λ x' → bindPTSUnextendLemma mono (f x'))
-          c i P o ih
-    bindPTSUnextendLemma mono {A} (ASTop c f) P i wp = {!!}
 
+    module _ (PTMono : ASTPredTransMono _ _ Types PT) where
+      open ASTPredTrans
+      open ASTPredTransMono PTMono
 
-  module Sufficient (Types : ASTOpSemTypes)
-    (OS : ASTOpSem Cₘ Rₘ Cₒ Rₒ Types)
-    (PT : ASTPredTrans Cₘ Rₘ Cₒ Rₒ Types)
-    (SU : ASTSufficientPre Cₘ Rₘ Cₒ Rₒ Types OS PT) where
+      postulate
+        monoPTBranch : ASTPredTransMono _ _ _ PTBranch
+
+      unextendPT : ∀ {A} (m : AST CBranch RBranch A)
+                   → predTrans PTBranch m ⊑ predTrans PT (unextendBranch m)
+      unextendPT (ASTreturn x) P i wp = wp
+      unextendPT (ASTbind m f) P i wp =
+        predTransMono (unextendBranch m)
+          (bindPT PTBranch (predTrans PTBranch ∘ f) i P)
+          (bindPT PT (predTrans PT ∘ unextendBranch ∘ f) i P)
+          (bindPTMono₂ (predTrans PTBranch ∘ f) (predTrans PT ∘ unextendBranch ∘ f) (unextendPT ∘ f) i P)
+          i (unextendPT m _ _ wp)
+      unextendPT (ASTop (Left c) f) P i wp =
+        opPTMono₂ c (predTrans PTBranch ∘ f) (predTrans PT ∘ unextendBranch ∘ f) (unextendPT ∘ f) P i wp
+      unextendPT (ASTop{A} (Right (Branching.ASTif gs)) f) P i wp =
+        unextendPTGuards gs f (unextendPT ∘ f) wp
+        where
+        unextendPTGuards
+          : (gs : Guards Unit)
+            → (f : Level.Lift (Level.# 1) (Fin (lengthGuards gs)) → AST CBranch RBranch A)
+            → ((i : Level.Lift (Level.# 1) (Fin (lengthGuards gs)))
+               → predTrans PTBranch (f i) ⊑ predTrans PT (unextendBranch (f i)))
+            → PTGuards P i gs (predTrans PTBranch ∘ f)
+            → predTrans PT (unextendGuards gs (unextendBranch ∘ f)) P i
+        unextendPTGuards (otherwise≔ x) f ih wp =
+          ih (Level.lift Fin.zero) P i wp
+        unextendPTGuards (clause (b ≔ c) gs) f ih wp
+          with toBool b
+        ... | true = ih (Level.lift Fin.zero) P i (proj₁ wp refl)
+        ... | false =
+          unextendPTGuards gs
+            (λ where (Level.lift i) → f (Level.lift (suc i)))
+            (λ where (Level.lift i) → ih (Level.lift (suc i)))
+            (proj₂ wp refl)
+      unextendPT (ASTop (Right (Branching.ASTeither A₁ A₂ (Left x))) f) P i wp =
+        unextendPT (f (Level.lift (Left x))) P i (proj₁ wp x refl)
+      unextendPT (ASTop (Right (Branching.ASTeither A₁ A₂ (Right y))) f) P i wp =
+        unextendPT (f (Level.lift (Right y))) P i (proj₂ wp y refl)
+      unextendPT (ASTop (Right (Branching.ASTmaybe A₁ (just x))) f) P i wp =
+        unextendPT (f (Level.lift (just x))) P i (proj₂ wp x refl)
+      unextendPT (ASTop (Right (Branching.ASTmaybe A₁ nothing)) f) P i wp =
+        unextendPT (f (Level.lift nothing)) P i (proj₁ wp refl)
+
+      extendPT :  ∀ {A} (m : AST CBranch RBranch A)
+                 → predTrans PT (unextendBranch m) ⊑ predTrans PTBranch m
+      extendPT (ASTreturn x) P i wp = wp
+      extendPT (ASTbind m f) P i wp =
+        ASTPredTransMono.predTransMono monoPTBranch m
+          (bindPT PT (predTrans PT ∘ unextendBranch ∘ f) i P)
+          _
+          (bindPTMono₂ _ _ (extendPT ∘ f) i P)
+          i (extendPT m _ i wp)
+      extendPT (ASTop (Left x) f) P i wp = {!!}
+      extendPT (ASTop (Right y) f) P i wp = {!!}
+
+  module Sufficient (Types : ASTTypes)
+    (OS : ASTOpSem C R Types)
+    (PT : ASTPredTrans C R Types)
+    (SU : ASTSufficientPT C R Types OS PT) where
 
     open OpSem Types OS
     open PT Types PT
 
-    SufBranch : ASTSufficientPre Cₘ Rₘ CBranch RBranch Types OSBranch PTBranch
-    ASTSufficientPre.returnSuf SufBranch x wp =
-      ASTSufficientPre.returnSuf SU x wp
-    ASTSufficientPre.bindSuf SufBranch{A}{B} c m f ih P i bp =
-      ASTSufficientPre.bindSuf SU c (unextendBranch m) (unextendBranch ∘ f)
-        {!!} P i {!!}
+    BranchSuf : ASTSufficientPT CBranch RBranch Types OSBranch PTBranch
+    ASTSufficientPT.returnSuf BranchSuf x P i wp =
+      ASTSufficientPT.returnSuf SU x P i wp
+    ASTSufficientPT.bindSuf BranchSuf{A}{B} m f mSuf fSuf P i wp =
+      ASTSufficientPT.bindSuf SU (unextendBranch m) (unextendBranch ∘ f)
+        mSuf' {!!}
+        P i {!!}
       where
-      pt₁ pt₂ : ∀ {B} → AST Cₘ Rₘ CBranch RBranch B
-                → ASTPredTrans.PredTrans PT B
-      pt₁ x' = ASTPredTrans.ptAST PTBranch x'
+      mSuf' : ASTSufficientPT.Sufficient SU A (unextendBranch m)
+      mSuf' P i wp =
+        mSuf P i {!!}
+        
+    ASTSufficientPT.opSuf BranchSuf = {!!}
 
-      pt₂ x' = ASTPredTrans.ptAST PT (unextendBranch x')
+--     SufBranch : ASTSufficientPre Cₘ Rₘ CBranch RBranch Types OSBranch PTBranch
+--     ASTSufficientPre.returnSuf SufBranch x wp =
+--       ASTSufficientPre.returnSuf SU x wp
+--     ASTSufficientPre.bindSuf SufBranch{A}{B} c m f ih P i bp =
+--       ASTSufficientPre.bindSuf SU c (unextendBranch m) (unextendBranch ∘ f)
+--         {!!} P i {!!}
+--       where
+--       pt₁ pt₂ : ∀ {B} → AST Cₘ Rₘ CBranch RBranch B
+--                 → ASTPredTrans.PredTrans PT B
+--       pt₁ x' = ASTPredTrans.ptAST PTBranch x'
 
-      lem : ∀ {B} x' → ASTPredTrans._⊑_ PT (pt₁{B} x') (pt₂ x')
-      lem (ASTreturn x) P i pf = pf
-      lem (ASTbind c x' f) P i pf =
-        lem x' {!!} i {!!}
-      lem (ASTop c f) P i pf = {!!}
+--       pt₂ x' = ASTPredTrans.ptAST PT (unextendBranch x')
 
-    ASTSufficientPre.opSuf SufBranch = {!!}
+--       lem : ∀ {B} x' → ASTPredTrans._⊑_ PT (pt₁{B} x') (pt₂ x')
+--       lem (ASTreturn x) P i pf = pf
+--       lem (ASTbind c x' f) P i pf =
+--         lem x' {!!} i {!!}
+--       lem (ASTop c f) P i pf = {!!}
 
--- --   module Sufficient (Types : ASTOpSemTypes)
--- --     (interpOS : ASTOpSem C R Types) (interpPT : ASTPredTrans C R Types)
--- --     (suf : ASTWeakestPre C R Types interpOS interpPT)
--- --     where
+--     ASTSufficientPre.opSuf SufBranch = {!!}
 
--- --     -- open ASTOpSem      interpOS
--- --     -- open OpSem         interpOS
--- --     -- open ASTPredTrans  interpPT
--- --     -- open PT            interpPT
--- --     -- open ASTWeakestPre suf
+-- -- --   module Sufficient (Types : ASTTypes)
+-- -- --     (interpOS : ASTOpSem C R Types) (interpPT : ASTPredTrans C R Types)
+-- -- --     (suf : ASTWeakestPre C R Types interpOS interpPT)
+-- -- --     where
 
--- --     -- BranchExtendWeakestPre :
--- --     --   ASTWeakestPre CBranch RBranch BranchExtendOpSem BranchExtendPredTrans
--- --     -- ASTWeakestPre.runM     BranchExtendWeakestPre = runM
--- --     -- ASTWeakestPre.returnPT BranchExtendWeakestPre = returnPT
+-- -- --     -- open ASTOpSem      interpOS
+-- -- --     -- open OpSem         interpOS
+-- -- --     -- open ASTPredTrans  interpPT
+-- -- --     -- open PT            interpPT
+-- -- --     -- open ASTWeakestPre suf
 
--- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTreturn x) f wp ih = {!!}
--- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTbind m x) f wp ih = {!!}
--- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTop c x) f wp ih = {!!}
+-- -- --     -- BranchExtendWeakestPre :
+-- -- --     --   ASTWeakestPre CBranch RBranch BranchExtendOpSem BranchExtendPredTrans
+-- -- --     -- ASTWeakestPre.runM     BranchExtendWeakestPre = runM
+-- -- --     -- ASTWeakestPre.returnPT BranchExtendWeakestPre = returnPT
 
--- --     -- ASTWeakestPre.opPT     BranchExtendWeakestPre = {!!}
+-- -- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTreturn x) f wp ih = {!!}
+-- -- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTbind m x) f wp ih = {!!}
+-- -- --     -- ASTWeakestPre.bindPT BranchExtendWeakestPre i (ASTop c x) f wp ih = {!!}
+
+-- -- --     -- ASTWeakestPre.opPT     BranchExtendWeakestPre = {!!}
