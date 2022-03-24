@@ -605,3 +605,37 @@ module BranchExtend
     ASTSufficientPT.opSuf BranchSuf (Right (Branching.ASTmaybe A₁ nothing)) f fSuf P i wp =
       fSuf (Level.lift nothing) P i (proj₁ wp refl)
 
+private
+  module _ where
+
+    open import Data.Nat as Nat
+
+    open RWS ℕ ⊤ ℕ
+    open BranchExtend C R
+
+    test : AST CBranch RBranch ℕ
+    test =
+      ASTbind (ASTop (Left (RWSgets id)) (λ ()))
+      (λ s → ASTop (Right (Branching.ASTif (clause ((s Nat.≤? 10) ≔ unit) (otherwise≔ unit))))
+        λ where
+          (Level.lift zero) →
+            ASTreturn s
+          (Level.lift (suc zero)) →
+            ASTbind (ASTop (Left (RWSask refl)) (λ ()))
+              ASTreturn)
+
+
+    open ASTTypes Types
+    P : Post ℕ
+    P (x , st' , outs) = outs ≡ []
+
+    contract : P (ASTOpSem.runM (BranchExtend.OpSem.OSBranch _ _ Types OS)
+                   (ASTImpl.runAST (ASTOpSem.impl (BranchExtend.OpSem.OSBranch _ _ _ OS)) test) (0 , 0))
+                   
+    contract =
+      ASTSufficientPT.sufficient
+        (BranchExtend.Sufficient.BranchSuf _ _ Types OS PT {!!} SufPre)
+        test P ((0 , 0))
+        (λ s _ →
+            (λ x → refl)
+          , (λ x e e≡ → refl))
