@@ -19,7 +19,7 @@ open import Relation.Binary.PropositionalEquality
 record ASTOps : Set₂ where
   field
     Cmd  : (A : Set) → Set₁
-    Resp : {A : Set} (c : Cmd A) → Set₁
+    Arr : {A : Set} (c : Cmd A) → Set₁
     Sub  : {A : Set} (c : Cmd A) →  Set
 open ASTOps
 
@@ -27,7 +27,7 @@ data AST (OP : ASTOps) : Set → Set₁ where
   ASTreturn : ∀ {A} → A → AST OP A
   ASTbind   : ∀ {A B} → (m : AST OP A) (f : A → AST OP B)
               → AST OP B
-  ASTop : ∀ {A} → (c : Cmd OP A) (f : Resp OP c → AST OP (Sub OP c)) → AST OP A
+  ASTop : ∀ {A} → (c : Cmd OP A) (f : Arr OP c → AST OP (Sub OP c)) → AST OP A
 
 record ASTTypes : Set₁ where
   constructor mkASTTypes
@@ -72,7 +72,7 @@ record ASTPredTrans (OP : ASTOps) (Ty : ASTTypes) : Set₂ where
     returnPT : ∀ {A} → A → PredTrans A
     bindPT   : ∀ {A B} → (f : A → PredTrans B) (i : Input)
                 → (P : Post B) → Post A
-    opPT     : ∀ {A} → (c : Cmd OP A) → (Resp OP c → PredTrans (Sub OP c)) → PredTrans A
+    opPT     : ∀ {A} → (c : Cmd OP A) → (Arr OP c → PredTrans (Sub OP c)) → PredTrans A
 
   predTrans : ∀ {A} → AST OP A → PredTrans A
   predTrans (ASTreturn x) P i =
@@ -93,10 +93,10 @@ record ASTPredTransMono {OP : ASTOps} {Ty : ASTTypes} (PT : ASTPredTrans OP Ty) 
     bindPTMono₂  : ∀ {A B} → (f₁ f₂ : A → PredTrans B)
                    → (f₁⊑f₂ : ∀ x → f₁ x ⊑ f₂ x)
                    → ∀ i P → bindPT f₁ i  P ⊆ₒ bindPT f₂ i P
-    opPTMono₁    : ∀ {A} (c : Cmd OP A) (f : Resp OP c → PredTrans (Sub OP c))
+    opPTMono₁    : ∀ {A} (c : Cmd OP A) (f : Arr OP c → PredTrans (Sub OP c))
                    → (∀ r → MonoPredTrans (f r))
                    → ∀ P₁ P₂ → P₁ ⊆ₒ P₂ → opPT c f P₁ ⊆ᵢ opPT c f P₂
-    opPTMono₂    : ∀ {A} (c : Cmd OP A) (f₁ f₂ : Resp OP c → PredTrans (Sub OP c))
+    opPTMono₂    : ∀ {A} (c : Cmd OP A) (f₁ f₂ : Arr OP c → PredTrans (Sub OP c))
                    → (f₁⊑f₂ : ∀ r → f₁ r ⊑ f₂ r)
                    → opPT c f₁ ⊑ opPT c f₂
 
@@ -128,7 +128,7 @@ record ASTSufficientPT
                 → (mSuf : Sufficient A m)
                 → (fSuf : ∀ x → Sufficient B (f x))
                 → Sufficient B (ASTbind m f)
-    opSuf     : ∀ {A} → (c : Cmd OP A) (f : Resp OP c → AST OP (Sub OP c))
+    opSuf     : ∀ {A} → (c : Cmd OP A) (f : Arr OP c → AST OP (Sub OP c))
                 → (fSuf : ∀ r → Sufficient (Sub OP c) (f r))
                 → Sufficient A (ASTop c f)
 

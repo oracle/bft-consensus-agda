@@ -21,9 +21,9 @@ data BranchCmd (A : Set) : Set₁ where
   BCif     : Bool → BranchCmd A
   BCeither : {B C : Set} → Either B C → BranchCmd A
 
-BranchResp : {A : Set} → BranchCmd A → Set₁
-BranchResp (BCif x) = Level.Lift _ Bool
-BranchResp (BCeither{B}{C} x) = Level.Lift _ (Either B C)
+BranchArr : {A : Set} → BranchCmd A → Set₁
+BranchArr (BCif x) = Level.Lift _ Bool
+BranchArr (BCeither{B}{C} x) = Level.Lift _ (Either B C)
 
 BranchSub : {A : Set} → BranchCmd A → Set
 BranchSub{A} (BCif x) = A
@@ -33,8 +33,8 @@ module ASTExtension (O : ASTOps) where
 
   BranchOps : ASTOps
   ASTOps.Cmd  BranchOps A = Either (ASTOps.Cmd O A) (BranchCmd A)
-  ASTOps.Resp BranchOps (Left x)  = ASTOps.Resp O x
-  ASTOps.Resp BranchOps (Right y) = BranchResp y
+  ASTOps.Arr BranchOps (Left x)  = ASTOps.Arr O x
+  ASTOps.Arr BranchOps (Right y) = BranchArr y
   ASTOps.Sub  BranchOps  (Left x)  = ASTOps.Sub O x
   ASTOps.Sub  BranchOps  (Right y) = BranchSub y
 
@@ -61,8 +61,113 @@ module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) wh
   ASTPredTrans.bindPT BranchPT    = ASTPredTrans.bindPT    PT
   ASTPredTrans.opPT BranchPT (Left x) = ASTPredTrans.opPT PT x
   ASTPredTrans.opPT BranchPT (Right (BCif c)) f P i =
-      c ≡ true → f (Level.lift true) P i
-    × c ≡ false → f (Level.lift false) P i
+      (c ≡ true → f (Level.lift true) P i)
+    × (c ≡ false → f (Level.lift false) P i)
   ASTPredTrans.opPT BranchPT (Right (BCeither e)) f P i =
-      ∀ l → e ≡ Left  l → f (Level.lift (Left l))  P i
-    × ∀ r → e ≡ Right r → f (Level.lift (Right r)) P i
+      (∀ l → e ≡ Left  l → f (Level.lift (Left l))  P i)
+    × (∀ r → e ≡ Right r → f (Level.lift (Right r)) P i)
+
+module PredTransExtensionMono
+  {O : ASTOps} {T : ASTTypes} {PT : ASTPredTrans O T}
+  (M : ASTPredTransMono PT) where
+  open ASTTypes T hiding (M)
+  open ASTExtension O
+  open PredTransExtension PT
+
+  BranchPTMono : ASTPredTransMono BranchPT
+  ASTPredTransMono.returnPTMono BranchPTMono = ASTPredTransMono.returnPTMono M
+  ASTPredTransMono.bindPTMono₁ BranchPTMono = ASTPredTransMono.bindPTMono₁ M
+  ASTPredTransMono.bindPTMono₂ BranchPTMono = ASTPredTransMono.bindPTMono₂ M
+  ASTPredTransMono.opPTMono₁ BranchPTMono (Left x) = ASTPredTransMono.opPTMono₁ M x
+  proj₁ (ASTPredTransMono.opPTMono₁ BranchPTMono (Right (BCif x)) f monoF P₁ P₂ P₁⊆ₒP₂ i wp) refl =
+    monoF (Level.lift true) _ _ P₁⊆ₒP₂ i (proj₁ wp refl)
+  proj₂ (ASTPredTransMono.opPTMono₁ BranchPTMono (Right (BCif x)) f monoF P₁ P₂ P₁⊆ₒP₂ i wp) refl =
+    monoF (Level.lift false) _ _ P₁⊆ₒP₂ i (proj₂ wp refl)
+  proj₁ (ASTPredTransMono.opPTMono₁ BranchPTMono (Right (BCeither x)) f monoF P₁ P₂ P₁⊆ₒP₂ i wp) l refl =
+    monoF (Level.lift (Left l)) _ _ P₁⊆ₒP₂ i (proj₁ wp _ refl)
+  proj₂ (ASTPredTransMono.opPTMono₁ BranchPTMono (Right (BCeither x)) f monoF P₁ P₂ P₁⊆ₒP₂ i wp) r refl =
+    monoF (Level.lift (Right r)) _ _ P₁⊆ₒP₂ i (proj₂ wp _ refl)
+  ASTPredTransMono.opPTMono₂ BranchPTMono (Left x) = ASTPredTransMono.opPTMono₂ M x
+  proj₁ (ASTPredTransMono.opPTMono₂ BranchPTMono (Right (BCif x)) f₁ f₂ f₁⊑f₂ P i wp) refl =
+    f₁⊑f₂ (Level.lift true) _ i (proj₁ wp refl)
+  proj₂ (ASTPredTransMono.opPTMono₂ BranchPTMono (Right (BCif x)) f₁ f₂ f₁⊑f₂ P i wp) refl =
+    f₁⊑f₂ (Level.lift false) _ i (proj₂ wp refl)
+  proj₁ (ASTPredTransMono.opPTMono₂ BranchPTMono (Right (BCeither x)) f₁ f₂ f₁⊑f₂ P i wp) l refl =
+    f₁⊑f₂ (Level.lift (Left l)) _ i (proj₁ wp _ refl)
+  proj₂ (ASTPredTransMono.opPTMono₂ BranchPTMono (Right (BCeither x)) f₁ f₂ f₁⊑f₂ P i wp) r refl =
+    f₁⊑f₂ (Level.lift (Right r)) _ i (proj₂ wp _ refl)
+
+  unextendPT : ∀ {A} (m : AST BranchOps A)
+               → ASTPredTrans.predTrans BranchPT m ⊑ ASTPredTrans.predTrans PT (unextend m)
+  unextendPT (ASTreturn x) P i wp = wp
+  unextendPT (ASTbind m f) P i wp =
+    ASTPredTransMono.predTransMono M (unextend m) _ _ 
+      (ASTPredTransMono.bindPTMono₂ M _ _ (unextendPT ∘ f) i P)
+      i (unextendPT m _ _ wp)
+  unextendPT (ASTop (Left x) f) P i wp =
+    ASTPredTransMono.opPTMono₂ M x _ _ (unextendPT ∘ f) P i wp
+  unextendPT (ASTop (Right (BCif false)) f) P i wp =
+    unextendPT (f (Level.lift false)) P i (proj₂ wp refl)
+  unextendPT (ASTop (Right (BCif true)) f) P i wp =
+    unextendPT (f (Level.lift true)) _ _ (proj₁ wp refl)
+  unextendPT (ASTop (Right (BCeither (Left x))) f) P i wp =
+    unextendPT (f (Level.lift (Left x))) _ _ (proj₁ wp _ refl)
+  unextendPT (ASTop (Right (BCeither (Right y))) f) P i wp =
+    unextendPT (f (Level.lift (Right y))) _ _ (proj₂ wp _ refl)
+
+  extendPT : ∀ {A} (m : AST BranchOps A)
+             → ASTPredTrans.predTrans PT (unextend m) ⊑ ASTPredTrans.predTrans BranchPT m
+  extendPT (ASTreturn x) P i wp = wp
+  extendPT (ASTbind m f) P i wp =
+    ASTPredTransMono.predTransMono BranchPTMono m _ _
+      (ASTPredTransMono.bindPTMono₂ BranchPTMono _ _ (extendPT ∘ f) _ _) _
+      (extendPT m _ _ wp)
+  extendPT (ASTop (Left x) f) P i wp =
+    ASTPredTransMono.opPTMono₂ BranchPTMono (Left x) _ _ (extendPT ∘ f) _ _ wp
+  proj₁ (extendPT (ASTop (Right (BCif x)) f) P i wp) refl =
+    extendPT (f (Level.lift true)) _ _ wp
+  proj₂ (extendPT (ASTop (Right (BCif x)) f) P i wp) refl =
+    extendPT (f (Level.lift false)) _ _ wp
+  proj₁ (extendPT (ASTop (Right (BCeither x)) f) P i wp) l refl =
+    extendPT (f (Level.lift (Left l))) _ _ wp
+  proj₂ (extendPT (ASTop (Right (BCeither x)) f) P i wp) r refl =
+    extendPT (f (Level.lift (Right r))) _ _ wp
+
+module SufficientExtension
+  {O : ASTOps} {T : ASTTypes} {OS : ASTOpSem O T} {PT : ASTPredTrans O T}
+  (M : ASTPredTransMono PT) (S : ASTSufficientPT OS PT) where
+  open ASTTypes T hiding (M)
+  open ASTExtension O
+  open OpSemExtension OS
+  open PredTransExtension PT
+  open PredTransExtensionMono M
+
+  BranchSuf : ASTSufficientPT BranchOpSem BranchPT
+  ASTSufficientPT.returnSuf BranchSuf = ASTSufficientPT.returnSuf S
+  ASTSufficientPT.bindSuf BranchSuf m f mSuf fSuf P i wp =
+    ASTSufficientPT.bindSuf S (unextend m) (unextend ∘ f) mSuf' fSuf' _ _ wp'
+    where
+    mSuf' : ASTSufficientPT.Sufficient S _ (unextend m)
+    mSuf' P i wp = mSuf _ _ (extendPT m _ _ wp)
+
+    fSuf' : ∀ x → ASTSufficientPT.Sufficient S _ (unextend (f x))
+    fSuf' x P i wp = fSuf x _ _ (extendPT (f x) _ _ wp)
+
+    wp' : ASTPredTrans.predTrans PT (ASTbind (unextend m) (unextend ∘ f)) P i
+    wp' = unextendPT (ASTbind m f) _ _ wp
+  ASTSufficientPT.opSuf BranchSuf (Left x) f fSuf P i wp =
+    ASTSufficientPT.opSuf S x (unextend ∘ f) fSuf' _ _ wp'
+    where
+    fSuf' : ∀ r → ASTSufficientPT.Sufficient S _ (unextend (f r))
+    fSuf' r P i wp = fSuf r _ _ (extendPT (f r) _ _ wp)
+
+    wp' : ASTPredTrans.predTrans PT (ASTop x (unextend ∘ f)) _ _
+    wp' = unextendPT (ASTop (Left x) f) _ _ wp
+  ASTSufficientPT.opSuf BranchSuf (Right (BCif false)) f fSuf P i wp =
+    fSuf (Level.lift false) _ _ (proj₂ wp refl)
+  ASTSufficientPT.opSuf BranchSuf (Right (BCif true)) f fSuf P i wp =
+    fSuf (Level.lift true) _ _ (proj₁ wp refl)
+  ASTSufficientPT.opSuf BranchSuf (Right (BCeither (Left x))) f fSuf P i wp =
+    fSuf (Level.lift (Left x)) _ _ (proj₁ wp _ refl)
+  ASTSufficientPT.opSuf BranchSuf (Right (BCeither (Right y))) f fSuf P i wp =
+    fSuf (Level.lift (Right y)) _ _ (proj₂ wp _ refl)

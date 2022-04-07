@@ -16,6 +16,7 @@ open import Haskell.Prelude
 import      Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
+  hiding ([_])
 
 data RWSCmd (A : Set) : Set₁ where
   RWSgets   : (g : St → A)                 → RWSCmd A
@@ -26,19 +27,20 @@ data RWSCmd (A : Set) : Set₁ where
   RWSlisten : {A' : Set} → (A ≡ (A' × List Wr)) → RWSCmd A
   RWSpass   :                                RWSCmd A
 
-RWSResp : {A : Set} (c : RWSCmd A) → Set₁
-RWSResp (RWSgets g)          = Level.Lift _ ⊥
-RWSResp (RWSputs p refl)     = Level.Lift _ ⊥
-RWSResp (RWSask refl)        = Level.Lift _ ⊥
-RWSResp (RWSlocal l)         = Level.Lift _ ⊤
-RWSResp (RWStell out refl)   = Level.Lift _ ⊥
-RWSResp (RWSlisten{A'} refl) = Level.Lift _ ⊤
-RWSResp  RWSpass             = Level.Lift _ ⊤
+
+RWSArr : {A : Set} (c : RWSCmd A) → Set₁
+RWSArr (RWSgets g)          = Level.Lift _ ⊥
+RWSArr (RWSputs p refl)     = Level.Lift _ ⊥
+RWSArr (RWSask refl)        = Level.Lift _ ⊥
+RWSArr (RWSlocal l)         = Level.Lift _ ⊤
+RWSArr (RWStell out refl)   = Level.Lift _ ⊥
+RWSArr (RWSlisten{A'} refl) = Level.Lift _ ⊤
+RWSArr  RWSpass             = Level.Lift _ ⊤
 
 RWSSub : {A : Set} (c : RWSCmd A) → Set
-RWSSub{A} (RWSgets g) = A
-RWSSub{A} (RWSputs p x) = A
-RWSSub{A} (RWSask x) = A
+RWSSub (RWSgets g) = ⊤
+RWSSub (RWSputs p x) = ⊤
+RWSSub (RWSask x) = ⊤
 RWSSub{A} (RWSlocal l) = A
 RWSSub{A} (RWStell out x) = A
 RWSSub {.(_ × List Wr)} (RWSlisten{A'} refl) = A'
@@ -46,10 +48,34 @@ RWSSub{A} RWSpass = A × (List Wr → List Wr)
 
 RWSOps : ASTOps
 ASTOps.Cmd RWSOps  = RWSCmd
-ASTOps.Resp RWSOps = RWSResp
+ASTOps.Arr RWSOps = RWSArr
 ASTOps.Sub  RWSOps = RWSSub
 
 RWS = AST RWSOps
+
+module Syntax where
+  open import Dijkstra.AST.Syntax public
+
+  gets : ∀ {A} → (St → A) → RWS A
+  gets f = ASTop (RWSgets f) λ ()
+
+  puts : (St → St) → RWS Unit
+  puts f = ASTop (RWSputs f refl) (λ ())
+
+  ask : RWS Ev
+  ask = ASTop (RWSask refl) (λ ())
+
+  local : ∀ {A} → (Ev → Ev) → RWS A → RWS A
+  local f m = ASTop (RWSlocal f) (λ where (Level.lift tt) → m)
+
+  tell : List Wr → RWS Unit
+  tell outs = ASTop (RWStell outs refl) (λ ())
+
+  listen : ∀ {A} → RWS A → RWS (A × List Wr)
+  listen m = ASTop (RWSlisten refl) λ where (Level.lift tt) → m
+
+  pass : ∀ {A} → RWS (A × (List Wr → List Wr)) → RWS A
+  pass m = ASTop RWSpass (λ where (Level.lift tt) → m)
 
 private
   prog₁ : (St → Wr) → RWS ⊤
@@ -58,6 +84,15 @@ private
       ASTbind (ASTop (RWSgets f) λ ()) λ w →
       ASTbind (ASTop (RWStell (w ∷ []) refl) λ ()) λ _ →
       ASTreturn (tt , λ o → o ++ o)
+
+  module prog₁ where
+    open Syntax
+    prog₁' : (St → Wr) → RWS ⊤
+    prog₁' f =
+      pass $ do
+        w ← gets f
+        tell (w ∷ [])
+        return (tt , λ o → o ++ o)
 
 RWSTypes : ASTTypes
 ASTTypes.Input  RWSTypes    = Ev × St
