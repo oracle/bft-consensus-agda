@@ -21,22 +21,22 @@ data BranchCmd (A : Set) : Set₁ where
   BCif     : Bool → BranchCmd A
   BCeither : {B C : Set} → Either B C → BranchCmd A
 
-BranchArr : {A : Set} → BranchCmd A → Set₁
-BranchArr (BCif x) = Level.Lift _ Bool
-BranchArr (BCeither{B}{C} x) = Level.Lift _ (Either B C)
+BranchSubArg : {A : Set} → BranchCmd A → Set₁
+BranchSubArg (BCif x) = Level.Lift _ Bool
+BranchSubArg (BCeither{B}{C} x) = Level.Lift _ (Either B C)
 
-BranchSub : {A : Set} → BranchCmd A → Set
-BranchSub{A} (BCif x) = A
-BranchSub{A} (BCeither x) = A
+BranchSubRet : {A : Set} → BranchCmd A → Set
+BranchSubRet{A} (BCif x) = A
+BranchSubRet{A} (BCeither x) = A
 
 module ASTExtension (O : ASTOps) where
 
   BranchOps : ASTOps
   ASTOps.Cmd  BranchOps A = Either (ASTOps.Cmd O A) (BranchCmd A)
-  ASTOps.Arr BranchOps (Left x)  = ASTOps.Arr O x
-  ASTOps.Arr BranchOps (Right y) = BranchArr y
-  ASTOps.Sub  BranchOps  (Left x)  = ASTOps.Sub O x
-  ASTOps.Sub  BranchOps  (Right y) = BranchSub y
+  ASTOps.SubArg BranchOps (Left x)   = ASTOps.SubArg O x
+  ASTOps.SubArg BranchOps (Right y)  = BranchSubArg y
+  ASTOps.SubRet BranchOps  (Left x)  = ASTOps.SubRet O x
+  ASTOps.SubRet BranchOps  (Right y) = BranchSubRet y
 
   unextend : ∀ {A} → AST BranchOps A → AST O A
   unextend (ASTreturn x) = ASTreturn x
