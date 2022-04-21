@@ -16,6 +16,9 @@ open import Level
 open import Data.Bool
   hiding (not; _≟_; _<_; _<?_; _≤_; _≤?_)
   public
+open import Data.Empty
+  renaming (⊥ to Void)
+  public
 open import Data.List
   hiding (map; filter; lookup; tabulate; foldl; fromMaybe; [_])
   public
