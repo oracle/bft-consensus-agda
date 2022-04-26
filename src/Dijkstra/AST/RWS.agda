@@ -37,14 +37,14 @@ RWSSubArg (RWStell out refl)   = Level.Lift _ Void
 RWSSubArg (RWSlisten{A'} refl) = Level.Lift _ Unit
 RWSSubArg  RWSpass             = Level.Lift _ Unit
 
-RWSSubRet : {A : Set} (c : RWSCmd A) → Set
-RWSSubRet (RWSgets g) = Unit
-RWSSubRet (RWSputs p x) = Unit
-RWSSubRet (RWSask x) = Unit
-RWSSubRet{A} (RWSlocal l) = A
-RWSSubRet{A} (RWStell out x) = A
-RWSSubRet {.(_ × List Wr)} (RWSlisten{A'} refl) = A'
-RWSSubRet{A} RWSpass = A × (List Wr → List Wr)
+RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
+RWSSubRet{_} {RWSgets g} _ = Void
+RWSSubRet{_} {RWSputs p x} _ = Void
+RWSSubRet{_} {RWSask x} _ = Void
+RWSSubRet{A} {RWSlocal l} _ = A
+RWSSubRet{_} {RWStell out x} _ = Void
+RWSSubRet {.(_ × List Wr)} {RWSlisten{A'} refl} _ = A'
+RWSSubRet{A} {RWSpass} _ = A × (List Wr → List Wr)
 
 RWSOps : ASTOps
 ASTOps.Cmd RWSOps     = RWSCmd

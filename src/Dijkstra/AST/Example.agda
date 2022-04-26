@@ -8,6 +8,7 @@ module Dijkstra.AST.Example (Ev Wr St : Set) where
 
 open import Data.Empty
 open import Data.Fin
+open import Data.List using ([_])
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Dijkstra.AST.Core
@@ -71,7 +72,7 @@ private
           ASTop (RWSmaybe m) λ where
             (Level.lift nothing)  → ASTreturn (unit , λ x → x ++ x)
             (Level.lift (just w)) →
-              ASTbind (ASTop (RWStell (w ∷ []) refl) (λ ())) λ _ →
+              ASTbind (ASTop (RWStell ([ w ]) refl) (λ ())) λ _ →
               ASTreturn (unit , λ _ → [])
 
     module Sugar where
@@ -82,7 +83,7 @@ private
           m ← gets f
           maybe m (return (unit , λ x → x ++ x))
             λ w → do
-              tell (w ∷ [])
+              tell [ w ]
               return (unit , λ _ → [])
 
 RWSTypes : ASTTypes

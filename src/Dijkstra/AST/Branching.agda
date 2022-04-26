@@ -25,18 +25,18 @@ BranchSubArg : {A : Set} → BranchCmd A → Set₁
 BranchSubArg (BCif x) = Level.Lift _ Bool
 BranchSubArg (BCeither{B}{C} x) = Level.Lift _ (Either B C)
 
-BranchSubRet : {A : Set} → BranchCmd A → Set
-BranchSubRet{A} (BCif x) = A
-BranchSubRet{A} (BCeither x) = A
+BranchSubRet : {A : Set} {c : BranchCmd A} → BranchSubArg c → Set
+BranchSubRet{A} {BCif x} _ = A
+BranchSubRet{A} {BCeither x} _ = A
 
 module ASTExtension (O : ASTOps) where
 
   BranchOps : ASTOps
   ASTOps.Cmd  BranchOps A = Either (ASTOps.Cmd O A) (BranchCmd A)
-  ASTOps.SubArg BranchOps (Left x)   = ASTOps.SubArg O x
-  ASTOps.SubArg BranchOps (Right y)  = BranchSubArg y
-  ASTOps.SubRet BranchOps  (Left x)  = ASTOps.SubRet O x
-  ASTOps.SubRet BranchOps  (Right y) = BranchSubRet y
+  ASTOps.SubArg BranchOps{_} (Left x)   = ASTOps.SubArg O x
+  ASTOps.SubArg BranchOps{_} (Right y)  = BranchSubArg y
+  ASTOps.SubRet BranchOps{_} {(Left x)} r  = ASTOps.SubRet O r
+  ASTOps.SubRet BranchOps{_} {(Right y)} r = BranchSubRet r
 
   unextend : ∀ {A} → AST BranchOps A → AST O A
   unextend (ASTreturn x) = ASTreturn x
