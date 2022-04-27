@@ -12,7 +12,6 @@ open import Data.List
 open import Data.Maybe renaming (_>>=_ to _Maybe->>=_)
 open import Function
 open import Level renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
-open import Relation.Binary.PropositionalEquality
 
 record Functor  {ℓ₁ ℓ₂ : Level} (F : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   infixl 4 _<$>_
@@ -40,18 +39,6 @@ record Monad {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ�
   _>>_ : ∀ {A B : Set ℓ₁} → M A → M B → M B
   m₁ >> m₂ = m₁ >>= λ _ → m₂
 open Monad ⦃ ... ⦄ public
-
-record MonadLaws
-  {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) ⦃ m : Monad M ⦄
-  (_~_ : {A : Set ℓ₁} → M A → M A → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
-  field
-    idLeft  : ∀ {A B : Set ℓ₁} → (x : A) (f : A → M B)
-              → (return x >>= f) ~ f x
-    idRight : ∀ {A : Set ℓ₁} → (m : M A)
-              → (m >>= return) ~ m
-    assoc   : ∀ {A B C : Set ℓ₁} → (m : M A) (f : A → M B) (g : B → M C)
-              → ((m >>= f) >>= g) ~ (m >>= (λ x → f x >>= g))
-
 instance
   MonadApplicative : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : Monad M ⦄ → Applicative M
   Applicative.pure  MonadApplicative       = return

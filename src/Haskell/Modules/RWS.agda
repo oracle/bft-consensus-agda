@@ -14,7 +14,7 @@ open import Haskell.Prelude
 ------------------------------------------------------------------------------
 open import Data.Product using (_×_; _,_)
 
--- RWS : the AST of computations with state `St` reading from an environment
+-- (free) RWS : the AST of computations with state `St` reading from an environment
 -- `Ev` and producing a list of outputs of type `Wr`
 data RWS (Ev Wr St : Set) : Set → Set₁ where
   -- Primitive combinators
@@ -23,7 +23,6 @@ data RWS (Ev Wr St : Set) : Set → Set₁ where
   RWS-gets   : ∀ {A} → (St → A)                                  → RWS Ev Wr St A
   RWS-put    : St                                                → RWS Ev Wr St Unit
   RWS-ask    :                                                     RWS Ev Wr St Ev
-  RWS-local  : ∀ {A} → (Ev → Ev) → RWS Ev Wr St A                → RWS Ev Wr St A
   RWS-tell   : List Wr                                           → RWS Ev Wr St Unit
   -- Branching combinators (used for creating more convenient contracts)
   RWS-if     : ∀ {A} → Guards (RWS Ev Wr St A)                   → RWS Ev Wr St A
@@ -84,7 +83,6 @@ RWS-run (RWS-bind m f)               ev st
 RWS-run (RWS-gets f)                 ev st = f st , st , []
 RWS-run (RWS-put st)                 ev _  = unit , st , []
 RWS-run RWS-ask                      ev st = ev , st , []
-RWS-run (RWS-local f m)              ev st = RWS-run m (f ev) st
 RWS-run (RWS-tell outs)              ev st = unit , st , outs
 RWS-run (RWS-if (clause (b ≔ c) gs)) ev st =
   if toBool b then RWS-run c ev st else RWS-run (RWS-if gs) ev st

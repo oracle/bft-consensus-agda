@@ -70,8 +70,6 @@ RWS-weakestPre (RWS-bind m f) P ev pre =
 RWS-weakestPre (RWS-gets f) P ev pre = P (f pre) pre []
 RWS-weakestPre (RWS-put post) P ev pre = P unit post []
 RWS-weakestPre RWS-ask P ev pre = P ev pre []
-RWS-weakestPre (RWS-local f m) P ev pre =
-  ∀ ev' → ev' ≡ f ev → RWS-weakestPre m P ev' pre
 RWS-weakestPre (RWS-tell outs) P ev pre = P unit pre outs
 RWS-weakestPre (RWS-if (clause (b ≔ c) gs)) P ev pre =
   (toBool b ≡ true → RWS-weakestPre c P ev pre)
@@ -129,8 +127,6 @@ RWS-contract (RWS-bind m f) P ev pre wp
 RWS-contract (RWS-gets f) P ev pre wp = wp
 RWS-contract (RWS-put x₁) P ev pre wp = wp
 RWS-contract RWS-ask P ev pre wp = wp
-RWS-contract (RWS-local f m) P ev pre wp =
-  RWS-contract m P (f ev) pre (wp _ refl)
 RWS-contract (RWS-tell x₁) P ev pre wp = wp
 RWS-contract{Ev}{Wr}{St}{A} (RWS-if gs) P ev pre wp = RWS-contract-if gs P ev pre wp
   where
@@ -176,8 +172,6 @@ RWS-⇒ (RWS-bind m f) ev st pre pf =
 RWS-⇒ (RWS-gets f) ev st pre pf = pf _ _ _ pre
 RWS-⇒ (RWS-put x)  ev st pre pf = pf _ _ _ pre
 RWS-⇒ RWS-ask      ev st pre pf = pf _ _ _ pre
-RWS-⇒ (RWS-local f m) ev st pre pf _ refl =
-  RWS-⇒ m (f ev) st (pre _ refl) pf
 RWS-⇒ (RWS-tell x) ev st pre pf = pf _ _ _ pre
 RWS-⇒ (RWS-if (otherwise≔ x)) ev st pre pf = RWS-⇒ x ev st pre pf
 RWS-⇒ (RWS-if (clause (b ≔ c) cs)) ev st (pre₁ , pre₂) pf =

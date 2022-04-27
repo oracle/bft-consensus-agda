@@ -16,9 +16,6 @@ open import Level
 open import Data.Bool
   hiding (not; _≟_; _<_; _<?_; _≤_; _≤?_)
   public
-open import Data.Empty
-  renaming (⊥ to Void)
-  public
 open import Data.List
   hiding (map; filter; lookup; tabulate; foldl; fromMaybe; [_])
   public
@@ -89,10 +86,6 @@ infix 1 grd‖_
 grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
 grd‖_ (otherwise≔ a) = a
 grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
-
-lengthGuards : ∀ {a}{b}{A : Set a} → Guards{a}{b} A → DN.ℕ
-lengthGuards (otherwise≔ x) = 1
-lengthGuards (clause x x₁) = 1 DN.+ lengthGuards x₁
 
 ------------------------------------------------------------------------------
 -- List
