@@ -125,12 +125,14 @@ private
 module Partiality where
   {- from "A predicate transformer semantics for effects"
      https://webspace.science.uu.nl/~swier004/publications/2019-icfp-submission-a.pdf
+     https://zenodo.org/record/3257707#.Yec-nxPMJqt
   -}
   open Syntax
   open import Agda.Builtin.Unit using (⊤; tt)
-  open import Data.Empty using (⊥)
+  open import Data.Empty using (⊥; ⊥-elim)
   open import Data.Nat public using () renaming (ℕ to Nat; zero to Zero; suc to Succ)
   open import Data.Nat.DivMod
+  open import Data.Product using (∃ ; ∃-syntax ; _×_)
 
   data Expr : Set where
     Val : Nat  -> Expr
@@ -146,13 +148,19 @@ module Partiality where
 
   _÷_ : Nat -> Nat -> MaybeD Nat
   n ÷ Zero     = bail
-  n ÷ (Succ k) = return (n div (Succ k))
+  n ÷ (Succ k) = ASTreturn (n div (Succ k))
+
+  -- ⟦_⟧ : Expr -> MaybeD Nat
+  -- ⟦ Val x ⟧     = return x
+  -- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
+  --                 ⟦ e2 ⟧ >>= \v2 ->
+  --                 v1 ÷ v2
 
   ⟦_⟧ : Expr -> MaybeD Nat
-  ⟦ Val x ⟧     = return x
-  ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
-                  ⟦ e2 ⟧ >>= \v2 ->
-                  v1 ÷ v2
+  ⟦ Val x ⟧     = ASTreturn x
+  ⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
+                  ASTbind (⟦ e2 ⟧) (\v2 ->
+                   (v1 ÷ v2)))
 
   record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
     constructor _,_
@@ -166,16 +174,63 @@ module Partiality where
 
   SafeDiv : Expr -> Set
   SafeDiv (Val x)     = ⊤
-  SafeDiv (Div e1 e2) = (e2 ⇓ Zero -> ⊥) ∧ SafeDiv e1 ∧ SafeDiv e2
+  SafeDiv (Div el er) = (er ⇓ Zero -> ⊥) ∧ SafeDiv el ∧ SafeDiv er
 
-  -- everything below this point COULD BE WRONG
+  ------------------------------------------------------------------------------
+  -- everything above from Wouter paper (modified with our AST)
+  -- everything below our attempts to prove sufficient, sound, complete, ...
 
-  -- TODO: Is this the right way to integrate SafeDiv into our system?
   PN : Expr → Post Nat
-  PN e nothing  = SafeDiv e
-  PN e (just _) = SafeDiv e
+  PN e nothing  = ⊥
+  PN e (just n) = e ⇓ n
 
-  -- this is like 'bailWorks' above
-  divWorks : ∀ (e : Expr) i → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks (Val x)     unit = tt
-  divWorks (Div el er) unit = {!!}
+  -- divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  -- divWorks (Val x)     i sd  = ⇓Base
+  -- divWorks (Div el er) i (erz , (sdel , sder))
+  --   with ⟦ el ⟧ | ⟦ er ⟧ | divWorks el i sdel | divWorks er i sder
+  -- ... | ASTreturn Zero | ASTreturn Zero | dwl | dwr = ⊥-elim (erz dwr)
+  -- ... | ASTreturn Zero | ASTreturn (Succ x) | dwl | dwr = xxx
+  --       where
+  --        xxx : _
+  --        xxx with ⇓Step dwl dwr
+  --        ... | xx = {!!}
+  -- ... | ASTreturn (Succ x) | ASTreturn x₁ | dwl | dwr = {!!}
+  -- ... | ASTreturn x | ASTbind r f | dwl | dwr = {!!}
+  -- ... | ASTreturn x | ASTop c f | dwl | dwr = {!!}
+  -- ... | ASTbind l f | r | dwl | dwr = {!!}
+  -- ... | ASTop c f | r | dwl | dwr = {!!}
+
+  -- OLDER VERSIONS - FEEL FREE TO DELETE
+
+  -- divWorks (Div el (Val Zero)) unit (e2≢0 , (_ , _)) =  ⊥-elim (e2≢0 ⇓Base)
+  -- divWorks (Div el (Val (Succ n))) unit (e2≢0 , (sdel , .tt))
+  --    with divWorks el unit sdel
+  -- ...| x = {!!}
+  -- divWorks (Div el (Div er er₁)) unit (e2≢0 , (sdl , sdr)) = {!!}
+
+  -- -- everything below this point COULD BE WRONG
+  -- -- TODO: Is this the right way to integrate SafeDiv into our system?
+
+  -- -- SafeDiv2 : Expr -> Set
+  -- -- SafeDiv2 (Val x)     = ⊤
+  -- -- SafeDiv2 (Div el er) = (er ≢ Val 0) ∧ SafeDiv2 el ∧ SafeDiv2 er
+
+  -- PN : Expr → Post Nat
+  -- PN e nothing  = ⊥
+  -- PN e (just n) = e ⇓ n
+
+  -- -- -- this is like 'bailWorks' above - Wouter's 'correct'
+  -- divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  -- divWorks (Val n)    i sd = {!!} -- n Data.Product., (⇓Base Data.Product., refl)
+  -- divWorks (Div e e₁) i sd = {!!}
+
+  
+
+  -- -- this is like 'bailWorks' above
+  -- -- divWorks : ∀ (e : Expr) i → SafeDiv2 e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  -- -- divWorks (Val _)     _ _ = ⇓Base
+  -- -- divWorks (Div el er) _ _ = {!!}
+
+  -- -- PN : Expr → Post Nat
+  -- -- PN e = (λ o → ∃[ n ] (e ⇓ n × o ≡ just n))
+
