@@ -227,3 +227,22 @@ module Partiality where
   ... | ASTbind m1 f1      | ASTbind m2 f2      | dwl | dwr = {!!}
   ... | ASTreturn x        | ASTbind m f        | dwl | dwr =
       λ where ._ refl → {!!}
+
+  divWorks2 : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  divWorks2 (Val x₁) i x = ⇓Base
+  divWorks2 (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
+    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ _ _ PN⊆₁ unit ih₁
+    where
+    ih₁ = divWorks2 e₁ unit sd₁
+    ih₂ = divWorks2 e₂ unit sd₂
+
+    PN⊆₂ : ∀ n → e₁ ⇓ n →  PN e₂ ⊆ₒ _
+    PN⊆₂ n pf₁ o () nothing refl
+    PN⊆₂ n pf₁ .(just Zero) pf₂ (just Zero) refl = ¬e₂⇓0 pf₂
+    PN⊆₂ n pf₁ .(just (Succ m)) pf₂ (just (Succ m)) refl =
+      ⇓Step pf₁ pf₂
+
+    PN⊆₁ : PN e₁ ⊆ₒ _
+    PN⊆₁ o () nothing refl
+    PN⊆₁ o pf₁ (just n) refl =
+      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ _ _ (PN⊆₂ n pf₁) unit ih₂
