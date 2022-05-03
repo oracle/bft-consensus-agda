@@ -69,7 +69,7 @@ MaybebindPost f P (just y) = f y P unit
 
 MaybePT : ASTPredTrans MaybeOps MaybeTypes
 ASTPredTrans.returnPT MaybePT x P i               = P (just x)
-ASTPredTrans.bindPT   MaybePT f i Post x       = ∀ r → r ≡ x → MaybebindPost f Post r
+ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
 ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
 open ASTPredTrans MaybePT
 
@@ -225,4 +225,5 @@ module Partiality where
       λ where ._ refl ._ refl → ⇓Step dwl dwr
   ... | ASTbind m f        | ASTreturn (Succ x) | dwl | dwr = {!!}
   ... | ASTbind m1 f1      | ASTbind m2 f2      | dwl | dwr = {!!}
-  ... | ASTreturn x        | ASTbind m f        | dwl | dwr = {!!}
+  ... | ASTreturn x        | ASTbind m f        | dwl | dwr =
+      λ where ._ refl → {!!}
