@@ -69,8 +69,9 @@ MaybebindPost f P (just y) = f y P unit
 
 MaybePT : ASTPredTrans MaybeOps MaybeTypes
 ASTPredTrans.returnPT MaybePT x P i               = P (just x)
-ASTPredTrans.bindPT   MaybePT f unit Post x       = ∀ r → r ≡ x → MaybebindPost f Post r
+ASTPredTrans.bindPT   MaybePT f i Post x       = ∀ r → r ≡ x → MaybebindPost f Post r
 ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
+open ASTPredTrans MaybePT
 
 private
   BailWorks : ∀ {A} -> Post A
@@ -217,17 +218,11 @@ module Partiality where
   divWorks1 (Val x)     i sd  = ⇓Base
   divWorks1 (Div el er) i (erz , (sdel , sder))
     with ⟦ el ⟧ | ⟦ er ⟧ | divWorks1 el i sdel | divWorks1 er i sder
-  ... | ASTreturn Zero     | ASTreturn Zero     | dwl | dwr = ⊥-elim (erz dwr)
-  ... | ASTreturn Zero     | ASTreturn (Succ x) | dwl | dwr = xxx
-        where
-         xxx : _
-         xxx with ⇓Step dwl dwr
-         ... | xx = {!!}  -- Back at the same old goal shape that I'm running into and not knowing
-                          -- how to proceed, no matter which approach I take.
-  ... | ASTreturn (Succ x) | ASTreturn x₁       | dwl | dwr = {!!}
-  ... | ASTbind l f        | r                  | dwl | dwr = {!!}
-  ... | ASTop Maybe-bail f | r                  | dwl | dwr = {!!}
-  ... | ASTreturn Zero     | ASTbind w₂ f       | dwl | dwr = {!!}
-  ... | ASTreturn Zero     | ASTop Maybe-bail f | dwl | dwr = {!!}
-  ... | ASTreturn (Succ x) | ASTbind w₂ f       | dwl | dwr = {!!}
-  ... | ASTreturn (Succ x) | ASTop Maybe-bail f | dwl | dwr = {!!}
+  ... | _                  | ASTreturn Zero     | dwl | dwr = ⊥-elim (erz dwr)
+  ... | _                  | ASTop Maybe-bail _ | _   | ()
+  ... | ASTop Maybe-bail _ | _                  | ()  | _
+  ... | ASTreturn x1       | ASTreturn (Succ x) | dwl | dwr =
+      λ where ._ refl ._ refl → ⇓Step dwl dwr
+  ... | ASTbind m f        | ASTreturn (Succ x) | dwl | dwr = {!!}
+  ... | ASTbind m1 f1      | ASTbind m2 f2      | dwl | dwr = {!!}
+  ... | ASTreturn x        | ASTbind m f        | dwl | dwr = {!!}
