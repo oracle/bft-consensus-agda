@@ -69,8 +69,15 @@ MaybebindPost f P (just y) = f y P unit
 
 MaybePT : ASTPredTrans MaybeOps MaybeTypes
 ASTPredTrans.returnPT MaybePT x P i               = P (just x)
+-- Note that it is important *not* to pattern match the input as 'unit'.  Even though this is the
+-- only constructor for Unit, Agda does not figure out that this case applies to a general Input
+-- (because Input is of type Unit), and therefore does not expand this case when encountering
+-- bindPT.
 ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
 ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
+-- This open is important because, without it, Agda does not know how to interpret bindPT and
+-- therefore does not refine the goal sufficiently to enable the old λ ._ refl trick to get to the
+-- MaybebindPost goal, for example.
 open ASTPredTrans MaybePT
 
 private
@@ -181,60 +188,26 @@ module Partiality where
   -- everything above from Wouter paper (modified with our AST)
   -- everything below our attempts to prove sufficient, sound, complete, ...
 
+  -- The proof of 'correct' in the Wouter paper uses wpPartial, which is like wp, but is for a
+  -- Partial (Maybe) computation, and requires that the computation succeeds (i.e., returns a just)
+  -- by making the post condition not hold when the computation returns nothing.  While not
+  -- explicitly writing it as such, the following is the moral equivaelent, where PN plays the role
+  -- of mustPT in the paper.
   PN : Expr → Post Nat
   PN e nothing  = ⊥
   PN e (just n) = e ⇓ n
 
-  -- Collecitng some useful facts, but not figuring out how to put them together to complete the proof,
-  -- not even sure if it makes any sense
+  -- TUTORIAL: This example provides a good demonstration of how predTransMono can be used to
+  -- construct proofs for ASTs that include ASTbind, and shows how Agda can figure out the required
+  -- post condition from context, saving us from writing out ugly expressions for the continuation
+  -- of a bind.
   divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks (Val x)     i sd  = ⇓Base
-  divWorks (Div el er) unit (ernz , (sdel , sder))
-    with divWorks el unit sdel | divWorks er unit sder
-  ... | dwl | dwr
-    with  runMaybe ⟦ el ⟧  unit | inspect
-         (runMaybe ⟦ el ⟧) unit
-  ...| nothing | [ R ]  = ⊥-elim (subst (PN el) R (ASTSufficientPT.sufficient MaybeSuf ⟦ el ⟧ (PN el) unit dwl))
-  ...| just x  | [ R ]
-     with ASTSufficientPT.sufficient MaybeSuf ⟦ el ⟧ (PN el) unit dwl
-  ...| el⇓x rewrite R
-     with  runMaybe ⟦ er ⟧  unit | inspect
-          (runMaybe ⟦ er ⟧) unit
-  ...| nothing | [ R' ] = ⊥-elim (subst (PN er) R' (ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr))
-  ...| just Zero     | [ R' ] rewrite R' =
-       ⊥-elim (ernz (subst (PN er) R' (ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr)) )
-  ...| just (Succ y) | [ R' ]
-     with ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr
-  ...| er⇓y
-     with ⇓Step {n2 = y} el⇓x (subst (PN er) R' er⇓y)
-  ...| step = {! step!}
-
-  divWorks' : ∀ (e : Expr) → SafeDiv e → PN e (runMaybe ⟦ e ⟧ unit)
-  divWorks' e sde = ASTSufficientPT.sufficient MaybeSuf ⟦ e ⟧ (PN e) unit (divWorks e unit sde)
-
-  -- Following Wouter's approach to induction cases, but not using the wpPartial and notation
-  -- they used:   correct : SafeDiv ⊆ wpPartial ⟦_⟧ _⇓_
-  divWorks1 : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks1 (Val x)     i sd  = ⇓Base
-  divWorks1 (Div el er) i (erz , (sdel , sder))
-    with ⟦ el ⟧ | ⟦ er ⟧ | divWorks1 el i sdel | divWorks1 er i sder
-  ... | _                  | ASTreturn Zero     | dwl | dwr = ⊥-elim (erz dwr)
-  ... | _                  | ASTop Maybe-bail _ | _   | ()
-  ... | ASTop Maybe-bail _ | _                  | ()  | _
-  ... | ASTreturn x1       | ASTreturn (Succ x) | dwl | dwr =
-      λ where ._ refl ._ refl → ⇓Step dwl dwr
-  ... | ASTbind m f        | ASTreturn (Succ x) | dwl | dwr = {!!}
-  ... | ASTbind m1 f1      | ASTbind m2 f2      | dwl | dwr = {!!}
-  ... | ASTreturn x        | ASTbind m f        | dwl | dwr =
-      λ where ._ refl → {!!}
-
-  divWorks2 : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks2 (Val x₁) i x = ⇓Base
-  divWorks2 (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ _ _ PN⊆₁ unit ih₁
+  divWorks (Val x₁) i x = ⇓Base
+  divWorks (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
+    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
     where
-    ih₁ = divWorks2 e₁ unit sd₁
-    ih₂ = divWorks2 e₂ unit sd₂
+    ih₁ = divWorks e₁ unit sd₁
+    ih₂ = divWorks e₂ unit sd₂
 
     PN⊆₂ : ∀ n → e₁ ⇓ n →  PN e₂ ⊆ₒ _
     PN⊆₂ n pf₁ o () nothing refl
@@ -244,5 +217,5 @@ module Partiality where
 
     PN⊆₁ : PN e₁ ⊆ₒ _
     PN⊆₁ o () nothing refl
-    PN⊆₁ o pf₁ (just n) refl =
-      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ _ _ (PN⊆₂ n pf₁) unit ih₂
+    PN⊆₁ (just n) pf₁ .(just n) refl =
+      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n pf₁) unit ih₂
