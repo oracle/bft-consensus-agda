@@ -106,7 +106,7 @@ ASTPredTransMono.opPTMono₂    MaybePTMono Maybe-bail f₁ f₂ f₁⊑f₂ P i
 MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
 ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
 ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
-  with ASTOpSem.runAST MaybeOpSem m unit | inspect (ASTOpSem.runAST MaybeOpSem m) unit
+  with runMaybe m unit | inspect (runMaybe m) unit
 ... | nothing | [ eq ] = mSuf _ unit wp nothing (sym eq)
 ... | just y  | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
                           in fSuf y P unit wp'
@@ -184,53 +184,50 @@ module Partiality where
   PN e nothing  = ⊥
   PN e (just n) = e ⇓ n
 
-  -- divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  -- divWorks (Val x)     i sd  = ⇓Base
-  -- divWorks (Div el er) i (erz , (sdel , sder))
-  --   with ⟦ el ⟧ | ⟦ er ⟧ | divWorks el i sdel | divWorks er i sder
-  -- ... | ASTreturn Zero | ASTreturn Zero | dwl | dwr = ⊥-elim (erz dwr)
-  -- ... | ASTreturn Zero | ASTreturn (Succ x) | dwl | dwr = xxx
-  --       where
-  --        xxx : _
-  --        xxx with ⇓Step dwl dwr
-  --        ... | xx = {!!}
-  -- ... | ASTreturn (Succ x) | ASTreturn x₁ | dwl | dwr = {!!}
-  -- ... | ASTreturn x | ASTbind r f | dwl | dwr = {!!}
-  -- ... | ASTreturn x | ASTop c f | dwl | dwr = {!!}
-  -- ... | ASTbind l f | r | dwl | dwr = {!!}
-  -- ... | ASTop c f | r | dwl | dwr = {!!}
+  -- Collecitng some useful facts, but not figuring out how to put them together to complete the proof,
+  -- not even sure if it makes any sense
+  divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  divWorks (Val x)     i sd  = ⇓Base
+  divWorks (Div el er) unit (ernz , (sdel , sder))
+    with divWorks el unit sdel | divWorks er unit sder
+  ... | dwl | dwr
+    with  runMaybe ⟦ el ⟧  unit | inspect
+         (runMaybe ⟦ el ⟧) unit
+  ...| nothing | [ R ]  = ⊥-elim (subst (PN el) R (ASTSufficientPT.sufficient MaybeSuf ⟦ el ⟧ (PN el) unit dwl))
+  ...| just x  | [ R ]
+     with ASTSufficientPT.sufficient MaybeSuf ⟦ el ⟧ (PN el) unit dwl
+  ...| el⇓x rewrite R
+     with  runMaybe ⟦ er ⟧  unit | inspect
+          (runMaybe ⟦ er ⟧) unit
+  ...| nothing | [ R' ] = ⊥-elim (subst (PN er) R' (ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr))
+  ...| just Zero     | [ R' ] rewrite R' =
+       ⊥-elim (ernz (subst (PN er) R' (ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr)) )
+  ...| just (Succ y) | [ R' ]
+     with ASTSufficientPT.sufficient MaybeSuf ⟦ er ⟧ (PN er) unit dwr
+  ...| er⇓y
+     with ⇓Step {n2 = y} el⇓x (subst (PN er) R' er⇓y)
+  ...| step = {! step!}
 
-  -- OLDER VERSIONS - FEEL FREE TO DELETE
+  divWorks' : ∀ (e : Expr) → SafeDiv e → PN e (runMaybe ⟦ e ⟧ unit)
+  divWorks' e sde = ASTSufficientPT.sufficient MaybeSuf ⟦ e ⟧ (PN e) unit (divWorks e unit sde)
 
-  -- divWorks (Div el (Val Zero)) unit (e2≢0 , (_ , _)) =  ⊥-elim (e2≢0 ⇓Base)
-  -- divWorks (Div el (Val (Succ n))) unit (e2≢0 , (sdel , .tt))
-  --    with divWorks el unit sdel
-  -- ...| x = {!!}
-  -- divWorks (Div el (Div er er₁)) unit (e2≢0 , (sdl , sdr)) = {!!}
-
-  -- -- everything below this point COULD BE WRONG
-  -- -- TODO: Is this the right way to integrate SafeDiv into our system?
-
-  -- -- SafeDiv2 : Expr -> Set
-  -- -- SafeDiv2 (Val x)     = ⊤
-  -- -- SafeDiv2 (Div el er) = (er ≢ Val 0) ∧ SafeDiv2 el ∧ SafeDiv2 er
-
-  -- PN : Expr → Post Nat
-  -- PN e nothing  = ⊥
-  -- PN e (just n) = e ⇓ n
-
-  -- -- -- this is like 'bailWorks' above - Wouter's 'correct'
-  -- divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  -- divWorks (Val n)    i sd = {!!} -- n Data.Product., (⇓Base Data.Product., refl)
-  -- divWorks (Div e e₁) i sd = {!!}
-
-  
-
-  -- -- this is like 'bailWorks' above
-  -- -- divWorks : ∀ (e : Expr) i → SafeDiv2 e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  -- -- divWorks (Val _)     _ _ = ⇓Base
-  -- -- divWorks (Div el er) _ _ = {!!}
-
-  -- -- PN : Expr → Post Nat
-  -- -- PN e = (λ o → ∃[ n ] (e ⇓ n × o ≡ just n))
-
+  -- Following Wouter's approach to induction cases, but not using the wpPartial and notation
+  -- they used:   correct : SafeDiv ⊆ wpPartial ⟦_⟧ _⇓_
+  divWorks1 : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  divWorks1 (Val x)     i sd  = ⇓Base
+  divWorks1 (Div el er) i (erz , (sdel , sder))
+    with ⟦ el ⟧ | ⟦ er ⟧ | divWorks1 el i sdel | divWorks1 er i sder
+  ... | ASTreturn Zero     | ASTreturn Zero     | dwl | dwr = ⊥-elim (erz dwr)
+  ... | ASTreturn Zero     | ASTreturn (Succ x) | dwl | dwr = xxx
+        where
+         xxx : _
+         xxx with ⇓Step dwl dwr
+         ... | xx = {!!}  -- Back at the same old goal shape that I'm running into and not knowing
+                          -- how to proceed, no matter which approach I take.
+  ... | ASTreturn (Succ x) | ASTreturn x₁       | dwl | dwr = {!!}
+  ... | ASTbind l f        | r                  | dwl | dwr = {!!}
+  ... | ASTop Maybe-bail f | r                  | dwl | dwr = {!!}
+  ... | ASTreturn Zero     | ASTbind w₂ f       | dwl | dwr = {!!}
+  ... | ASTreturn Zero     | ASTop Maybe-bail f | dwl | dwr = {!!}
+  ... | ASTreturn (Succ x) | ASTbind w₂ f       | dwl | dwr = {!!}
+  ... | ASTreturn (Succ x) | ASTop Maybe-bail f | dwl | dwr = {!!}
