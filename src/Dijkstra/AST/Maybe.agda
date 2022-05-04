@@ -4,6 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 module Dijkstra.AST.Maybe where
 
 open import Dijkstra.AST.Core
