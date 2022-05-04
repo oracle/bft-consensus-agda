@@ -79,9 +79,10 @@ EitherbindPost f P (Right y) = f y P unit
 
 EitherPT : ASTPredTrans EitherOps EitherTypes
 ASTPredTrans.returnPT EitherPT x P i = P (Right x)
-ASTPredTrans.bindPT EitherPT {A} {B} f unit Post x =
+ASTPredTrans.bindPT EitherPT {A} {B} f i Post x =
   ∀ r → r ≡ x → EitherbindPost f Post r
 ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
+open ASTPredTrans EitherPT
 
 private
   -- If Either-bail did not work (e.g., if it were a noop), prog₁ would return Right a and the proof
