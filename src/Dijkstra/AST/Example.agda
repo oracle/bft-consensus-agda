@@ -4,6 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 module Dijkstra.AST.Example (Ev Wr St : Set) where
 
 open import Data.Empty
@@ -32,11 +34,11 @@ RWSSubArg (RWStell out refl)  = Level.Lift _ Void
 RWSSubArg RWSpass             = Level.Lift _ Unit
 RWSSubArg (RWSmaybe{B} x)     = Level.Lift _ (Maybe B)
 
-RWSSubRet : {A : Set} (c : RWSCmd A) → Set
-RWSSubRet (RWSgets g) = Unit
-RWSSubRet{A} (RWStell out x) = ⊥
-RWSSubRet{A} RWSpass = A × (List Wr → List Wr)
-RWSSubRet{A} (RWSmaybe x) = A
+RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
+RWSSubRet{_} {RWSgets g} _ = Unit
+RWSSubRet{A} {RWStell out x} _ = ⊥
+RWSSubRet{A} {RWSpass} _ = A × (List Wr → List Wr)
+RWSSubRet{A} {RWSmaybe x} _ = A
 
 RWSOps : ASTOps
 ASTOps.Cmd RWSOps     = RWSCmd
