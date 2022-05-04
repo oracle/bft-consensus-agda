@@ -21,6 +21,10 @@ open import Util.Hash
 import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
+open import Dijkstra.AST.Core
+open import Dijkstra.AST.Either renaming (EitherD to EitherAST; return to return-AST)
+open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
+
 ------------------------------------------------------------------------------
 open import Data.String                                          using (String)
 
@@ -56,6 +60,9 @@ abstract
 
   addChild-≡-E1 : ∀ (lb : LinkableBlock) (hv : HashValue) → addChild-E lb hv ≡ EitherD-run (addChild lb hv)
   addChild-≡-E1 lb hv = refl
+
+  postulate -- TODO: implement it
+    addChild-AST : LinkableBlock → HashValue → EitherAST ErrLog LinkableBlock
 
 new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
     → Either ErrLog BlockTree
@@ -118,6 +125,27 @@ insertBlockE-original block bt = do
         let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
         pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
+
+-- An AST version
+module _ where
+  open import Dijkstra.AST.Either ErrLog
+  open import Dijkstra.AST.Core
+  import Dijkstra.AST.Either ErrLog as EitherAST
+  open EitherAST.Syntax renaming (bail to bail-AST; return to return-AST)
+
+  insertBlockE-AST : ExecutedBlock → BlockTree → EitherAST ErrLog (BlockTree × ExecutedBlock)
+  insertBlockE-AST block bt = do
+    let blockId = block ^∙ ebId
+    case btGetBlock blockId bt of λ where
+      (just existingBlock) → return-AST (bt , existingBlock)
+      nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+        nothing → bail-AST fakeErr
+        (just parentBlock) → (do
+          parentBlock' ← addChild-AST parentBlock blockId
+          let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+          pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+               , block))
+
 
 -- An EitherD variant, broken into steps
 module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
