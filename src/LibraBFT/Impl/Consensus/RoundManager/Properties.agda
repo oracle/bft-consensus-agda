@@ -191,7 +191,7 @@ module executeAndVoteMSpec (vb : ValidBlock) where
                   Voting.glue-VoteNotGenerated-VoteGeneratedCorrect
                     (mkVoteNotGenerated refl refl)
                     (Voting.substVoteGeneratedCorrect proposedBlock b
-                      (EAIBECon.ebBlock≈ nohc)
+                      (EAIBECon.ebBlock≈ nohc {- Now requires another argument, see isOk, vbValid vb -})
                       vrc)
 
                 noMsgOutsBail₃ : ∀ outs → NoMsgs outs → NoMsgs (CASVouts ++ outs)
