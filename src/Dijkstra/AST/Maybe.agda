@@ -200,7 +200,8 @@ module Partiality where
   -- TUTORIAL: This example provides a good demonstration of how predTransMono can be used to
   -- construct proofs for ASTs that include ASTbind, and shows how Agda can figure out the required
   -- post condition from context, saving us from writing out ugly expressions for the continuation
-  -- of a bind.
+  -- of a bind.  For example, we do not need to write out the second post condition in the type
+  -- signature of PN⊆₁ below, because Agda figures it out from the goal.
   divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
   divWorks (Val x₁) i x = ⇓Base
   divWorks (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
