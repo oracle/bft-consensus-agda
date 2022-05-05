@@ -87,7 +87,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
   record ContractOk (bs' : BlockStore) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
-      ebBlock≈ : NoHC1 → eb ^∙ ebBlock ≈Block block
+      ebBlock≈ : NoHC1 → BlockIsValid (eb ^∙ ebBlock) (eb ^∙ ebId) → eb ^∙ ebBlock ≈Block block
       bsInv    : ∀ {eci}
                  → Preserves BlockStoreInv (bs0 , eci) (bs' , eci)
       -- executeAndInsertBlockE does not modify BlockTree fields other than btIDToBlock
@@ -106,7 +106,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
   -- this translates to EitherD-maybe.  We first deal with the easy case, applying the NoHC1
   -- function provided to ebBlock≈ to evidence eb≡ that eb is in btIdToBlock.
   proj₂ contract' eb eb≡ =
-    mkContractOk (λ nohc → nohc eb≡ block-c) id refl
+    mkContractOk (λ nohc _ → nohc eb≡ block-c) id refl
   proj₁ contract' getBlock≡nothing = contract₁
     where
     -- step₁ is again a maybeSD; if bs0 ^∙ bsRoot ≡ nothing, the Contract is trivial
@@ -160,14 +160,19 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
            where
              con⇒bindPost : ∀ r → insertBlockESpec.Contract eb (bs0 ^∙ bsInner) r → EitherD-weakestPre-bindPost _ Contract r
              con⇒bindPost (Left _) _                       = tt
-             con⇒bindPost (Right (bt' , eb')) con' ._ refl = mkContractOk IBE.blocks≈ btP bss≡x
+             con⇒bindPost (Right (bt' , eb')) con' ._ refl =
+               mkContractOk (λ nohc biv → IBE.blocks≈ nohc block-c)
+                            btP bss≡x
                where
                  module IBE = insertBlockESpec.ContractOk con'
 
                  open BlockStoreInv
 
+                 postulate -- TODO: placeholder, need to figure out how to get this here
+                   eb0Valid : _
+
                  btP : ∀ {eci} → Preserves BlockStoreInv (bs0 , eci) ((bs0 & bsInner ∙~ bt') , eci)
-                 btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres bti)
+                 btP (mkBlockStoreInv bti) = mkBlockStoreInv (IBE.btiPres eb0Valid bti)
 
                  bss≡x : bs0 ≡ (bs0 & bsInner ∙~ bt' & bsInner ∙ btIdToBlock ∙~ (bs0 ^∙ (bsInner ∙ btIdToBlock)))
                  bss≡x rewrite sym IBE.bt≡x = refl

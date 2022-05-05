@@ -251,10 +251,21 @@ module Invariants where
   AllValidQCs : (𝓔 : EpochConfig) (bt : BlockTree) → Set
   AllValidQCs 𝓔 bt = (hash : HashValue) → Maybe-maybe (WithEC.MetaIsValidQC 𝓔) ⊤ (lookup hash (bt ^∙ btIdToQuorumCert))
 
+  record BlockIsValid (b : Block) (bid : HashValue) : Set where
+    constructor mkBlockIsValid
+    field
+      bidCorr   : BlockId-correct b
+      bhashCorr : BlockHash≡ b bid
+
+  -- This is not currently used, but illustrates that BlockIsValid is a bit weird and possibly
+  -- should be stated in a more intuitive way.
+  validHash⇒validBlock : ∀ {b : Block} → BlockHash≡ b (b ^∙ bId) → BlockIsValid b (b ^∙ bId)
+  validHash⇒validBlock b≡ = mkBlockIsValid b≡ b≡
+
   AllValidBlocks : BlockTree → Set
   AllValidBlocks bt = ∀ {bid eb}
                     → btGetBlock bid bt ≡ just eb
-                    → BlockId-correct (eb ^∙ ebBlock) × BlockHash≡ (eb ^∙ ebBlock)  bid
+                    → BlockIsValid (eb ^∙ ebBlock) bid
 
   ------------ types for and definitions of invariants for BlockTree, BlockStore, SafetyData, SafetyRules
 
@@ -397,7 +408,7 @@ module Invariants where
          → Reqs.NoHC1 b bt
     nohc rmi refl refl {eb} jeb refl
        with allValidBlocks (blockTreeValid (rmBlockStoreInv rmi)) jeb
-    ...| bidCorr , bid
+    ...| mkBlockIsValid bidCorr bid
        with (blockData-bsl (b ^∙ bBlockData)) ≟-BSL (blockData-bsl (eb ^∙ ebBlock ∙ bBlockData))
     ...| yes bsls≡ = hash≡⇒≈Block {eb ^∙ ebBlock} {b} bidCorr refl bid
     ...| no  neq rewrite sym bid

@@ -22,7 +22,7 @@ import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
 open import Dijkstra.AST.Core
-open import Dijkstra.AST.Either renaming (EitherD to EitherAST; return to return-AST)
+open import Dijkstra.AST.Either renaming (EitherD to EitherAST)
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
 
 ------------------------------------------------------------------------------
@@ -48,6 +48,9 @@ module addChild (lb : LinkableBlock) (hv : HashValue) where
   E : VariantFor Either
   E = toEither step₀
 
+  postulate -- TODO: implement it
+    addChild-AST : EitherAST ErrLog LinkableBlock
+
 abstract
   addChild   = addChild.step₀
   addChild-E = addChild.E
@@ -60,9 +63,6 @@ abstract
 
   addChild-≡-E1 : ∀ (lb : LinkableBlock) (hv : HashValue) → addChild-E lb hv ≡ EitherD-run (addChild lb hv)
   addChild-≡-E1 lb hv = refl
-
-  postulate -- TODO: implement it
-    addChild-AST : LinkableBlock → HashValue → EitherAST ErrLog LinkableBlock
 
 new : ExecutedBlock → QuorumCert → QuorumCert → Usize → Maybe TimeoutCertificate
     → Either ErrLog BlockTree
@@ -127,17 +127,18 @@ insertBlockE-original block bt = do
              , block))
 
 -- An AST version
-module _ where
+module ASTVersion (block : ExecutedBlock) (bt : BlockTree) where
   open import Dijkstra.AST.Either ErrLog
   open import Dijkstra.AST.Core
   import Dijkstra.AST.Either ErrLog as EitherAST
   open EitherAST.Syntax renaming (bail to bail-AST; return to return-AST)
+  open addChild
 
-  insertBlockE-AST : ExecutedBlock → BlockTree → EitherAST ErrLog (BlockTree × ExecutedBlock)
-  insertBlockE-AST block bt = do
+  insertBlockE-AST : EitherAST ErrLog (BlockTree × ExecutedBlock)
+  insertBlockE-AST = do
     let blockId = block ^∙ ebId
     case btGetBlock blockId bt of λ where
-      (just existingBlock) → return-AST (bt , existingBlock)
+      (just existingBlock) → pure (bt , existingBlock)
       nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
         nothing → bail-AST fakeErr
         (just parentBlock) → (do
