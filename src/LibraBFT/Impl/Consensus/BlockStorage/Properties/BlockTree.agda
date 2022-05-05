@@ -52,7 +52,11 @@ module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
   contract-AST = ASTSufficientPT.sufficient EitherSuf addChild-AST Contract unit contract'-AST
 
 
-module insertBlockESpec (eb0 : ExecutedBlock) (eb0Valid : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId)) (bt : BlockTree) where
+module insertBlockESpec
+         (eb0 : ExecutedBlock)
+         (eb0Valid : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId))
+         (bt : BlockTree)
+  where
   eb0Id = eb0 ^∙ ebId
 
   -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
@@ -160,7 +164,7 @@ module insertBlockESpec (eb0 : ExecutedBlock) (eb0Valid : BlockIsValid (eb0 ^∙
                           λ bti → mkBlockTreeInv
                                     (BlockTreeInv.allValidQCs bti)
                                     (finalAllValidBlocks parentBlock'
-                                                         (biv1 $ BlockTreeInv.allValidBlocks bti)
+                                                         (biv (BlockTreeInv.allValidBlocks bti))
                                                          eb0Valid
                                                          (BlockTreeInv.allValidBlocks bti))
                     where
@@ -171,8 +175,8 @@ module insertBlockESpec (eb0 : ExecutedBlock) (eb0Valid : BlockIsValid (eb0 ^∙
                          with avb (btGetBlock≡ {bt = bt} R')
                       ...| bv = mkBlockIsValid (BlockIsValid.bidCorr {bid = eb0 ^∙ ebParentId} bv)
                                                (BlockIsValid.bhashCorr bv)
-                      biv1 : AllValidBlocks bt → _
-                      biv1 avb = biv' avb (sym (cong (_^∙ ebBlock) (addChildSpec.ContractOk.presLB addChildCon)))
+                      biv : AllValidBlocks bt → _
+                      biv avb = biv' avb (sym (cong (_^∙ ebBlock) (addChildSpec.ContractOk.presLB addChildCon)))
 
   contract-AST : Contract (runEither insertBlockE-AST unit)
   contract-AST = ASTSufficientPT.sufficient EitherSuf insertBlockE-AST Contract unit contract'-AST

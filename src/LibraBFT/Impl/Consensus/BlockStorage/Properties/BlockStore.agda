@@ -120,7 +120,8 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
     -- in the else branch, we call step₂ bsr
     proj₂ (proj₂ contract₁ bsr bsr≡) btr<br = contract₂
       where
-      contract₃ : ∀ eb → block ≡ (eb ^∙ ebBlock) → BlockIsValid (eb ^∙ ebBlock) (eb ^∙ ebId)
+      contract₃ : ∀ eb → block ≡ (eb ^∙ ebBlock)
+                  → BlockIsValid (eb ^∙ ebBlock) (eb ^∙ ebId)
                   → EitherD-weakestPre (step₃ eb) Contract
 
       module EB = executeBlockESpec bs0 vblock

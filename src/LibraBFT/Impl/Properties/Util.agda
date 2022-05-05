@@ -257,7 +257,7 @@ module Invariants where
       bidCorr   : BlockId-correct b
       bhashCorr : BlockHash≡ b bid
 
-  -- This is not currently used, but illustrates that BlockIsValid is a bit weird and possibly
+  -- This illustrates that BlockIsValid is a bit weird and possibly
   -- should be stated in a more intuitive way.
   validHash⇒validBlock : ∀ {b : Block} → BlockId-correct b → BlockIsValid b (b ^∙ bId)
   validHash⇒validBlock b≡ = mkBlockIsValid b≡ b≡
