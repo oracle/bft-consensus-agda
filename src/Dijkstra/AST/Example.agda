@@ -4,6 +4,8 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+{-# OPTIONS --allow-unsolved-metas #-}
+
 module Dijkstra.AST.Example (Ev Wr St : Set) where
 
 open import Data.Empty
@@ -32,11 +34,11 @@ RWSSubArg (RWStell out refl)  = Level.Lift _ Void
 RWSSubArg RWSpass             = Level.Lift _ Unit
 RWSSubArg (RWSmaybe{B} x)     = Level.Lift _ (Maybe B)
 
-RWSSubRet : {A : Set} (c : RWSCmd A) → Set
-RWSSubRet (RWSgets g) = Unit
-RWSSubRet{A} (RWStell out x) = ⊥
-RWSSubRet{A} RWSpass = A × (List Wr → List Wr)
-RWSSubRet{A} (RWSmaybe x) = A
+RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
+RWSSubRet{_} {RWSgets g} _ = Unit
+RWSSubRet{A} {RWStell out x} _ = ⊥
+RWSSubRet{A} {RWSpass} _ = A × (List Wr → List Wr)
+RWSSubRet{A} {RWSmaybe x} _ = A
 
 RWSOps : ASTOps
 ASTOps.Cmd RWSOps     = RWSCmd
@@ -166,14 +168,10 @@ Ev : Set
 -}
 
     progPost' : ∀ f i → ProgPost i (runRWS (prog f) i)
-    progPost' f (e , s)
-      with f s
-    ... | nothing = refl , refl
-    ... | just x  = refl , refl
-
+    progPost' f (e , s) = {!!}
 {-
 Goal: Data.Product.Σ
-      (proj₂ i ≡
+      (s ≡
        proj₁
        (proj₂
         (ASTOpSem.runAST RWSOpSem
@@ -182,8 +180,8 @@ Goal: Data.Product.Σ
                  → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                    (λ _ → ASTreturn (unit , (λ _ → [])))
              })
-          (Level.lift (f (proj₂ i))))
-         (proj₁ i , proj₂ i))))
+          (Level.lift (f s)))
+         (e , s))))
       (λ x →
          foldr (λ _ → Agda.Builtin.Nat.Nat.suc) 0
          (proj₂
@@ -194,8 +192,8 @@ Goal: Data.Product.Σ
                     → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                       (λ _ → ASTreturn (unit , (λ _ → [])))
                 })
-             (Level.lift (f (proj₂ i))))
-            (proj₁ i , proj₂ i)))
+             (Level.lift (f s)))
+            (e , s)))
           (proj₂
            (proj₂
             (ASTOpSem.runAST RWSOpSem
@@ -204,11 +202,14 @@ Goal: Data.Product.Σ
                      → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                        (λ _ → ASTreturn (unit , (λ _ → [])))
                  })
-              (Level.lift (f (proj₂ i))))
-             (proj₁ i , proj₂ i)))))
+              (Level.lift (f s)))
+             (e , s)))))
          ≡ 0)
-
 -}
+-- 34 lines...
+    --   with f s
+    -- ... | nothing = refl , refl
+    -- ... | just x  = refl , refl
 
 
   -- wpTwoOuts : ∀ f i → ASTPredTrans.predTrans RWSPT (prog₁ f) TwoOuts i
