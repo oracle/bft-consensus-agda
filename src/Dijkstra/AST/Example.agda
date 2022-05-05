@@ -168,14 +168,10 @@ Ev : Set
 -}
 
     progPost' : ∀ f i → ProgPost i (runRWS (prog f) i)
-    progPost' f (e , s)
-      with f s
-    ... | nothing = refl , refl
-    ... | just x  = refl , refl
-
+    progPost' f (e , s) = {!!}
 {-
 Goal: Data.Product.Σ
-      (proj₂ i ≡
+      (s ≡
        proj₁
        (proj₂
         (ASTOpSem.runAST RWSOpSem
@@ -184,8 +180,8 @@ Goal: Data.Product.Σ
                  → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                    (λ _ → ASTreturn (unit , (λ _ → [])))
              })
-          (Level.lift (f (proj₂ i))))
-         (proj₁ i , proj₂ i))))
+          (Level.lift (f s)))
+         (e , s))))
       (λ x →
          foldr (λ _ → Agda.Builtin.Nat.Nat.suc) 0
          (proj₂
@@ -196,8 +192,8 @@ Goal: Data.Product.Σ
                     → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                       (λ _ → ASTreturn (unit , (λ _ → [])))
                 })
-             (Level.lift (f (proj₂ i))))
-            (proj₁ i , proj₂ i)))
+             (Level.lift (f s)))
+            (e , s)))
           (proj₂
            (proj₂
             (ASTOpSem.runAST RWSOpSem
@@ -206,11 +202,14 @@ Goal: Data.Product.Σ
                      → ASTbind (ASTop (RWStell (x ∷ []) refl) (λ ()))
                        (λ _ → ASTreturn (unit , (λ _ → [])))
                  })
-              (Level.lift (f (proj₂ i))))
-             (proj₁ i , proj₂ i)))))
+              (Level.lift (f s)))
+             (e , s)))))
          ≡ 0)
-
 -}
+-- 34 lines...
+    --   with f s
+    -- ... | nothing = refl , refl
+    -- ... | just x  = refl , refl
 
 
   -- wpTwoOuts : ∀ f i → ASTPredTrans.predTrans RWSPT (prog₁ f) TwoOuts i
