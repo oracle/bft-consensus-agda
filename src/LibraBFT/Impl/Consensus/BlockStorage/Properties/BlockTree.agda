@@ -52,7 +52,7 @@ module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
   contract-AST = ASTSufficientPT.sufficient EitherSuf addChild-AST Contract unit contract'-AST
 
 
-module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
+module insertBlockESpec (eb0 : ExecutedBlock) (eb0Valid : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId)) (bt : BlockTree) where
   eb0Id = eb0 ^∙ ebId
 
   -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
@@ -79,8 +79,8 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
     constructor mkContractOk
     field
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
-      blocks≈ : NoHC1 → BlockId-correct (eb0 ^∙ ebBlock) → eb [ _≈Block_ ]L eb0 at ebBlock
-      btiPres : BlockIsValid (eb0 ^∙ ebBlock) eb0Id → ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
+      blocks≈ : NoHC1 → eb [ _≈Block_ ]L eb0 at ebBlock
+      btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
   Contract : Either ErrLog (BlockTree × ExecutedBlock) → Set
   Contract (Left _) = ⊤
@@ -108,8 +108,8 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
           (btGetBlock (eb0 ^∙ ebId)) bt
   ... | just existingBlock | [ R ] =
           mkContractOk refl
-                       (λ nohc eb0IdCorr → nohc {existingBlock} R eb0IdCorr)
-                       λ _ → id
+                       (λ nohc → nohc {existingBlock} R (BlockIsValid.bidCorr eb0Valid))
+                       id
   ... | nothing | [ R ]
     with  btGetLinkableBlock (eb0 ^∙ ebParentId)  bt | inspect
          (btGetLinkableBlock (eb0 ^∙ ebParentId)) bt
@@ -156,13 +156,13 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
              con : _
              con = mkContractOk
                           refl
-                          (λ _ _ → refl)
-                          λ eb0Valid bti → mkBlockTreeInv
-                                             (BlockTreeInv.allValidQCs bti)
-                                             (finalAllValidBlocks parentBlock'
-                                                                  (biv1 $ BlockTreeInv.allValidBlocks bti)
-                                                                  eb0Valid
-                                                                  (BlockTreeInv.allValidBlocks bti))
+                          (λ _ → refl)
+                          λ bti → mkBlockTreeInv
+                                    (BlockTreeInv.allValidQCs bti)
+                                    (finalAllValidBlocks parentBlock'
+                                                         (biv1 $ BlockTreeInv.allValidBlocks bti)
+                                                         eb0Valid
+                                                         (BlockTreeInv.allValidBlocks bti))
                     where
 
                       -- Because rewrite directly in biv1 did not work for some reason

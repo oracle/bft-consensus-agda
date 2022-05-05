@@ -259,7 +259,7 @@ module Invariants where
 
   -- This is not currently used, but illustrates that BlockIsValid is a bit weird and possibly
   -- should be stated in a more intuitive way.
-  validHash⇒validBlock : ∀ {b : Block} → BlockHash≡ b (b ^∙ bId) → BlockIsValid b (b ^∙ bId)
+  validHash⇒validBlock : ∀ {b : Block} → BlockId-correct b → BlockIsValid b (b ^∙ bId)
   validHash⇒validBlock b≡ = mkBlockIsValid b≡ b≡
 
   AllValidBlocks : BlockTree → Set
