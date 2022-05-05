@@ -47,17 +47,17 @@ record ASTTypes : Set₁ where
   PredTrans : (A : Set) → Set₁
   PredTrans A = (P : Post A) → Pre
 
-  _⊆ᵢ_ : (P₁ P₂ : Pre) → Set
-  P₁ ⊆ᵢ P₂ = ∀ i → P₁ i → P₂ i
+  _⊆ᵢ_ : (Pre₁ Pre₂ : Pre) → Set
+  Pre₁ ⊆ᵢ Pre₂ = ∀ i → Pre₁ i → Pre₂ i
 
-  _⊆ₒ_ : ∀ {A} → (P₁ P₂ : Post A) → Set
-  P₁ ⊆ₒ P₂ = ∀ o → P₁ o → P₂ o
+  _⊆ₒ_ : ∀ {A} → (Post₁ Post₂ : Post A) → Set
+  Post₁ ⊆ₒ Post₂ = ∀ o → Post₁ o → Post₂ o
 
   _⊑_ : {A : Set} → (pt₁ pt₂ : PredTrans A) → Set₁
-  pt₁ ⊑ pt₂ = ∀ P → pt₁ P ⊆ᵢ pt₂ P
+  pt₁ ⊑ pt₂ = ∀ Pre → pt₁ Pre ⊆ᵢ pt₂ Pre
 
   MonoPredTrans : ∀ {A} → PredTrans A → Set₁
-  MonoPredTrans pt = ∀ P₁ P₂ → (P₁⊆ₒP₂ : P₁ ⊆ₒ P₂) → pt P₁ ⊆ᵢ pt P₂
+  MonoPredTrans pt = ∀ Post₁ Post₂ → Post₁ ⊆ₒ Post₂ → pt Post₁ ⊆ᵢ pt Post₂
 
 record ASTOpSem (OP : ASTOps) (Ty : ASTTypes) : Set₁ where
   constructor mkASTOpSem
