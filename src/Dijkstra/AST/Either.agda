@@ -12,11 +12,10 @@ open import Data.Empty
 open import Data.Product using (_×_) -- ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Dijkstra.AST.Core
-open import Haskell.Prelude
+open import Haskell.Prelude hiding (return)
 import      Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
-
 data EitherCmd (A : Set) : Set₁ where
   Either-bail : Err → EitherCmd A
 
@@ -39,6 +38,9 @@ module Syntax where
   bail : ∀ {A} → Err → EitherD A
   bail a = ASTop (Either-bail a) λ ()
 
+  return : ∀ {A} → A → EitherD A
+  return a = ASTreturn a
+
 private
   prog₁ : ∀ {A} → Err → A → EitherD A
   prog₁ e a =
@@ -60,7 +62,6 @@ ASTTypes.Input  EitherTypes   = Unit -- We can always run an Either program.  In
                                      -- RWS program, we need environment and prestate (Ev and St,
                                      -- respectively)
 ASTTypes.Output EitherTypes A = Either Err A
-
 open ASTTypes EitherTypes
 
 EitherOpSem : ASTOpSem EitherOps EitherTypes
