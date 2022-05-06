@@ -131,10 +131,13 @@ private
 ------------------------------------------------------------------------------
 
 module Partiality where
-  {- from "A predicate transformer semantics for effects"
+
+  {- Examples corresponding to
+     "A predicate transformer semantics for effects"
      https://webspace.science.uu.nl/~swier004/publications/2019-icfp-submission-a.pdf
      https://zenodo.org/record/3257707#.Yec-nxPMJqt
   -}
+
   open Syntax
   open import Agda.Builtin.Unit using (⊤; tt)
   open import Data.Empty using (⊥; ⊥-elim)
@@ -188,35 +191,38 @@ module Partiality where
   -- everything above from Wouter paper (modified with our AST)
   -- everything below our attempts to prove sufficient, sound, complete, ...
 
-  -- The proof of 'correct' in the Wouter paper uses wpPartial, which is like wp, but is for a
-  -- Partial (Maybe) computation, and requires that the computation succeeds (i.e., returns a just)
-  -- by making the post condition not hold when the computation returns nothing.  While not
-  -- explicitly writing it as such, the following is the moral equivaelent, where PN plays the role
-  -- of mustPT in the paper.
+  -- The proof of 'correct' in the Wouter paper uses wpPartial.
+  -- wpPartial is like wp, but it is for a Partial (Maybe) computation
+  -- - it requires the computation to succeed (i.e., returns a just)
+  --   by making the post condition not hold when the computation returns nothing.
+  -- PN is the functional equivalent, where PN plays the role of mustPT in the paper.
   PN : Expr → Post Nat
   PN e nothing  = ⊥
   PN e (just n) = e ⇓ n
 
-  -- TUTORIAL: This example provides a good demonstration of how predTransMono can be used to
-  -- construct proofs for ASTs that include ASTbind, and shows how Agda can figure out the required
-  -- post condition from context, saving us from writing out ugly expressions for the continuation
-  -- of a bind.  For example, we do not need to write out the second post condition in the type
-  -- signature of PN⊆₁ below, because Agda figures it out from the goal.
-  divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks (Val x₁) i x = ⇓Base
-  divWorks (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
+  -- TUTORIAL:
+  -- Demonstrates how predTransMono can be used
+  -- - to construct proofs for ASTs that include ASTbind, and
+  -- - shows how Agda can figure out the required post condition from context,
+  --   saving the need to write (ugly) expressions for the continuation of a bind.
+  --   - e.g., The underscore in the type signature of PN⊆₁ below (the second post condition)
+  --           because Agda figures it out from the goal.
+  --
+  -- This corresponds to 'correct' in the Wouter/Tim paper.
+  correct : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  correct (Val _)        _                   _   = ⇓Base
+  correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
     ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
-    where
-    ih₁ = divWorks e₁ unit sd₁
-    ih₂ = divWorks e₂ unit sd₂
+   where
+    ih₁ = correct e₁ unit sd₁
+    ih₂ = correct e₂ unit sd₂
 
-    PN⊆₂ : ∀ n → e₁ ⇓ n →  PN e₂ ⊆ₒ _
-    PN⊆₂ n pf₁ o () nothing refl
-    PN⊆₂ n pf₁ .(just Zero) pf₂ (just Zero) refl = ¬e₂⇓0 pf₂
-    PN⊆₂ n pf₁ .(just (Succ m)) pf₂ (just (Succ m)) refl =
-      ⇓Step pf₁ pf₂
+    PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
+    PN⊆₂ _    _              _        ()  nothing        refl
+    PN⊆₂ _    _ .(just       _)  e₂⇓Zero (just Zero)     refl = ¬e₂⇓0 e₂⇓Zero
+    PN⊆₂ _ e₁⇓n .(just (Succ _)) e₂⇓Succ (just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
 
     PN⊆₁ : PN e₁ ⊆ₒ _
-    PN⊆₁ o () nothing refl
-    PN⊆₁ (just n) pf₁ .(just n) refl =
-      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n pf₁) unit ih₂
+    PN⊆₁       _    ()   nothing refl
+    PN⊆₁ (just n) e₁⇓n .(just n) refl =
+      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
