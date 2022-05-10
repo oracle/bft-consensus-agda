@@ -144,6 +144,8 @@ module Partiality where
   open import Data.Nat public using () renaming (ℕ to Nat; zero to Zero; suc to Succ)
   open import Data.Nat.DivMod
   open import Data.Product using (∃ ; ∃-syntax ; _×_)
+  open import Function.Base using (case_of_)
+  open import Util.Prelude  using (absurd_case_of_)
 
   data Expr : Set where
     Val : Nat  -> Expr
@@ -224,5 +226,38 @@ module Partiality where
 
     PN⊆₁ : PN e₁ ⊆ₒ _
     PN⊆₁       _    ()   nothing refl
+    PN⊆₁ (just n) e₁⇓n .(just n) refl =
+      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+
+  dom : (Expr -> MaybeD Nat)
+     -> Expr
+     -> Set
+  dom f e =
+    case runMaybe (f e) unit of λ where
+      nothing  -> ⊥
+      (just _) -> ⊤
+
+  Dom : (Expr -> MaybeD Nat) -> Expr -> Set
+  Dom f a@(Val _)     =  dom f a
+  Dom f a@(Div el er) = (dom f a) ∧ Dom f el ∧ Dom f er
+
+  sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+  sound (Val _)        _                 _   = ⇓Base
+  sound (Div e₁ e₂) unit (sdd , (sd₁ , sd₂)) =
+    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+   where
+    ih₁ = sound e₁ unit sd₁
+    ih₂ = sound e₂ unit sd₂
+
+    PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
+    PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
+    PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
+      with   runMaybe ⟦ e₁ ⟧ unit | inspect (runMaybe ⟦ e₁ ⟧) unit
+           | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
+    ... | just _ | _ | nothing       | [ eq₂ ] rewrite eq₂ = ⊥-elim sdd
+    ... | just _ | _ | just 0        | [ eq₂ ] rewrite eq₂ = ⊥-elim sdd
+    ... | just l | _ | just (Succ _) | [ eq₂ ] rewrite eq₂ = {!!}
+
+    PN⊆₁ : PN e₁ ⊆ₒ _
     PN⊆₁ (just n) e₁⇓n .(just n) refl =
       ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
