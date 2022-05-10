@@ -10,6 +10,7 @@ open import Dijkstra.AST.Core
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
 import      Level
 open import Relation.Binary.PropositionalEquality
+open import Util.Prelude using (contradiction)
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -159,6 +160,13 @@ module Partiality where
          ->        er ⇓         (Succ n2) -- divisor is non-zero
          -> Div el er ⇓ (n1 div (Succ n2))
 
+  deterministic : ∀ {e n₁ n₂} → e ⇓ n₁ → e ⇓ n₂ → n₁ ≡ n₂
+  deterministic ⇓Base ⇓Base = refl
+  deterministic (⇓Step e⇓n₁ e⇓n₂) (⇓Step e⇓n₃ e⇓n₄)
+    with deterministic e⇓n₁ e⇓n₃
+    |    deterministic e⇓n₂ e⇓n₄
+  ... | refl | refl = refl
+
   _÷_ : Nat -> Nat -> MaybeD Nat
   n ÷ Zero     = bail
   n ÷ (Succ k) = ASTreturn (n div (Succ k))
@@ -254,9 +262,11 @@ module Partiality where
     PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
       with   runMaybe ⟦ e₁ ⟧ unit | inspect (runMaybe ⟦ e₁ ⟧) unit
            | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
-    ... | just _ | _ | nothing       | [ eq₂ ] rewrite eq₂ = ⊥-elim sdd
-    ... | just _ | _ | just 0        | [ eq₂ ] rewrite eq₂ = ⊥-elim sdd
-    ... | just l | _ | just (Succ _) | [ eq₂ ] rewrite eq₂ = {!!}
+           | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
+    ... | just _ | _ | nothing       | [ eq₂ ] | _ rewrite eq₂ = ⊥-elim sdd
+    ... | just _ | _ | just 0        | [ eq₂ ] | _ rewrite eq₂ = ⊥-elim sdd
+    ... | just l | _ | just (Succ _) | [ eq₂ ] | e₂⇓Succ =
+      absurd (Succ _ ≡ 0) case (deterministic e₂⇓Succ e₂⇓0) of λ ()
 
     PN⊆₁ : PN e₁ ⊆ₒ _
     PN⊆₁ (just n) e₁⇓n .(just n) refl =
