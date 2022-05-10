@@ -251,11 +251,11 @@ module Partiality where
 
   sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
   sound (Val _)        _                 _   = ⇓Base
-  sound (Div e₁ e₂) unit (sdd , (sd₁ , sd₂)) =
+  sound (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
     ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
    where
-    ih₁ = sound e₁ unit sd₁
-    ih₂ = sound e₂ unit sd₂
+    ih₁ = sound e₁ unit de₁
+    ih₂ = sound e₂ unit de₂
 
     PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
     PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
@@ -263,9 +263,9 @@ module Partiality where
       with   runMaybe ⟦ e₁ ⟧ unit | inspect (runMaybe ⟦ e₁ ⟧) unit
            | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
            | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
-    ... | just _ | _ | nothing       | [ eq₂ ] | _ rewrite eq₂ = ⊥-elim sdd
-    ... | just _ | _ | just 0        | [ eq₂ ] | _ rewrite eq₂ = ⊥-elim sdd
-    ... | just l | _ | just (Succ _) | [ eq₂ ] | e₂⇓Succ =
+    ... | just _ | _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
+    ... | just _ | _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
+    ... | just l | _ | just (Succ _) | [ eq₂ ] | e₂⇓Succ             =
       absurd (Succ _ ≡ 0) case (deterministic e₂⇓Succ e₂⇓0) of λ ()
 
     PN⊆₁ : PN e₁ ⊆ₒ _
