@@ -141,6 +141,7 @@ private
     ProgPost : Input → Post Unit
     ProgPost (_ , s1) (_ , s2 , o) = s1 ≡ s2 × length o ≡ 0
 
+    -- TODO-1: finish holes in wpProgPost
     wpProgPost : ∀ f i → RWSPT (prog f) (ProgPost i) i
     proj₁ (wpProgPost f i m mEq) _ o refl = refl , {!!}
     proj₂ (wpProgPost f i m mEq) = {!!}
@@ -167,6 +168,7 @@ Wr : Set
 Ev : Set
 -}
 
+    -- TODO-1: finish holes in progPost'
     progPost' : ∀ f i → ProgPost i (runRWS (prog f) i)
     progPost' f (e , s) = {!!}
 {-
