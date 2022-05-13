@@ -94,8 +94,12 @@ private
   BailWorks : ∀ {A} -> Post A
   BailWorks o = o ≡ nothing
 
-  bailWorks : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
-  bailWorks a unit maybeVoid maybeVoid≡nothing
+  bailWorks  : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
+  bailWorks  a unit r         r≡nothing rewrite r≡nothing = refl
+
+  -- "expanded" version for understanding
+  bailWorks' : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
+  bailWorks' a unit maybeVoid maybeVoid≡nothing
                              -- MaybebindPost (λ x P i → P (just a)) BailWorks           maybeVoid
     with maybeVoid | maybeVoid≡nothing
   ... | n | n≡nothing        -- MaybebindPost (λ x P i → P (just a)) (λ o → o ≡ nothing) n
@@ -146,17 +150,19 @@ maybeSuffBind{P = P}{Q}{i} m f wp n⊆ j⊆ =
     (runMaybe m i) (maybeSufficient m _ i wp _ refl)
 
 private
-  bailWorksSuf : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
---bailWorksSuf a i =
---  ASTSufficientPT.sufficient MaybeSuf (prog₁ a) BailWorks unit (bailWorks a unit)
-  bailWorksSuf a i
+  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf a i =
+    ASTSufficientPT.sufficient MaybeSuf (prog₁ a) BailWorks unit (bailWorks a unit)
+
+  -- alternate version
+  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf' a i
     with runMaybe (prog₁ a) i
   ... | x≡x = refl
 
   postulate
-    maybeNeccessary
-      : ∀ {A} (m : MaybeD A) P i → P (runMaybe m i) → predTrans m P i
-
+    -- TODO-1 : prove postulated 'maybePTApp'
+    -- TODO-1 : add comments comparing it to 'maybePTMono'
     maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
         → predTrans m (λ o → P₁ o → P₂ o) i
@@ -253,6 +259,8 @@ module Partiality where
   --   saving the need to write (ugly) expressions for the continuation of a bind.
   --   - e.g., The underscore in the type signature of PN⊆₁ below (the second post condition)
   --           because Agda figures it out from the goal.
+  -- TODO-1: show steps needed in order to get Agda to infer types indicated by '_'
+  --         in the type signatures of PN⊆₁ and PN⊆₂
   correct : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
   correct (Val _)        _                   _   = ⇓Base
   correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
@@ -295,7 +303,7 @@ module Partiality where
       ⊆Partial m nothing wp = wp _ refl
       ⊆Partial m (just Zero) wp = ⊥-elim (wp _ refl)
       ⊆Partial m (just (Succ n)) wp = s≤s z≤n
- 
+
   sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → predTrans ⟦ e ⟧ (PN e) i
   sound (Val x) unit dom = ⇓Base
   sound (Div e₁ e₂) unit dom =
@@ -354,12 +362,12 @@ module Partiality where
     PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
     PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
     PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
-      with   runMaybe ⟦ e₁ ⟧ unit | inspect (runMaybe ⟦ e₁ ⟧) unit
+      with   runMaybe ⟦ e₁ ⟧ unit
            | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
            | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
-    ... | just _ | _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
-    ... | just _ | _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
-    ... | just l | _ | just (Succ _) | [ eq₂ ] | e₂⇓Succ             =
+    ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
+    ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
+    ... | just l | just (Succ _) | [ eq₂ ] | e₂⇓Succ             =
       absurd (Succ _ ≡ 0) case (deterministic e₂⇓Succ e₂⇓0) of λ ()
 
     PN⊆₁ : PN e₁ ⊆ₒ _
