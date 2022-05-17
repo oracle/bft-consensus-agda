@@ -9,7 +9,7 @@ The following documentation and papers related to this repository are available.
 ** Towards Formal Verification of HotStuff-based Byzantine Fault Tolerant Consensus in Agda
   - Harold Carr, Christopher Jenkins, Mark Moir, Victor Cacciari Miraldo, and Lisandra Silva
   - Proceedings of the 14th NASA Formal Methods Symposium (NFM 2022), Pasadena, California, May 2022
-  - There is an extended version, with additional material including proof overviews
+  - There is an [[https://arxiv.org/abs/2103.04519][extended version]], with additional material including proof overviews
 
 ** An approach to translating Haskell programs to Agda and reasoning about them
   - Harold Carr, Christopher Jenkins, Mark Moir, Victor Cacciari Miraldo, and Lisandra Silva
