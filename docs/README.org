@@ -13,6 +13,6 @@ The following documentation and papers related to this repository are available.
 
 ** An approach to translating Haskell programs to Agda and reasoning about them
   - Harold Carr, Christopher Jenkins, Mark Moir, Victor Cacciari Miraldo, and Lisandra Silva
-  - Unpublished manuscript
+  - Available [[http://arxiv.org/abs/2205.08718][here]]
 
 
