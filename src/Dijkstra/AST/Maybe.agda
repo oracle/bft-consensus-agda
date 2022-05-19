@@ -6,12 +6,15 @@
 
 module Dijkstra.AST.Maybe where
 
+open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
 open import Data.Product using (Σ)
 import      Level
 open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id)
+
+open ASTExtension
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -187,3 +190,9 @@ maybePTApp {P₁ = P₁} {P₂} m unit imp pt1 =
     (ASTSufficientPT.sufficient MaybeSuf m (λ o → P₁ o → P₂ o) unit imp
       (ASTSufficientPT.sufficient MaybeSuf m P₁ unit pt1))
 
+MaybeExtOps    = BranchOps MaybeOps
+MaybeDExt      = AST MaybeExtOps
+MaybePTExt     = PredTransExtension.BranchPT MaybePT
+runMaybeExt    = ASTOpSem.runAST (OpSemExtension.BranchOpSem MaybeOpSem)
+MaybePTMonoExt = PredTransExtensionMono.BranchPTMono MaybePTMono
+MaybeSufExt    = SufficientExtension.BranchSuf MaybePTMono MaybeSuf
