@@ -13,8 +13,7 @@ open import Data.Product using (Σ)
 import      Level
 open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id)
-
-open ASTExtension
+open        ASTExtension
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -151,6 +150,24 @@ maybeSuffBind
 maybeSuffBind{P = P}{Q}{i} m f wp n⊆ j⊆ =
   MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
     (runMaybe m i) (maybeSufficient m _ i wp _ refl)
+
+-- This property says that predTrans really is the *weakest* precondition for a
+-- postcondition to hold after running a MaybeD.
+Post⇒wp : ∀ {A} → MaybeD A → Input → Set₁
+Post⇒wp {A} m i =
+  (P : Post A)
+  → P (runMaybe m i)
+  → predTrans m P i
+
+predTrans-is-weakest : ∀ {A} → (m : MaybeD A) → Post⇒wp {A} m unit
+predTrans-is-weakest {A} (ASTreturn x) P = id
+predTrans-is-weakest {A} (ASTbind {mA} {fB} m f) P Pr
+   with predTrans-is-weakest {mA} m
+...| rec
+  with runMaybe m unit
+... | nothing = rec _ λ where _ refl → Pr
+... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
+predTrans-is-weakest {A} (ASTop Maybe-bail f) P = id
 
 private
   -- an easy example using sufficient
