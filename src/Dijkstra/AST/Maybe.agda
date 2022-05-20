@@ -11,7 +11,7 @@ open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Un
 open import Data.Product using (Σ)
 import      Level
 open import Relation.Binary.PropositionalEquality
-open import Util.Prelude using (contradiction)
+open import Util.Prelude using (contradiction; id)
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -149,6 +149,24 @@ maybeSuffBind{P = P}{Q}{i} m f wp n⊆ j⊆ =
   MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
     (runMaybe m i) (maybeSufficient m _ i wp _ refl)
 
+-- This property says that predTrans really is the *weakest* precondition for a
+-- postcondition to hold after running a MaybeD.
+Post⇒wp : ∀ {A} → MaybeD A → Input → Set₁
+Post⇒wp {A} m i =
+  (P : Post A)
+  → P (runMaybe m i)
+  → predTrans m P i
+
+predTrans-is-weakest : ∀ {A} → (m : MaybeD A) → Post⇒wp {A} m unit
+predTrans-is-weakest {A} (ASTreturn x) P = id
+predTrans-is-weakest {A} (ASTbind {mA} {fB} m f) P Pr
+   with predTrans-is-weakest {mA} m
+...| rec
+  with runMaybe m unit
+... | nothing = rec _ λ where _ refl → Pr
+... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
+predTrans-is-weakest {A} (ASTop Maybe-bail f) P = id
+
 private
   bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
   bailWorksSuf a i =
@@ -160,14 +178,15 @@ private
     with runMaybe (prog₁ a) i
   ... | x≡x = refl
 
-  postulate
-    -- TODO-1 : prove postulated 'maybePTApp'
-    -- TODO-1 : add comments comparing it to 'maybePTMono'
-    maybePTApp
+  maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
         → predTrans m (λ o → P₁ o → P₂ o) i
         → predTrans m P₁ i
         → predTrans m P₂ i
+  maybePTApp {P₁ = P₁} {P₂} m unit imp pt1 =
+    predTrans-is-weakest m P₂
+      (ASTSufficientPT.sufficient MaybeSuf m (λ o → P₁ o → P₂ o) unit imp
+        (ASTSufficientPT.sufficient MaybeSuf m P₁ unit pt1))
 
 ------------------------------------------------------------------------------
 
