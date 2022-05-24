@@ -6,7 +6,7 @@
 
 open import Data.Nat
 import      Level
-open import Util.Prelude
+open import Util.Prelude hiding (bail)
 open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
@@ -16,33 +16,48 @@ module Dijkstra.AST.Examples.Maybe.Branching where
 open ASTTypes MaybeTypes
 open ASTPredTrans MaybePT
 open ASTExtension
-open Syntax
 
-dblNonZero : ℕ → ∀ {ℓ} → Level.Lift ℓ Bool → MaybeDExt ℕ
-dblNonZero _ (lift true)  = ASTop (Left Maybe-bail) λ ()
-dblNonZero n (lift false) = ASTreturn (2 * n)
+module Example-if (n : ℕ) where
+  -- First we specify the behaviour we want via a postcondition requiring that the program can fail
+  -- only if n is zero, and if it succeeds, the n is non-zero and the result is 2 * n
+  bpPost : Post ℕ
+  bpPost nothing   = n ≡ 0
+  bpPost (just n') = 0 < n × n' ≡ 2 * n
 
--- A program that includes branching in MaybeD
-branchingProg : ℕ → MaybeDExt ℕ
-branchingProg n = ASTop (Right (BCif (toBool (n ≟ℕ 0) ))) (dblNonZero n)
+  module Raw where
+    -- A program that includes branching in MaybeD, intended to satify the specification
+    -- established by bpPost
+    branchingProg : MaybeDExt ℕ
+    branchingProg = ASTop (Right (BCif (toBool (n ≟ℕ 0) )))
+                          (λ { (lift false) → ASTreturn (2 * n)
+                             ; (lift true)  → ASTop (Left Maybe-bail) λ () })
 
--- A postcondition requiring that it can fail only if n is zero,
--- and if it succeeds, the result is greater than the argument
-bpPost : ℕ → Post ℕ
-bpPost n (just n') = n' > n
-bpPost n nothing   = n ≡ 0
+    -- The weakest precondition for bpPost holds
+    branchingProgWorks : (i : Input)
+                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWorks _) isTrue  =           toWitnessT isTrue
+    proj₂ (branchingProgWorks _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
-dblNZ> : ∀ {n} → n ≢ 0 → n < n + (n + 0)
-dblNZ> {0}     nz                             = ⊥-elim (nz refl)
-dblNZ> {suc n} nz rewrite +-identityʳ (suc n) = m<m+n _ 0<1+n
+    -- And therefore, the result of running the program satisfies the postcondition
+    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop i =
+      ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
 
--- The weakest precondition for bpPost holds
-branchingProgWorks : (n : ℕ) → (i : Input)
-                     → ASTPredTrans.predTrans MaybePTExt (branchingProg n) (bpPost n) i
-proj₁ (branchingProgWorks _ _) isTrue  =         toWitnessT isTrue
-proj₂ (branchingProgWorks _ _) isFalse = dblNZ> (toWitnessF isFalse)
+  module Prettier where
+    open BranchingSyntax MaybeOps
+    open MaybeBranchingSyntax
 
--- And therefore, the result of running the program satisfies the postcondition
-prop : (n : ℕ) → (i : Input) → (bpPost n) (runMaybeExt (branchingProg n) i)
-prop n i =
-  ASTSufficientPT.sufficient MaybeSufExt (branchingProg n) (bpPost n) i (branchingProgWorks n i)
+    -- Same program with nicer syntax using ifAST, bail and return
+    branchingProg : MaybeDExt ℕ
+    branchingProg = ifAST ⌊ n ≟ℕ 0 ⌋
+                    then bail
+                    else (return (2 * n))
+
+    --  Note that the same proof works for both versions (as they are equivalent)
+    branchingProgWorks : (i : Input)
+                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWorks i) isTrue  = toWitnessT isTrue
+    proj₂ (branchingProgWorks i) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
+
+    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
