@@ -35,6 +35,66 @@ module Example-if (n : ℕ) where
     -- The weakest precondition for bpPost holds
     branchingProgWorks : (i : Input)
                          → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+
+    {- TUTORIAL: A simple proof using the branching support for AST MaybeExtOps, specifically BCif.
+
+    TODO-1: elaborate on the example to highlight how the framework guides the proof
+
+    If we start with
+
+    branchingProgWorks i = ?
+
+    and do C-c C-, in the hole, we see that the goal is of type:
+
+    ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+
+    which may not be very enlightening at first.  However, if we do C-u C-u C-c C-, in the hole, now
+    we have:
+
+    Σ
+      (isYes
+       (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
+       ≡ true →
+       n ≡ 0)
+      (λ x →
+         isYes
+         (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
+         ≡ false →
+         Σ (1 ≤ n) (λ x₁ → n + (n + 0) ≡ n + (n + 0)))
+
+    Now, if we squint, we can see that this is a product.  The second conjunct
+    does not depend on the first, so we can separate into two goals:
+
+    proj₁ (branchingProgWorks _) = ?
+    proj₂ (branchingProgWorks _) = ?
+
+    C-c C-, in the first hole gives us this goal:
+
+    ToBool.toBool ToBool-Dec (n ≟ℕ 0) ≡ true →
+    ASTPredTrans.predTrans (PredTransExtension.BranchPT MaybePT)
+    ((λ { (lift false) → ASTreturn (2 * n)
+        ; (lift true) → ASTop (Left Maybe-bail) (λ ())
+        })
+     (lift true))
+    bpPost i
+
+    It looks like we get some evidence that n ≟ℕ 0 is true, and we need to prove ... something.
+    Again, C-u C-u C-c C-, reveals something more understandable:
+
+    isYes
+      (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
+      ≡ true →
+      n ≡ 0
+
+     The "something" is simply that n ≡ 0.  Let's give the evidence that n ≟ℕ 0 is true a name, then
+     use it to prove that n≡0.
+
+     proj₁ (branchingProgWorks _) isTrue  =           toWitnessT isTrue
+
+     The second conjunct is similar.
+
+    -}
+
     proj₁ (branchingProgWorks _) isTrue  =           toWitnessT isTrue
     proj₂ (branchingProgWorks _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
