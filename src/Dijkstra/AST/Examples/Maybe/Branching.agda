@@ -61,3 +61,59 @@ module Example-if (n : ℕ) where
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+
+module Example-either (n : ℕ) where
+  open BranchingSyntax MaybeOps
+  open MaybeBranchingSyntax
+
+  module Common where
+
+    _monus1 : ℕ → Either Unit ℕ
+    _monus1 0        = Left unit
+    _monus1 (suc n') = Right n'
+
+    monus1lemma1 : ∀ {n'} → n ≡ n' → ∀ {l} → n' monus1 ≡ Left l → n ≡ 0
+    monus1lemma1 {n'} n≡n' _
+       with n'
+    ...| 0 = n≡n'
+
+    monus1lemma2 : ∀ {nalias} → n ≡ nalias → ∀ {n'} → nalias monus1 ≡ Right n' → n ≡ suc n'
+    monus1lemma2 {nalias} n≡nalias isrgt
+       with nalias
+    ...| suc x rewrite n≡nalias | inj₂-injective isrgt = refl
+
+    bpPost : Post ℕ
+    bpPost nothing  = n ≡ 0
+    bpPost (just x) = n ≡ suc x
+
+  module Raw where
+    open Common
+    -- A branching program that bails if n monus1 is Left _
+    -- and returns b if n monus1 is Right b
+    branchingProg : MaybeDExt ℕ
+    branchingProg = ASTop (Right (BCeither (n monus1)))
+                          λ { (lift (Left  a)) → bail
+                            ; (lift (Right b)) → return b
+                            }
+
+    branchingProgWorks : (i : Input)
+                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWorks i) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWorks i) l isrgt = monus1lemma2 refl isrgt
+
+    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+
+  module Prettier where
+    open Common
+    -- Same program with nicer syntax using eitherSAST, bail and return
+    branchingProg : MaybeDExt ℕ
+    branchingProg = eitherSAST (n monus1) (const bail) return
+
+    branchingProgWorks : (i : Input)
+                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWorks i) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWorks i) l isrgt = monus1lemma2 refl isrgt
+
+    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
