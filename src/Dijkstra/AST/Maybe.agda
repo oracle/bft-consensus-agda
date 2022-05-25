@@ -6,10 +6,14 @@
 
 module Dijkstra.AST.Maybe where
 
+open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
+open import Data.Product using (Σ)
 import      Level
 open import Relation.Binary.PropositionalEquality
+open import Util.Prelude using (contradiction; id)
+open        ASTExtension
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -67,6 +71,14 @@ MaybebindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
 MaybebindPost _ P nothing  = P nothing
 MaybebindPost f P (just y) = f y P unit
 
+MaybebindPost⊆
+  : ∀ {A B} (f : A → PredTrans B) (P₁ : Post B) (P₂ : Post A)
+    → (P₁ nothing → P₂ nothing)
+    → (∀ x → f x P₁ unit → P₂ (just x))
+    → MaybebindPost f P₁ ⊆ₒ P₂
+MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ nothing wp = n⊆ wp
+MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ (just x) wp = j⊆ x wp
+
 MaybePT : ASTPredTrans MaybeOps MaybeTypes
 ASTPredTrans.returnPT MaybePT x P i               = P (just x)
 -- Note that it is important *not* to pattern match the input as 'unit'.  Even though this is the
@@ -84,8 +96,12 @@ private
   BailWorks : ∀ {A} -> Post A
   BailWorks o = o ≡ nothing
 
-  bailWorks : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
-  bailWorks a unit maybeVoid maybeVoid≡nothing
+  bailWorks  : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
+  bailWorks  a unit r refl = refl
+
+  -- "expanded" version for understanding
+  bailWorks' : ∀ {A} (a : A) i → ASTPredTrans.predTrans MaybePT (prog₁ a) BailWorks i
+  bailWorks' a unit maybeVoid maybeVoid≡nothing
                              -- MaybebindPost (λ x P i → P (just a)) BailWorks           maybeVoid
     with maybeVoid | maybeVoid≡nothing
   ... | n | n≡nothing        -- MaybebindPost (λ x P i → P (just a)) (λ o → o ≡ nothing) n
@@ -111,112 +127,72 @@ ASTPredTransMono.opPTMono₁    MaybePTMono Maybe-bail f monoF P₁ P₂ P₁⊆
 ASTPredTransMono.opPTMono₂    MaybePTMono Maybe-bail f₁ f₂ f₁⊑f₂ P i wp =
   wp
 
+maybePTMono      = ASTPredTransMono.predTransMono MaybePTMono
+maybePTMonoBind₂ = ASTPredTransMono.bindPTMono₂   MaybePTMono
+
 MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
 ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
 ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
   with runMaybe m unit | inspect (runMaybe m) unit
-... | nothing | [ eq ] = mSuf _ unit wp nothing (sym eq)
-... | just y  | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
-                          in fSuf y P unit wp'
+... |  nothing         | [ eq ] = mSuf _ unit wp nothing (sym eq)
+... |  just y          | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
+                                   in fSuf y P unit wp'
 ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
+maybeSufficient = ASTSufficientPT.sufficient MaybeSuf
+
+maybeSuffBind
+  : ∀ {A B P} {Q : Post A} {i} (m : MaybeD A) (f : A → MaybeD B)
+    → predTrans (m >>= f) P i
+    → (P nothing → Q nothing)
+    → (∀ x → predTrans (f x) P unit → Q (just x))
+    → Q (runMaybe m i)
+maybeSuffBind{P = P}{Q}{i} m f wp n⊆ j⊆ =
+  MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
+    (runMaybe m i) (maybeSufficient m _ i wp _ refl)
+
+-- This property says that predTrans really is the *weakest* precondition for a
+-- postcondition to hold after running a MaybeD.
+Post⇒wp : ∀ {A} → MaybeD A → Input → Set₁
+Post⇒wp {A} m i =
+  (P : Post A)
+  → P (runMaybe m i)
+  → predTrans m P i
+
+predTrans-is-weakest : ∀ {A} → (m : MaybeD A) → Post⇒wp {A} m unit
+predTrans-is-weakest (ASTreturn _) _ = id
+predTrans-is-weakest (ASTbind m f) _ Pr
+   with predTrans-is-weakest m
+...| rec
+  with runMaybe m unit
+... | nothing = rec _ λ where _ refl → Pr
+... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
+predTrans-is-weakest (ASTop Maybe-bail f) P = id
+
+maybePTApp
+    : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
+      → predTrans m (λ o → P₁ o → P₂ o) i
+      → predTrans m P₁ i
+      → predTrans m P₂ i
+maybePTApp {_} {P₁} {P₂} m unit imp pt1 =
+  predTrans-is-weakest m P₂
+    (ASTSufficientPT.sufficient MaybeSuf m (λ o → P₁ o → P₂ o) unit imp
+      (ASTSufficientPT.sufficient MaybeSuf m P₁ unit pt1))
+
+MaybeExtOps    = BranchOps MaybeOps
+MaybeDExt      = AST MaybeExtOps
+MaybePTExt     = PredTransExtension.BranchPT MaybePT
+runMaybeExt    = ASTOpSem.runAST (OpSemExtension.BranchOpSem MaybeOpSem)
+MaybePTMonoExt = PredTransExtensionMono.BranchPTMono MaybePTMono
+MaybeSufExt    = SufficientExtension.BranchSuf MaybePTMono MaybeSuf
+
 private
-  bailWorksSuf : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
---bailWorksSuf a i =
---  ASTSufficientPT.sufficient MaybeSuf (prog₁ a) BailWorks unit (bailWorks a unit)
-  bailWorksSuf a i
-    with runMaybe (prog₁ a) i
-  ... | x≡x = refl
+  -- an easy example using sufficient
+  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf a i =
+    ASTSufficientPT.sufficient MaybeSuf (prog₁ a) BailWorks unit (bailWorks a unit)
 
-------------------------------------------------------------------------------
+  -- alternate version, showing that it's trivial in this case
+  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf' a i = refl
 
-module Partiality where
-  {- from "A predicate transformer semantics for effects"
-     https://webspace.science.uu.nl/~swier004/publications/2019-icfp-submission-a.pdf
-     https://zenodo.org/record/3257707#.Yec-nxPMJqt
-  -}
-  open Syntax
-  open import Agda.Builtin.Unit using (⊤; tt)
-  open import Data.Empty using (⊥; ⊥-elim)
-  open import Data.Nat public using () renaming (ℕ to Nat; zero to Zero; suc to Succ)
-  open import Data.Nat.DivMod
-  open import Data.Product using (∃ ; ∃-syntax ; _×_)
-
-  data Expr : Set where
-    Val : Nat  -> Expr
-    Div : Expr -> Expr -> Expr
-
-  data _⇓_ : Expr -> Nat -> Set where
-    ⇓Base : forall {n}
-         -> Val n ⇓ n
-    ⇓Step : forall {el er n1 n2}
-         ->     el    ⇓  n1
-         ->        er ⇓         (Succ n2) -- divisor is non-zero
-         -> Div el er ⇓ (n1 div (Succ n2))
-
-  _÷_ : Nat -> Nat -> MaybeD Nat
-  n ÷ Zero     = bail
-  n ÷ (Succ k) = ASTreturn (n div (Succ k))
-
-  -- ⟦_⟧ : Expr -> MaybeD Nat
-  -- ⟦ Val x ⟧     = return x
-  -- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
-  --                 ⟦ e2 ⟧ >>= \v2 ->
-  --                 v1 ÷ v2
-
-  ⟦_⟧ : Expr -> MaybeD Nat
-  ⟦ Val x ⟧     = ASTreturn x
-  ⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
-                  ASTbind (⟦ e2 ⟧) (\v2 ->
-                   (v1 ÷ v2)))
-
-  record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
-    constructor _,_
-    field
-      fst : a
-      snd : b
-
-  _∧_ : ∀ {l l'} -> Set l -> Set l' -> Set (l Level.⊔ l')
-  _∧_ A B = Pair A B
-  infixr 1 _∧_
-
-  SafeDiv : Expr -> Set
-  SafeDiv (Val x)     = ⊤
-  SafeDiv (Div el er) = (er ⇓ Zero -> ⊥) ∧ SafeDiv el ∧ SafeDiv er
-
-  ------------------------------------------------------------------------------
-  -- everything above from Wouter paper (modified with our AST)
-  -- everything below our attempts to prove sufficient, sound, complete, ...
-
-  -- The proof of 'correct' in the Wouter paper uses wpPartial, which is like wp, but is for a
-  -- Partial (Maybe) computation, and requires that the computation succeeds (i.e., returns a just)
-  -- by making the post condition not hold when the computation returns nothing.  While not
-  -- explicitly writing it as such, the following is the moral equivaelent, where PN plays the role
-  -- of mustPT in the paper.
-  PN : Expr → Post Nat
-  PN e nothing  = ⊥
-  PN e (just n) = e ⇓ n
-
-  -- TUTORIAL: This example provides a good demonstration of how predTransMono can be used to
-  -- construct proofs for ASTs that include ASTbind, and shows how Agda can figure out the required
-  -- post condition from context, saving us from writing out ugly expressions for the continuation
-  -- of a bind.  For example, we do not need to write out the second post condition in the type
-  -- signature of PN⊆₁ below, because Agda figures it out from the goal.
-  divWorks : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
-  divWorks (Val x₁) i x = ⇓Base
-  divWorks (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
-    where
-    ih₁ = divWorks e₁ unit sd₁
-    ih₂ = divWorks e₂ unit sd₂
-
-    PN⊆₂ : ∀ n → e₁ ⇓ n →  PN e₂ ⊆ₒ _
-    PN⊆₂ n pf₁ o () nothing refl
-    PN⊆₂ n pf₁ .(just Zero) pf₂ (just Zero) refl = ¬e₂⇓0 pf₂
-    PN⊆₂ n pf₁ .(just (Succ m)) pf₂ (just (Succ m)) refl =
-      ⇓Step pf₁ pf₂
-
-    PN⊆₁ : PN e₁ ⊆ₒ _
-    PN⊆₁ o () nothing refl
-    PN⊆₁ (just n) pf₁ .(just n) refl =
-      ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n pf₁) unit ih₂
