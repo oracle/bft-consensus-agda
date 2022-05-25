@@ -8,11 +8,11 @@ module Dijkstra.AST.Maybe where
 
 open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
-open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
+open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Monad; Void)
 open import Data.Product using (Σ)
 import      Level
 open import Relation.Binary.PropositionalEquality
-open import Util.Prelude using (contradiction; id)
+open import Util.Prelude using (contradiction; id; Left)
 open        ASTExtension
 
 data MaybeCmd (C : Set) : Set₁ where
@@ -185,6 +185,16 @@ MaybePTExt     = PredTransExtension.BranchPT MaybePT
 runMaybeExt    = ASTOpSem.runAST (OpSemExtension.BranchOpSem MaybeOpSem)
 MaybePTMonoExt = PredTransExtensionMono.BranchPTMono MaybePTMono
 MaybeSufExt    = SufficientExtension.BranchSuf MaybePTMono MaybeSuf
+
+module MaybeBranchingSyntax where
+
+  bail : ∀ {A} → AST MaybeExtOps A
+  bail =  ASTop (Left Maybe-bail) λ ()
+
+  instance
+    Monad-Maybe-AST : Monad (AST MaybeExtOps)
+    Monad.return Monad-Maybe-AST = ASTreturn
+    Monad._>>=_ Monad-Maybe-AST  = ASTbind
 
 private
   -- an easy example using sufficient

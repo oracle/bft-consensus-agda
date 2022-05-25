@@ -47,6 +47,25 @@ module ASTExtension (O : ASTOps) where
   unextend (ASTop (Right (BCeither (Left x))) f) = unextend (f (Level.lift (Left x)))
   unextend (ASTop (Right (BCeither (Right y))) f) = unextend (f (Level.lift (Right y)))
 
+module BranchingSyntax (O : ASTOps) where
+  open ASTExtension O
+
+  ifAST_then_else : ∀ {A} → Bool → (t e : AST BranchOps A) → AST BranchOps A
+  ifAST b then t else e = ASTop (Right (BCif b))
+                                λ { (Level.lift true)  → t
+                                  ; (Level.lift false) → e
+                                  }
+
+  eitherAST : ∀ {A B C : Set} → (A → AST BranchOps C) → (B → AST BranchOps C) → Either A B → AST BranchOps C
+  eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
+                              λ { (Level.lift (Left  a)) → fA a
+                                ; (Level.lift (Right b)) → fB b
+                                }
+
+  -- Same but with arguments in more "natural" order
+  eitherSAST : ∀ {A B C : Set} → Either A B → (A → AST BranchOps C) → (B → AST BranchOps C) → AST BranchOps C
+  eitherSAST eAB fA fB = eitherAST fA fB eAB
+
 module OpSemExtension {O : ASTOps} {T : ASTTypes} (OpSem : ASTOpSem O T) where
   open ASTExtension O
 
