@@ -33,75 +33,107 @@ module Example-if (n : ℕ) where
                              ; (lift true)  → ASTop (Left Maybe-bail) λ () })
 
     -- The weakest precondition for bpPost holds
-    branchingProgWorks : (i : Input)
-                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    branchingProgWP : (i : Input)
+                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
 
     {- TUTORIAL: A simple proof using the branching support for AST MaybeExtOps, specifically BCif.
 
-    TODO-1: elaborate on the example to highlight how the framework guides the proof
-
     If we start with
 
-    branchingProgWorks i = ?
+      branchingProgWP i = ?
 
-    and do C-c C-, in the hole, we see that the goal is of type:
+    As seen after C-c C-l, or by doing C-u C-c C- in the hole, the goal is of type:
 
-    ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+      ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
 
-    which may not be very enlightening at first.  However, if we do C-u C-u C-c C-, in the hole, now
-    we have:
+    Using C-c C-, (without the C-u prefix), tells us a bit more
+    detail about the goal:
 
-    Σ
-      (isYes
-       (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
-       ≡ true →
-       n ≡ 0)
-      (λ x →
-         isYes
+      ASTPredTrans.opPT MaybePTExt (Right (BCif ⌊ n ≟ℕ 0 ⌋))
+        (λ x →
+           ASTPredTrans.predTrans MaybePTExt
+           ((λ { (lift false) → ASTreturn (2 * n)
+               ; (lift true) → ASTop (Left Maybe-bail) (λ ())
+               })
+            x))
+        bpPost i
+
+    This is because branchingProg starts with an ASTop (see ASTPredTrans.predTrans (ASTop c f)).
+    It's still not very easy to see what needs to be proved.  Doing C-u C-u C-c C-, in the hole goes
+    further, revealing the following:
+
+      Σ
+        (isYes
          (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
-         ≡ false →
-         Σ (1 ≤ n) (λ x₁ → n + (n + 0) ≡ n + (n + 0)))
+         ≡ true →
+         n ≡ 0)
+        (λ x →
+           isYes
+           (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
+           ≡ false →
+           Σ (1 ≤ n) (λ x₁ → n + (n + 0) ≡ n + (n + 0)))
 
-    Now, if we squint, we can see that this is a product.  The second conjunct
-    does not depend on the first, so we can separate into two goals:
+    We can see that this is a product, and that each conjunct receives evidence that the condition
+    evaluates to the relevant boolean value (true for the first, false for the second).  This is
+    because
 
-    proj₁ (branchingProgWorks _) = ?
-    proj₂ (branchingProgWorks _) = ?
+      ASTPredTrans.opPT BranchPT (Right (BCif c)) f P i
 
-    C-c C-, in the first hole gives us this goal:
+    requires two proofs, one for when the condition c is true and one for when it's false; each case
+    gets evidence that the condition evaluates to the relevant boolean.
 
-    ToBool.toBool ToBool-Dec (n ≟ℕ 0) ≡ true →
-    ASTPredTrans.predTrans (PredTransExtension.BranchPT MaybePT)
-    ((λ { (lift false) → ASTreturn (2 * n)
-        ; (lift true) → ASTop (Left Maybe-bail) (λ ())
-        })
-     (lift true))
-    bpPost i
+    Furthermore, we can see that the goals for each conjunct are now derived from the postcondition,
+    bpPost.  Now we can start to see what we need to prove.
 
-    It looks like we get some evidence that n ≟ℕ 0 is true, and we need to prove ... something.
-    Again, C-u C-u C-c C-, reveals something more understandable:
+    The second conjunct does not depend on the first, so we can separate into two goals:
 
-    isYes
-      (map′ (≡ᵇ⇒≡ n 0) (≡⇒≡ᵇ n 0) (Data.Bool.Properties.T? (n ≡ᵇ 0)))
-      ≡ true →
-      n ≡ 0
+      proj₁ (branchingProgWP _) = ?
+      proj₂ (branchingProgWP _) = ?
 
-     The "something" is simply that n ≡ 0.  Let's give the evidence that n ≟ℕ 0 is true a name, then
-     use it to prove that n≡0.
+    Using C-c C-, in the first hole gives us this goal:
 
-     proj₁ (branchingProgWorks _) isTrue  =           toWitnessT isTrue
+      ⌊ n ≟ℕ 0 ⌋ ≡ true → n ≡ 0
 
-     The second conjunct is similar.
+    This is easily dispatched with toWitnessT.
+
+      proj₁ (branchingProgWP _) = toWitnessT
+
+    The second conjunct is similar.  Doing C-c C-, in the hole shows:
+
+      ⌊ n ≟ℕ 0 ⌋ ≡ false → 0 < n × n + (n + zero) ≡ n + (n + zero)
+
+    Let's give the evidence that the condition is false a name, so we can
+    prove the two conjuncts separately:
+
+      proj₂ (branchingProgWP _) isFalse = ?
+
+    The goal shown by C-c C-, is now:
+
+      0 < n × n + (n + zero) ≡ n + (n + zero)
+
+    We can do C-c C-r to refine this to two separate goals, the first of which is 0 < n.  Again, we
+    use the relevant toWitness function (toWitnessF because the condition is false), along with a
+    library function n≢0⇒n>0 to fill the hole for the first conjunct.
+
+      proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , ?
+
+    C-c C-, shows that the second hole needs evidence that n + (n + zero) ≡ n + (n + zero), which is
+    easily satisfied by refl, resulting in the complete proof below.
+
+    One important lesson is to remember to use the variants of C-c C-, with zero, one or two C-u's
+    before it.  Each is the most useful of the three in some contexts.  Experienced users might
+    predict which one is best, but just having enough experience to remember to try all three is a
+    big help.
 
     -}
 
-    proj₁ (branchingProgWorks _) isTrue  =           toWitnessT isTrue
-    proj₂ (branchingProgWorks _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
+    proj₁ (branchingProgWP _) isTrue  =           toWitnessT isTrue
+    proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
     -- And therefore, the result of running the program satisfies the postcondition
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
     prop i =
-      ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+      ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
     open BranchingSyntax MaybeOps
@@ -114,13 +146,13 @@ module Example-if (n : ℕ) where
                     else (return (2 * n))
 
     --  Note that the same proof works for both versions (as they are equivalent)
-    branchingProgWorks : (i : Input)
+    branchingProgWP : (i : Input)
                          → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWorks i) isTrue  = toWitnessT isTrue
-    proj₂ (branchingProgWorks i) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
+    proj₁ (branchingProgWP i) isTrue  =           toWitnessT isTrue
+    proj₂ (branchingProgWP i) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
 module Example-either (n : ℕ) where
   open BranchingSyntax MaybeOps
@@ -156,13 +188,13 @@ module Example-either (n : ℕ) where
                             ; (lift (Right b)) → return b
                             }
 
-    branchingProgWorks : (i : Input)
-                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWorks i) l islft = monus1lemma1 refl islft
-    proj₂ (branchingProgWorks i) l isrgt = monus1lemma2 refl isrgt
+    branchingProgWP : (i : Input)
+                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWP i) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWP i) l isrgt = monus1lemma2 refl isrgt
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
     open Common
@@ -170,10 +202,10 @@ module Example-either (n : ℕ) where
     branchingProg : MaybeDExt ℕ
     branchingProg = eitherSAST (n monus1) (const bail) return
 
-    branchingProgWorks : (i : Input)
-                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWorks i) l islft = monus1lemma1 refl islft
-    proj₂ (branchingProgWorks i) l isrgt = monus1lemma2 refl isrgt
+    branchingProgWP : (i : Input)
+                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+    proj₁ (branchingProgWP i) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWP i) l isrgt = monus1lemma2 refl isrgt
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWorks i)
+    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)

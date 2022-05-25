@@ -52,9 +52,9 @@ module BranchingSyntax (O : ASTOps) where
 
   ifAST_then_else : ∀ {A} → Bool → (t e : AST BranchOps A) → AST BranchOps A
   ifAST b then t else e = ASTop (Right (BCif b))
-                          λ { (Level.lift true)  → t
-                            ; (Level.lift false) → e
-                            }
+                                λ { (Level.lift true)  → t
+                                  ; (Level.lift false) → e
+                                  }
 
   eitherAST : ∀ {A B C : Set} → (A → AST BranchOps C) → (B → AST BranchOps C) → Either A B → AST BranchOps C
   eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
