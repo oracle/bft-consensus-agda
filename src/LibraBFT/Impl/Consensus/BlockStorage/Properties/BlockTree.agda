@@ -4,6 +4,7 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.Records using (BlockId-correct)
@@ -103,7 +104,7 @@ module insertBlockESpec
   contract-E : Contract (insertBlockE.E eb0 bt)
   contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
-  open ASTVersion eb0 bt
+  open insertBlockE-AST eb0 bt
   open addChild
 
   contract'-AST : ASTPredTrans.predTrans EitherPT insertBlockE-AST Contract unit
@@ -185,13 +186,6 @@ module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
   open insertQuorumCertE qc bt0
 
-  Ok : Set
-  Ok = ∃₂ λ bt1 il → insertQuorumCertE-Either qc bt0 ≡ Right (bt1 , il)
-
-  private
-    Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set
-    Ok' bt il m = m ≡ Right (bt , il)
-
   record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
     constructor mkContractOk
     field
@@ -259,3 +253,94 @@ module insertQuorumCertESpec
         proj₂ contract-step₃' _ = ContractOk-trans
                                     (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _))
                                     (contract-cont1' bt0 [])
+
+module insertQuorumCertE-ASTSpec
+  (qc : QuorumCert) (bt0  : BlockTree) where
+  open insertQuorumCertE-AST qc bt0
+
+  -- The following definitions are the same as for the EitherD version above
+  record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
+    constructor mkContractOk
+    field
+      noNewQCs : ∈Post⇒∈PreOrBT (_≡ qc) btPre btPost
+
+  ContractOk-trans : ∀ {btPre btInt btPost ilPre ilInt ilPost}
+                   → ContractOk btPre btInt  ilPre ilInt
+                   → ContractOk btInt btPost ilInt ilPost
+                   → ContractOk btPre btPost ilPre ilPost
+  ContractOk-trans (mkContractOk noNewQCs) (mkContractOk noNewQCs₁) =
+                    mkContractOk (∈Post⇒∈PreOr'-trans _∈BlockTree_ (_≡ qc) noNewQCs noNewQCs₁)
+
+  Contract : Either ErrLog (BlockTree × List InfoLog) → Set
+  Contract (Left x) = ⊤
+  Contract (Right (bt1 , il)) = ContractOk bt0 bt1 [] il
+
+  -- Here we prove the weakest precondition for insertQuorumCertE-AST to ensure Contract The proof
+  -- is similar to the corresponding one for insertQuorumCertE above, but the AST framework makes it
+  -- easier to discover the proof obligations.  Note that the code for insertQuorumCertE-AST is not
+  -- broken explicitly into steps because we don't need to write the types of the individual proofs
+  -- because the framework presents them to us.
+  contract-AST : ASTPredTrans.predTrans EitherPTExt insertQuorumCertE-AST Contract unit
+  contract-AST with safetyInvariant
+  --  The Left/bail cases are easy, as Contract simply requires ⊤ in this case.
+  ... | Left _ = tt
+  ... | Right unit =
+      -- Two proof obligations are introduced due to the use of maybeSD; the AST framework with the
+      -- branching extensions ensures that the two goals are created by typing C-c C-r in a hole
+      -- here.  To understand why, see the definition of maybeSD, which is in terms of the maybeD
+      -- field of the relevant MonadMaybeD instance (EitherDASTExt-MonadMaybeD), which translates to
+      -- ASTop (Right (BCmaybe mb)).  The opPT field of BranchPT establishes that we require two
+      -- proofs, one for the nothing case and one for the just case; each receives evidence that mb
+      -- is the relevant case (nothing or just something), and determines the relevant proof
+      -- obligation.
+      const tt , λ block _ →
+      -- Similarly, another use of maybeSD in the code results in automatically introducing two
+      -- proof obligations using C-c C-r
+      const tt ,
+      -- The "Right" goal in this case is determined by the use of ifAST in the code, which
+      -- translates to ASTop (Right (BCif b)) ... (see BranchingSyntax).  Therefore, in this case,
+      -- the proof obligation is determined in PredTransExtension to have two proof obligations, one
+      -- for the case in which b is true and one for b is false.  Each gets evidence of the value of
+      -- b (not used in this example) and the predicate transformer resulting from passing the value
+      -- of b to the function in the definition of ASTPredTrans.opPT yields the proof obligation.
+      -- The proofs for each case here are more or less copied from the insertQuorumcertESpec proof,
+      -- but because the framework guided us to the goals, we did not need to state their types
+      -- explicitly, which in turn means that we did not need to break the code into explicit steps.
+      λ _ _ →
+      (const $ let bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                             & btHighestQuorumCert       ∙~ qc
+                in ContractOk-trans
+                     (mkContractOk (∈BlockTree-upd-hqc refl refl))
+                     (contract-cont1' block bt' (fakeInfo ∷ [])))
+      , (const $ ContractOk-trans
+                   (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _))
+                   (contract-cont1' block bt0 []))
+      where
+      -- The following proofs are just about pure code, and are copied verbatim from
+      -- insertQuorumCertESpec above
+      contract-cont2' : ∀ (bt : BlockTree) (info : List InfoLog)
+                       → let (bt' , info') = continue2 bt info
+                         in ContractOk bt bt' info info'
+      contract-cont2' bt info
+         with (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
+      ...| yes hqcR<qcR = mkContractOk (∈BlockTree-upd-hcc refl refl)
+      ...| no  hqcR≥qcR = mkContractOk (λ _ x → inj₁ x)
+
+      cont1-update-bt : BlockTree → BlockTree
+      cont1-update-bt bt = bt & btIdToQuorumCert ∙~ Map.insert blockId qc (bt ^∙ btIdToQuorumCert)
+
+      info' : List InfoLog → Bool → List InfoLog
+      info' il b = (fakeInfo ∷ il) ++ (if b then (fakeInfo ∷ []) else [])
+
+      contract-cont1' : ∀ (block : ExecutedBlock) (btPre : BlockTree) (infoPre : List InfoLog)
+                      → let (btPost , infoPost) = continue1 btPre blockId block infoPre
+                        in  ContractOk btPre btPost infoPre infoPost
+      contract-cont1' block btPre infoPre
+         with Map.kvm-member blockId (btPre ^∙ btIdToQuorumCert)
+      ...| true  = mkContractOk (ContractOk.noNewQCs (contract-cont2' btPre (info' infoPre $ ExecutedBlock.isNilBlock block )))
+      ...| false = ContractOk-trans {btInt = cont1-update-bt btPre} {ilInt = info' infoPre $ ExecutedBlock.isNilBlock block }
+                             (mkContractOk (∈Post⇒∈PreOrBT-QCs≡ _ refl refl))
+                             (mkContractOk (ContractOk.noNewQCs (contract-cont2'
+                                                                   (cont1-update-bt btPre)
+                                                                 (info' infoPre $ ExecutedBlock.isNilBlock block))))
+
