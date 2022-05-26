@@ -124,6 +124,11 @@ module Util.KVMap  where
                    → k' ≢ k
                    → lookup k' kvm ≡ lookup k' (kvm-insert k v kvm prf)
 
+   insert-target-≢-Haskell :
+                     {kvm : KVMap Key Val}{k k' : Key}
+                   → k' ≢ k
+                   → lookup k' kvm ≡ lookup k' (kvm-insert-Haskell k v kvm)
+
    update-target-≢  : {kvm : KVMap Key Val}
                   → ∀ {k1 k2 x}
                   → k2 ≢ k1

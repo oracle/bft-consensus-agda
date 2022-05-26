@@ -4,7 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Dijkstra.AST.Core
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Records using (BlockId-correct)
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
@@ -19,15 +21,42 @@ open import Optics.All
 open import Util.ByteString
 open import Util.Hash
 open import Util.KVMap                                           as Map
+open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
+
+open import Dijkstra.AST.Either ErrLog renaming (EitherD to EitherAST)
 
 open QCProps
 open Invariants
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 
-module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
+module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
+
+  open addChild lb hv
+
+  record ContractOk (lb' : LinkableBlock) : Set where
+    field
+      presLB : lb ≡L lb' at lbExecutedBlock
+  open ContractOk
+
+  Contract : Either ErrLog LinkableBlock → Set
+  Contract (Left _) = ⊤
+  Contract (Right lb') = ContractOk lb'
+
+  postulate -- TODO: prove after implementing addChild
+    contract'-AST : ASTPredTrans.predTrans EitherPT addChild-AST Contract unit
+
+  contract-AST : Contract (runEither addChild-AST unit)
+  contract-AST = ASTSufficientPT.sufficient EitherSuf addChild-AST Contract unit contract'-AST
+
+
+module insertBlockESpec
+         (eb0 : ExecutedBlock)
+         (eb0Valid : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId))
+         (bt : BlockTree)
+  where
   eb0Id = eb0 ^∙ ebId
 
   -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
@@ -50,20 +79,10 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
 
   open Reqs (eb0 ^∙ ebBlock) bt
 
-  -- This is not quite right.  It does not yet account for the updating of the parent Block
-  -- Is it needed (see below)?
-  record Updated (hv : HashValue) (pre post : BlockTree) (eb : ExecutedBlock) : Set where
-    field
-      ≢hv¬Upd : ∀ {hv'} → hv' ≢ hv → btGetBlock hv' post ≡ btGetBlock hv' pre
-
   record ContractOk (bt“ : BlockTree) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
-      -- The following two fields are not used, but something like this will be useful in proving
-      -- btiPres and may provide value in their own right
-      ¬upd    : ∀ {eb'} → btGetBlock eb0Id bt ≡ just eb' → bt ≡ bt“
-      upd     :           btGetBlock eb0Id bt ≡ nothing  →  Updated eb0Id bt bt“ eb
       blocks≈ : NoHC1 → eb [ _≈Block_ ]L eb0 at ebBlock
       btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
@@ -83,6 +102,84 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
   -- A contract (not used yet) for the Either version
   contract-E : Contract (insertBlockE.E eb0 bt)
   contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
+
+  open ASTVersion eb0 bt
+  open addChild
+
+  contract'-AST : ASTPredTrans.predTrans EitherPT insertBlockE-AST Contract unit
+  contract'-AST
+     with  btGetBlock (eb0 ^∙ ebId)  bt | inspect
+          (btGetBlock (eb0 ^∙ ebId)) bt
+  ... | just existingBlock | [ R ] =
+          mkContractOk refl
+                       (λ nohc → nohc {existingBlock} R (BlockIsValid.bidCorr eb0Valid))
+                       id
+  ... | nothing | [ R ]
+    with  btGetLinkableBlock (eb0 ^∙ ebParentId)  bt | inspect
+         (btGetLinkableBlock (eb0 ^∙ ebParentId)) bt
+  ... | nothing | _ = tt
+  ... | just parentBlock | [ R' ] =
+          ASTPredTransMono.predTransMono EitherPTMono
+            (addChild-AST parentBlock (eb0 ^∙ ebId))
+            (addChildSpec.Contract parentBlock (eb0 ^∙ ebId))
+            _
+            Contract⊆
+            unit
+            (addChildSpec.contract'-AST  parentBlock (eb0 ^∙ ebId))
+
+         where
+           btInsert : BlockTree → HashValue → LinkableBlock → BlockTree
+           btInsert bt bid lb = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell bid lb (bt ^∙ btIdToBlock)
+
+           pres-AVB : ∀ {bt : BlockTree} → AllValidBlocks bt
+                      → {bid : HashValue} {lb : LinkableBlock}
+                      → BlockIsValid ((lb ^∙ lbExecutedBlock) ^∙ ebBlock) bid
+                      → AllValidBlocks (btInsert bt bid lb)
+           pres-AVB {bt} hyp {bid} {lb} biv {bid'} {eb} ij
+             with bid' ≟Hash bid
+           ...| no  neq  rewrite sym (insert-target-≢-Haskell {v = lb} {kvm = bt ^∙ btIdToBlock} neq) = hyp ij
+           ...| yes refl rewrite lookup-correct-haskell {k = bid} {v = lb} {kvm = bt ^∙ btIdToBlock}
+                               | just-injective ij = biv
+
+           module _ (parentBlock' : LinkableBlock)
+                    (parentValid  : BlockIsValid ((parentBlock' ^∙ lbExecutedBlock) ^∙ ebBlock) (eb0 ^∙ ebParentId))
+                    (ebValid      : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId)) where
+             bt' : BlockTree
+             bt' = btInsert bt (eb0 ^∙ ebParentId) parentBlock'
+
+             bt'' : BlockTree
+             bt'' = btInsert bt' (eb0 ^∙ ebId) (LinkableBlock∙new eb0)
+
+             finalAllValidBlocks : AllValidBlocks bt → AllValidBlocks bt''
+             finalAllValidBlocks avb = pres-AVB {bt'} (pres-AVB {bt} avb parentValid) ebValid
+
+           Contract⊆ : _
+           Contract⊆ (Left _)    _                    .(Left _)             refl = tt
+           Contract⊆ (Right parentBlock') addChildCon .(Right parentBlock') refl = con
+             where
+             con : _
+             con = mkContractOk
+                          refl
+                          (λ _ → refl)
+                          λ bti → mkBlockTreeInv
+                                    (BlockTreeInv.allValidQCs bti)
+                                    (finalAllValidBlocks parentBlock'
+                                                         (biv (BlockTreeInv.allValidBlocks bti))
+                                                         eb0Valid
+                                                         (BlockTreeInv.allValidBlocks bti))
+                    where
+
+                      -- Because rewrite directly in biv1 did not work for some reason
+                      biv' : AllValidBlocks bt → _ → _
+                      biv' avb refl
+                         with avb (btGetBlock≡ {bt = bt} R')
+                      ...| bv = mkBlockIsValid (BlockIsValid.bidCorr {bid = eb0 ^∙ ebParentId} bv)
+                                               (BlockIsValid.bhashCorr bv)
+                      biv : AllValidBlocks bt → _
+                      biv avb = biv' avb (sym (cong (_^∙ ebBlock) (addChildSpec.ContractOk.presLB addChildCon)))
+
+  contract-AST : Contract (runEither insertBlockE-AST unit)
+  contract-AST = ASTSufficientPT.sufficient EitherSuf insertBlockE-AST Contract unit contract'-AST
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where

@@ -802,6 +802,11 @@ module LibraBFT.ImplShared.Consensus.Types.EpochIndep where
   btGetBlock : HashValue → BlockTree → Maybe ExecutedBlock
   btGetBlock hv bt = (_^∙ lbExecutedBlock) <$> btGetLinkableBlock hv bt
 
+  btGetBlock≡ : ∀ {hv : HashValue} {bt : BlockTree} {lb : LinkableBlock}
+                → btGetLinkableBlock hv bt ≡ just lb
+                → btGetBlock hv bt ≡ just (lb ^∙ lbExecutedBlock)
+  btGetBlock≡ jlb rewrite jlb = refl
+
   -- getter only in Haskell
   btRoot : Lens BlockTree (Maybe ExecutedBlock)
   btRoot = mkLens' g s
