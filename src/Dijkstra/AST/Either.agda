@@ -12,10 +12,14 @@ open import Data.Empty
 open import Data.Product using (_×_) -- ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Dijkstra.AST.Core
+open import Dijkstra.AST.Branching
+open import Dijkstra.Syntax
 open import Haskell.Prelude hiding (return)
 import      Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
+open        ASTExtension
+
 data EitherCmd (A : Set) : Set₁ where
   Either-bail : Err → EitherCmd A
 
@@ -34,6 +38,7 @@ EitherD = AST EitherOps
 
 module Syntax where
   open import Dijkstra.AST.Syntax public
+  open import Dijkstra.Syntax
 
   bail : ∀ {A} → Err → EitherD A
   bail a = ASTop (Either-bail a) λ ()
@@ -127,3 +132,35 @@ ASTSufficientPT.opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 private
   bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEither (prog₁ e a) i ≡ Left e)
   bailWorksSuf e a i = ASTSufficientPT.sufficient EitherSuf (prog₁ e a) (BailWorks e) unit (bailWorks e unit a )
+
+EitherExtOps    = BranchOps EitherOps
+EitherDExt      = AST EitherExtOps
+EitherPTExt     = PredTransExtension.BranchPT EitherPT
+runEitherExt    = ASTOpSem.runAST (OpSemExtension.BranchOpSem EitherOpSem)
+EitherPTMonoExt = PredTransExtensionMono.BranchPTMono EitherPTMono
+EitherSufExt    = SufficientExtension.BranchSuf EitherPTMono EitherSuf
+
+module SyntaxExt where
+  open import Dijkstra.AST.Syntax public
+  open import Dijkstra.Syntax
+
+  EitherD-maybe : ∀ {A B : Set} → EitherDExt B → (A → EitherDExt B) → Maybe A → EitherDExt B
+  EitherD-maybe m f mb = ASTop (Right (BCmaybe mb))
+                               λ { (Level.lift nothing)  → m
+                                 ; (Level.lift (just j)) → f j
+                                 }
+  instance
+    Monad-EitherDAST : Monad EitherDExt
+    Monad.return Monad-EitherDAST = ASTreturn
+    Monad._>>=_  Monad-EitherDAST = ASTbind
+
+    EitherDASTExt-MonadMaybeD : MonadMaybeD EitherDExt
+    MonadMaybeD.monad  EitherDASTExt-MonadMaybeD = Monad-EitherDAST
+    MonadMaybeD.maybeD EitherDASTExt-MonadMaybeD = EitherD-maybe
+
+  bail : ∀ {A} → Err → EitherDExt A
+  bail a = ASTop (Left (Either-bail a)) λ ()
+
+  return : ∀ {A} → A → EitherDExt A
+  return a = ASTreturn a
+
