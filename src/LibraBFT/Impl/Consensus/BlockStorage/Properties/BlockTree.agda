@@ -103,7 +103,7 @@ module insertBlockESpec
   contract-E : Contract (insertBlockE.E eb0 bt)
   contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
-  open ASTVersion eb0 bt
+  open insertBlockE-AST eb0 bt
   open addChild
 
   contract'-AST : ASTPredTrans.predTrans EitherPT insertBlockE-AST Contract unit
@@ -184,13 +184,6 @@ module insertBlockESpec
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
   open insertQuorumCertE qc bt0
-
-  Ok : Set
-  Ok = ∃₂ λ bt1 il → insertQuorumCertE-Either qc bt0 ≡ Right (bt1 , il)
-
-  private
-    Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set
-    Ok' bt il m = m ≡ Right (bt , il)
 
   record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
     constructor mkContractOk
