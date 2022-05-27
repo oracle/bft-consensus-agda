@@ -100,8 +100,8 @@ module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) wh
       (∀ l →  e ≡ Left  l → f (Level.lift (Left l))  P i)
     × (∀ r →  e ≡ Right r → f (Level.lift (Right r)) P i)
   ASTPredTrans.opPT     BranchPT (Right (BCmaybe mb)) f P i =
-      (      mb ≡ nothing → f (Level.lift nothing) P i)
-    × (∀ j → mb ≡ just j  → f (Level.lift (just j)) P i)
+      (      mb ≡ nothing → f (Level.lift nothing)   P i)
+    × (∀ j → mb ≡ just j  → f (Level.lift (just j))  P i)
   open ASTPredTrans BranchPT
 
 module PredTransExtensionMono
