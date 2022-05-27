@@ -194,7 +194,7 @@ module MaybeBranchingSyntax where
   instance
     Monad-Maybe-AST : Monad (AST MaybeExtOps)
     Monad.return Monad-Maybe-AST = ASTreturn
-    Monad._>>=_ Monad-Maybe-AST  = ASTbind
+    Monad._>>=_  Monad-Maybe-AST = ASTbind
 
 private
   -- an easy example using sufficient

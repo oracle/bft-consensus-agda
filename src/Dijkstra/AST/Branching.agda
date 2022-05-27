@@ -18,15 +18,17 @@ import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
 
 data BranchCmd (A : Set) : Set₁ where
-  BCif     : Bool → BranchCmd A
+  BCif     :               Bool       → BranchCmd A
   BCeither : {B C : Set} → Either B C → BranchCmd A
+  BCmaybe  : {B   : Set} → Maybe  B   → BranchCmd A
 
 BranchSubArg : {A : Set} → BranchCmd A → Set₁
-BranchSubArg (BCif x) = Level.Lift _ Bool
+BranchSubArg (BCif           x) = Level.Lift _ Bool
 BranchSubArg (BCeither{B}{C} x) = Level.Lift _ (Either B C)
+BranchSubArg (BCmaybe {B}    x) = Level.Lift _ (Maybe  B)
 
 BranchSubRet : {A : Set} {c : BranchCmd A} → BranchSubArg c → Set
-BranchSubRet{A} {BCif x} _ = A
+BranchSubRet{A} {BCif     x} _ = A
 BranchSubRet{A} {BCeither x} _ = A
 
 module ASTExtension (O : ASTOps) where
@@ -39,12 +41,12 @@ module ASTExtension (O : ASTOps) where
   ASTOps.SubRet BranchOps{_} {(Right y)} r = BranchSubRet r
 
   unextend : ∀ {A} → AST BranchOps A → AST O A
-  unextend (ASTreturn x) = ASTreturn x
-  unextend (ASTbind m f) = ASTbind (unextend m) (unextend ∘ f)
+  unextend (ASTreturn x)      = ASTreturn x
+  unextend (ASTbind m f)      = ASTbind (unextend m) (unextend ∘ f)
   unextend (ASTop (Left c) f) = ASTop c (unextend ∘ f)
-  unextend (ASTop (Right (BCif false)) f) = unextend (f (Level.lift false))
-  unextend (ASTop (Right (BCif true)) f) = unextend (f (Level.lift true))
-  unextend (ASTop (Right (BCeither (Left x))) f) = unextend (f (Level.lift (Left x)))
+  unextend (ASTop (Right (BCif false))         f) = unextend (f (Level.lift false))
+  unextend (ASTop (Right (BCif true))          f) = unextend (f (Level.lift true))
+  unextend (ASTop (Right (BCeither (Left x)))  f) = unextend (f (Level.lift (Left x)))
   unextend (ASTop (Right (BCeither (Right y))) f) = unextend (f (Level.lift (Right y)))
 
 module BranchingSyntax (O : ASTOps) where
@@ -56,14 +58,22 @@ module BranchingSyntax (O : ASTOps) where
                                   ; (Level.lift false) → e
                                   }
 
-  eitherAST : ∀ {A B C : Set} → (A → AST BranchOps C) → (B → AST BranchOps C) → Either A B → AST BranchOps C
+  eitherAST : ∀ {A B C : Set}
+              → (A → AST BranchOps C)
+              → (B → AST BranchOps C)
+              → Either A B
+              → AST BranchOps C
   eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
                               λ { (Level.lift (Left  a)) → fA a
                                 ; (Level.lift (Right b)) → fB b
                                 }
 
   -- Same but with arguments in more "natural" order
-  eitherSAST : ∀ {A B C : Set} → Either A B → (A → AST BranchOps C) → (B → AST BranchOps C) → AST BranchOps C
+  eitherSAST : ∀ {A B C : Set}
+               → Either A B
+               → (A → AST BranchOps C)
+               → (B → AST BranchOps C)
+               → AST BranchOps C
   eitherSAST eAB fA fB = eitherAST fA fB eAB
 
 module OpSemExtension {O : ASTOps} {T : ASTTypes} (OpSem : ASTOpSem O T) where
@@ -76,15 +86,16 @@ module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) wh
   open ASTExtension O
 
   BranchPT : ASTPredTrans BranchOps T
-  ASTPredTrans.returnPT BranchPT  = ASTPredTrans.returnPT  PT
-  ASTPredTrans.bindPT BranchPT    = ASTPredTrans.bindPT    PT
-  ASTPredTrans.opPT BranchPT (Left x) = ASTPredTrans.opPT PT x
-  ASTPredTrans.opPT BranchPT (Right (BCif c)) f P i =
-      (c ≡ true → f (Level.lift true) P i)
-    × (c ≡ false → f (Level.lift false) P i)
-  ASTPredTrans.opPT BranchPT (Right (BCeither e)) f P i =
-      (∀ l → e ≡ Left  l → f (Level.lift (Left l))  P i)
-    × (∀ r → e ≡ Right r → f (Level.lift (Right r)) P i)
+  ASTPredTrans.returnPT BranchPT = ASTPredTrans.returnPT PT
+  ASTPredTrans.bindPT   BranchPT = ASTPredTrans.bindPT   PT
+  ASTPredTrans.opPT     BranchPT (Left x) =
+    ASTPredTrans.opPT PT x
+  ASTPredTrans.opPT     BranchPT (Right (BCif c))     f P i =
+      (       c ≡ true    → f (Level.lift true) P i)
+    × (       c ≡ false   → f (Level.lift false) P i)
+  ASTPredTrans.opPT     BranchPT (Right (BCeither e)) f P i =
+      (∀ l →  e ≡ Left  l → f (Level.lift (Left l))  P i)
+    × (∀ r →  e ≡ Right r → f (Level.lift (Right r)) P i)
 
 module PredTransExtensionMono
   {O : ASTOps} {T : ASTTypes} {PT : ASTPredTrans O T}

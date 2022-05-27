@@ -94,9 +94,14 @@ module Example-if (n : ℕ) where
 
       ⌊ n ≟ℕ 0 ⌋ ≡ true → n ≡ 0
 
-    This is easily dispatched with toWitnessT.
+    This can be dispatched with toWitnessT:
 
       proj₁ (branchingProgWP _) = toWitnessT
+
+    Equivalently, let's give the evidence that ⌊ n ≟ℕ 0 ⌋ ≡ true a name for consistency with the
+    false case below:
+
+      proj₁ (branchingProgWP _) isTrue = toWitnessT isTrue
 
     The second conjunct is similar.  Doing C-c C-, in the hole shows:
 
@@ -148,8 +153,8 @@ module Example-if (n : ℕ) where
     --  Note that the same proof works for both versions (as they are equivalent)
     branchingProgWP : (i : Input)
                          → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWP i) isTrue  =           toWitnessT isTrue
-    proj₂ (branchingProgWP i) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
+    proj₁ (branchingProgWP _) isTrue  =           toWitnessT isTrue
+    proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
@@ -190,8 +195,8 @@ module Example-either (n : ℕ) where
 
     branchingProgWP : (i : Input)
                       → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWP i) l islft = monus1lemma1 refl islft
-    proj₂ (branchingProgWP i) l isrgt = monus1lemma2 refl isrgt
+    proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
@@ -204,8 +209,8 @@ module Example-either (n : ℕ) where
 
     branchingProgWP : (i : Input)
                       → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
-    proj₁ (branchingProgWP i) l islft = monus1lemma1 refl islft
-    proj₂ (branchingProgWP i) l isrgt = monus1lemma2 refl isrgt
+    proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
+    proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
     prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
