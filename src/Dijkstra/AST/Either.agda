@@ -34,20 +34,20 @@ ASTOps.Cmd    EitherOps  = EitherCmd
 ASTOps.SubArg EitherOps  = EitherSubArg
 ASTOps.SubRet EitherOps  = EitherSubRet
 
-EitherD = AST EitherOps
+EitherAST = AST EitherOps
 
 module Syntax where
   open import Dijkstra.AST.Syntax public
   open import Dijkstra.Syntax
 
-  bail : ∀ {A} → Err → EitherD A
+  bail : ∀ {A} → Err → EitherAST A
   bail a = ASTop (Either-bail a) λ ()
 
-  return : ∀ {A} → A → EitherD A
+  return : ∀ {A} → A → EitherAST A
   return a = ASTreturn a
 
 private
-  prog₁ : ∀ {A} → Err → A → EitherD A
+  prog₁ : ∀ {A} → Err → A → EitherAST A
   prog₁ e a =
     -- Either-bail always returns left, so Agda cannot infer the
     -- type that it would return if it were to return Right, so
@@ -57,7 +57,7 @@ private
 
   module prog₁ where
     open Syntax
-    prog₁' : ∀ {A} → Err → A → EitherD A
+    prog₁' : ∀ {A} → Err → A → EitherAST A
     prog₁' {A} e a = do
       bail {Void} e
       return a

@@ -15,14 +15,16 @@ open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
 open import LibraBFT.ImplShared.Util.Dijkstra.All
+open import Level
 open import Optics.All
 open import Util.ByteString
 open import Util.Hash
 import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
+open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
-open import Dijkstra.AST.Either renaming (EitherD to EitherAST)
+import      Dijkstra.AST.Either as EitherAST
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
 
 ------------------------------------------------------------------------------
@@ -49,7 +51,7 @@ module addChild (lb : LinkableBlock) (hv : HashValue) where
   E = toEither step₀
 
   postulate -- TODO: implement it
-    addChild-AST : EitherAST ErrLog LinkableBlock
+    addChild-AST : EitherAST.EitherAST ErrLog LinkableBlock
 
 abstract
   addChild   = addChild.step₀
@@ -126,15 +128,13 @@ insertBlockE-original block bt = do
         pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
 
--- An AST version
-module ASTVersion (block : ExecutedBlock) (bt : BlockTree) where
+module insertBlockE-AST (block : ExecutedBlock) (bt : BlockTree) where
   open import Dijkstra.AST.Either ErrLog
   open import Dijkstra.AST.Core
-  import Dijkstra.AST.Either ErrLog as EitherAST
-  open EitherAST.Syntax renaming (bail to bail-AST; return to return-AST)
+  open EitherAST.Syntax ErrLog renaming (bail to bail-AST; return to return-AST)
   open addChild
 
-  insertBlockE-AST : EitherAST ErrLog (BlockTree × ExecutedBlock)
+  insertBlockE-AST : EitherAST (BlockTree × ExecutedBlock)
   insertBlockE-AST = do
     let blockId = block ^∙ ebId
     case btGetBlock blockId bt of λ where
@@ -261,6 +261,50 @@ abstract
 
   insertQuorumCertE-Either-≡ : insertQuorumCertE-Either ≡ insertQuorumCertE.E
   insertQuorumCertE-Either-≡ = refl
+
+module insertQuorumCertE-AST (qc : QuorumCert) (bt0 : BlockTree) where
+  open EitherAST ErrLog
+  open SyntaxExt renaming (bail to bail-AST; return to return-AST)
+  open BranchingSyntax EitherOps
+
+  here' : List String → List String
+  here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
+
+  blockId = qc ^∙ qcCertifiedBlock ∙ biId
+
+  safetyInvariant = forM_ (Map.elems (bt0 ^∙ btIdToQuorumCert)) $ \x →
+          lcheck (   (x  ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash
+                  ==  qc ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash)
+                  ∨  (x  ^∙ qcCertifiedBlock ∙ biRound
+                  /=  qc ^∙ qcCertifiedBlock ∙ biRound))
+                 (here' ("failed check" ∷ "existing qc == qc || existing qc.round /= qc.round" ∷ []))
+
+  continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
+  continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
+
+  insertQuorumCertE-AST : EitherDExt (BlockTree × List InfoLog)
+  insertQuorumCertE-AST =
+    case safetyInvariant of λ where
+      (Left  e)    → bail-AST e
+      (Right unit) → maybeSD (btGetBlock blockId bt0) (bail-AST fakeErr) λ block →
+                     maybeSD (bt0 ^∙ btHighestCertifiedBlock) (bail-AST fakeErr) λ hcb →
+                     ifAST ⌊ (block ^∙ ebRound) >? (hcb ^∙ ebRound) ⌋
+                     then
+                       (let bt   = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                                       & btHighestQuorumCert       ∙~ qc
+                            info = (fakeInfo ∷ [])
+                        in return-AST (continue1 bt  blockId block info))
+                     else
+                          (return-AST (continue1 bt0 blockId block []))
+
+  continue1 bt blockId block info =
+    continue2 ( bt & btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert))
+              ( (fakeInfo ∷ info) ++ (if ExecutedBlock.isNilBlock block then fakeInfo ∷ [] else [] ))
+
+  continue2 bt info =
+    if-dec (bt ^∙ btHighestCommitCert ∙ qcCommitInfo ∙ biRound) <? (qc ^∙ qcCommitInfo ∙ biRound)
+    then ((bt & btHighestCommitCert ∙~ qc) , info)
+    else (bt , info)
 
 insertQuorumCertM : QuorumCert → LBFT Unit
 insertQuorumCertM qc = do
