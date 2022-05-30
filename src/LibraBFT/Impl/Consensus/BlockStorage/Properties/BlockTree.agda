@@ -26,7 +26,7 @@ open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
 
-open import Dijkstra.AST.Either ErrLog renaming (EitherD to EitherAST)
+open import Dijkstra.AST.Either ErrLog
 
 open QCProps
 open Invariants
@@ -293,10 +293,14 @@ module insertQuorumCertE-ASTSpec
       -- proofs, one for the nothing case and one for the just case; each receives evidence that mb
       -- is the relevant case (nothing or just something), and determines the relevant proof
       -- obligation.
+
       const tt , λ block _ →
+
       -- Similarly, another use of maybeSD in the code results in automatically introducing two
       -- proof obligations using C-c C-r
+
       const tt ,
+
       -- The "Right" goal in this case is determined by the use of ifAST in the code, which
       -- translates to ASTop (Right (BCif b)) ... (see BranchingSyntax).  Therefore, in this case,
       -- the proof obligation is determined in PredTransExtension to have two proof obligations, one
@@ -306,9 +310,10 @@ module insertQuorumCertE-ASTSpec
       -- The proofs for each case here are more or less copied from the insertQuorumcertESpec proof,
       -- but because the framework guided us to the goals, we did not need to state their types
       -- explicitly, which in turn means that we did not need to break the code into explicit steps.
+
       λ _ _ →
-      (const $ let bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
-                             & btHighestQuorumCert       ∙~ qc
+        (const $ let bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                               & btHighestQuorumCert       ∙~ qc
                 in ContractOk-trans
                      (mkContractOk (∈BlockTree-upd-hqc refl refl))
                      (contract-cont1' block bt' (fakeInfo ∷ [])))

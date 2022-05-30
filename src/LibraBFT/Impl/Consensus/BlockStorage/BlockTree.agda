@@ -24,7 +24,7 @@ open import Util.PKCS
 open import Util.Prelude
 open import Dijkstra.AST.Branching
 open import Dijkstra.AST.Core
-import      Dijkstra.AST.Either as EitherAST renaming (EitherD to EitherAST)
+import      Dijkstra.AST.Either as EitherAST
 open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; return; Unit; unit; Void)
 
 ------------------------------------------------------------------------------
@@ -128,14 +128,13 @@ insertBlockE-original block bt = do
         pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
              , block))
 
--- An AST version of insertBlockE
 module insertBlockE-AST (block : ExecutedBlock) (bt : BlockTree) where
-  open EitherAST
+  open import Dijkstra.AST.Either ErrLog
   open import Dijkstra.AST.Core
   open EitherAST.Syntax ErrLog renaming (bail to bail-AST; return to return-AST)
   open addChild
 
-  insertBlockE-AST : EitherAST ErrLog (BlockTree × ExecutedBlock)
+  insertBlockE-AST : EitherAST (BlockTree × ExecutedBlock)
   insertBlockE-AST = do
     let blockId = block ^∙ ebId
     case btGetBlock blockId bt of λ where
@@ -296,7 +295,7 @@ module insertQuorumCertE-AST (qc : QuorumCert) (bt0 : BlockTree) where
                             info = (fakeInfo ∷ [])
                         in return-AST (continue1 bt  blockId block info))
                      else
-                       (return-AST (continue1 bt0 blockId block []))
+                          (return-AST (continue1 bt0 blockId block []))
 
   continue1 bt blockId block info =
     continue2 ( bt & btIdToQuorumCert ∙~ lookupOrInsert blockId qc (bt ^∙ btIdToQuorumCert))
