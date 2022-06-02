@@ -84,6 +84,27 @@ module TwoMaybeBindsExample where
     PT : predTrans prog (λ o → runMaybe prog unit ≡ o) unit
     PT = predTrans-is-weakest prog _ refl
 
+  -- A nicer proof using maybePTBindLemma (twice), but requires explicitly stating the continuation,
+  -- which is not nice.  Why doesn't Agda figure it out?
+  progPostWP2 : predTrans prog (ProgPost unit) unit
+  progPostWP2 = maybePTBindLemma prog refl nothingCase justCase
+    where
+
+    nothingCase : _
+    nothingCase _ = tt
+
+    open ASTSufficientPT MaybeSuf
+
+    cont : Nat → MaybeD (List Nat)
+    cont x = ((MonadAST Monad.>>= mn2)
+                      (λ n2 → Monad.return MonadAST (x ∷ n2 ∷ [])))
+
+    justCase : _
+    justCase x _ = sufficient (cont x)
+                              (ProgPost unit)
+                              unit
+                              (maybePTBindLemma (cont x) refl (const tt) (λ x2 rm≡j → refl))
+
   progPost : ProgPost unit (runMaybe prog unit)
   progPost =
     ASTSufficientPT.sufficient MaybeSuf prog (ProgPost unit) unit progPostWP
