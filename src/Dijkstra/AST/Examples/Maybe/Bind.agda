@@ -4,9 +4,10 @@ open import Data.Nat renaming (ℕ to Nat)
 open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
 open        Syntax
-open        ASTTypes     MaybeTypes
-open        ASTPredTrans MaybePT
-open        ASTOpSem     MaybeOpSem
+open        ASTTypes         MaybeTypes
+open        ASTPredTrans     MaybePT
+open        ASTPredTransMono MaybePTMono
+open        ASTOpSem         MaybeOpSem
 open import Haskell.Prelude
 open import Util.Prelude
 
@@ -22,9 +23,9 @@ module _ (mn1 mn2 : MaybeD Nat) where
   ProgPost _  nothing = ⊤
   ProgPost _ (just l) = length l ≡ 2
 
-  progPostWP : ASTPredTrans.predTrans MaybePT prog (ProgPost unit) unit
+  progPostWP : predTrans prog (ProgPost unit) unit
   progPostWP =
-    ASTPredTransMono.predTransMono MaybePTMono
+    predTransMono
       prog (λ o → runMaybe prog unit ≡ o) _ ⊆ₒProgPost unit PT
    where
     ⊆ₒProgPost : (λ o → runMaybe prog unit ≡ o) ⊆ₒ ProgPost unit
