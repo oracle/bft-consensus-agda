@@ -129,6 +129,24 @@ ASTSufficientPT.bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
                          in fSuf y P unit wp'
 ASTSufficientPT.opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 
+-- This property says that predTrans really is the *weakest* precondition for a
+-- postcondition to hold after running a MaybeD.
+Post⇒wp : ∀ {A} → EitherAST A → Input → Set₁
+Post⇒wp {A} e i =
+  (P : Post A)
+  → P (runEither e i)
+  → predTrans e P i
+
+predTrans-is-weakest : ∀ {A} → (e : EitherAST A) → Post⇒wp {A} e unit
+predTrans-is-weakest (ASTreturn _) _ = id
+predTrans-is-weakest (ASTbind e f) _ Pr
+   with predTrans-is-weakest e
+...| rec
+  with runEither e unit
+... | Left  _ = rec _ λ where _ refl →                              Pr
+... | Right r = rec _ λ where _ refl → predTrans-is-weakest (f r) _ Pr
+predTrans-is-weakest (ASTop (Either-bail _) _) _ = id
+
 private
   bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEither (prog₁ e a) i ≡ Left e)
   bailWorksSuf e a i = ASTSufficientPT.sufficient EitherSuf (prog₁ e a) (BailWorks e) unit (bailWorks e unit a )
