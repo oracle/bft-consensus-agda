@@ -92,6 +92,14 @@ ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
 -- MaybebindPost goal, for example.
 open ASTPredTrans MaybePT
 
+postulate
+  maybePTBindLemma : ∀ {A B : Set} {m : MaybeD A} {f : A → MaybeD B} {P : Post B}{i : Input}
+                     → (prog : MaybeD B)
+                     → prog ≡ ASTbind m f
+                     → (      runMaybe m i ≡ nothing → P nothing)
+                     → (∀ x → runMaybe m i ≡ just x  → P (runMaybe (f x) i))
+                     → predTrans prog P i
+
 private
   BailWorks : ∀ {A} -> Post A
   BailWorks o = o ≡ nothing

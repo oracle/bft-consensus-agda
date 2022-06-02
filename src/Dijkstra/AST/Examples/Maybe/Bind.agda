@@ -47,6 +47,17 @@ module OneMaybeBindExample where
     mn1Post⇒Goal : _
     mn1Post⇒Goal nothing   mn1Postnothing .nothing   refl = tt
     mn1Post⇒Goal (just x₁) mn1Postjust    .(just x₁) refl = refl
+
+  -- Here is an alternative proof showing how maybePTLemma makes it easy for the user to provide the
+  -- needed cases for a proof about a bind
+  progPostWP2 : predTrans prog ProgPost unit
+  progPostWP2 = maybePTBindLemma prog refl nothingCase justCase
+    where
+    nothingCase : _
+    nothingCase _ = tt
+    justCase : _
+    justCase _ _  = refl
+
 module TwoMaybeBindsExample where
 
   prog : MaybeD (List Nat)
