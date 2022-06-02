@@ -1,5 +1,3 @@
-module Dijkstra.AST.Examples.Maybe.Bind where
-
 open import Data.Nat renaming (ℕ to Nat)
 open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
@@ -11,34 +9,45 @@ open        ASTOpSem         MaybeOpSem
 open import Haskell.Prelude
 open import Util.Prelude
 
-module _ (mn1 mn2 : MaybeD Nat) where
+module Dijkstra.AST.Examples.Maybe.Bind (mn1 mn2 : MaybeD Nat) where
 
-  module Simpler where
-    prog : MaybeD (List Nat)
-    prog = do
-      n1 <- mn1
-      return (n1 ∷ [])
+module OneMaybeBindExample where
+  prog : MaybeD (List Nat)
+  prog = do
+    n1 <- mn1
+    return (n1 ∷ [])
 
-    ProgPost : Maybe (List Nat) -> Set
-    ProgPost nothing = ⊤
-    ProgPost (just l) = length l ≡ 1
+  ProgPost : Maybe (List Nat) -> Set
+  ProgPost nothing = ⊤
+  ProgPost (just l) = length l ≡ 1
 
-    mn1Post : Post Nat
-    mn1Post nothing = ⊤
-    mn1Post (just n) = runMaybe mn1 unit ≡ just n
+  mn1Post : Post Nat
+  mn1Post nothing = ⊤
+  mn1Post (just n) = runMaybe mn1 unit ≡ just n
 
-    progPostWP : predTrans prog ProgPost unit
-    progPostWP = predTransMono mn1 mn1Post _ zz unit yy
-      where
+  -- Here is the property we want to prove
+  progPostWP : predTrans prog ProgPost unit
+  -- This long-winded proof was helpful in understanding how to make the proof work
+  -- Agda knows the Goal postcondition because it knows that prog is a bind, and knows the rest of
+  -- the program.  To help us understand what it is that Agda figures out to enable putting _ for
+  -- the goal argument below, we define Goal below, and we can replace _ by Goal and see that it's
+  -- right.
+  progPostWP = predTransMono mn1 mn1Post _ {- Goal -} mn1Post⇒Goal unit PT
+    where
 
-      yy : _
-      yy with runAST mn1 unit | inspect (runAST mn1) unit
-      ... | nothing | [ R ] = predTrans-is-weakest mn1 mn1Post (subst mn1Post (sym R) tt)
-      ... | just x  | [ R ] = predTrans-is-weakest mn1 _       (subst mn1Post (sym R) R)
+    Goal : Post Nat
+    Goal x = -- bindPT (λ x → predTrans (Monad.return MonadAST (x ∷ []))) unit ProgPost
+           ∀ r → r ≡ x → MaybebindPost (λ x → predTrans (Monad.return MonadAST (x ∷ []))) ProgPost r
 
-      zz : _
-      zz nothing x .nothing refl     = tt
-      zz (just x₁) x .(just x₁) refl = refl
+    PT : _
+    PT with runAST mn1 unit | inspect (runAST mn1) unit
+    ... | nothing | [ R ] = predTrans-is-weakest mn1 mn1Post (subst mn1Post (sym R) tt)
+    ... | just x  | [ R ] = predTrans-is-weakest mn1 _       (subst mn1Post (sym R) R)
+
+    mn1Post⇒Goal : _
+    mn1Post⇒Goal nothing   mn1Postnothing .nothing   refl = tt
+    mn1Post⇒Goal (just x₁) mn1Postjust    .(just x₁) refl = refl
+module TwoMaybeBindsExample where
 
   prog : MaybeD (List Nat)
   prog = do
