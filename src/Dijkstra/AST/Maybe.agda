@@ -4,6 +4,10 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+-- TEMPORARY!!
+{-# OPTIONS --allow-unsolved-metas #-}
+open import LibraBFT.Base.Util
+
 module Dijkstra.AST.Maybe where
 
 open import Dijkstra.AST.Branching
@@ -14,6 +18,9 @@ import      Level
 open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id; Left)
 open        ASTExtension
+
+
+
 
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
@@ -92,14 +99,6 @@ ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
 -- MaybebindPost goal, for example.
 open ASTPredTrans MaybePT
 
-postulate
-  maybePTBindLemma : ∀ {A B : Set} {m : MaybeD A} {f : A → MaybeD B} {P : Post B}{i : Input}
-                     → (prog : MaybeD B)
-                     → prog ≡ ASTbind m f
-                     → (      runMaybe m i ≡ nothing → P nothing)
-                     → (∀ x → runMaybe m i ≡ just x  → P (runMaybe (f x) i))
-                     → predTrans prog P i
-
 private
   BailWorks : ∀ {A} -> Post A
   BailWorks o = o ≡ nothing
@@ -176,6 +175,21 @@ predTrans-is-weakest (ASTbind m f) _ Pr
 ... | nothing = rec _ λ where _ refl → Pr
 ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
 predTrans-is-weakest (ASTop Maybe-bail f) P = id
+
+maybePTBindLemma : ∀ {A B : Set} {m : MaybeD A} {f : A → MaybeD B} {P : Post B}{i : Input}
+                   → (prog : MaybeD B)
+                   → prog ≡ ASTbind m f
+                   → (      runMaybe m i ≡ nothing → P nothing)
+                   → (∀ x → runMaybe m i ≡ just x  → P (runMaybe (f x) i))
+                   → predTrans prog P i
+maybePTBindLemma {A} {m = m} {f} {P} {unit} prog refl nothingCase justCase
+   with runMaybe m unit | inspect (runMaybe m) unit
+... | nothing | [ R ] = predTrans-is-weakest m _
+      λ where r refl → subst (MaybebindPost _ _) (sym R) (nothingCase refl)
+... | just x  | [ R ]
+   with runMaybe (f x) unit | inspect (runMaybe (f x)) unit
+... | nothing | [ R2 ] = obm-dangerous-magic! "TODO: contradiction between R and R2"
+... | just x2 | [ R2 ] = obm-dangerous-magic! "TODO"
 
 maybePTApp
     : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
