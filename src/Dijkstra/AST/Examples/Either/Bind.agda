@@ -8,7 +8,6 @@ open        ASTTypes         EitherTypes
 open        ASTPredTrans     EitherPT
 open        ASTPredTransMono EitherPTMono
 
-
 module TwoEitherBindsExample
   (en1 en2 : EitherAST ℕ)
   where
