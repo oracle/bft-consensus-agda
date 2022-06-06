@@ -19,9 +19,6 @@ open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id; Left)
 open        ASTExtension
 
-
-
-
 data MaybeCmd (C : Set) : Set₁ where
   Maybe-bail : MaybeCmd C
 
@@ -184,8 +181,10 @@ maybePTBindLemma : ∀ {A B : Set} {m : MaybeD A} {f : A → MaybeD B} {P : Post
                    → predTrans prog P i
 maybePTBindLemma {A} {m = m} {f} {P} {unit} prog refl nothingCase justCase
    with runMaybe m unit | inspect (runMaybe m) unit
-... | nothing | [ R ] = predTrans-is-weakest m _
-      λ where r refl → subst (MaybebindPost _ _) (sym R) (nothingCase refl)
+... | nothing | [ R ] = predTrans-is-weakest m _ bindPost
+      where
+      bindPost : _
+      bindPost r refl rewrite R = nothingCase refl
 ... | just x  | [ R ]
    with runMaybe (f x) unit | inspect (runMaybe (f x)) unit
 ... | nothing | [ R2 ] = obm-dangerous-magic! "TODO: contradiction between R and R2"
