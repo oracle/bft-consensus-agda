@@ -18,7 +18,7 @@ module TwoEitherBindsExample
     n2 ← en2
     ASTreturn (n1 ∷ n2 ∷ [])
 
-  ProgPost : Unit -> Either ⊤ (List ℕ) -> Set
+  ProgPost : Unit → Either ⊤ (List ℕ) → Set
   ProgPost _ (Left  l) =        l ≡ tt
   ProgPost _ (Right r) = length r ≡ 2
 
