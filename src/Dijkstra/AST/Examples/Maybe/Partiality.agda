@@ -44,24 +44,24 @@ data _⇓_ : Expr -> Nat -> Set where
        ->        er ⇓          (Succ n2) -- divisor is non-zero
        -> Div el er ⇓ _div_ n1 (Succ n2)
 
-_÷_ : Nat -> Nat -> MaybeD Nat
+_÷_ : Nat -> Nat -> MaybeAST Nat
 n ÷ Zero     = bail
 n ÷ (Succ k) = ASTreturn (n div (Succ k))
 
--- ⟦_⟧ : Expr -> MaybeD Nat
+-- ⟦_⟧ : Expr -> MaybeAST Nat
 -- ⟦ Val x ⟧     = return x
 -- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
 --                 ⟦ e2 ⟧ >>= \v2 ->
 --                 v1 ÷ v2
 
-⟦_⟧ : Expr -> MaybeD Nat
+⟦_⟧ : Expr -> MaybeAST Nat
 ⟦ Val x ⟧     = ASTreturn x
 ⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
                 ASTbind (⟦ e2 ⟧) (\v2 ->
                  (v1 ÷ v2)))
 
 wpPartial
-  : {A : Set} {B : A → Set} (f : (x : A) → MaybeD (B x))
+  : {A : Set} {B : A → Set} (f : (x : A) → MaybeAST (B x))
     (P : (x : A) → B x → Set) → A → Set
 wpPartial f P x =
   predTrans (f x) (Partial (P x)) unit
@@ -120,7 +120,7 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
     ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
 
 Dom : {A : Set} {B : A → Set}
-      → ((x : A) → MaybeD (B x)) → A → Set
+      → ((x : A) → MaybeAST (B x)) → A → Set
 Dom f = wpPartial f λ _ _ → ⊤
 
 DomDiv : ∀ {e₁ e₂}
@@ -177,15 +177,15 @@ deterministic (⇓Step e⇓n₁ e⇓n₂) (⇓Step e⇓n₃ e⇓n₄)
   |    deterministic e⇓n₂ e⇓n₄
 ... | refl | refl = refl
 
-dom' : (Expr -> MaybeD Nat)
+dom' : (Expr -> MaybeAST Nat)
     -> Expr
     -> Set
 dom' f e =
-  case runMaybe (f e) unit of λ where
+  case runMaybeAST (f e) unit of λ where
     nothing  -> ⊥
     (just _) -> ⊤
 
-Dom' : (Expr -> MaybeD Nat) -> Expr -> Set
+Dom' : (Expr -> MaybeAST Nat) -> Expr -> Set
 Dom' f a@(Val _)     =  dom' f a
 Dom' f a@(Div el er) = (dom' f a) ∧ Dom' f el ∧ Dom' f er
 
@@ -200,8 +200,8 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
   PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
   PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
   PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
-    with   runMaybe ⟦ e₁ ⟧ unit
-         | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
+    with   runMaybeAST ⟦ e₁ ⟧ unit
+         | runMaybeAST ⟦ e₂ ⟧ unit | inspect (runMaybeAST ⟦ e₂ ⟧) unit
          | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
   ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv

@@ -25,9 +25,9 @@ module Example-if (n : ℕ) where
   bpPost (just n') = 0 < n × n' ≡ 2 * n
 
   module Raw where
-    -- A program that includes branching in MaybeD, intended to satify the specification
+    -- A program that includes branching in MaybeAST, intended to satify the specification
     -- established by bpPost
-    branchingProg : MaybeDExt ℕ
+    branchingProg : MaybeASTExt ℕ
     branchingProg = ASTop (Right (BCif (toBool (n ≟ℕ 0) )))
                           (λ { (lift false) → ASTreturn (2 * n)
                              ; (lift true)  → ASTop (Left Maybe-bail) λ () })
@@ -136,7 +136,7 @@ module Example-if (n : ℕ) where
     proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
     -- And therefore, the result of running the program satisfies the postcondition
-    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
     prop i =
       ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
@@ -145,7 +145,7 @@ module Example-if (n : ℕ) where
     open MaybeBranchingSyntax
 
     -- Same program with nicer syntax using ifAST, bail and return
-    branchingProg : MaybeDExt ℕ
+    branchingProg : MaybeASTExt ℕ
     branchingProg = ifAST ⌊ n ≟ℕ 0 ⌋
                     then bail
                     else (return (2 * n))
@@ -156,7 +156,7 @@ module Example-if (n : ℕ) where
     proj₁ (branchingProgWP _) isTrue  =           toWitnessT isTrue
     proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
-    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
 module Example-either (n : ℕ) where
@@ -187,7 +187,7 @@ module Example-either (n : ℕ) where
     open Common
     -- A branching program that bails if n monus1 is Left _
     -- and returns b if n monus1 is Right b
-    branchingProg : MaybeDExt ℕ
+    branchingProg : MaybeASTExt ℕ
     branchingProg = ASTop (Right (BCeither (n monus1)))
                           λ { (lift (Left  a)) → bail
                             ; (lift (Right b)) → return b
@@ -198,13 +198,13 @@ module Example-either (n : ℕ) where
     proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
     proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
-    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
     open Common
     -- Same program with nicer syntax using eitherSAST, bail and return
-    branchingProg : MaybeDExt ℕ
+    branchingProg : MaybeASTExt ℕ
     branchingProg = eitherSAST (n monus1) (const bail) return
 
     branchingProgWP : (i : Input)
@@ -212,5 +212,5 @@ module Example-either (n : ℕ) where
     proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
     proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
-    prop : (i : Input) → bpPost (runMaybeExt branchingProg i)
+    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
     prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)

@@ -29,24 +29,24 @@ ASTOps.Cmd    MaybeOps = MaybeCmd
 ASTOps.SubArg MaybeOps = MaybeSubArg
 ASTOps.SubRet MaybeOps = MaybeSubRet
 
-MaybeD = AST MaybeOps
+MaybeAST = AST MaybeOps
 
 module Syntax where
   open import Dijkstra.AST.Syntax public
 
-  bail : ∀ {A} → MaybeD A
+  bail : ∀ {A} → MaybeAST A
   bail = ASTop Maybe-bail (λ ())
 
 private
 
-  prog₁ : ∀ {A} → A → MaybeD A
+  prog₁ : ∀ {A} → A → MaybeAST A
   prog₁ a =
     ASTbind (ASTop (Maybe-bail {Void}) (λ ()))
             (λ _ → ASTreturn  a)
 
   module prog₁ where
     open Syntax
-    prog₁' : ∀ {A} → A → MaybeD A
+    prog₁' : ∀ {A} → A → MaybeAST A
     prog₁' a = do
       bail {Void}
       return a
@@ -65,7 +65,7 @@ ASTOpSem.runAST MaybeOpSem (ASTbind m f) i
 ...| just x  = ASTOpSem.runAST MaybeOpSem (f x) i
 ASTOpSem.runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
 
-runMaybe = ASTOpSem.runAST MaybeOpSem
+runMaybeAST = ASTOpSem.runAST MaybeOpSem
 
 MaybebindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
 MaybebindPost _ P nothing  = P nothing
@@ -133,44 +133,44 @@ maybePTMonoBind₂ = ASTPredTransMono.bindPTMono₂   MaybePTMono
 MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
 ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
 ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
-  with runMaybe m unit | inspect (runMaybe m) unit
-... |  nothing         | [ eq ] = mSuf _ unit wp nothing (sym eq)
-... |  just y          | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
-                                   in fSuf y P unit wp'
+  with runMaybeAST m unit | inspect (runMaybeAST m) unit
+... |  nothing            | [ eq ] = mSuf _ unit wp nothing (sym eq)
+... |  just y             | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
+                                      in fSuf y P unit wp'
 ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
 maybeSufficient = ASTSufficientPT.sufficient MaybeSuf
 
 maybeSuffBind
-  : ∀ {A B P} {Q : Post A} {i} (m : MaybeD A) (f : A → MaybeD B)
+  : ∀ {A B P} {Q : Post A} {i} (m : MaybeAST A) (f : A → MaybeAST B)
     → predTrans (m >>= f) P i
     → (P nothing → Q nothing)
     → (∀ x → predTrans (f x) P unit → Q (just x))
-    → Q (runMaybe m i)
+    → Q (runMaybeAST m i)
 maybeSuffBind{P = P}{Q}{i} m f wp n⊆ j⊆ =
   MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
-    (runMaybe m i) (maybeSufficient m _ i wp _ refl)
+    (runMaybeAST m i) (maybeSufficient m _ i wp _ refl)
 
 -- This property says that predTrans really is the *weakest* precondition for a
--- postcondition to hold after running a MaybeD.
-Post⇒wp : ∀ {A} → MaybeD A → Input → Set₁
+-- postcondition to hold after running a MaybeAST.
+Post⇒wp : ∀ {A} → MaybeAST A → Input → Set₁
 Post⇒wp {A} m i =
   (P : Post A)
-  → P (runMaybe m i)
+  → P (runMaybeAST m i)
   → predTrans m P i
 
-predTrans-is-weakest : ∀ {A} → (m : MaybeD A) → Post⇒wp {A} m unit
+predTrans-is-weakest : ∀ {A} → (m : MaybeAST A) → Post⇒wp {A} m unit
 predTrans-is-weakest (ASTreturn _) _ = id
 predTrans-is-weakest (ASTbind m f) _ Pr
    with predTrans-is-weakest m
 ...| rec
-  with runMaybe m unit
+  with runMaybeAST m unit
 ... | nothing = rec _ λ where _ refl → Pr
 ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
 predTrans-is-weakest (ASTop Maybe-bail f) P = id
 
 maybePTApp
-    : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
+    : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i
       → predTrans m (λ o → P₁ o → P₂ o) i
       → predTrans m P₁ i
       → predTrans m P₂ i
@@ -180,9 +180,9 @@ maybePTApp {_} {P₁} {P₂} m unit imp pt1 =
       (ASTSufficientPT.sufficient MaybeSuf m P₁ unit pt1))
 
 MaybeExtOps    = BranchOps MaybeOps
-MaybeDExt      = AST MaybeExtOps
+MaybeASTExt    = AST MaybeExtOps
 MaybePTExt     = PredTransExtension.BranchPT MaybePT
-runMaybeExt    = ASTOpSem.runAST (OpSemExtension.BranchOpSem MaybeOpSem)
+runMaybeASTExt = ASTOpSem.runAST (OpSemExtension.BranchOpSem MaybeOpSem)
 MaybePTMonoExt = PredTransExtensionMono.BranchPTMono MaybePTMono
 MaybeSufExt    = SufficientExtension.BranchSuf MaybePTMono MaybeSuf
 
@@ -198,11 +198,11 @@ module MaybeBranchingSyntax where
 
 private
   -- an easy example using sufficient
-  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁ a) i ≡ nothing)
   bailWorksSuf a i =
     ASTSufficientPT.sufficient MaybeSuf (prog₁ a) BailWorks unit (bailWorks a unit)
 
   -- alternate version, showing that it's trivial in this case
-  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybe (prog₁ a) i ≡ nothing)
+  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁ a) i ≡ nothing)
   bailWorksSuf' a i = refl
 
