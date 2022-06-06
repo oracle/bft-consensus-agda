@@ -35,6 +35,12 @@ ASTOps.SubRet MaybeOps = MaybeSubRet
 
 MaybeD = AST MaybeOps
 
+bindCont : ∀ {A}{B}{m : MaybeD A}{f : A → MaybeD B}
+           (prog : MaybeD B)
+           → prog ≡ AST.ASTbind m f
+           → (A → MaybeD B)
+bindCont {f = f} _ refl = f
+
 module Syntax where
   open import Dijkstra.AST.Syntax public
 

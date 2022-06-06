@@ -95,15 +95,12 @@ module TwoMaybeBindsExample where
 
     open ASTSufficientPT MaybeSuf
 
-    cont : Nat → MaybeD (List Nat)
-    cont x = ((MonadAST Monad.>>= mn2)
-                      (λ n2 → Monad.return MonadAST (x ∷ n2 ∷ [])))
-
     justCase : _
-    justCase x _ = sufficient (cont x)
-                              (ProgPost unit)
-                              unit
-                              (maybePTBindLemma (cont x) refl (const tt) (λ x2 rm≡j → refl))
+    justCase x _ = let f = bindCont prog refl x
+                    in sufficient f
+                         (ProgPost unit)
+                         unit
+                         (maybePTBindLemma f refl (const tt) (λ x2 rm≡j → refl))
 
   progPost : ProgPost unit (runMaybe prog unit)
   progPost =
