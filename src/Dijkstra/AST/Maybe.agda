@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
--- TEMPORARY!!
-{-# OPTIONS --allow-unsolved-metas #-}
 open import LibraBFT.Base.Util
 
 module Dijkstra.AST.Maybe where
@@ -179,6 +177,14 @@ predTrans-is-weakest (ASTbind m f) _ Pr
 ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
 predTrans-is-weakest (ASTop Maybe-bail f) P = id
 
+module MaybeBindProps {A B : Set} {m : MaybeD A} {f : A → MaybeD B}
+                      (prog : MaybeD B)
+                      (prog≡ : prog ≡ ASTbind m f) where
+  justProp : ∀ x
+             → runMaybe m unit ≡ just x
+             → runMaybe prog unit ≡ runMaybe (f x) unit
+  justProp x runm≡justx rewrite prog≡ | runm≡justx = refl
+
 maybePTBindLemma : ∀ {A B : Set} {m : MaybeD A} {f : A → MaybeD B} {P : Post B}{i : Input}
                    → (prog : MaybeD B)
                    → prog ≡ ASTbind m f
@@ -191,10 +197,10 @@ maybePTBindLemma {A} {m = m} {f} {P} {unit} prog refl nothingCase justCase
       where
       bindPost : _
       bindPost r refl rewrite R = nothingCase refl
-... | just x  | [ R ]
-   with runMaybe (f x) unit | inspect (runMaybe (f x)) unit
-... | nothing | [ R2 ] = obm-dangerous-magic! "TODO: contradiction between R and R2"
-... | just x2 | [ R2 ] = obm-dangerous-magic! "TODO"
+... | just x  | [ R ] = predTrans-is-weakest prog P bindPost
+      where
+      bindPost : _
+      bindPost = subst P (sym (MaybeBindProps.justProp prog refl x R)) (justCase x refl)
 
 maybePTApp
     : ∀ {A} {P₁ P₂ : Post A} (m : MaybeD A) i
