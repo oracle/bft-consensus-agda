@@ -31,7 +31,13 @@ ASTOps.SubRet MaybeOps = MaybeSubRet
 
 MaybeAST = AST MaybeOps
 
-module Syntax where
+bindCont : ∀ {A}{B}{m : MaybeAST A}{f : A → MaybeAST B}
+           (prog : MaybeAST B)
+           → prog ≡ AST.ASTbind m f
+           → (A → MaybeAST B)
+bindCont {f = f} _ refl = f
+
+module MaybeSyntax where
   open import Dijkstra.AST.Syntax public
 
   bail : ∀ {A} → MaybeAST A
@@ -45,7 +51,7 @@ private
             (λ _ → ASTreturn  a)
 
   module prog₁ where
-    open Syntax
+    open MaybeSyntax
     prog₁' : ∀ {A} → A → MaybeAST A
     prog₁' a = do
       bail {Void}
@@ -168,6 +174,31 @@ predTrans-is-weakest (ASTbind m f) _ Pr
 ... | nothing = rec _ λ where _ refl → Pr
 ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
 predTrans-is-weakest (ASTop Maybe-bail f) P = id
+
+module MaybeBindProps {A B : Set} {m : MaybeAST A} {f : A → MaybeAST B}
+                      (prog : MaybeAST B)
+                      (prog≡ : prog ≡ ASTbind m f) where
+  justProp : ∀ x
+             → runMaybeAST m unit ≡ just x
+             → runMaybeAST prog unit ≡ runMaybeAST (f x) unit
+  justProp x runm≡justx rewrite prog≡ | runm≡justx = refl
+
+maybePTBindLemma : ∀ {A B : Set} {m : MaybeAST A} {f : A → MaybeAST B} {P : Post B}{i : Input}
+                   → (prog : MaybeAST B)
+                   → prog ≡ ASTbind m f
+                   → (      runMaybeAST m i ≡ nothing → P nothing)
+                   → (∀ x → runMaybeAST m i ≡ just x  → P (runMaybeAST (f x) i))
+                   → predTrans prog P i
+maybePTBindLemma {A} {m = m} {f} {P} {unit} prog refl nothingCase justCase
+   with runMaybeAST m unit | inspect (runMaybeAST m) unit
+... | nothing | [ R ] = predTrans-is-weakest m _ bindPost
+      where
+      bindPost : _
+      bindPost r refl rewrite R = nothingCase refl
+... | just x  | [ R ] = predTrans-is-weakest prog P bindPost
+      where
+      bindPost : _
+      bindPost = subst P (sym (MaybeBindProps.justProp prog refl x R)) (justCase x refl)
 
 maybePTApp
     : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i

@@ -24,9 +24,11 @@ module Dijkstra.AST.Examples.Maybe.Partiality where
    https://zenodo.org/record/3257707#.Yec-nxPMJqt
 -}
 
-open ASTTypes MaybeTypes
-open ASTPredTrans MaybePT
-open Syntax
+open ASTPredTrans     MaybePT
+open ASTPredTransMono MaybePTMono
+open ASTSufficientPT  MaybeSuf
+open ASTTypes         MaybeTypes
+open MaybeSyntax
 
 Partial : {A : Set} → (P : A → Set) → Maybe A → Set
 Partial _ nothing  = ⊥
@@ -101,10 +103,10 @@ PN e = Partial (e ⇓_)
 --           because Agda figures it out from the goal.
 -- TODO-1: show steps needed in order to get Agda to infer types indicated by '_'
 --         in the type signatures of PN⊆₁ and PN⊆₂
-correct : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+correct : ∀ (e : Expr) i → SafeDiv e → predTrans (⟦ e ⟧) (PN e) i
 correct (Val _)        _                   _   = ⇓Base
 correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
-  ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+  predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
   ih₁ = correct e₁ unit sd₁
   ih₂ = correct e₂ unit sd₂
@@ -117,7 +119,7 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
   PN⊆₁ : PN e₁ ⊆ₒ _
   PN⊆₁       _    ()   nothing refl
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+    predTransMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
 
 Dom : {A : Set} {B : A → Set}
       → ((x : A) → MaybeAST (B x)) → A → Set
@@ -189,10 +191,10 @@ Dom' : (Expr -> MaybeAST Nat) -> Expr -> Set
 Dom' f a@(Val _)     =  dom' f a
 Dom' f a@(Div el er) = (dom' f a) ∧ Dom' f el ∧ Dom' f er
 
-sound' : ∀ (e : Expr) i → Dom' ⟦_⟧ e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+sound' : ∀ (e : Expr) i → Dom' ⟦_⟧ e → predTrans (⟦ e ⟧) (PN e) i
 sound' (Val _)        _                  _   = ⇓Base
 sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
-  ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+  predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
   ih₁ = sound' e₁ unit de₁
   ih₂ = sound' e₂ unit de₂
@@ -202,7 +204,7 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
   PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
     with   runMaybeAST ⟦ e₁ ⟧ unit
          | runMaybeAST ⟦ e₂ ⟧ unit | inspect (runMaybeAST ⟦ e₂ ⟧) unit
-         | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
+         | sufficient ⟦ e₂ ⟧ _ unit ih₂
   ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just (Succ _) |      _  | e₂⇓Succ             =
@@ -210,4 +212,5 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
 
   PN⊆₁ : PN e₁ ⊆ₒ _
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+    predTransMono  ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+

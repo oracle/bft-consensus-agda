@@ -36,7 +36,7 @@ ASTOps.SubRet EitherOps  = EitherSubRet
 
 EitherAST = AST EitherOps
 
-module Syntax where
+module EitherSyntax where
   open import Dijkstra.AST.Syntax public
   open import Dijkstra.Syntax
 
@@ -56,7 +56,7 @@ private
       ASTreturn a
 
   module prog₁ where
-    open Syntax
+    open EitherSyntax
     prog₁' : ∀ {A} → Err → A → EitherAST A
     prog₁' {A} e a = do
       bail {Void} e

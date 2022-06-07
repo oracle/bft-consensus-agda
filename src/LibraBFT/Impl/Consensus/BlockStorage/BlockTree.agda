@@ -131,7 +131,7 @@ insertBlockE-original block bt = do
 module insertBlockE-AST (block : ExecutedBlock) (bt : BlockTree) where
   open import Dijkstra.AST.Either ErrLog
   open import Dijkstra.AST.Core
-  open EitherAST.Syntax ErrLog renaming (bail to bail-AST; return to return-AST)
+  open EitherAST.EitherSyntax ErrLog renaming (bail to bail-AST; return to return-AST)
   open addChild
 
   insertBlockE-AST : EitherAST (BlockTree × ExecutedBlock)
