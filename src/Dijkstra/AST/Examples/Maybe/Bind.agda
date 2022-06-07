@@ -37,7 +37,9 @@ module OneMaybeBindExample where
     where
 
     Goal : Post Nat
-    Goal x = -- bindPT (λ x → predTrans (Monad.return MonadAST (x ∷ []))) unit ProgPost
+    Goal x = -- The following goal is determined by:
+             -- bindPT (λ x → predTrans (Monad.return MonadAST (x ∷ []))) unit ProgPost
+             -- because prog is an AST-bind at the top level
            ∀ r → r ≡ x → MaybebindPost (λ x → predTrans (Monad.return MonadAST (x ∷ []))) ProgPost r
 
     PT : _
