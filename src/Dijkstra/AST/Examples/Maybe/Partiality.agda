@@ -42,28 +42,28 @@ data _⇓_ : Expr -> Nat -> Set where
   ⇓Base : forall {n}
        -> Val n ⇓ n
   ⇓Step : forall {el er n1 n2}
-       ->     el    ⇓  n1
-       ->        er ⇓         (Succ n2) -- divisor is non-zero
+       ->     el    ⇓       n1
+       ->        er ⇓          (Succ n2) -- divisor is non-zero
        -> Div el er ⇓ _div_ n1 (Succ n2)
 
-_÷_ : Nat -> Nat -> MaybeD Nat
+_÷_ : Nat -> Nat -> MaybeAST Nat
 n ÷ Zero     = bail
 n ÷ (Succ k) = ASTreturn (n div (Succ k))
 
--- ⟦_⟧ : Expr -> MaybeD Nat
+-- ⟦_⟧ : Expr -> MaybeAST Nat
 -- ⟦ Val x ⟧     = return x
 -- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
 --                 ⟦ e2 ⟧ >>= \v2 ->
 --                 v1 ÷ v2
 
-⟦_⟧ : Expr -> MaybeD Nat
+⟦_⟧ : Expr -> MaybeAST Nat
 ⟦ Val x ⟧     = ASTreturn x
 ⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
                 ASTbind (⟦ e2 ⟧) (\v2 ->
                  (v1 ÷ v2)))
 
 wpPartial
-  : {A : Set} {B : A → Set} (f : (x : A) → MaybeD (B x))
+  : {A : Set} {B : A → Set} (f : (x : A) → MaybeAST (B x))
     (P : (x : A) → B x → Set) → A → Set
 wpPartial f P x =
   predTrans (f x) (Partial (P x)) unit
@@ -122,43 +122,41 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
     predTransMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
 
 Dom : {A : Set} {B : A → Set}
-      → ((x : A) → MaybeD (B x)) → A → Set
+      → ((x : A) → MaybeAST (B x)) → A → Set
 Dom f = wpPartial f λ _ _ → ⊤
 
 DomDiv : ∀ {e₁ e₂}
          → Dom ⟦_⟧ (Div e₁ e₂)
          → Dom ⟦_⟧ e₁
            ∧ wpPartial ⟦_⟧ (λ _ → _> 0) e₂
-Pair.fst (DomDiv{e₁}{e₂} dom) =
+Pair.fst (DomDiv {e₁} dom) =
   maybePTMono ⟦ e₁ ⟧ _ _ ⊆Partial unit dom
-  where
+ where
   ⊆Partial : _ ⊆ₒ Partial (λ _ → ⊤)
-  ⊆Partial nothing wp = wp _ refl
+  ⊆Partial nothing  wp = wp _ refl
   ⊆Partial (just m) wp = tt
-Pair.snd (DomDiv{e₁}{e₂} dom) =
+Pair.snd (DomDiv {e₁} {e₂} dom) =
   maybeSuffBind {Q = λ _ → _} ⟦ e₁ ⟧
     (λ m → ⟦ e₂ ⟧ >>= λ n → m ÷ n) dom (λ ())
-    λ m wp →
-      maybePTMono ⟦ e₂ ⟧ _ _ (⊆Partial m) unit wp
-    where
+    λ m wp → maybePTMono ⟦ e₂ ⟧ _ _ (⊆Partial m) unit wp
+   where
     ⊆Partial : ∀ m → _ ⊆ₒ Partial (_> 0)
-    ⊆Partial m nothing wp = wp _ refl
-    ⊆Partial m (just Zero) wp = ⊥-elim (wp _ refl)
-    ⊆Partial m (just (Succ n)) wp = s≤s z≤n
+    ⊆Partial _  nothing        wp = wp _ refl
+    ⊆Partial _ (just Zero)     wp = ⊥-elim (wp _ refl)
+    ⊆Partial _ (just (Succ _))  _ = s≤s z≤n
 
 sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → predTrans ⟦ e ⟧ (PN e) i
 sound (Val x) unit dom = ⇓Base
 sound (Div e₁ e₂) unit dom =
   maybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
-  where
-  ih₁ = sound e₁ unit (Pair.fst (DomDiv{e₁}{e₂} dom))
-  ih₂ =
-    sound e₂ unit
-      (maybePTMono ⟦ e₂ ⟧ _ _ (λ { nothing () ; (just x) _ → tt}) unit
-        (Pair.snd (DomDiv{e₁}{e₂} dom)))
+ where
+  ih₁ = sound e₁ unit (Pair.fst (DomDiv {e₁} {e₂} dom))
+  ih₂ = sound e₂ unit
+          (maybePTMono ⟦ e₂ ⟧ _ _ (λ { nothing () ; (just _) _ → tt}) unit
+            (Pair.snd (DomDiv {e₁} {e₂} dom)))
 
   PN⊆₂ : ∀ n → e₁ ⇓ n → Partial (λ n → e₂ ⇓ n ∧ (n > 0)) ⊆ₒ _
-  PN⊆₂ n e₁⇓n (just (Succ x)) wp .(just (Succ x)) refl =
+  PN⊆₂ _ e₁⇓n (just (Succ x)) wp .(just (Succ x)) refl =
     ⇓Step e₁⇓n (Pair.fst wp)
 
   PN⊆₁ : PN e₁ ⊆ₒ _
@@ -168,28 +166,28 @@ sound (Div e₁ e₂) unit dom =
         (maybePTMono ⟦ e₂ ⟧ _ _
           (λ where
             (just x) wp₁ wp₂ → wp₂ , wp₁)
-          unit ((Pair.snd (DomDiv{e₁}{e₂} dom))))
+          unit ((Pair.snd (DomDiv {e₁} {e₂} dom))))
         ih₂)
 
 -------------------------
 -- alternate proof of sound
 
 deterministic : ∀ {e n₁ n₂} → e ⇓ n₁ → e ⇓ n₂ → n₁ ≡ n₂
-deterministic ⇓Base ⇓Base = refl
+deterministic  ⇓Base             ⇓Base = refl
 deterministic (⇓Step e⇓n₁ e⇓n₂) (⇓Step e⇓n₃ e⇓n₄)
   with deterministic e⇓n₁ e⇓n₃
   |    deterministic e⇓n₂ e⇓n₄
 ... | refl | refl = refl
 
-dom' : (Expr -> MaybeD Nat)
+dom' : (Expr -> MaybeAST Nat)
     -> Expr
     -> Set
 dom' f e =
-  case runMaybe (f e) unit of λ where
+  case runMaybeAST (f e) unit of λ where
     nothing  -> ⊥
     (just _) -> ⊤
 
-Dom' : (Expr -> MaybeD Nat) -> Expr -> Set
+Dom' : (Expr -> MaybeAST Nat) -> Expr -> Set
 Dom' f a@(Val _)     =  dom' f a
 Dom' f a@(Div el er) = (dom' f a) ∧ Dom' f el ∧ Dom' f er
 
@@ -204,12 +202,12 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
   PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
   PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
   PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
-    with   runMaybe ⟦ e₁ ⟧ unit
-         | runMaybe ⟦ e₂ ⟧ unit | inspect (runMaybe ⟦ e₂ ⟧) unit
+    with   runMaybeAST ⟦ e₁ ⟧ unit
+         | runMaybeAST ⟦ e₂ ⟧ unit | inspect (runMaybeAST ⟦ e₂ ⟧) unit
          | sufficient ⟦ e₂ ⟧ _ unit ih₂
   ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
-  ... | just l | just (Succ _) | [ eq₂ ] | e₂⇓Succ             =
+  ... | just _ | just (Succ _) |      _  | e₂⇓Succ             =
     absurd (Succ _ ≡ 0) case (deterministic e₂⇓Succ e₂⇓0) of λ ()
 
   PN⊆₁ : PN e₁ ⊆ₒ _
