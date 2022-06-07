@@ -2,10 +2,11 @@ open import Data.Nat renaming (ℕ to Nat)
 open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
 open        MaybeSyntax
-open        ASTTypes         MaybeTypes
+open        ASTOpSem         MaybeOpSem
 open        ASTPredTrans     MaybePT
 open        ASTPredTransMono MaybePTMono
-open        ASTOpSem         MaybeOpSem
+open        ASTSufficientPT  MaybeSuf
+open        ASTTypes         MaybeTypes
 open import Haskell.Prelude
 open import Util.Prelude
 
@@ -84,16 +85,13 @@ module TwoMaybeBindsExample where
     PT : predTrans prog (λ o → runMaybe prog unit ≡ o) unit
     PT = predTrans-is-weakest prog _ refl
 
-  -- A nicer proof using maybePTBindLemma (twice), but requires explicitly stating the continuation,
-  -- which is not nice.  Why doesn't Agda figure it out?
+  -- A nicer proof using maybePTBindLemma (twice)
   progPostWP2 : predTrans prog (ProgPost unit) unit
   progPostWP2 = maybePTBindLemma prog refl nothingCase justCase
     where
 
     nothingCase : _
     nothingCase _ = tt
-
-    open ASTSufficientPT MaybeSuf
 
     justCase : _
     justCase x _ = let f = bindCont prog refl x
@@ -104,5 +102,5 @@ module TwoMaybeBindsExample where
 
   progPost : ProgPost unit (runMaybe prog unit)
   progPost =
-    ASTSufficientPT.sufficient MaybeSuf prog (ProgPost unit) unit progPostWP
+    sufficient prog (ProgPost unit) unit progPostWP
 
