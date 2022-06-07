@@ -53,7 +53,7 @@ ASTOps.SubRet RWSOps  = RWSSubRet
 
 RWS = AST RWSOps
 
-module Syntax where
+module RWSSyntax where
   open import Dijkstra.AST.Syntax public
 
   gets : ∀ {A} → (St → A) → RWS A
@@ -86,7 +86,7 @@ private
       ASTreturn (unit , λ o → o ++ o)
 
   module prog₁ where
-    open Syntax
+    open RWSSyntax
     prog₁' : (St → Wr) → RWS Unit
     prog₁' f =
       pass $ do

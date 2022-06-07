@@ -1,7 +1,7 @@
 open import Data.Nat renaming (ℕ to Nat)
 open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
-open        Syntax
+open        MaybeSyntax
 open        ASTTypes         MaybeTypes
 open        ASTPredTrans     MaybePT
 open        ASTPredTransMono MaybePTMono

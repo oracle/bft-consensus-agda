@@ -39,7 +39,7 @@ bindCont : ∀ {A}{B}{m : MaybeD A}{f : A → MaybeD B}
            → (A → MaybeD B)
 bindCont {f = f} _ refl = f
 
-module Syntax where
+module MaybeSyntax where
   open import Dijkstra.AST.Syntax public
 
   bail : ∀ {A} → MaybeD A
@@ -53,7 +53,7 @@ private
             (λ _ → ASTreturn  a)
 
   module prog₁ where
-    open Syntax
+    open MaybeSyntax
     prog₁' : ∀ {A} → A → MaybeD A
     prog₁' a = do
       bail {Void}
