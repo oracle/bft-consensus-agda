@@ -10,10 +10,10 @@ open        ASTTypes         MaybeTypes
 open import Haskell.Prelude
 open import Util.Prelude
 
-module Dijkstra.AST.Examples.Maybe.Bind (mn1 mn2 : MaybeD Nat) where
+module Dijkstra.AST.Examples.Maybe.Bind (mn1 mn2 : MaybeAST Nat) where
 
 module OneMaybeBindExample where
-  prog : MaybeD (List Nat)
+  prog : MaybeAST (List Nat)
   prog = do
     n1 <- mn1
     return (n1 ∷ [])
@@ -24,7 +24,7 @@ module OneMaybeBindExample where
 
   mn1Post : Post Nat
   mn1Post nothing = ⊤
-  mn1Post (just n) = runMaybe mn1 unit ≡ just n
+  mn1Post (just n) = runMaybeAST mn1 unit ≡ just n
 
   -- Here is the property we want to prove
   progPostWP : predTrans prog ProgPost unit
@@ -63,7 +63,7 @@ module OneMaybeBindExample where
 
 module TwoMaybeBindsExample where
 
-  prog : MaybeD (List Nat)
+  prog : MaybeAST (List Nat)
   prog = do
     n1 <- mn1
     n2 <- mn2
@@ -76,15 +76,15 @@ module TwoMaybeBindsExample where
   progPostWP : predTrans prog (ProgPost unit) unit
   progPostWP =
     predTransMono
-      prog (λ o → runMaybe prog unit ≡ o) _ ⊆ₒProgPost unit PT
+      prog (λ o → runMaybeAST prog unit ≡ o) _ ⊆ₒProgPost unit PT
    where
-    ⊆ₒProgPost : (λ o → runMaybe prog unit ≡ o) ⊆ₒ ProgPost unit
+    ⊆ₒProgPost : (λ o → runMaybeAST prog unit ≡ o) ⊆ₒ ProgPost unit
     ⊆ₒProgPost nothing _ = tt
-    ⊆ₒProgPost (just l) just_n1∷n2∷[]≡just_l with runMaybe mn1 unit
-    ... | just n1                           with runMaybe mn2 unit
+    ⊆ₒProgPost (just l) just_n1∷n2∷[]≡just_l with runMaybeAST mn1 unit
+    ... | just n1                           with runMaybeAST mn2 unit
     ... | just n2 rewrite just-injective (sym just_n1∷n2∷[]≡just_l) = refl
 
-    PT : predTrans prog (λ o → runMaybe prog unit ≡ o) unit
+    PT : predTrans prog (λ o → runMaybeAST prog unit ≡ o) unit
     PT = predTrans-is-weakest prog _ refl
 
   -- A nicer proof using maybePTBindLemma (twice)
@@ -102,7 +102,7 @@ module TwoMaybeBindsExample where
                          unit
                          (maybePTBindLemma f refl (const tt) (λ x2 rm≡j → refl))
 
-  progPost : ProgPost unit (runMaybe prog unit)
+  progPost : ProgPost unit (runMaybeAST prog unit)
   progPost =
     sufficient prog (ProgPost unit) unit progPostWP
 
