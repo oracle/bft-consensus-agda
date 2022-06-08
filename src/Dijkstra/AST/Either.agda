@@ -36,6 +36,12 @@ ASTOps.SubRet EitherOps  = EitherSubRet
 
 EitherAST = AST EitherOps
 
+bindCont : ∀ {A}{B}{m : EitherAST A}{f : A → EitherAST B}
+           (prog : EitherAST B)
+           → prog ≡ AST.ASTbind m f
+           → (A → EitherAST B)
+bindCont {f = f} _ refl = f
+
 module EitherSyntax where
   open import Dijkstra.AST.Syntax public
   open import Dijkstra.Syntax
@@ -67,6 +73,7 @@ ASTTypes.Input  EitherTypes   = Unit -- We can always run an Either program.  In
                                      -- RWS program, we need environment and prestate (Ev and St,
                                      -- respectively)
 ASTTypes.Output EitherTypes A = Either Err A
+
 open ASTTypes EitherTypes
 
 EitherOpSem : ASTOpSem EitherOps EitherTypes
@@ -77,7 +84,7 @@ ASTOpSem.runAST EitherOpSem (ASTbind m f) i
 ...| Right x = ASTOpSem.runAST EitherOpSem (f x) i
 ASTOpSem.runAST EitherOpSem (ASTop (Either-bail a) f) i = Left a
 
-runEither = ASTOpSem.runAST EitherOpSem
+runEitherAST = ASTOpSem.runAST EitherOpSem
 
 EitherbindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
 EitherbindPost _ P (Left x)  = P (Left x)
@@ -134,7 +141,7 @@ ASTSufficientPT.opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 Post⇒wp : ∀ {A} → EitherAST A → Input → Set₁
 Post⇒wp {A} e i =
   (P : Post A)
-  → P (runEither e i)
+  → P (runEitherAST e i)
   → predTrans e P i
 
 predTrans-is-weakest : ∀ {A} → (e : EitherAST A) → Post⇒wp {A} e unit
@@ -142,13 +149,13 @@ predTrans-is-weakest (ASTreturn _) _ = id
 predTrans-is-weakest (ASTbind e f) _ Pr
    with predTrans-is-weakest e
 ...| rec
-  with runEither e unit
+  with runEitherAST e unit
 ... | Left  _ = rec _ λ where _ refl →                              Pr
 ... | Right r = rec _ λ where _ refl → predTrans-is-weakest (f r) _ Pr
 predTrans-is-weakest (ASTop (Either-bail _) _) _ = id
 
 private
-  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEither (prog₁ e a) i ≡ Left e)
+  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEitherAST (prog₁ e a) i ≡ Left e)
   bailWorksSuf e a i = ASTSufficientPT.sufficient EitherSuf (prog₁ e a) (BailWorks e) unit (bailWorks e unit a )
 
 EitherExtOps    = BranchOps EitherOps

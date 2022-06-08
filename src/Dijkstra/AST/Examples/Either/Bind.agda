@@ -26,12 +26,12 @@ module TwoEitherBindsExample
   progPostWP = predTransMono prog runPost _ ⊆ₒProgPost unit PT
    where
     runPost : Post (List ℕ)
-    runPost = runEither prog unit ≡_
+    runPost = runEitherAST prog unit ≡_
 
     ⊆ₒProgPost : runPost ⊆ₒ ProgPost unit
     ⊆ₒProgPost (Left  _) _                                               = refl
-    ⊆ₒProgPost (Right r) Right_n1∷n2∷[]≡Right_r with runEither en1 unit
-    ... | (Right n1)                            with runEither en2 unit
+    ⊆ₒProgPost (Right r) Right_n1∷n2∷[]≡Right_r with runEitherAST en1 unit
+    ... | (Right n1)                            with runEitherAST en2 unit
     ... | (Right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
 
     PT : predTrans prog runPost unit

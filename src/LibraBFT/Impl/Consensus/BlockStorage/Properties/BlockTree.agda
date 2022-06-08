@@ -49,7 +49,7 @@ module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
   postulate -- TODO: prove after implementing addChild
     contract'-AST : ASTPredTrans.predTrans EitherPT addChild-AST Contract unit
 
-  contract-AST : Contract (runEither addChild-AST unit)
+  contract-AST : Contract (runEitherAST addChild-AST unit)
   contract-AST = ASTSufficientPT.sufficient EitherSuf addChild-AST Contract unit contract'-AST
 
 
@@ -179,7 +179,7 @@ module insertBlockESpec
                       biv : AllValidBlocks bt → _
                       biv avb = biv' avb (sym (cong (_^∙ ebBlock) (addChildSpec.ContractOk.presLB addChildCon)))
 
-  contract-AST : Contract (runEither insertBlockE-AST unit)
+  contract-AST : Contract (runEitherAST insertBlockE-AST unit)
   contract-AST = ASTSufficientPT.sufficient EitherSuf insertBlockE-AST Contract unit contract'-AST
 
 module insertQuorumCertESpec
