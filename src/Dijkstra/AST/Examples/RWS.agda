@@ -14,7 +14,6 @@ open import Relation.Binary.PropositionalEquality
 module Example1 (A : Set) where
 
   open import Data.Nat         renaming (ℕ to Nat) using (_+_ ; suc ; zero)
-  open import Data.Nat.Properties using (+-comm)
   open import Dijkstra.AST.RWS A A (List A)
   open        ASTPredTrans     RWSPT
   open        RWSSyntax
@@ -31,13 +30,13 @@ module Example1 (A : Set) where
     return (ev ∷ st')
 
   ProgPost : (A × List A) -> (List A × List A × List A) -> Set
-  ProgPost (_ , si) (a , so , w) = length  a ≡ length so + 1
-                                 × length so ≡ length si + 1
+  ProgPost (_ , si) (a , so , w) = length  a ≡ 1 + length so
+                                 × length so ≡ 1 + length si
                                  × length  w ≡ 3
 
   progPost : ∀ i -> ProgPost i (runRWS prog i)
   progPost (e , s) with runRWS prog (e , s)
-  ... | (a , st , wr) rewrite +-comm 1 (length s)
+  ... | (a , st , wr)
       = refl , refl , refl
 
   -- Proving this WP is straightforward compared to sum types (e.g., Maybe, Either).
@@ -46,7 +45,7 @@ module Example1 (A : Set) where
   -- established by the RWS bind definition is used.
   progPostWP : ∀ i -> predTrans prog (ProgPost i) i
   progPostWP (c , si) _ _ _ _ _ _ _ _ _ _ r₅ r₅≡1∷si _ _
-    rewrite r₅≡1∷si | +-comm 1 (length si)
+    rewrite r₅≡1∷si
     = refl , refl , refl
 
   -- C-c C-n
