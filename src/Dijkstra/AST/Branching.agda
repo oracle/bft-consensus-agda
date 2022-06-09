@@ -52,33 +52,6 @@ module ASTExtension (O : ASTOps) where
   unextend (ASTop (Right (BCmaybe nothing))    f) = unextend (f (Level.lift nothing))
   unextend (ASTop (Right (BCmaybe (just x)))   f) = unextend (f (Level.lift (just x)))
 
-module BranchingSyntax (O : ASTOps) where
-  open ASTExtension O
-
-  ifAST_then_else : ∀ {A} → Bool → (t e : AST BranchOps A) → AST BranchOps A
-  ifAST b then t else e = ASTop (Right (BCif b))
-                                λ { (Level.lift true)  → t
-                                  ; (Level.lift false) → e
-                                  }
-
-  eitherAST : ∀ {A B C : Set}
-              → (A → AST BranchOps C)
-              → (B → AST BranchOps C)
-              → Either A B
-              → AST BranchOps C
-  eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
-                              λ { (Level.lift (Left  a)) → fA a
-                                ; (Level.lift (Right b)) → fB b
-                                }
-
-  -- Same but with arguments in more "natural" order
-  eitherSAST : ∀ {A B C : Set}
-               → Either A B
-               → (A → AST BranchOps C)
-               → (B → AST BranchOps C)
-               → AST BranchOps C
-  eitherSAST eAB fA fB = eitherAST fA fB eAB
-
 module OpSemExtension {O : ASTOps} {T : ASTTypes} (OpSem : ASTOpSem O T) where
   open ASTExtension O
 
@@ -228,3 +201,54 @@ module SufficientExtension
     fSuf (Level.lift nothing) _ _ (proj₁ wp refl)
   ASTSufficientPT.opSuf BranchSuf (Right (BCmaybe (just j))) f fSuf P i wp =
     fSuf (Level.lift (just j)) _ _ (proj₂ wp _ refl)
+
+module BranchingSyntax (BaseOps : ASTOps) where
+
+  Ops = ASTExtension.BranchOps BaseOps
+
+  ifAST_then_else : ∀ {A} → Bool → (t e : AST Ops A) → AST Ops A
+  ifAST b then t else e = ASTop (Right (BCif b))
+                                λ { (Level.lift true)  → t
+                                  ; (Level.lift false) → e
+                                  }
+
+  eitherAST : ∀ {A B C : Set}
+              → (A → AST Ops C)
+              → (B → AST Ops C)
+              → Either A B
+              → AST Ops C
+  eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
+                              λ { (Level.lift (Left  a)) → fA a
+                                ; (Level.lift (Right b)) → fB b
+                                }
+
+  -- Same but with arguments in more "natural" order
+  eitherSAST : ∀ {A B C : Set}
+               → Either A B
+               → (A → AST Ops C)
+               → (B → AST Ops C)
+               → AST Ops C
+  eitherSAST eAB fA fB = eitherAST fA fB eAB
+
+module ConditionalExtensions
+  {BaseOps    : ASTOps}
+  {BaseTypes  : ASTTypes}
+  (BasePT     : ASTPredTrans BaseOps BaseTypes)
+  (BaseOpSem  : ASTOpSem BaseOps BaseTypes)
+  (BasePTMono : ASTPredTransMono BasePT)
+  (BaseSuf    : ASTSufficientPT BaseOpSem BasePT)
+  where
+  ExtOps = ASTExtension.BranchOps BaseOps
+  ExtAST = AST ExtOps
+  PT     = PredTransExtension.BranchPT BasePT
+  runAST = ASTOpSem.runAST (OpSemExtension.BranchOpSem BaseOpSem)
+  PTMono = PredTransExtensionMono.BranchPTMono BasePTMono
+  Suf    = SufficientExtension.BranchSuf BasePTMono BaseSuf
+  open ASTOps BaseOps             public
+  open ASTTypes BaseTypes         public
+  open ASTSufficientPT Suf        public
+  open ASTPredTrans PT            public
+  open ASTPredTransMono PTMono    public
+  open BranchingSyntax BaseOps    public
+  open import Dijkstra.AST.Syntax public
+
