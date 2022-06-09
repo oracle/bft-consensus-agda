@@ -7,15 +7,9 @@
 open import Data.Nat
 import      Level
 open import Util.Prelude hiding (bail)
-open import Dijkstra.AST.Branching
-open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
 
 module Dijkstra.AST.Examples.Maybe.Branching where
-
-open ASTTypes MaybeTypes
-open ASTPredTrans MaybePT
-open ASTExtension
 
 module Example-if (n : ℕ) where
   -- First we specify the behaviour we want via a postcondition requiring that the program can fail
@@ -27,14 +21,21 @@ module Example-if (n : ℕ) where
   module Raw where
     -- A program that includes branching in MaybeAST, intended to satify the specification
     -- established by bpPost
-    branchingProg : MaybeASTExt ℕ
+
+    -- Because this is a "raw" example that does not use the nice syntax, we have to explicitly
+    -- import and open modules to access the underlying definitions
+    open import Dijkstra.AST.Branching using (BranchCmd)
+    open BranchCmd using (BCif)
+    open MaybeBase using (Maybe-bail)
+
+    branchingProg : MaybeAST ℕ
     branchingProg = ASTop (Right (BCif (toBool (n ≟ℕ 0) )))
                           (λ { (lift false) → ASTreturn (2 * n)
                              ; (lift true)  → ASTop (Left Maybe-bail) λ () })
 
     -- The weakest precondition for bpPost holds
     branchingProgWP : (i : Input)
-                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+                      → predTrans branchingProg bpPost i
 
     {- TUTORIAL: A simple proof using the branching support for AST MaybeExtOps, specifically BCif.
 
@@ -136,32 +137,27 @@ module Example-if (n : ℕ) where
     proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
     -- And therefore, the result of running the program satisfies the postcondition
-    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
+    prop : (i : Input) → bpPost (runMaybeAST branchingProg i)
     prop i =
-      ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
+      sufficient branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
-    open BranchingSyntax MaybeOps
-    open MaybeBranchingSyntax
-
     -- Same program with nicer syntax using ifAST, bail and return
-    branchingProg : MaybeASTExt ℕ
+    branchingProg : MaybeAST ℕ
     branchingProg = ifAST ⌊ n ≟ℕ 0 ⌋
                     then bail
                     else (return (2 * n))
 
     --  Note that the same proof works for both versions (as they are equivalent)
     branchingProgWP : (i : Input)
-                         → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+                         → predTrans branchingProg bpPost i
     proj₁ (branchingProgWP _) isTrue  =           toWitnessT isTrue
     proj₂ (branchingProgWP _) isFalse = (n≢0⇒n>0 (toWitnessF isFalse)) , refl
 
-    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
+    prop : (i : Input) → bpPost (runMaybeAST branchingProg i)
+    prop i = sufficient branchingProg bpPost i (branchingProgWP i)
 
 module Example-either (n : ℕ) where
-  open BranchingSyntax MaybeOps
-  open MaybeBranchingSyntax
 
   module Common where
 
@@ -185,32 +181,38 @@ module Example-either (n : ℕ) where
 
   module Raw where
     open Common
+    -- Because this is a "raw" example that does not use the nice syntax, we have to explicitly
+    -- import and open modules to access the underlying definitions
+    open import Dijkstra.AST.Branching using (BranchCmd)
+    open BranchCmd using (BCif ; BCeither)
+    open MaybeBase using (Maybe-bail)
+
     -- A branching program that bails if n monus1 is Left _
     -- and returns b if n monus1 is Right b
-    branchingProg : MaybeASTExt ℕ
+    branchingProg : MaybeAST ℕ
     branchingProg = ASTop (Right (BCeither (n monus1)))
-                          λ { (lift (Left  a)) → bail
+                          λ { (lift (Left  a)) → ASTop (Left Maybe-bail) λ () 
                             ; (lift (Right b)) → return b
                             }
 
     branchingProgWP : (i : Input)
-                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+                      → predTrans branchingProg bpPost i
     proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
     proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
-    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
+    prop : (i : Input) → bpPost (runMaybeAST branchingProg i)
+    prop i = sufficient branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
     open Common
     -- Same program with nicer syntax using eitherSAST, bail and return
-    branchingProg : MaybeASTExt ℕ
+    branchingProg : MaybeAST ℕ
     branchingProg = eitherSAST (n monus1) (const bail) return
 
     branchingProgWP : (i : Input)
-                      → ASTPredTrans.predTrans MaybePTExt branchingProg bpPost i
+                      → predTrans branchingProg bpPost i
     proj₁ (branchingProgWP _) l islft = monus1lemma1 refl islft
     proj₂ (branchingProgWP _) l isrgt = monus1lemma2 refl isrgt
 
-    prop : (i : Input) → bpPost (runMaybeASTExt branchingProg i)
-    prop i = ASTSufficientPT.sufficient MaybeSufExt branchingProg bpPost i (branchingProgWP i)
+    prop : (i : Input) → bpPost (runMaybeAST branchingProg i)
+    prop i = sufficient branchingProg bpPost i (branchingProgWP i)

@@ -1,12 +1,5 @@
 open import Data.Nat renaming (ℕ to Nat)
-open import Dijkstra.AST.Core
 open import Dijkstra.AST.Maybe
-open        MaybeSyntax
-open        ASTOpSem         MaybeOpSem
-open        ASTPredTrans     MaybePT
-open        ASTPredTransMono MaybePTMono
-open        ASTSufficientPT  MaybeSuf
-open        ASTTypes         MaybeTypes
 open import Haskell.Prelude
 open import Util.Prelude
 
@@ -33,7 +26,7 @@ module OneMaybeBindExample where
   -- the program.  To help us understand what it is that Agda figures out to enable putting _ for
   -- the goal argument below, we define Goal below, and we can replace _ by Goal and see that it's
   -- right.
-  progPostWP = predTransMono mn1 mn1Post _ {- Goal -} mn1Post⇒Goal unit PT
+  progPostWP = predTransMono mn1 mn1Post _ {- Goal -} mn1Post⇒Goal unit PT1
     where
 
     Goal : Post Nat
@@ -42,8 +35,8 @@ module OneMaybeBindExample where
              -- because prog is an AST-bind at the top level
            ∀ r → r ≡ x → MaybebindPost (λ x → predTrans (Monad.return MonadAST (x ∷ []))) ProgPost r
 
-    PT : _
-    PT with runAST mn1 unit | inspect (runAST mn1) unit
+    PT1 : _
+    PT1 with runAST mn1 unit | inspect (runAST mn1) unit
     ... | nothing | [ R ] = predTrans-is-weakest mn1 mn1Post (subst mn1Post (sym R) tt)
     ... | just x  | [ R ] = predTrans-is-weakest mn1 _       (subst mn1Post (sym R) R)
 
@@ -76,7 +69,7 @@ module TwoMaybeBindsExample where
   progPostWP : predTrans prog (ProgPost unit) unit
   progPostWP =
     predTransMono
-      prog (λ o → runMaybeAST prog unit ≡ o) _ ⊆ₒProgPost unit PT
+      prog (λ o → runMaybeAST prog unit ≡ o) _ ⊆ₒProgPost unit PT1
    where
     ⊆ₒProgPost : (λ o → runMaybeAST prog unit ≡ o) ⊆ₒ ProgPost unit
     ⊆ₒProgPost nothing _ = tt
@@ -84,8 +77,8 @@ module TwoMaybeBindsExample where
     ... | just n1                           with runMaybeAST mn2 unit
     ... | just n2 rewrite just-injective (sym just_n1∷n2∷[]≡just_l) = refl
 
-    PT : predTrans prog (λ o → runMaybeAST prog unit ≡ o) unit
-    PT = predTrans-is-weakest prog _ refl
+    PT1 : predTrans prog (λ o → runMaybeAST prog unit ≡ o) unit
+    PT1 = predTrans-is-weakest prog _ refl
 
   -- A nicer proof using maybePTBindLemma (twice)
   progPostWP2 : predTrans prog (ProgPost unit) unit
