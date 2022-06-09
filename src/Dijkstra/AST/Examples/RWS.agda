@@ -14,13 +14,10 @@ open import Relation.Binary.PropositionalEquality
 module Example1 (A : Set) where
 
   open import Data.Nat         renaming (ℕ to Nat) using (_+_ ; suc ; zero)
+  open import Data.Nat.Properties using (+-comm)
   open import Dijkstra.AST.RWS A A (List A)
   open        ASTPredTrans     RWSPT
   open        RWSSyntax
-
-  sucn≡n+1 : ∀ (n : Nat) -> suc n ≡ n + 1
-  sucn≡n+1  zero   = refl
-  sucn≡n+1 (suc n) = cong suc (sucn≡n+1 n)
 
   prog : RWS (List A)
   prog = do
@@ -40,9 +37,8 @@ module Example1 (A : Set) where
 
   progPost : ∀ i -> ProgPost i (runRWS prog i)
   progPost (e , s) with runRWS prog (e , s)
-  ... | (a , st , wr)
-    rewrite sucn≡n+1 (length s)
-    = refl , refl , refl
+  ... | (a , st , wr) rewrite +-comm 1 (length s)
+      = refl , refl , refl
 
   -- Proving this WP is straightforward compared to sum types (e.g., Maybe, Either).
   -- When proving sum types, it is necessary to break the proof obligations down into cases.
@@ -50,7 +46,7 @@ module Example1 (A : Set) where
   -- established by the RWS bind definition is used.
   progPostWP : ∀ i -> predTrans prog (ProgPost i) i
   progPostWP (c , si) _ _ _ _ _ _ _ _ _ _ r₅ r₅≡1∷si _ _
-    rewrite r₅≡1∷si | sucn≡n+1 (length si)
+    rewrite r₅≡1∷si | +-comm 1 (length si)
     = refl , refl , refl
 
   -- C-c C-n
