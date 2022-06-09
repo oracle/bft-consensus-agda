@@ -1,8 +1,13 @@
+{- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
+
+   Copyright (c) 2022, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
+-}
+
 module Dijkstra.AST.Examples.RWS where
 
 open import Data.Product      using (_×_ ; _,_)
 open import Dijkstra.AST.Core
-open import Function          using (case_of_)
 open import Haskell.Prelude
 open import Relation.Binary.PropositionalEquality
 
@@ -36,12 +41,16 @@ module Example1 (A : Set) where
   progPost : ∀ i -> ProgPost i (runRWS prog i)
   progPost (e , s) with runRWS prog (e , s)
   ... | (a , st , wr)
-    rewrite sucn≡n+1 (foldr (λ _ → suc) 0 s)
+    rewrite sucn≡n+1 (length s)
     = refl , refl , refl
 
+  -- Proving this WP is straightforward compared to sum types (e.g., Maybe, Either).
+  -- When proving sum types, it is necessary to break the proof obligations down into cases.
+  -- With this usage of RWS, there are no cases. Here, an equality (e.g., r₅≡1∷si)
+  -- established by the RWS bind definition is used.
   progPostWP : ∀ i -> predTrans prog (ProgPost i) i
   progPostWP (c , si) _ _ _ _ _ _ _ _ _ _ r₅ r₅≡1∷si _ _
-    rewrite r₅≡1∷si | sucn≡n+1 (foldr (λ _ → suc) 0 si)
+    rewrite r₅≡1∷si | sucn≡n+1 (length si)
     = refl , refl , refl
 
   -- C-c C-n
