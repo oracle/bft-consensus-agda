@@ -18,4 +18,4 @@ import      Level.Literals as Level using (#_)
 instance
   MonadAST : ∀ {OP : ASTOps} → Monad (AST OP)
   Monad.return MonadAST = ASTreturn
-  Monad._>>=_ MonadAST = ASTbind
+  Monad._>>=_  MonadAST = ASTbind

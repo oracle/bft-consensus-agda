@@ -51,7 +51,7 @@ module EitherBase where
   ...| Right x = ASTOpSem.runAST EitherOpSem (f x) i
   ASTOpSem.runAST EitherOpSem (ASTop (Either-bail a) f) i = Left a
 
-  runEither = ASTOpSem.runAST EitherOpSem
+  runEitherBase = ASTOpSem.runAST EitherOpSem
 
   EitherbindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
   EitherbindPost _ P (Left x)  = P (Left x)
@@ -87,8 +87,8 @@ module EitherBase where
   EitherSuf : ASTSufficientPT EitherOpSem EitherPT
   ASTSufficientPT.returnSuf EitherSuf x P i wp = wp
   ASTSufficientPT.bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
-     with  ASTOpSem.runAST EitherOpSem m  unit  | inspect
-          (ASTOpSem.runAST EitherOpSem m) unit
+     with  runEitherBase m  unit  | inspect
+          (runEitherBase m) unit
   ... | Left  x | [ R ] = mSuf _ unit wp (Left x) (sym R)
   ... | Right y | [ R ] = let wp' = mSuf _ unit wp (Right y) (sym R)
                            in fSuf y P unit wp'
@@ -124,13 +124,13 @@ module EitherAST where
   -- TODO: this is identical to the same for Maybe -- generalise?
   predTrans-is-weakest (ASTop (Right (BCif b)) f) Pr
      with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where refl → rec Pr x) , (λ where refl → rec Pr x)
+  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where   refl → rec Pr x)
   predTrans-is-weakest (ASTop (Right (BCeither b)) f) Pr
      with predTrans-is-weakest (f (Level.lift b))
   ...| rec = λ x → (λ where r refl → rec Pr x) , (λ where r refl → rec Pr x)
   predTrans-is-weakest (ASTop (Right (BCmaybe mb)) f) Pr
      with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = λ x → (λ where refl → rec Pr x) , λ where j refl → rec Pr x
+  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
 
   module EitherSyntax where

@@ -45,7 +45,7 @@ module MaybeBase where
   ...| just x  = ASTOpSem.runAST MaybeOpSem (f x) i
   ASTOpSem.runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
 
-  runMaybe = ASTOpSem.runAST MaybeOpSem
+  runMaybeBase = ASTOpSem.runAST MaybeOpSem
 
   MaybebindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
   MaybebindPost _ P nothing  = P nothing
@@ -97,10 +97,10 @@ module MaybeBase where
   MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
   ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
   ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
-    with runMaybe m unit | inspect (runMaybe m) unit
-  ... |  nothing         | [ eq ] = mSuf _ unit wp nothing (sym eq)
-  ... |  just y          | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
-                                     in fSuf y P unit wp'
+    with runMaybeBase m unit | inspect (runMaybeBase m) unit
+  ... |  nothing             | [ eq ] = mSuf _ unit wp nothing (sym eq)
+  ... |  just y              | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
+                                         in fSuf y P unit wp'
   ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
 module MaybeAST where
@@ -110,7 +110,7 @@ module MaybeAST where
   open import Dijkstra.AST.Branching
   open ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
 
-  MaybeAST = ExtAST
+  MaybeAST    = ExtAST
 
   runMaybeAST = runAST
 
@@ -133,13 +133,13 @@ module MaybeAST where
   predTrans-is-weakest (ASTop (Left Maybe-bail) f)    Pr = id
   predTrans-is-weakest (ASTop (Right (BCif b)) f) Pr
      with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where refl → rec Pr x) , (λ where refl → rec Pr x)
+  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where   refl → rec Pr x)
   predTrans-is-weakest (ASTop (Right (BCeither b)) f) Pr
      with predTrans-is-weakest (f (Level.lift b))
   ...| rec = λ x → (λ where r refl → rec Pr x) , (λ where r refl → rec Pr x)
   predTrans-is-weakest (ASTop (Right (BCmaybe mb)) f) Pr
      with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = λ x → (λ where refl → rec Pr x) , λ where j refl → rec Pr x
+  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
   maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i

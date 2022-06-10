@@ -115,8 +115,6 @@ module RWSBase where
   ASTPredTrans.opPT RWSPT{A} RWSpass f P (ev , st) =
     f (Level.lift unit) (RWSpassPost P) (ev , st)
 
-  ptsRWS = ASTPredTrans.predTrans RWSPT
-
   RWSPTMono : ASTPredTransMono RWSPT
   ASTPredTransMono.returnPTMono RWSPTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
     P₁⊆ₒP₂ _ wp
@@ -170,8 +168,6 @@ module RWSBase where
   ASTSufficientPT.opSuf RWSSuf RWSpass f fSuf P i wp =
     let ((x₁ , g) , s₁ , o₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) i
     in fSuf (Level.lift unit) (RWSpassPost P) i wp (g o₁) refl
-
-  sufRWS = ASTSufficientPT.sufficient RWSSuf
 
 module RWSAST where
   open RWSBase

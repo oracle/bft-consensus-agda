@@ -251,4 +251,3 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
-
