@@ -142,6 +142,7 @@ module MaybeAST where
      with predTrans-is-weakest (f (Level.lift mb))
   ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
+  -- TODO: do versions for Either and RWS; generically?
   maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i
         → predTrans m (λ o → P₁ o → P₂ o) i
@@ -186,7 +187,6 @@ module MaybeAST where
 
   maybeSufficient = ASTSufficientPT.sufficient Suf
 
-  -- TODO: make these apply to MaybeExt, use in Partiality
   maybeSuffBind
     : ∀ {A B P} {Q : Post A} {i} (m : MaybeAST A) (f : A → MaybeAST B)
       → predTrans (m >>= f) P i
