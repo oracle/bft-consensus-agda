@@ -7,7 +7,6 @@
 module Dijkstra.AST.Examples.RWS where
 
 open import Data.Product      using (_×_ ; _,_)
-open import Dijkstra.AST.Core
 open import Haskell.Prelude
 open import Relation.Binary.PropositionalEquality
 
@@ -15,10 +14,8 @@ module Example1 (A : Set) where
 
   open import Data.Nat         renaming (ℕ to Nat) using (_+_ ; suc ; zero)
   open import Dijkstra.AST.RWS A A (List A)
-  open        ASTPredTrans     RWSPT
-  open        RWSSyntax
 
-  prog : RWS (List A)
+  prog : RWSAST (List A)
   prog = do
     ev  <- ask
     tell   (ev ∷ [])
@@ -34,8 +31,8 @@ module Example1 (A : Set) where
                                  × length so ≡ 1 + length si
                                  × length  w ≡ 3
 
-  progPost : ∀ i -> ProgPost i (runRWS prog i)
-  progPost (e , s) with runRWS prog (e , s)
+  progPost : ∀ i -> ProgPost i (runRWSAST prog i)
+  progPost (e , s) with runRWSAST prog (e , s)
   ... | (a , st , wr)
       = refl , refl , refl
 
@@ -52,4 +49,4 @@ module Example1 (A : Set) where
   -- Example1.runProg
   -- returns : λ A a → a ∷ a ∷ [] , a ∷ [] , a ∷ a ∷ a ∷ []
   runProg : A -> (List A × List A × List A)
-  runProg a = runRWS prog (a , [])
+  runProg a = runRWSAST prog (a , [])
