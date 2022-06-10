@@ -15,10 +15,10 @@ open import Haskell.Prelude hiding (return)
 import      Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
-open import Dijkstra.AST.Core
-open import Dijkstra.Syntax
 
 module EitherBase where
+
+  open import Dijkstra.AST.Core
 
   data EitherCmd (A : Set) : Set₁ where
     Either-bail : Err → EitherCmd A
@@ -98,6 +98,7 @@ module EitherAST where
   open EitherBase
   open EitherBase using (EitherbindPost)                                 public
   open import Dijkstra.AST.Branching
+  open import Dijkstra.AST.Core
   open ConditionalExtensions EitherPT EitherOpSem EitherPTMono EitherSuf public
 
   EitherAST    = ExtAST
@@ -132,40 +133,52 @@ module EitherAST where
      with predTrans-is-weakest (f (Level.lift mb))
   ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
+module EitherSyntax where
+  open import Dijkstra.AST.Core
+  open import Dijkstra.AST.Branching
+  open import Dijkstra.Syntax
+  open ASTExtension
+  open EitherBase
+  open EitherAST
 
-  module EitherSyntax where
-    EitherD-maybe : ∀ {A B : Set} → ExtAST B → (A → ExtAST B) → Maybe A → ExtAST B
-    EitherD-maybe m f mb = ASTop (Right (BCmaybe mb))
+  EitherAST-maybe : ∀ {A B : Set} → ExtAST B → (A → ExtAST B) → Maybe A → ExtAST B
+  EitherAST-maybe m f mb = ASTop (Right (BCmaybe mb))
                                  λ { (Level.lift nothing)  → m
                                    ; (Level.lift (just j)) → f j
                                    }
-    instance
-      MonadMaybeD-EitherAST : MonadMaybeD ExtAST
-      MonadMaybeD.monad  MonadMaybeD-EitherAST = MonadAST
-      MonadMaybeD.maybeD MonadMaybeD-EitherAST = EitherD-maybe
+  instance
+    MonadMaybeD-EitherAST : MonadMaybeD ExtAST
+    MonadMaybeD.monad  MonadMaybeD-EitherAST = MonadAST
+    MonadMaybeD.maybeD MonadMaybeD-EitherAST = EitherAST-maybe
 
-    bail : ∀ {A} → Err → ExtAST A
-    bail a = ASTop (Left (Either-bail a)) λ ()
+  bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
+  bail a = ASTop (Left (Either-bail a)) λ ()
 
-    return : ∀ {A} → A → ExtAST A
-    return a = ASTreturn a
-
-open EitherAST    public
-open EitherSyntax public
+open        EitherAST       public
+open        EitherSyntax    public
 
 module EitherExample where
-  open EitherBase
-  open EitherSyntax
-  open EitherAST
+  open        EitherAST
+  open        EitherSyntax
+  open import Haskell.Prelude using (return)
 
-  prog₁ : ∀ {A} → Err → A → EitherAST A
-  prog₁ e a =
-    -- Either-bail always returns left, so Agda cannot infer the
-    -- type that it would return if it were to return Right, so
-    -- we provide a type explicitly (Unit, in this case)
-    ASTbind (ASTop (Left (Either-bail {Unit} e)) λ ()) λ _ →
-      ASTreturn a
+  -- Here we show an EitherAST program in terms of the underlying Cmds, which requires importing
+  -- Core and also opening EitherBase
+  module _ where
+    open import Dijkstra.AST.Core
+    open import Dijkstra.Syntax
+    open        EitherBase
 
+    prog₁ : ∀ {A} → Err → A → EitherAST A
+    prog₁ e a =
+      -- Either-bail always returns left, so Agda cannot infer the
+      -- type that it would return if it were to return Right, so
+      -- we provide a type explicitly (Unit, in this case)
+      ASTbind (ASTop (Left (Either-bail {Unit} e)) λ ()) λ _ →
+        ASTreturn a
+
+  -- Now we present an equivalent program using the EitherSyntax, so we don't need to open
+  -- EitherBase, and prove properties about it.  The same proofs work for prog₁ as for prog₁'.
   prog₁' : ∀ {A} → Err → A → EitherAST A
   prog₁' {A} e a = do
     bail {Void} e
@@ -176,8 +189,8 @@ module EitherExample where
   BailWorks : ∀ {A : Set} → Err → Post A
   BailWorks e = _≡ Left e
 
-  bailWorks : ∀ e i {A : Set} → (a : A) → predTrans (prog₁ e a) (BailWorks e) i
+  bailWorks : ∀ e i {A : Set} → (a : A) → predTrans (prog₁' e a) (BailWorks e) i
   bailWorks e unit _ _ refl = refl
 
-  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEitherAST (prog₁ e a) i ≡ Left e)
-  bailWorksSuf e a i = sufficient (prog₁ e a) (BailWorks e) unit (bailWorks e unit a )
+  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEitherAST (prog₁' e a) i ≡ Left e)
+  bailWorksSuf e a i = sufficient (prog₁' e a) (BailWorks e) unit (bailWorks e unit a )

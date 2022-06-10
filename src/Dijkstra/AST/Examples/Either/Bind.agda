@@ -1,36 +1,35 @@
 module Dijkstra.AST.Examples.Either.Bind where
 
 open import Data.Nat
-open import Dijkstra.AST.Core
 open import Util.Prelude
-open import Dijkstra.AST.Either ⊤
-open EitherBase
 
-module TwoEitherBindsExample
-  (en1 en2 : EitherAST ℕ)
-  where
+module TwoEitherBindsExample where
+  open import Dijkstra.AST.Either ⊤
+  open        EitherBase
 
-  prog : EitherAST (List ℕ)
-  prog = do
-    n1 ← en1
-    n2 ← en2
-    ASTreturn (n1 ∷ n2 ∷ [])
+  module _ (en1 en2 : EitherAST ℕ) where
 
-  ProgPost : Unit → Either ⊤ (List ℕ) → Set
-  ProgPost _ (Left  l) =        l ≡ tt
-  ProgPost _ (Right r) = length r ≡ 2
+    prog : EitherAST (List ℕ)
+    prog = do
+      n1 ← en1
+      n2 ← en2
+      return (n1 ∷ n2 ∷ [])
 
-  progPostWP : predTrans prog (ProgPost unit) unit
-  progPostWP = predTransMono prog runPost _ ⊆ₒProgPost unit PT1
-   where
-    runPost : Post (List ℕ)
-    runPost = runEitherAST prog unit ≡_
+    ProgPost : Unit → Either ⊤ (List ℕ) → Set
+    ProgPost _ (Left  l) =        l ≡ tt
+    ProgPost _ (Right r) = length r ≡ 2
 
-    ⊆ₒProgPost : runPost ⊆ₒ ProgPost unit
-    ⊆ₒProgPost (Left  _) _                                               = refl
-    ⊆ₒProgPost (Right r) Right_n1∷n2∷[]≡Right_r with runEitherAST en1 unit
-    ... | (Right n1)                            with runEitherAST en2 unit
-    ... | (Right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
+    progPostWP : predTrans prog (ProgPost unit) unit
+    progPostWP = predTransMono prog runPost _ ⊆ₒProgPost unit PT1
+     where
+      runPost : Post (List ℕ)
+      runPost = runEitherAST prog unit ≡_
 
-    PT1 : predTrans prog runPost unit
-    PT1 = predTrans-is-weakest prog _ refl
+      ⊆ₒProgPost : runPost ⊆ₒ ProgPost unit
+      ⊆ₒProgPost (Left  _) _                                               = refl
+      ⊆ₒProgPost (Right r) Right_n1∷n2∷[]≡Right_r with runEitherAST en1 unit
+      ... | (Right n1)                            with runEitherAST en2 unit
+      ... | (Right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
+
+      PT1 : predTrans prog runPost unit
+      PT1 = predTrans-is-weakest prog _ refl

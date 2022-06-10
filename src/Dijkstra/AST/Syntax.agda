@@ -9,13 +9,12 @@ module Dijkstra.AST.Syntax where
 open import Data.Empty
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
-open import Dijkstra.AST.Core
 open import Function
 open import Haskell.Prelude
-import      Level
-import      Level.Literals as Level using (#_)
 
 instance
+  open import Dijkstra.AST.Core
+
   MonadAST : ∀ {OP : ASTOps} → Monad (AST OP)
   Monad.return MonadAST = ASTreturn
   Monad._>>=_  MonadAST = ASTbind

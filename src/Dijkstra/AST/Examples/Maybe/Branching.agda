@@ -7,11 +7,12 @@
 open import Data.Nat
 import      Level
 open import Util.Prelude hiding (bail)
-open import Dijkstra.AST.Maybe
 
 module Dijkstra.AST.Examples.Maybe.Branching where
 
 module Example-if (n : ℕ) where
+  open import Dijkstra.AST.Maybe
+
   -- First we specify the behaviour we want via a postcondition requiring that the program can fail
   -- only if n is zero, and if it succeeds, the n is non-zero and the result is 2 * n
   bpPost : Post ℕ
@@ -24,9 +25,10 @@ module Example-if (n : ℕ) where
 
     -- Because this is a "raw" example that does not use the nice syntax, we have to explicitly
     -- import and open modules to access the underlying definitions
+    open import Dijkstra.AST.Core
     open import Dijkstra.AST.Branching using (BranchCmd)
     open BranchCmd using (BCif)
-    open MaybeBase using (Maybe-bail)
+    open MaybeBase
 
     branchingProg : MaybeAST ℕ
     branchingProg = ASTop (Right (BCif (toBool (n ≟ℕ 0) )))
@@ -160,6 +162,7 @@ module Example-if (n : ℕ) where
 module Example-either (n : ℕ) where
 
   module Common where
+    open import Dijkstra.AST.Maybe public
 
     _monus1 : ℕ → Either Unit ℕ
     _monus1 0        = Left unit
@@ -180,18 +183,19 @@ module Example-either (n : ℕ) where
     bpPost (just x) = n ≡ suc x
 
   module Raw where
-    open Common
+    open        Common
     -- Because this is a "raw" example that does not use the nice syntax, we have to explicitly
     -- import and open modules to access the underlying definitions
+    open import Dijkstra.AST.Core
     open import Dijkstra.AST.Branching using (BranchCmd)
-    open BranchCmd using (BCif ; BCeither)
-    open MaybeBase using (Maybe-bail)
+    open        BranchCmd using (BCif ; BCeither)
+    open        MaybeBase using (Maybe-bail)
 
     -- A branching program that bails if n monus1 is Left _
     -- and returns b if n monus1 is Right b
     branchingProg : MaybeAST ℕ
     branchingProg = ASTop (Right (BCeither (n monus1)))
-                          λ { (lift (Left  a)) → ASTop (Left Maybe-bail) λ () 
+                          λ { (lift (Left  a)) → ASTop (Left Maybe-bail) λ ()
                             ; (lift (Right b)) → return b
                             }
 
@@ -204,7 +208,7 @@ module Example-either (n : ℕ) where
     prop i = sufficient branchingProg bpPost i (branchingProgWP i)
 
   module Prettier where
-    open Common
+    open        Common
     -- Same program with nicer syntax using eitherSAST, bail and return
     branchingProg : MaybeAST ℕ
     branchingProg = eitherSAST (n monus1) (const bail) return

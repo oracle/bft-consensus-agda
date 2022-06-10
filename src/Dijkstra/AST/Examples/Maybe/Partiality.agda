@@ -11,11 +11,11 @@ open import Data.Nat.DivMod
 open import Data.Product      using (∃ ; ∃-syntax ; _×_)
 open import Function.Base     using (case_of_)
 import      Level
-open import Util.Prelude      using (Maybe ; just ; nothing ; unit ; _>>=_ ; absurd_case_of_)
-open import Dijkstra.AST.Maybe
+open import Util.Prelude      using (Maybe ; just ; nothing ; return ; unit ; _>>=_ ; absurd_case_of_)
 open import Relation.Binary.PropositionalEquality
 
 module Dijkstra.AST.Examples.Maybe.Partiality where
+open import Dijkstra.AST.Maybe
 
 {- Examples corresponding to
    "A predicate transformer semantics for effects"
@@ -41,19 +41,22 @@ data _⇓_ : Expr -> Nat -> Set where
 
 _÷_ : Nat -> Nat -> MaybeAST Nat
 n ÷ Zero     = bail
-n ÷ (Succ k) = ASTreturn (n div (Succ k))
-
--- ⟦_⟧ : Expr -> MaybeAST Nat
--- ⟦ Val x ⟧     = return x
--- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
---                 ⟦ e2 ⟧ >>= \v2 ->
---                 v1 ÷ v2
+n ÷ (Succ k) = return (n div (Succ k))
 
 ⟦_⟧ : Expr -> MaybeAST Nat
-⟦ Val x ⟧     = ASTreturn x
-⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
-                ASTbind (⟦ e2 ⟧) (\v2 ->
-                 (v1 ÷ v2)))
+⟦ Val x ⟧     = return x
+⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
+                ⟦ e2 ⟧ >>= \v2 ->
+                v1 ÷ v2
+
+module _ where
+  -- Here is the equivalent expressed using the Core AST defintion
+  open import Dijkstra.AST.Core
+  ⟦_⟧' : Expr -> MaybeAST Nat
+  ⟦ Val x ⟧'     = ASTreturn x
+  ⟦ Div e1 e2 ⟧' = ASTbind (⟦ e1 ⟧') (\v1 ->
+                   ASTbind (⟦ e2 ⟧') (\v2 ->
+                    (v1 ÷ v2)))
 
 wpPartial
   : {A : Set} {B : A → Set} (f : (x : A) → MaybeAST (B x))

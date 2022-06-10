@@ -22,7 +22,6 @@ open import Util.Hash
 import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude hiding (bail ; return)
-open import Haskell.Prelude using (_>>_; _>>=_; just; Maybe; nothing; Unit; unit; Void)
 
 ------------------------------------------------------------------------------
 open import Data.String                                          using (String)
@@ -266,6 +265,7 @@ module insertQuorumCertE-AST (qc : QuorumCert) (bt0 : BlockTree) where
   -- function signatures to maintain consistency with the Haskell code
   open import Dijkstra.AST.Either ErrLog hiding (EitherAST)
   open import Dijkstra.AST.Either         using (EitherAST)
+  open import Haskell.Prelude using (return)
 
   here' : List String → List String
   here' t = "BlockTree" ∷ "insertQuorumCert" ∷ t
@@ -281,6 +281,7 @@ module insertQuorumCertE-AST (qc : QuorumCert) (bt0 : BlockTree) where
 
   continue1 : BlockTree → HashValue → ExecutedBlock → List InfoLog → (BlockTree × List InfoLog)
   continue2 : BlockTree → List InfoLog → (BlockTree × List InfoLog)
+
 
   insertQuorumCertE-AST : EitherAST ErrLog (BlockTree × List InfoLog)
   insertQuorumCertE-AST =

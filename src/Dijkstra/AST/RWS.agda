@@ -10,7 +10,6 @@ open import Data.Empty
 open import Data.Fin
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
-open import Dijkstra.AST.Core
 open import Function
 open import Haskell.Prelude
 import      Level
@@ -19,6 +18,8 @@ open import Relation.Binary.PropositionalEquality
   hiding ([_])
 
 module RWSBase where
+
+  open import Dijkstra.AST.Core
 
   data RWSCmd (A : Set) : Set₁ where
     RWSgets   : (g : St → A)                 → RWSCmd A
@@ -173,6 +174,7 @@ module RWSAST where
   open RWSBase
   open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost) public
   open import Dijkstra.AST.Branching
+  open import Dijkstra.AST.Core
   open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf public
 
   RWSAST    = ExtAST
@@ -244,15 +246,18 @@ open RWSSyntax public
 
 module RWSExample where
   open RWSAST
-  open RWSBase
   open RWSSyntax
 
-  prog₁ : (St → Wr) → RWSAST Unit
-  prog₁ f =
-    ASTop (Left RWSpass) λ _ →
-      ASTbind (ASTop (Left (RWSgets f)) λ ()) λ w →
-      ASTbind (ASTop (Left (RWStell (w ∷ []) refl)) λ ()) λ _ →
-      ASTreturn (unit , λ o → o ++ o)
+  module _ where
+    open import Dijkstra.AST.Core
+    open        RWSBase
+
+    prog₁ : (St → Wr) → RWSAST Unit
+    prog₁ f =
+      ASTop (Left RWSpass) λ _ →
+        ASTbind (ASTop (Left (RWSgets f)) λ ()) λ w →
+        ASTbind (ASTop (Left (RWStell (w ∷ []) refl)) λ ()) λ _ →
+        ASTreturn (unit , λ o → o ++ o)
 
   prog₁' : (St → Wr) → RWSAST Unit
   prog₁' f =

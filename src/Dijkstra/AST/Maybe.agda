@@ -6,7 +6,6 @@
 
 module Dijkstra.AST.Maybe where
 
-open import Dijkstra.AST.Core
 open import Haskell.Prelude using (_>>_; _>>=_; const; just; Maybe; nothing; return; Unit; unit; Monad; Void; false; true)
 open import Data.Product using (Σ; _,_)
 import      Level
@@ -14,6 +13,8 @@ open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id; Left; Right)
 
 module MaybeBase where
+
+  open import Dijkstra.AST.Core
 
   data MaybeCmd (C : Set) : Set₁ where
     Maybe-bail : MaybeCmd C
@@ -104,11 +105,11 @@ module MaybeBase where
   ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
 module MaybeAST where
-  open MaybeBase
-  open MaybeBase using (MaybebindPost) public
-  open import Dijkstra.AST.Core                                      public
+  open        MaybeBase
+  open        MaybeBase using (MaybebindPost)                               public
   open import Dijkstra.AST.Branching
-  open ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
+  open import Dijkstra.AST.Core
+  open        ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
 
   MaybeAST    = ExtAST
 
@@ -197,6 +198,7 @@ module MaybeAST where
       (runMaybeAST m i) (maybeSufficient m _ i wp _ refl)
 
 module MaybeSyntax where
+  open import Dijkstra.AST.Core
   open import Dijkstra.AST.Branching
   open ASTExtension
   open MaybeBase
@@ -208,15 +210,22 @@ open MaybeAST     public
 open MaybeSyntax  public
 
 module MaybeExample where
-  open MaybeBase
-  open MaybeSyntax
   open MaybeAST
+  open MaybeSyntax
 
-  prog₁ : ∀ {A} → A → MaybeAST A
-  prog₁ a =
-    ASTbind (ASTop (Left (Maybe-bail {Void})) (λ ()))
-            (λ _ → ASTreturn  a)
+  -- Here we show a MaybeAST program in terms of the underlying Cmds, which requires opening
+  -- MaybeBase
+  module _ where
+    open import Dijkstra.AST.Core
+    open        MaybeBase
 
+    prog₁ : ∀ {A} → A → MaybeAST A
+    prog₁ a =
+      ASTbind (ASTop (Left (Maybe-bail {Void})) (λ ()))
+              (λ _ → ASTreturn  a)
+
+  -- Now we present an equivalent program using the MaybeSyntax, so we don't need to open MaybeBase,
+  -- and prove properties about it.  The same proofs work for prog₁ as for prog₁'.
   prog₁' : ∀ {A} → A → MaybeAST A
   prog₁' a = do
     bail {Void}
@@ -225,11 +234,11 @@ module MaybeExample where
   BailWorks : ∀ {A} -> Post A
   BailWorks o = o ≡ nothing
 
-  bailWorks  : ∀ {A} (a : A) i → predTrans (prog₁ a) BailWorks i
+  bailWorks  : ∀ {A} (a : A) i → predTrans (prog₁' a) BailWorks i
   bailWorks  a unit r refl = refl
 
   -- "expanded" version for understanding
-  bailWorks' : ∀ {A} (a : A) i → predTrans (prog₁ a) BailWorks i
+  bailWorks' : ∀ {A} (a : A) i → predTrans (prog₁' a) BailWorks i
   bailWorks' a unit maybeVoid maybeVoid≡nothing
                              -- MaybebindPost (λ x P i → P (just a)) BailWorks           maybeVoid
     with maybeVoid | maybeVoid≡nothing
@@ -238,11 +247,11 @@ module MaybeExample where
     = refl
 
   -- an easy example using sufficient
-  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁ a) i ≡ nothing)
+  bailWorksSuf  : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁' a) i ≡ nothing)
   bailWorksSuf a i =
-    sufficient (prog₁ a) BailWorks unit (bailWorks a unit)
+    sufficient (prog₁' a) BailWorks unit (bailWorks a unit)
 
   -- alternate version, showing that it's trivial in this case
-  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁ a) i ≡ nothing)
+  bailWorksSuf' : ∀ {A : Set} (a : A) i → (runMaybeAST (prog₁' a) i ≡ nothing)
   bailWorksSuf' a i = refl
 
