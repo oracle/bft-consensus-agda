@@ -18,10 +18,6 @@ module Example1 (A : Set) where
   open        ASTPredTrans     RWSPT
   open        RWSSyntax
 
-  sucn≡n+1 : ∀ (n : Nat) -> suc n ≡ n + 1
-  sucn≡n+1  zero   = refl
-  sucn≡n+1 (suc n) = cong suc (sucn≡n+1 n)
-
   prog : RWS (List A)
   prog = do
     ev  <- ask
@@ -34,15 +30,14 @@ module Example1 (A : Set) where
     return (ev ∷ st')
 
   ProgPost : (A × List A) -> (List A × List A × List A) -> Set
-  ProgPost (_ , si) (a , so , w) = length  a ≡ length so + 1
-                                 × length so ≡ length si + 1
+  ProgPost (_ , si) (a , so , w) = length  a ≡ 1 + length so
+                                 × length so ≡ 1 + length si
                                  × length  w ≡ 3
 
   progPost : ∀ i -> ProgPost i (runRWS prog i)
   progPost (e , s) with runRWS prog (e , s)
   ... | (a , st , wr)
-    rewrite sucn≡n+1 (length s)
-    = refl , refl , refl
+      = refl , refl , refl
 
   -- Proving this WP is straightforward compared to sum types (e.g., Maybe, Either).
   -- When proving sum types, it is necessary to break the proof obligations down into cases.
@@ -50,7 +45,7 @@ module Example1 (A : Set) where
   -- established by the RWS bind definition is used.
   progPostWP : ∀ i -> predTrans prog (ProgPost i) i
   progPostWP (c , si) _ _ _ _ _ _ _ _ _ _ r₅ r₅≡1∷si _ _
-    rewrite r₅≡1∷si | sucn≡n+1 (length si)
+    rewrite r₅≡1∷si
     = refl , refl , refl
 
   -- C-c C-n
