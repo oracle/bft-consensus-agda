@@ -22,13 +22,13 @@ module RWSBase where
   open import Dijkstra.AST.Core
 
   data RWSCmd (A : Set) : Set₁ where
-    RWSgets   : (g : St → A)                 → RWSCmd A
-    RWSputs   : (p : St → St) → (A ≡ Unit)   → RWSCmd A
-    RWSask    : (A ≡ Ev)                     → RWSCmd A
-    RWSlocal  : (l : Ev → Ev)                → RWSCmd A
-    RWStell   : (out : List Wr) → (A ≡ Unit) → RWSCmd A
+    RWSgets   : (g : St → A)                      → RWSCmd A
+    RWSputs   : (p : St → St) → (A ≡ Unit)        → RWSCmd A
+    RWSask    : (A ≡ Ev)                          → RWSCmd A
+    RWSlocal  : (l : Ev → Ev)                     → RWSCmd A
+    RWStell   : (out : List Wr) → (A ≡ Unit)      → RWSCmd A
     RWSlisten : {A' : Set} → (A ≡ (A' × List Wr)) → RWSCmd A
-    RWSpass   :                                RWSCmd A
+    RWSpass   :                                     RWSCmd A
 
 
   RWSSubArg : {A : Set} (c : RWSCmd A) → Set₁
@@ -41,13 +41,13 @@ module RWSBase where
   RWSSubArg  RWSpass             = Level.Lift _ Unit
 
   RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
-  RWSSubRet{_} {RWSgets g} _ = Void
-  RWSSubRet{_} {RWSputs p x} _ = Void
-  RWSSubRet{_} {RWSask x} _ = Void
-  RWSSubRet{A} {RWSlocal l} _ = A
-  RWSSubRet{_} {RWStell out x} _ = Void
+  RWSSubRet {_}              {RWSgets g} _          = Void
+  RWSSubRet {_}              {RWSputs p x} _        = Void
+  RWSSubRet {_}              {RWSask x} _           = Void
+  RWSSubRet {A}              {RWSlocal l} _         = A
+  RWSSubRet {_}              {RWStell out x} _      = Void
   RWSSubRet {.(_ × List Wr)} {RWSlisten{A'} refl} _ = A'
-  RWSSubRet{A} {RWSpass} _ = A × (List Wr → List Wr)
+  RWSSubRet {A}              {RWSpass} _            = A × (List Wr → List Wr)
 
   RWSOps : ASTOps
   ASTOps.Cmd RWSOps     = RWSCmd
@@ -68,20 +68,20 @@ module RWSBase where
     let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem m (ev , st₀)
         (x₂ , st₂ , outs₂) = ASTOpSem.runAST RWSOpSem (f x₁) (ev , st₁)
     in (x₂ , st₂ , outs₁ ++ outs₂)
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSgets g) f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop (RWSgets g)        f) (ev , st) =
     g st , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSputs p refl) f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop (RWSputs p refl)   f) (ev , st) =
     unit , p st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSask refl) f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop (RWSask refl)      f) (ev , st) =
     ev , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlocal l) f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop (RWSlocal l)       f) (ev , st) =
     ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (l ev , st)
   ASTOpSem.runAST RWSOpSem (ASTop (RWStell out refl) f) (ev , st) =
     unit , st , out
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlisten refl) f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop (RWSlisten refl)   f) (ev , st) =
     let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (ev , st)
     in (x₁ , outs₁) , st₁ , outs₁
-  ASTOpSem.runAST RWSOpSem (ASTop RWSpass f) (ev , st) =
+  ASTOpSem.runAST RWSOpSem (ASTop RWSpass            f) (ev , st) =
     let ((x₁ , wf) , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (ev , st)
     in x₁ , st₁ , wf outs₁
 
