@@ -85,7 +85,7 @@ module RWSBase where
     let ((x₁ , wf) , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (ev , st)
     in x₁ , st₁ , wf outs₁
 
-  runRWS = ASTOpSem.runAST RWSOpSem
+  runRWSBase = ASTOpSem.runAST RWSOpSem
 
   RWSbindPost : (outs : List Wr) {A : Set} → Post A → Post A
   RWSbindPost outs P (x , st , outs') = P (x , st , outs ++ outs')
@@ -115,6 +115,27 @@ module RWSBase where
     f (Level.lift unit) (RWSlistenPost P) (ev , st)
   ASTPredTrans.opPT RWSPT{A} RWSpass f P (ev , st) =
     f (Level.lift unit) (RWSpassPost P) (ev , st)
+
+  open ASTPredTrans RWSPT
+  open ASTPTWeakest RWSOpSem RWSPT
+
+  predTrans-is-weakest-base : ∀ {ev : Ev}{st : St}{A} → (m : RWSBaseAST A) → Post⇒wp-base {A} m (ev , st)
+  predTrans-is-weakest-base           (ASTreturn _) _ = id
+  predTrans-is-weakest-base {ev} {st} (ASTbind m f) _ Pr
+     with predTrans-is-weakest-base {ev} {st} m
+  ...| rec
+    with runRWSBase m (ev , st)
+  ... | r , st' , wr = rec _ λ where _ refl → predTrans-is-weakest-base (f r) _ Pr
+  predTrans-is-weakest-base              (ASTop (RWSgets g)                      f) P    = id
+  predTrans-is-weakest-base              (ASTop (RWSputs p refl)                 f) P    = id
+  predTrans-is-weakest-base              (ASTop (RWSask    refl)                 f) P    = id
+  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlocal l)                     f) P Pr =
+    λ where _ refl → predTrans-is-weakest-base {l ev} {st} (f (Level.lift unit)) _ Pr
+  predTrans-is-weakest-base              (ASTop (RWStell out refl)               f) P    = id
+  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlisten {A'} refl)            f) P Pr =
+    predTrans-is-weakest-base {ev} {st} {A'} (f (Level.lift unit)) _ Pr
+  predTrans-is-weakest-base {ev} {st} {A} (ASTop RWSpass                         f) P Pr =
+    predTrans-is-weakest-base {ev} {st}      (f (Level.lift unit)) _ λ where _ refl → Pr
 
   RWSPTMono : ASTPredTransMono RWSPT
   ASTPredTransMono.returnPTMono RWSPTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
@@ -175,49 +196,13 @@ module RWSAST where
   open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost) public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
-  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf public
+  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf     public
+  open WithPTIWBase predTrans-is-weakest-base                    public
 
   RWSAST    = ExtAST
 
   runRWSAST = runAST
 
-  -- This property says that predTrans really is the *weakest* precondition for a
-  -- postcondition to hold after running a MaybeAST.
-  Post⇒wp : ∀ {A} → RWSAST A → Input → Set₁
-  Post⇒wp {A} m i =
-    (P : Post A)
-    → P (runRWSAST m i)
-    → predTrans m P i
-
-  predTrans-is-weakest : ∀ {A : Set} → (m : RWSAST A) → (inp : Input) → Post⇒wp {A} m inp
-  predTrans-is-weakest     (ASTreturn _) _ _ = id
-  predTrans-is-weakest {A} (ASTbind m f) (ev , st) Pr
-     with predTrans-is-weakest m (ev , st)
-  ...| rec
-     with runRWSAST m (ev , st)
-  ... | rv , st' , wrs = λ x → rec _ λ where r refl → predTrans-is-weakest (f r) (ev , st') _ x
-  predTrans-is-weakest (ASTop (Left (RWSgets g))        f)  _         _ = id
-  predTrans-is-weakest (ASTop (Left (RWSputs p refl))   f) (ev , st) P Pr = Pr
-  predTrans-is-weakest (ASTop (Left (RWSask refl))      f) (ev , st) P Pr = Pr
-  predTrans-is-weakest (ASTop (Left (RWSlocal l))       f) (ev , st) P Pr =
-    λ where ev' refl → predTrans-is-weakest (f (Level.lift unit)) (l ev , st) _ Pr
-  predTrans-is-weakest (ASTop (Left (RWStell out refl)) f) (ev , st) P Pr = Pr
-  predTrans-is-weakest (ASTop (Left (RWSlisten refl))   f) (ev , st) P Pr =
-    predTrans-is-weakest (f (Level.lift unit)) (ev , st) _ Pr
-  predTrans-is-weakest (ASTop (Left RWSpass)            f) (ev , st) P Pr =
-    predTrans-is-weakest (f (Level.lift unit)) (ev , st) _ λ where o' refl → Pr 
-  predTrans-is-weakest (ASTop (Right (BCif b))          f) _ _ Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = (λ where refl → rec _ _ Pr)
-            , λ where refl → rec _ _ Pr
-  predTrans-is-weakest (ASTop (Right (BCeither b))      f) _ _ Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = (λ where l refl → rec _ _ Pr)
-            , λ where r refl → rec _ _ Pr
-  predTrans-is-weakest (ASTop (Right (BCmaybe mb))      f) _ _ Pr
-     with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = (λ where refl → rec _ _ Pr)
-            , λ where j refl → rec _ _ Pr
 
   module RWSSyntax where
     gets : ∀ {A} → (St → A) → RWSAST A
