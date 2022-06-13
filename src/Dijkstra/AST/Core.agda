@@ -110,6 +110,19 @@ record ASTPredTransMono {OP : ASTOps} {Ty : ASTTypes} (PT : ASTPredTrans OP Ty) 
   predTransMono (ASTop c f) P₁ P₂ P₁⊆P₂ i wp =
     opPTMono₁ c (predTrans ∘ f) (predTransMono ∘ f) _ _ P₁⊆P₂ i wp
 
+module ASTPTWeakest
+  {OP : ASTOps} {Ty : ASTTypes}
+  (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) where
+  open ASTTypes     Ty
+  open ASTOpSem     OpSem
+  open ASTPredTrans PT
+
+  Post⇒wp-base : ∀ {A} → AST OP A → Input → Set₁
+  Post⇒wp-base {A} m i =
+    (P : Post A)
+    → P (runAST m i)
+    → predTrans m P i
+
 record ASTSufficientPT
   {OP : ASTOps} {Ty : ASTTypes}
   (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) : Set₁ where

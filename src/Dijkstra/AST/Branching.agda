@@ -251,3 +251,25 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
+
+  Post⇒wp-base : ∀ {A} → AST BaseOps A → Input → Set₁
+  Post⇒wp-base {A} m i =
+        (P : Post A)
+      → P (ASTOpSem.runAST BaseOpSem m i)
+      → ASTPredTrans.predTrans BasePT m P i
+
+  module WithPTIWBase (predTrans-is-weakest-base : ∀ {A i} → (m : AST BaseOps A) → Post⇒wp-base m i) where
+
+    Post⇒wp : ∀ {A} → ExtAST A → Input → Set₁
+    Post⇒wp {A} m i =
+      (P : Post A)
+      → P (runAST m i)
+      → predTrans m P i
+
+    open ASTExtension BaseOps
+    open PredTransExtensionMono BasePTMono
+
+    predTrans-is-weakest : ∀ {A i} → (m : ExtAST A) → Post⇒wp m i
+    predTrans-is-weakest {i = i} m P Pr =
+      extendPT m P i (predTrans-is-weakest-base (unextend m) P Pr)
+

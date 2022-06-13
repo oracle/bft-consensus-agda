@@ -72,6 +72,20 @@ module MaybeBase where
   -- therefore does not refine the goal sufficiently to enable the old λ ._ refl trick to get to the
   -- MaybebindPost goal, for example.
   open ASTPredTrans MaybePT
+  open ASTPTWeakest MaybeOpSem MaybePT
+
+  predTrans-is-weakest-base' : ∀ {A} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m unit
+  predTrans-is-weakest-base' (ASTreturn _) _ = id
+  predTrans-is-weakest-base' (ASTbind m f) _ Pr
+     with predTrans-is-weakest-base' m
+  ...| rec
+    with runMaybeBase m unit
+  ... | nothing = rec _ λ where _ refl → Pr
+  ... | just x  = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
+  predTrans-is-weakest-base' (ASTop Maybe-bail f) Pr = id
+
+  predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m i
+  predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
 
   MaybePTMono : ASTPredTransMono MaybePT
   ASTPredTransMono.returnPTMono MaybePTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
@@ -110,37 +124,11 @@ module MaybeAST where
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
   open        ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
+  open        WithPTIWBase predTrans-is-weakest-base                        public
 
   MaybeAST    = ExtAST
 
   runMaybeAST = runAST
-
-  -- This property says that predTrans really is the *weakest* precondition for a
-  -- postcondition to hold after running a MaybeAST.
-  Post⇒wp : ∀ {A} → MaybeAST A → Input → Set₁
-  Post⇒wp {A} m i =
-    (P : Post A)
-    → P (runMaybeAST m i)
-    → predTrans m P i
-
-  predTrans-is-weakest : ∀ {A} → (m : MaybeAST A) → Post⇒wp {A} m unit
-  predTrans-is-weakest (ASTreturn _) _ = id
-  predTrans-is-weakest (ASTbind m f) _ Pr
-     with predTrans-is-weakest m
-  ...| rec
-    with runMaybeAST m unit
-  ... | nothing = rec _ λ where _ refl → Pr
-  ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
-  predTrans-is-weakest (ASTop (Left Maybe-bail) f)    Pr = id
-  predTrans-is-weakest (ASTop (Right (BCif b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where   refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCeither b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where r refl → rec Pr x) , (λ where r refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCmaybe mb)) f) Pr
-     with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
   -- TODO: do versions for Either and RWS; generically?
   maybePTApp
