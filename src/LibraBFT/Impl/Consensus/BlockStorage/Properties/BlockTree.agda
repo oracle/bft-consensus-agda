@@ -4,8 +4,6 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Dijkstra.AST.Branching
-open import Dijkstra.AST.Core
 open import LibraBFT.Base.Types
 open import LibraBFT.Concrete.Records using (BlockId-correct)
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
@@ -26,8 +24,6 @@ open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
 
-open import Dijkstra.AST.Either ErrLog
-
 open QCProps
 open Invariants
 
@@ -46,11 +42,13 @@ module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
   Contract (Left _) = ⊤
   Contract (Right lb') = ContractOk lb'
 
-  postulate -- TODO: prove after implementing addChild
-    contract'-AST : ASTPredTrans.predTrans EitherPT addChild-AST Contract unit
+  open import Dijkstra.AST.Either ErrLog
 
-  contract-AST : Contract (runEither addChild-AST unit)
-  contract-AST = ASTSufficientPT.sufficient EitherSuf addChild-AST Contract unit contract'-AST
+  postulate -- TODO: prove after implementing addChild
+    contract'-AST : predTrans addChild-AST Contract unit
+
+  contract-AST : Contract (runAST addChild-AST unit)
+  contract-AST = sufficient addChild-AST Contract unit contract'-AST
 
 
 module insertBlockESpec
@@ -104,10 +102,11 @@ module insertBlockESpec
   contract-E : Contract (insertBlockE.E eb0 bt)
   contract-E = EitherD-contract (step₀ eb0 bt) Contract contract'
 
+  open import Dijkstra.AST.Either ErrLog
   open insertBlockE-AST eb0 bt
   open addChild
 
-  contract'-AST : ASTPredTrans.predTrans EitherPT insertBlockE-AST Contract unit
+  contract'-AST : predTrans insertBlockE-AST Contract unit
   contract'-AST
      with  btGetBlock (eb0 ^∙ ebId)  bt | inspect
           (btGetBlock (eb0 ^∙ ebId)) bt
@@ -120,13 +119,13 @@ module insertBlockESpec
          (btGetLinkableBlock (eb0 ^∙ ebParentId)) bt
   ... | nothing | _ = tt
   ... | just parentBlock | [ R' ] =
-          ASTPredTransMono.predTransMono EitherPTMono
+          predTransMono
             (addChild-AST parentBlock (eb0 ^∙ ebId))
             (addChildSpec.Contract parentBlock (eb0 ^∙ ebId))
             _
             Contract⊆
             unit
-            (addChildSpec.contract'-AST  parentBlock (eb0 ^∙ ebId))
+            (addChildSpec.contract'-AST parentBlock (eb0 ^∙ ebId))
 
          where
            btInsert : BlockTree → HashValue → LinkableBlock → BlockTree
@@ -179,8 +178,8 @@ module insertBlockESpec
                       biv : AllValidBlocks bt → _
                       biv avb = biv' avb (sym (cong (_^∙ ebBlock) (addChildSpec.ContractOk.presLB addChildCon)))
 
-  contract-AST : Contract (runEither insertBlockE-AST unit)
-  contract-AST = ASTSufficientPT.sufficient EitherSuf insertBlockE-AST Contract unit contract'-AST
+  contract-AST : Contract (runAST insertBlockE-AST unit)
+  contract-AST = sufficient insertBlockE-AST Contract unit contract'-AST
 
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
@@ -257,6 +256,7 @@ module insertQuorumCertESpec
 module insertQuorumCertE-ASTSpec
   (qc : QuorumCert) (bt0  : BlockTree) where
   open insertQuorumCertE-AST qc bt0
+  open import Dijkstra.AST.Either ErrLog
 
   -- The following definitions are the same as for the EitherD version above
   record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
@@ -280,7 +280,7 @@ module insertQuorumCertE-ASTSpec
   -- easier to discover the proof obligations.  Note that the code for insertQuorumCertE-AST is not
   -- broken explicitly into steps because we don't need to write the types of the individual proofs
   -- because the framework presents them to us.
-  contract-AST : ASTPredTrans.predTrans EitherPTExt insertQuorumCertE-AST Contract unit
+  contract-AST : predTrans insertQuorumCertE-AST Contract unit
   contract-AST with safetyInvariant
   --  The Left/bail cases are easy, as Contract simply requires ⊤ in this case.
   ... | Left _ = tt

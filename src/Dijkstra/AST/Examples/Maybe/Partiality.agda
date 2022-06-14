@@ -11,22 +11,17 @@ open import Data.Nat.DivMod
 open import Data.Product      using (∃ ; ∃-syntax ; _×_)
 open import Function.Base     using (case_of_)
 import      Level
-open import Util.Prelude      using (Maybe ; just ; nothing ; unit ; _>>=_ ; absurd_case_of_)
-open import Dijkstra.AST.Core
-open import Dijkstra.AST.Maybe
+open import Util.Prelude      using (Maybe ; just ; nothing ; return ; unit ; _>>=_ ; absurd_case_of_)
 open import Relation.Binary.PropositionalEquality
 
 module Dijkstra.AST.Examples.Maybe.Partiality where
+open import Dijkstra.AST.Maybe
 
 {- Examples corresponding to
    "A predicate transformer semantics for effects"
    https://webspace.science.uu.nl/~swier004/publications/2019-icfp-submission-a.pdf
    https://zenodo.org/record/3257707#.Yec-nxPMJqt
 -}
-
-open ASTTypes MaybeTypes
-open ASTPredTrans MaybePT
-open Syntax
 
 Partial : {A : Set} → (P : A → Set) → Maybe A → Set
 Partial _ nothing  = ⊥
@@ -46,19 +41,22 @@ data _⇓_ : Expr -> Nat -> Set where
 
 _÷_ : Nat -> Nat -> MaybeAST Nat
 n ÷ Zero     = bail
-n ÷ (Succ k) = ASTreturn (n div (Succ k))
-
--- ⟦_⟧ : Expr -> MaybeAST Nat
--- ⟦ Val x ⟧     = return x
--- ⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
---                 ⟦ e2 ⟧ >>= \v2 ->
---                 v1 ÷ v2
+n ÷ (Succ k) = return (n div (Succ k))
 
 ⟦_⟧ : Expr -> MaybeAST Nat
-⟦ Val x ⟧     = ASTreturn x
-⟦ Div e1 e2 ⟧ = ASTbind (⟦ e1 ⟧) (\v1 ->
-                ASTbind (⟦ e2 ⟧) (\v2 ->
-                 (v1 ÷ v2)))
+⟦ Val x ⟧     = return x
+⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
+                ⟦ e2 ⟧ >>= \v2 ->
+                v1 ÷ v2
+
+module _ where
+  -- Here is the equivalent expressed using the Core AST defintion
+  open import Dijkstra.AST.Core
+  ⟦_⟧' : Expr -> MaybeAST Nat
+  ⟦ Val x ⟧'     = ASTreturn x
+  ⟦ Div e1 e2 ⟧' = ASTbind (⟦ e1 ⟧') (\v1 ->
+                   ASTbind (⟦ e2 ⟧') (\v2 ->
+                    (v1 ÷ v2)))
 
 wpPartial
   : {A : Set} {B : A → Set} (f : (x : A) → MaybeAST (B x))
@@ -101,10 +99,10 @@ PN e = Partial (e ⇓_)
 --           because Agda figures it out from the goal.
 -- TODO-1: show steps needed in order to get Agda to infer types indicated by '_'
 --         in the type signatures of PN⊆₁ and PN⊆₂
-correct : ∀ (e : Expr) i → SafeDiv e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+correct : ∀ (e : Expr) i → SafeDiv e → predTrans (⟦ e ⟧) (PN e) i
 correct (Val _)        _                   _   = ⇓Base
 correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
-  ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+  predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
   ih₁ = correct e₁ unit sd₁
   ih₂ = correct e₂ unit sd₂
@@ -117,7 +115,7 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
   PN⊆₁ : PN e₁ ⊆ₒ _
   PN⊆₁       _    ()   nothing refl
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+    predTransMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
 
 Dom : {A : Set} {B : A → Set}
       → ((x : A) → MaybeAST (B x)) → A → Set
@@ -128,7 +126,7 @@ DomDiv : ∀ {e₁ e₂}
          → Dom ⟦_⟧ e₁
            ∧ wpPartial ⟦_⟧ (λ _ → _> 0) e₂
 Pair.fst (DomDiv {e₁} dom) =
-  maybePTMono ⟦ e₁ ⟧ _ _ ⊆Partial unit dom
+  predTransMono ⟦ e₁ ⟧ _ _ ⊆Partial unit dom
  where
   ⊆Partial : _ ⊆ₒ Partial (λ _ → ⊤)
   ⊆Partial nothing  wp = wp _ refl
@@ -136,7 +134,7 @@ Pair.fst (DomDiv {e₁} dom) =
 Pair.snd (DomDiv {e₁} {e₂} dom) =
   maybeSuffBind {Q = λ _ → _} ⟦ e₁ ⟧
     (λ m → ⟦ e₂ ⟧ >>= λ n → m ÷ n) dom (λ ())
-    λ m wp → maybePTMono ⟦ e₂ ⟧ _ _ (⊆Partial m) unit wp
+    λ m wp → predTransMono ⟦ e₂ ⟧ _ _ (⊆Partial m) unit wp
    where
     ⊆Partial : ∀ m → _ ⊆ₒ Partial (_> 0)
     ⊆Partial _  nothing        wp = wp _ refl
@@ -146,11 +144,11 @@ Pair.snd (DomDiv {e₁} {e₂} dom) =
 sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → predTrans ⟦ e ⟧ (PN e) i
 sound (Val x) unit dom = ⇓Base
 sound (Div e₁ e₂) unit dom =
-  maybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+  predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
   ih₁ = sound e₁ unit (Pair.fst (DomDiv {e₁} {e₂} dom))
   ih₂ = sound e₂ unit
-          (maybePTMono ⟦ e₂ ⟧ _ _ (λ { nothing () ; (just _) _ → tt}) unit
+          (predTransMono ⟦ e₂ ⟧ _ _ (λ { nothing () ; (just _) _ → tt}) unit
             (Pair.snd (DomDiv {e₁} {e₂} dom)))
 
   PN⊆₂ : ∀ n → e₁ ⇓ n → Partial (λ n → e₂ ⇓ n ∧ (n > 0)) ⊆ₒ _
@@ -159,9 +157,9 @@ sound (Div e₁ e₂) unit dom =
 
   PN⊆₁ : PN e₁ ⊆ₒ _
   PN⊆₁ (just m) e₁⇓m ._ refl =
-    maybePTMono ⟦ e₂ ⟧ _ _ (PN⊆₂ m e₁⇓m) unit
+    predTransMono ⟦ e₂ ⟧ _ _ (PN⊆₂ m e₁⇓m) unit
       (maybePTApp ⟦ e₂ ⟧ unit
-        (maybePTMono ⟦ e₂ ⟧ _ _
+        (predTransMono ⟦ e₂ ⟧ _ _
           (λ where
             (just x) wp₁ wp₂ → wp₂ , wp₁)
           unit ((Pair.snd (DomDiv {e₁} {e₂} dom))))
@@ -189,10 +187,10 @@ Dom' : (Expr -> MaybeAST Nat) -> Expr -> Set
 Dom' f a@(Val _)     =  dom' f a
 Dom' f a@(Div el er) = (dom' f a) ∧ Dom' f el ∧ Dom' f er
 
-sound' : ∀ (e : Expr) i → Dom' ⟦_⟧ e → ASTPredTrans.predTrans MaybePT (⟦ e ⟧) (PN e) i
+sound' : ∀ (e : Expr) i → Dom' ⟦_⟧ e → predTrans (⟦ e ⟧) (PN e) i
 sound' (Val _)        _                  _   = ⇓Base
 sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
-  ASTPredTransMono.predTransMono MaybePTMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
+  predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
   ih₁ = sound' e₁ unit de₁
   ih₂ = sound' e₂ unit de₂
@@ -202,7 +200,7 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
   PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
     with   runMaybeAST ⟦ e₁ ⟧ unit
          | runMaybeAST ⟦ e₂ ⟧ unit | inspect (runMaybeAST ⟦ e₂ ⟧) unit
-         | ASTSufficientPT.sufficient MaybeSuf ⟦ e₂ ⟧ _ unit ih₂
+         | sufficient ⟦ e₂ ⟧ _ unit ih₂
   ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just (Succ _) |      _  | e₂⇓Succ             =
@@ -210,4 +208,5 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
 
   PN⊆₁ : PN e₁ ⊆ₒ _
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
-    ASTPredTransMono.predTransMono MaybePTMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+    predTransMono  ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+
