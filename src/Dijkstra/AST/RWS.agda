@@ -117,40 +117,20 @@ module RWSBase where
     f (Level.lift unit) (RWSpassPost P) (ev , st)
 
   RWSPTMono : ASTPredTransMono RWSPT
-  ASTPredTransMono.returnPTMono RWSPTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
-    P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.bindPTMono₁ RWSPTMono f monoF (ev , st) P₁ P₂ P₁⊆ₒP₂ (x₁ , st₁ , outs₁) wp .x₁ refl =
-    monoF _ _ _ (λ o' pf' → P₁⊆ₒP₂ _ pf') (ev , st₁) (wp _ refl)
-  ASTPredTransMono.bindPTMono₂ RWSPTMono f₁ f₂ f₁⊑f₂ (ev , st) P (x₁ , st₁ , outs₁) wp .x₁ refl =
-    f₁⊑f₂ x₁ (RWSbindPost outs₁ P) (ev , st₁) (wp x₁ refl)
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWSgets g) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWSputs p refl) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWSask refl) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWSlocal l) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp .(l ev) refl =
-    monoF (Level.lift unit) _ _ P₁⊆ₒP₂ (l ev , st) (wp _ refl)
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWStell out refl) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.opPTMono₁ RWSPTMono (RWSlisten refl) f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    monoF (Level.lift unit) _ _ (λ where (x' , st' , o') → P₁⊆ₒP₂ _) (ev , st) wp
-  ASTPredTransMono.opPTMono₁ RWSPTMono RWSpass f monoF P₁ P₂ P₁⊆ₒP₂ (ev , st) wp =
-    monoF (Level.lift unit) _ _ (λ where ((x' , w') , st' , o') pf₁ ._ refl → P₁⊆ₒP₂ _ (pf₁ _ refl)) (ev , st) wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWSgets g) f₁ f₂ f₁⊑f₂ P i wp =
-    wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWSputs p refl) f₁ f₂ f₁⊑f₂ P i wp =
-    wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWSask refl) f₁ f₂ f₁⊑f₂ P i wp =
-    wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWSlocal l) f₁ f₂ f₁⊑f₂ P (ev , st) wp .(l ev) refl =
-    f₁⊑f₂ (Level.lift unit) _ _ (wp _ refl)
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWStell out refl) f₁ f₂ f₁⊑f₂ P i wp =
-    wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono (RWSlisten refl) f₁ f₂ f₁⊑f₂ P i wp =
-    f₁⊑f₂ (Level.lift unit) _ _ wp
-  ASTPredTransMono.opPTMono₂ RWSPTMono RWSpass f₁ f₂ f₁⊑f₂ P i wp =
-    f₁⊑f₂ _ _ _ wp
+  ASTPredTransMono.returnPTMono RWSPTMono x Post₁ Post₂ P₁⊆P₂ i wp =
+    P₁⊆P₂ _ wp
+  ASTPredTransMono.bindPTMono RWSPTMono f₁ f₂ mono₁ mono₂ f₁⊑f₂ (ev , st) P₁ P₂ P₁⊆P₂ (x₁ , st₁ , outs₁) wp r refl =
+    f₁⊑f₂ x₁ _ (ev , st₁) (mono₁ x₁ _ _ (λ o' → P₁⊆P₂ _) (ev , st₁) (wp _ refl))
+  ASTPredTransMono.opPTMono RWSPTMono (RWSgets g) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp = P₁⊆P₂ _ wp
+  ASTPredTransMono.opPTMono RWSPTMono (RWSputs p refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp = P₁⊆P₂ _ wp
+  ASTPredTransMono.opPTMono RWSPTMono (RWSask refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp = P₁⊆P₂ _ wp
+  ASTPredTransMono.opPTMono RWSPTMono (RWSlocal l) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp ev' refl =
+    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ P₁⊆P₂ _ (wp _ refl))
+  ASTPredTransMono.opPTMono RWSPTMono (RWStell out refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp = P₁⊆P₂ _ wp
+  ASTPredTransMono.opPTMono RWSPTMono (RWSlisten refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp =
+    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ (λ where (x' , st' , o') → P₁⊆P₂ _) _ wp)
+  ASTPredTransMono.opPTMono RWSPTMono RWSpass f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ (ev , st) P₁⊆P₂ wp =
+    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ (λ where ((x' , w') , st' , o') pf₁ _ refl → P₁⊆P₂ _ (pf₁ _ refl)) _ wp)
 
   RWSSuf : ASTSufficientPT RWSOpSem RWSPT
   ASTSufficientPT.returnSuf RWSSuf x P i wp = wp
@@ -274,4 +254,3 @@ module RWSExample where
 
   twoOuts : ∀ f i → TwoOuts (runRWSAST (prog₁ f) i)
   twoOuts f i = sufficient (prog₁ f) TwoOuts i (wpTwoOuts f i)
-
