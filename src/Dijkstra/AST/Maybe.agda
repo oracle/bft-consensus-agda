@@ -68,11 +68,12 @@ module MaybeBase where
   -- bindPT.
   ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
   ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
+
   -- This open is important because, without it, Agda does not know how to interpret bindPT and
   -- therefore does not refine the goal sufficiently to enable the old λ ._ refl trick to get to the
   -- MaybebindPost goal, for example.
-  open ASTPredTrans MaybePT
-  open ASTPTWeakest MaybeOpSem MaybePT
+  open ASTPredTrans  MaybePT
+  open ASTPTIWeakest MaybeOpSem MaybePT
 
   predTrans-is-weakest-base' : ∀ {A} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m unit
   predTrans-is-weakest-base' (ASTreturn _) _ = id

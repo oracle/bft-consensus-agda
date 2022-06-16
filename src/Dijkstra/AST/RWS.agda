@@ -116,8 +116,8 @@ module RWSBase where
   ASTPredTrans.opPT RWSPT{A} RWSpass f P (ev , st) =
     f (Level.lift unit) (RWSpassPost P) (ev , st)
 
-  open ASTPredTrans RWSPT
-  open ASTPTWeakest RWSOpSem RWSPT
+  open ASTPredTrans  RWSPT
+  open ASTPTIWeakest RWSOpSem RWSPT
 
   predTrans-is-weakest-base : ∀ {ev : Ev}{st : St}{A} → (m : RWSBaseAST A) → Post⇒wp-base {A} m (ev , st)
   predTrans-is-weakest-base           (ASTreturn _) _ = id

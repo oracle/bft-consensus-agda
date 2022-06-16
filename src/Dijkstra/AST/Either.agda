@@ -62,8 +62,9 @@ module EitherBase where
   ASTPredTrans.bindPT EitherPT {A} {B} f i Post x =
     ∀ r → r ≡ x → EitherbindPost f Post r
   ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
-  open ASTPredTrans EitherPT
-  open ASTPTWeakest EitherOpSem EitherPT
+
+  open ASTPredTrans  EitherPT
+  open ASTPTIWeakest EitherOpSem EitherPT
 
   predTrans-is-weakest-base' : ∀ {A} → (m : EitherBaseAST A) → Post⇒wp-base {A} m unit
   predTrans-is-weakest-base' (ASTreturn _) _ = id

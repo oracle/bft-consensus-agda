@@ -106,7 +106,7 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
     opPTMono c (predTrans ∘ f) (predTrans ∘ f) (predTransMono ∘ f) (predTransMono ∘ f)
       (λ _ _ _ x → x) _ _ i P₁⊆P₂ p
 
-module ASTPTWeakest
+module ASTPTIWeakest
   {OP : ASTOps} {Ty : ASTTypes}
   (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) where
   open ASTTypes     Ty
