@@ -64,27 +64,21 @@ module EitherBase where
   ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
   open ASTPredTrans EitherPT
 
+  ------------------------------------------------------------------------------
   EitherPTMono : ASTPredTransMono EitherPT
-  ASTPredTransMono.returnPTMono EitherPTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
-     P₁⊆ₒP₂ _ wp
 
-  ASTPredTransMono.bindPTMono₁ EitherPTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ (Left x ) wp .(Left x ) refl =
+  ASTPredTransMono.returnPTMono EitherPTMono                 x                            _  _       P₁⊆ₒP₂ _         wp =
+    P₁⊆ₒP₂ _ wp
+  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
     P₁⊆ₒP₂ (Left x) (wp (Left x) refl)
-  ASTPredTransMono.bindPTMono₁ EitherPTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
-    monoF y P₁ P₂ P₁⊆ₒP₂ unit (wp (Right y) refl)
-
-  ASTPredTransMono.bindPTMono₂ EitherPTMono {B1} {B2} f₁ f₂ f₁⊑f₂ unit P (Left x)  wp .(Left x) refl =
-    wp (Left x) refl
-  ASTPredTransMono.bindPTMono₂ EitherPTMono f₁ f₂ f₁⊑f₂ unit P (Right y) wp .(Right y) refl =
-    f₁⊑f₂ y _ unit (wp (Right y) refl)
-
-  ASTPredTransMono.opPTMono₁ EitherPTMono (Either-bail x) f monoF P₁ P₂ P₁⊆ₒP₂ unit wp =
+  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
+    mono₂ y P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ y P₁ unit (wp (Right y) refl))
+  ASTPredTransMono.opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
     P₁⊆ₒP₂ (Left x) wp
 
-  ASTPredTransMono.opPTMono₂ EitherPTMono (Either-bail x) f₁ f₂ f₁⊑f₂ P i wp =
-    wp
-
+  ------------------------------------------------------------------------------
   EitherSuf : ASTSufficientPT EitherOpSem EitherPT
+
   ASTSufficientPT.returnSuf EitherSuf x P i wp = wp
   ASTSufficientPT.bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
      with  runEitherBase m  unit  | inspect

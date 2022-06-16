@@ -73,29 +73,24 @@ module MaybeBase where
   -- MaybebindPost goal, for example.
   open ASTPredTrans MaybePT
 
+  ------------------------------------------------------------------------------
   MaybePTMono : ASTPredTransMono MaybePT
-  ASTPredTransMono.returnPTMono MaybePTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
+
+  ASTPredTransMono.returnPTMono MaybePTMono            x                            P₁ P₂      P₁⊆ₒP₂ unit     wp =
     P₁⊆ₒP₂ _ wp
-
-  ASTPredTransMono.bindPTMono₁  MaybePTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ nothing  wp .nothing  refl =
+  ASTPredTransMono.bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ nothing  wp .nothing  refl =
     P₁⊆ₒP₂ nothing (wp nothing refl)
-  ASTPredTransMono.bindPTMono₁  MaybePTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ (just y) wp .(just y) refl =
-    monoF y P₁ P₂ P₁⊆ₒP₂ unit (wp (just y) refl)
-
-  ASTPredTransMono.bindPTMono₂  MaybePTMono {B1} {B2} f₁ f₂ f₁⊑f₂ unit P nothing wp .nothing refl =
-    wp nothing refl
-  ASTPredTransMono.bindPTMono₂  MaybePTMono f₁ f₂ f₁⊑f₂ unit P (just y) wp .(just y) refl =
-    f₁⊑f₂ y _ unit (wp (just y) refl)
-
-  ASTPredTransMono.opPTMono₁    MaybePTMono Maybe-bail f monoF P₁ P₂ P₁⊆ₒP₂ unit wp =
+  ASTPredTransMono.bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (just x) wp .(just x) refl =
+    mono₂ x P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ x P₁ unit (wp (just x) refl))
+  ASTPredTransMono.opPTMono     MaybePTMono Maybe-bail f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂          wp =
     P₁⊆ₒP₂ nothing wp
-  ASTPredTransMono.opPTMono₂    MaybePTMono Maybe-bail f₁ f₂ f₁⊑f₂ P i wp =
-    wp
 
-  maybePTMono      = ASTPredTransMono.predTransMono MaybePTMono
-  maybePTMonoBind₂ = ASTPredTransMono.bindPTMono₂   MaybePTMono
+  maybePTMono     = ASTPredTransMono.predTransMono MaybePTMono
+  maybePTMonoBind = ASTPredTransMono.bindPTMono    MaybePTMono
 
+  ------------------------------------------------------------------------------
   MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
+  
   ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
   ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
     with runMaybeBase m unit | inspect (runMaybeBase m) unit
