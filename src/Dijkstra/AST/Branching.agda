@@ -88,26 +88,26 @@ module PredTransExtensionMono
     open ASTPredTransMono M public
 
   BranchPTMono : ASTPredTransMono BranchPT
-  ASTPredTransMono.returnPTMono BranchPTMono = M.returnPTMono
-  ASTPredTransMono.bindPTMono BranchPTMono   = M.bindPTMono
-  ASTPredTransMono.opPTMono BranchPTMono (Left x) = M.opPTMono x
-  proj₁ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCif x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) refl =
-    f₁⊑f₂ (Level.lift true) _ i (mono₁ (Level.lift true) _ _ P₁⊆P₂ i (proj₁ p refl))
-  proj₂ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCif x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) refl =
-    f₁⊑f₂ (Level.lift false) _ i (mono₁ (Level.lift false) _ _ P₁⊆P₂ i (proj₂ p refl))
+  ASTPredTransMono.returnPTMono    BranchPTMono          = M.returnPTMono
+  ASTPredTransMono.bindPTMono      BranchPTMono          = M.bindPTMono
+  ASTPredTransMono.opPTMono        BranchPTMono (Left x) = M.opPTMono x
+  proj₁ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCif x))     f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
+    f₁⊑f₂ (Level.lift true)      _ i (mono₁ (Level.lift true)      _ _ P₁⊆P₂ i (proj₁ p refl))
+  proj₂ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCif x))     f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
+    f₁⊑f₂ (Level.lift false)     _ i (mono₁ (Level.lift false)     _ _ P₁⊆P₂ i (proj₂ p refl))
   proj₁ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCeither x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) l refl =
-    f₁⊑f₂ (Level.lift (Left l)) _ i (mono₁ (Level.lift (Left l)) _ _ P₁⊆P₂ i (proj₁ p l refl))
+    f₁⊑f₂ (Level.lift (Left l))  _ i (mono₁ (Level.lift (Left l))  _ _ P₁⊆P₂ i (proj₁ p l refl))
   proj₂ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCeither x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) r refl =
     f₁⊑f₂ (Level.lift (Right r)) _ i (mono₁ (Level.lift (Right r)) _ _ P₁⊆P₂ i (proj₂ p r refl))
-  proj₁ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCmaybe x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) refl =
-    f₁⊑f₂ (Level.lift nothing) _ i (mono₁ (Level.lift nothing) _ _ P₁⊆P₂ i (proj₁ p refl))
-  proj₂ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCmaybe x)) f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
-    f₁⊑f₂ (Level.lift (just j)) _ i (mono₁ (Level.lift (just j)) _ _ P₁⊆P₂ i (proj₂ p j refl))
+  proj₁ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCmaybe x))  f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
+    f₁⊑f₂ (Level.lift nothing)   _ i (mono₁ (Level.lift nothing)   _ _ P₁⊆P₂ i (proj₁ p refl))
+  proj₂ (ASTPredTransMono.opPTMono BranchPTMono (Right (BCmaybe x))  f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
+    f₁⊑f₂ (Level.lift (just j))  _ i (mono₁ (Level.lift (just j))  _ _ P₁⊆P₂ i (proj₂ p j refl))
 
   unextendPT : ∀ {A} (m : AST BranchOps A)
                → ASTPredTrans.predTrans BranchPT m ⊑ ASTPredTrans.predTrans PT (unextend m)
-  unextendPT (ASTreturn x) P i wp = wp
-  unextendPT (ASTbind m f) P i wp =
+  unextendPT (ASTreturn x)                              P i wp = wp
+  unextendPT (ASTbind m f)                              P i wp =
     ASTPredTransMono.predTransMono M (unextend m) _ _ 
       (M.bindPTMono _ _
         (ASTPredTransMono.predTransMono BranchPTMono ∘ f) (M.predTransMono ∘ unextend ∘ f)
@@ -119,17 +119,17 @@ module PredTransExtensionMono
       (ASTPredTransMono.predTransMono BranchPTMono ∘ f)
       (M.predTransMono ∘ unextend ∘ f)
       (unextendPT ∘ f) _ _ i (λ _ x → x) wp
-  unextendPT (ASTop (Right (BCif false)) f) P i wp =
+  unextendPT (ASTop (Right (BCif false)) f)             P i wp =
     unextendPT (f (Level.lift false)) P i (proj₂ wp refl)
-  unextendPT (ASTop (Right (BCif true)) f) P i wp =
+  unextendPT (ASTop (Right (BCif true))          f)     P i wp =
     unextendPT (f (Level.lift true)) _ _ (proj₁ wp refl)
-  unextendPT (ASTop (Right (BCeither (Left x))) f) P i wp =
+  unextendPT (ASTop (Right (BCeither (Left x)))  f)     P i wp =
     unextendPT (f (Level.lift (Left x))) _ _ (proj₁ wp _ refl)
-  unextendPT (ASTop (Right (BCeither (Right y))) f) P i wp =
+  unextendPT (ASTop (Right (BCeither (Right y))) f)     P i wp =
     unextendPT (f (Level.lift (Right y))) _ _ (proj₂ wp _ refl)
-  unextendPT (ASTop (Right (BCmaybe nothing)) f) P i wp =
+  unextendPT (ASTop (Right (BCmaybe nothing))    f)     P i wp =
     unextendPT (f (Level.lift nothing)) _ _ (proj₁ wp refl)
-  unextendPT (ASTop (Right (BCmaybe (just j))) f) P i wp =
+  unextendPT (ASTop (Right (BCmaybe (just j)))   f)     P i wp =
     unextendPT (f (Level.lift (just j))) _ _ (proj₂ wp _ refl)
 
   extendPT : ∀ {A} (m : AST BranchOps A)
@@ -148,15 +148,15 @@ module PredTransExtensionMono
       _ _ i (λ _ x → x) wp
   proj₁ (extendPT (ASTop (Right (BCif x)) f) P i wp) refl =
     extendPT (f (Level.lift true)) _ _ wp
-  proj₂ (extendPT (ASTop (Right (BCif x)) f) P i wp) refl =
+  proj₂ (extendPT (ASTop (Right (BCif x))     f) P i wp)   refl =
     extendPT (f (Level.lift false)) _ _ wp
   proj₁ (extendPT (ASTop (Right (BCeither x)) f) P i wp) l refl =
     extendPT (f (Level.lift (Left l))) _ _ wp
   proj₂ (extendPT (ASTop (Right (BCeither x)) f) P i wp) r refl =
     extendPT (f (Level.lift (Right r))) _ _ wp
-  proj₁ (extendPT (ASTop (Right (BCmaybe x)) f) P i wp) refl =
+  proj₁ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp)   refl =
     extendPT (f (Level.lift nothing)) _ _ wp
-  proj₂ (extendPT (ASTop (Right (BCmaybe x)) f) P i wp) j refl =
+  proj₂ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp) j refl =
     extendPT (f (Level.lift (just j))) _ _ wp
 
 module SufficientExtension
@@ -251,3 +251,24 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
+
+  open ASTPTIWeakest BaseOpSem BasePT
+
+  module WithPTIWBase (predTrans-is-weakest-base : ∀ {A i} → (m : AST BaseOps A) → Post⇒wp-base m i) where
+
+    Post⇒wp : ∀ {A} → ExtAST A → Input → Set₁
+    Post⇒wp {A} m i =
+      (P : Post A)
+      → P (runAST m i)
+      → predTrans m P i
+
+    open ASTExtension BaseOps
+    open PredTransExtensionMono BasePTMono
+
+    -- We use unextend to get an equivalent AST without branching operations, use the provided proof
+    -- that predTrans is weakest for the underlying AST, and then use extendPT to extend that
+    -- property to the AST with branching operatiions.
+    predTrans-is-weakest : ∀ {A i} → (m : ExtAST A) → Post⇒wp m i
+    predTrans-is-weakest {i = i} m P Pr =
+      extendPT m P i (predTrans-is-weakest-base (unextend m) P Pr)
+
