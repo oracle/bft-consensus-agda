@@ -180,8 +180,7 @@ module RWSBase where
     in fSuf (Level.lift unit) (RWSpassPost P) i wp (g o₁) refl
 
 module RWSAST where
-  open RWSBase
-  open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost) public
+  open RWSBase                                                   public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
   open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf     public
