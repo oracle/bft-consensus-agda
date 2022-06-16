@@ -74,7 +74,7 @@ module EitherBase where
     with runEitherBase m unit
   ... | Left  x = rec _ λ where _ refl → Pr
   ... | Right x = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
-  predTrans-is-weakest-base' (ASTop (Either-bail e) f) Pr = id
+  predTrans-is-weakest-base' (ASTop (Either-bail _) _) _ = id
 
   predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : EitherBaseAST A) → Post⇒wp-base {A} m i
   predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
@@ -82,7 +82,7 @@ module EitherBase where
   ------------------------------------------------------------------------------
   EitherPTMono : ASTPredTransMono EitherPT
 
-  ASTPredTransMono.returnPTMono EitherPTMono                 x                            _  _       P₁⊆ₒP₂ _         wp =
+  ASTPredTransMono.returnPTMono EitherPTMono                 _                            _  _       P₁⊆ₒP₂ _         wp =
     P₁⊆ₒP₂ _ wp
   ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
     P₁⊆ₒP₂ (Left x) (wp (Left x) refl)
