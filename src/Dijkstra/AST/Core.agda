@@ -35,8 +35,8 @@ record ASTTypes : Set₁ where
     Input  : Set
     Output : (A : Set) → Set
 
-  M : Set → Set
-  M A = (i : Input) → Output A
+  Exec : Set → Set
+  Exec A = (i : Input) → Output A
 
   Pre : Set₁
   Pre = (i : Input) → Set
@@ -63,7 +63,7 @@ record ASTOpSem (OP : ASTOps) (Ty : ASTTypes) : Set₁ where
   constructor mkASTOpSem
   open ASTTypes Ty
   field
-    runAST : ∀ {A} → (m : AST OP A) → M A
+    runAST : ∀ {A} → (m : AST OP A) → Exec A
 
 record ASTPredTrans (OP : ASTOps) (Ty : ASTTypes) : Set₂ where
   constructor mkASTPredTrans
@@ -82,33 +82,29 @@ record ASTPredTrans (OP : ASTOps) (Ty : ASTTypes) : Set₂ where
   predTrans (ASTop c f) P i =
     opPT c (predTrans ∘ f) P i
 
-record ASTPredTransMono {OP : ASTOps} {Ty : ASTTypes} (PT : ASTPredTrans OP Ty) : Set₂ where
+record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
   open ASTTypes Ty
   open ASTPredTrans PT
   field
-    returnPTMono : ∀ {A} → (x : A) → MonoPredTrans (returnPT x)
-    bindPTMono₁  : ∀ {A B} → (f : A → PredTrans B)
-                   → (∀ x → MonoPredTrans (f x))
-                   → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f i P₁ ⊆ₒ bindPT f i P₂
-    bindPTMono₂  : ∀ {A B} → (f₁ f₂ : A → PredTrans B)
-                   → (f₁⊑f₂ : ∀ x → f₁ x ⊑ f₂ x)
-                   → ∀ i P → bindPT f₁ i  P ⊆ₒ bindPT f₂ i P
-    opPTMono₁    : ∀ {A} (c : Cmd OP A) (f : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                   → (∀ r → MonoPredTrans (f r))
-                   → ∀ P₁ P₂ → P₁ ⊆ₒ P₂ → opPT c f P₁ ⊆ᵢ opPT c f P₂
-    opPTMono₂    : ∀ {A} (c : Cmd OP A) (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                   → (f₁⊑f₂ : ∀ r → f₁ r ⊑ f₂ r)
-                   → opPT c f₁ ⊑ opPT c f₂
+    returnPTMono :  ∀ {A} → (x : A) → MonoPredTrans (returnPT x)
+    bindPTMono :    ∀ {A B} → (f₁ f₂ : A → PredTrans B)
+                    → (∀ x → MonoPredTrans (f₁ x)) → (∀ x → MonoPredTrans (f₂ x)) → (∀ x → f₁ x ⊑ f₂ x)
+                    → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
+    opPTMono :      ∀ {A} (c : Cmd OP A) (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
+                    → (∀ r → MonoPredTrans (f₁ r)) → (∀ x → MonoPredTrans (f₂ x)) → (∀ r → f₁ r ⊑ f₂ r)
+                    → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
 
-  predTransMono : ∀ {A} (m : AST OP A)
-                  → MonoPredTrans (predTrans m)
-  predTransMono (ASTreturn x) =
-    returnPTMono x
-  predTransMono (ASTbind m f) P₁ P₂ P₁⊆P₂ i x₁ =
-    predTransMono  m _ _
-      (bindPTMono₁ (predTrans ∘ f) (predTransMono ∘ f) i _ _ P₁⊆P₂) i x₁
-  predTransMono (ASTop c f) P₁ P₂ P₁⊆P₂ i wp =
-    opPTMono₁ c (predTrans ∘ f) (predTransMono ∘ f) _ _ P₁⊆P₂ i wp
+  predTransMono : ∀ {A} (m : AST OP A) → MonoPredTrans (predTrans m)
+  predTransMono (ASTreturn x) P₁ P₂ P₁⊆P₂ i p = returnPTMono x _ _ P₁⊆P₂ i p
+  predTransMono (ASTbind m f) P₁ P₂ P₁⊆P₂ i p =
+    predTransMono m _ _
+      (bindPTMono p' p' mono mono (λ _ _ _ x → x) i _ _ P₁⊆P₂) i p
+    where
+    p' = predTrans ∘ f
+    mono = predTransMono ∘ f
+  predTransMono (ASTop c f) P₁ P₂ P₁⊆P₂ i p =
+    opPTMono c (predTrans ∘ f) (predTrans ∘ f) (predTransMono ∘ f) (predTransMono ∘ f)
+      (λ _ _ _ x → x) _ _ i P₁⊆P₂ p
 
 module ASTPTWeakest
   {OP : ASTOps} {Ty : ASTTypes}
