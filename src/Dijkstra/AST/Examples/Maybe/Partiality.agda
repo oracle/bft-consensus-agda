@@ -31,6 +31,7 @@ data Expr : Set where
   Val : Nat  -> Expr
   Div : Expr -> Expr -> Expr
 
+-- big step evaluator
 data _⇓_ : Expr -> Nat -> Set where
   ⇓Base : forall {n}
        -> Val n ⇓ n
@@ -38,6 +39,18 @@ data _⇓_ : Expr -> Nat -> Set where
        ->     el    ⇓       n1
        ->        er ⇓          (Succ n2) -- divisor is non-zero
        -> Div el er ⇓ _div_ n1 (Succ n2)
+
+module _ where
+  _ : Set
+  _ = Partial (Val 1 ⇓_) (just 1)
+  _ : Partial (Val 1 ⇓_) (just 1)
+  _ = ⇓Base
+  _ : Set
+  _ = Partial (Val 1 ⇓_) nothing
+  {- cannot be constructed
+  _ : Partial (Val 1 ⇓_) nothing
+  _ = {!!}
+  -}
 
 _÷_ : Nat -> Nat -> MaybeAST Nat
 n ÷  Zero    = bail
@@ -67,6 +80,27 @@ wpPartial
 wpPartial a→partialBa a→ba→Set a =
   predTrans (a→partialBa a) (Partial (a→ba→Set a)) unit
 
+module _ where
+  _ : Expr -> Set
+  _ = wpPartial ⟦_⟧ _⇓_
+  _ : wpPartial ⟦_⟧ _⇓_ ≡ λ expr → predTrans (⟦_⟧ expr) (Partial (_⇓_ expr)) unit
+  _ = refl
+
+  _ : wpPartial ⟦_⟧ _⇓_ (Val 1)
+  _ = ⇓Base
+
+  _ : Set
+  _ = wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 1))
+  x : wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 1))
+  x (just 1) _eql (just 1) _eqr = ⇓Step ⇓Base ⇓Base
+
+  _ : Set
+  _ = wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 0))
+  {- this type cannot be constructed
+  _ : wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 0))
+  _ = {!!}
+  -}
+
 record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
   constructor _,_
   field
@@ -82,8 +116,8 @@ SafeDiv (Val x)     = ⊤
 SafeDiv (Div el er) = (er ⇓ Zero -> ⊥) ∧ SafeDiv el ∧ SafeDiv er
 
 ------------------------------------------------------------------------------
--- everything above from Wouter paper (modified with our AST)
--- everything below our attempts to prove sufficient, sound, complete, ...
+-- Everything above from Wouter paper (modified with our AST).
+-- Everything below is proving sufficient, sound, complete, ..., using our framework.
 
 -- The proof of 'correct' in the Wouter paper uses wpPartial.
 -- wpPartial is like wp, but it is for a Partial (Maybe) computation
@@ -119,6 +153,15 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
   PN⊆₁       _    ()   nothing refl
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
     predTransMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
+
+module _ where
+  _ :          Val 3 ⇓ 3
+  _ = correct (Val 3) unit tt
+
+  {- TODO
+  _ :         {!!} -- {!Div (Val 3) (Val 1) ⇓ 3!}
+  _ = correct (Div (Val 3) (Val 1)) unit ((λ ()) , (tt , tt))
+  -}
 
 Dom : {A : Set} {B : A -> Set}
       -> ((x : A) -> MaybeAST (B x)) -> A -> Set
