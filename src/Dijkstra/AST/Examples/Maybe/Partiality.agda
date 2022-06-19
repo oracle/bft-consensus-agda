@@ -159,17 +159,18 @@ module _ where
   _ = correct (Val 3) unit tt
 
   {- TODO
-  _ :         {!!} -- {!Div (Val 3) (Val 1) ⇓ 3!}
+  _ :         {!!} -- Div (Val 3) (Val 1) ⇓ 3
   _ = correct (Div (Val 3) (Val 1)) unit ((λ ()) , (tt , tt))
   -}
 
-Dom : {A : Set} {B : A -> Set}
-      -> ((x : A) -> MaybeAST (B x)) -> A -> Set
-Dom f = wpPartial f λ _ _ -> ⊤
+dom : {A : Set} -> {B : A -> Set}
+   -> ((x : A) -> MaybeAST (B x))
+   -> (A -> Set)
+dom f = wpPartial f λ _ _ -> ⊤
 
 DomDiv : ∀ {e₁ e₂}
-      -> Dom ⟦_⟧ (Div e₁ e₂)
-      -> Dom ⟦_⟧ e₁ ∧ wpPartial ⟦_⟧ (λ _ -> _> 0) e₂
+      -> dom ⟦_⟧ (Div e₁ e₂)
+      -> dom ⟦_⟧ e₁ ∧ wpPartial ⟦_⟧ (λ _ -> _> 0) e₂
 Pair.fst (DomDiv {e₁} dom) =
   predTransMono ⟦ e₁ ⟧ _ _ ⊆Partial unit dom
  where
@@ -189,7 +190,7 @@ Pair.snd (DomDiv {e₁} {e₂} dom) =
     ⊆Partial _ (just  Zero)    wp = ⊥-elim (wp _ refl)
     ⊆Partial _ (just (Succ _))  _ = s≤s z≤n
 
-sound : ∀ (e : Expr) i -> Dom ⟦_⟧ e -> predTrans ⟦ e ⟧ (PN e) i
+sound : ∀ (e : Expr) i -> dom ⟦_⟧ e -> predTrans ⟦ e ⟧ (PN e) i
 sound (Val x)     unit dom = ⇓Base
 sound (Div e₁ e₂) unit dom =
   predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
