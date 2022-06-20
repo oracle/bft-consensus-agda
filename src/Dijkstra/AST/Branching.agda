@@ -215,6 +215,16 @@ module BranchingSyntax (BaseOps : ASTOps) where
                                   ; (Level.lift false) → e
                                   }
 
+  maybeAST :  ∀ {A B : Set}
+              → (A → AST Ops B)
+              → AST Ops B
+              → Maybe A
+              → AST Ops B
+  maybeAST fA B mA = ASTop (Right (BCmaybe mA))
+                           λ { (Level.lift nothing)  → B
+                             ; (Level.lift (just a)) → fA a
+                             }
+
   eitherAST : ∀ {A B C : Set}
               → (A → AST Ops C)
               → (B → AST Ops C)
