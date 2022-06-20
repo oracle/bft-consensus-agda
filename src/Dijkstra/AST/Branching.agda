@@ -33,13 +33,14 @@ BranchSubRet{A} {BCeither x} _ = A
 BranchSubRet{A} {BCmaybe  x} _ = A
 
 module ASTExtension (O : ASTOps) where
+  open ASTOps
 
   BranchOps : ASTOps
-  ASTOps.Cmd  BranchOps A = Either (ASTOps.Cmd O A) (BranchCmd A)
-  ASTOps.SubArg BranchOps{_} (Left x)   = ASTOps.SubArg O x
-  ASTOps.SubArg BranchOps{_} (Right y)  = BranchSubArg y
-  ASTOps.SubRet BranchOps{_} {Left x} r  = ASTOps.SubRet O r
-  ASTOps.SubRet BranchOps{_} {Right y} r = BranchSubRet r
+  Cmd  BranchOps A = Either (Cmd O A) (BranchCmd A)
+  SubArg BranchOps{_} (Left x)    = SubArg O x
+  SubArg BranchOps{_} (Right y)   = BranchSubArg y
+  SubRet BranchOps{_} {Left x}  r = SubRet O r
+  SubRet BranchOps{_} {Right y} r = BranchSubRet r
 
   unextend : ∀ {A} → AST BranchOps A → AST O A
   unextend (ASTreturn x)      = ASTreturn x
@@ -54,9 +55,10 @@ module ASTExtension (O : ASTOps) where
 
 module OpSemExtension {O : ASTOps} {T : ASTTypes} (OpSem : ASTOpSem O T) where
   open ASTExtension O
+  open ASTOpSem
 
   BranchOpSem : ASTOpSem BranchOps T
-  ASTOpSem.runAST BranchOpSem m i = ASTOpSem.runAST OpSem (unextend m) i
+  runAST BranchOpSem m i = runAST OpSem (unextend m) i
 
 module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) where
   open ASTExtension O
