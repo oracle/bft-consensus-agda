@@ -97,17 +97,17 @@ module PredTransExtensionMono
   bindPTMono   BranchPTMono          = M.bindPTMono
   opPTMono     BranchPTMono (Left x) = M.opPTMono x
   proj₁ (opPTMono BranchPTMono (Right (BCif x))       f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift true) _ i (mono₁ (Level.lift true)           _ _ P₁⊆P₂ i (proj₁ p refl))
+    f₁⊑f₂ (Level.lift true)      _ i (mono₁ (Level.lift true)      _ _ P₁⊆P₂ i (proj₁ p refl))
   proj₂ (opPTMono BranchPTMono (Right (BCif x))       f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift false) _ i (mono₁ (Level.lift false)         _ _ P₁⊆P₂ i (proj₂ p refl))
+    f₁⊑f₂ (Level.lift false)     _ i (mono₁ (Level.lift false)     _ _ P₁⊆P₂ i (proj₂ p refl))
   proj₁ (opPTMono BranchPTMono (Right (BCeither x))   f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) l refl =
-    f₁⊑f₂ (Level.lift (Left l)) _ i (mono₁ (Level.lift (Left l))   _ _ P₁⊆P₂ i (proj₁ p l refl))
+    f₁⊑f₂ (Level.lift (Left l))  _ i (mono₁ (Level.lift (Left l))  _ _ P₁⊆P₂ i (proj₁ p l refl))
   proj₂ (opPTMono BranchPTMono (Right (BCeither x))   f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) r refl =
     f₁⊑f₂ (Level.lift (Right r)) _ i (mono₁ (Level.lift (Right r)) _ _ P₁⊆P₂ i (proj₂ p r refl))
   proj₁ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift nothing) _ i (mono₁ (Level.lift nothing)     _ _ P₁⊆P₂ i (proj₁ p refl))
+    f₁⊑f₂ (Level.lift nothing)   _ i (mono₁ (Level.lift nothing)   _ _ P₁⊆P₂ i (proj₁ p refl))
   proj₂ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
-    f₁⊑f₂ (Level.lift (just j)) _ i (mono₁ (Level.lift (just j))   _ _ P₁⊆P₂ i (proj₂ p j refl))
+    f₁⊑f₂ (Level.lift (just j))  _ i (mono₁ (Level.lift (just j))  _ _ P₁⊆P₂ i (proj₂ p j refl))
 
   unextendPT : ∀ {A} (m : AST BranchOps A)
                → predTrans BranchPT m ⊑ predTrans PT (unextend m)
