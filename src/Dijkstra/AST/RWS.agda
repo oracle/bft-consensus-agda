@@ -247,14 +247,3 @@ module RWSExample where
 
   twoOuts : ∀ f i → TwoOuts (runRWSAST (prog₁ f) i)
   twoOuts f i = sufficient (prog₁ f) TwoOuts i (wpTwoOuts f i)
-
-  -- The example in the SEFM submission
-  prog : (St → Maybe Wr) → RWSAST Unit
-  prog f = pass inner
-    where inner : RWSAST (Unit × (List Wr → List Wr))
-          inner = do
-            m ← gets f
-            maybeAST (λ w → do tell (w ∷ [])
-                               return (unit , λ _ → []))
-                     (return (unit , (λ x → x ++ x)))
-                     m
