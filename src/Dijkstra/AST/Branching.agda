@@ -111,15 +111,15 @@ module PredTransExtensionMono
 
   unextendPT : ∀ {A} (m : AST BranchOps A)
                → predTrans BranchPT m ⊑ predTrans PT (unextend m)
-  unextendPT (ASTreturn x) P i wp = wp
-  unextendPT (ASTbind m f) P i wp =
-    predTransMono M (unextend m) _ _ 
+  unextendPT (ASTreturn x)                          P i   wp = wp
+  unextendPT (ASTbind m f)                          P i   wp =
+    predTransMono M (unextend m) _ _
       (M.bindPTMono _ _
         (predTransMono BranchPTMono ∘ f) (M.predTransMono ∘ unextend ∘ f)
         (unextendPT ∘ f)
         i _ _ (λ _ x → x))
       i (unextendPT m _ _ wp)
-  unextendPT (ASTop (Left x) f) P i wp =
+  unextendPT (ASTop (Left x)                     f) P i   wp =
     M.opPTMono x _ _
       (predTransMono BranchPTMono ∘ f)
       (M.predTransMono ∘ unextend ∘ f)
@@ -139,8 +139,8 @@ module PredTransExtensionMono
 
   extendPT : ∀ {A} (m : AST BranchOps A)
              → predTrans PT (unextend m) ⊑ predTrans BranchPT m
-  extendPT (ASTreturn x) P i wp = wp
-  extendPT (ASTbind m f) P i wp =
+  extendPT (ASTreturn x)                         P i wp = wp
+  extendPT (ASTbind m f)                         P i wp =
     predTransMono BranchPTMono m _ _
     (bindPTMono BranchPTMono _ _
       (M.predTransMono ∘ unextend ∘ f) (predTransMono BranchPTMono ∘ f) (extendPT ∘ f)
