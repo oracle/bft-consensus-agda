@@ -4,14 +4,14 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Dijkstra.AST.Prelude
 open import Data.Nat renaming (ℕ to Nat)
-open import Haskell.Prelude
-open import Util.Prelude
 
 module Dijkstra.AST.Examples.Maybe.Bind where
 
 module OneMaybeBindExample where
   open import Dijkstra.AST.Maybe
+  open import Dijkstra.AST.Syntax
   module _ (mn1 mn2 : MaybeAST Nat) where
     prog : MaybeAST (List Nat)
     prog = do
@@ -40,7 +40,7 @@ module OneMaybeBindExample where
       Goal x = -- The following goal is determined by:
                -- bindPT (λ x → predTrans (Monad.return MonadAST (x ∷ []))) unit ProgPost
                -- because prog is an AST-bind at the top level
-             ∀ r → r ≡ x → MaybebindPost (λ x → predTrans (Monad.return MonadAST (x ∷ []))) ProgPost r
+             ∀ r → r ≡ x → MaybebindPost (λ x → predTrans (return (x ∷ []))) ProgPost r
 
       PT1 : _
       PT1 with runAST mn1 unit | inspect (runAST mn1) unit

@@ -6,9 +6,8 @@
 
 module Dijkstra.AST.Examples.RWS where
 
-open import Data.Product      using (_×_ ; _,_)
-open import Haskell.Prelude
-open import Relation.Binary.PropositionalEquality
+import      Data.Nat
+open import Dijkstra.AST.Prelude
 
 module Example1 (A : Set) where
 

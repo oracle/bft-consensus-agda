@@ -4,14 +4,15 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
+open import Dijkstra.AST.Prelude
 open import Data.Nat
-import      Level
-open import Util.Prelude hiding (bail)
 
 module Dijkstra.AST.Examples.Maybe.Branching where
 
 module Example-if (n : ℕ) where
   open import Dijkstra.AST.Maybe
+  open import Haskell.Prelude hiding (return)
+  open import Util.Prelude    hiding (bail ; return)
 
   -- First we specify the behaviour we want via a postcondition requiring that the program can fail
   -- only if n is zero, and if it succeeds, the n is non-zero and the result is 2 * n

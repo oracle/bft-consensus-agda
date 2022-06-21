@@ -3,19 +3,10 @@
    Copyright (c) 2022, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
 module Dijkstra.AST.Branching where
 
-open import Data.Empty
-open import Data.Fin
-open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
-open import Data.Unit
 open import Dijkstra.AST.Core
-open import Function
-open import Haskell.Prelude
-import      Level
-import      Level.Literals as Level using (#_)
-open import Relation.Binary.PropositionalEquality
+open import Dijkstra.AST.Prelude
 
 data BranchCmd (A : Set) : Set₁ where
   BCif     :               Bool       → BranchCmd A
@@ -23,9 +14,9 @@ data BranchCmd (A : Set) : Set₁ where
   BCmaybe  : {B   : Set} → Maybe  B   → BranchCmd A
 
 BranchSubArg : {A : Set} → BranchCmd A → Set₁
-BranchSubArg (BCif           x) = Level.Lift _ Bool
-BranchSubArg (BCeither{B}{C} x) = Level.Lift _ (Either B C)
-BranchSubArg (BCmaybe {B}    x) = Level.Lift _ (Maybe  B)
+BranchSubArg (BCif           x) = Lift _ Bool
+BranchSubArg (BCeither{B}{C} x) = Lift _ (Either B C)
+BranchSubArg (BCmaybe {B}    x) = Lift _ (Maybe  B)
 
 BranchSubRet : {A : Set} {c : BranchCmd A} → BranchSubArg c → Set
 BranchSubRet{A} {BCif     x} _ = A
@@ -46,12 +37,12 @@ module ASTExtension (O : ASTOps) where
   unextend (ASTreturn x)      = ASTreturn x
   unextend (ASTbind m f)      = ASTbind (unextend m) (unextend ∘ f)
   unextend (ASTop (Left c) f) = ASTop c (unextend ∘ f)
-  unextend (ASTop (Right (BCif false))         f) = unextend (f (Level.lift false))
-  unextend (ASTop (Right (BCif true))          f) = unextend (f (Level.lift true))
-  unextend (ASTop (Right (BCeither (Left x)))  f) = unextend (f (Level.lift (Left x)))
-  unextend (ASTop (Right (BCeither (Right y))) f) = unextend (f (Level.lift (Right y)))
-  unextend (ASTop (Right (BCmaybe nothing))    f) = unextend (f (Level.lift nothing))
-  unextend (ASTop (Right (BCmaybe (just x)))   f) = unextend (f (Level.lift (just x)))
+  unextend (ASTop (Right (BCif false))         f) = unextend (f (lift false))
+  unextend (ASTop (Right (BCif true))          f) = unextend (f (lift true))
+  unextend (ASTop (Right (BCeither (Left x)))  f) = unextend (f (lift (Left x)))
+  unextend (ASTop (Right (BCeither (Right y))) f) = unextend (f (lift (Right y)))
+  unextend (ASTop (Right (BCmaybe nothing))    f) = unextend (f (lift nothing))
+  unextend (ASTop (Right (BCmaybe (just x)))   f) = unextend (f (lift (just x)))
 
 module OpSemExtension {O : ASTOps} {T : ASTTypes} (OpSem : ASTOpSem O T) where
   open ASTExtension O
@@ -70,14 +61,14 @@ module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) wh
   opPT     BranchPT (Left x) =
     opPT PT x
   opPT     BranchPT (Right (BCif c))     f P i =
-      (       c ≡ true    → f (Level.lift true)      P i)
-    × (       c ≡ false   → f (Level.lift false)     P i)
+      (       c ≡ true    → f (lift true)      P i)
+    × (       c ≡ false   → f (lift false)     P i)
   opPT     BranchPT (Right (BCeither e)) f P i =
-      (∀ l →  e ≡ Left  l → f (Level.lift (Left l))  P i)
-    × (∀ r →  e ≡ Right r → f (Level.lift (Right r)) P i)
+      (∀ l →  e ≡ Left  l → f (lift (Left l))  P i)
+    × (∀ r →  e ≡ Right r → f (lift (Right r)) P i)
   opPT     BranchPT (Right (BCmaybe mb)) f P i =
-      (      mb ≡ nothing → f (Level.lift nothing)   P i)
-    × (∀ j → mb ≡ just j  → f (Level.lift (just j))  P i)
+      (      mb ≡ nothing → f (lift nothing)   P i)
+    × (∀ j → mb ≡ just j  → f (lift (just j))  P i)
   open ASTPredTrans BranchPT
 
 module PredTransExtensionMono
@@ -97,17 +88,17 @@ module PredTransExtensionMono
   bindPTMono   BranchPTMono          = M.bindPTMono
   opPTMono     BranchPTMono (Left x) = M.opPTMono x
   proj₁ (opPTMono BranchPTMono (Right (BCif x))       f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift true)      _ i (mono₁ (Level.lift true)      _ _ P₁⊆P₂ i (proj₁ p refl))
+    f₁⊑f₂ (lift true)      _ i (mono₁ (lift true)      _ _ P₁⊆P₂ i (proj₁ p refl))
   proj₂ (opPTMono BranchPTMono (Right (BCif x))       f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift false)     _ i (mono₁ (Level.lift false)     _ _ P₁⊆P₂ i (proj₂ p refl))
+    f₁⊑f₂ (lift false)     _ i (mono₁ (lift false)     _ _ P₁⊆P₂ i (proj₂ p refl))
   proj₁ (opPTMono BranchPTMono (Right (BCeither x))   f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) l refl =
-    f₁⊑f₂ (Level.lift (Left l))  _ i (mono₁ (Level.lift (Left l))  _ _ P₁⊆P₂ i (proj₁ p l refl))
+    f₁⊑f₂ (lift (Left l))  _ i (mono₁ (lift (Left l))  _ _ P₁⊆P₂ i (proj₁ p l refl))
   proj₂ (opPTMono BranchPTMono (Right (BCeither x))   f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) r refl =
-    f₁⊑f₂ (Level.lift (Right r)) _ i (mono₁ (Level.lift (Right r)) _ _ P₁⊆P₂ i (proj₂ p r refl))
+    f₁⊑f₂ (lift (Right r)) _ i (mono₁ (lift (Right r)) _ _ P₁⊆P₂ i (proj₂ p r refl))
   proj₁ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (Level.lift nothing)   _ i (mono₁ (Level.lift nothing)   _ _ P₁⊆P₂ i (proj₁ p refl))
+    f₁⊑f₂ (lift nothing)   _ i (mono₁ (lift nothing)   _ _ P₁⊆P₂ i (proj₁ p refl))
   proj₂ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
-    f₁⊑f₂ (Level.lift (just j))  _ i (mono₁ (Level.lift (just j))  _ _ P₁⊆P₂ i (proj₂ p j refl))
+    f₁⊑f₂ (lift (just j))  _ i (mono₁ (lift (just j))  _ _ P₁⊆P₂ i (proj₂ p j refl))
 
   unextendPT : ∀ {A} (m : AST BranchOps A)
                → predTrans BranchPT m ⊑ predTrans PT (unextend m)
@@ -125,17 +116,17 @@ module PredTransExtensionMono
       (M.predTransMono ∘ unextend ∘ f)
       (unextendPT ∘ f) _ _ i (λ _ x → x) wp
   unextendPT (ASTop (Right (BCif false))         f) P i   wp =
-    unextendPT (f (Level.lift false))     P i (proj₂ wp refl)
+    unextendPT (f (lift false))     P i (proj₂ wp refl)
   unextendPT (ASTop (Right (BCif true))          f) P i   wp =
-    unextendPT (f (Level.lift true))      _ _ (proj₁ wp refl)
+    unextendPT (f (lift true))      _ _ (proj₁ wp refl)
   unextendPT (ASTop (Right (BCeither (Left x)))  f) P i   wp =
-    unextendPT (f (Level.lift (Left x)))  _ _ (proj₁ wp _ refl)
+    unextendPT (f (lift (Left x)))  _ _ (proj₁ wp _ refl)
   unextendPT (ASTop (Right (BCeither (Right y))) f) P i wp =
-    unextendPT (f (Level.lift (Right y))) _ _ (proj₂ wp _ refl)
+    unextendPT (f (lift (Right y))) _ _ (proj₂ wp _ refl)
   unextendPT (ASTop (Right (BCmaybe nothing))    f) P i wp =
-    unextendPT (f (Level.lift nothing))   _ _ (proj₁ wp   refl)
+    unextendPT (f (lift nothing))   _ _ (proj₁ wp   refl)
   unextendPT (ASTop (Right (BCmaybe (just j)))   f) P i wp =
-    unextendPT (f (Level.lift (just j)))  _ _ (proj₂ wp _ refl)
+    unextendPT (f (lift (just j)))  _ _ (proj₂ wp _ refl)
 
   extendPT : ∀ {A} (m : AST BranchOps A)
              → predTrans PT (unextend m) ⊑ predTrans BranchPT m
@@ -152,17 +143,17 @@ module PredTransExtensionMono
       (M.predTransMono ∘ unextend ∘ f) (predTransMono BranchPTMono ∘ f) (extendPT ∘ f)
       _ _ i (λ _ x → x) wp
   proj₁ (extendPT (ASTop (Right (BCif x))     f) P i wp)   refl =
-    extendPT (f (Level.lift true))      _ _ wp
+    extendPT (f (lift true))      _ _ wp
   proj₂ (extendPT (ASTop (Right (BCif x))     f) P i wp)   refl =
-    extendPT (f (Level.lift false))     _ _ wp
+    extendPT (f (lift false))     _ _ wp
   proj₁ (extendPT (ASTop (Right (BCeither x)) f) P i wp) l refl =
-    extendPT (f (Level.lift (Left l)))  _ _ wp
+    extendPT (f (lift (Left l)))  _ _ wp
   proj₂ (extendPT (ASTop (Right (BCeither x)) f) P i wp) r refl =
-    extendPT (f (Level.lift (Right r))) _ _ wp
+    extendPT (f (lift (Right r))) _ _ wp
   proj₁ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp)   refl =
-    extendPT (f (Level.lift nothing))   _ _ wp
+    extendPT (f (lift nothing))   _ _ wp
   proj₂ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp) j refl =
-    extendPT (f (Level.lift (just j)))  _ _ wp
+    extendPT (f (lift (just j)))  _ _ wp
 
 module SufficientExtension
   {O} {T} {OS : ASTOpSem O T} {PT : ASTPredTrans O T}
@@ -198,17 +189,17 @@ module SufficientExtension
     wp' : predTrans PT (ASTop x (unextend ∘ f)) _ _
     wp' = unextendPT (ASTop (Left x) f) _ _ wp
   opSuf BranchSuf (Right (BCif false))         f fSuf P i wp =
-    fSuf (Level.lift false)     _ _ (proj₂ wp   refl)
+    fSuf (lift false)     _ _ (proj₂ wp   refl)
   opSuf BranchSuf (Right (BCif true))          f fSuf P i wp =
-    fSuf (Level.lift true)      _ _ (proj₁ wp   refl)
+    fSuf (lift true)      _ _ (proj₁ wp   refl)
   opSuf BranchSuf (Right (BCeither (Left x)))  f fSuf P i wp =
-    fSuf (Level.lift (Left x))  _ _ (proj₁ wp _ refl)
+    fSuf (lift (Left x))  _ _ (proj₁ wp _ refl)
   opSuf BranchSuf (Right (BCeither (Right y))) f fSuf P i wp =
-    fSuf (Level.lift (Right y)) _ _ (proj₂ wp _ refl)
+    fSuf (lift (Right y)) _ _ (proj₂ wp _ refl)
   opSuf BranchSuf (Right (BCmaybe nothing))    f fSuf P i wp =
-    fSuf (Level.lift nothing)   _ _ (proj₁ wp   refl)
+    fSuf (lift nothing)   _ _ (proj₁ wp   refl)
   opSuf BranchSuf (Right (BCmaybe (just j)))   f fSuf P i wp =
-    fSuf (Level.lift (just j))  _ _ (proj₂ wp _ refl)
+    fSuf (lift (just j))  _ _ (proj₂ wp _ refl)
 
 module BranchingSyntax (BaseOps : ASTOps) where
 
@@ -216,8 +207,8 @@ module BranchingSyntax (BaseOps : ASTOps) where
 
   ifAST_then_else : ∀ {A} → Bool → (t e : AST Ops A) → AST Ops A
   ifAST b then t else e = ASTop (Right (BCif b))
-                                λ { (Level.lift true)  → t
-                                  ; (Level.lift false) → e
+                                λ { (lift true)  → t
+                                  ; (lift false) → e
                                   }
 
   maybeAST :  ∀ {A B : Set}
@@ -226,8 +217,8 @@ module BranchingSyntax (BaseOps : ASTOps) where
               → Maybe A
               → AST Ops B
   maybeAST fA B mA = ASTop (Right (BCmaybe mA))
-                           λ { (Level.lift nothing)  → B
-                             ; (Level.lift (just a)) → fA a
+                           λ { (lift nothing)  → B
+                             ; (lift (just a)) → fA a
                              }
 
   eitherAST : ∀ {A B C : Set}
@@ -236,8 +227,8 @@ module BranchingSyntax (BaseOps : ASTOps) where
               → Either A B
               → AST Ops C
   eitherAST fA fB eAB = ASTop (Right (BCeither eAB))
-                              λ { (Level.lift (Left  a)) → fA a
-                                ; (Level.lift (Right b)) → fB b
+                              λ { (lift (Left  a)) → fA a
+                                ; (lift (Right b)) → fB b
                                 }
 
   -- Same but with arguments in more "natural" order
@@ -268,7 +259,6 @@ module ConditionalExtensions
   open ASTPredTrans PT            public
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
-  open import Dijkstra.AST.Syntax public
 
   open ASTPTIWeakest BaseOpSem BasePT
 

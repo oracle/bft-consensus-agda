@@ -5,14 +5,8 @@
 -}
 module Dijkstra.AST.Examples.PaperIntro (Ev Wr St : Set) where
 
-open import Data.List                   using (List ; length ; [] ; _∷_ ; _++_)
-open import Data.Maybe                  using (Maybe ; maybe ; just ; nothing)
-open import Data.Product                using (_×_ ; _,_ ; proj₁ ; proj₂)
-open import Data.Unit.NonEta            using (Unit; unit)
+open import Dijkstra.AST.Prelude
 open import Dijkstra.AST.RWS Ev Wr St
--- TODO-2: We should not be depending on things in the Haskell namespace here as Dijkstra.*
--- should be independent of things outside the Dijkstra namespace
-open import Haskell.Prelude             using (_>>_ ; _>>=_ ; return)
 open import Relation.Binary.PropositionalEquality
 
 -- The example in the paper

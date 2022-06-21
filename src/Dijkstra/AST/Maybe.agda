@@ -6,11 +6,7 @@
 
 module Dijkstra.AST.Maybe where
 
-open import Haskell.Prelude using (_>>_; _>>=_; const; just; Maybe; nothing; return; Unit; unit; Monad; Void; false; true)
-open import Data.Product using (Σ; _,_)
-import      Level
-open import Relation.Binary.PropositionalEquality
-open import Util.Prelude using (contradiction; id; Left; Right)
+open import Dijkstra.AST.Prelude
 
 module MaybeBase where
 
@@ -20,7 +16,7 @@ module MaybeBase where
     Maybe-bail : MaybeCmd C
 
   MaybeSubArg : {C : Set} (c : MaybeCmd C) → Set₁
-  MaybeSubArg Maybe-bail = Level.Lift _ Void
+  MaybeSubArg Maybe-bail = Lift _ Void
 
   MaybeSubRet : {A : Set} {c : MaybeCmd A} (r : MaybeSubArg c) → Set
   MaybeSubRet {c = Maybe-bail} ()

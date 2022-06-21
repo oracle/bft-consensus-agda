@@ -8,13 +8,7 @@
 -- for this purpose), we call the Left type "Err"
 module Dijkstra.AST.Either (Err : Set) where
 
-open import Data.Empty
-open import Data.Product using (_×_ ; _,_)
-open import Data.Unit
-open import Haskell.Prelude hiding (return)
-import      Level
-import      Level.Literals as Level using (#_)
-open import Relation.Binary.PropositionalEquality
+open import Dijkstra.AST.Prelude
 
 module EitherBase where
 
@@ -24,7 +18,7 @@ module EitherBase where
     Either-bail : Err → EitherCmd A
 
   EitherSubArg : {A : Set} (a : EitherCmd A) → Set₁
-  EitherSubArg (Either-bail _) = Level.Lift _ Void
+  EitherSubArg (Either-bail _) = Lift _ Void
 
   EitherSubRet : {A : Set} {c : EitherCmd A} (r : EitherSubArg c) → Set
   EitherSubRet {c = Either-bail _} _ = Void
@@ -126,13 +120,9 @@ module EitherSyntax where
 
   EitherAST-maybe : ∀ {A B : Set} → ExtAST B → (A → ExtAST B) → Maybe A → ExtAST B
   EitherAST-maybe m f mb = ASTop (Right (BCmaybe mb))
-                                 λ { (Level.lift nothing)  → m
-                                   ; (Level.lift (just j)) → f j
+                                 λ { (lift nothing)  → m
+                                   ; (lift (just j)) → f j
                                    }
-  instance
-    MonadMaybeD-EitherAST : MonadMaybeD ExtAST
-    MonadMaybeD.monad  MonadMaybeD-EitherAST = MonadAST
-    MonadMaybeD.maybeD MonadMaybeD-EitherAST = EitherAST-maybe
 
   bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
   bail a = ASTop (Left (Either-bail a)) λ ()
@@ -143,13 +133,11 @@ open        EitherSyntax    public
 module EitherExample where
   open        EitherAST
   open        EitherSyntax
-  open import Haskell.Prelude using (return)
 
   -- Here we show an EitherAST program in terms of the underlying Cmds, which requires importing
   -- Core and also opening EitherBase
   module _ where
     open import Dijkstra.AST.Core
-    open import Dijkstra.Syntax
     open        EitherBase
 
     prog₁ : ∀ {A} → Err → A → EitherAST A

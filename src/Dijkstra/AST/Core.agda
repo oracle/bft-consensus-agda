@@ -11,7 +11,6 @@ open import Data.Fin
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
-open import Haskell.Prelude
 import      Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
