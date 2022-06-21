@@ -28,41 +28,78 @@ Partial _ nothing  = ⊥
 Partial P (just x) = P x
 
 data Expr : Set where
-  Val : Nat  -> Expr
-  Div : Expr -> Expr -> Expr
+  Val : Nat  → Expr
+  Div : Expr → Expr → Expr
 
-data _⇓_ : Expr -> Nat -> Set where
+-- big step evaluator
+data _⇓_ : Expr → Nat → Set where
   ⇓Base : forall {n}
-       -> Val n ⇓ n
+       → Val n ⇓ n
   ⇓Step : forall {el er n1 n2}
-       ->     el    ⇓       n1
-       ->        er ⇓          (Succ n2) -- divisor is non-zero
-       -> Div el er ⇓ _div_ n1 (Succ n2)
+       →     el    ⇓       n1
+       →        er ⇓          (Succ n2) -- divisor is non-zero
+       → Div el er ⇓ _div_ n1 (Succ n2)
 
-_÷_ : Nat -> Nat -> MaybeAST Nat
-n ÷ Zero     = bail
+module _ where
+  _ : Set
+  _ = Partial (Val 1 ⇓_) (just 1)
+  _ : Partial (Val 1 ⇓_) (just 1)
+  _ = ⇓Base
+  _ : Set
+  _ = Partial (Val 1 ⇓_) nothing
+  {- cannot be constructed
+  _ : Partial (Val 1 ⇓_) nothing
+  _ = {!!}
+  -}
+
+_÷_ : Nat → Nat → MaybeAST Nat
+n ÷  Zero    = bail
 n ÷ (Succ k) = return (n div (Succ k))
 
-⟦_⟧ : Expr -> MaybeAST Nat
-⟦ Val x ⟧     = return x
-⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 ->
-                ⟦ e2 ⟧ >>= \v2 ->
+⟦_⟧ : Expr → MaybeAST Nat
+⟦ Val x     ⟧ = return x
+⟦ Div e1 e2 ⟧ = ⟦ e1 ⟧ >>= \v1 →
+                ⟦ e2 ⟧ >>= \v2 →
                 v1 ÷ v2
 
 module _ where
-  -- Here is the equivalent expressed using the Core AST defintion
   open import Dijkstra.AST.Core
-  ⟦_⟧' : Expr -> MaybeAST Nat
-  ⟦ Val x ⟧'     = ASTreturn x
-  ⟦ Div e1 e2 ⟧' = ASTbind (⟦ e1 ⟧') (\v1 ->
-                   ASTbind (⟦ e2 ⟧') (\v2 ->
+
+  -- Equivalent evaluator expressed using the Core AST defintion.
+  ⟦_⟧' : Expr → MaybeAST Nat
+  ⟦ Val x     ⟧' = ASTreturn x
+  ⟦ Div e1 e2 ⟧' = ASTbind (⟦ e1 ⟧') (\v1 →
+                   ASTbind (⟦ e2 ⟧') (\v2 →
                     (v1 ÷ v2)))
 
 wpPartial
-  : {A : Set} {B : A → Set} (f : (x : A) → MaybeAST (B x))
-    (P : (x : A) → B x → Set) → A → Set
-wpPartial f P x =
-  predTrans (f x) (Partial (P x)) unit
+  : {A : Set} → {B : A → Set}
+ → ((x : A)  → MaybeAST (B x))
+ → ((x : A)  →           B x → Set)
+ → (     A   →                  Set)
+wpPartial a→partialBa a→ba→Set a =
+  predTrans (a→partialBa a) (Partial (a→ba→Set a)) unit
+
+module _ where
+  _ : Expr → Set
+  _ = wpPartial ⟦_⟧ _⇓_
+  _ : wpPartial ⟦_⟧ _⇓_ ≡ λ expr → predTrans (⟦_⟧ expr) (Partial (_⇓_ expr)) unit
+  _ = refl
+
+  _ : wpPartial ⟦_⟧ _⇓_ (Val 1)
+  _ = ⇓Base
+
+  _ : Set
+  _ = wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 1))
+  x : wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 1))
+  x (just 1) _eql (just 1) _eqr = ⇓Step ⇓Base ⇓Base
+
+  _ : Set
+  _ = wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 0))
+  {- this type cannot be constructed
+  _ : wpPartial ⟦_⟧ _⇓_ (Div (Val 1) (Val 0))
+  _ = {!!}
+  -}
 
 record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
   constructor _,_
@@ -70,17 +107,17 @@ record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
     fst : a
     snd : b
 
-_∧_ : ∀ {l l'} -> Set l -> Set l' -> Set (l Level.⊔ l')
+_∧_ : ∀ {l l'} → Set l → Set l' → Set (l Level.⊔ l')
 _∧_ A B = Pair A B
 infixr 1 _∧_
 
-SafeDiv : Expr -> Set
+SafeDiv : Expr → Set
 SafeDiv (Val x)     = ⊤
-SafeDiv (Div el er) = (er ⇓ Zero -> ⊥) ∧ SafeDiv el ∧ SafeDiv er
+SafeDiv (Div el er) = (er ⇓ Zero → ⊥) ∧ SafeDiv el ∧ SafeDiv er
 
 ------------------------------------------------------------------------------
--- everything above from Wouter paper (modified with our AST)
--- everything below our attempts to prove sufficient, sound, complete, ...
+-- Everything above from Wouter paper (modified with our AST).
+-- Everything below is proving sufficient, sound, complete, ..., using our framework.
 
 -- The proof of 'correct' in the Wouter paper uses wpPartial.
 -- wpPartial is like wp, but it is for a Partial (Maybe) computation
@@ -109,7 +146,7 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
 
   PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
   PN⊆₂ _    _              _        ()  nothing        refl
-  PN⊆₂ _    _ .(just       _)  e₂⇓Zero (just Zero)     refl = ¬e₂⇓0 e₂⇓Zero
+  PN⊆₂ _    _ .(just       _)  e₂⇓Zero (just  Zero)    refl = ¬e₂⇓0 e₂⇓Zero
   PN⊆₂ _ e₁⇓n .(just (Succ _)) e₂⇓Succ (just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
 
   PN⊆₁ : PN e₁ ⊆ₒ _
@@ -117,14 +154,23 @@ correct (Div e₁ e₂) unit (¬e₂⇓0 , (sd₁ , sd₂)) =
   PN⊆₁ (just n) e₁⇓n .(just n) refl =
     predTransMono ⟦ e₂ ⟧ (PN e₂) _ (PN⊆₂ n e₁⇓n) unit ih₂
 
-Dom : {A : Set} {B : A → Set}
-      → ((x : A) → MaybeAST (B x)) → A → Set
-Dom f = wpPartial f λ _ _ → ⊤
+module _ where
+  _ :          Val 3 ⇓ 3
+  _ = correct (Val 3) unit tt
+
+  {- TODO
+  _ :         {!!} -- Div (Val 3) (Val 1) ⇓ 3
+  _ = correct (Div (Val 3) (Val 1)) unit ((λ ()) , (tt , tt))
+  -}
+
+dom : {A : Set} → {B : A → Set}
+   → ((x : A) → MaybeAST (B x))
+   → (A → Set)
+dom f = wpPartial f λ _ _ → ⊤
 
 DomDiv : ∀ {e₁ e₂}
-         → Dom ⟦_⟧ (Div e₁ e₂)
-         → Dom ⟦_⟧ e₁
-           ∧ wpPartial ⟦_⟧ (λ _ → _> 0) e₂
+      → dom ⟦_⟧ (Div e₁ e₂)
+      → dom ⟦_⟧ e₁ ∧ wpPartial ⟦_⟧ (λ _ → _> 0) e₂
 Pair.fst (DomDiv {e₁} dom) =
   predTransMono ⟦ e₁ ⟧ _ _ ⊆Partial unit dom
  where
@@ -132,17 +178,20 @@ Pair.fst (DomDiv {e₁} dom) =
   ⊆Partial nothing  wp = wp _ refl
   ⊆Partial (just m) wp = tt
 Pair.snd (DomDiv {e₁} {e₂} dom) =
-  maybeSuffBind {Q = λ _ → _} ⟦ e₁ ⟧
-    (λ m → ⟦ e₂ ⟧ >>= λ n → m ÷ n) dom (λ ())
+  maybeSuffBind {Q = λ _ → _}
+    ⟦ e₁ ⟧
+    (λ m → ⟦ e₂ ⟧ >>= λ n → m ÷ n)
+    dom
+    (λ ())
     λ m wp → predTransMono ⟦ e₂ ⟧ _ _ (⊆Partial m) unit wp
    where
     ⊆Partial : ∀ m → _ ⊆ₒ Partial (_> 0)
     ⊆Partial _  nothing        wp = wp _ refl
-    ⊆Partial _ (just Zero)     wp = ⊥-elim (wp _ refl)
+    ⊆Partial _ (just  Zero)    wp = ⊥-elim (wp _ refl)
     ⊆Partial _ (just (Succ _))  _ = s≤s z≤n
 
-sound : ∀ (e : Expr) i → Dom ⟦_⟧ e → predTrans ⟦ e ⟧ (PN e) i
-sound (Val x) unit dom = ⇓Base
+sound : ∀ (e : Expr) i → dom ⟦_⟧ e → predTrans ⟦ e ⟧ (PN e) i
+sound (Val x)     unit dom = ⇓Base
 sound (Div e₁ e₂) unit dom =
   predTransMono ⟦ e₁ ⟧ (PN e₁) _ PN⊆₁ unit ih₁
  where
@@ -175,15 +224,15 @@ deterministic (⇓Step e⇓n₁ e⇓n₂) (⇓Step e⇓n₃ e⇓n₄)
   |    deterministic e⇓n₂ e⇓n₄
 ... | refl | refl = refl
 
-dom' : (Expr -> MaybeAST Nat)
-    -> Expr
-    -> Set
+dom' : (Expr → MaybeAST Nat)
+    → Expr
+    → Set
 dom' f e =
   case runMaybeAST (f e) unit of λ where
-    nothing  -> ⊥
-    (just _) -> ⊤
+    nothing  → ⊥
+    (just _) → ⊤
 
-Dom' : (Expr -> MaybeAST Nat) -> Expr -> Set
+Dom' : (Expr → MaybeAST Nat) → Expr → Set
 Dom' f a@(Val _)     =  dom' f a
 Dom' f a@(Div el er) = (dom' f a) ∧ Dom' f el ∧ Dom' f er
 
@@ -198,9 +247,10 @@ sound' (Div e₁ e₂) unit (ddiv , (de₁ , de₂)) =
   PN⊆₂ : ∀ n → e₁ ⇓ n → PN e₂ ⊆ₒ _
   PN⊆₂ _ e₁⇓n (just (Succ _)) e₂⇓Succ .(just (Succ _)) refl = ⇓Step e₁⇓n e₂⇓Succ
   PN⊆₂ _ e₁⇓n (just       0)  e₂⇓0     (just       0)  refl
-    with   runMaybeAST ⟦ e₁ ⟧ unit
-         | runMaybeAST ⟦ e₂ ⟧ unit | inspect (runMaybeAST ⟦ e₂ ⟧) unit
-         | sufficient ⟦ e₂ ⟧ _ unit ih₂
+    with            runMaybeAST ⟦ e₁ ⟧   unit
+         |          runMaybeAST ⟦ e₂ ⟧   unit
+         | inspect (runMaybeAST ⟦ e₂ ⟧)  unit
+         |          sufficient  ⟦ e₂ ⟧ _ unit ih₂
   ... | just _ | nothing       | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just 0        | [ eq₂ ] |       _ rewrite eq₂ = ⊥-elim ddiv
   ... | just _ | just (Succ _) |      _  | e₂⇓Succ             =

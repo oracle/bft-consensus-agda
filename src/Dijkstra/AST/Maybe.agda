@@ -68,41 +68,53 @@ module MaybeBase where
   -- bindPT.
   ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
   ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
+
   -- This open is important because, without it, Agda does not know how to interpret bindPT and
   -- therefore does not refine the goal sufficiently to enable the old λ ._ refl trick to get to the
   -- MaybebindPost goal, for example.
-  open ASTPredTrans MaybePT
+  open ASTPredTrans  MaybePT
+  open ASTPTIWeakest MaybeOpSem MaybePT
 
+  predTrans-is-weakest-base' : ∀ {A} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m unit
+  predTrans-is-weakest-base' (ASTreturn _) _ = id
+  predTrans-is-weakest-base' (ASTbind m f) _ Pr
+     with predTrans-is-weakest-base' m
+  ...| rec
+    with runMaybeBase m unit
+  ... | nothing = rec _ λ where _ refl → Pr
+  ... | just x  = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
+  predTrans-is-weakest-base' (ASTop Maybe-bail f) Pr = id
+
+  predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m i
+  predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
+
+  ------------------------------------------------------------------------------
+  open ASTPredTransMono
   MaybePTMono : ASTPredTransMono MaybePT
-  ASTPredTransMono.returnPTMono MaybePTMono x P₁ P₂ P₁⊆ₒP₂ i wp =
+
+  returnPTMono MaybePTMono            x                            P₁ P₂      P₁⊆ₒP₂ unit     wp =
     P₁⊆ₒP₂ _ wp
-
-  ASTPredTransMono.bindPTMono₁  MaybePTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ nothing  wp .nothing  refl =
+  bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ nothing  wp .nothing  refl =
     P₁⊆ₒP₂ nothing (wp nothing refl)
-  ASTPredTransMono.bindPTMono₁  MaybePTMono f monoF unit P₁ P₂ P₁⊆ₒP₂ (just y) wp .(just y) refl =
-    monoF y P₁ P₂ P₁⊆ₒP₂ unit (wp (just y) refl)
-
-  ASTPredTransMono.bindPTMono₂  MaybePTMono {B1} {B2} f₁ f₂ f₁⊑f₂ unit P nothing wp .nothing refl =
-    wp nothing refl
-  ASTPredTransMono.bindPTMono₂  MaybePTMono f₁ f₂ f₁⊑f₂ unit P (just y) wp .(just y) refl =
-    f₁⊑f₂ y _ unit (wp (just y) refl)
-
-  ASTPredTransMono.opPTMono₁    MaybePTMono Maybe-bail f monoF P₁ P₂ P₁⊆ₒP₂ unit wp =
+  bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (just x) wp .(just x) refl =
+    mono₂ x P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ x P₁ unit (wp (just x) refl))
+  opPTMono     MaybePTMono Maybe-bail f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂          wp =
     P₁⊆ₒP₂ nothing wp
-  ASTPredTransMono.opPTMono₂    MaybePTMono Maybe-bail f₁ f₂ f₁⊑f₂ P i wp =
-    wp
 
-  maybePTMono      = ASTPredTransMono.predTransMono MaybePTMono
-  maybePTMonoBind₂ = ASTPredTransMono.bindPTMono₂   MaybePTMono
+  maybePTMono     = predTransMono MaybePTMono
+  maybePTMonoBind = bindPTMono    MaybePTMono
 
+  ------------------------------------------------------------------------------
+  open ASTSufficientPT
   MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
-  ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
-  ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
+
+  returnSuf MaybeSuf x P i wp = wp
+  bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
     with runMaybeBase m unit | inspect (runMaybeBase m) unit
   ... |  nothing             | [ eq ] = mSuf _ unit wp nothing (sym eq)
   ... |  just y              | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
                                          in fSuf y P unit wp'
-  ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
+  opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
 module MaybeAST where
   open        MaybeBase
@@ -110,37 +122,11 @@ module MaybeAST where
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
   open        ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
+  open        WithPTIWBase predTrans-is-weakest-base                        public
 
   MaybeAST    = ExtAST
 
   runMaybeAST = runAST
-
-  -- This property says that predTrans really is the *weakest* precondition for a
-  -- postcondition to hold after running a MaybeAST.
-  Post⇒wp : ∀ {A} → MaybeAST A → Input → Set₁
-  Post⇒wp {A} m i =
-    (P : Post A)
-    → P (runMaybeAST m i)
-    → predTrans m P i
-
-  predTrans-is-weakest : ∀ {A} → (m : MaybeAST A) → Post⇒wp {A} m unit
-  predTrans-is-weakest (ASTreturn _) _ = id
-  predTrans-is-weakest (ASTbind m f) _ Pr
-     with predTrans-is-weakest m
-  ...| rec
-    with runMaybeAST m unit
-  ... | nothing = rec _ λ where _ refl → Pr
-  ... | just x  = rec _ λ where r refl → predTrans-is-weakest (f x) _ Pr
-  predTrans-is-weakest (ASTop (Left Maybe-bail) f)    Pr = id
-  predTrans-is-weakest (ASTop (Right (BCif b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where   refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCeither b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where r refl → rec Pr x) , (λ where r refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCmaybe mb)) f) Pr
-     with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
   -- TODO: do versions for Either and RWS; generically?
   maybePTApp
