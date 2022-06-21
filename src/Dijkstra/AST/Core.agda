@@ -54,10 +54,13 @@ record ASTTypes : Set₁ where
   Post₁ ⊆ₒ Post₂ = ∀ o → Post₁ o → Post₂ o
 
   _⊑_ : {A : Set} → (pt₁ pt₂ : PredTrans A) → Set₁
-  pt₁ ⊑ pt₂ = ∀ Pre → pt₁ Pre ⊆ᵢ pt₂ Pre
+  pt₁ ⊑ pt₂ = ∀ Post → pt₁ Post ⊆ᵢ pt₂ Post
 
   MonoPredTrans : ∀ {A} → PredTrans A → Set₁
   MonoPredTrans pt = ∀ Post₁ Post₂ → Post₁ ⊆ₒ Post₂ → pt Post₁ ⊆ᵢ pt Post₂
+
+  -- an abbreviation
+  MonoPT = MonoPredTrans
 
 record ASTOpSem (OP : ASTOps) (Ty : ASTTypes) : Set₁ where
   constructor mkASTOpSem
@@ -86,15 +89,15 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
   open ASTTypes Ty
   open ASTPredTrans PT
   field
-    returnPTMono :  ∀ {A} → (x : A) → MonoPredTrans (returnPT x)
+    returnPTMono :  ∀ {A} → (x : A) → MonoPT (returnPT x)
     bindPTMono :    ∀ {A B} → (f₁ f₂ : A → PredTrans B)
-                    → (∀ x → MonoPredTrans (f₁ x)) → (∀ x → MonoPredTrans (f₂ x)) → (∀ x → f₁ x ⊑ f₂ x)
+                    → (∀ x → MonoPT (f₁ x)) → (∀ x → MonoPT (f₂ x)) → (∀ x → f₁ x ⊑ f₂ x)
                     → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
     opPTMono :      ∀ {A} (c : Cmd OP A) (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                    → (∀ r → MonoPredTrans (f₁ r)) → (∀ x → MonoPredTrans (f₂ x)) → (∀ r → f₁ r ⊑ f₂ r)
+                    → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x)) → (∀ r → f₁ r ⊑ f₂ r)
                     → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
 
-  predTransMono : ∀ {A} (m : AST OP A) → MonoPredTrans (predTrans m)
+  predTransMono : ∀ {A} (m : AST OP A) → MonoPT (predTrans m)
   predTransMono (ASTreturn x) P₁ P₂ P₁⊆P₂ i p = returnPTMono x _ _ P₁⊆P₂ i p
   predTransMono (ASTbind m f) P₁ P₂ P₁⊆P₂ i p =
     predTransMono m _ _
