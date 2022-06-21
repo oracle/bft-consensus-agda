@@ -167,6 +167,7 @@ module PredTransExtensionMono
 module SufficientExtension
   {O} {T} {OS : ASTOpSem O T} {PT : ASTPredTrans O T}
   (M : ASTPredTransMono PT) (S : ASTSufficientPT OS PT) where
+  open ASTTypes T
   open ASTExtension O
   open ASTPredTrans
   open ASTSufficientPT
@@ -268,3 +269,24 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
+
+  open ASTPTIWeakest BaseOpSem BasePT
+
+  module WithPTIWBase (predTrans-is-weakest-base : ∀ {A i} → (m : AST BaseOps A) → Post⇒wp-base m i) where
+
+    Post⇒wp : ∀ {A} → ExtAST A → Input → Set₁
+    Post⇒wp {A} m i =
+      (P : Post A)
+      → P (runAST m i)
+      → predTrans m P i
+
+    open ASTExtension BaseOps
+    open PredTransExtensionMono BasePTMono
+
+    -- We use unextend to get an equivalent AST without branching operations, use the provided proof
+    -- that predTrans is weakest for the underlying AST, and then use extendPT to extend that
+    -- property to the AST with branching operatiions.
+    predTrans-is-weakest : ∀ {A i} → (m : ExtAST A) → Post⇒wp m i
+    predTrans-is-weakest {i = i} m P Pr =
+      extendPT m P i (predTrans-is-weakest-base (unextend m) P Pr)
+

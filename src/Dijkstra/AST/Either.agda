@@ -62,31 +62,47 @@ module EitherBase where
   ASTPredTrans.bindPT EitherPT {A} {B} f i Post x =
     ∀ r → r ≡ x → EitherbindPost f Post r
   ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
-  open ASTPredTrans EitherPT
+
+  open ASTPredTrans  EitherPT
+  open ASTPTIWeakest EitherOpSem EitherPT
+
+  predTrans-is-weakest-base' : ∀ {A} → (m : EitherBaseAST A) → Post⇒wp-base {A} m unit
+  predTrans-is-weakest-base' (ASTreturn _) _ = id
+  predTrans-is-weakest-base' (ASTbind m f) _ Pr
+     with predTrans-is-weakest-base' m
+  ...| rec
+    with runEitherBase m unit
+  ... | Left  x = rec _ λ where _ refl → Pr
+  ... | Right x = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
+  predTrans-is-weakest-base' (ASTop (Either-bail _) _) _ = id
+
+  predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : EitherBaseAST A) → Post⇒wp-base {A} m i
+  predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
 
   ------------------------------------------------------------------------------
+  open ASTPredTransMono
   EitherPTMono : ASTPredTransMono EitherPT
-
-  ASTPredTransMono.returnPTMono EitherPTMono                 x                            _  _       P₁⊆ₒP₂ _         wp =
+  returnPTMono EitherPTMono                 _                            _  _       P₁⊆ₒP₂ _         wp =
     P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
     P₁⊆ₒP₂ (Left x) (wp (Left x) refl)
-  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
     mono₂ y P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ y P₁ unit (wp (Right y) refl))
-  ASTPredTransMono.opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
+  opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
     P₁⊆ₒP₂ (Left x) wp
 
   ------------------------------------------------------------------------------
+  open ASTSufficientPT
   EitherSuf : ASTSufficientPT EitherOpSem EitherPT
 
-  ASTSufficientPT.returnSuf EitherSuf x P i wp = wp
-  ASTSufficientPT.bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
+  returnSuf EitherSuf x P i wp = wp
+  bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
      with  runEitherBase m  unit  | inspect
           (runEitherBase m) unit
   ... | Left  x | [ R ] = mSuf _ unit wp (Left x) (sym R)
   ... | Right y | [ R ] = let wp' = mSuf _ unit wp (Right y) (sym R)
                            in fSuf y P unit wp'
-  ASTSufficientPT.opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
+  opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 
 module EitherAST where
   open EitherBase
@@ -94,38 +110,11 @@ module EitherAST where
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
   open ConditionalExtensions EitherPT EitherOpSem EitherPTMono EitherSuf public
+  open WithPTIWBase predTrans-is-weakest-base                            public
 
   EitherAST    = ExtAST
 
   runEitherAST = runAST
-
-  -- This property says that predTrans really is the *weakest* precondition for a
-  -- postcondition to hold after running a MaybeD.
-  Post⇒wp : ∀ {A} → EitherAST A → Input → Set₁
-  Post⇒wp {A} e i =
-    (P : Post A)
-    → P (runEitherAST e i)
-    → predTrans e P i
-
-  predTrans-is-weakest : ∀ {A} → (e : EitherAST A) → Post⇒wp {A} e unit
-  predTrans-is-weakest (ASTreturn _) _ = id
-  predTrans-is-weakest (ASTbind e f) _ Pr
-     with predTrans-is-weakest e
-  ...| rec
-    with runEitherAST e unit
-  ... | Left  _ = rec _ λ where _ refl →                              Pr
-  ... | Right r = rec _ λ where _ refl → predTrans-is-weakest (f r) _ Pr
-  predTrans-is-weakest (ASTop (Left (Either-bail _)) _) _ = id
-  -- TODO: this is identical to the same for Maybe -- generalise?
-  predTrans-is-weakest (ASTop (Right (BCif b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where   refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCeither b)) f) Pr
-     with predTrans-is-weakest (f (Level.lift b))
-  ...| rec = λ x → (λ where r refl → rec Pr x) , (λ where r refl → rec Pr x)
-  predTrans-is-weakest (ASTop (Right (BCmaybe mb)) f) Pr
-     with predTrans-is-weakest (f (Level.lift mb))
-  ...| rec = λ x → (λ where   refl → rec Pr x) , (λ where j refl → rec Pr x)
 
 module EitherSyntax where
   open import Dijkstra.AST.Core
