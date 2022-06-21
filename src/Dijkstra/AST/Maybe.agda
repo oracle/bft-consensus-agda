@@ -89,30 +89,32 @@ module MaybeBase where
   predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
 
   ------------------------------------------------------------------------------
+  open ASTPredTransMono
   MaybePTMono : ASTPredTransMono MaybePT
 
-  ASTPredTransMono.returnPTMono MaybePTMono            x                            P₁ P₂      P₁⊆ₒP₂ unit     wp =
+  returnPTMono MaybePTMono            x                            P₁ P₂      P₁⊆ₒP₂ unit     wp =
     P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ nothing  wp .nothing  refl =
+  bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ nothing  wp .nothing  refl =
     P₁⊆ₒP₂ nothing (wp nothing refl)
-  ASTPredTransMono.bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (just x) wp .(just x) refl =
+  bindPTMono   MaybePTMono            f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (just x) wp .(just x) refl =
     mono₂ x P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ x P₁ unit (wp (just x) refl))
-  ASTPredTransMono.opPTMono     MaybePTMono Maybe-bail f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂          wp =
+  opPTMono     MaybePTMono Maybe-bail f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂          wp =
     P₁⊆ₒP₂ nothing wp
 
-  maybePTMono     = ASTPredTransMono.predTransMono MaybePTMono
-  maybePTMonoBind = ASTPredTransMono.bindPTMono    MaybePTMono
+  maybePTMono     = predTransMono MaybePTMono
+  maybePTMonoBind = bindPTMono    MaybePTMono
 
   ------------------------------------------------------------------------------
+  open ASTSufficientPT
   MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
-  
-  ASTSufficientPT.returnSuf MaybeSuf x P i wp = wp
-  ASTSufficientPT.bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
+
+  returnSuf MaybeSuf x P i wp = wp
+  bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
     with runMaybeBase m unit | inspect (runMaybeBase m) unit
   ... |  nothing             | [ eq ] = mSuf _ unit wp nothing (sym eq)
   ... |  just y              | [ eq ] = let wp' = mSuf _ unit wp (just y) (sym eq)
                                          in fSuf y P unit wp'
-  ASTSufficientPT.opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
+  opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
 module MaybeAST where
   open        MaybeBase

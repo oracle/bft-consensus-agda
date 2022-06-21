@@ -80,28 +80,29 @@ module EitherBase where
   predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
 
   ------------------------------------------------------------------------------
+  open ASTPredTransMono
   EitherPTMono : ASTPredTransMono EitherPT
-
-  ASTPredTransMono.returnPTMono EitherPTMono                 _                            _  _       P₁⊆ₒP₂ _         wp =
+  returnPTMono EitherPTMono                 _                            _  _       P₁⊆ₒP₂ _         wp =
     P₁⊆ₒP₂ _ wp
-  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
     P₁⊆ₒP₂ (Left x) (wp (Left x) refl)
-  ASTPredTransMono.bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
     mono₂ y P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ y P₁ unit (wp (Right y) refl))
-  ASTPredTransMono.opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
+  opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
     P₁⊆ₒP₂ (Left x) wp
 
   ------------------------------------------------------------------------------
+  open ASTSufficientPT
   EitherSuf : ASTSufficientPT EitherOpSem EitherPT
 
-  ASTSufficientPT.returnSuf EitherSuf x P i wp = wp
-  ASTSufficientPT.bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
+  returnSuf EitherSuf x P i wp = wp
+  bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
      with  runEitherBase m  unit  | inspect
           (runEitherBase m) unit
   ... | Left  x | [ R ] = mSuf _ unit wp (Left x) (sym R)
   ... | Right y | [ R ] = let wp' = mSuf _ unit wp (Right y) (sym R)
                            in fSuf y P unit wp'
-  ASTSufficientPT.opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
+  opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 
 module EitherAST where
   open EitherBase
