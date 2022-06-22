@@ -26,7 +26,7 @@ module RWSBase where
     RWSputs   : (p : St → St) → (A ≡ Unit)        → RWSCmd A
     RWSask    : (A ≡ Ev)                          → RWSCmd A
     RWSlocal  : (l : Ev → Ev)                     → RWSCmd A
-    RWStell   : (out : List Wr) → (A ≡ Unit)      → RWSCmd A
+    RWStell   : (outs : List Wr) → (A ≡ Unit)     → RWSCmd A
     RWSlisten : {A' : Set} → (A ≡ (A' × List Wr)) → RWSCmd A
     RWSpass   :                                     RWSCmd A
 
@@ -194,16 +194,16 @@ module RWSAST where
 
   module RWSSyntax where
     gets : ∀ {A} → (St → A) → RWSAST A
-    gets f = ASTop (Left (RWSgets f)) λ ()
+    gets g = ASTop (Left (RWSgets g)) λ ()
 
     puts : (St → St) → RWSAST Unit
-    puts f = ASTop (Left (RWSputs f refl)) (λ ())
+    puts p = ASTop (Left (RWSputs p refl)) (λ ())
 
     ask : RWSAST Ev
     ask = ASTop (Left (RWSask refl)) (λ ())
 
     local : ∀ {A} → (Ev → Ev) → RWSAST A → RWSAST A
-    local f m = ASTop (Left (RWSlocal f)) (λ where (Level.lift unit) → m)
+    local l m = ASTop (Left (RWSlocal l)) (λ where (Level.lift unit) → m)
 
     tell : List Wr → RWSAST Unit
     tell outs = ASTop (Left (RWStell outs refl)) (λ ())
@@ -226,24 +226,24 @@ module RWSExample where
     open        RWSBase
 
     prog₁ : (St → Wr) → RWSAST Unit
-    prog₁ f =
+    prog₁ g =
       ASTop (Left RWSpass) λ _ →
-        ASTbind (ASTop (Left (RWSgets f)) λ ()) λ w →
+        ASTbind (ASTop (Left (RWSgets g)) λ ()) λ w →
         ASTbind (ASTop (Left (RWStell (w ∷ []) refl)) λ ()) λ _ →
         ASTreturn (unit , λ o → o ++ o)
 
   prog₁' : (St → Wr) → RWSAST Unit
-  prog₁' f =
+  prog₁' g =
     pass $ do
-      w ← gets f
+      w ← gets g
       tell (w ∷ [])
       return (unit , λ o → o ++ o)
 
   TwoOuts : Post Unit
   TwoOuts (_ , _ , o) = length o ≡ 2
 
-  wpTwoOuts : ∀ f i → predTrans (prog₁ f) TwoOuts i
-  wpTwoOuts f (e , s) w w= unit refl .(w ∷ w ∷ []) refl = refl
+  wpTwoOuts : ∀ g i → predTrans (prog₁ g) TwoOuts i
+  wpTwoOuts g (e , s) w w= unit refl .(w ∷ w ∷ []) refl = refl
 
-  twoOuts : ∀ f i → TwoOuts (runRWSAST (prog₁ f) i)
-  twoOuts f i = sufficient (prog₁ f) TwoOuts i (wpTwoOuts f i)
+  twoOuts : ∀ g i → TwoOuts (runRWSAST (prog₁ g) i)
+  twoOuts g i = sufficient (prog₁ g) TwoOuts i (wpTwoOuts g i)
