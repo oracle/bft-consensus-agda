@@ -290,36 +290,33 @@ module insertQuorumCertE-ASTSpec
       -- here.  To understand why, see the definition of maybeSD, which is in terms of the maybeD
       -- field of the relevant MonadMaybeD instance (EitherDASTExt-MonadMaybeD), which translates to
       -- ASTop (Right (BCmaybe mb)).  The opPT field of BranchPT establishes that we require two
-      -- proofs, one for the nothing case and one for the just case; each receives evidence that mb
-      -- is the relevant case (nothing or just something), and determines the relevant proof
+      -- proofs, one for the just case and one for the nothing case; each receives evidence that mb
+      -- is the relevant case (just something or nothing), and determines the relevant proof
       -- obligation.
-
-      const tt , λ block _ →
-
-      -- Similarly, another use of maybeSD in the code results in automatically introducing two
-      -- proof obligations using C-c C-r
-
-      const tt ,
-
-      -- The "Right" goal in this case is determined by the use of ifAST in the code, which
-      -- translates to ASTop (Right (BCif b)) ... (see BranchingSyntax).  Therefore, in this case,
-      -- the proof obligation is determined in PredTransExtension to have two proof obligations, one
-      -- for the case in which b is true and one for b is false.  Each gets evidence of the value of
-      -- b (not used in this example) and the predicate transformer resulting from passing the value
-      -- of b to the function in the definition of ASTPredTrans.opPT yields the proof obligation.
-      -- The proofs for each case here are more or less copied from the insertQuorumcertESpec proof,
-      -- but because the framework guided us to the goals, we did not need to state their types
-      -- explicitly, which in turn means that we did not need to break the code into explicit steps.
-
-      λ _ _ →
-        (const $ let bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
-                               & btHighestQuorumCert       ∙~ qc
-                in ContractOk-trans
-                     (mkContractOk (∈BlockTree-upd-hqc refl refl))
-                     (contract-cont1' block bt' (fakeInfo ∷ [])))
-      , (const $ ContractOk-trans
-                   (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _))
-                   (contract-cont1' block bt0 []))
+      (λ block _ →
+         -- Similarly, another use of maybeSD in the code results in automatically introducing two
+         -- proof obligations using C-c C-r
+         (λ _ _ →
+            -- The goal in this case is determined by the use of ifAST in the code, which translates
+            -- to ASTop (Right (BCif b)) ... (see BranchingSyntax).  Therefore, in this case, the
+            -- proof obligation is determined in PredTransExtension to have two proof obligations,
+            -- one for the case in which b is true and one for b is false.  Each gets evidence of
+            -- the value of b (not used in this example) and the predicate transformer resulting
+            -- from passing the value of b to the function in the definition of ASTPredTrans.opPT
+            -- yields the proof obligation.  The proofs for each case here are more or less copied
+            -- from the insertQuorumcertESpec proof, but because the framework guided us to the
+            -- goals, we did not need to state their types explicitly, which in turn means that we
+            -- did not need to break the code into explicit steps.
+            (const $ let bt' = bt0 & btHighestCertifiedBlockId ∙~ block ^∙ ebId
+                                   & btHighestQuorumCert       ∙~ qc
+                    in ContractOk-trans
+                         (mkContractOk (∈BlockTree-upd-hqc refl refl))
+                         (contract-cont1' block bt' (fakeInfo ∷ [])))
+          , (const $ ContractOk-trans
+                       (mkContractOk (∈Post⇒∈PreOr'-refl _∈BlockTree_ _))
+                       (contract-cont1' block bt0 [])))
+         , (const tt))
+      , const tt
       where
       -- The following proofs are just about pure code, and are copied verbatim from
       -- insertQuorumCertESpec above
