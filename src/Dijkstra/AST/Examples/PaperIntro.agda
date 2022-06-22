@@ -119,6 +119,10 @@ proj₂ (progPostWP _ _ _ _)   _     _ refl = refl , refl
   progPostWP : ∀ g i → predTrans (prog g) (ProgPost i) i
   progPostWP g i = {!!}
 
+  -- Note that, in the paper, we pattern match i as (e , s).  In the direct proof above, the
+  -- user has to access s in order to do "with g s".  In the following proof, however, the user
+  -- need refer to s at all, so we don't bother pattern matching on the structure of i here.
+
   -- In the following, each time we take a step, the goal in each hole is much more manageable and
   -- understandable than the unwieldy one shown above for the direct approach.
 
