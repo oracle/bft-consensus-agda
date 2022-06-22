@@ -200,7 +200,7 @@ proj₂ (progPostWP _ _ _ _)   _     _ refl = refl , refl
   proj₂ (progPostWP _ _ _ _) _ _ _ _ _ refl = refl , refl
   proj₂ (progPostWP _ _ _ _) _       _ refl = refl , refl
 
-  -- is the same, but hides variabes that don't need to be exposed.  We don't need to name or
+  -- is the same, but hides variables that don't need to be exposed.  We don't need to name or
   -- pattern match on anything other than the evidence that the list of outputs produced is
   -- equivalent to the empty list, enabling proof that its length is zero, as required by the second
   -- conjunct of the postcondition.
