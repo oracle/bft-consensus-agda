@@ -106,7 +106,8 @@ progPost g (_ , s) with g s
 
 -}
 
--- See below for step-by-step development and explanation of this proof
+-- Here is an alternative proof, which uses our framework to guide the proof development.
+-- See below for a step-by-step explanation.
 progPostWP : ∀ g i → predTrans (prog g) (ProgPost i) i
 proj₁ (progPostWP g i r x) _ _ _ _ _ refl = refl , refl
 proj₂ (progPostWP _ _ _ _)   _     _ refl = refl , refl
