@@ -7,15 +7,14 @@
 module Dijkstra.AST.RWS (Ev Wr St : Set) where
 
 open import Data.Empty
-open import Data.Fin
+open import Data.Fin hiding (lift)
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
 open import Haskell.Prelude
-import      Level
+open import Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
-  hiding ([_])
 
 module RWSBase where
 
@@ -116,27 +115,6 @@ module RWSBase where
   ASTPredTrans.opPT RWSPT{A} RWSpass f P (ev , st) =
     f (Level.lift unit) (RWSpassPost P) (ev , st)
 
-  open ASTPredTrans  RWSPT
-  open ASTPTIWeakest RWSOpSem RWSPT
-
-  predTrans-is-weakest-base : ∀ {ev : Ev}{st : St}{A} → (m : RWSBaseAST A) → Post⇒wp-base {A} m (ev , st)
-  predTrans-is-weakest-base           (ASTreturn _) _ = id
-  predTrans-is-weakest-base {ev} {st} (ASTbind m f) _ Pr
-     with predTrans-is-weakest-base {ev} {st} m
-  ...| rec
-    with runRWSBase m (ev , st)
-  ... | r , st' , wr = rec _ λ where _ refl → predTrans-is-weakest-base (f r) _ Pr
-  predTrans-is-weakest-base              (ASTop (RWSgets g)                      f) P    = id
-  predTrans-is-weakest-base              (ASTop (RWSputs p refl)                 f) P    = id
-  predTrans-is-weakest-base              (ASTop (RWSask    refl)                 f) P    = id
-  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlocal l)                     f) P Pr =
-    λ where _ refl → predTrans-is-weakest-base {l ev} {st} (f (Level.lift unit)) _ Pr
-  predTrans-is-weakest-base              (ASTop (RWStell out refl)               f) P    = id
-  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlisten {A'} refl)            f) P Pr =
-    predTrans-is-weakest-base {ev} {st} {A'} (f (Level.lift unit)) _ Pr
-  predTrans-is-weakest-base {ev} {st} {A} (ASTop RWSpass                         f) P Pr =
-    predTrans-is-weakest-base {ev} {st}      (f (Level.lift unit)) _ λ where _ refl → Pr
-
   ------------------------------------------------------------------------------
   RWSPTMono : ASTPredTransMono RWSPT
 
@@ -179,18 +157,34 @@ module RWSBase where
     let ((x₁ , g) , s₁ , o₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) i
     in fSuf (Level.lift unit) (RWSpassPost P) i wp (g o₁) refl
 
+  open ASTNecessaryPT
+  open ASTOpSem RWSOpSem
+  RWSNec : ASTNecessaryPT RWSOpSem RWSPT
+  returnNec RWSNec x P _                              = id
+  bindNec   RWSNec {A} {B} m f mNec fNec P (e , s) Pr
+    with runAST m (e , s) | inspect (runAST m) (e , s)
+  ... | r , s' , wr | [ refl ]                        =
+    mNec _ (e , s) λ where _ refl → fNec r (RWSbindPost wr P) (e , s') Pr
+  opNec RWSNec (RWSgets g)           f fNec P _       = id
+  opNec RWSNec (RWSputs p refl)      f fNec P _       = id
+  opNec RWSNec (RWSask refl)         f fNec P _       = id
+  opNec RWSNec (RWSlocal l)          f fNec P (e , s) =
+    λ where Pr ev' refl → fNec (lift _) _ (ev' , s)                    Pr
+  opNec RWSNec (RWStell outs refl)   f fNec P _       = id
+  opNec RWSNec (RWSlisten {A'} refl) f fNec P         = fNec (lift _) _
+  opNec RWSNec  RWSpass              f fNec P _       =
+    λ       Pr          → fNec (lift _) _ _         λ where o' refl →  Pr
+
 module RWSAST where
   open RWSBase
-  open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost) public
+  open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost)    public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
-  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf     public
-  open WithPTIWBase predTrans-is-weakest-base                    public
+  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf RWSNec public
 
   RWSAST    = ExtAST
 
   runRWSAST = runAST
-
 
   module RWSSyntax where
     gets : ∀ {A} → (St → A) → RWSAST A
