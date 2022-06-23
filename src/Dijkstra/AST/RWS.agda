@@ -40,7 +40,7 @@ module RWSBase where
   RWSSubArg  RWSpass             = Level.Lift _ Unit
 
   RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
-  RWSSubRet {_}              {RWSgets g} _          = Void
+  RWSSubRet {_}              {RWSgets g} (Level.lift ())
   RWSSubRet {_}              {RWSputs p x} _        = Void
   RWSSubRet {_}              {RWSask x} _           = Void
   RWSSubRet {A}              {RWSlocal l} _         = A
