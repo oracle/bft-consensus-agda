@@ -24,10 +24,11 @@ record ASTOps : Set₂ where
 open ASTOps
 
 data AST (OP : ASTOps) : Set → Set₁ where
-  ASTreturn : ∀ {A} → A → AST OP A
-  ASTbind   : ∀ {A B} → (m : AST OP A) (f : A → AST OP B)
-              → AST OP B
-  ASTop : ∀ {A} → (c : Cmd OP A) (f : (r : SubArg OP c) → AST OP (SubRet OP r)) → AST OP A
+  ASTreturn : ∀ {A} → A                                   → AST OP A
+  ASTbind   : ∀ {A B} → (m : AST OP A) (f : A → AST OP B) → AST OP B
+  ASTop : ∀ {A} → (c : Cmd OP A)
+                  (f : (r : SubArg OP c) → AST OP (SubRet OP r))
+                                                          → AST OP A
 
 record ASTTypes : Set₁ where
   constructor mkASTTypes
@@ -72,10 +73,12 @@ record ASTPredTrans (OP : ASTOps) (Ty : ASTTypes) : Set₂ where
   constructor mkASTPredTrans
   open ASTTypes Ty
   field
-    returnPT : ∀ {A} → A → PredTrans A
+    returnPT : ∀ {A} → A                 → PredTrans A
     bindPT   : ∀ {A B} → (f : A → PredTrans B) (i : Input)
-                → (P : Post B) → Post A
-    opPT     : ∀ {A} → (c : Cmd OP A) → ((r : SubArg OP c) → PredTrans (SubRet OP r)) → PredTrans A
+                                          → (P : Post B) → Post A
+    opPT     : ∀ {A} → (c : Cmd OP A)
+                     → ((r : SubArg OP c) → PredTrans (SubRet OP r))
+                                          → PredTrans A
 
   predTrans : ∀ {A} → AST OP A → PredTrans A
   predTrans (ASTreturn x) P i =
@@ -90,11 +93,14 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
   open ASTPredTrans PT
   field
     returnPTMono :  ∀ {A} → (x : A) → MonoPT (returnPT x)
-    bindPTMono :    ∀ {A B} → (f₁ f₂ : A → PredTrans B)
-                    → (∀ x → MonoPT (f₁ x)) → (∀ x → MonoPT (f₂ x)) → (∀ x → f₁ x ⊑ f₂ x)
+    bindPTMono   :  ∀ {A B} → (f₁ f₂ : A → PredTrans B)
+                    → (∀ x → MonoPT (f₁ x)) → (∀ x → MonoPT (f₂ x))
+                    → (∀ x → f₁ x ⊑ f₂ x)
                     → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
-    opPTMono :      ∀ {A} (c : Cmd OP A) (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                    → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x)) → (∀ r → f₁ r ⊑ f₂ r)
+    opPTMono     :  ∀ {A} (c : Cmd OP A)
+                      (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
+                    → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x))
+                    → (∀ r → f₁ r ⊑ f₂ r)
                     → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
 
   predTransMono : ∀ {A} (m : AST OP A) → MonoPT (predTrans m)
@@ -135,14 +141,14 @@ record ASTSufficientPT
     ∀ P i → (wp : predTrans m P i) → P (runAST m i)
 
   field
-    returnSuf : ∀ {A} x → Sufficient A (ASTreturn x)
+    returnSuf : ∀ {A} x  → Sufficient A (ASTreturn x)
     bindSuf   : ∀ {A B} (m : AST OP A) (f : A → AST OP B)
-                → (mSuf : Sufficient A m)
-                → (fSuf : ∀ x → Sufficient B (f x))
-                → Sufficient B (ASTbind m f)
+                → Sufficient A m
+                → (∀ x → Sufficient B (f x))
+                         → Sufficient B (ASTbind m f)
     opSuf     : ∀ {A} → (c : Cmd OP A) (f : (r : SubArg OP c) → AST OP (SubRet OP r))
-                → (fSuf : ∀ r → Sufficient (SubRet OP r) (f r))
-                → Sufficient A (ASTop c f)
+                → (∀ r → Sufficient (SubRet OP r) (f r))
+                         → Sufficient A (ASTop c f)
 
   sufficient : ∀ {A} → (m : AST OP A) → Sufficient A m
   sufficient (ASTreturn x) =
