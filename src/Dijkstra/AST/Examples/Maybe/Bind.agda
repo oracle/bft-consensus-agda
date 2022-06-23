@@ -44,8 +44,8 @@ module OneMaybeBindExample where
 
       PT1 : _
       PT1 with runAST mn1 unit | inspect (runAST mn1) unit
-      ... | nothing | [ R ] = predTrans-is-weakest mn1 mn1Post (subst mn1Post (sym R) tt)
-      ... | just x  | [ R ] = predTrans-is-weakest mn1 _       (subst mn1Post (sym R) R)
+      ... | nothing | [ R ] = necessary mn1 mn1Post unit (subst mn1Post (sym R) tt)
+      ... | just x  | [ R ] = necessary mn1 mn1Post unit (subst mn1Post (sym R) R)
 
       mn1Post⇒Goal : _
       mn1Post⇒Goal nothing   mn1Postnothing .nothing   refl = tt
@@ -83,11 +83,11 @@ module TwoMaybeBindsExample where
       ⊆ₒProgPost : (λ o → runMaybeAST prog unit ≡ o) ⊆ₒ ProgPost unit
       ⊆ₒProgPost nothing _ = tt
       ⊆ₒProgPost (just l) just_n1∷n2∷[]≡just_l with runMaybeAST mn1 unit
-      ... | just n1                           with runMaybeAST mn2 unit
+      ... | just n1                            with runMaybeAST mn2 unit
       ... | just n2 rewrite just-injective (sym just_n1∷n2∷[]≡just_l) = refl
 
-      PT1 : predTrans prog (λ o → runMaybeAST prog unit ≡ o) unit
-      PT1 = predTrans-is-weakest prog _ refl
+      PT1 : predTrans prog _ unit
+      PT1 = necessary prog (runMaybeAST prog unit ≡_) unit refl
 
     -- A nicer proof using maybePTBindLemma (twice)
     progPostWP2 : predTrans prog (ProgPost unit) unit

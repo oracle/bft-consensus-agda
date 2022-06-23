@@ -115,19 +115,6 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
     opPTMono c (predTrans ∘ f) (predTrans ∘ f) (predTransMono ∘ f) (predTransMono ∘ f)
       (λ _ _ _ x → x) _ _ i P₁⊆P₂ p
 
-module ASTPTIWeakest
-  {OP : ASTOps} {Ty : ASTTypes}
-  (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) where
-  open ASTTypes     Ty
-  open ASTOpSem     OpSem
-  open ASTPredTrans PT
-
-  Post⇒wp-base : ∀ {A} → AST OP A → Input → Set₁
-  Post⇒wp-base {A} m i =
-    (P : Post A)
-    → P (runAST m i)
-    → predTrans m P i
-
 record ASTSufficientPT
   {OP : ASTOps} {Ty : ASTTypes}
   (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) : Set₁ where
@@ -145,10 +132,10 @@ record ASTSufficientPT
     bindSuf   : ∀ {A B} (m : AST OP A) (f : A → AST OP B)
                 → Sufficient A m
                 → (∀ x → Sufficient B (f x))
-                         → Sufficient B (ASTbind m f)
+                → Sufficient B (ASTbind m f)
     opSuf     : ∀ {A} → (c : Cmd OP A) (f : (r : SubArg OP c) → AST OP (SubRet OP r))
                 → (∀ r → Sufficient (SubRet OP r) (f r))
-                         → Sufficient A (ASTop c f)
+                → Sufficient A (ASTop c f)
 
   sufficient : ∀ {A} → (m : AST OP A) → Sufficient A m
   sufficient (ASTreturn x) =
@@ -157,4 +144,34 @@ record ASTSufficientPT
     bindSuf m f (sufficient m) (sufficient ∘ f)
   sufficient (ASTop c f) =
     opSuf c f (sufficient ∘ f)
+
+record ASTNecessaryPT
+  {OP : ASTOps} {Ty : ASTTypes}
+  (OpSem : ASTOpSem OP Ty) (PT : ASTPredTrans OP Ty) : Set₁ where
+  constructor mkASTNecessaryPT
+  open ASTTypes     Ty
+  open ASTOpSem     OpSem
+  open ASTPredTrans PT
+
+  Necessary : (A : Set) → AST OP A → Set₁
+  Necessary A m =
+    ∀ P i → P (runAST m i) → predTrans m P i
+
+  field
+    returnNec : ∀ {A} x → Necessary A (ASTreturn x)
+    bindNec   : ∀ {A B} (m : AST OP A) (f : A → AST OP B)
+                → (mNec : Necessary A m)
+                → (fNec : ∀ x → Necessary B (f x))
+                → Necessary B (ASTbind m f)
+    opNec     : ∀ {A} → (c : Cmd OP A) (f : (r : SubArg OP c) → AST OP (SubRet OP r))
+                → (fNec : ∀ r → Necessary (SubRet OP r) (f r))
+                → Necessary A (ASTop c f)
+
+  necessary : ∀ {A} → (m : AST OP A) → Necessary A m
+  necessary {A} (ASTreturn x) =
+    returnNec x
+  necessary (ASTbind m f) =
+    bindNec m f (necessary m) (necessary ∘ f)
+  necessary (ASTop c f) =
+    opNec c f (necessary ∘ f)
 
