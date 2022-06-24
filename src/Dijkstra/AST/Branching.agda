@@ -255,24 +255,20 @@ module NecessaryExtension
 
       baseNec : predTrans PT (unextend (ASTop (Left x) f)) P i
       baseNec = opNec S x _ subNec _ i pre
-  opNec BranchNec (Right (BCif false))         f fNec P i pre =
-      (λ   ())
-    , (λ _            → fNec (lift false)     _ _ pre)
-  opNec BranchNec (Right (BCif true))          f fNec P i pre =
-      (λ _            → fNec (lift true)      _ _ pre)
-    , (λ   ())
-  opNec BranchNec (Right (BCeither (Left x)))  f fNec P i pre =
-      (λ where _ refl → fNec (lift (Left x))  _ _ pre)
-    , (λ _ ())
-  opNec BranchNec (Right (BCeither (Right y))) f fNec P i pre =
-      (λ _ ())
-    , (λ where _ refl → fNec (lift (Right y)) _ _ pre)
-  opNec BranchNec (Right (BCmaybe (just j)))   f fNec P i pre =
-      (λ where _ refl → fNec (lift (just j) ) _ _ pre)
-    , (λ   ())
-  opNec BranchNec (Right (BCmaybe nothing))    f fNec P i pre =
-      (λ _ ())
-    , (λ _            → fNec (lift nothing)   _ _ pre)
+  proj₁ (opNec BranchNec (Right (BCif      false))    f fNec P i pre) = λ ()
+  proj₂ (opNec BranchNec (Right (BCif      false))    f fNec P i pre) =
+    λ _            → fNec (lift false)     _ _ pre
+  proj₁ (opNec BranchNec (Right (BCif      true))     f fNec P i pre) = λ _            → fNec (lift true)      _ _ pre
+  proj₂ (opNec BranchNec (Right (BCif      true))     f fNec P i pre) = λ ()
+  proj₁ (opNec BranchNec (Right (BCeither (Left x)))  f fNec P i pre) = λ where _ refl → fNec (lift (Left x))  _ _ pre
+  proj₂ (opNec BranchNec (Right (BCeither (Left x)))  f fNec P i pre) = λ _ ()
+
+  proj₁ (opNec BranchNec (Right (BCeither (Right y))) f fNec P i pre) = λ _ ()
+  proj₂ (opNec BranchNec (Right (BCeither (Right y))) f fNec P i pre) = λ where _ refl → fNec (lift (Right y)) _ _ pre
+  proj₁ (opNec BranchNec (Right (BCmaybe  (just j)))  f fNec P i pre) = λ where _ refl → fNec (lift (just j) ) _ _ pre
+  proj₂ (opNec BranchNec (Right (BCmaybe  (just j)))  f fNec P i pre) = λ   ()
+  proj₁ (opNec BranchNec (Right (BCmaybe   nothing))  f fNec P i pre) = λ _ ()
+  proj₂ (opNec BranchNec (Right (BCmaybe   nothing))  f fNec P i pre) = λ _            → fNec (lift nothing)   _ _ pre
 
 module BranchingSyntax (BaseOps : ASTOps) where
 

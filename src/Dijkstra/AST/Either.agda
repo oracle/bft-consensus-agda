@@ -12,7 +12,7 @@ open import Data.Empty
 open import Data.Product using (_×_ ; _,_)
 open import Data.Unit
 open import Haskell.Prelude hiding (return)
-import      Level
+open import Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
 
@@ -24,23 +24,26 @@ module EitherBase where
     Either-bail : Err → EitherCmd A
 
   EitherSubArg : {A : Set} (a : EitherCmd A) → Set₁
-  EitherSubArg (Either-bail _) = Level.Lift _ Void
+  EitherSubArg (Either-bail _) = Lift _ Void
 
   EitherSubRet : {A : Set} {c : EitherCmd A} (r : EitherSubArg c) → Set
   EitherSubRet {c = Either-bail _} _ = Void
 
+  open ASTOps
   EitherOps : ASTOps
-  ASTOps.Cmd    EitherOps  = EitherCmd
-  ASTOps.SubArg EitherOps  = EitherSubArg
-  ASTOps.SubRet EitherOps  = EitherSubRet
+  Cmd    EitherOps  = EitherCmd
+  SubArg EitherOps  = EitherSubArg
+  SubRet EitherOps  = EitherSubRet
 
   EitherBaseAST = AST EitherOps
 
-  EitherTypes : ASTTypes
-  ASTTypes.Input  EitherTypes   = Unit -- We can always run an Either program.  In contrast, for an
-                                       -- RWS program, we need environment and prestate (Ev and St,
-                                       -- respectively)
-  ASTTypes.Output EitherTypes A = Either Err A
+  module _ where
+    open ASTTypes
+    EitherTypes : ASTTypes
+    Input  EitherTypes   = Unit -- We can always run an Either program.  In contrast, for an
+                                -- RWS program, we need environment and prestate (Ev and St,
+                                -- respectively)
+    Output EitherTypes A = Either Err A
   open ASTTypes EitherTypes
 
   EitherOpSem : ASTOpSem EitherOps EitherTypes
@@ -57,11 +60,12 @@ module EitherBase where
   EitherbindPost _ P (Left x)  = P (Left x)
   EitherbindPost f P (Right y) = f y P unit
 
+  open ASTPredTrans
   EitherPT : ASTPredTrans EitherOps EitherTypes
-  ASTPredTrans.returnPT EitherPT x P i = P (Right x)
-  ASTPredTrans.bindPT EitherPT {A} {B} f i Post x =
+  returnPT EitherPT x P i = P (Right x)
+  bindPT EitherPT {A} {B} f i Post x =
     ∀ r → r ≡ x → EitherbindPost f Post r
-  ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
+  opPT EitherPT (Either-bail a) f Post i = Post (Left a)
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
@@ -120,13 +124,14 @@ module EitherSyntax where
 
   EitherAST-maybe : ∀ {A B : Set} → ExtAST B → (A → ExtAST B) → Maybe A → ExtAST B
   EitherAST-maybe m f mb = ASTop (Right (BCmaybe mb))
-                                 λ { (Level.lift nothing)  → m
-                                   ; (Level.lift (just j)) → f j
+                                 λ { (lift nothing)  → m
+                                   ; (lift (just j)) → f j
                                    }
   instance
+    open MonadMaybeD
     MonadMaybeD-EitherAST : MonadMaybeD ExtAST
-    MonadMaybeD.monad  MonadMaybeD-EitherAST = MonadAST
-    MonadMaybeD.maybeD MonadMaybeD-EitherAST = EitherAST-maybe
+    monad  MonadMaybeD-EitherAST = MonadAST
+    maybeD MonadMaybeD-EitherAST = EitherAST-maybe
 
   bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
   bail a = ASTop (Left (Either-bail a)) λ ()

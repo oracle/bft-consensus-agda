@@ -12,8 +12,6 @@ open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
 open import Haskell.Prelude
-import      Level
-import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
 
 record ASTOps : Set₂ where
@@ -73,12 +71,13 @@ record ASTPredTrans (OP : ASTOps) (Ty : ASTTypes) : Set₂ where
   constructor mkASTPredTrans
   open ASTTypes Ty
   field
-    returnPT : ∀ {A} → A                 → PredTrans A
+    returnPT : ∀ {A} → A
+               → PredTrans A
     bindPT   : ∀ {A B} → (f : A → PredTrans B) (i : Input)
-                                          → (P : Post B) → Post A
+               → (P : Post B) → Post A
     opPT     : ∀ {A} → (c : Cmd OP A)
-                     → ((r : SubArg OP c) → PredTrans (SubRet OP r))
-                                          → PredTrans A
+               → ((r : SubArg OP c) → PredTrans (SubRet OP r))
+               → PredTrans A
 
   predTrans : ∀ {A} → AST OP A → PredTrans A
   predTrans (ASTreturn x) P i =
@@ -92,16 +91,16 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
   open ASTTypes Ty
   open ASTPredTrans PT
   field
-    returnPTMono :  ∀ {A} → (x : A) → MonoPT (returnPT x)
-    bindPTMono   :  ∀ {A B} → (f₁ f₂ : A → PredTrans B)
-                    → (∀ x → MonoPT (f₁ x)) → (∀ x → MonoPT (f₂ x))
-                    → (∀ x → f₁ x ⊑ f₂ x)
-                    → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
-    opPTMono     :  ∀ {A} (c : Cmd OP A)
-                      (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                    → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x))
-                    → (∀ r → f₁ r ⊑ f₂ r)
-                    → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
+    returnPTMono : ∀ {A} → (x : A) → MonoPT (returnPT x)
+    bindPTMono   : ∀ {A B} → (f₁ f₂ : A → PredTrans B)
+                   → (∀ x → MonoPT (f₁ x)) → (∀ x → MonoPT (f₂ x))
+                   → (∀ x → f₁ x ⊑ f₂ x)
+                   → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
+    opPTMono     : ∀ {A} (c : Cmd OP A)
+                     (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
+                   → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x))
+                   → (∀ r → f₁ r ⊑ f₂ r)
+                   → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
 
   predTransMono : ∀ {A} (m : AST OP A) → MonoPT (predTrans m)
   predTransMono (ASTreturn x) P₁ P₂ P₁⊆P₂ i p = returnPTMono x _ _ P₁⊆P₂ i p
@@ -170,8 +169,8 @@ record ASTNecessaryPT
   necessary : ∀ {A} → (m : AST OP A) → Necessary A m
   necessary {A} (ASTreturn x) =
     returnNec x
-  necessary (ASTbind m f) =
+  necessary     (ASTbind m f) =
     bindNec m f (necessary m) (necessary ∘ f)
-  necessary (ASTop c f) =
+  necessary     (ASTop c f)   =
     opNec c f (necessary ∘ f)
 

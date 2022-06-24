@@ -8,7 +8,7 @@ module Dijkstra.AST.Maybe where
 
 open import Haskell.Prelude using (_>>_; _>>=_; const; just; Maybe; nothing; return; Unit; unit; Monad; Void; false; true)
 open import Data.Product using (Σ; _,_)
-import      Level
+open import Level
 open import Relation.Binary.PropositionalEquality
 open import Util.Prelude using (contradiction; id; Left; Right)
 
@@ -20,33 +20,38 @@ module MaybeBase where
     Maybe-bail : MaybeCmd C
 
   MaybeSubArg : {C : Set} (c : MaybeCmd C) → Set₁
-  MaybeSubArg Maybe-bail = Level.Lift _ Void
+  MaybeSubArg Maybe-bail = Lift _ Void
 
   MaybeSubRet : {A : Set} {c : MaybeCmd A} (r : MaybeSubArg c) → Set
   MaybeSubRet {c = Maybe-bail} ()
 
+  open ASTOps
   MaybeOps : ASTOps
-  ASTOps.Cmd    MaybeOps = MaybeCmd
-  ASTOps.SubArg MaybeOps = MaybeSubArg
-  ASTOps.SubRet MaybeOps = MaybeSubRet
+  Cmd    MaybeOps = MaybeCmd
+  SubArg MaybeOps = MaybeSubArg
+  SubRet MaybeOps = MaybeSubRet
 
   MaybeBaseAST = AST MaybeOps
 
-  MaybeTypes : ASTTypes
-  ASTTypes.Input  MaybeTypes   = Unit
-  ASTTypes.Output MaybeTypes A = Maybe A
+  module _ where
+    open ASTTypes
+    MaybeTypes : ASTTypes
+    Input  MaybeTypes   = Unit
+    Output MaybeTypes A = Maybe A
 
   open ASTTypes MaybeTypes
 
-  MaybeOpSem : ASTOpSem MaybeOps MaybeTypes
-  ASTOpSem.runAST MaybeOpSem (ASTreturn x) _ = just x
-  ASTOpSem.runAST MaybeOpSem (ASTbind m f) i
-    with ASTOpSem.runAST MaybeOpSem m i
-  ...| nothing = nothing
-  ...| just x  = ASTOpSem.runAST MaybeOpSem (f x) i
-  ASTOpSem.runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
+  module _ where
+    open ASTOpSem
+    MaybeOpSem : ASTOpSem MaybeOps MaybeTypes
+    runAST MaybeOpSem (ASTreturn x) _ = just x
+    runAST MaybeOpSem (ASTbind m f) i
+      with runAST MaybeOpSem m i
+    ...| nothing = nothing
+    ...| just x  = runAST MaybeOpSem (f x) i
+    runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
 
-  runMaybeBase = ASTOpSem.runAST MaybeOpSem
+    runMaybeBase = runAST MaybeOpSem
 
   MaybebindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
   MaybebindPost _ P nothing  = P nothing
@@ -60,14 +65,15 @@ module MaybeBase where
   MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ nothing wp = n⊆ wp
   MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ (just x) wp = j⊆ x wp
 
+  open ASTPredTrans
   MaybePT : ASTPredTrans MaybeOps MaybeTypes
-  ASTPredTrans.returnPT MaybePT x P i               = P (just x)
+  returnPT MaybePT x P i               = P (just x)
   -- Note that it is important *not* to pattern match the input as 'unit'.  Even though this is the
   -- only constructor for Unit, Agda does not figure out that this case applies to a general Input
   -- (because Input is of type Unit), and therefore does not expand this case when encountering
   -- bindPT.
-  ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
-  ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
+  bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
+  opPT     MaybePT Maybe-bail f Post i = Post nothing
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
@@ -105,7 +111,7 @@ module MaybeBase where
   returnNec MaybeNec x P _ = id
   bindNec   MaybeNec {A} {B} m f mNec fNec P unit Pr
     with runAST m unit | inspect (runAST m) unit
-  ... | nothing | [ eq ] = mNec _ unit λ where r refl → subst (MaybebindPost _ P) (sym eq) Pr
+  ... | nothing | [ eq ] =     mNec _ unit λ where r refl → subst (MaybebindPost _ P) (sym eq) Pr
   ... | just x  | [ eq ] = let rec = fNec x P unit Pr
                             in mNec _ unit λ where r refl → subst (MaybebindPost _ P) (sym eq) (fNec x P unit Pr)
   opNec     MaybeNec Maybe-bail f fNec P i = id
@@ -121,7 +127,7 @@ module MaybeAST where
 
   runMaybeAST = runAST
 
-  -- TODO: do versions for Either and RWS; generically?
+  -- TODO-3: do versions for Either and RWS; generically?
   maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i
         → predTrans m (λ o → P₁ o → P₂ o) i
