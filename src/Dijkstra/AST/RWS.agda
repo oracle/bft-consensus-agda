@@ -40,13 +40,13 @@ module RWSBase where
   RWSSubArg  RWSpass             = Level.Lift _ Unit
 
   RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
-  RWSSubRet {_}              {RWSgets g} (Level.lift ())
-  RWSSubRet {_}              {RWSputs p x} _        = Void
-  RWSSubRet {_}              {RWSask x} _           = Void
-  RWSSubRet {A}              {RWSlocal l} _         = A
-  RWSSubRet {_}              {RWStell out x} _      = Void
+  RWSSubRet {_}              {RWSgets g}          (lift ())
+  RWSSubRet {_}              {RWSputs p refl}     (lift ())
+  RWSSubRet {_}              {RWSask refl}        (lift ())
+  RWSSubRet {A}              {RWSlocal l}         _         = A
+  RWSSubRet {_}              {RWStell out refl}   (lift ())
   RWSSubRet {.(_ × List Wr)} {RWSlisten{A'} refl} _ = A'
-  RWSSubRet {A}              {RWSpass} _            = A × (List Wr → List Wr)
+  RWSSubRet {A}              {RWSpass}            _ = A × (List Wr → List Wr)
 
   RWSOps : ASTOps
   ASTOps.Cmd RWSOps     = RWSCmd
