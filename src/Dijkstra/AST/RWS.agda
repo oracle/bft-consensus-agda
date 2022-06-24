@@ -59,8 +59,8 @@ module RWSBase where
   module _ where
     open ASTTypes
     RWSTypes : ASTTypes
-    Input  RWSTypes    = Ev × St
-    Output RWSTypes A  = A × St × List Wr
+    Input  RWSTypes   = Ev × St
+    Output RWSTypes A = A × St × List Wr
 
   open ASTTypes RWSTypes
 

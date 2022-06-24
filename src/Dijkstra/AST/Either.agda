@@ -31,9 +31,9 @@ module EitherBase where
 
   open ASTOps
   EitherOps : ASTOps
-  Cmd    EitherOps  = EitherCmd
-  SubArg EitherOps  = EitherSubArg
-  SubRet EitherOps  = EitherSubRet
+  Cmd    EitherOps = EitherCmd
+  SubArg EitherOps = EitherSubArg
+  SubRet EitherOps = EitherSubRet
 
   EitherBaseAST = AST EitherOps
 
