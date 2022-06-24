@@ -7,15 +7,14 @@
 module Dijkstra.AST.RWS (Ev Wr St : Set) where
 
 open import Data.Empty
-open import Data.Fin
+open import Data.Fin hiding (lift)
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
 open import Haskell.Prelude
-import      Level
+open import Level
 import      Level.Literals as Level using (#_)
 open import Relation.Binary.PropositionalEquality
-  hiding ([_])
 
 module RWSBase where
 
@@ -32,60 +31,65 @@ module RWSBase where
 
 
   RWSSubArg : {A : Set} (c : RWSCmd A) → Set₁
-  RWSSubArg (RWSgets g)          = Level.Lift _ Void
-  RWSSubArg (RWSputs p refl)     = Level.Lift _ Void
-  RWSSubArg (RWSask refl)        = Level.Lift _ Void
-  RWSSubArg (RWSlocal l)         = Level.Lift _ Unit
-  RWSSubArg (RWStell out refl)   = Level.Lift _ Void
-  RWSSubArg (RWSlisten{A'} refl) = Level.Lift _ Unit
-  RWSSubArg  RWSpass             = Level.Lift _ Unit
+  RWSSubArg (RWSgets g)          = Lift _ Void
+  RWSSubArg (RWSputs p refl)     = Lift _ Void
+  RWSSubArg (RWSask refl)        = Lift _ Void
+  RWSSubArg (RWSlocal l)         = Lift _ Unit
+  RWSSubArg (RWStell out refl)   = Lift _ Void
+  RWSSubArg (RWSlisten{A'} refl) = Lift _ Unit
+  RWSSubArg  RWSpass             = Lift _ Unit
 
   RWSSubRet : {A : Set} {c : RWSCmd A} (r : RWSSubArg c) → Set
-  RWSSubRet {_}              {RWSgets g} (Level.lift ())
-  RWSSubRet {_}              {RWSputs p x} _        = Void
-  RWSSubRet {_}              {RWSask x} _           = Void
-  RWSSubRet {A}              {RWSlocal l} _         = A
-  RWSSubRet {_}              {RWStell out x} _      = Void
-  RWSSubRet {.(_ × List Wr)} {RWSlisten{A'} refl} _ = A'
-  RWSSubRet {A}              {RWSpass} _            = A × (List Wr → List Wr)
+  RWSSubRet {_}              {RWSgets g}          (lift ())
+  RWSSubRet {_}              {RWSputs p refl}     (lift ())
+  RWSSubRet {_}              {RWSask refl}        (lift ())
+  RWSSubRet {A}              {RWSlocal l}         _         = A
+  RWSSubRet {_}              {RWStell out refl}   (lift ())
+  RWSSubRet {.(_ × List Wr)} {RWSlisten{A'} refl} _         = A'
+  RWSSubRet {A}              {RWSpass}            _         = A × (List Wr → List Wr)
 
+  open ASTOps
   RWSOps : ASTOps
-  ASTOps.Cmd RWSOps     = RWSCmd
-  ASTOps.SubArg RWSOps  = RWSSubArg
-  ASTOps.SubRet RWSOps  = RWSSubRet
+  Cmd    RWSOps = RWSCmd
+  SubArg RWSOps = RWSSubArg
+  SubRet RWSOps = RWSSubRet
 
   RWSBaseAST = AST RWSOps
 
-  RWSTypes : ASTTypes
-  ASTTypes.Input  RWSTypes    = Ev × St
-  ASTTypes.Output RWSTypes A  = A × St × List Wr
+  module _ where
+    open ASTTypes
+    RWSTypes : ASTTypes
+    Input  RWSTypes   = Ev × St
+    Output RWSTypes A = A × St × List Wr
 
   open ASTTypes RWSTypes
 
-  RWSOpSem : ASTOpSem RWSOps RWSTypes
-  ASTOpSem.runAST RWSOpSem (ASTreturn x) (ev , st) = x , st , []
-  ASTOpSem.runAST RWSOpSem (ASTbind m f) (ev , st₀) =
-    let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem m (ev , st₀)
-        (x₂ , st₂ , outs₂) = ASTOpSem.runAST RWSOpSem (f x₁) (ev , st₁)
-    in (x₂ , st₂ , outs₁ ++ outs₂)
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSgets g)        f) (ev , st) =
-    g st , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSputs p refl)   f) (ev , st) =
-    unit , p st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSask refl)      f) (ev , st) =
-    ev , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlocal l)       f) (ev , st) =
-    ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (l ev , st)
-  ASTOpSem.runAST RWSOpSem (ASTop (RWStell out refl) f) (ev , st) =
-    unit , st , out
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlisten refl)   f) (ev , st) =
-    let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (ev , st)
-    in (x₁ , outs₁) , st₁ , outs₁
-  ASTOpSem.runAST RWSOpSem (ASTop RWSpass            f) (ev , st) =
-    let ((x₁ , wf) , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) (ev , st)
-    in x₁ , st₁ , wf outs₁
+  module _ where
+    open ASTOpSem
+    RWSOpSem : ASTOpSem RWSOps RWSTypes
+    runAST RWSOpSem (ASTreturn x) (ev , st) = x , st , []
+    runAST RWSOpSem (ASTbind m f) (ev , st₀) =
+      let (x₁ , st₁ , outs₁) = runAST RWSOpSem m (ev , st₀)
+          (x₂ , st₂ , outs₂) = runAST RWSOpSem (f x₁) (ev , st₁)
+      in (x₂ , st₂ , outs₁ ++ outs₂)
+    runAST RWSOpSem (ASTop (RWSgets g)        f) (ev , st) =
+      g st , st , []
+    runAST RWSOpSem (ASTop (RWSputs p refl)   f) (ev , st) =
+      unit , p st , []
+    runAST RWSOpSem (ASTop (RWSask refl)      f) (ev , st) =
+      ev , st , []
+    runAST RWSOpSem (ASTop (RWSlocal l)       f) (ev , st) =
+      runAST RWSOpSem (f (lift unit)) (l ev , st)
+    runAST RWSOpSem (ASTop (RWStell out refl) f) (ev , st) =
+      unit , st , out
+    runAST RWSOpSem (ASTop (RWSlisten refl)   f) (ev , st) =
+      let (x₁ , st₁ , outs₁) = runAST RWSOpSem (f (lift unit)) (ev , st)
+      in (x₁ , outs₁) , st₁ , outs₁
+    runAST RWSOpSem (ASTop RWSpass            f) (ev , st) =
+      let ((x₁ , wf) , st₁ , outs₁) = runAST RWSOpSem (f (lift unit)) (ev , st)
+      in x₁ , st₁ , wf outs₁
 
-  runRWSBase = ASTOpSem.runAST RWSOpSem
+    runRWSBase = runAST RWSOpSem
 
   RWSbindPost : (outs : List Wr) {A : Set} → Post A → Post A
   RWSbindPost outs P (x , st , outs') = P (x , st , outs ++ outs')
@@ -96,101 +100,99 @@ module RWSBase where
   RWSlistenPost : ∀ {A} → Post (A × List Wr) → Post A
   RWSlistenPost P (x , s , o) = P ((x , o) , s , o)
 
+  open ASTPredTrans
   RWSPT : ASTPredTrans RWSOps RWSTypes
-  ASTPredTrans.returnPT RWSPT x P (ev , st) =
+  returnPT RWSPT x P (ev , st) =
     P (x , st , [])
-  ASTPredTrans.bindPT RWSPT f (ev , st) P (x , st' , outs) =
+  bindPT   RWSPT f (ev , st) P (x , st' , outs) =
     ∀ r → r ≡ x → f r (RWSbindPost outs P) (ev , st')
-  ASTPredTrans.opPT RWSPT (RWSgets g) f P (ev , st) =
+  opPT     RWSPT (RWSgets g)          f P (ev , st) =
     P (g st , st , [])
-  ASTPredTrans.opPT RWSPT (RWSputs p refl) f P (ev , st) =
+  opPT     RWSPT (RWSputs p refl)     f P (ev , st) =
     P (unit , p st , [])
-  ASTPredTrans.opPT RWSPT (RWSask refl) f P (ev , st) =
+  opPT     RWSPT (RWSask refl)        f P (ev , st) =
     P (ev , st , [])
-  ASTPredTrans.opPT RWSPT (RWSlocal l) f P (ev , st) =
-    ∀ ev' → ev' ≡ l ev → f (Level.lift unit) P (ev' , st)
-  ASTPredTrans.opPT RWSPT (RWStell out refl) f P (ev , st) =
+  opPT     RWSPT (RWSlocal l)         f P (ev , st) =
+    ∀ ev' → ev' ≡ l ev → f (lift unit) P (ev' , st)
+  opPT     RWSPT (RWStell out refl)   f P (ev , st) =
     P (unit , st , out)
-  ASTPredTrans.opPT RWSPT (RWSlisten{A'} refl) f P (ev , st) =
-    f (Level.lift unit) (RWSlistenPost P) (ev , st)
-  ASTPredTrans.opPT RWSPT{A} RWSpass f P (ev , st) =
-    f (Level.lift unit) (RWSpassPost P) (ev , st)
-
-  open ASTPredTrans  RWSPT
-  open ASTPTIWeakest RWSOpSem RWSPT
-
-  predTrans-is-weakest-base : ∀ {ev : Ev}{st : St}{A} → (m : RWSBaseAST A) → Post⇒wp-base {A} m (ev , st)
-  predTrans-is-weakest-base           (ASTreturn _) _ = id
-  predTrans-is-weakest-base {ev} {st} (ASTbind m f) _ Pr
-     with predTrans-is-weakest-base {ev} {st} m
-  ...| rec
-    with runRWSBase m (ev , st)
-  ... | r , st' , wr = rec _ λ where _ refl → predTrans-is-weakest-base (f r) _ Pr
-  predTrans-is-weakest-base              (ASTop (RWSgets g)                      f) P    = id
-  predTrans-is-weakest-base              (ASTop (RWSputs p refl)                 f) P    = id
-  predTrans-is-weakest-base              (ASTop (RWSask    refl)                 f) P    = id
-  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlocal l)                     f) P Pr =
-    λ where _ refl → predTrans-is-weakest-base {l ev} {st} (f (Level.lift unit)) _ Pr
-  predTrans-is-weakest-base              (ASTop (RWStell out refl)               f) P    = id
-  predTrans-is-weakest-base {ev} {st}    (ASTop (RWSlisten {A'} refl)            f) P Pr =
-    predTrans-is-weakest-base {ev} {st} {A'} (f (Level.lift unit)) _ Pr
-  predTrans-is-weakest-base {ev} {st} {A} (ASTop RWSpass                         f) P Pr =
-    predTrans-is-weakest-base {ev} {st}      (f (Level.lift unit)) _ λ where _ refl → Pr
+  opPT     RWSPT (RWSlisten{A'} refl) f P (ev , st) =
+    f (lift unit) (RWSlistenPost P) (ev , st)
+  opPT     RWSPT{A} RWSpass           f P (ev , st) =
+    f (lift unit) (RWSpassPost P) (ev , st)
 
   ------------------------------------------------------------------------------
+  open ASTPredTransMono
   RWSPTMono : ASTPredTransMono RWSPT
 
-  ASTPredTransMono.returnPTMono RWSPTMono                    x                                 P₁ P₂           P₁⊆P₂ i                  wp =
+  returnPTMono RWSPTMono                    x                                 P₁ P₂           P₁⊆P₂ i                  wp =
     P₁⊆P₂ _ wp
-  ASTPredTransMono.bindPTMono   RWSPTMono                    f₁ f₂ mono₁ mono₂ f₁⊑f₂ (ev , st) P₁ P₂           P₁⊆P₂ (x₁ , st₁ , outs₁) wp r refl =
+  bindPTMono   RWSPTMono                    f₁ f₂ mono₁ mono₂ f₁⊑f₂ (ev , st) P₁ P₂           P₁⊆P₂ (x₁ , st₁ , outs₁) wp r refl =
     f₁⊑f₂ x₁ _ (ev , st₁) (mono₁ x₁ _ _ (λ o' → P₁⊆P₂ _) (ev , st₁) (wp _ refl))
-  ASTPredTransMono.opPTMono     RWSPTMono (RWSgets g)        f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+  opPTMono     RWSPTMono (RWSgets g)        f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
     P₁⊆P₂ _ wp
-  ASTPredTransMono.opPTMono     RWSPTMono (RWSputs p refl)   f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+  opPTMono     RWSPTMono (RWSputs p refl)   f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
     P₁⊆P₂ _ wp
-  ASTPredTransMono.opPTMono     RWSPTMono (RWSask refl)      f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+  opPTMono     RWSPTMono (RWSask refl)      f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
     P₁⊆P₂ _ wp
-  ASTPredTransMono.opPTMono     RWSPTMono (RWSlocal l)       f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp ev' refl =
-    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ P₁⊆P₂ _ (wp _ refl))
-  ASTPredTransMono.opPTMono     RWSPTMono (RWStell out refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+  opPTMono     RWSPTMono (RWSlocal l)       f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp ev' refl =
+    f₁⊑f₂ (lift unit) _ _ (mono₁ (lift unit) _ _ P₁⊆P₂ _ (wp _ refl))
+  opPTMono     RWSPTMono (RWStell out refl) f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
     P₁⊆P₂ _ wp
-  ASTPredTransMono.opPTMono     RWSPTMono (RWSlisten refl)   f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
-    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ (λ where (x' , st' , o') → P₁⊆P₂ _) _ wp)
-  ASTPredTransMono.opPTMono     RWSPTMono RWSpass            f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
-    f₁⊑f₂ (Level.lift unit) _ _ (mono₁ (Level.lift unit) _ _ (λ where ((x' , w') , st' , o') pf₁ _ refl → P₁⊆P₂ _ (pf₁ _ refl)) _ wp)
+  opPTMono     RWSPTMono (RWSlisten refl)   f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+    f₁⊑f₂ (lift unit) _ _ (mono₁ (lift unit) _ _ (λ where (x' , st' , o') → P₁⊆P₂ _) _ wp)
+  opPTMono     RWSPTMono RWSpass            f₁ f₂ mono₁ mono₂ f₁⊑f₂           P₁ P₂ (ev , st) P₁⊆P₂                    wp =
+    f₁⊑f₂ (lift unit) _ _ (mono₁ (lift unit) _ _ (λ where ((x' , w') , st' , o') pf₁ _ refl → P₁⊆P₂ _ (pf₁ _ refl)) _ wp)
 
   ------------------------------------------------------------------------------
+  open ASTOpSem RWSOpSem
+  open ASTSufficientPT
   RWSSuf : ASTSufficientPT RWSOpSem RWSPT
 
-  ASTSufficientPT.returnSuf RWSSuf x P i wp = wp
-  ASTSufficientPT.bindSuf RWSSuf m f mSuf fSuf P (e , s₀) wp =
-    let (x₁ , s₁ , o₁) = ASTOpSem.runAST RWSOpSem m (e , s₀)
+  returnSuf RWSSuf x P i wp = wp
+  bindSuf   RWSSuf m f mSuf fSuf P (e , s₀) wp =
+    let (x₁ , s₁ , o₁) = runAST m (e , s₀)
         wpₘ = mSuf _ (e , s₀) wp _ refl
     in fSuf x₁ _ (e , s₁) wpₘ
-  ASTSufficientPT.opSuf RWSSuf (RWSgets g) f fSuf P i wp = wp
-  ASTSufficientPT.opSuf RWSSuf (RWSputs p refl) f fSuf P i wp = wp
-  ASTSufficientPT.opSuf RWSSuf (RWSask refl) f fSuf P i wp = wp
-  ASTSufficientPT.opSuf RWSSuf (RWSlocal l) f fSuf P (e , s) wp =
-    fSuf (Level.lift unit) P (l e , s) (wp (l e) refl)
-  ASTSufficientPT.opSuf RWSSuf (RWStell out refl) f fSuf P i wp = wp
-  ASTSufficientPT.opSuf RWSSuf (RWSlisten refl) f fSuf P i wp =
-    fSuf _ _ _ wp
-  ASTSufficientPT.opSuf RWSSuf RWSpass f fSuf P i wp =
-    let ((x₁ , g) , s₁ , o₁) = ASTOpSem.runAST RWSOpSem (f (Level.lift unit)) i
-    in fSuf (Level.lift unit) (RWSpassPost P) i wp (g o₁) refl
+  opSuf     RWSSuf (RWSgets g)        f fSuf P _       wp = wp
+  opSuf     RWSSuf (RWSputs p refl)   f fSuf P _       wp = wp
+  opSuf     RWSSuf (RWSask refl)      f fSuf P _       wp = wp
+  opSuf     RWSSuf (RWSlocal l)       f fSuf P (e , s) wp =
+       fSuf _ _ (l e , s) (wp (l e) refl)
+  opSuf     RWSSuf (RWStell out refl) f fSuf P _       wp = wp
+  opSuf     RWSSuf (RWSlisten refl)   f fSuf P _       wp =
+       fSuf _ _ _          wp
+  opSuf     RWSSuf RWSpass            f fSuf P i       wp =
+    let ((x₁ , g) , s₁ , o₁) = runAST (f (lift unit)) i
+    in fSuf _ _ _          wp (g o₁) refl
+
+  open ASTNecessaryPT
+  RWSNec : ASTNecessaryPT RWSOpSem RWSPT
+  returnNec RWSNec x P _                              = id
+  bindNec   RWSNec {A} {B} m f mNec fNec P (e , s) Pr
+    with runAST m (e , s) | inspect (runAST m) (e , s)
+  ... | r , s' , wr | [ refl ]                        =
+    mNec _ (e , s) λ where _ refl → fNec r (RWSbindPost wr P) (e , s') Pr
+  opNec RWSNec (RWSgets g)           f fNec P _       = id
+  opNec RWSNec (RWSputs p refl)      f fNec P _       = id
+  opNec RWSNec (RWSask refl)         f fNec P _       = id
+  opNec RWSNec (RWSlocal l)          f fNec P (e , s) =
+    λ where Pr ev' refl → fNec (lift _) _ (ev' , s)                    Pr
+  opNec RWSNec (RWStell outs refl)   f fNec P _       = id
+  opNec RWSNec (RWSlisten {A'} refl) f fNec P         = fNec (lift _) _
+  opNec RWSNec  RWSpass              f fNec P _       =
+    λ       Pr          → fNec (lift _) _ _         λ where o' refl →  Pr
 
 module RWSAST where
   open RWSBase
-  open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost) public
+  open RWSBase using (RWSbindPost ; RWSpassPost ; RWSlistenPost)    public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
-  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf     public
-  open WithPTIWBase predTrans-is-weakest-base                    public
+  open ConditionalExtensions RWSPT RWSOpSem RWSPTMono RWSSuf RWSNec public
 
   RWSAST    = ExtAST
 
   runRWSAST = runAST
-
 
   module RWSSyntax where
     gets : ∀ {A} → (St → A) → RWSAST A
@@ -203,16 +205,16 @@ module RWSAST where
     ask = ASTop (Left (RWSask refl)) (λ ())
 
     local : ∀ {A} → (Ev → Ev) → RWSAST A → RWSAST A
-    local l m = ASTop (Left (RWSlocal l)) (λ where (Level.lift unit) → m)
+    local l m = ASTop (Left (RWSlocal l)) (λ where (lift unit) → m)
 
     tell : List Wr → RWSAST Unit
     tell outs = ASTop (Left (RWStell outs refl)) (λ ())
 
     listen : ∀ {A} → RWSAST A → RWSAST (A × List Wr)
-    listen m = ASTop (Left (RWSlisten refl)) λ where (Level.lift unit) → m
+    listen m = ASTop (Left (RWSlisten refl)) λ where (lift unit) → m
 
     pass : ∀ {A} → RWSAST (A × (List Wr → List Wr)) → RWSAST A
-    pass m = ASTop (Left RWSpass) (λ where (Level.lift unit) → m)
+    pass m = ASTop (Left RWSpass) (λ where (lift unit) → m)
 
 open RWSAST    public
 open RWSSyntax public
