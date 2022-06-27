@@ -15,6 +15,8 @@ Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
 Either A B = A DS.⊎ B
 pattern Left  x = DS.inj₁ x
 pattern Right x = DS.inj₂ x
+pattern left  x = DS.inj₁ x
+pattern right x = DS.inj₂ x
 
 either = DS.either
 

@@ -32,4 +32,4 @@ module TwoEitherBindsExample where
       ... | (Right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
 
       PT1 : predTrans prog runPost unit
-      PT1 = predTrans-is-weakest prog _ refl
+      PT1 = necessary prog _ unit refl

@@ -21,28 +21,33 @@ module MaybeBase where
   MaybeSubRet : {A : Set} {c : MaybeCmd A} (r : MaybeSubArg c) → Set
   MaybeSubRet {c = Maybe-bail} ()
 
+  open ASTOps
   MaybeOps : ASTOps
-  ASTOps.Cmd    MaybeOps = MaybeCmd
-  ASTOps.SubArg MaybeOps = MaybeSubArg
-  ASTOps.SubRet MaybeOps = MaybeSubRet
+  Cmd    MaybeOps = MaybeCmd
+  SubArg MaybeOps = MaybeSubArg
+  SubRet MaybeOps = MaybeSubRet
 
   MaybeBaseAST = AST MaybeOps
 
-  MaybeTypes : ASTTypes
-  ASTTypes.Input  MaybeTypes   = Unit
-  ASTTypes.Output MaybeTypes A = Maybe A
+  module _ where
+    open ASTTypes
+    MaybeTypes : ASTTypes
+    Input  MaybeTypes   = Unit
+    Output MaybeTypes A = Maybe A
 
   open ASTTypes MaybeTypes
 
-  MaybeOpSem : ASTOpSem MaybeOps MaybeTypes
-  ASTOpSem.runAST MaybeOpSem (ASTreturn x) _ = just x
-  ASTOpSem.runAST MaybeOpSem (ASTbind m f) i
-    with ASTOpSem.runAST MaybeOpSem m i
-  ...| nothing = nothing
-  ...| just x  = ASTOpSem.runAST MaybeOpSem (f x) i
-  ASTOpSem.runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
+  module _ where
+    open ASTOpSem
+    MaybeOpSem : ASTOpSem MaybeOps MaybeTypes
+    runAST MaybeOpSem (ASTreturn x) _ = just x
+    runAST MaybeOpSem (ASTbind m f) i
+      with runAST MaybeOpSem m i
+    ...| nothing = nothing
+    ...| just x  = runAST MaybeOpSem (f x) i
+    runAST MaybeOpSem (ASTop Maybe-bail f) i = nothing
 
-  runMaybeBase = ASTOpSem.runAST MaybeOpSem
+    runMaybeBase = runAST MaybeOpSem
 
   MaybebindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
   MaybebindPost _ P nothing  = P nothing
@@ -56,33 +61,15 @@ module MaybeBase where
   MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ nothing wp = n⊆ wp
   MaybebindPost⊆ f P₁ P₂ n⊆ j⊆ (just x) wp = j⊆ x wp
 
+  open ASTPredTrans
   MaybePT : ASTPredTrans MaybeOps MaybeTypes
-  ASTPredTrans.returnPT MaybePT x P i               = P (just x)
+  returnPT MaybePT x P i               = P (just x)
   -- Note that it is important *not* to pattern match the input as 'unit'.  Even though this is the
   -- only constructor for Unit, Agda does not figure out that this case applies to a general Input
   -- (because Input is of type Unit), and therefore does not expand this case when encountering
   -- bindPT.
-  ASTPredTrans.bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
-  ASTPredTrans.opPT     MaybePT Maybe-bail f Post i = Post nothing
-
-  -- This open is important because, without it, Agda does not know how to interpret bindPT and
-  -- therefore does not refine the goal sufficiently to enable the old λ ._ refl trick to get to the
-  -- MaybebindPost goal, for example.
-  open ASTPredTrans  MaybePT
-  open ASTPTIWeakest MaybeOpSem MaybePT
-
-  predTrans-is-weakest-base' : ∀ {A} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m unit
-  predTrans-is-weakest-base' (ASTreturn _) _ = id
-  predTrans-is-weakest-base' (ASTbind m f) _ Pr
-     with predTrans-is-weakest-base' m
-  ...| rec
-    with runMaybeBase m unit
-  ... | nothing = rec _ λ where _ refl → Pr
-  ... | just x  = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
-  predTrans-is-weakest-base' (ASTop Maybe-bail f) Pr = id
-
-  predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : MaybeBaseAST A) → Post⇒wp-base {A} m i
-  predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
+  bindPT   MaybePT f i Post x          = ∀ r → r ≡ x → MaybebindPost f Post r
+  opPT     MaybePT Maybe-bail f Post i = Post nothing
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
@@ -103,7 +90,6 @@ module MaybeBase where
   ------------------------------------------------------------------------------
   open ASTSufficientPT
   MaybeSuf : ASTSufficientPT MaybeOpSem MaybePT
-
   returnSuf MaybeSuf x P i wp = wp
   bindSuf   MaybeSuf {A} {B} m f mSuf fSuf P unit wp
     with runMaybeBase m unit | inspect (runMaybeBase m) unit
@@ -112,28 +98,41 @@ module MaybeBase where
                                          in fSuf y P unit wp'
   opSuf     MaybeSuf Maybe-bail f fSuf P i wp = wp
 
+  ------------------------------------------------------------------------------
+
+  open ASTPredTrans   MaybePT
+  open ASTOpSem MaybeOpSem
+  open ASTNecessaryPT
+  MaybeNec : ASTNecessaryPT MaybeOpSem MaybePT
+  returnNec MaybeNec x P _ = id
+  bindNec   MaybeNec {A} {B} m f mNec fNec P unit Pr
+    with runAST m unit | inspect (runAST m) unit
+  ... | nothing | [ eq ] =     mNec _ unit λ where r refl → subst (MaybebindPost _ P) (sym eq) Pr
+  ... | just x  | [ eq ] = let rec = fNec x P unit Pr
+                            in mNec _ unit λ where r refl → subst (MaybebindPost _ P) (sym eq) (fNec x P unit Pr)
+  opNec     MaybeNec Maybe-bail f fNec P i = id
+
 module MaybeAST where
   open        MaybeBase
-  open        MaybeBase using (MaybebindPost)                               public
+  open        MaybeBase using (MaybebindPost)                                        public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
-  open        ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf public
-  open        WithPTIWBase predTrans-is-weakest-base                        public
+  open        ConditionalExtensions MaybePT MaybeOpSem MaybePTMono MaybeSuf MaybeNec public
 
   MaybeAST    = ExtAST
 
   runMaybeAST = runAST
 
-  -- TODO: do versions for Either and RWS; generically?
+  -- TODO-3: do versions for Either and RWS; generically?
   maybePTApp
       : ∀ {A} {P₁ P₂ : Post A} (m : MaybeAST A) i
         → predTrans m (λ o → P₁ o → P₂ o) i
         → predTrans m P₁ i
         → predTrans m P₂ i
   maybePTApp {_} {P₁} {P₂} m unit imp pt1 =
-    predTrans-is-weakest m P₂
-      (sufficient m (λ o → P₁ o → P₂ o) unit imp
-        (sufficient m P₁ unit pt1))
+     necessary m P₂ unit
+       (sufficient m (λ o → P₁ o → P₂ o) unit imp
+          (sufficient m P₁ unit pt1))
 
   module MaybeBindProps {A B : Set} {m : MaybeAST A} {f : A → MaybeAST B}
                         (prog : MaybeAST B)
@@ -158,11 +157,11 @@ module MaybeAST where
                      → predTrans prog P i
   maybePTBindLemma {A} {m = m} {f} {P} {unit} prog refl nothingCase justCase
      with runMaybeAST m unit | inspect (runMaybeAST m) unit
-  ... | nothing | [ R ] = predTrans-is-weakest m _ bindPost
+  ... | nothing | [ R ] = necessary m _ unit bindPost
         where
         bindPost : _
         bindPost r refl rewrite R = nothingCase refl
-  ... | just x  | [ R ] = predTrans-is-weakest prog P bindPost
+  ... | just x  | [ R ] = necessary prog P unit bindPost
         where
         bindPost : _
         bindPost = subst P (sym (MaybeBindProps.justProp prog refl x R)) (justCase x refl)

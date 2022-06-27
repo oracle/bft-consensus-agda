@@ -23,18 +23,21 @@ module EitherBase where
   EitherSubRet : {A : Set} {c : EitherCmd A} (r : EitherSubArg c) → Set
   EitherSubRet {c = Either-bail _} _ = Void
 
+  open ASTOps
   EitherOps : ASTOps
-  ASTOps.Cmd    EitherOps  = EitherCmd
-  ASTOps.SubArg EitherOps  = EitherSubArg
-  ASTOps.SubRet EitherOps  = EitherSubRet
+  Cmd    EitherOps = EitherCmd
+  SubArg EitherOps = EitherSubArg
+  SubRet EitherOps = EitherSubRet
 
   EitherBaseAST = AST EitherOps
 
-  EitherTypes : ASTTypes
-  ASTTypes.Input  EitherTypes   = Unit -- We can always run an Either program.  In contrast, for an
-                                       -- RWS program, we need environment and prestate (Ev and St,
-                                       -- respectively)
-  ASTTypes.Output EitherTypes A = Either Err A
+  module _ where
+    open ASTTypes
+    EitherTypes : ASTTypes
+    Input  EitherTypes   = Unit -- We can always run an Either program.  In contrast, for an
+                                -- RWS program, we need environment and prestate (Ev and St,
+                                -- respectively)
+    Output EitherTypes A = Either Err A
   open ASTTypes EitherTypes
 
   EitherOpSem : ASTOpSem EitherOps EitherTypes
@@ -51,27 +54,12 @@ module EitherBase where
   EitherbindPost _ P (Left x)  = P (Left x)
   EitherbindPost f P (Right y) = f y P unit
 
+  open ASTPredTrans
   EitherPT : ASTPredTrans EitherOps EitherTypes
-  ASTPredTrans.returnPT EitherPT x P i = P (Right x)
-  ASTPredTrans.bindPT EitherPT {A} {B} f i Post x =
+  returnPT EitherPT x P i = P (Right x)
+  bindPT EitherPT {A} {B} f i Post x =
     ∀ r → r ≡ x → EitherbindPost f Post r
-  ASTPredTrans.opPT EitherPT (Either-bail a) f Post i = Post (Left a)
-
-  open ASTPredTrans  EitherPT
-  open ASTPTIWeakest EitherOpSem EitherPT
-
-  predTrans-is-weakest-base' : ∀ {A} → (m : EitherBaseAST A) → Post⇒wp-base {A} m unit
-  predTrans-is-weakest-base' (ASTreturn _) _ = id
-  predTrans-is-weakest-base' (ASTbind m f) _ Pr
-     with predTrans-is-weakest-base' m
-  ...| rec
-    with runEitherBase m unit
-  ... | Left  x = rec _ λ where _ refl → Pr
-  ... | Right x = rec _ λ where r refl → predTrans-is-weakest-base' (f x) _ Pr
-  predTrans-is-weakest-base' (ASTop (Either-bail _) _) _ = id
-
-  predTrans-is-weakest-base : ∀ {A} → {i : Unit} → (m : EitherBaseAST A) → Post⇒wp-base {A} m i
-  predTrans-is-weakest-base {A} {unit} m = predTrans-is-weakest-base' m
+  opPT EitherPT (Either-bail a) f Post i = Post (Left a)
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
@@ -88,7 +76,6 @@ module EitherBase where
   ------------------------------------------------------------------------------
   open ASTSufficientPT
   EitherSuf : ASTSufficientPT EitherOpSem EitherPT
-
   returnSuf EitherSuf x P i wp = wp
   bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
      with  runEitherBase m  unit  | inspect
@@ -98,13 +85,24 @@ module EitherBase where
                            in fSuf y P unit wp'
   opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 
+  ------------------------------------------------------------------------------
+  open ASTNecessaryPT
+  open ASTOpSem EitherOpSem
+  EitherNec : ASTNecessaryPT EitherOpSem EitherPT
+  returnNec EitherNec x P _ = id
+  bindNec   EitherNec {A} {B} m f mNec fNec P unit Pr
+    with runAST m unit | inspect (runAST m) unit
+  ... | Left x  | [ eq ] =     mNec _ unit λ where _ refl → subst (EitherbindPost _ P) (sym eq) Pr
+  ... | Right x | [ eq ] = let rec = fNec x P unit Pr
+                            in mNec _ unit λ where _ refl → subst (EitherbindPost _ P) (sym eq) (fNec x P unit Pr)
+  opNec EitherNec (Either-bail x₁) f fNec P _ = id
+
 module EitherAST where
   open EitherBase
-  open EitherBase using (EitherbindPost)                                 public
+  open EitherBase using (EitherbindPost)                                           public
   open import Dijkstra.AST.Branching
   open import Dijkstra.AST.Core
-  open ConditionalExtensions EitherPT EitherOpSem EitherPTMono EitherSuf public
-  open WithPTIWBase predTrans-is-weakest-base                            public
+  open ConditionalExtensions EitherPT EitherOpSem EitherPTMono EitherSuf EitherNec public
 
   EitherAST    = ExtAST
 
@@ -123,6 +121,11 @@ module EitherSyntax where
                                  λ { (lift nothing)  → m
                                    ; (lift (just j)) → f j
                                    }
+  instance
+    open MonadMaybeD
+    MonadMaybeD-EitherAST : MonadMaybeD ExtAST
+    monad  MonadMaybeD-EitherAST = MonadAST
+    maybeD MonadMaybeD-EitherAST = EitherAST-maybe
 
   bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
   bail a = ASTop (Left (Either-bail a)) λ ()

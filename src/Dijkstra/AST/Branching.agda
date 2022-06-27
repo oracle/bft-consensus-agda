@@ -34,9 +34,9 @@ module ASTExtension (O : ASTOps) where
   SubRet BranchOps{_} {Right y} r = BranchSubRet r
 
   unextend : ∀ {A} → AST BranchOps A → AST O A
-  unextend (ASTreturn x)      = ASTreturn x
-  unextend (ASTbind m f)      = ASTbind (unextend m) (unextend ∘ f)
-  unextend (ASTop (Left c) f) = ASTop c (unextend ∘ f)
+  unextend (ASTreturn x)                          = ASTreturn x
+  unextend (ASTbind m f)                          = ASTbind (unextend m) (unextend ∘ f)
+  unextend (ASTop (Left c) f)                     = ASTop c (unextend ∘ f)
   unextend (ASTop (Right (BCif false))         f) = unextend (f (lift false))
   unextend (ASTop (Right (BCif true))          f) = unextend (f (lift true))
   unextend (ASTop (Right (BCeither (Left x)))  f) = unextend (f (lift (Left x)))
@@ -67,8 +67,8 @@ module PredTransExtension {O : ASTOps} {T : ASTTypes} (PT : ASTPredTrans O T) wh
       (∀ l →  e ≡ Left  l → f (lift (Left l))  P i)
     × (∀ r →  e ≡ Right r → f (lift (Right r)) P i)
   opPT     BranchPT (Right (BCmaybe mb)) f P i =
-      (      mb ≡ nothing → f (lift nothing)   P i)
-    × (∀ j → mb ≡ just j  → f (lift (just j))  P i)
+      (∀ j → mb ≡ just j  → f (lift (just j))  P i)
+    × (      mb ≡ nothing → f (lift nothing)   P i)
   open ASTPredTrans BranchPT
 
 module PredTransExtensionMono
@@ -95,10 +95,10 @@ module PredTransExtensionMono
     f₁⊑f₂ (lift (Left l))  _ i (mono₁ (lift (Left l))  _ _ P₁⊆P₂ i (proj₁ p l refl))
   proj₂ (opPTMono BranchPTMono (Right (BCeither x))   f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) r refl =
     f₁⊑f₂ (lift (Right r)) _ i (mono₁ (lift (Right r)) _ _ P₁⊆P₂ i (proj₂ p r refl))
-  proj₁ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
-    f₁⊑f₂ (lift nothing)   _ i (mono₁ (lift nothing)   _ _ P₁⊆P₂ i (proj₁ p refl))
-  proj₂ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
-    f₁⊑f₂ (lift (just j))  _ i (mono₁ (lift (just j))  _ _ P₁⊆P₂ i (proj₂ p j refl))
+  proj₁ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p) j refl =
+    f₁⊑f₂ (lift (just j))  _ i (mono₁ (lift (just j))  _ _ P₁⊆P₂ i (proj₁ p j refl))
+  proj₂ (opPTMono BranchPTMono (Right (BCmaybe x))    f₁ f₂ mono₁ mono₂ f₁⊑f₂ P₁ P₂ i P₁⊆P₂ p)   refl =
+    f₁⊑f₂ (lift nothing)   _ i (mono₁ (lift nothing)   _ _ P₁⊆P₂ i (proj₂ p refl))
 
   unextendPT : ∀ {A} (m : AST BranchOps A)
                → predTrans BranchPT m ⊑ predTrans PT (unextend m)
@@ -123,10 +123,10 @@ module PredTransExtensionMono
     unextendPT (f (lift (Left x)))  _ _ (proj₁ wp _ refl)
   unextendPT (ASTop (Right (BCeither (Right y))) f) P i wp =
     unextendPT (f (lift (Right y))) _ _ (proj₂ wp _ refl)
-  unextendPT (ASTop (Right (BCmaybe nothing))    f) P i wp =
-    unextendPT (f (lift nothing))   _ _ (proj₁ wp   refl)
   unextendPT (ASTop (Right (BCmaybe (just j)))   f) P i wp =
-    unextendPT (f (lift (just j)))  _ _ (proj₂ wp _ refl)
+    unextendPT (f (lift (just j)))  _ _ (proj₁ wp _ refl)
+  unextendPT (ASTop (Right (BCmaybe nothing))    f) P i wp =
+    unextendPT (f (lift nothing))   _ _ (proj₂ wp   refl)
 
   extendPT : ∀ {A} (m : AST BranchOps A)
              → predTrans PT (unextend m) ⊑ predTrans BranchPT m
@@ -150,10 +150,10 @@ module PredTransExtensionMono
     extendPT (f (lift (Left l)))  _ _ wp
   proj₂ (extendPT (ASTop (Right (BCeither x)) f) P i wp) r refl =
     extendPT (f (lift (Right r))) _ _ wp
-  proj₁ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp)   refl =
-    extendPT (f (lift nothing))   _ _ wp
-  proj₂ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp) j refl =
+  proj₁ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp) j refl =
     extendPT (f (lift (just j)))  _ _ wp
+  proj₂ (extendPT (ASTop (Right (BCmaybe x))  f) P i wp)   refl =
+    extendPT (f (lift nothing))   _ _ wp
 
 module SufficientExtension
   {O} {T} {OS : ASTOpSem O T} {PT : ASTPredTrans O T}
@@ -166,6 +166,9 @@ module SufficientExtension
   open OpSemExtension OS
   open PredTransExtension PT
   open PredTransExtensionMono M
+
+  -- NOTE: to save space in the paper, we list extendPT and unextendPT as if they were here.  They
+  -- are actually in module PredTransExtensionMono, just above.
 
   BranchSuf : ASTSufficientPT BranchOpSem BranchPT
   returnSuf BranchSuf = returnSuf S
@@ -196,10 +199,65 @@ module SufficientExtension
     fSuf (lift (Left x))  _ _ (proj₁ wp _ refl)
   opSuf BranchSuf (Right (BCeither (Right y))) f fSuf P i wp =
     fSuf (lift (Right y)) _ _ (proj₂ wp _ refl)
-  opSuf BranchSuf (Right (BCmaybe nothing))    f fSuf P i wp =
-    fSuf (lift nothing)   _ _ (proj₁ wp   refl)
   opSuf BranchSuf (Right (BCmaybe (just j)))   f fSuf P i wp =
-    fSuf (lift (just j))  _ _ (proj₂ wp _ refl)
+    fSuf (lift (just j))  _ _ (proj₁ wp _ refl)
+  opSuf BranchSuf (Right (BCmaybe nothing))    f fSuf P i wp =
+    fSuf (lift nothing)   _ _ (proj₂ wp   refl)
+
+module NecessaryExtension
+  {O} {T} {OS : ASTOpSem O T} {PT : ASTPredTrans O T}
+  (M : ASTPredTransMono PT) (S : ASTNecessaryPT OS PT) where
+  open ASTOps O
+  open ASTOpSem OS
+  open ASTTypes T
+  open ASTExtension O
+  open ASTPredTrans
+  open ASTNecessaryPT
+  open OpSemExtension OS
+  open PredTransExtension PT
+  open PredTransExtensionMono M
+  -- NOTE: to save space in the paper, we list extendPT and unextendPT as if they were here.  They
+  -- are actually in module PredTransExtensionMono, just above.
+
+  BranchNec : ASTNecessaryPT BranchOpSem BranchPT
+  returnNec BranchNec = returnNec S
+  bindNec BranchNec {A} {B} m f mNec fNec P i pre =
+     extendPT (ASTbind m f) _ i nec
+       where
+       fxNec : (a : A) (P₁ : Post B) (i₁ : Input) (P₁post : _)
+               → predTrans PT (unextend (f a)) P₁ i₁
+       fxNec a P₁ i₁ = unextendPT (f a) _ i₁ ∘ fNec a P₁ i₁
+
+       mNec' : (P₁ : Post A) (i₁ : Input)
+               (P₁post : P₁ (runAST (unextend m) i₁))
+               → predTrans PT (unextend m) P₁ i₁
+       mNec' P₁ i₁ P₁post = unextendPT m P₁ i₁ (mNec _ _ P₁post)
+
+       nec : predTrans PT (unextend (ASTbind m f)) P i
+       nec = bindNec S (unextend m) (unextend ∘ f) mNec' fxNec P i pre
+  opNec BranchNec {A} (Left x)                     f fNec P i pre =
+    extendPT (ASTop (Left x) f) _ i baseNec
+      where
+      subNec : (a : SubArg x) (P₁ : Post (SubRet a)) (i₁ : Input)
+               → (P₁post : P₁ (runAST (unextend (f a)) i₁))
+               → predTrans PT (unextend (f a)) P₁ i₁
+      subNec a P₁ i₁ = unextendPT (f a) P₁ i₁ ∘ fNec a P₁ i₁
+
+      baseNec : predTrans PT (unextend (ASTop (Left x) f)) P i
+      baseNec = opNec S x _ subNec _ i pre
+  proj₁ (opNec BranchNec (Right (BCif      false))    f fNec P i pre) = λ ()
+  proj₂ (opNec BranchNec (Right (BCif      false))    f fNec P i pre) =
+    λ _            → fNec (lift false)     _ _ pre
+  proj₁ (opNec BranchNec (Right (BCif      true))     f fNec P i pre) = λ _            → fNec (lift true)      _ _ pre
+  proj₂ (opNec BranchNec (Right (BCif      true))     f fNec P i pre) = λ ()
+  proj₁ (opNec BranchNec (Right (BCeither (Left x)))  f fNec P i pre) = λ where _ refl → fNec (lift (Left x))  _ _ pre
+  proj₂ (opNec BranchNec (Right (BCeither (Left x)))  f fNec P i pre) = λ _ ()
+  proj₁ (opNec BranchNec (Right (BCeither (Right y))) f fNec P i pre) = λ _ ()
+  proj₂ (opNec BranchNec (Right (BCeither (Right y))) f fNec P i pre) = λ where _ refl → fNec (lift (Right y)) _ _ pre
+  proj₁ (opNec BranchNec (Right (BCmaybe  (just j)))  f fNec P i pre) = λ where _ refl → fNec (lift (just j) ) _ _ pre
+  proj₂ (opNec BranchNec (Right (BCmaybe  (just j)))  f fNec P i pre) = λ   ()
+  proj₁ (opNec BranchNec (Right (BCmaybe   nothing))  f fNec P i pre) = λ _ ()
+  proj₂ (opNec BranchNec (Right (BCmaybe   nothing))  f fNec P i pre) = λ _            → fNec (lift nothing)   _ _ pre
 
 module BranchingSyntax (BaseOps : ASTOps) where
 
@@ -211,11 +269,11 @@ module BranchingSyntax (BaseOps : ASTOps) where
                                   ; (lift false) → e
                                   }
 
-  maybeAST :  ∀ {A B : Set}
-              → (A → AST Ops B)
-              → AST Ops B
-              → Maybe A
-              → AST Ops B
+  maybeAST : ∀ {A B : Set}
+             → (A → AST Ops B)
+             → AST Ops B
+             → Maybe A
+             → AST Ops B
   maybeAST fA B mA = ASTop (Right (BCmaybe mA))
                            λ { (lift nothing)  → B
                              ; (lift (just a)) → fA a
@@ -246,37 +304,23 @@ module ConditionalExtensions
   (BaseOpSem  : ASTOpSem BaseOps BaseTypes)
   (BasePTMono : ASTPredTransMono BasePT)
   (BaseSuf    : ASTSufficientPT BaseOpSem BasePT)
+  (BaseNec    : ASTNecessaryPT  BaseOpSem BasePT)
   where
-  ExtOps = ASTExtension.BranchOps BaseOps
+  open ASTExtension
+  open PredTransExtension
+  open OpSemExtension BaseOpSem
+  ExtOps = BranchOps BaseOps
   ExtAST = AST ExtOps
-  PT     = PredTransExtension.BranchPT BasePT
-  runAST = ASTOpSem.runAST (OpSemExtension.BranchOpSem BaseOpSem)
+  PT     = BranchPT BasePT
+  runAST = ASTOpSem.runAST BranchOpSem
   PTMono = PredTransExtensionMono.BranchPTMono BasePTMono
   Suf    = SufficientExtension.BranchSuf BasePTMono BaseSuf
+  Nec    = NecessaryExtension.BranchNec  BasePTMono BaseNec
   open ASTOps BaseOps             public
   open ASTTypes BaseTypes         public
+  open ASTNecessaryPT  Nec        public
   open ASTSufficientPT Suf        public
   open ASTPredTrans PT            public
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
-
-  open ASTPTIWeakest BaseOpSem BasePT
-
-  module WithPTIWBase (predTrans-is-weakest-base : ∀ {A i} → (m : AST BaseOps A) → Post⇒wp-base m i) where
-
-    Post⇒wp : ∀ {A} → ExtAST A → Input → Set₁
-    Post⇒wp {A} m i =
-      (P : Post A)
-      → P (runAST m i)
-      → predTrans m P i
-
-    open ASTExtension BaseOps
-    open PredTransExtensionMono BasePTMono
-
-    -- We use unextend to get an equivalent AST without branching operations, use the provided proof
-    -- that predTrans is weakest for the underlying AST, and then use extendPT to extend that
-    -- property to the AST with branching operatiions.
-    predTrans-is-weakest : ∀ {A i} → (m : ExtAST A) → Post⇒wp m i
-    predTrans-is-weakest {i = i} m P Pr =
-      extendPT m P i (predTrans-is-weakest-base (unextend m) P Pr)
-
+  open import Dijkstra.AST.Syntax public
