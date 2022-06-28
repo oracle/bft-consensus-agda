@@ -11,7 +11,6 @@ module Dijkstra.AST.Examples.Maybe.Bind where
 
 module OneMaybeBindExample where
   open import Dijkstra.AST.Maybe
-  open import Dijkstra.AST.Syntax
   module _ (mn1 mn2 : MaybeAST Nat) where
     prog : MaybeAST (List Nat)
     prog = do

@@ -269,6 +269,9 @@ module BranchingSyntax (BaseOps : ASTOps) where
                                   ; (lift false) → e
                                   }
 
+  -- This is the standard argument order for maybe in Agda, and is used
+  -- in the paper (see Dijkstra.AST.Examples.PaperIntro).  We flip
+  -- it below to create a MonadMaybeD instance.
   maybeAST : ∀ {A B : Set}
              → (A → AST Ops B)
              → AST Ops B
@@ -278,6 +281,14 @@ module BranchingSyntax (BaseOps : ASTOps) where
                            λ { (lift nothing)  → B
                              ; (lift (just a)) → fA a
                              }
+
+  instance
+    open import Dijkstra.AST.Syntax
+    open import Dijkstra.Syntax
+    open MonadMaybeD public
+    MonadMaybeD-AST : MonadMaybeD (AST Ops)
+    monad  MonadMaybeD-AST = MonadAST
+    maybeD MonadMaybeD-AST = flip maybeAST
 
   eitherAST : ∀ {A B C : Set}
               → (A → AST Ops C)
@@ -324,3 +335,4 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
+

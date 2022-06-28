@@ -184,34 +184,38 @@ module RWSAST where
 
   runRWSAST = runAST
 
-  module RWSSyntax where
-    gets : ∀ {A} → (St → A) → RWSAST A
-    gets g = ASTop (Left (RWSgets g)) λ ()
+open RWSAST public
 
-    puts : (St → St) → RWSAST Unit
-    puts p = ASTop (Left (RWSputs p refl)) (λ ())
+module RWSSyntax where
+  open import Dijkstra.AST.Branching
+  open import Dijkstra.AST.Core
+  open ASTExtension
+  open RWSBase
 
-    ask : RWSAST Ev
-    ask = ASTop (Left (RWSask refl)) (λ ())
+  gets : ∀ {A} → (St → A) → RWSAST A
+  gets g = ASTop (Left (RWSgets g)) λ ()
 
-    local : ∀ {A} → (Ev → Ev) → RWSAST A → RWSAST A
-    local l m = ASTop (Left (RWSlocal l)) (λ where (lift unit) → m)
+  puts : (St → St) → RWSAST Unit
+  puts p = ASTop (Left (RWSputs p refl)) (λ ())
 
-    tell : List Wr → RWSAST Unit
-    tell outs = ASTop (Left (RWStell outs refl)) (λ ())
+  ask : RWSAST Ev
+  ask = ASTop (Left (RWSask refl)) (λ ())
 
-    listen : ∀ {A} → RWSAST A → RWSAST (A × List Wr)
-    listen m = ASTop (Left (RWSlisten refl)) λ where (lift unit) → m
+  local : ∀ {A} → (Ev → Ev) → RWSAST A → RWSAST A
+  local l m = ASTop (Left (RWSlocal l)) (λ where (lift unit) → m)
 
-    pass : ∀ {A} → RWSAST (A × (List Wr → List Wr)) → RWSAST A
-    pass m = ASTop (Left RWSpass) (λ where (lift unit) → m)
+  tell : List Wr → RWSAST Unit
+  tell outs = ASTop (Left (RWStell outs refl)) (λ ())
 
-open RWSAST    public
+  listen : ∀ {A} → RWSAST A → RWSAST (A × List Wr)
+  listen m = ASTop (Left (RWSlisten refl)) λ where (lift unit) → m
+
+  pass : ∀ {A} → RWSAST (A × (List Wr → List Wr)) → RWSAST A
+  pass m = ASTop (Left RWSpass) (λ where (lift unit) → m)
+
 open RWSSyntax public
 
 module RWSExample where
-  open RWSAST
-  open RWSSyntax
 
   module _ where
     open import Dijkstra.AST.Core

@@ -108,34 +108,21 @@ module EitherAST where
 
   runEitherAST = runAST
 
+open EitherAST public
+
 module EitherSyntax where
-  open import Dijkstra.AST.Core
   open import Dijkstra.AST.Branching
-  open import Dijkstra.Syntax
+  open import Dijkstra.AST.Core
   open ASTExtension
   open EitherBase
   open EitherAST
 
-  EitherAST-maybe : ∀ {A B : Set} → ExtAST B → (A → ExtAST B) → Maybe A → ExtAST B
-  EitherAST-maybe m f mb = ASTop (Right (BCmaybe mb))
-                                 λ { (lift nothing)  → m
-                                   ; (lift (just j)) → f j
-                                   }
-  instance
-    open MonadMaybeD
-    MonadMaybeD-EitherAST : MonadMaybeD ExtAST
-    monad  MonadMaybeD-EitherAST = MonadAST
-    maybeD MonadMaybeD-EitherAST = EitherAST-maybe
-
   bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
   bail a = ASTop (Left (Either-bail a)) λ ()
 
-open        EitherAST       public
-open        EitherSyntax    public
+open EitherSyntax public
 
 module EitherExample where
-  open        EitherAST
-  open        EitherSyntax
 
   -- Here we show an EitherAST program in terms of the underlying Cmds, which requires importing
   -- Core and also opening EitherBase

@@ -178,6 +178,8 @@ module MaybeAST where
     MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
       (runMaybeAST m i) (maybeSufficient m _ i wp _ refl)
 
+open MaybeAST public
+
 module MaybeSyntax where
   open import Dijkstra.AST.Core
   open import Dijkstra.AST.Branching
@@ -187,13 +189,9 @@ module MaybeSyntax where
   bail : ∀ {A} → AST (BranchOps MaybeOps) A
   bail =  ASTop (Left Maybe-bail) λ ()
 
-open MaybeAST     public
-open MaybeSyntax  public
+open MaybeSyntax public
 
 module MaybeExample where
-  open MaybeAST
-  open MaybeSyntax
-
   -- Here we show a MaybeAST program in terms of the underlying Cmds, which requires opening
   -- MaybeBase
   module _ where

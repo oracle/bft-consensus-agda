@@ -27,8 +27,6 @@ open import Data.Product                using (_×_ ; _,_ ; proj₁ ; proj₂)
      public
 open import Data.Unit.NonEta            using (Unit; unit)
      public
-open import Dijkstra.AST.Syntax
-     public
 open import Function
      public
 open import Level as Level
@@ -50,6 +48,3 @@ Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
 Either A B = A ⊎ B
 pattern Left  x = inj₁ x
 pattern Right x = inj₂ x
-
-open Dijkstra.AST.Syntax
-     public
