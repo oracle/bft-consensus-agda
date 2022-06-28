@@ -17,8 +17,8 @@ prog g = pass inner
           m ← gets g
           maybeAST (λ w → do tell (w ∷ [])
                              return (unit , λ _ → []))
-                    (return (unit , (λ x → x ++ x)))
-                    m
+                   (return (unit , (λ x → x ++ x)))
+                   m
 
 ProgPost : (Ev × St) → (Unit × St × List Wr) → Set
 ProgPost (_ , s1) (_ , s2 , o) = s1 ≡ s2 × 0 ≡ length o

@@ -56,30 +56,32 @@ module RWSBase where
 
   open ASTTypes RWSTypes
 
-  RWSOpSem : ASTOpSem RWSOps RWSTypes
-  ASTOpSem.runAST RWSOpSem (ASTreturn x) (ev , st) = x , st , []
-  ASTOpSem.runAST RWSOpSem (ASTbind m f) (ev , st₀) =
-    let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem m (ev , st₀)
-        (x₂ , st₂ , outs₂) = ASTOpSem.runAST RWSOpSem (f x₁) (ev , st₁)
-    in (x₂ , st₂ , outs₁ ++ outs₂)
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSgets g)        f) (ev , st) =
-    g st , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSputs p refl)   f) (ev , st) =
-    unit , p st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSask refl)      f) (ev , st) =
-    ev , st , []
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlocal l)       f) (ev , st) =
-    ASTOpSem.runAST RWSOpSem (f (lift unit)) (l ev , st)
-  ASTOpSem.runAST RWSOpSem (ASTop (RWStell out refl) f) (ev , st) =
-    unit , st , out
-  ASTOpSem.runAST RWSOpSem (ASTop (RWSlisten refl)   f) (ev , st) =
-    let (x₁ , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (lift unit)) (ev , st)
-    in (x₁ , outs₁) , st₁ , outs₁
-  ASTOpSem.runAST RWSOpSem (ASTop RWSpass            f) (ev , st) =
-    let ((x₁ , wf) , st₁ , outs₁) = ASTOpSem.runAST RWSOpSem (f (lift unit)) (ev , st)
-    in x₁ , st₁ , wf outs₁
+  module _ where
+    open ASTOpSem
+    RWSOpSem : ASTOpSem RWSOps RWSTypes
+    runAST RWSOpSem (ASTreturn x) (ev , st) = x , st , []
+    runAST RWSOpSem (ASTbind m f) (ev , st₀) =
+      let (x₁ , st₁ , outs₁) = runAST RWSOpSem m (ev , st₀)
+          (x₂ , st₂ , outs₂) = runAST RWSOpSem (f x₁) (ev , st₁)
+      in (x₂ , st₂ , outs₁ ++ outs₂)
+    runAST RWSOpSem (ASTop (RWSgets g)        f) (ev , st) =
+      g st , st , []
+    runAST RWSOpSem (ASTop (RWSputs p refl)   f) (ev , st) =
+      unit , p st , []
+    runAST RWSOpSem (ASTop (RWSask refl)      f) (ev , st) =
+      ev , st , []
+    runAST RWSOpSem (ASTop (RWSlocal l)       f) (ev , st) =
+      runAST RWSOpSem (f (lift unit)) (l ev , st)
+    runAST RWSOpSem (ASTop (RWStell out refl) f) (ev , st) =
+      unit , st , out
+    runAST RWSOpSem (ASTop (RWSlisten refl)   f) (ev , st) =
+      let (x₁ , st₁ , outs₁) = runAST RWSOpSem (f (lift unit)) (ev , st)
+      in (x₁ , outs₁) , st₁ , outs₁
+    runAST RWSOpSem (ASTop RWSpass            f) (ev , st) =
+      let ((x₁ , wf) , st₁ , outs₁) = runAST RWSOpSem (f (lift unit)) (ev , st)
+      in x₁ , st₁ , wf outs₁
 
-  runRWSBase = ASTOpSem.runAST RWSOpSem
+    runRWSBase = runAST RWSOpSem
 
   RWSbindPost : (outs : List Wr) {A : Set} → Post A → Post A
   RWSbindPost outs P (x , st , outs') = P (x , st , outs ++ outs')
