@@ -1,0 +1,27 @@
+
+
+The purpose of this PR is to make it easier to use the framework, including branching operations.
+Rather than considering the branching operations as "extensions" to an underlying ("base") AST, we
+consider the version extended with branching operation as the first target, even for programs that
+don't use branching operations (initially).  We then streamline the importing and opening of the
+extended AST and associated properties, as demonstrated in the updated examples.  Finally, the
+BlockTree definitions and proofs are updated to use the new style, demonstrating the simpler
+importing/opening facilitated by this PR.
+
+
+
+
+
+Hi Charmaine
+
+Something weird happened when I sent the first version of this, so it may be a duplicarte.
+
+The move went well, thanks, and I am starting to settle in.
+
+Yes, I think it would be a good idea if I get involved and put a rocket under the insurance company.  Could you please provide me contact details of whichever of these people you think would be be suited to helping us get this sorted out?  Please also let me know things like claim number or whatever they need to connect the dots.
+
+Finally, I think it might be a good idea for me to visit the property to have a more concrete idea of the scope of these issues.  I could potentially do tomorrow afternoon, though that's probably too short notice for you and/or the tenant.  Afternoons early next week are possible too.  Thanks.
+
+Cheers
+
+Mark
