@@ -5,15 +5,8 @@
 -}
 
 open import Dijkstra.AST.Prelude
--- open import Agda.Builtin.Unit using (⊤; tt)
--- open import Data.Empty        using (⊥; ⊥-elim)
 open import Data.Nat          renaming (ℕ to Nat; zero to Zero; suc to Succ)
 open import Data.Nat.DivMod
--- open import Data.Product      using (∃ ; ∃-syntax ; _×_)
--- open import Function.Base     using (case_of_)
--- import      Level
--- open import Util.Prelude      using (Maybe ; just ; nothing ; return ; unit ; _>>=_ ; absurd_case_of_)
--- open import Relation.Binary.PropositionalEquality
 
 module Dijkstra.AST.Examples.Maybe.Partiality where
 open import Dijkstra.AST.Maybe
