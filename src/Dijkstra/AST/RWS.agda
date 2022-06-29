@@ -95,7 +95,7 @@ module RWSBase where
   open ASTPredTrans
   RWSPT : ASTPredTrans RWSOps RWSTypes
   returnPT RWSPT x P (e , s) =
-    P (x , s , [])
+    P (x    ,   s , [])
   bindPT   RWSPT f (e , s0) P (x , s1 , outs) =
     ∀ r → r ≡ x → f r (RWSbindPost outs P) (e , s1)
   opPT     RWSPT (RWSgets g)          f P (e , s) =
