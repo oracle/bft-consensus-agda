@@ -11,7 +11,6 @@ module Dijkstra.AST.Examples.Maybe.Branching where
 
 module Example-if (n : ℕ) where
   open import Dijkstra.AST.Maybe
-  open import Haskell.Prelude hiding (return)
   open import Util.Prelude    hiding (bail ; return)
 
   -- First we specify the behaviour we want via a postcondition requiring that the program can fail

@@ -2,7 +2,8 @@ module Dijkstra.AST.Prelude where
 
 open import Agda.Builtin.Unit
      public
-open import Data.Bool                   using (Bool; true; false; not)
+open import Data.Bool
+     using (Bool; true; false; not)
      public
 open import Data.Sum
      using    (_⊎_ ; inj₁ ; inj₂)
@@ -16,16 +17,21 @@ open import Data.Empty
 open import Data.Empty
      renaming (⊥ to Void)
      public
-open import Data.List                   using (List ; length ; [] ; _∷_ ; _++_)
+open import Data.List
+     using (List ; length ; [] ; _∷_ ; _++_)
      public
-open import Data.Maybe                  using (Maybe ; maybe ; just ; nothing)
+open import Data.Maybe
+     using (Maybe ; maybe ; just ; nothing)
      public
-open import Data.Maybe.Properties       using (just-injective)
+open import Data.Maybe.Properties
+     using (just-injective)
      renaming (≡-dec to Maybe-≡-dec)
     public
-open import Data.Product                using (_×_ ; _,_ ; proj₁ ; proj₂)
+open import Data.Product
+     using (_×_ ; _,_ ; proj₁ ; proj₂)
      public
-open import Data.Unit.NonEta            using (Unit; unit)
+open import Data.Unit.NonEta
+     using (Unit; unit)
      public
 open import Function
      public
