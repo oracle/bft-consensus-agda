@@ -6,11 +6,8 @@
 
 module Dijkstra.AST.Syntax where
 
-open import Data.Empty
-open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
-open import Data.Unit
-open import Function
-open import Haskell.Prelude
+open import Haskell.Modules.FunctorApplicativeMonad public
+open import Dijkstra.Syntax                         public
 
 instance
   open import Dijkstra.AST.Core
@@ -18,3 +15,5 @@ instance
   MonadAST : ∀ {OP : ASTOps} → Monad (AST OP)
   Monad.return MonadAST = ASTreturn
   Monad._>>=_  MonadAST = ASTbind
+
+

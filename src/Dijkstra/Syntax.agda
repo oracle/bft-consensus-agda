@@ -63,9 +63,18 @@ module _ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} where
 record MonadMaybeD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set (ℓ₂ ℓ⊔ ℓ+1 ℓ₁) where
   field
     ⦃ monad ⦄ : Monad M
+    -- This is the standard order for maybe arguments in Haskell;
+    -- see maybeSD below for the argument order we prefer in some
+    -- contexts
     maybeD : ∀ {A B : Set ℓ₁} → M B → (A → M B) → Maybe A → M B
 
 open MonadMaybeD ⦃ ... ⦄ public
+
+-- A maybeD variant with different argument order, which is favoured in
+-- some use cases
+maybeSD : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ mmd : MonadMaybeD M ⦄
+         → ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
+maybeSD ⦃ mmd ⦄ x y z = maybeD y z x
 
 infix 0 caseMD_of_
 caseMD_of_ : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ _ : MonadMaybeD M ⦄ {A B : Set ℓ₁} → Maybe A → (Maybe A → M B) → M B

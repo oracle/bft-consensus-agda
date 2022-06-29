@@ -5,14 +5,8 @@
 -}
 module Dijkstra.AST.Examples.PaperIntro (Ev Wr St : Set) where
 
-open import Data.List                   using (List ; length ; [] ; _∷_ ; _++_)
-open import Data.Maybe                  using (Maybe ; maybe ; just ; nothing)
-open import Data.Product                using (_×_ ; _,_ ; proj₁ ; proj₂)
-open import Data.Unit.NonEta            using (Unit; unit)
+open import Dijkstra.AST.Prelude
 open import Dijkstra.AST.RWS Ev Wr St
--- TODO-2: We should not be depending on things in the Haskell namespace here as Dijkstra.*
--- should be independent of things outside the Dijkstra namespace
-open import Haskell.Prelude             using (_>>_ ; _>>=_ ; return)
 open import Relation.Binary.PropositionalEquality
 
 -- The example in the paper
@@ -29,8 +23,8 @@ prog g = pass inner
 ProgPost : (Ev × St) → (Unit × St × List Wr) → Set
 ProgPost (_ , s1) (_ , s2 , o) = s1 ≡ s2 × 0 ≡ length o
 
--- Here we prove directly (i.e., *without* using our framework) that, for any f and i, the
--- postcondition holds of the result of running (prog f) on i.  The proof is deceptively simple, as
+-- Here we prove directly (i.e., *without* using our framework) that, for any g and i, the
+-- postcondition holds of the result of running (prog g) on i.  The proof is deceptively simple, as
 -- explained after the proof.
 progPost : ∀ g i → ProgPost i (runRWSAST (prog g) i)
 progPost g (_ , s) with g s

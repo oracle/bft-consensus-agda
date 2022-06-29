@@ -1,11 +1,11 @@
 module Dijkstra.AST.Examples.Either.Bind where
 
-open import Data.Nat
-open import Util.Prelude
+open import Dijkstra.AST.Prelude
 
 module TwoEitherBindsExample where
   open import Dijkstra.AST.Either ⊤
   open        EitherBase
+  open  import Data.Nat
 
   module _ (en1 en2 : EitherAST ℕ) where
 

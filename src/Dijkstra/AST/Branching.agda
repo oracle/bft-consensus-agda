@@ -3,20 +3,10 @@
    Copyright (c) 2022, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
-
 module Dijkstra.AST.Branching where
 
-open import Data.Empty
-open import Data.Fin hiding (lift)
-open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
-open import Data.Unit
 open import Dijkstra.AST.Core
-open import Function
-open import Haskell.Prelude
-import      Level
-open Level
-import      Level.Literals as Level using (#_)
-open import Relation.Binary.PropositionalEquality
+open import Dijkstra.AST.Prelude
 
 data BranchCmd (A : Set) : Set₁ where
   BCif     :               Bool       → BranchCmd A
@@ -279,6 +269,8 @@ module BranchingSyntax (BaseOps : ASTOps) where
                                   ; (lift false) → e
                                   }
 
+  -- maybeAST follows the same argument order as 'maybe' in Agda's stdlib.  and is used in the paper
+  -- (see Dijkstra.AST.Examples.PaperIntro).
   maybeAST : ∀ {A B : Set}
              → (A → AST Ops B)
              → AST Ops B
@@ -288,6 +280,16 @@ module BranchingSyntax (BaseOps : ASTOps) where
                            λ { (lift nothing)  → B
                              ; (lift (just a)) → fA a
                              }
+
+  instance
+    open import Dijkstra.AST.Syntax
+    open import Dijkstra.Syntax
+    open MonadMaybeD public
+    MonadMaybeD-AST : MonadMaybeD (AST Ops)
+    monad  MonadMaybeD-AST = MonadAST
+    maybeD MonadMaybeD-AST = flip maybeAST  -- MonadMaybeD reversed the first two arguments,
+                                            -- as compared to the argument order for maybe
+                                            -- in the Agda standard library
 
   eitherAST : ∀ {A B C : Set}
               → (A → AST Ops C)
@@ -334,3 +336,4 @@ module ConditionalExtensions
   open ASTPredTransMono PTMono    public
   open BranchingSyntax BaseOps    public
   open import Dijkstra.AST.Syntax public
+

@@ -6,11 +6,7 @@
 
 module Dijkstra.AST.Maybe where
 
-open import Haskell.Prelude using (_>>_; _>>=_; const; just; Maybe; nothing; return; Unit; unit; Monad; Void; false; true)
-open import Data.Product using (Σ; _,_)
-open import Level
-open import Relation.Binary.PropositionalEquality
-open import Util.Prelude using (contradiction; id; Left; Right)
+open import Dijkstra.AST.Prelude
 
 module MaybeBase where
 
@@ -182,6 +178,8 @@ module MaybeAST where
     MaybebindPost⊆ (λ x → predTrans (f x)) P Q n⊆ j⊆
       (runMaybeAST m i) (maybeSufficient m _ i wp _ refl)
 
+open MaybeAST public
+
 module MaybeSyntax where
   open import Dijkstra.AST.Core
   open import Dijkstra.AST.Branching
@@ -191,13 +189,9 @@ module MaybeSyntax where
   bail : ∀ {A} → AST (BranchOps MaybeOps) A
   bail =  ASTop (Left Maybe-bail) λ ()
 
-open MaybeAST     public
-open MaybeSyntax  public
+open MaybeSyntax public
 
 module MaybeExample where
-  open MaybeAST
-  open MaybeSyntax
-
   -- Here we show a MaybeAST program in terms of the underlying Cmds, which requires opening
   -- MaybeBase
   module _ where

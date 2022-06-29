@@ -4,15 +4,9 @@
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-open import Agda.Builtin.Unit using (⊤; tt)
-open import Data.Empty        using (⊥; ⊥-elim)
+open import Dijkstra.AST.Prelude
 open import Data.Nat          renaming (ℕ to Nat; zero to Zero; suc to Succ)
 open import Data.Nat.DivMod
-open import Data.Product      using (∃ ; ∃-syntax ; _×_)
-open import Function.Base     using (case_of_)
-import      Level
-open import Util.Prelude      using (Maybe ; just ; nothing ; return ; unit ; _>>=_ ; absurd_case_of_)
-open import Relation.Binary.PropositionalEquality
 
 module Dijkstra.AST.Examples.Maybe.Partiality where
 open import Dijkstra.AST.Maybe
@@ -101,13 +95,13 @@ module _ where
   _ = {!!}
   -}
 
-record Pair {l l'} (a : Set l) (b : Set l') : Set (l Level.⊔ l') where
+record Pair {l l'} (a : Set l) (b : Set l') : Set (l ℓ⊔ l') where
   constructor _,_
   field
     fst : a
     snd : b
 
-_∧_ : ∀ {l l'} → Set l → Set l' → Set (l Level.⊔ l')
+_∧_ : ∀ {l l'} → Set l → Set l' → Set (l ℓ⊔ l')
 _∧_ A B = Pair A B
 infixr 1 _∧_
 

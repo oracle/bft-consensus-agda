@@ -11,7 +11,6 @@ open import Data.Fin
 open import Data.Product using (_×_ ; _,_ ; proj₁ ; proj₂)
 open import Data.Unit
 open import Function
-open import Haskell.Prelude
 open import Relation.Binary.PropositionalEquality
 
 record ASTOps : Set₂ where
