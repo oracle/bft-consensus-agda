@@ -5,7 +5,7 @@
 -}
 
 -- As we are interested in using Either for error handling (and providing the Either-bail command
--- for this purpose), we call the Left type "Err"
+-- for this purpose), we call the left type "Err"
 module Dijkstra.AST.Either (Err : Set) where
 
 open import Dijkstra.AST.Prelude
@@ -41,37 +41,37 @@ module EitherBase where
   open ASTTypes EitherTypes
 
   EitherOpSem : ASTOpSem EitherOps EitherTypes
-  ASTOpSem.runAST EitherOpSem (ASTreturn x) _ = Right x
+  ASTOpSem.runAST EitherOpSem (ASTreturn x) _ = right x
   ASTOpSem.runAST EitherOpSem (ASTbind m f) i
     with ASTOpSem.runAST EitherOpSem m i
-  ...| Left a = Left a
-  ...| Right x = ASTOpSem.runAST EitherOpSem (f x) i
-  ASTOpSem.runAST EitherOpSem (ASTop (Either-bail a) f) i = Left a
+  ...| left  a = left a
+  ...| right x = ASTOpSem.runAST EitherOpSem (f x) i
+  ASTOpSem.runAST EitherOpSem (ASTop (Either-bail a) f) i = left a
 
   runEitherBase = ASTOpSem.runAST EitherOpSem
 
   EitherbindPost : ∀ {A B} → (A → PredTrans B) → Post B → Post A
-  EitherbindPost _ P (Left x)  = P (Left x)
-  EitherbindPost f P (Right y) = f y P unit
+  EitherbindPost _ P (left x)  = P (left x)
+  EitherbindPost f P (right y) = f y P unit
 
   open ASTPredTrans
   EitherPT : ASTPredTrans EitherOps EitherTypes
-  returnPT EitherPT x P i = P (Right x)
+  returnPT EitherPT x P i = P (right x)
   bindPT EitherPT {A} {B} f i Post x =
     ∀ r → r ≡ x → EitherbindPost f Post r
-  opPT EitherPT (Either-bail a) f Post i = Post (Left a)
+  opPT EitherPT (Either-bail a) f Post i = Post (left a)
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
   EitherPTMono : ASTPredTransMono EitherPT
   returnPTMono EitherPTMono                 _                            _  _       P₁⊆ₒP₂ _         wp =
     P₁⊆ₒP₂ _ wp
-  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Left  x) wp .(Left  x) refl =
-    P₁⊆ₒP₂ (Left x) (wp (Left x) refl)
-  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (Right y) wp .(Right y) refl =
-    mono₂ y P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ y P₁ unit (wp (Right y) refl))
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (left  x) wp .(left  x) refl =
+    P₁⊆ₒP₂ (left x) (wp (left x) refl)
+  bindPTMono   EitherPTMono                 f₁ f₂ mono₁ mono₂ f₁⊑f₂ unit P₁ P₂      P₁⊆ₒP₂ (right y) wp .(right y) refl =
+    mono₂ y P₁ P₂ P₁⊆ₒP₂ unit (f₁⊑f₂ y P₁ unit (wp (right y) refl))
   opPTMono     EitherPTMono (Either-bail x) f₁ f₂ mono₁ mono₂ f₁⊑f₂      P₁ P₂ unit P₁⊆ₒP₂           wp =
-    P₁⊆ₒP₂ (Left x) wp
+    P₁⊆ₒP₂ (left x) wp
 
   ------------------------------------------------------------------------------
   open ASTSufficientPT
@@ -80,8 +80,8 @@ module EitherBase where
   bindSuf EitherSuf {A} {B} m f mSuf fSuf P unit wp
      with  runEitherBase m  unit  | inspect
           (runEitherBase m) unit
-  ... | Left  x | [ R ] = mSuf _ unit wp (Left x) (sym R)
-  ... | Right y | [ R ] = let wp' = mSuf _ unit wp (Right y) (sym R)
+  ... | left  x | [ R ] = mSuf _ unit wp (left x) (sym R)
+  ... | right y | [ R ] = let wp' = mSuf _ unit wp (right y) (sym R)
                            in fSuf y P unit wp'
   opSuf EitherSuf (Either-bail x) f fSuf P i wp = wp
 
@@ -92,8 +92,8 @@ module EitherBase where
   returnNec EitherNec x P _ = id
   bindNec   EitherNec {A} {B} m f mNec fNec P unit Pr
     with runAST m unit | inspect (runAST m) unit
-  ... | Left x  | [ eq ] =     mNec _ unit λ where _ refl → subst (EitherbindPost _ P) (sym eq) Pr
-  ... | Right x | [ eq ] = let rec = fNec x P unit Pr
+  ... | left x  | [ eq ] =     mNec _ unit λ where _ refl → subst (EitherbindPost _ P) (sym eq) Pr
+  ... | right x | [ eq ] = let rec = fNec x P unit Pr
                             in mNec _ unit λ where _ refl → subst (EitherbindPost _ P) (sym eq) (fNec x P unit Pr)
   opNec EitherNec (Either-bail x₁) f fNec P _ = id
 
@@ -118,7 +118,7 @@ module EitherSyntax where
   open EitherAST
 
   bail : ∀ {A} → Err → AST (BranchOps EitherOps) A
-  bail a = ASTop (Left (Either-bail a)) λ ()
+  bail a = ASTop (left (Either-bail a)) λ ()
 
 open EitherSyntax public
 
@@ -133,9 +133,9 @@ module EitherExample where
     prog₁ : ∀ {A} → Err → A → EitherAST A
     prog₁ e a =
       -- Either-bail always returns left, so Agda cannot infer the
-      -- type that it would return if it were to return Right, so
+      -- type that it would return if it were to return right, so
       -- we provide a type explicitly (Unit, in this case)
-      ASTbind (ASTop (Left (Either-bail {Unit} e)) λ ()) λ _ →
+      ASTbind (ASTop (left (Either-bail {Unit} e)) λ ()) λ _ →
         ASTreturn a
 
   -- Now we present an equivalent program using the EitherSyntax, so we don't need to open
@@ -145,13 +145,13 @@ module EitherExample where
     bail {Void} e
     return a
 
-  -- If Either-bail did not work (e.g., if it were a noop), prog₁ would return Right a and the proof
+  -- If Either-bail did not work (e.g., if it were a noop), prog₁ would return right a and the proof
   -- would fail
   BailWorks : ∀ {A : Set} → Err → Post A
-  BailWorks e = _≡ Left e
+  BailWorks e = _≡ left e
 
   bailWorks : ∀ e i {A : Set} → (a : A) → predTrans (prog₁' e a) (BailWorks e) i
   bailWorks e unit _ _ refl = refl
 
-  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEitherAST (prog₁' e a) i ≡ Left e)
+  bailWorksSuf : ∀ e {A : Set} (a : A) i → (runEitherAST (prog₁' e a) i ≡ left e)
   bailWorksSuf e a i = sufficient (prog₁' e a) (BailWorks e) unit (bailWorks e unit a )

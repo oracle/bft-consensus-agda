@@ -187,7 +187,7 @@ module MaybeSyntax where
   open MaybeBase
 
   bail : ∀ {A} → AST (BranchOps MaybeOps) A
-  bail =  ASTop (Left Maybe-bail) λ ()
+  bail =  ASTop (left Maybe-bail) λ ()
 
 open MaybeSyntax public
 
@@ -200,7 +200,7 @@ module MaybeExample where
 
     prog₁ : ∀ {A} → A → MaybeAST A
     prog₁ a =
-      ASTbind (ASTop (Left (Maybe-bail {Void})) (λ ()))
+      ASTbind (ASTop (left (Maybe-bail {Void})) (λ ()))
               (λ _ → ASTreturn  a)
 
   -- Now we present an equivalent program using the MaybeSyntax, so we don't need to open MaybeBase,

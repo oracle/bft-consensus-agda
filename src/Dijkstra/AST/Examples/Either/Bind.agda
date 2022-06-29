@@ -16,8 +16,8 @@ module TwoEitherBindsExample where
       return (n1 ∷ n2 ∷ [])
 
     ProgPost : Unit → Either ⊤ (List ℕ) → Set
-    ProgPost _ (Left  l) =        l ≡ tt
-    ProgPost _ (Right r) = length r ≡ 2
+    ProgPost _ (left  l) =        l ≡ tt
+    ProgPost _ (right r) = length r ≡ 2
 
     progPostWP : predTrans prog (ProgPost unit) unit
     progPostWP = predTransMono prog runPost _ ⊆ₒProgPost unit PT1
@@ -26,10 +26,10 @@ module TwoEitherBindsExample where
       runPost = runEitherAST prog unit ≡_
 
       ⊆ₒProgPost : runPost ⊆ₒ ProgPost unit
-      ⊆ₒProgPost (Left  _) _                                               = refl
-      ⊆ₒProgPost (Right r) Right_n1∷n2∷[]≡Right_r with runEitherAST en1 unit
-      ... | (Right n1)                            with runEitherAST en2 unit
-      ... | (Right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
+      ⊆ₒProgPost (left  _) _                                               = refl
+      ⊆ₒProgPost (right r) Right_n1∷n2∷[]≡Right_r with runEitherAST en1 unit
+      ... | (right n1)                            with runEitherAST en2 unit
+      ... | (right n2) rewrite inj₂-injective (sym Right_n1∷n2∷[]≡Right_r) = refl
 
       PT1 : predTrans prog runPost unit
       PT1 = necessary prog _ unit refl
