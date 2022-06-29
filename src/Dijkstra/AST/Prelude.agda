@@ -52,5 +52,5 @@ absurd A case x of f = ⊥-elim (f x)
 
 Either : ∀ {a b} → Set a → Set b → Set (a ℓ⊔ b)
 Either A B = A ⊎ B
-pattern Left  x = inj₁ x
-pattern Right x = inj₂ x
+pattern left  x = inj₁ x
+pattern right x = inj₂ x

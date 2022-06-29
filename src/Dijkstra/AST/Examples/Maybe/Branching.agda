@@ -31,7 +31,7 @@ module Example-if (n : ℕ) where
     open MaybeBase
 
     branchingProg : MaybeAST ℕ
-    branchingProg = ASTop (Right (BCif (toBool (n ≟ℕ 0) )))
+    branchingProg = ASTop (right (BCif (toBool (n ≟ℕ 0) )))
                           (λ { (lift false) → ASTreturn (2 * n)
                              ; (lift true)  → ASTop (Left Maybe-bail) λ () })
 
@@ -52,7 +52,7 @@ module Example-if (n : ℕ) where
     Using C-c C-, (without the C-u prefix), tells us a bit more
     detail about the goal:
 
-      ASTPredTrans.opPT MaybePTExt (Right (BCif ⌊ n ≟ℕ 0 ⌋))
+      ASTPredTrans.opPT MaybePTExt (right (BCif ⌊ n ≟ℕ 0 ⌋))
         (λ x →
            ASTPredTrans.predTrans MaybePTExt
            ((λ { (lift false) → ASTreturn (2 * n)
@@ -80,7 +80,7 @@ module Example-if (n : ℕ) where
     evaluates to the relevant boolean value (true for the first, false for the second).  This is
     because
 
-      ASTPredTrans.opPT BranchPT (Right (BCif c)) f P i
+      ASTPredTrans.opPT BranchPT (right (BCif c)) f P i
 
     requires two proofs, one for when the condition c is true and one for when it's false; each case
     gets evidence that the condition evaluates to the relevant boolean.
@@ -165,15 +165,15 @@ module Example-either (n : ℕ) where
     open import Dijkstra.AST.Maybe public
 
     _monus1 : ℕ → Either Unit ℕ
-    _monus1 0        = Left unit
-    _monus1 (suc n') = Right n'
+    _monus1 0        = left unit
+    _monus1 (suc n') = right n'
 
-    monus1lemma1 : ∀ {n'} → n ≡ n' → ∀ {l} → n' monus1 ≡ Left l → n ≡ 0
+    monus1lemma1 : ∀ {n'} → n ≡ n' → ∀ {l} → n' monus1 ≡ left l → n ≡ 0
     monus1lemma1 {n'} n≡n' _
        with n'
     ...| 0 = n≡n'
 
-    monus1lemma2 : ∀ {nalias} → n ≡ nalias → ∀ {n'} → nalias monus1 ≡ Right n' → n ≡ suc n'
+    monus1lemma2 : ∀ {nalias} → n ≡ nalias → ∀ {n'} → nalias monus1 ≡ right n' → n ≡ suc n'
     monus1lemma2 {nalias} n≡nalias isrgt
        with nalias
     ...| suc x rewrite n≡nalias | inj₂-injective isrgt = refl
@@ -191,12 +191,12 @@ module Example-either (n : ℕ) where
     open        BranchCmd using (BCif ; BCeither)
     open        MaybeBase using (Maybe-bail)
 
-    -- A branching program that bails if n monus1 is Left _
-    -- and returns b if n monus1 is Right b
+    -- A branching program that bails if n monus1 is left _
+    -- and returns b if n monus1 is right b
     branchingProg : MaybeAST ℕ
-    branchingProg = ASTop (Right (BCeither (n monus1)))
-                          λ { (lift (Left  a)) → ASTop (Left Maybe-bail) λ ()
-                            ; (lift (Right b)) → return b
+    branchingProg = ASTop (right (BCeither (n monus1)))
+                          λ { (lift (left  a)) → ASTop (left Maybe-bail) λ ()
+                            ; (lift (right b)) → return b
                             }
 
     branchingProgWP : (i : Input)

@@ -94,24 +94,24 @@ module RWSBase where
 
   open ASTPredTrans
   RWSPT : ASTPredTrans RWSOps RWSTypes
-  returnPT RWSPT x P (ev , st) =
-    P (x , st , [])
-  bindPT   RWSPT f (ev , st) P (x , st' , outs) =
-    ∀ r → r ≡ x → f r (RWSbindPost outs P) (ev , st')
-  opPT     RWSPT (RWSgets g)          f P (ev , st) =
-    P (g st , st , [])
-  opPT     RWSPT (RWSputs p refl)     f P (ev , st) =
-    P (unit , p st , [])
-  opPT     RWSPT (RWSask refl)        f P (ev , st) =
-    P (ev , st , [])
-  opPT     RWSPT (RWSlocal l)         f P (ev , st) =
-    ∀ ev' → ev' ≡ l ev → f (lift unit) P (ev' , st)
-  opPT     RWSPT (RWStell out refl)   f P (ev , st) =
-    P (unit , st , out)
-  opPT     RWSPT (RWSlisten{A'} refl) f P (ev , st) =
-    f (lift unit) (RWSlistenPost P) (ev , st)
-  opPT     RWSPT{A} RWSpass           f P (ev , st) =
-    f (lift unit) (RWSpassPost P) (ev , st)
+  returnPT RWSPT x P (e , s) =
+    P (x    ,   s , [])
+  bindPT   RWSPT f (e , s0) P (x , s1 , outs) =
+    ∀ r → r ≡ x → f r (RWSbindPost outs P) (e , s1)
+  opPT     RWSPT (RWSgets g)          f P (e , s) =
+    P (g s  ,   s , [])
+  opPT     RWSPT (RWSputs p refl)     f P (e , s) =
+    P (unit , p s , [])
+  opPT     RWSPT (RWSask refl)        f P (e , s) =
+    P (e    ,   s , [])
+  opPT     RWSPT (RWSlocal l)         f P (e , s) =
+    ∀ e' → e' ≡ l e → f (lift unit) P (e' , s)
+  opPT     RWSPT (RWStell out refl)   f P (e , s) =
+    P (unit ,   s , out)
+  opPT     RWSPT (RWSlisten{A'} refl) f P (e , s) =
+    f (lift unit) (RWSlistenPost P) (e , s)
+  opPT     RWSPT{A} RWSpass           f P (e , s) =
+    f (lift unit) (RWSpassPost P)   (e , s)
 
   ------------------------------------------------------------------------------
   open ASTPredTransMono
@@ -195,25 +195,25 @@ module RWSSyntax where
   open RWSBase
 
   gets : ∀ {A} → (St → A) → RWSAST A
-  gets g = ASTop (Left (RWSgets g)) λ ()
+  gets g = ASTop (left (RWSgets g)) λ ()
 
   puts : (St → St) → RWSAST Unit
-  puts p = ASTop (Left (RWSputs p refl)) (λ ())
+  puts p = ASTop (left (RWSputs p refl)) (λ ())
 
   ask : RWSAST Ev
-  ask = ASTop (Left (RWSask refl)) (λ ())
+  ask = ASTop (left (RWSask refl)) (λ ())
 
   local : ∀ {A} → (Ev → Ev) → RWSAST A → RWSAST A
-  local l m = ASTop (Left (RWSlocal l)) (λ where (lift unit) → m)
+  local l m = ASTop (left (RWSlocal l)) (λ where (lift unit) → m)
 
   tell : List Wr → RWSAST Unit
-  tell outs = ASTop (Left (RWStell outs refl)) (λ ())
+  tell outs = ASTop (left (RWStell outs refl)) (λ ())
 
   listen : ∀ {A} → RWSAST A → RWSAST (A × List Wr)
-  listen m = ASTop (Left (RWSlisten refl)) λ where (lift unit) → m
+  listen m = ASTop (left (RWSlisten refl)) λ where (lift unit) → m
 
   pass : ∀ {A} → RWSAST (A × (List Wr → List Wr)) → RWSAST A
-  pass m = ASTop (Left RWSpass) (λ where (lift unit) → m)
+  pass m = ASTop (left RWSpass) (λ where (lift unit) → m)
 
 open RWSSyntax public
 
@@ -225,9 +225,9 @@ module RWSExample where
 
     prog₁ : (St → Wr) → RWSAST Unit
     prog₁ g =
-      ASTop (Left RWSpass) λ _ →
-        ASTbind (ASTop (Left (RWSgets g)) λ ()) λ w →
-        ASTbind (ASTop (Left (RWStell (w ∷ []) refl)) λ ()) λ _ →
+      ASTop (left RWSpass) λ _ →
+        ASTbind (ASTop (left (RWSgets g)) λ ()) λ w →
+        ASTbind (ASTop (left (RWStell (w ∷ []) refl)) λ ()) λ _ →
         ASTreturn (unit , λ o → o ++ o)
 
   prog₁' : (St → Wr) → RWSAST Unit

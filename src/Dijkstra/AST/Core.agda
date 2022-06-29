@@ -97,7 +97,7 @@ record ASTPredTransMono {OP} {Ty} (PT : ASTPredTrans OP Ty) : Set₂ where
                    → ∀ i P₁ P₂ → P₁ ⊆ₒ P₂ → bindPT f₁ i P₁ ⊆ₒ bindPT f₂ i P₂
     opPTMono     : ∀ {A} (c : Cmd OP A)
                      (f₁ f₂ : (r : SubArg OP c) → PredTrans (SubRet OP r))
-                   → (∀ r → MonoPT (f₁ r)) → (∀ x → MonoPT (f₂ x))
+                   → (∀ r → MonoPT (f₁ r)) → (∀ r → MonoPT (f₂ r))
                    → (∀ r → f₁ r ⊑ f₂ r)
                    → ∀ P₁ P₂ i → P₁ ⊆ₒ P₂ → opPT c f₁ P₁ i → opPT c f₂ P₂ i
 
