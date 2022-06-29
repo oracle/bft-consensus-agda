@@ -70,8 +70,8 @@ record MonadMaybeD {ℓ₁ ℓ₂ : Level} (M : Set ℓ₁ → Set ℓ₂) : Set
 
 open MonadMaybeD ⦃ ... ⦄ public
 
--- A Dijkstra version of maybeS, implemented using the version in
--- Dijkstra.Syntax which has traditional argument order
+-- A maybeD variant with different argument order, which is favoured in
+-- some use cases
 maybeSD : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ mmd : MonadMaybeD M ⦄
          → ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
 maybeSD ⦃ mmd ⦄ x y z = maybeD y z x
