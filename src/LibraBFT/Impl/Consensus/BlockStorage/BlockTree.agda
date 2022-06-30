@@ -14,13 +14,15 @@ open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.ImplShared.Util.Crypto
-open import LibraBFT.ImplShared.Util.Dijkstra.All
+open import LibraBFT.ImplShared.Util.Dijkstra.All hiding (bail)
+open import Level
 open import Optics.All
 open import Util.ByteString
 open import Util.Hash
 import      Util.KVMap                                           as Map
 open import Util.PKCS
 open import Util.Prelude
+
 ------------------------------------------------------------------------------
 open import Data.String                                          using (String)
 
@@ -105,22 +107,27 @@ replaceTimeoutCertM tc = do
 
 -}
 
--- An Either variant that is virtually identical to the original Haskell code
-insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
-insertBlockE-original block bt = do
-  let blockId = block ^∙ ebId
-  case btGetBlock blockId bt of λ where
-    (just existingBlock) → pure (bt , existingBlock)
-    nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
-      nothing → Left fakeErr
-      (just parentBlock) → (do
-        parentBlock' ← addChild-E parentBlock blockId
-        let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
-        pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
-             , block))
+module _ where
+  open import Util.Prelude using (_>>=_)
+
+  -- An Either variant that is virtually identical to the original Haskell code
+  insertBlockE-original : ExecutedBlock → BlockTree → Either ErrLog (BlockTree × ExecutedBlock)
+  insertBlockE-original block bt = do
+    let blockId = block ^∙ ebId
+    case btGetBlock blockId bt of λ where
+      (just existingBlock) → pure (bt , existingBlock)
+      nothing → case btGetLinkableBlock (block ^∙ ebParentId) bt of λ where
+        nothing → Left fakeErr
+        (just parentBlock) → (do
+          parentBlock' ← addChild-E parentBlock blockId
+          let bt' = bt & btIdToBlock ∙~ Map.kvm-insert-Haskell (block ^∙ ebParentId) parentBlock' (bt ^∙ btIdToBlock)
+          pure (  (bt' & btIdToBlock ∙~ Map.kvm-insert-Haskell blockId (LinkableBlock∙new block) (bt' ^∙ btIdToBlock))
+               , block))
 
 -- An EitherD variant, broken into steps
 module insertBlockE (block : ExecutedBlock)(bt : BlockTree) where
+  open import Util.Prelude using (_>>=_)
+
   VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
   VariantFor EL = EL ErrLog (BlockTree × ExecutedBlock)
 
@@ -233,14 +240,17 @@ abstract
   insertQuorumCertE-Either-≡ : insertQuorumCertE-Either ≡ insertQuorumCertE.E
   insertQuorumCertE-Either-≡ = refl
 
-insertQuorumCertM : QuorumCert → LBFT Unit
-insertQuorumCertM qc = do
-  bt ← use lBlockTree
-  case insertQuorumCertE-Either qc bt of λ where  -- We use the .E variant to enable pattern matching on
-    (Left  e)   → logErr e                        -- results of type Either ErrLog (BlockTree × List InfoLog)
-    (Right (bt' , info)) → do
-      forM_ info logInfo
-      lBlockTree ∙= bt'
+module _ where
+  open import Util.Prelude using (_>>=_)
+
+  insertQuorumCertM : QuorumCert → LBFT Unit
+  insertQuorumCertM qc = do
+    bt ← use lBlockTree
+    case insertQuorumCertE-Either qc bt of λ where  -- We use the .E variant to enable pattern matching on
+      (Left  e)   → logErr e                        -- results of type Either ErrLog (BlockTree × List InfoLog)
+      (Right (bt' , info)) → do
+        forM_ info logInfo
+        lBlockTree ∙= bt'
 
 ------------------------------------------------------------------------------
 

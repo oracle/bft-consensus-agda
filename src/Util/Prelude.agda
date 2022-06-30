@@ -156,12 +156,6 @@ module Util.Prelude where
            (x : Maybe A) → B → ((x : A) → B) → B
   maybeS {B = B} x f t = Maybe-maybe {B = const B} t f x
 
-  -- A Dijkstra version of maybeS, implemented using the version in
-  -- Dijkstra.Syntax which has traditional argument order
-  maybeSD : ∀ {ℓ₁ ℓ₂} {M : Set ℓ₁ → Set ℓ₂} ⦃ mmd : MonadMaybeD M ⦄
-           → ∀ {A B : Set ℓ₁} → Maybe A → M B → (A → M B) → M B
-  maybeSD ⦃ mmd ⦄ x y z = maybeD y z x
-
   module _ {Ev Wr St A B : Set} where
     maybeSMP-RWS : RWS Ev Wr St (Maybe A)
                  → B

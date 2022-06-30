@@ -5,6 +5,7 @@
 -}
 
 open import LibraBFT.Base.Types
+open import LibraBFT.Concrete.Records using (BlockId-correct)
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 open import LibraBFT.Impl.Consensus.BlockStorage.BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.ExecutedBlock as ExecutedBlock
@@ -19,6 +20,7 @@ open import Optics.All
 open import Util.ByteString
 open import Util.Hash
 open import Util.KVMap                                           as Map
+open import Util.Lemmas
 open import Util.PKCS
 open import Util.Prelude
 
@@ -27,7 +29,24 @@ open Invariants
 
 module LibraBFT.Impl.Consensus.BlockStorage.Properties.BlockTree where
 
-module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
+module addChildSpec (lb : LinkableBlock) (hv : HashValue) where
+
+  open addChild lb hv
+
+  record ContractOk (lb' : LinkableBlock) : Set where
+    field
+      presLB : lb ≡L lb' at lbExecutedBlock
+  open ContractOk
+
+  Contract : Either ErrLog LinkableBlock → Set
+  Contract (Left _) = ⊤
+  Contract (Right lb') = ContractOk lb'
+
+module insertBlockESpec
+         (eb0 : ExecutedBlock)
+         (eb0Valid : BlockIsValid (eb0 ^∙ ebBlock) (eb0 ^∙ ebId))
+         (bt : BlockTree)
+  where
   eb0Id = eb0 ^∙ ebId
 
   -- A straightforward proof that the EitherD variant of insertBlockE has the same behaviour as the
@@ -50,20 +69,10 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
 
   open Reqs (eb0 ^∙ ebBlock) bt
 
-  -- This is not quite right.  It does not yet account for the updating of the parent Block
-  -- Is it needed (see below)?
-  record Updated (hv : HashValue) (pre post : BlockTree) (eb : ExecutedBlock) : Set where
-    field
-      ≢hv¬Upd : ∀ {hv'} → hv' ≢ hv → btGetBlock hv' post ≡ btGetBlock hv' pre
-
   record ContractOk (bt“ : BlockTree) (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
       bt≡x    : bt ≡ (bt“ & btIdToBlock ∙~ (bt ^∙ btIdToBlock))
-      -- The following two fields are not used, but something like this will be useful in proving
-      -- btiPres and may provide value in their own right
-      ¬upd    : ∀ {eb'} → btGetBlock eb0Id bt ≡ just eb' → bt ≡ bt“
-      upd     :           btGetBlock eb0Id bt ≡ nothing  →  Updated eb0Id bt bt“ eb
       blocks≈ : NoHC1 → eb [ _≈Block_ ]L eb0 at ebBlock
       btiPres : ∀ {eci} → Preserves BlockTreeInv (bt , eci) (bt“ , eci)
 
@@ -87,13 +96,6 @@ module insertBlockESpec (eb0 : ExecutedBlock) (bt : BlockTree) where
 module insertQuorumCertESpec
   (qc : QuorumCert) (bt0  : BlockTree) where
   open insertQuorumCertE qc bt0
-
-  Ok : Set
-  Ok = ∃₂ λ bt1 il → insertQuorumCertE-Either qc bt0 ≡ Right (bt1 , il)
-
-  private
-    Ok' : BlockTree → List InfoLog → Either ErrLog (BlockTree × List InfoLog) → Set
-    Ok' bt il m = m ≡ Right (bt , il)
 
   record ContractOk (btPre btPost : BlockTree) (ilPre ilPost : List InfoLog) : Set where
     constructor mkContractOk

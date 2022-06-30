@@ -16,6 +16,9 @@ open import Level
 open import Data.Bool
   hiding (not; _≟_; _<_; _<?_; _≤_; _≤?_)
   public
+open import Data.Empty
+  renaming (⊥ to Void)
+  public
 open import Data.List
   hiding (map; filter; lookup; tabulate; foldl; fromMaybe; [_])
   public
@@ -87,6 +90,10 @@ grd‖_ : ∀{a}{b}{A : Set a} → Guards{a}{b} A → A
 grd‖_ (otherwise≔ a) = a
 grd‖_ (clause (b ≔ a) g)  = if toBool b then a else (grd‖ g)
 
+lengthGuards : ∀ {a}{b}{A : Set a} → Guards{a}{b} A → DN.ℕ
+lengthGuards (otherwise≔ x) = 1
+lengthGuards (clause x x₁) = 1 DN.+ lengthGuards x₁
+
 ------------------------------------------------------------------------------
 -- List
 
@@ -105,7 +112,7 @@ foldl' = Data.List.foldl
 ------------------------------------------------------------------------------
 -- Maybe
 
-maybe : ∀ {A B : Set} → B → (A → B) → Maybe A → B
+maybe : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → B → (A → B) → Maybe A → B
 maybe b a→b = Data.Maybe.maybe′ a→b b
 
 ------------------------------------------------------------------------------
