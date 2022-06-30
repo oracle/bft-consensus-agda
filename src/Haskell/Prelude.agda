@@ -6,9 +6,9 @@
 
 module Haskell.Prelude where
 
+open import FunctorApplicativeMonad public
 open import Haskell.Modules.Either public
 open import Haskell.Modules.Eq public
-open import Haskell.Modules.FunctorApplicativeMonad public
 open import Haskell.Modules.ToBool public
 ------------------------------------------------------------------------------
 open import Level
