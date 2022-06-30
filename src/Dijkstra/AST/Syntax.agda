@@ -6,8 +6,8 @@
 
 module Dijkstra.AST.Syntax where
 
-open import Haskell.Modules.FunctorApplicativeMonad public
-open import Dijkstra.Syntax                         public
+open import FunctorApplicativeMonad public
+open import Dijkstra.Syntax         public
 
 instance
   open import Dijkstra.AST.Core
