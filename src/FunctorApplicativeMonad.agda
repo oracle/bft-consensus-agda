@@ -1,15 +1,17 @@
 {- Byzantine Fault Tolerant Consensus Verification in Agda, version 0.9.
 
-   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, 2022, Oracle and/or its affiliates.
    Licensed under the Universal Permissive License v 1.0 as shown at https://opensource.oracle.com/licenses/upl
 -}
 
-module Haskell.Modules.FunctorApplicativeMonad where
+-- This module contains simple support fort Functor, Applicative and Monad.  We should probably
+-- elminate this and use the versions in the Agda Standard Library.
 
-open import Haskell.Modules.Either
-------------------------------------------------------------------------------
+module FunctorApplicativeMonad where
+
 open import Data.List
 open import Data.Maybe renaming (_>>=_ to _Maybe->>=_)
+import      Data.Sum as DS renaming ([_,_] to either)
 open import Function
 open import Level renaming (suc to ℓ+1; zero to ℓ0; _⊔_ to _ℓ⊔_)
 open import Relation.Binary.PropositionalEquality
@@ -61,9 +63,9 @@ instance
     return (f x)
 
 instance
-  Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (Either C)
-  Monad.return (Monad-Either{ℓ}{C}) = Right
-  Monad._>>=_  (Monad-Either{ℓ}{C}) = either (const ∘ Left) _|>_
+  Monad-Either : ∀ {ℓ}{C : Set ℓ} → Monad{ℓ}{ℓ} (C DS.⊎_)
+  Monad.return (Monad-Either{ℓ}{C}) = DS.inj₂
+  Monad._>>=_  (Monad-Either{ℓ}{C}) = DS.either (const ∘ DS.inj₁) _|>_
 
   Monad-Maybe : ∀ {ℓ} → Monad {ℓ} {ℓ} Maybe
   Monad.return (Monad-Maybe{ℓ}) = just
