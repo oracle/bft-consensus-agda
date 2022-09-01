@@ -1,6 +1,6 @@
 #+TITLE: Formal verification of the LibraBFT consensus algorithm
 #+SUBTITLE: An overview of proving contracts for peer handlers
-#+AUTHOR: Chris Jenkins, Harold Carr, Mark Moir
+#+AUTHOR: ANONYMOUS
 #+DATE: 2022 Jan 18
 
 * Metadata

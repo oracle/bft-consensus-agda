@@ -120,9 +120,9 @@ EitherD-contract (EitherD-maybe f₁ f₂ (just x)) P wp =
 -- holds.  This shows that EitherD-weakestPre really does compute the
 -- weakest precondition, which is interesting and comforting, but not
 -- important for the correctness of results proved using it.
--- Chris said: EitherD-weakestPre m P is a terminal object in the
+-- ANONYMOUS said: EitherD-weakestPre m P is a terminal object in the
 -- (provability) category of preconditions for P
--- Mark agreed :-)
+-- ANONYMOUS agreed :-)
 Post⇒wp : (m : EitherD E A) → Set₁
 Post⇒wp {E}{A} m =
   (P : EitherD-Post E A)

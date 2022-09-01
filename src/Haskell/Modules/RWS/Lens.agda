@@ -22,7 +22,7 @@ private
 -- modify' here for RoundManager. We are ok as long as we can keep
 -- RoundManager in Set. If we ever need to make RoundManager at some higher
 -- Level, we will have to consider making Lens level-agnostic. Preliminary
--- exploration by @cwjnkins showed this to be somewhat painful in particular
+-- exploration by ANONYMOUS showed this to be somewhat painful in particular
 -- around composition, so we are not pursuing it for now.
 use : Lens St A → RWS Ev Wr St A
 use f = gets (_^∙ f)
