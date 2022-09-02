@@ -102,7 +102,7 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
   -- TUTORIAL: This proof has some additional commentary helping to understand the structure of the
   -- proof, and showing an example of how using abstract variants of functions makes proofs more
   -- resilient to change, as explained in
-  -- https://github.com/oracle/bft-consensus-agda/blob/main/docs/PeerHandlerContracts.org
+  --   docs/PeerHandlerContracts.org
   contract' : EitherD-weakestPre step₀ Contract
   -- step₀ is a maybeSD in context of EitherD.  Therefore, via MonadMaybeD and EitherD-MonadMaybeD,
   -- this translates to EitherD-maybe.  We first deal with the easy case, applying the NoHC1
