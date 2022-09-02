@@ -12,18 +12,29 @@ Next, we have partially defined a concrete implementation by instantiating the s
 
 ## Repository structure
 
-The development is divided into four main components:
+The LibraBFT-specific parts of our development is divided into the following components:
 
-* The [Abstract namespace](LibraBFT/Abstract) contains all the metatheory necessary for establishing the
+* The [Abstract namespace](src/LibraBFT/Abstract) contains all the metatheory necessary for establishing the
 crucial correctness condition for LibraBFT mentioned above, and some variations on it. 
 
-* The [Yasm namespace](LibraBFT/Yasm) defines the system model and captures network assumptions, and can be instantiated with peers and handlers for any distributed system; in our case, we are interested in peers participating in a consensus network.
-
-* The [Concrete namespace](LibraBFT/Concrete) provides a concrete instance of the network model in `Yasm` using
+* The [Concrete namespace](src/LibraBFT/Concrete) provides a concrete instance of the network model in `Yasm` (see below) using
 the LibraBFT messages and nomenclature. This instance is passed down to the `Abstract` layer and used
 to prove that the implementation satisfies the implementation obligations.
 
-* The [Impl namespace](LibraBFT/Impl) defines the datatypes used by the implementation as well as (ongoing work on) the implementation handler functions and proofs that they satisfy the implementation obligations.
+* The [Impl namespace](src/LibraBFT/Impl) defines the datatypes and handlers for our LibraBFT implementation, and ongoing work on proofs that they satisfy the implementation obligations.
+
+The following components support our modeling and verification of the LibraBFT-specific components mentioned above.
+
+* The [Dijkstra namespace](src/Dijkstra) contains a lightweight framework for proof engineering with Predicate Transformer Semantics, the use of which is demonstrated in
+some proofs of properties in the [LibraBFT implementation](src/LibraBFT/Impl).
+
+* The [Haskell namespace](src/Haskell) contains definitions to support modeling Haskell code in Agda with very similar syntax.
+
+* The [Optics namespace](src/Optics) contains a small library to enable modeling Haskell lenses in Agda.
+
+* The [Util namespace](src/Dijkstra) contains various utilities such as support for byte strings, cryptographic hashes and signatures, etc.
+
+* The [Yasm namespace](src/Yasm) defines the system model and captures network assumptions, and can be instantiated with peers and handlers for any distributed system; in our case, we are interested in peers participating in a consensus network.
 
 ## Work in progress
 
@@ -35,7 +46,7 @@ To work with `Agda-LBFT`, you need to have Agda and its standard library install
 
 Once you have installed the correct version of Agda, you should be able to run `./Scripts/run-everything.sh yes` from the root directory of the project and observe successful completion with no errors.
 
-To explore the repo, we suggest starting with the [`LibraBFT.Abstract.Properties`](LibraBFT/Abstract/Properties.agda) module if you are interested in exploring the abstract correctness proof, and with the [`LibraBFT.Yasm.Properties`](LibraBFT/Yasm/Properties.agda) module if you are interested in the system model and its properties.
+To explore the repo, we suggest starting with the [`LibraBFT.Abstract.Properties`](src/LibraBFT/Abstract/Properties.agda) module if you are interested in exploring the abstract correctness proof, and with the [`LibraBFT.Yasm.Properties`](src/LibraBFT/Yasm/Properties.agda) module if you are interested in the system model and its properties.
 
 If you would like to consider contributing to the project, please see our [Contribution Guide](CONTRIBUTING.md).
 
