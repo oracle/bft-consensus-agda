@@ -52,7 +52,7 @@ If you would like to consider contributing to the project, please see our [Contr
 
 ## Get Support
 
-* Open a [GitHub issue](https://github.com/oracle/bft-consensus-agda/issues) to provide feedback, raise issues and ask questions.
+* Open a [GitHub issue](../../issues) to provide feedback, raise issues and ask questions.
 * Report a security vulnerability according to the [Reporting Vulnerabilities guide](https://www.oracle.com/corporate/security-practices/assurance/vulnerability/reporting.html). More information at [SECURITY](SECURITY.md).
 
 ## License
