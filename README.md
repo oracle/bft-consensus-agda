@@ -67,7 +67,7 @@ We are grateful to the following people for contributions since then:
 
 ## Security
 
-Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process
+Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process.
 
 ## License
 
