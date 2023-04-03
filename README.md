@@ -55,14 +55,23 @@ If you would like to consider contributing to the project, please see our [Contr
 * Open a [GitHub issue](../../issues) to provide feedback, raise issues and ask questions.
 * Report a security vulnerability according to the [Reporting Vulnerabilities guide](https://www.oracle.com/corporate/security-practices/assurance/vulnerability/reporting.html). More information at [SECURITY](SECURITY.md).
 
-## License
+## Contributing
 
-`Agda-LBFT` is [licensed](LICENSE.txt) under [UPL 1.0](https://opensource.oracle.com/licenses/upl).
-
-## Contributors
+This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
 
 As of the beginning of this repo, contributions have been made by
 [Victor Cacciari Miraldo](https://github.com/VictorCMiraldo), [Harold Carr](https://github.com/haroldcarr), [Mark Moir](https://github.com/mark-moir), and [Lisandra Silva](https://github.com/lisandrasilva), all while employed at Oracle Labs.
 
 We are grateful to the following people for contributions since then:
 * [Chris Jenkins](https://github.com/cwjnkins)
+
+## Security
+
+Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process.
+
+## License
+
+Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+
+Released under the Universal Permissive License v1.0 as shown at
+<https://oss.oracle.com/licenses/upl/>.
