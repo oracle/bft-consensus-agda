@@ -1,9 +1,11 @@
 # Formal verification of byzantine fault tolerant consensus in Agda
 
+**UPDATE**: this repo has been or soon will be archived.  See [below](#work-in-progress) for status of the work.
+
   This repository contains **work in progress** towards a model and formal verification of a Byzantine Fault Tolerant consensus protocol based on [LibraBFT](https://developers.diem.com/docs/technical-papers/state-machine-replication-paper), which is itself based on [HotStuff](https://arxiv.org/abs/1803.05069).  (Note that LibraBFT has recently been renamed to DiemBFT.)  The model and proofs are written in [Agda](https://agda.readthedocs.io).
 
   Our first contribution is an abstract representation of a system in which records (blocks, votes, and quorum certificates) exist satisfying certain properties, along with proofs that various correctness conditions hold, subject to assumptions about the maximum number of dishonest participants (per epoch) and rules that honest participants follow when sending votes, which we call *implementation obligations*.  One such correctness condition is essentially Theorem S5 from earlier versions of the LIbraBFT paper, which can be informally stated as:
-  
+
 > Given two committed blocks `b` and `b'`, either `b` extends `b'` or vice-versa.
 
 Our next contribution is a system model  (`Yasm`), which can be instantiated to model an asynchronous distributed system in which a number of peers communicate by sending messages; messages can be reordered, dropped or duplicated.  The model is also instantiated with *handlers*, which take a message that has been sent and a previous peer state and produce a new peer state and a list of actions to perform, such as sending messages.  Honest behavior is modeled by these handlers, while dishonest (Byzantine) behavior is modeled by a "cheat" step that can send arbitrary messages, except that it is constrained so that it cannot forge honest signatures.  The system model supports a notion of "epochs", each of which has an "epoch configuration" that identifies the participants for each epoch, along with their public keys and various configuration parameters; this is used to constrain which messages can be sent by a cheat step.
@@ -15,7 +17,7 @@ Next, we have partially defined a concrete implementation by instantiating the s
 The LibraBFT-specific parts of our development is divided into the following components:
 
 * The [Abstract namespace](src/LibraBFT/Abstract) contains all the metatheory necessary for establishing the
-crucial correctness condition for LibraBFT mentioned above, and some variations on it. 
+crucial correctness condition for LibraBFT mentioned above, and some variations on it.
 
 * The [Concrete namespace](src/LibraBFT/Concrete) provides a concrete instance of the network model in `Yasm` (see below) using
 the LibraBFT messages and nomenclature. This instance is passed down to the `Abstract` layer and used
@@ -39,6 +41,16 @@ some proofs of properties in the [LibraBFT implementation](src/LibraBFT/Impl).
 ## Work in progress
 
 As stated above, this repository represents **work in progress**.  While our work to date is encouraging, at this stage, nobody should interpret our work as proof that the HotStuff / LibraBFT algorithm is correct.  Furthermore, parts of our development are incomplete and other parts are still changing somewhat as we continue work on other parts.
+
+**Update**: this work has been discontinued and has been or soon will be archived.  We completed the
+proof of the abstract model and published a paper [Towards Formal Verification of HotStuff-Based
+Byzantine Fault Tolerant Consensus in Agda](https://dl.acm.org/doi/10.1007/978-3-031-06773-0_33)
+about it in [NASA Formal Methods: 14th International Symposium, NFM
+2022](https://dl.acm.org/doi/proceedings/10.1007/978-3-031-06773-0).  We also wrote a paper [Proof
+Engineering with Predicate Transformer Semantics](https://arxiv.org/abs/2208.08070), which presents
+techniques that would have sped up completion of our effort to prove that (the model of) our
+concrete implementation satisfies the assumptions of the abstract model.   However, the project was
+discontinued before we could complete that work.
 
 ## Getting started
 
